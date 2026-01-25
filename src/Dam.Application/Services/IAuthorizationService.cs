@@ -1,0 +1,39 @@
+namespace Dam.Application.Services;
+
+/// <summary>
+/// Defines authorization operations for the DAM system.
+/// Handles role-based access control at the collection level.
+/// </summary>
+public interface ICollectionAuthorizationService
+{
+    /// <summary>
+    /// Checks if a user has a specific role on a collection.
+    /// </summary>
+    /// <param name="userId">User ID (from Keycloak token)</param>
+    /// <param name="collectionId">Collection ID to check</param>
+    /// <param name="requiredRole">Required role: "viewer", "contributor", "manager", "admin"</param>
+    /// <returns>True if user has the role or higher</returns>
+    Task<bool> CheckAccessAsync(string userId, Guid collectionId, string requiredRole);
+
+    /// <summary>
+    /// Gets the user's role on a specific collection.
+    /// </summary>
+    /// <returns>Role name or null if no access</returns>
+    Task<string?> GetUserRoleAsync(string userId, Guid collectionId);
+
+    /// <summary>
+    /// Checks if user can manage ACL (must be owner/admin or collection manager)
+    /// </summary>
+    Task<bool> CanManageAclAsync(string userId, Guid collectionId);
+
+    /// <summary>
+    /// Checks if user can create collections at root level.
+    /// Currently: all authenticated users can create root collections.
+    /// </summary>
+    Task<bool> CanCreateRootCollectionAsync(string userId);
+
+    /// <summary>
+    /// Checks if user can create a sub-collection under a parent.
+    /// </summary>
+    Task<bool> CanCreateSubCollectionAsync(string userId, Guid parentCollectionId);
+}
