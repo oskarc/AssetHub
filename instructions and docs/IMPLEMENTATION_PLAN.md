@@ -583,7 +583,7 @@ This ensures consistent claim lookup order: first `"sub"` (standard OIDC), then 
 - `RequireAdmin` - admin only
 
 #### Success Criteria
-- [x] Keycloak realm (media) accessible at http://localhost:8080/admin
+- [x] Keycloak realm (media) accessible at http://keycloak:8080/admin
 - [x] Test users can log in via browser
 - [x] API validates tokens from Keycloak
 - [x] Claims extracted and available in HttpContext.User
@@ -2807,7 +2807,7 @@ This starts:
 
 ### Access
 - **API**: http://localhost:7252/api
-- **Keycloak**: http://localhost:8080 (admin / admin)
+- **Keycloak**: http://keycloak:8080 (admin / admin123)
 - **MinIO Console**: http://localhost:9001 (minioadmin / minioadmin)
 
 ### Seed Initial Data
@@ -3181,7 +3181,7 @@ docker compose logs -f postgres
 | Worker crashes with exit code 139 | Background jobs not processing | Non-blocking | Run jobs in API container or external worker |
 | Keycloak /health/ready returns 404 | Docker compose health check limited | Minor | Check via admin console instead |
 | ~~Phase 1C requires client secret~~ | ~~Security concern~~ | ✅ DONE | Confidential client implemented |
-| Asset/Share endpoints disabled | Features not available | ⏳ TODO | Uncomment in Program.cs after auth fix |
+| ~~Asset/Share endpoints disabled~~ | ~~Features not available~~ | ✅ DONE | Endpoints enabled and tested |
 
 ---
 
@@ -3191,13 +3191,41 @@ docker compose logs -f postgres
 |-------|--------|----------|-------------|
 | Phase 1A: Docker & Database | ✅ COMPLETE | None | Monitor logs |
 | Phase 1B: Collections API | ✅ COMPLETE | None | In production use |
-| **Phase 1C: Authentication** | ✅ COMPLETE | None | Client secret + role policies implemented |
-| Phase 2A: Upload & Processing | ✅ CODE COMPLETE | Enable after 1C | Uncomment, test |
-| Phase 2B: Video & Presigned URLs | ✅ CODE COMPLETE | Enable after 2A | Uncomment, test |
-| Phase 3A: UI - Collections & Grid | ❌ NOT STARTED | Asset endpoints | Design & build Blazor components |
-| Phase 3B: Sharing & Audit | ✅ CODE COMPLETE | Enable after 2B | Uncomment, test |
+| **Phase 1C: Authentication** | ✅ COMPLETE | None | Dual auth (Cookie + JWT Bearer) working |
+| Phase 2A: Upload & Processing | ✅ TESTED | None | Image thumbnails generating correctly |
+| Phase 2B: Video & Presigned URLs | ✅ CODE COMPLETE | None | Ready for video upload testing |
+| Phase 3A: UI - Collections & Grid | ❌ NOT STARTED | None | Design & build Blazor components |
+| Phase 3B: Sharing & Audit | 🔄 PARTIAL | ShareRepository | Share creation works, retrieval needs implementation |
 | Phase 3C: Testing | ❌ NOT STARTED | All features | Create unit/integration tests |
 | Phase 3D: Deployment & Docs | 🔄 PARTIAL | Prod config | Create prod Compose, README |
+
+---
+
+## API Endpoint Testing Results (2026-01-27)
+
+### Successful Tests ✅
+
+| Endpoint | Method | Result |
+|----------|--------|--------|
+| `/api/collections` | GET | Lists collections |
+| `/api/collections` | POST | Creates collection |
+| `/api/assets` | GET | Lists assets (empty initially) |
+| `/api/assets` | POST | Uploads file + triggers Hangfire job |
+| `/api/assets/{id}` | GET | Returns asset with thumb/medium keys populated |
+| `/api/shares` | POST | Creates share with token + URL |
+
+### Fixes Applied During Testing
+
+1. **Anti-forgery tokens** - Added `DisableAntiforgery()` to API endpoint groups (JWT Bearer doesn't use CSRF tokens)
+2. **Npgsql JSONB support** - Added `EnableDynamicJson()` to NpgsqlDataSourceBuilder for Dictionary<string,object> columns
+3. **ImageMagick** - Added to Dockerfile for thumbnail generation
+4. **Database name mismatch** - Fixed appsettings.json to use `assethub` (was `asethub`)
+5. **Migration Designer.cs** - Created missing file so EF Core recognizes migrations
+
+### Pending Implementation
+
+- `GET /api/shares/{token}` - Returns placeholder, needs ShareRepository lookup
+- `GET /api/shares/{token}/download` - Not implemented
 
 ---
 
@@ -3207,15 +3235,16 @@ docker compose logs -f postgres
 - ASP.NET Core 9 API running on http://localhost:7252
 - Collections CRUD fully functional
 - Keycloak OIDC authentication (browser login working)
+- JWT Bearer authentication (API access working)
 - PostgreSQL database with EF migrations
 - MinIO object storage
-- Hangfire job scheduling
+- Hangfire job scheduling (image processing tested)
 - Docker Compose multi-service orchestration
+- Asset upload + thumbnail generation
+- Share link creation
 
 **Ready to Enable** 🟡:
-- Asset upload/retrieval endpoints
 - Video processing service
-- Share token generation
 - Audit logging
 
 **Deferred** ❌:
@@ -3226,7 +3255,7 @@ docker compose logs -f postgres
 
 **Test Credentials**:
 - App Login: http://localhost:7252 → testuser / testuser123
-- Keycloak Admin: http://localhost:8080/admin → admin / admin123
+- Keycloak Admin: http://keycloak:8080/admin → admin / admin123
 - Media Admin: mediaadmin / mediaadmin123
 3. **Video Transcoding**: Not in MVP; can add HLS streaming in Phase 2
 4. **Mobile**: Desktop-first in MVP; responsive design in Phase 2

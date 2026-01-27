@@ -1,0 +1,1 @@
+﻿ALTER TABLE "Shares" DROP CONSTRAINT IF EXISTS "FK_Shares_Assets_ScopeId"; ALTER TABLE "Shares" DROP CONSTRAINT IF EXISTS "FK_Shares_Collections_ScopeId";

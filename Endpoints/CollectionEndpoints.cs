@@ -13,6 +13,7 @@ public static class CollectionEndpoints
     {
         var group = app.MapGroup("/api/collections")
             .WithName("Collections")
+            .DisableAntiforgery() // API uses JWT Bearer auth, not cookies with CSRF tokens
             .RequireAuthorization();
 
         group.MapGet("", GetRootCollections)

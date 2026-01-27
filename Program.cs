@@ -28,10 +28,14 @@ builder.Services
 
 builder.Services.AddHttpContextAccessor();
 
-// Database
+// Database with Npgsql dynamic JSON support for Dictionary<string, object> in jsonb columns
 var connectionString = builder.Configuration.GetConnectionString("Postgres");
+var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+dataSourceBuilder.EnableDynamicJson();
+var dataSource = dataSourceBuilder.Build();
+
 builder.Services.AddDbContext<AssetHubDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(dataSource));
 
 // Hangfire
 builder.Services.AddHangfire(config =>
@@ -48,6 +52,7 @@ builder.Services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizat
 builder.Services.AddScoped<ICollectionRepository, CollectionRepository>();
 builder.Services.AddScoped<ICollectionAclRepository, CollectionAclRepository>();
 builder.Services.AddScoped<IAssetRepository, AssetRepository>();
+builder.Services.AddScoped<IShareRepository, ShareRepository>();
 builder.Services.AddScoped<IMinIOAdapter, MinIOAdapter>();
 builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
 
@@ -100,6 +105,7 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
+        // Only accept tokens issued from keycloak:8080 (Docker internal hostname)
         ValidIssuer = keycloakAuthority,
         ValidateAudience = false, // Keycloak doesn't always include audience
         ValidateLifetime = true,

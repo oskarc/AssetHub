@@ -23,6 +23,12 @@ RUN dotnet publish "AssetHub.csproj" -c Release -o /app/publish /p:UseAppHost=fa
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+
+# Install ImageMagick for image processing (thumbnails, resizing)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    imagemagick \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY --from=publish /app/publish .
 

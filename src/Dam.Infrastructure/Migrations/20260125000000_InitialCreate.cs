@@ -110,18 +110,8 @@ namespace Dam.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Shares", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Shares_Assets_ScopeId",
-                        column: x => x.ScopeId,
-                        principalTable: "Assets",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Shares_Collections_ScopeId",
-                        column: x => x.ScopeId,
-                        principalTable: "Collections",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                    // Note: ScopeId is polymorphic - can reference Assets or Collections based on ScopeType
+                    // No FK constraint here - enforced at application level
                 });
 
             migrationBuilder.CreateTable(

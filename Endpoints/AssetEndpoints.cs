@@ -13,6 +13,7 @@ public static class AssetEndpoints
     {
         var group = app.MapGroup("/api/assets")
             .RequireAuthorization()
+            .DisableAntiforgery() // API uses JWT Bearer auth, not cookies with CSRF tokens
             .WithTags("Assets");
 
         group.MapGet("", GetAssets).WithName("GetAssets");
