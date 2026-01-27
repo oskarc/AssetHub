@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using System.Net;
-using AssetHub.Components;
+using Dam.Ui;
 using AssetHub.Endpoints;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
@@ -262,7 +262,7 @@ var app = builder.Build();
 // Always log a build stamp so it's easy to verify which binary is running.
 {
     var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("BuildStamp");
-    logger.LogInformation("AssetHub starting. BuildStamp={BuildStamp}. Environment={Environment}", AssetHub.BuildInfo.Stamp, app.Environment.EnvironmentName);
+    logger.LogInformation("AssetHub starting. BuildStamp={BuildStamp}. Environment={Environment}", Dam.Application.BuildInfo.Stamp, app.Environment.EnvironmentName);
 }
 
 if (!app.Environment.IsDevelopment())
@@ -352,13 +352,13 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 // Simple build stamp endpoint to confirm which binary is running.
-app.MapGet("/__build", () => Results.Json(new { stamp = AssetHub.BuildInfo.Stamp, environment = app.Environment.EnvironmentName }));
+app.MapGet("/__build", () => Results.Json(new { stamp = Dam.Application.BuildInfo.Stamp, environment = app.Environment.EnvironmentName }));
 
 // Development-only: verify Keycloak userinfo via direct API calls (token + userinfo).
 // Local-only guard prevents exposing this outside localhost.
 app.MapGet("/debug/ping", (HttpContext http) =>
     {
-        if (!AssetHub.DebugGuard.IsLocalDebugRequest(http))
+        if (!Dam.Application.DebugGuard.IsLocalDebugRequest(http))
             return Results.NotFound();
 
         var env = app.Environment.EnvironmentName;
@@ -370,7 +370,7 @@ app.MapGet("/debug/ping", (HttpContext http) =>
 
 app.MapPost("/debug/keycloak/userinfo-probe", async (HttpContext http, IConfiguration config) =>
     {
-        if (!AssetHub.DebugGuard.IsLocalDebugRequest(http))
+        if (!Dam.Application.DebugGuard.IsLocalDebugRequest(http))
             return Results.NotFound();
 
         var authority = config["Keycloak:Authority"] ?? "http://keycloak:8080/realms/media";

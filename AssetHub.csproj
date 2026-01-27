@@ -7,6 +7,13 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
+  <!-- Exclude src/ from this project - it's compiled by the referenced projects -->
+  <ItemGroup>
+    <Compile Remove="src/**/*.cs" />
+    <Content Remove="src/**" />
+    <None Remove="src/**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.9" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.0.*" />
@@ -25,6 +32,7 @@
     <ProjectReference Include="src/Dam.Domain/Dam.Domain.csproj" />
     <ProjectReference Include="src/Dam.Application/Dam.Application.csproj" />
     <ProjectReference Include="src/Dam.Infrastructure/Dam.Infrastructure.csproj" />
+    <ProjectReference Include="src/Dam.Ui/Dam.Ui.csproj" />
   </ItemGroup>
 
 </Project>

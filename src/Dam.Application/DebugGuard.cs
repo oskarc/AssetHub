@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Http;
 
-namespace AssetHub;
+namespace Dam.Application;
 
 public static class DebugGuard
 {

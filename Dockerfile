@@ -6,6 +6,7 @@ COPY ["AssetHub.csproj", "./"]
 COPY ["src/Dam.Domain/Dam.Domain.csproj", "src/Dam.Domain/"]
 COPY ["src/Dam.Application/Dam.Application.csproj", "src/Dam.Application/"]
 COPY ["src/Dam.Infrastructure/Dam.Infrastructure.csproj", "src/Dam.Infrastructure/"]
+COPY ["src/Dam.Ui/Dam.Ui.csproj", "src/Dam.Ui/"]
 
 # Restore dependencies
 RUN dotnet restore "AssetHub.csproj"
