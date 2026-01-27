@@ -47,33 +47,65 @@ builder.Services.AddMudServices();
 builder.Services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizationService>();
 builder.Services.AddScoped<ICollectionRepository, CollectionRepository>();
 builder.Services.AddScoped<ICollectionAclRepository, CollectionAclRepository>();
-//builder.Services.AddScoped<IAssetRepository, AssetRepository>();
-//builder.Services.AddScoped<IMinIOAdapter, MinIOAdapter>();
-//builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
+builder.Services.AddScoped<IAssetRepository, AssetRepository>();
+builder.Services.AddScoped<IMinIOAdapter, MinIOAdapter>();
+builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
 
-//// MinIO client
-//var minioSettings = builder.Configuration.GetSection("MinIO");
-//var minioEndpoint = minioSettings["Endpoint"] ?? "localhost:9000";
-//var minioAccessKey = minioSettings["AccessKey"] ?? "minioadmin";
-//var minioSecretKey = minioSettings["SecretKey"] ?? "minioadmin";
-//var minioUseSsl = minioSettings.GetValue("UseSsl", false);
-//
-//var minioClient = new Minio.MinioClient()
-//    .WithEndpoint(minioEndpoint)
-//    .WithCredentials(minioAccessKey, minioSecretKey)
-//    .WithSSL(minioUseSsl)
-//    .Build();
-//
-//builder.Services.AddSingleton(minioClient);
+// MinIO client
+var minioSettings = builder.Configuration.GetSection("MinIO");
+var minioEndpoint = minioSettings["Endpoint"] ?? "localhost:9000";
+var minioAccessKey = minioSettings["AccessKey"] ?? "minioadmin";
+var minioSecretKey = minioSettings["SecretKey"] ?? "minioadmin";
+var minioUseSsl = minioSettings.GetValue("UseSsl", false);
+
+var minioClient = new Minio.MinioClient()
+    .WithEndpoint(minioEndpoint)
+    .WithCredentials(minioAccessKey, minioSecretKey)
+    .WithSSL(minioUseSsl)
+    .Build();
+
+builder.Services.AddSingleton<Minio.IMinioClient>(minioClient);
 
 // AuthN/AuthZ
 // Development-only diagnostics: capture Keycloak userinfo failures (401/403/etc) with response body.
 builder.Services.AddSingleton<IPostConfigureOptions<OpenIdConnectOptions>, AssetHub.OidcBackchannelLoggingPostConfigure>();
 
+// Keycloak configuration
+var keycloakConfig = builder.Configuration.GetSection("Keycloak");
+var keycloakAuthority = keycloakConfig["Authority"] ?? "http://keycloak:8080/realms/media";
+var clientSecret = keycloakConfig["ClientSecret"];
+if (string.IsNullOrWhiteSpace(clientSecret))
+    throw new InvalidOperationException("Keycloak:ClientSecret must be configured in appsettings. Check appsettings.json or environment variables.");
+
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultScheme = "Smart"; // Use policy scheme to select based on request
     options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+})
+.AddPolicyScheme("Smart", "Smart Auth Selector", options =>
+{
+    // Select JWT Bearer for API requests with Authorization header, otherwise Cookie
+    options.ForwardDefaultSelector = context =>
+    {
+        string? authorization = context.Request.Headers.Authorization;
+        if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+        return CookieAuthenticationDefaults.AuthenticationScheme;
+    };
+})
+.AddJwtBearer(options =>
+{
+    options.Authority = keycloakAuthority;
+    options.RequireHttpsMetadata = false;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidIssuer = keycloakAuthority,
+        ValidateAudience = false, // Keycloak doesn't always include audience
+        ValidateLifetime = true,
+        NameClaimType = "preferred_username",
+        RoleClaimType = ClaimTypes.Role
+    };
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
@@ -83,20 +115,14 @@ builder.Services.AddAuthentication(options =>
 .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
     // --- Keycloak OIDC endpoints ---
-    var keycloakConfig = builder.Configuration.GetSection("Keycloak");
-    
     // Using single URL for all Keycloak communication (keycloak hostname resolves to 127.0.0.1 via hosts file)
     // This works for both browser (Windows host) and container-to-container communication
-    var keycloakUri = keycloakConfig["Authority"] ?? "http://keycloak:8080/realms/media";
-    options.Authority = keycloakUri;
-    options.MetadataAddress = keycloakUri + "/.well-known/openid-configuration";
+    options.Authority = keycloakAuthority;
+    options.MetadataAddress = keycloakAuthority + "/.well-known/openid-configuration";
     
     options.ClientId = keycloakConfig["ClientId"] ?? "assethub-app";
     
     // Client secret for confidential client flow - required for confidential clients
-    var clientSecret = keycloakConfig["ClientSecret"];
-    if (string.IsNullOrWhiteSpace(clientSecret))
-        throw new InvalidOperationException("Keycloak:ClientSecret must be configured in appsettings. Check appsettings.json or environment variables.");
     options.ClientSecret = clientSecret;
 
     // .NET dev: Keycloak kör oftast http lokalt
@@ -136,7 +162,7 @@ builder.Services.AddAuthentication(options =>
     {
         NameClaimType = "preferred_username",  // Keycloak har ofta preferred_username
         RoleClaimType = ClaimTypes.Role,       // vi mappar in ClaimTypes.Role nedan
-        ValidIssuer = "http://keycloak:8080/realms/media"  // Single issuer since we use consistent keycloak:8080 URL
+        ValidIssuer = keycloakAuthority  // Single issuer since we use consistent keycloak:8080 URL
     };
 
     // No URL rewriting needed - using single consistent URL via hosts file
@@ -469,8 +495,8 @@ app.MapGet("/auth/logout", async (HttpContext http) =>
 
 // API Endpoints
 app.MapCollectionEndpoints();
-//app.MapAssetEndpoints();
-//app.MapShareEndpoints();
+app.MapAssetEndpoints();
+app.MapShareEndpoints();
 
 // Blazor endpoints
 app.MapRazorComponents<App>()

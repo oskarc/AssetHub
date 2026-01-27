@@ -94,15 +94,10 @@ public class AssetHubDbContext : DbContext
             entity.Property(e => e.ScopeType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.PermissionsJson).HasColumnType("jsonb");
 
-            entity.HasOne(e => e.Asset)
-                .WithMany()
-                .HasForeignKey(e => e.ScopeType == "asset" ? e.ScopeId : null)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.Collection)
-                .WithMany()
-                .HasForeignKey(e => e.ScopeType == "collection" ? e.ScopeId : null)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Note: Asset and Collection relationships are polymorphic via ScopeType/ScopeId
+            // FK constraints are enforced at application level, not DB level
+            entity.Ignore(e => e.Asset);
+            entity.Ignore(e => e.Collection);
         });
 
         // AuditEvent

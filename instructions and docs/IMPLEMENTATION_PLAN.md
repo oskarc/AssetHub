@@ -98,13 +98,15 @@ services:
     depends_on: postgres
 
   api:
-    build: ./src/Dam.Api
+    build: .
+    dockerfile: Dockerfile
     env: ConnectionStrings__Postgres=..., Minio__Endpoint=minio:9000, ...
     ports: 7252:7252
     depends_on: postgres, minio, keycloak
 
   hangfire-worker:
-    build: ./src/Dam.Worker
+    build: .
+    dockerfile: Dockerfile.Worker
     env: (same as api + HANGFIRE_STORAGE=postgres)
     depends_on: postgres, minio
 
@@ -461,27 +463,74 @@ public class CollectionDto
   - mediaadmin / mediaadmin123 (media realm admin)
 - Client: assethub-app (configured as confidential client with client secret)
 
-**OIDC Configuration (Program.cs)**
+**Dual Authentication Configuration (Program.cs)**
+
+The application supports **two authentication methods**:
+
+| Method | Use Case | How It Works |
+|--------|----------|--------------|
+| **Cookie + OIDC** | Blazor Server UI (browser) | Browser redirects to Keycloak login, session maintained via cookie |
+| **JWT Bearer** | API clients (curl, Postman, mobile apps) | Client sends `Authorization: Bearer <token>` header |
+
+A **policy scheme** automatically selects the appropriate method based on the presence of an `Authorization: Bearer` header.
+
 ```csharp
-services.AddAuthentication()
-    .AddOpenIdConnect("Keycloak", options =>
+// Dual auth: Cookie for browser UI, JWT Bearer for API clients
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = "DualAuth";
+    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+})
+.AddPolicyScheme("DualAuth", "Cookie or Bearer", options =>
+{
+    options.ForwardDefaultSelector = context =>
     {
-        options.Authority = "http://keycloak:8080/realms/media"; // Docker network
-        options.MetadataAddress = "http://host.docker.internal:8080/realms/media"; // Windows override
-        options.ClientId = "assethub-app";
-        options.ResponseType = "code";
-        options.UsePkce = true;
-        options.Scope.Add("openid");
-        options.Scope.Add("profile");
-        options.Scope.Add("email");
-        options.SaveTokens = true;
-    });
+        var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+        if (authHeader?.StartsWith("Bearer ") == true)
+            return JwtBearerDefaults.AuthenticationScheme;
+        return CookieAuthenticationDefaults.AuthenticationScheme;
+    };
+})
+.AddCookie()
+.AddJwtBearer(options =>
+{
+    options.Authority = keycloakAuthority; // "http://keycloak:8080/realms/media"
+    options.Audience = "assethub-app";
+    options.RequireHttpsMetadata = false;
+})
+.AddOpenIdConnect(options =>
+{
+    options.Authority = keycloakAuthority;
+    options.ClientId = "assethub-app";
+    options.ClientSecret = clientSecret;
+    options.ResponseType = "code";
+    options.UsePkce = true;
+    options.Scope.Add("openid");
+    options.Scope.Add("profile");
+    options.Scope.Add("email");
+    options.SaveTokens = true;
+    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+});
+```
+
+**API Usage with JWT Bearer**
+```bash
+# Get token from Keycloak
+TOKEN=$(curl -s -X POST "http://keycloak:8080/realms/media/protocol/openid-connect/token" \
+  -d "grant_type=password" \
+  -d "client_id=assethub-app" \
+  -d "client_secret=VxBiV29QVchYHFzD5N62l43fTXbTMzSl" \
+  -d "username=admin" \
+  -d "password=admin123" | jq -r '.access_token')
+
+# Call API with Bearer token
+curl -H "Authorization: Bearer $TOKEN" http://localhost:7252/api/assets
 ```
 
 **JWT Token Processing**
-- Tokens validated against Keycloak public key
+- Tokens validated against Keycloak public key (JWKS endpoint)
 - Claims extracted: `sub` (user ID), `preferred_username`, `email`, `groups`
-- Role mapping: Keycloak group memberships → ASP.NET Core roles
+- Role mapping: Keycloak realm roles → ASP.NET Core role claims
 - Authorization policies enforce `RequireAuthorization()` on protected endpoints
 
 **User ID Extraction Pattern**
@@ -547,11 +596,11 @@ This ensures consistent claim lookup order: first `"sub"` (standard OIDC), then 
 
 ### Phase 2A: Upload Flow & Hangfire Jobs (Days 6-8)
 
-**STATUS: ✅ CODE COMPLETE, CURRENTLY DISABLED**
+**STATUS: ✅ ENABLED**
 
 > All endpoint code implemented and compiling without errors. Asset CRUD operations ready. MinIO adapter for S3-compatible storage configured. Media processing service structure in place. Hangfire job scheduling integrated.
 > 
-> **Current State**: Endpoints commented out in Program.cs line 191 (`//app.MapAssetEndpoints();`). Ready to enable once authentication phase complete and Asset endpoints need full testing.
+> **Current State**: Endpoints enabled in Program.cs (`app.MapAssetEndpoints();`). Authentication integration with Keycloak verified working.
 
 #### Deliverables
 - [x] Asset entity and repository
@@ -1313,7 +1362,19 @@ public class SearchAssetsHandler
 - [ ] Upload UI (drag-and-drop, progress)
 
 #### Modules Involved
-- **Dam.Ui**: Blazor components, pages, services
+- **Dam.Ui**: Blazor Razor Class Library (pages, layouts, components)
+
+**Current Dam.Ui Structure:**
+```
+src/Dam.Ui/
+├── Dam.Ui.csproj       # Razor Class Library (Microsoft.NET.Sdk.Razor)
+├── _Imports.razor      # Global usings for Razor components
+├── App.razor           # Root app component
+├── Routes.razor        # Router configuration
+├── Layout/             # MainLayout.razor, NavMenu.razor
+├── Pages/              # Home.razor, Counter.razor, etc.
+└── Components/         # (future) Reusable components like CollectionTree, AssetUpload
+```
 
 #### Tasks (UI Implementation - Full Component List)
 
@@ -1755,11 +1816,11 @@ else
 
 ### Phase 3B: Sharing & Audit (Days 13-14)
 
-**STATUS: ✅ CODE COMPLETE, CURRENTLY DISABLED**
+**STATUS: ✅ ENABLED**
 
 > All Share endpoint code implemented and compiling. Share token generation service ready. Public share access logic working (no auth required). Share revocation endpoint complete. Audit logging structure in place. 
 >
-> **Current State**: Endpoints commented out in Program.cs line 192 (`//app.MapShareEndpoints();`). Ready to enable once Asset endpoints enabled and tested.
+> **Current State**: Endpoints enabled in Program.cs (`app.MapShareEndpoints();`). Public share access verified working.
 
 #### Deliverables
 - [x] Share creation endpoint & UI
@@ -2632,7 +2693,7 @@ services:
 
   api:
     build:
-      context: ./src/Dam.Api
+      context: .
       dockerfile: Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -2658,8 +2719,8 @@ services:
 
   worker:
     build:
-      context: ./src/Dam.Worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.Worker
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Postgres: ${DB_CONNECTION_STRING}
@@ -2751,7 +2812,7 @@ This starts:
 
 ### Seed Initial Data
 ```bash
-dotnet run --project src/Dam.Api -- --seed
+dotnet run -- --seed
 ```
 
 ## Production Deployment
@@ -2797,15 +2858,23 @@ docker exec -i assethub_postgres psql -U postgres asethub < backup.sql
 ## Architecture
 
 ```
-src/
-├── Dam.Domain          # Entities, domain logic, interfaces
-├── Dam.Application     # Use cases, DTOs, handlers
-├── Dam.Infrastructure  # EF Core, MinIO, Hangfire
-├── Dam.Api             # ASP.NET Core endpoints
-├── Dam.Worker          # Background job processing
-├── Dam.Ui              # Blazor Server frontend
-└── Dam.Shared          # Common contracts
+AssetHub/
+├── AssetHub.csproj         # Main host project (Blazor Server + API endpoints)
+├── AssetHub.sln
+├── Program.cs              # Application entry point
+├── Endpoints/              # Minimal API endpoint definitions
+├── Dockerfile              # API container
+├── Dockerfile.Worker       # Worker container
+├── docker-compose.yml      # Full stack orchestration
+└── src/
+    ├── Dam.Domain          # Entities, domain logic, interfaces
+    ├── Dam.Application     # Use cases, DTOs, handlers, BuildInfo, DebugGuard
+    ├── Dam.Infrastructure  # EF Core, MinIO, Hangfire
+    ├── Dam.Worker          # Background job processing
+    └── Dam.Ui              # Blazor Razor Class Library (pages, layouts, components)
 ```
+
+**Note**: The main `AssetHub` project at the root serves as the host application. It references all `Dam.*` projects under `src/`. The `Dam.Ui` project is a Razor Class Library containing all Blazor components, pages, and layouts. Utility classes like `BuildInfo` and `DebugGuard` live in `Dam.Application`.
 
 ## Security
 
