@@ -82,9 +82,7 @@ public static class ShareEndpoints
             TokenHash = tokenHash,
             ExpiresAt = dto.ExpiresAt ?? DateTime.UtcNow.AddDays(7), // Default 7 days
             CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = httpContext.User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier)
-                ?? httpContext.User.FindFirstValue("sub")
-                ?? "unknown",
+            CreatedByUserId = httpContext.User.GetUserIdOrDefault(),
             PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
             PasswordHash = !string.IsNullOrWhiteSpace(dto.Password)
                 ? Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(dto.Password)))

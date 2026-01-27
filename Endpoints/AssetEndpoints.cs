@@ -53,9 +53,7 @@ public static class AssetEndpoints
         int skip = 0,
         int take = 50)
     {
-        var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) 
-            ?? httpContext.User.FindFirstValue("sub")
-            ?? "unknown";
+        var userId = httpContext.User.GetUserIdOrDefault();
 
         // Check if user can access this collection
         var canAccess = await authService.CheckAccessAsync(userId, collectionId, "viewer");
@@ -82,9 +80,7 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext)
     {
-        var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? httpContext.User.FindFirstValue("sub")
-            ?? "unknown";
+        var userId = httpContext.User.GetUserIdOrDefault();
 
         // Check if user can contribute to this collection
         var canContribute = await authService.CheckAccessAsync(userId, collectionId, "contributor");
@@ -155,9 +151,7 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext)
     {
-        var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? httpContext.User.FindFirstValue("sub")
-            ?? "unknown";
+        var userId = httpContext.User.GetUserIdOrDefault();
 
         var asset = await assetRepository.GetByIdAsync(id);
         if (asset == null)
@@ -186,9 +180,7 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext)
     {
-        var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? httpContext.User.FindFirstValue("sub")
-            ?? "unknown";
+        var userId = httpContext.User.GetUserIdOrDefault();
 
         var asset = await assetRepository.GetByIdAsync(id);
         if (asset == null)

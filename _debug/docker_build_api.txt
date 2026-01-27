@@ -1,0 +1,157 @@
+﻿docker : time="2026-01-26T21:52:46+01:00" level=warning msg="D:\\projects\\AssetHub\\docker-compose.yml: the
+ attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+At line:1 char:64
++ ... "_debug" | Out-Null; docker compose build --no-cache api *>&1 | Out-F ...
++                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (time="2026-01-2...tial confusion":String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ Image assethub-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 511B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 839B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for mcr.microsoft.com/dotnet/aspnet:9.0
+#3 ...
+
+#4 [internal] load metadata for mcr.microsoft.com/dotnet/sdk:9.0
+#4 DONE 0.3s
+
+#3 [internal] load metadata for mcr.microsoft.com/dotnet/aspnet:9.0
+#3 DONE 0.3s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [build 1/9] FROM mcr.microsoft.com/dotnet/sdk:9.0@sha256:0d84f05256dec37a5d1739158fd5ea197b8ad3b4e8d0e32be47b754db5963a9e
+#7 resolve mcr.microsoft.com/dotnet/sdk:9.0@sha256:0d84f05256dec37a5d1739158fd5ea197b8ad3b4e8d0e32be47b754db5963a9e 0.1s done
+#7 DONE 0.1s
+
+#8 [build 2/9] WORKDIR /src
+#8 CACHED
+
+#9 [final 1/3] FROM mcr.microsoft.com/dotnet/aspnet:9.0@sha256:8bbb7b9045f04a32d2eaad43b351e67f07c1f9604811dd505fc3654b4bec2176
+#9 resolve mcr.microsoft.com/dotnet/aspnet:9.0@sha256:8bbb7b9045f04a32d2eaad43b351e67f07c1f9604811dd505fc3654b4bec2176 0.1s done
+#9 DONE 0.1s
+
+#10 [final 2/3] WORKDIR /app
+#10 CACHED
+
+#6 [internal] load build context
+#6 transferring context: 1.39MB 0.2s done
+#6 DONE 0.2s
+
+#11 [build 3/9] COPY [AssetHub.csproj, ./]
+#11 DONE 0.1s
+
+#12 [build 4/9] COPY [src/Dam.Domain/Dam.Domain.csproj, src/Dam.Domain/]
+#12 DONE 0.1s
+
+#13 [build 5/9] COPY [src/Dam.Application/Dam.Application.csproj, src/Dam.Application/]
+#13 DONE 0.1s
+
+#14 [build 6/9] COPY [src/Dam.Infrastructure/Dam.Infrastructure.csproj, src/Dam.Infrastructure/]
+#14 DONE 0.1s
+
+#15 [build 7/9] RUN dotnet restore "AssetHub.csproj"
+#15 1.330   Determining projects to restore...
+#15 2.375   Restored /src/src/Dam.Domain/Dam.Domain.csproj (in 105 ms).
+#15 2.375   Restored /src/src/Dam.Application/Dam.Application.csproj (in 108 ms).
+#15 10.63   Restored /src/src/Dam.Infrastructure/Dam.Infrastructure.csproj (in 8.4 sec).
+#15 15.53   Restored /src/AssetHub.csproj (in 13.3 sec).
+#15 DONE 15.8s
+
+#16 [build 8/9] COPY . .
+#16 DONE 0.8s
+
+#17 [build 9/9] RUN dotnet build "AssetHub.csproj" -c Release -o /app/build
+#17 1.088   Determining projects to restore...
+#17 2.235   Restored /src/src/Dam.Domain/Dam.Domain.csproj (in 137 ms).
+#17 2.235   Restored /src/src/Dam.Application/Dam.Application.csproj (in 141 ms).
+#17 2.373   Restored /src/src/Dam.Infrastructure/Dam.Infrastructure.csproj (in 288 ms).
+#17 2.401   Restored /src/AssetHub.csproj (in 312 ms).
+#17 5.385   Dam.Domain -> /app/build/Dam.Domain.dll
+#17 5.715   Dam.Application -> /app/build/Dam.Application.dll
+#17 6.473 /src/src/Dam.Infrastructure/Services/AuthorizationService.cs(62,29): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Services/MediaProcessingService.cs(144,81): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(26,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(27,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(42,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(43,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(59,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(60,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(61,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(62,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(90,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(91,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(112,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.473 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(113,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 6.533   Dam.Infrastructure -> /app/build/Dam.Infrastructure.dll
+#17 7.150 /src/Program.cs(535,1): error CS8803: Top-level statements must precede namespace and type declarations. [/src/AssetHub.csproj]
+#17 7.165 
+#17 7.166 Build FAILED.
+#17 7.166 
+#17 7.166 /src/src/Dam.Infrastructure/Services/AuthorizationService.cs(62,29): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Services/MediaProcessingService.cs(144,81): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(26,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(27,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(42,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(43,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(59,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(60,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(61,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(62,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(90,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(91,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(112,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(113,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+#17 7.166 /src/Program.cs(535,1): error CS8803: Top-level statements must precede namespace and type declarations. [/src/AssetHub.csproj]
+#17 7.166     14 Warning(s)
+#17 7.166     1 Error(s)
+#17 7.167 
+#17 7.167 Time Elapsed 00:00:06.65
+#17 ERROR: process "/bin/sh -c dotnet build \"AssetHub.csproj\" -c Release -o /app/build" did not complete successfully: exit code: 1
+------
+ > [build 9/9] RUN dotnet build "AssetHub.csproj" -c Release -o /app/build:
+7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(62,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(90,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(91,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(112,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+7.166 /src/src/Dam.Infrastructure/Data/AssetHubDbContext.cs(113,13): warning CS0618: 'RelationalIndexBuilderExtensions.HasName(IndexBuilder, string?)' is obsolete: 'Use HasDatabaseName() instead.' [/src/src/Dam.Infrastructure/Dam.Infrastructure.csproj]
+7.166 /src/Program.cs(535,1): error CS8803: Top-level statements must precede namespace and type declarations. [/src/AssetHub.csproj]
+7.166     14 Warning(s)
+7.166     1 Error(s)
+7.167 
+7.167 Time Elapsed 00:00:06.65
+------
+Dockerfile:17
+
+--------------------
+
+  15 |     
+
+  16 |     # Build
+
+  17 | >>> RUN dotnet build "AssetHub.csproj" -c Release -o /app/build
+
+  18 |     
+
+  19 |     # Publish
+
+--------------------
+
+failed to solve: process "/bin/sh -c dotnet build \"AssetHub.csproj\" -c Release -o /app/build" did not comp
+lete successfully: exit code: 1
+
+
+
+View build details: docker-desktop://dashboard/build/default/default/f7392rbpbgsp67m1nac5thidm
+

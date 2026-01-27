@@ -58,13 +58,13 @@ docker compose up --build
 This will start:
 - **PostgreSQL 16** on `localhost:5432`
 - **MinIO** on `localhost:9000` (API) and `localhost:9001` (Console)
-- **Keycloak** on `localhost:8080`
+- **Keycloak** on `keycloak:8080` (via hosts file mapping `127.0.0.1 keycloak`)
 - **API** on `localhost:7252`
 - **Hangfire Worker** (background job processing)
 
 ### 3. Access the Application
 - **App**: http://localhost:7252
-- **Keycloak Admin**: http://localhost:8080/admin
+- **Keycloak Admin**: http://keycloak:8080/admin
 - **MinIO Console**: http://localhost:9001
 
 ### 4. Log In
@@ -222,7 +222,7 @@ Visit http://localhost:7252/hangfire to monitor background jobs:
 - Job history
 
 ### Keycloak Admin Console
-Visit http://localhost:8080/admin (admin / admin123) to:
+Visit http://keycloak:8080/admin (admin / admin123) to:
 - Manage users
 - Create/modify realms
 - Configure clients

@@ -388,12 +388,13 @@ public static void MapCollectionEndpoints(this WebApplication app)
 }
 
 // Handlers extract userId/groupIds from HttpContext.User
+// Use the ClaimsPrincipalExtensions.GetUserId() extension for consistent claim extraction
 private static async Task<IResult> GetCollections(
     HttpContext http,
     IMediator mediator,
     Guid? parentId = null)
 {
-    var userId = http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = http.User.GetUserId(); // checks "sub" then ClaimTypes.NameIdentifier
     var groupIds = http.User.FindAll("groups").Select(c => c.Value).ToList();
 
     var result = await mediator.Send(new GetCollectionsQuery { ParentId = parentId });
@@ -458,7 +459,7 @@ public class CollectionDto
   - admin / admin123 (system admin)
   - testuser / testuser123 (test user - viewer)
   - mediaadmin / mediaadmin123 (media realm admin)
-- Client: assethub-app (configured as public client with PKCE)
+- Client: assethub-app (configured as confidential client with client secret)
 
 **OIDC Configuration (Program.cs)**
 ```csharp
@@ -483,21 +484,54 @@ services.AddAuthentication()
 - Role mapping: Keycloak group memberships → ASP.NET Core roles
 - Authorization policies enforce `RequireAuthorization()` on protected endpoints
 
+**User ID Extraction Pattern**
+
+Use the `ClaimsPrincipalExtensions` class in `AssetHub.Endpoints` namespace for consistent user ID extraction:
+
+```csharp
+// Extension methods (in Endpoints/ClaimsPrincipalExtensions.cs)
+public static class ClaimsPrincipalExtensions
+{
+    // Returns null if user ID not found
+    public static string? GetUserId(this ClaimsPrincipal user)
+        => user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    // Returns fallback value if user ID not found
+    public static string GetUserIdOrDefault(this ClaimsPrincipal user, string fallback = "unknown")
+        => user.GetUserId() ?? fallback;
+}
+
+// Usage in endpoint handlers:
+var userId = user.GetUserId();
+if (userId == null) return Results.Unauthorized();
+
+// For non-critical paths (e.g., logging):
+var userId = user.GetUserIdOrDefault();
+```
+
+This ensures consistent claim lookup order: first `"sub"` (standard OIDC), then `ClaimTypes.NameIdentifier` as fallback.
+
 #### Issues Resolved
 1. **Missing KEYCLOAK_ADMIN variables**: Updated from deprecated KC_ADMIN format
 2. **Browser login redirect failed**: Keycloak hostname not resolvable from browser
 3. **MetadataAddress unreachable**: Container cannot resolve localhost; needed host.docker.internal
 4. **Solution**: Dual configuration with fallback MetadataAddress for Windows Docker Desktop
 
-#### Security Considerations - NEXT PHASE
-⚠️ **IMPORTANT**: Current client is configured as **public client** (no secret). This is acceptable for initial development but should be migrated to **confidential client** for production.
+#### Security Considerations - COMPLETED
+✅ **Client is now configured as confidential** (with client secret). 
 
-**Required Action (Phase 1C Follow-up)**:
-1. Regenerate assethub-app client in Keycloak as confidential (add client secret)
-2. Update Program.cs to include ClientSecret in OIDC options
-3. Change from PKCE to standard confidential flow
-4. Store secret securely in docker-compose.yml environment
-5. Update CREDENTIALS.md with new configuration
+**Implemented Configuration**:
+1. ✅ assethub-app client is confidential (requires client secret)
+2. ✅ Program.cs requires ClientSecret - throws `InvalidOperationException` if missing
+3. ✅ Secret stored in appsettings.json / environment variables
+4. ✅ CREDENTIALS.md updated with configuration details
+5. ✅ Role hierarchy defined: viewer → contributor → manager → admin
+
+**Authorization Policies** (defined in Program.cs):
+- `RequireViewer` - viewer, contributor, manager, or admin
+- `RequireContributor` - contributor, manager, or admin  
+- `RequireManager` - manager or admin
+- `RequireAdmin` - admin only
 
 #### Success Criteria
 - [x] Keycloak realm (media) accessible at http://localhost:8080/admin
@@ -505,7 +539,7 @@ services.AddAuthentication()
 - [x] API validates tokens from Keycloak
 - [x] Claims extracted and available in HttpContext.User
 - [x] Protected endpoints return 401 when unauthenticated
-- [ ] Client secret configured (deferred to Phase 1C Follow-up)
+- [x] Client secret configured and required
 
 ---
 
@@ -937,7 +971,7 @@ private static async Task<IResult> InitUpload(
     IMediator mediator,
     InitUploadRequest req)
 {
-    var userId = http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = http.User.GetUserId();
     var response = await mediator.Send(new InitUploadCommand { Request = req, UserId = userId });
     return Results.Ok(response);
 }
@@ -947,7 +981,7 @@ private static async Task<IResult> CompleteUpload(
     IMediator mediator,
     CompleteUploadRequest req)
 {
-    var userId = http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = http.User.GetUserId();
     await mediator.Send(new CompleteUploadCommand { Request = req, UserId = userId });
     return Results.NoContent();
 }
@@ -957,7 +991,7 @@ private static async Task<IResult> GetPresignedDownloadUrl(
     IMediator mediator,
     Guid assetId)
 {
-    var userId = http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = http.User.GetUserId();
     var url = await mediator.Send(new GetPresignedUrlQuery { AssetId = assetId, UserId = userId });
     return Results.Ok(new { url });
 }
@@ -1104,7 +1138,7 @@ private static async Task<IResult> GetAssetDetail(
     IMediator mediator,
     Guid id)
 {
-    var userId = http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = http.User.GetUserId();
     var result = await mediator.Send(new GetAssetDetailQuery { AssetId = id, UserId = userId });
     return Results.Ok(result);
 }
@@ -2981,19 +3015,16 @@ docker compose logs -f postgres
 
 ## Immediate Next Steps (Priority Order)
 
-### 🔴 CRITICAL: Keycloak Client Secret Migration (Phase 1C Follow-up)
+### ✅ COMPLETED: Keycloak Client Secret Migration (Phase 1C Follow-up)
 
-**Why**: Current public client configuration acceptable for development but required for production security. Client secret needed for confidential client flow.
+**Status**: Implemented. The assethub-app client is now configured as a confidential client with client secret required.
 
-**Steps**:
-1. Log into Keycloak admin console (http://localhost:8080/admin)
-   - Username: admin / Password: admin123
-2. Navigate to Realm: media → Clients → assethub-app
-3. Settings:
-   - Disable "Standard flow enabled"
-   - Enable "Service accounts roles"
-   - Set "Access Type" to "confidential"
-   - Click "Save"
+**Completed Steps**:
+1. ✅ assethub-app configured as confidential client in Keycloak
+2. ✅ Client secret stored in media-realm.json: `VxBiV29QVchYHFzD5N62l43fTXbTMzSl`
+3. ✅ Program.cs requires ClientSecret (throws if not configured)
+4. ✅ Role hierarchy implemented (viewer → contributor → manager → admin)
+5. ✅ Authorization policies defined (RequireViewer, RequireContributor, RequireManager, RequireAdmin)
 4. In "Credentials" tab, copy the generated Client Secret
 5. Update docker-compose.yml: Add environment variable
    ```yaml
@@ -3077,10 +3108,10 @@ docker compose logs -f postgres
 ## Known Issues & Workarounds
 
 | Issue | Impact | Status | Workaround |
-|-------|--------|--------|-----------|
+|-------|--------|--------|------------|
 | Worker crashes with exit code 139 | Background jobs not processing | Non-blocking | Run jobs in API container or external worker |
 | Keycloak /health/ready returns 404 | Docker compose health check limited | Minor | Check via admin console instead |
-| Phase 1C requires client secret | Security concern | ⏳ TODO | Implement confidential client flow |
+| ~~Phase 1C requires client secret~~ | ~~Security concern~~ | ✅ DONE | Confidential client implemented |
 | Asset/Share endpoints disabled | Features not available | ⏳ TODO | Uncomment in Program.cs after auth fix |
 
 ---
@@ -3091,7 +3122,7 @@ docker compose logs -f postgres
 |-------|--------|----------|-------------|
 | Phase 1A: Docker & Database | ✅ COMPLETE | None | Monitor logs |
 | Phase 1B: Collections API | ✅ COMPLETE | None | In production use |
-| **Phase 1C: Authentication** | ✅ WORKING, 🔴 NEEDS CLIENT SECRET | Client secret | Implement confidential client |
+| **Phase 1C: Authentication** | ✅ COMPLETE | None | Client secret + role policies implemented |
 | Phase 2A: Upload & Processing | ✅ CODE COMPLETE | Enable after 1C | Uncomment, test |
 | Phase 2B: Video & Presigned URLs | ✅ CODE COMPLETE | Enable after 2A | Uncomment, test |
 | Phase 3A: UI - Collections & Grid | ❌ NOT STARTED | Asset endpoints | Design & build Blazor components |

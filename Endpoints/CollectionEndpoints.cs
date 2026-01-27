@@ -55,7 +55,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
@@ -79,7 +79,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
@@ -114,7 +114,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
@@ -170,11 +170,12 @@ public static class CollectionEndpoints
         Guid id,
         CreateCollectionDto dto,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
         dto.ParentId = id;
-        return await CreateCollection(dto, collectionRepo, null!, authService, user);
+        return await CreateCollection(dto, collectionRepo, aclRepo, authService, user);
     }
 
     private static async Task<IResult> UpdateCollection(
@@ -184,7 +185,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
@@ -213,7 +214,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
@@ -237,7 +238,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
@@ -266,7 +267,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
@@ -295,7 +296,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
@@ -333,7 +334,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user)
     {
-        var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 

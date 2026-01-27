@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Net;
 using AssetHub.Components;
 using AssetHub.Endpoints;
 using Dam.Application.Repositories;
@@ -16,6 +17,7 @@ using MudBlazor.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Minio;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddHttpContextAccessor();
 
 // Database
 var connectionString = builder.Configuration.GetConnectionString("Postgres");
@@ -63,6 +67,9 @@ builder.Services.AddScoped<ICollectionAclRepository, CollectionAclRepository>();
 //builder.Services.AddSingleton(minioClient);
 
 // AuthN/AuthZ
+// Development-only diagnostics: capture Keycloak userinfo failures (401/403/etc) with response body.
+builder.Services.AddSingleton<IPostConfigureOptions<OpenIdConnectOptions>, AssetHub.OidcBackchannelLoggingPostConfigure>();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -78,28 +85,41 @@ builder.Services.AddAuthentication(options =>
     // --- Keycloak OIDC endpoints ---
     var keycloakConfig = builder.Configuration.GetSection("Keycloak");
     
-    // Authority for server-side metadata discovery (uses Docker network DNS)
-    options.Authority = keycloakConfig["Authority"] ?? "http://keycloak:8080/realms/media";
+    // Using single URL for all Keycloak communication (keycloak hostname resolves to 127.0.0.1 via hosts file)
+    // This works for both browser (Windows host) and container-to-container communication
+    var keycloakUri = keycloakConfig["Authority"] ?? "http://keycloak:8080/realms/media";
+    options.Authority = keycloakUri;
+    options.MetadataAddress = keycloakUri + "/.well-known/openid-configuration";
+    
     options.ClientId = keycloakConfig["ClientId"] ?? "assethub-app";
     
-    // For browser-based requests, use localhost (not Docker-internal hostname)
-    // This is loaded dynamically when the browser needs to redirect to Keycloak
-    options.MetadataAddress = "http://localhost:8080/realms/media/.well-known/openid-configuration";
+    // Client secret for confidential client flow - required for confidential clients
+    var clientSecret = keycloakConfig["ClientSecret"];
+    if (string.IsNullOrWhiteSpace(clientSecret))
+        throw new InvalidOperationException("Keycloak:ClientSecret must be configured in appsettings. Check appsettings.json or environment variables.");
+    options.ClientSecret = clientSecret;
 
     // .NET dev: Keycloak kör oftast http lokalt
     options.RequireHttpsMetadata = false;
     
     options.CallbackPath = "/signin-oidc";
     options.SignedOutCallbackPath = "/signout-callback-oidc";
-    options.ResponseMode = OpenIdConnectResponseMode.FormPost;
+    // Don't force response_mode=form_post. Query is the typical default for code flow and
+    // avoids confusing scenarios where /signin-oidc is reached via GET (refresh/bookmark)
+    // and would otherwise throw "message.State is null or empty".
 
-    // Using public client with PKCE (no client secret)
-    options.UsePkce = true;
+    // If someone hits /signin-oidc without an OIDC response (no state/code), ignore it.
+    // This prevents unhandled exceptions on refresh/bookmark.
+    options.SkipUnrecognizedRequests = true;
+
+    // Using confidential client (with client secret)
+    options.UsePkce = false;
 
     options.ResponseType = OpenIdConnectResponseType.Code;
 
     // Spara tokens om du vill kunna kalla APIs senare med access token
     options.SaveTokens = true;
+    // SECURITY: Fetch claims from userinfo endpoint for server-side verification
     options.GetClaimsFromUserInfoEndpoint = true;
 
     // Scopes (openid krävs)
@@ -115,11 +135,59 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters = new TokenValidationParameters
     {
         NameClaimType = "preferred_username",  // Keycloak har ofta preferred_username
-        RoleClaimType = ClaimTypes.Role        // vi mappar in ClaimTypes.Role nedan
+        RoleClaimType = ClaimTypes.Role,       // vi mappar in ClaimTypes.Role nedan
+        ValidIssuer = "http://keycloak:8080/realms/media"  // Single issuer since we use consistent keycloak:8080 URL
     };
 
+    // No URL rewriting needed - using single consistent URL via hosts file
     options.Events = new OpenIdConnectEvents
     {
+        OnRemoteFailure = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError(context.Failure, "OIDC remote failure: {Message}", context.Failure?.Message);
+
+            // Avoid unhandled exception page in dev; bounce home with a lightweight signal.
+            context.HandleResponse();
+            context.Response.Redirect("/?authError=oidc_remote_failure");
+            return Task.CompletedTask;
+        },
+        OnTokenResponseReceived = context =>
+        {
+            // Diagnostics: confirm token endpoint returned what we expect.
+            // Do NOT log tokens; just log presence/length.
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var accessTokenLen = context.TokenEndpointResponse?.AccessToken?.Length ?? 0;
+            var idTokenLen = context.TokenEndpointResponse?.IdToken?.Length ?? 0;
+            var tokenType = context.TokenEndpointResponse?.TokenType;
+
+            logger.LogInformation(
+                "OIDC token response received. token_type={TokenType}, access_token_len={AccessTokenLen}, id_token_len={IdTokenLen}",
+                tokenType,
+                accessTokenLen,
+                idTokenLen);
+
+            return Task.CompletedTask;
+        },
+        OnUserInformationReceived = async context =>
+        {
+            // SECURITY: This is called after successfully retrieving user info from the userinfo endpoint
+            // This ensures the backend has verified claims directly with the identity provider
+            await Task.CompletedTask;
+        },
+        OnAuthenticationFailed = async context =>
+        {
+            // Log authentication failures for debugging
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError("Authentication failed: {Message}. Exception: {Exception}", 
+                context.Exception?.Message ?? "Unknown error",
+                context.Exception?.InnerException?.Message ?? "No inner exception");
+
+            // Prevent a 500/developer exception page on auth errors; redirect to home.
+            context.HandleResponse();
+            context.Response.Redirect("/?authError=authentication_failed");
+            await Task.CompletedTask;
+        },
         OnTokenValidated = context =>
         {
             // Keycloak roller finns typiskt i:
@@ -160,19 +228,231 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+// Configure authorization policies based on Keycloak realm roles
+builder.Services.AddAuthorization(options =>
+{
+    // Policy requiring the user to be authenticated (default)
+    options.AddPolicy("Authenticated", policy => policy.RequireAuthenticatedUser());
+    
+    // Role-based policies - these use Keycloak realm roles mapped to ClaimTypes.Role
+    options.AddPolicy("RequireViewer", policy => 
+        policy.RequireAssertion(context => 
+            context.User.IsInRole("viewer") || 
+            context.User.IsInRole("contributor") || 
+            context.User.IsInRole("manager") || 
+            context.User.IsInRole("admin")));
+    
+    options.AddPolicy("RequireContributor", policy => 
+        policy.RequireAssertion(context => 
+            context.User.IsInRole("contributor") || 
+            context.User.IsInRole("manager") || 
+            context.User.IsInRole("admin")));
+    
+    options.AddPolicy("RequireManager", policy => 
+        policy.RequireAssertion(context => 
+            context.User.IsInRole("manager") || 
+            context.User.IsInRole("admin")));
+    
+    options.AddPolicy("RequireAdmin", policy => 
+        policy.RequireRole("admin"));
+});
 
 var app = builder.Build();
+
+// Always log a build stamp so it's easy to verify which binary is running.
+{
+    var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("BuildStamp");
+    logger.LogInformation("AssetHub starting. BuildStamp={BuildStamp}. Environment={Environment}", AssetHub.BuildInfo.Stamp, app.Environment.EnvironmentName);
+}
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
+}
+
+// Development-only: log what actually arrives at the OIDC callback.
+// Helpful for diagnosing missing state/code and content-type mismatches.
+if (app.Environment.IsDevelopment())
+{
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path == "/signin-oidc")
+        {
+            var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("OidcCallback");
+
+            logger.LogInformation(
+                "OIDC callback received: {Method} {Path}{Query}. ContentType={ContentType}",
+                context.Request.Method,
+                context.Request.Path,
+                context.Request.QueryString,
+                context.Request.ContentType ?? "<null>");
+
+            try
+            {
+                context.Request.EnableBuffering();
+
+                if (context.Request.HasFormContentType)
+                {
+                    var form = await context.Request.ReadFormAsync(context.RequestAborted);
+                    logger.LogInformation("OIDC callback form keys: {Keys}", string.Join(", ", form.Keys.OrderBy(k => k, StringComparer.Ordinal)));
+                    logger.LogInformation("OIDC callback has state={HasState}, code={HasCode}",
+                        form.TryGetValue("state", out var state) && !string.IsNullOrWhiteSpace(state.ToString()),
+                        form.TryGetValue("code", out var code) && !string.IsNullOrWhiteSpace(code.ToString()));
+                }
+                else
+                {
+                    logger.LogInformation("OIDC callback query keys: {Keys}", string.Join(", ", context.Request.Query.Keys.OrderBy(k => k, StringComparer.Ordinal)));
+                    logger.LogInformation("OIDC callback has state={HasState}, code={HasCode}",
+                        context.Request.Query.ContainsKey("state") && !string.IsNullOrWhiteSpace(context.Request.Query["state"].ToString()),
+                        context.Request.Query.ContainsKey("code") && !string.IsNullOrWhiteSpace(context.Request.Query["code"].ToString()));
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to inspect OIDC callback request");
+            }
+            finally
+            {
+                if (context.Request.Body.CanSeek)
+                    context.Request.Body.Position = 0;
+            }
+        }
+
+        // Prevent auth callback exceptions from bubbling to the Developer Exception Page.
+        // We still log via the OIDC events/backchannel logger.
+        if (context.Request.Path == "/signin-oidc")
+        {
+            try
+            {
+                await next();
+            }
+            catch (Exception ex)
+            {
+                var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("OidcCallback");
+                logger.LogError(ex, "Unhandled exception during /signin-oidc pipeline: {Message}", ex.Message);
+
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.Redirect("/?authError=signin_oidc_exception");
+                    return;
+                }
+                throw;
+            }
+        }
+        else
+        {
+            await next();
+        }
+    });
 }
 app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+
+// Simple build stamp endpoint to confirm which binary is running.
+app.MapGet("/__build", () => Results.Json(new { stamp = AssetHub.BuildInfo.Stamp, environment = app.Environment.EnvironmentName }));
+
+// Development-only: verify Keycloak userinfo via direct API calls (token + userinfo).
+// Local-only guard prevents exposing this outside localhost.
+app.MapGet("/debug/ping", (HttpContext http) =>
+    {
+        if (!AssetHub.DebugGuard.IsLocalDebugRequest(http))
+            return Results.NotFound();
+
+        var env = app.Environment.EnvironmentName;
+        var asm = typeof(Program).Assembly;
+        var version = asm.GetName().Version?.ToString() ?? "<unknown>";
+        return Results.Json(new { ok = true, environment = env, version, remoteIp = http.Connection.RemoteIpAddress?.ToString(), host = http.Request.Host.Value });
+    })
+    .AllowAnonymous();
+
+app.MapPost("/debug/keycloak/userinfo-probe", async (HttpContext http, IConfiguration config) =>
+    {
+        if (!AssetHub.DebugGuard.IsLocalDebugRequest(http))
+            return Results.NotFound();
+
+        var authority = config["Keycloak:Authority"] ?? "http://keycloak:8080/realms/media";
+        var clientId = config["Keycloak:ClientId"] ?? "assethub-app";
+        var clientSecret = config["Keycloak:ClientSecret"];
+
+        if (string.IsNullOrWhiteSpace(clientSecret))
+            return Results.BadRequest(new { error = "Missing Keycloak:ClientSecret" });
+
+        var payload = await http.Request.ReadFromJsonAsync<UserInfoProbeRequest>();
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Username) || string.IsNullOrWhiteSpace(payload.Password))
+            return Results.BadRequest(new { error = "Provide JSON: { username, password, scope? }" });
+
+        using var httpClient = new System.Net.Http.HttpClient();
+        var tokenUrl = authority.TrimEnd('/') + "/protocol/openid-connect/token";
+        var userInfoUrl = authority.TrimEnd('/') + "/protocol/openid-connect/userinfo";
+
+        var form = new Dictionary<string, string>
+        {
+            ["grant_type"] = "password",
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
+            ["username"] = payload.Username,
+            ["password"] = payload.Password,
+            ["scope"] = string.IsNullOrWhiteSpace(payload.Scope) ? "openid profile email" : payload.Scope
+        };
+
+        using var tokenResp = await httpClient.PostAsync(tokenUrl, new System.Net.Http.FormUrlEncodedContent(form));
+        var tokenBody = await tokenResp.Content.ReadAsStringAsync();
+
+        if (!tokenResp.IsSuccessStatusCode)
+        {
+            return Results.Json(new
+            {
+                token = new { status = (int)tokenResp.StatusCode, body = tokenBody },
+                userinfo = (object?)null
+            }, statusCode: (int)tokenResp.StatusCode);
+        }
+
+        string? accessToken = null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(tokenBody);
+            if (doc.RootElement.TryGetProperty("access_token", out var at))
+                accessToken = at.GetString();
+        }
+        catch
+        {
+            // ignore parse errors; handled below
+        }
+
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return Results.Json(new { error = "Token response missing access_token", tokenBody });
+
+        using var userReq = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, userInfoUrl);
+        userReq.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var userResp = await httpClient.SendAsync(userReq);
+        var userBody = await userResp.Content.ReadAsStringAsync();
+
+        return Results.Json(new
+        {
+            token = new
+            {
+                status = (int)tokenResp.StatusCode,
+                access_token_preview = accessToken.Length <= 16 ? accessToken : accessToken[..16] + "…",
+            },
+            userinfo = new
+            {
+                endpoint = userInfoUrl,
+                status = (int)userResp.StatusCode,
+                www_authenticate = userResp.Headers.WwwAuthenticate.Count > 0 ? string.Join(", ", userResp.Headers.WwwAuthenticate) : null,
+                body = userBody
+            }
+        });
+    })
+    .AllowAnonymous();
+
+// If the OIDC handler skips an unrecognized callback request, this provides a clearer response.
+app.MapMethods("/signin-oidc", new[] { "GET", "POST" }, () =>
+        Results.BadRequest("OIDC callback hit without state/code. Start login via /auth/login."))
+    .AllowAnonymous();
 
 app.MapGet("/auth/login", async (HttpContext http) =>
 {
@@ -198,9 +478,6 @@ app.MapRazorComponents<App>()
 
 // Hangfire Dashboard
 app.MapHangfireDashboard();
-
-app.Run();
-
 
 // ------------------
 // Minimal JSON helpers (ingen extra lib behövs)
@@ -251,3 +528,8 @@ static IEnumerable<string> ExtractClientRolesFromKeycloakJson(string json, strin
         return Array.Empty<string>();
     }
 }
+
+app.Run();
+
+
+internal sealed record UserInfoProbeRequest(string Username, string Password, string? Scope);

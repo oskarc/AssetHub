@@ -1,7 +1,28 @@
 namespace Dam.Domain.Entities;
 
+/// <summary>
+/// Defines the available roles for collection access control.
+/// Roles are hierarchical: higher roles include permissions of lower roles.
+/// </summary>
+public enum CollectionRole
+{
+    /// <summary>Can browse collections and view assets.</summary>
+    Viewer = 1,
+    /// <summary>Can upload and edit assets in assigned collections.</summary>
+    Contributor = 2,
+    /// <summary>Can manage collection settings and ACLs.</summary>
+    Manager = 3,
+    /// <summary>Full access including deletion.</summary>
+    Admin = 4
+}
+
 public class CollectionAcl
 {
+    /// <summary>
+    /// Valid role names for ACL entries.
+    /// </summary>
+    public static readonly string[] ValidRoles = { "viewer", "contributor", "manager", "admin" };
+
     public Guid Id { get; set; }
     public Guid CollectionId { get; set; }
     public string PrincipalType { get; set; } = string.Empty; // "user" or "group"
@@ -11,12 +32,24 @@ public class CollectionAcl
 
     // Navigation
     public Collection Collection { get; set; } = null!;
-}
 
-public enum CollectionRole
-{
-    Viewer,
-    Contributor,
-    Manager,
-    Admin
+    /// <summary>
+    /// Gets the role as an enum value.
+    /// </summary>
+    public CollectionRole? RoleEnum => Role?.ToLowerInvariant() switch
+    {
+        "viewer" => CollectionRole.Viewer,
+        "contributor" => CollectionRole.Contributor,
+        "manager" => CollectionRole.Manager,
+        "admin" => CollectionRole.Admin,
+        _ => null
+    };
+
+    /// <summary>
+    /// Checks if this ACL entry has at least the specified role level.
+    /// </summary>
+    public bool HasAtLeastRole(CollectionRole requiredRole)
+    {
+        return RoleEnum.HasValue && RoleEnum.Value >= requiredRole;
+    }
 }

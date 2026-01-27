@@ -1,0 +1,67 @@
+{
+  "realm": "media",
+  "enabled": true,
+  "displayName": "Media",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "viewer", "description": "Can browse collections and assets" },
+      { "name": "contributor", "description": "Can upload and edit assets in assigned collections" },
+      { "name": "manager", "description": "Can manage collection settings and ACLs" },
+      { "name": "admin", "description": "Full access to media realm" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "assethub-app",
+      "name": "AssetHub",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "VxBiV29QVchYHFzD5N62l43fTXbTMzSl",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:7252/signin-oidc"
+      ],
+      "webOrigins": [
+        "http://localhost:7252"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "test@example.com",
+      "credentials": [
+        { "type": "password", "value": "testuser123", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "mediaadmin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Media",
+      "lastName": "Admin",
+      "email": "admin@media.local",
+      "credentials": [
+        { "type": "password", "value": "mediaadmin123", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    }
+  ]
+}
