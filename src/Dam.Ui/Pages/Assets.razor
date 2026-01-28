@@ -10,6 +10,7 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 
 <PageTitle>Assets - AssetHub</PageTitle>
 
@@ -44,6 +45,12 @@
                 @if (_selectedCollectionId.HasValue)
                 {
                     <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick="DownloadAllAsync">
+                            Download All
+                        </MudButton>
                         <MudButton Variant="Variant.Outlined"
                                    Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Share"
@@ -237,6 +244,26 @@
         {
             await _assetGrid.RefreshAsync();
         }
+    }
+
+    private async Task DownloadAllAsync()
+    {
+        if (!_selectedCollectionId.HasValue) return;
+
+        var url = $"/api/collections/{_selectedCollectionId.Value}/download-all";
+        
+        // Use JS to trigger download
+        await JS.InvokeVoidAsync("eval", $@"
+            (function() {{
+                var a = document.createElement('a');
+                a.href = '{url}';
+                a.download = '';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }})();
+        ");
     }
 
     private async Task OnUploadComplete()

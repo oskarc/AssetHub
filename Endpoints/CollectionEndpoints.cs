@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Security.Claims;
 using Dam.Application.Dtos;
 using Dam.Application.Repositories;
@@ -36,6 +37,9 @@ public static class CollectionEndpoints
 
         group.MapGet("{id}/children", GetChildren)
             .WithName("GetChildren");
+
+        group.MapGet("{id}/download-all", DownloadAllAssets)
+            .WithName("DownloadAllAssets");
 
         // ACL Management
         var aclGroup = app.MapGroup("/api/collections/{collectionId}/acl")
@@ -145,7 +149,7 @@ public static class CollectionEndpoints
             Description = dto.Description,
             ParentId = dto.ParentId,
             CreatedByUserId = userId,
-            CreatedAt = DateTime.Now
+            CreatedAt = DateTime.UtcNow
         };
 
         await collectionRepo.CreateAsync(collection);
@@ -347,5 +351,87 @@ public static class CollectionEndpoints
         await aclRepo.RevokeAccessAsync(collectionId, principalType, principalId);
 
         return Results.NoContent();
+    }
+
+    private static async Task<IResult> DownloadAllAssets(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        ClaimsPrincipal user)
+    {
+        var userId = user.GetUserId();
+        if (userId == null)
+            return Results.Unauthorized();
+
+        // Check viewer access
+        var canView = await authService.CheckAccessAsync(userId, id, "viewer");
+        if (!canView)
+            return Results.Forbid();
+
+        var collection = await collectionRepo.GetByIdAsync(id);
+        if (collection == null)
+            return Results.NotFound("Collection not found");
+
+        var assets = await assetRepo.GetByCollectionAsync(id, 0, 1000);
+        if (!assets.Any())
+            return Results.BadRequest("No assets in collection");
+
+        var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
+
+        // Create ZIP in memory
+        var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
+            {
+                try
+                {
+                    var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!);
+                    var fileName = GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
+                    
+                    var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
+                    using var entryStream = entry.Open();
+                    await assetStream.CopyToAsync(entryStream);
+                }
+                catch
+                {
+                    // Skip assets that fail to download
+                }
+            }
+        }
+
+        memoryStream.Position = 0;
+        var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
+        return Results.File(memoryStream, "application/zip", zipFileName);
+    }
+
+    private static string GetSafeFileName(string title, string objectKey, string contentType)
+    {
+        // Get extension from content type or object key
+        var extension = Path.GetExtension(objectKey);
+        if (string.IsNullOrEmpty(extension))
+        {
+            extension = contentType switch
+            {
+                "image/jpeg" => ".jpg",
+                "image/png" => ".png",
+                "image/gif" => ".gif",
+                "image/webp" => ".webp",
+                "video/mp4" => ".mp4",
+                "video/webm" => ".webm",
+                "application/pdf" => ".pdf",
+                _ => ""
+            };
+        }
+
+        // Sanitize title for filename
+        var safeName = string.Join("_", title.Split(Path.GetInvalidFileNameChars()));
+        if (string.IsNullOrEmpty(safeName))
+            safeName = Path.GetFileNameWithoutExtension(objectKey);
+
+        return safeName + extension;
     }
 }

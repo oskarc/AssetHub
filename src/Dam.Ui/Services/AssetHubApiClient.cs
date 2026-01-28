@@ -120,7 +120,7 @@ public class AssetHubApiClient
         {
             ScopeId = scopeId,
             ScopeType = scopeType,
-            ExpiresAt = expiresAt ?? DateTime.Now.AddDays(7),
+            ExpiresAt = expiresAt ?? DateTime.UtcNow.AddDays(7),
             Password = password
         };
 

@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
@@ -67,6 +68,9 @@ public static class ShareEndpoints
         group.MapGet("{token}/download", DownloadSharedAsset)
             .WithName("DownloadSharedAsset")
             .AllowAnonymous();
+        group.MapGet("{token}/download-all", DownloadAllSharedAssets)
+            .WithName("DownloadAllSharedAssets")
+            .AllowAnonymous();
         group.MapGet("{token}/preview", PreviewSharedAsset)
             .WithName("PreviewSharedAsset")
             .AllowAnonymous();
@@ -119,8 +123,8 @@ public static class ShareEndpoints
             ScopeId = dto.ScopeId,
             ScopeType = dto.ScopeType,
             TokenHash = tokenHash,
-            ExpiresAt = dto.ExpiresAt ?? DateTime.Now.AddDays(7), // Default 7 days
-            CreatedAt = DateTime.Now,
+            ExpiresAt = dto.ExpiresAt?.ToUniversalTime() ?? DateTime.UtcNow.AddDays(7), // Default 7 days
+            CreatedAt = DateTime.UtcNow,
             CreatedByUserId = httpContext.User.GetUserIdOrDefault(),
             PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
             PasswordHash = !string.IsNullOrWhiteSpace(dto.Password)
@@ -168,7 +172,7 @@ public static class ShareEndpoints
             return Results.BadRequest("This share link has been revoked");
 
         // Check if share is expired
-        if (share.ExpiresAt < DateTime.Now)
+        if (share.ExpiresAt < DateTime.UtcNow)
             return Results.BadRequest("This share link has expired");
 
         // Check password if required
@@ -183,7 +187,7 @@ public static class ShareEndpoints
         }
 
         // Update access tracking
-        share.LastAccessedAt = DateTime.Now;
+        share.LastAccessedAt = DateTime.UtcNow;
         share.AccessCount++;
         await shareRepository.UpdateAsync(share);
 
@@ -287,7 +291,7 @@ public static class ShareEndpoints
             return Results.BadRequest("This share link has been revoked");
 
         // Check if share is expired
-        if (share.ExpiresAt < DateTime.Now)
+        if (share.ExpiresAt < DateTime.UtcNow)
             return Results.BadRequest("This share link has expired");
 
         // Check if download permission is granted
@@ -332,7 +336,7 @@ public static class ShareEndpoints
             return Results.BadRequest("Asset file not available");
 
         // Update access tracking
-        share.LastAccessedAt = DateTime.Now;
+        share.LastAccessedAt = DateTime.UtcNow;
         share.AccessCount++;
         await shareRepository.UpdateAsync(share);
 
@@ -340,6 +344,119 @@ public static class ShareEndpoints
         var stream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey);
         var fileName = !string.IsNullOrEmpty(targetAsset.Title) ? targetAsset.Title : Path.GetFileName(targetAsset.OriginalObjectKey);
         return Results.File(stream, targetAsset.ContentType, fileName);
+    }
+
+    private static async Task<IResult> DownloadAllSharedAssets(
+        string token,
+        string? password,
+        [FromServices] IShareRepository shareRepository,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] ICollectionRepository collectionRepository,
+        [FromServices] IMinIOAdapter minioAdapter,
+        IConfiguration configuration)
+    {
+        // Compute token hash to lookup in database
+        using var sha256 = SHA256.Create();
+        var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
+
+        var share = await shareRepository.GetByTokenHashAsync(tokenHash);
+        if (share == null)
+            return Results.NotFound("Share link not found or invalid");
+
+        // Check if share is revoked
+        if (share.RevokedAt.HasValue)
+            return Results.BadRequest("This share link has been revoked");
+
+        // Check if share is expired
+        if (share.ExpiresAt < DateTime.UtcNow)
+            return Results.BadRequest("This share link has expired");
+
+        // Check if download permission is granted
+        if (!share.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
+            return Results.Forbid();
+
+        // Check password if required
+        if (!string.IsNullOrEmpty(share.PasswordHash))
+        {
+            if (string.IsNullOrEmpty(password))
+                return Results.Json(new { requiresPassword = true }, statusCode: 401);
+
+            var inputPasswordHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
+            if (inputPasswordHash != share.PasswordHash)
+                return Results.Unauthorized();
+        }
+
+        // Only works for collection shares
+        if (share.ScopeType != "collection")
+            return Results.BadRequest("Download all is only available for collection shares");
+
+        var collection = await collectionRepository.GetByIdAsync(share.ScopeId);
+        if (collection == null)
+            return Results.NotFound("Collection not found");
+
+        var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, 0, 1000);
+        if (!assets.Any())
+            return Results.BadRequest("No assets in collection");
+
+        var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
+
+        // Update access tracking
+        share.LastAccessedAt = DateTime.UtcNow;
+        share.AccessCount++;
+        await shareRepository.UpdateAsync(share);
+
+        // Create ZIP in memory
+        var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
+            {
+                try
+                {
+                    var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!);
+                    var fileName = GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
+                    
+                    var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
+                    using var entryStream = entry.Open();
+                    await assetStream.CopyToAsync(entryStream);
+                }
+                catch
+                {
+                    // Skip assets that fail to download
+                }
+            }
+        }
+
+        memoryStream.Position = 0;
+        var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
+        return Results.File(memoryStream, "application/zip", zipFileName);
+    }
+
+    private static string GetSafeFileName(string title, string objectKey, string contentType)
+    {
+        // Get extension from content type or object key
+        var extension = Path.GetExtension(objectKey);
+        if (string.IsNullOrEmpty(extension))
+        {
+            extension = contentType switch
+            {
+                "image/jpeg" => ".jpg",
+                "image/png" => ".png",
+                "image/gif" => ".gif",
+                "image/webp" => ".webp",
+                "video/mp4" => ".mp4",
+                "video/webm" => ".webm",
+                "application/pdf" => ".pdf",
+                _ => ""
+            };
+        }
+
+        // Sanitize title for filename
+        var safeName = string.Join("_", title.Split(Path.GetInvalidFileNameChars()));
+        if (string.IsNullOrEmpty(safeName))
+            safeName = Path.GetFileNameWithoutExtension(objectKey);
+
+        return safeName + extension;
     }
 
     private static async Task<IResult> PreviewSharedAsset(
@@ -365,7 +482,7 @@ public static class ShareEndpoints
             return Results.BadRequest("This share link has been revoked");
 
         // Check if share is expired
-        if (share.ExpiresAt < DateTime.Now)
+        if (share.ExpiresAt < DateTime.UtcNow)
             return Results.BadRequest("This share link has expired");
 
         // Check password if required
@@ -443,7 +560,7 @@ public static class ShareEndpoints
             return Results.Forbid();
 
         // Mark as revoked instead of deleting (for audit trail)
-        share.RevokedAt = DateTime.Now;
+        share.RevokedAt = DateTime.UtcNow;
         await shareRepository.UpdateAsync(share);
 
         return Results.NoContent();
