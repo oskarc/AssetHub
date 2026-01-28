@@ -16,4 +16,16 @@ public interface IAssetRepository
     Task UpdateAsync(Asset asset, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task DeleteByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Search assets within a collection with optional filters.
+    /// </summary>
+    Task<(List<Asset> Assets, int Total)> SearchAsync(
+        Guid collectionId,
+        string? query = null,
+        string? assetType = null,
+        string sortBy = "created_desc",
+        int skip = 0,
+        int take = 50,
+        CancellationToken cancellationToken = default);
 }

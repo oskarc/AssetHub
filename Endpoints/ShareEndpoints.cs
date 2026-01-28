@@ -33,11 +33,13 @@ public class SharedAssetDto
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public string AssetType { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string? MediumUrl { get; set; }
+    public Dictionary<string, object> MetadataJson { get; set; } = new();
     public Dictionary<string, bool> Permissions { get; set; } = new();
 }
 
@@ -64,6 +66,9 @@ public static class ShareEndpoints
             .AllowAnonymous();
         group.MapGet("{token}/download", DownloadSharedAsset)
             .WithName("DownloadSharedAsset")
+            .AllowAnonymous();
+        group.MapGet("{token}/preview", PreviewSharedAsset)
+            .WithName("PreviewSharedAsset")
             .AllowAnonymous();
 
         // Protected endpoints
@@ -114,8 +119,8 @@ public static class ShareEndpoints
             ScopeId = dto.ScopeId,
             ScopeType = dto.ScopeType,
             TokenHash = tokenHash,
-            ExpiresAt = dto.ExpiresAt ?? DateTime.UtcNow.AddDays(7), // Default 7 days
-            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = dto.ExpiresAt ?? DateTime.Now.AddDays(7), // Default 7 days
+            CreatedAt = DateTime.Now,
             CreatedByUserId = httpContext.User.GetUserIdOrDefault(),
             PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
             PasswordHash = !string.IsNullOrWhiteSpace(dto.Password)
@@ -163,7 +168,7 @@ public static class ShareEndpoints
             return Results.BadRequest("This share link has been revoked");
 
         // Check if share is expired
-        if (share.ExpiresAt < DateTime.UtcNow)
+        if (share.ExpiresAt < DateTime.Now)
             return Results.BadRequest("This share link has expired");
 
         // Check password if required
@@ -178,7 +183,7 @@ public static class ShareEndpoints
         }
 
         // Update access tracking
-        share.LastAccessedAt = DateTime.UtcNow;
+        share.LastAccessedAt = DateTime.Now;
         share.AccessCount++;
         await shareRepository.UpdateAsync(share);
 
@@ -190,24 +195,26 @@ public static class ShareEndpoints
             if (asset == null)
                 return Results.NotFound("Asset not found");
 
-            // Generate presigned URLs for thumbnails
+            // Use API URLs for thumbnails to hide MinIO backend
             string? thumbnailUrl = null;
             string? mediumUrl = null;
 
             if (!string.IsNullOrEmpty(asset.ThumbObjectKey))
-                thumbnailUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.ThumbObjectKey, 3600);
+                thumbnailUrl = $"/api/shares/{token}/preview?size=thumb";
             if (!string.IsNullOrEmpty(asset.MediumObjectKey))
-                mediumUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.MediumObjectKey, 3600);
+                mediumUrl = $"/api/shares/{token}/preview?size=medium";
 
             return Results.Ok(new SharedAssetDto
             {
                 Id = asset.Id,
                 Title = asset.Title,
+                Description = asset.Description,
                 AssetType = asset.AssetType,
                 ContentType = asset.ContentType,
                 SizeBytes = asset.SizeBytes,
                 ThumbnailUrl = thumbnailUrl,
                 MediumUrl = mediumUrl,
+                MetadataJson = asset.MetadataJson,
                 Permissions = share.PermissionsJson
             });
         }
@@ -226,19 +233,21 @@ public static class ShareEndpoints
                 string? mediumUrl = null;
 
                 if (!string.IsNullOrEmpty(asset.ThumbObjectKey))
-                    thumbnailUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.ThumbObjectKey, 3600);
+                    thumbnailUrl = $"/api/shares/{token}/preview?size=thumb&assetId={asset.Id}";
                 if (!string.IsNullOrEmpty(asset.MediumObjectKey))
-                    mediumUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.MediumObjectKey, 3600);
+                    mediumUrl = $"/api/shares/{token}/preview?size=medium&assetId={asset.Id}";
 
                 assetDtos.Add(new SharedAssetDto
                 {
                     Id = asset.Id,
                     Title = asset.Title,
+                    Description = asset.Description,
                     AssetType = asset.AssetType,
                     ContentType = asset.ContentType,
                     SizeBytes = asset.SizeBytes,
                     ThumbnailUrl = thumbnailUrl,
                     MediumUrl = mediumUrl,
+                    MetadataJson = asset.MetadataJson,
                     Permissions = share.PermissionsJson
                 });
             }
@@ -278,7 +287,7 @@ public static class ShareEndpoints
             return Results.BadRequest("This share link has been revoked");
 
         // Check if share is expired
-        if (share.ExpiresAt < DateTime.UtcNow)
+        if (share.ExpiresAt < DateTime.Now)
             return Results.BadRequest("This share link has expired");
 
         // Check if download permission is granted
@@ -323,17 +332,100 @@ public static class ShareEndpoints
             return Results.BadRequest("Asset file not available");
 
         // Update access tracking
-        share.LastAccessedAt = DateTime.UtcNow;
+        share.LastAccessedAt = DateTime.Now;
         share.AccessCount++;
         await shareRepository.UpdateAsync(share);
 
-        // Generate presigned download URL and redirect
-        var downloadUrl = await minioAdapter.GetPresignedDownloadUrlAsync(
-            bucketName, 
-            targetAsset.OriginalObjectKey, 
-            3600);
+        // Stream the file through the API to hide MinIO URLs
+        var stream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey);
+        var fileName = !string.IsNullOrEmpty(targetAsset.Title) ? targetAsset.Title : Path.GetFileName(targetAsset.OriginalObjectKey);
+        return Results.File(stream, targetAsset.ContentType, fileName);
+    }
 
-        return Results.Redirect(downloadUrl);
+    private static async Task<IResult> PreviewSharedAsset(
+        string token,
+        string? password,
+        string? size,
+        Guid? assetId,
+        [FromServices] IShareRepository shareRepository,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IMinIOAdapter minioAdapter,
+        IConfiguration configuration)
+    {
+        // Compute token hash to lookup in database
+        using var sha256 = SHA256.Create();
+        var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
+
+        var share = await shareRepository.GetByTokenHashAsync(tokenHash);
+        if (share == null)
+            return Results.NotFound("Share link not found or invalid");
+
+        // Check if share is revoked
+        if (share.RevokedAt.HasValue)
+            return Results.BadRequest("This share link has been revoked");
+
+        // Check if share is expired
+        if (share.ExpiresAt < DateTime.Now)
+            return Results.BadRequest("This share link has expired");
+
+        // Check password if required
+        if (!string.IsNullOrEmpty(share.PasswordHash))
+        {
+            if (string.IsNullOrEmpty(password))
+                return Results.Json(new { requiresPassword = true }, statusCode: 401);
+
+            var inputPasswordHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
+            if (inputPasswordHash != share.PasswordHash)
+                return Results.Unauthorized();
+        }
+
+        var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
+        Asset? targetAsset = null;
+
+        if (share.ScopeType == "asset")
+        {
+            targetAsset = await assetRepository.GetByIdAsync(share.ScopeId);
+        }
+        else if (share.ScopeType == "collection")
+        {
+            // For collection shares, assetId must be provided
+            if (!assetId.HasValue)
+                return Results.BadRequest("assetId query parameter is required for collection share previews");
+
+            targetAsset = await assetRepository.GetByIdAsync(assetId.Value);
+
+            // Verify the asset belongs to the shared collection
+            if (targetAsset == null || targetAsset.CollectionId != share.ScopeId)
+                return Results.NotFound("Asset not found in this shared collection");
+        }
+
+        if (targetAsset == null)
+            return Results.NotFound("Asset not found");
+
+        // Determine which object key to use based on size
+        string? objectKey = size?.ToLower() switch
+        {
+            "thumb" => targetAsset.ThumbObjectKey,
+            "medium" => targetAsset.MediumObjectKey,
+            _ => targetAsset.MediumObjectKey ?? targetAsset.ThumbObjectKey
+        };
+
+        if (string.IsNullOrEmpty(objectKey))
+            return Results.NotFound("Preview not available");
+
+        // Stream the preview through the API
+        var previewStream = await minioAdapter.DownloadAsync(bucketName, objectKey);
+        
+        // Determine content type for preview
+        var contentType = targetAsset.ContentType;
+        if (objectKey.EndsWith(".jpg") || objectKey.EndsWith(".jpeg"))
+            contentType = "image/jpeg";
+        else if (objectKey.EndsWith(".png"))
+            contentType = "image/png";
+        else if (objectKey.EndsWith(".webp"))
+            contentType = "image/webp";
+
+        return Results.File(previewStream, contentType);
     }
 
     private static async Task<IResult> RevokeShare(
@@ -351,7 +443,7 @@ public static class ShareEndpoints
             return Results.Forbid();
 
         // Mark as revoked instead of deleting (for audit trail)
-        share.RevokedAt = DateTime.UtcNow;
+        share.RevokedAt = DateTime.Now;
         await shareRepository.UpdateAsync(share);
 
         return Results.NoContent();

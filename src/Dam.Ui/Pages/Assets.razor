@@ -1,0 +1,262 @@
+@page "/assets"
+@attribute [Authorize]
+
+@using Dam.Application.Dtos
+@using Dam.Ui.Components
+@using Dam.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Assets - AssetHub</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudGrid>
+        <!-- Left Sidebar: Collection Tree -->
+        <MudItem xs="12" md="3" lg="2">
+            <MudPaper Class="pa-3" Elevation="1">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudText Typo="Typo.h6">Collections</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder" 
+                                   Size="Size.Small"
+                                   OnClick="CreateCollectionAsync" />
+                </MudStack>
+                
+                <CollectionTree @ref="_collectionTree" 
+                                OnCollectionSelected="OnCollectionSelected"
+                                SelectedCollectionId="_selectedCollectionId" />
+            </MudPaper>
+        </MudItem>
+
+        <!-- Main Content -->
+        <MudItem xs="12" md="9" lg="10">
+            <!-- Header with breadcrumb and actions -->
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0">
+                    <ItemTemplate Context="item">
+                        <MudLink Href="@item.Href" Color="Color.Primary">@item.Text</MudLink>
+                    </ItemTemplate>
+                </MudBreadcrumbs>
+
+                @if (_selectedCollectionId.HasValue)
+                {
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Share"
+                                   OnClick="ShareCollectionAsync">
+                            Share Collection
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   OnClick="RefreshAsync">
+                            Refresh
+                        </MudButton>
+                    </MudStack>
+                }
+            </MudStack>
+
+            @if (!_selectedCollectionId.HasValue)
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <MudText Typo="Typo.body1">Select a collection from the sidebar to view and upload assets.</MudText>
+                </MudAlert>
+            }
+            else
+            {
+                <!-- Upload Area -->
+                <AssetUpload CollectionId="@_selectedCollectionId" 
+                             OnUploadComplete="@OnUploadComplete" />
+
+                <!-- Search and Filter -->
+                <MudPaper Class="pa-3 my-3" Elevation="0" Outlined="true">
+                    <MudGrid>
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudTextField @bind-Value="_searchQuery"
+                                          Placeholder="Search assets..."
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Immediate="true"
+                                          DebounceInterval="500"
+                                          OnDebounceIntervalElapsed="SearchAsync" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudSelect @bind-Value="_filterType"
+                                       Label="Type"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense">
+                                <MudSelectItem Value="@((string?)null)">All Types</MudSelectItem>
+                                <MudSelectItem Value="@("image")">Images</MudSelectItem>
+                                <MudSelectItem Value="@("video")">Videos</MudSelectItem>
+                                <MudSelectItem Value="@("document")">Documents</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudSelect @bind-Value="_sortBy"
+                                       Label="Sort By"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense">
+                                <MudSelectItem Value="@("created_desc")">Newest First</MudSelectItem>
+                                <MudSelectItem Value="@("created_asc")">Oldest First</MudSelectItem>
+                                <MudSelectItem Value="@("title_asc")">Title A-Z</MudSelectItem>
+                                <MudSelectItem Value="@("size_desc")">Largest First</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="2">
+                            <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
+                                <MudIconButton Icon="@Icons.Material.Filled.GridView" 
+                                               Color="@(_viewMode == "grid" ? Color.Primary : Color.Default)"
+                                               OnClick="@(() => _viewMode = "grid")" />
+                                <MudIconButton Icon="@Icons.Material.Filled.ViewList"
+                                               Color="@(_viewMode == "list" ? Color.Primary : Color.Default)"
+                                               OnClick="@(() => _viewMode = "list")" />
+                            </MudButtonGroup>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                <!-- Asset Grid -->
+                <AssetGrid @ref="_assetGrid"
+                           CollectionId="@_selectedCollectionId"
+                           SearchQuery="@_searchQuery"
+                           FilterType="@_filterType"
+                           SortBy="@_sortBy"
+                           OnAssetsChanged="@OnAssetsChanged" />
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "collection")]
+    public Guid? CollectionQueryParam { get; set; }
+
+    private CollectionTree? _collectionTree;
+    private AssetGrid? _assetGrid;
+
+    private Guid? _selectedCollectionId;
+    private CollectionResponseDto? _selectedCollection;
+    private List<BreadcrumbItem> _breadcrumbs = new() { new("Home", "/assets") };
+
+    private string _searchQuery = "";
+    private string? _filterType;
+    private string _sortBy = "created_desc";
+    private string _viewMode = "grid";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CollectionQueryParam.HasValue)
+        {
+            await OnCollectionSelected(CollectionQueryParam.Value);
+        }
+    }
+
+    private async Task OnCollectionSelected(Guid? collectionId)
+    {
+        _selectedCollectionId = collectionId;
+
+        if (collectionId.HasValue)
+        {
+            try
+            {
+                _selectedCollection = await Api.GetCollectionAsync(collectionId.Value);
+                UpdateBreadcrumbs();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to load collection: {ex.Message}", Severity.Error);
+            }
+        }
+        else
+        {
+            _selectedCollection = null;
+            _breadcrumbs = new() { new("Home", "/assets") };
+        }
+    }
+
+    private void UpdateBreadcrumbs()
+    {
+        _breadcrumbs = new() { new("Home", "/assets") };
+        if (_selectedCollection != null)
+        {
+            _breadcrumbs.Add(new(_selectedCollection.Name, $"/assets?collection={_selectedCollection.Id}"));
+        }
+    }
+
+    private async Task CreateCollectionAsync()
+    {
+        var parameters = new DialogParameters<CreateCollectionDialog>
+        {
+            { x => x.ParentId, _selectedCollectionId }
+        };
+
+        var dialog = await DialogService.ShowAsync<CreateCollectionDialog>("Create Collection", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            if (_collectionTree != null)
+            {
+                await _collectionTree.RefreshAsync();
+            }
+            Snackbar.Add("Collection created successfully", Severity.Success);
+        }
+    }
+
+    private async Task ShareCollectionAsync()
+    {
+        if (!_selectedCollectionId.HasValue) return;
+
+        try
+        {
+            var share = await Api.CreateShareAsync(_selectedCollectionId.Value, "collection");
+            
+            var parameters = new DialogParameters<ShareLinkDialog>
+            {
+                { x => x.ShareUrl, share.ShareUrl },
+                { x => x.ExpiresAt, share.ExpiresAt }
+            };
+
+            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", parameters);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create share: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (_assetGrid != null)
+        {
+            await _assetGrid.RefreshAsync();
+        }
+    }
+
+    private async Task OnUploadComplete()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task OnAssetsChanged()
+    {
+        // Update collection tree counts if needed
+        if (_collectionTree != null)
+        {
+            await _collectionTree.RefreshAsync();
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        // In a real implementation, this would filter the asset grid
+        // For now, just refresh
+        await RefreshAsync();
+    }
+}

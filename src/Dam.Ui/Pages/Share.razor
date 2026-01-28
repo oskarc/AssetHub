@@ -1,0 +1,401 @@
+@page "/share/{Token}"
+
+@using Dam.Ui.Services
+@using System.Net.Http.Json
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>Shared Content - AssetHub</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    @if (_isLoading)
+    {
+        <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+            <MudText Typo="Typo.body1" Class="mt-4">Loading shared content...</MudText>
+        </MudStack>
+    }
+    else if (_requiresPassword)
+    {
+        <MudPaper Class="pa-6 mx-auto" MaxWidth="400px" Elevation="2">
+            <MudStack Spacing="4">
+                <MudStack AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h5">Password Required</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        This shared content is password protected.
+                    </MudText>
+                </MudStack>
+                
+                <MudTextField @bind-Value="_password"
+                              Label="Password"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Immediate="true"
+                              OnKeyDown="@OnPasswordKeyDown" />
+                
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+                }
+                
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           OnClick="SubmitPassword"
+                           Disabled="_isSubmitting">
+                    @if (_isSubmitting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Access Content
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+    else if (_errorMessage != null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">
+            <MudText Typo="Typo.body1">@_errorMessage</MudText>
+        </MudAlert>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/">
+            Go to Home
+        </MudButton>
+    }
+    else if (_sharedAsset != null)
+    {
+        <!-- Shared Asset View -->
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudStack Spacing="4">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.h5">@_sharedAsset.Title</MudText>
+                    <MudChip T="string" Color="@GetAssetTypeColor(_sharedAsset.AssetType)" Variant="Variant.Outlined">
+                        @_sharedAsset.AssetType
+                    </MudChip>
+                </MudStack>
+
+                @if (_sharedAsset.AssetType == "image")
+                {
+                    <MudImage Src="@GetPreviewUrl()"
+                              Alt="@_sharedAsset.Title"
+                              ObjectFit="ObjectFit.Contain"
+                              Style="width: 100%; max-height: 600px;"
+                              Class="rounded" />
+                }
+                else if (_sharedAsset.AssetType == "video")
+                {
+                    <video controls style="width: 100%; max-height: 600px;">
+                        <source src="@GetPreviewUrl()" type="@_sharedAsset.ContentType">
+                        Your browser does not support the video tag.
+                    </video>
+                }
+                else
+                {
+                    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">@_sharedAsset.Title</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            @_sharedAsset.ContentType
+                        </MudText>
+                    </MudStack>
+                }
+
+                @if (!string.IsNullOrEmpty(_sharedAsset.Description))
+                {
+                    <MudText Typo="Typo.body1">@_sharedAsset.Description</MudText>
+                }
+
+                <MudDivider />
+
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               OnClick="@(() => DownloadAsset(null))">
+                        Download
+                    </MudButton>
+                </MudStack>
+
+                @if (_sharedAsset.MetadataJson.Any())
+                {
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Image Information</MudText>
+                    <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                        <tbody>
+                            @foreach (var kvp in _sharedAsset.MetadataJson)
+                            {
+                                <tr>
+                                    <td style="width: 40%;"><MudText Typo="Typo.body2" Color="Color.Secondary">@FormatMetadataKey(kvp.Key)</MudText></td>
+                                    <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
+            </MudStack>
+        </MudPaper>
+    }
+    else if (_sharedCollection != null)
+    {
+        <!-- Shared Collection View -->
+        <MudPaper Class="pa-4 mb-4" Elevation="1">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h5">@_sharedCollection.Name</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    @_sharedCollection.Assets.Count assets
+                </MudText>
+            </MudStack>
+            @if (!string.IsNullOrEmpty(_sharedCollection.Description))
+            {
+                <MudText Typo="Typo.body1" Class="mt-2">@_sharedCollection.Description</MudText>
+            }
+        </MudPaper>
+
+        <MudGrid Spacing="3">
+            @foreach (var asset in _sharedCollection.Assets)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Elevation="2">
+                        <MudCardMedia Image="@(asset.ThumbnailUrl ?? GetPlaceholderIcon(asset.AssetType))"
+                                      Height="160" />
+                        <MudCardContent Class="pa-2">
+                            <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="@GetAssetTypeColor(asset.AssetType)" Variant="Variant.Outlined">
+                                @asset.AssetType
+                            </MudChip>
+                        </MudCardContent>
+                        <MudCardActions Class="pa-2 pt-0">
+                            <MudButton Variant="Variant.Text"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       OnClick="@(() => DownloadAsset(asset.Id))">
+                                Download
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = "";
+
+    private bool _isLoading = true;
+    private bool _requiresPassword = false;
+    private bool _isSubmitting = false;
+    private string _password = "";
+    private string? _error;
+    private string? _errorMessage;
+
+    private SharedAssetDto? _sharedAsset;
+    private SharedCollectionDto? _sharedCollection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSharedContent();
+    }
+
+    private async Task LoadSharedContent(string? password = null)
+    {
+        try
+        {
+            _isLoading = true;
+            _error = null;
+
+            var response = await Api.GetSharedContentAsync(Token, password);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                // Check if it requires password
+                var authContent = await response.Content.ReadFromJsonAsync<PasswordRequiredResponse>();
+                if (authContent?.RequiresPassword == true)
+                {
+                    _requiresPassword = true;
+                    _isLoading = false;
+                    return;
+                }
+                _error = "Invalid password";
+                _isLoading = false;
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _errorMessage = response.StatusCode switch
+                {
+                    System.Net.HttpStatusCode.NotFound => "This share link is invalid or has been removed.",
+                    System.Net.HttpStatusCode.BadRequest => error.Contains("expired") 
+                        ? "This share link has expired." 
+                        : error.Contains("revoked") 
+                            ? "This share link has been revoked."
+                            : "Unable to access shared content.",
+                    _ => "An error occurred while loading the shared content."
+                };
+                _isLoading = false;
+                return;
+            }
+
+            // The API returns either SharedAssetDto or SharedCollectionDto
+            // We can distinguish by checking if it has "Name" (collection) or "Title" (asset)
+            var jsonString = await response.Content.ReadAsStringAsync();
+            
+            if (jsonString.Contains("\"name\"", StringComparison.OrdinalIgnoreCase) && 
+                jsonString.Contains("\"assets\"", StringComparison.OrdinalIgnoreCase))
+            {
+                // It's a collection
+                _sharedCollection = System.Text.Json.JsonSerializer.Deserialize<SharedCollectionDto>(jsonString, 
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                _requiresPassword = false;
+            }
+            else
+            {
+                // It's an asset
+                _sharedAsset = System.Text.Json.JsonSerializer.Deserialize<SharedAssetDto>(jsonString,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                _requiresPassword = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Failed to load shared content. Please try again later.";
+            Console.WriteLine($"Share load error: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SubmitPassword()
+    {
+        if (string.IsNullOrEmpty(_password))
+        {
+            _error = "Please enter a password";
+            return;
+        }
+
+        _isSubmitting = true;
+        _error = null;
+
+        await LoadSharedContent(_password);
+
+        if (_requiresPassword)
+        {
+            _error = "Invalid password";
+        }
+
+        _isSubmitting = false;
+    }
+
+    private async Task OnPasswordKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SubmitPassword();
+        }
+    }
+
+    private string GetPreviewUrl()
+    {
+        if (_sharedAsset == null) return "";
+        return _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl ?? $"/api/shares/{Token}/download";
+    }
+
+    private string GetDownloadUrl()
+    {
+        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download";
+        if (!string.IsNullOrEmpty(_password))
+        {
+            url += $"?password={Uri.EscapeDataString(_password)}";
+        }
+        return url;
+    }
+
+    private async Task DownloadAsset(Guid? assetId)
+    {
+        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download";
+        var queryParams = new List<string>();
+        
+        if (assetId.HasValue)
+            queryParams.Add($"assetId={assetId.Value}");
+        if (!string.IsNullOrEmpty(_password))
+            queryParams.Add($"password={Uri.EscapeDataString(_password)}");
+        
+        if (queryParams.Count > 0)
+            url += "?" + string.Join("&", queryParams);
+
+        // Create a temporary anchor and click it to trigger download without page flash
+        await JS.InvokeVoidAsync("eval", $@"
+            (function() {{
+                var a = document.createElement('a');
+                a.href = '{url}';
+                a.download = '';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }})();
+        ");
+    }
+
+    private string GetPlaceholderIcon(string assetType)
+    {
+        return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23757575' d='M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z'/%3E%3C/svg%3E";
+    }
+
+    private string FormatMetadataKey(string key)
+    {
+        // Convert camelCase or PascalCase to readable format
+        // e.g., "cameraModel" -> "Camera Model", "Artist" -> "Artist"
+        if (string.IsNullOrEmpty(key)) return key;
+        
+        var result = System.Text.RegularExpressions.Regex.Replace(key, "([a-z])([A-Z])", "$1 $2");
+        result = System.Text.RegularExpressions.Regex.Replace(result, "([A-Z]+)([A-Z][a-z])", "$1 $2");
+        return char.ToUpper(result[0]) + result.Substring(1);
+    }
+
+    private Color GetAssetTypeColor(string assetType)
+    {
+        return assetType switch
+        {
+            "image" => Color.Success,
+            "video" => Color.Info,
+            "document" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    // DTOs for JSON deserialization
+    private class PasswordRequiredResponse
+    {
+        public bool RequiresPassword { get; set; }
+    }
+
+    private class SharedAssetDto
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = "";
+        public string? Description { get; set; }
+        public string AssetType { get; set; } = "";
+        public string ContentType { get; set; } = "";
+        public long SizeBytes { get; set; }
+        public string? ThumbnailUrl { get; set; }
+        public string? MediumUrl { get; set; }
+        public Dictionary<string, object> MetadataJson { get; set; } = new();
+    }
+
+    private class SharedCollectionDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public List<SharedAssetDto> Assets { get; set; } = new();
+    }
+}

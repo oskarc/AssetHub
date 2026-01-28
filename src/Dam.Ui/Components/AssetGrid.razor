@@ -1,0 +1,253 @@
+@using Dam.Application.Dtos
+@using Dam.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+@if (_isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (_assets.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">
+        <MudText>No assets in this collection yet.</MudText>
+        <MudText Typo="Typo.body2">Upload files using the button above to get started.</MudText>
+    </MudAlert>
+}
+else
+{
+    <MudGrid Spacing="3">
+        @foreach (var asset in _assets)
+        {
+            <MudItem xs="12" sm="6" md="4" lg="3" xl="2">
+                <MudCard Class="asset-card" Elevation="2">
+                    <div @onclick="() => ViewAsset(asset.Id)" style="cursor: pointer;">
+                        <MudCardMedia Image="@GetThumbnailUrl(asset)" 
+                                      Height="160" 
+                                      Class="asset-thumbnail" />
+                        <MudCardContent Class="pa-2">
+                            <MudText Typo="Typo.body2" Class="text-truncate">
+                                @asset.Title
+                            </MudText>
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudChip T="string" 
+                                         Size="Size.Small" 
+                                         Color="@GetAssetTypeColor(asset.AssetType)"
+                                         Variant="Variant.Outlined">
+                                    @asset.AssetType
+                                </MudChip>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @FormatFileSize(asset.SizeBytes)
+                                </MudText>
+                            </MudStack>
+                        </MudCardContent>
+                    </div>
+                    <MudCardActions Class="pa-2 pt-0">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
+                                       Size="Size.Small" 
+                                       OnClick="@(() => ViewAsset(asset.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Share" 
+                                       Size="Size.Small" 
+                                       OnClick="@(async () => await ShareAsset(asset))" />
+                        <MudSpacer />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Size="Size.Small" 
+                                       Color="Color.Error"
+                                       OnClick="@(async () => await DeleteAsset(asset))" />
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+
+    @if (_total > _assets.Count)
+    {
+        <MudStack Row="true" Justify="Justify.Center" Class="mt-4">
+            <MudButton Variant="Variant.Outlined" OnClick="LoadMoreAsync">
+                Load More (@(_total - _assets.Count) remaining)
+            </MudButton>
+        </MudStack>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid? CollectionId { get; set; }
+
+    [Parameter]
+    public string? SearchQuery { get; set; }
+
+    [Parameter]
+    public string? FilterType { get; set; }
+
+    [Parameter]
+    public string SortBy { get; set; } = "created_desc";
+
+    [Parameter]
+    public EventCallback<AssetResponseDto> OnAssetSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnAssetsChanged { get; set; }
+
+    private List<AssetResponseDto> _assets = new();
+    private int _total = 0;
+    private int _skip = 0;
+    private const int _take = 24;
+    private bool _isLoading = true;
+    private Guid? _loadedCollectionId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (CollectionId.HasValue)
+        {
+            // Only reload if the collection has changed
+            if (_loadedCollectionId != CollectionId.Value)
+            {
+                _loadedCollectionId = CollectionId.Value;
+                _skip = 0;
+                _assets.Clear();
+                await LoadAssetsAsync();
+            }
+        }
+        else
+        {
+            _loadedCollectionId = null;
+            _assets.Clear();
+            _total = 0;
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadAssetsAsync()
+    {
+        if (!CollectionId.HasValue) return;
+
+        try
+        {
+            _isLoading = true;
+            var response = await Api.GetAssetsAsync(
+                CollectionId.Value,
+                SearchQuery,
+                FilterType,
+                SortBy,
+                _skip,
+                _take);
+            _assets.AddRange(response.Items);
+            _total = response.Total;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load assets: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _skip = _assets.Count;
+        await LoadAssetsAsync();
+    }
+
+    public async Task RefreshAsync()
+    {
+        _skip = 0;
+        _assets.Clear();
+        await LoadAssetsAsync();
+    }
+
+    private void ViewAsset(Guid id)
+    {
+        Nav.NavigateTo($"/assets/{id}");
+    }
+
+    private async Task ShareAsset(AssetResponseDto asset)
+    {
+        try
+        {
+            var share = await Api.CreateShareAsync(asset.Id, "asset");
+            Snackbar.Add($"Share link created! URL: {share.ShareUrl}", Severity.Success);
+            await OnAssetsChanged.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create share: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteAsset(AssetResponseDto asset)
+    {
+        try
+        {
+            await Api.DeleteAssetAsync(asset.Id);
+            _assets.Remove(asset);
+            _total--;
+            Snackbar.Add("Asset deleted", Severity.Success);
+            await OnAssetsChanged.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete asset: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetThumbnailUrl(AssetResponseDto asset)
+    {
+        // If we have a thumbnail, use the API endpoint
+        if (!string.IsNullOrEmpty(asset.ThumbObjectKey))
+        {
+            return $"/api/assets/{asset.Id}/thumb";
+        }
+
+        // Return inline SVG placeholder based on asset type
+        return asset.AssetType switch
+        {
+            "image" => GetPlaceholderSvg("Image", "#4CAF50", "M21,19V5c0-1.1-0.9-2-2-2H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14C20.1,21,21,20.1,21,19z M8.5,13.5l2.5,3.01L14.5,12l4.5,6H5L8.5,13.5z"),
+            "video" => GetPlaceholderSvg("Video", "#2196F3", "M17,10.5V7c0-0.55-0.45-1-1-1H4C3.45,6,3,6.45,3,7v10c0,0.55,0.45,1,1,1h12c0.55,0,1-0.45,1-1v-3.5l4,4v-11L17,10.5z"),
+            "document" => GetPlaceholderSvg("Document", "#FF9800", "M14,2H6C4.9,2,4.01,2.9,4.01,4L4,20c0,1.1,0.89,2,1.99,2H18c1.1,0,2-0.9,2-2V8L14,2z M16,18H8v-2h8V18z M16,14H8v-2h8V14z M13,9V3.5L18.5,9H13z"),
+            _ => GetPlaceholderSvg("Asset", "#9E9E9E", "M6,2C4.89,2,4,2.9,4,4v16c0,1.1,0.89,2,2,2h12c1.1,0,2-0.9,2-2V8l-6-6H6z M13,9V3.5L18.5,9H13z")
+        };
+    }
+
+    private static string GetPlaceholderSvg(string label, string color, string iconPath)
+    {
+        var svg = $@"<svg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'>
+            <rect fill='#f5f5f5' width='300' height='200'/>
+            <g transform='translate(126, 60)'>
+                <svg fill='{color}' viewBox='0 0 24 24' width='48' height='48'>
+                    <path d='{iconPath}'/>
+                </svg>
+            </g>
+            <text x='150' y='140' fill='{color}' font-family='sans-serif' font-size='16' text-anchor='middle'>{label}</text>
+        </svg>";
+        return $"data:image/svg+xml,{Uri.EscapeDataString(svg)}";
+    }
+
+    private Color GetAssetTypeColor(string assetType)
+    {
+        return assetType switch
+        {
+            "image" => Color.Success,
+            "video" => Color.Info,
+            "document" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}

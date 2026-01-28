@@ -1,0 +1,209 @@
+@using Dam.Ui.Services
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject AssetHubApiClient Api
+@inject ISnackbar Snackbar
+
+<MudPaper Class="@_uploadAreaClass"
+          Elevation="0"
+          Outlined="true"
+          @ondragenter="@(() => _isDragOver = true)"
+          @ondragleave="@(() => _isDragOver = false)"
+          @ondrop="@(() => _isDragOver = false)">
+
+    <InputFile id="fileInput"
+               OnChange="OnFilesSelected"
+               hidden
+               multiple
+               accept="image/*,video/*,.pdf" />
+
+    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-4">
+        <MudIcon Icon="@Icons.Material.Filled.CloudUpload" 
+                 Size="Size.Large" 
+                 Color="Color.Primary" />
+        <MudText Typo="Typo.body1">
+            Drag and drop files here or
+        </MudText>
+        <MudButton HtmlTag="label"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.AttachFile"
+                   for="fileInput"
+                   Disabled="@(!CollectionId.HasValue || _isUploading)">
+            Browse Files
+        </MudButton>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Supported: Images (JPEG, PNG, WebP), Videos (MP4), Documents (PDF)
+        </MudText>
+    </MudStack>
+</MudPaper>
+
+@if (_uploads.Any())
+{
+    <MudPaper Class="pa-3 mt-3" Elevation="1">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Uploads</MudText>
+        <MudStack Spacing="2">
+            @foreach (var upload in _uploads)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@GetFileIcon(upload.ContentType)" 
+                             Size="Size.Small" 
+                             Color="@GetStatusColor(upload.Status)" />
+                    <MudText Typo="Typo.body2" Class="flex-grow-1 text-truncate" Style="max-width: 200px;">
+                        @upload.FileName
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @FormatFileSize(upload.Size)
+                    </MudText>
+                    @if (upload.Status == UploadStatus.Uploading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    }
+                    else if (upload.Status == UploadStatus.Processing)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">Processing</MudChip>
+                    }
+                    else if (upload.Status == UploadStatus.Completed)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                    }
+                    else if (upload.Status == UploadStatus.Failed)
+                    {
+                        <MudTooltip Text="@upload.ErrorMessage">
+                            <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
+                        </MudTooltip>
+                    }
+                </MudStack>
+            }
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter]
+    public Guid? CollectionId { get; set; }
+
+    [Parameter]
+    public EventCallback OnUploadComplete { get; set; }
+
+    private List<UploadItem> _uploads = new();
+    private bool _isUploading = false;
+    private bool _isDragOver = false;
+
+    private string _uploadAreaClass => $"pa-4 upload-area {(_isDragOver ? "drag-over" : "")}";
+
+    private async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        if (!CollectionId.HasValue)
+        {
+            Snackbar.Add("Please select a collection first", Severity.Warning);
+            return;
+        }
+
+        _isUploading = true;
+        var files = e.GetMultipleFiles(10); // Max 10 files at once
+
+        foreach (var file in files)
+        {
+            var upload = new UploadItem
+            {
+                FileName = file.Name,
+                Size = file.Size,
+                ContentType = file.ContentType,
+                Status = UploadStatus.Uploading
+            };
+            _uploads.Insert(0, upload);
+            StateHasChanged();
+
+            try
+            {
+                // Max 500MB per file
+                using var stream = file.OpenReadStream(maxAllowedSize: 500 * 1024 * 1024);
+                
+                var result = await Api.UploadAssetAsync(
+                    CollectionId.Value,
+                    Path.GetFileNameWithoutExtension(file.Name),
+                    stream,
+                    file.Name,
+                    file.ContentType);
+
+                upload.AssetId = result.Id;
+                upload.Status = UploadStatus.Processing;
+                upload.Message = result.Message;
+                StateHasChanged();
+
+                // After a short delay, mark as completed (in reality, we'd poll for status)
+                await Task.Delay(2000);
+                upload.Status = UploadStatus.Completed;
+            }
+            catch (Exception ex)
+            {
+                upload.Status = UploadStatus.Failed;
+                upload.ErrorMessage = ex.Message;
+                Snackbar.Add($"Upload failed: {file.Name} - {ex.Message}", Severity.Error);
+            }
+
+            StateHasChanged();
+        }
+
+        _isUploading = false;
+        await OnUploadComplete.InvokeAsync();
+
+        // Clean up completed uploads after 5 seconds
+        await Task.Delay(5000);
+        _uploads.RemoveAll(u => u.Status == UploadStatus.Completed);
+        StateHasChanged();
+    }
+
+    private string GetFileIcon(string contentType)
+    {
+        if (contentType.StartsWith("image/")) return Icons.Material.Filled.Image;
+        if (contentType.StartsWith("video/")) return Icons.Material.Filled.VideoFile;
+        if (contentType.Contains("pdf")) return Icons.Material.Filled.PictureAsPdf;
+        return Icons.Material.Filled.InsertDriveFile;
+    }
+
+    private Color GetStatusColor(UploadStatus status)
+    {
+        return status switch
+        {
+            UploadStatus.Uploading => Color.Primary,
+            UploadStatus.Processing => Color.Info,
+            UploadStatus.Completed => Color.Success,
+            UploadStatus.Failed => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    private class UploadItem
+    {
+        public string FileName { get; set; } = "";
+        public long Size { get; set; }
+        public string ContentType { get; set; } = "";
+        public UploadStatus Status { get; set; }
+        public Guid? AssetId { get; set; }
+        public string? Message { get; set; }
+        public string? ErrorMessage { get; set; }
+    }
+
+    private enum UploadStatus
+    {
+        Uploading,
+        Processing,
+        Completed,
+        Failed
+    }
+}

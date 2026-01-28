@@ -47,6 +47,9 @@ builder.Services.AddHangfireServer();
 // MudBlazor
 builder.Services.AddMudServices();
 
+// Configuration
+builder.Services.Configure<MinIOSettings>(builder.Configuration.GetSection(MinIOSettings.SectionName));
+
 // Application Services
 builder.Services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizationService>();
 builder.Services.AddScoped<ICollectionRepository, CollectionRepository>();
@@ -55,6 +58,33 @@ builder.Services.AddScoped<IAssetRepository, AssetRepository>();
 builder.Services.AddScoped<IShareRepository, ShareRepository>();
 builder.Services.AddScoped<IMinIOAdapter, MinIOAdapter>();
 builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
+
+// HTTP Client for Blazor UI to call our own API
+// In Blazor Server, we need to forward the auth cookies when making internal API calls
+// Register the cookie forwarding handler for DI
+builder.Services.AddTransient<Dam.Ui.Services.CookieForwardingHandler>();
+
+builder.Services.AddHttpClient<Dam.Ui.Services.AssetHubApiClient>((sp, client) =>
+{
+    // Configure base address to call our own API endpoints
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+    var request = httpContextAccessor.HttpContext?.Request;
+    if (request != null)
+    {
+        client.BaseAddress = new Uri($"{request.Scheme}://{request.Host}");
+    }
+    else
+    {
+        // Fallback for when HttpContext is not available
+        client.BaseAddress = new Uri("http://localhost:7252");
+    }
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    // Allow self-signed certs in development
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+})
+.AddHttpMessageHandler<Dam.Ui.Services.CookieForwardingHandler>();
 
 // MinIO client
 var minioSettings = builder.Configuration.GetSection("MinIO");

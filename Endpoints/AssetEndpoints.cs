@@ -9,6 +9,9 @@ namespace AssetHub.Endpoints;
 
 public static class AssetEndpoints
 {
+    private static string GetBucketName(IConfiguration configuration) =>
+        configuration["MinIO:BucketName"] ?? "assethub-dev";
+
     public static void MapAssetEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/assets")
@@ -22,6 +25,12 @@ public static class AssetEndpoints
         group.MapPatch("{id}", UpdateAsset).WithName("UpdateAsset");
         group.MapDelete("{id}", DeleteAsset).WithName("DeleteAsset");
         group.MapGet("collection/{collectionId}", GetAssetsByCollection).WithName("GetAssetsByCollection");
+
+        // Rendition/download endpoints
+        group.MapGet("{id}/download", DownloadOriginal).WithName("DownloadOriginal");
+        group.MapGet("{id}/thumb", GetThumbnail).WithName("GetThumbnail");
+        group.MapGet("{id}/medium", GetMedium).WithName("GetMedium");
+        group.MapGet("{id}/poster", GetPoster).WithName("GetPoster");
     }
 
     private static async Task<IResult> GetAssets(
@@ -51,6 +60,9 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext,
+        string? query = null,
+        string? type = null,
+        string sortBy = "created_desc",
         int skip = 0,
         int take = 50)
     {
@@ -61,27 +73,29 @@ public static class AssetEndpoints
         if (!canAccess)
             return Results.Forbid();
 
-        var assets = await assetRepository.GetByCollectionAsync(collectionId, skip, take);
+        var (assets, total) = await assetRepository.SearchAsync(collectionId, query, type, sortBy, skip, take);
         var dtos = assets.Select(MapToDto).ToList();
         return Results.Ok(new
         {
             collectionId,
-            total = await assetRepository.CountByCollectionAsync(collectionId),
+            total,
             items = dtos
         });
     }
 
     private static async Task<IResult> UploadAsset(
         IFormFile file,
-        Guid collectionId,
-        string title,
+        [Microsoft.AspNetCore.Mvc.FromForm] Guid collectionId,
+        [Microsoft.AspNetCore.Mvc.FromForm] string title,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
         [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
         [Microsoft.AspNetCore.Mvc.FromServices] IMediaProcessingService mediaProcessingService,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
         HttpContext httpContext)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var bucketName = GetBucketName(configuration);
 
         // Check if user can contribute to this collection
         var canContribute = await authService.CheckAccessAsync(userId, collectionId, "contributor");
@@ -93,14 +107,9 @@ public static class AssetEndpoints
 
         try
         {
-            // Determine asset type from content type
-            var assetType = file.ContentType switch
-            {
-                var ct when ct.StartsWith("image/") => Asset.TypeImage,
-                var ct when ct.StartsWith("video/") => Asset.TypeVideo,
-                var ct when ct.StartsWith("application/pdf") => Asset.TypeDocument,
-                _ => Asset.TypeDocument
-            };
+            // Determine asset type from content type and file extension
+            var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+            var assetType = DetermineAssetType(file.ContentType, extension);
 
             // Create asset entity
             var assetId = Guid.NewGuid();
@@ -116,14 +125,14 @@ public static class AssetEndpoints
                 ContentType = file.ContentType,
                 SizeBytes = file.Length,
                 OriginalObjectKey = objectKey,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedByUserId = userId,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.Now
             };
 
             // Upload to MinIO
             using var stream = file.OpenReadStream();
-            await minioAdapter.UploadAsync("assethub-dev", objectKey, stream, file.ContentType);
+            await minioAdapter.UploadAsync(bucketName, objectKey, stream, file.ContentType);
 
             // Save asset to database
             await assetRepository.CreateAsync(asset);
@@ -168,7 +177,7 @@ public static class AssetEndpoints
         asset.Tags = dto.Tags ?? new();
         if (dto.MetadataJson != null)
             asset.MetadataJson = dto.MetadataJson;
-        asset.UpdatedAt = DateTime.UtcNow;
+        asset.UpdatedAt = DateTime.Now;
 
         await assetRepository.UpdateAsync(asset);
         return Results.Ok(MapToDto(asset));
@@ -179,9 +188,11 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
         [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
         HttpContext httpContext)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var bucketName = GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id);
         if (asset == null)
@@ -195,13 +206,13 @@ public static class AssetEndpoints
         try
         {
             // Delete from MinIO
-            await minioAdapter.DeleteAsync("assethub-dev", asset.OriginalObjectKey);
+            await minioAdapter.DeleteAsync(bucketName, asset.OriginalObjectKey);
             if (asset.ThumbObjectKey != null)
-                await minioAdapter.DeleteAsync("assethub-dev", asset.ThumbObjectKey);
+                await minioAdapter.DeleteAsync(bucketName, asset.ThumbObjectKey);
             if (asset.MediumObjectKey != null)
-                await minioAdapter.DeleteAsync("assethub-dev", asset.MediumObjectKey);
+                await minioAdapter.DeleteAsync(bucketName, asset.MediumObjectKey);
             if (asset.PosterObjectKey != null)
-                await minioAdapter.DeleteAsync("assethub-dev", asset.PosterObjectKey);
+                await minioAdapter.DeleteAsync(bucketName, asset.PosterObjectKey);
 
             // Delete from database
             await assetRepository.DeleteAsync(id);
@@ -237,4 +248,180 @@ public static class AssetEndpoints
             UpdatedAt = asset.UpdatedAt
         };
     }
+
+    #region Rendition Endpoints
+
+    private static async Task<IResult> DownloadOriginal(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        HttpContext httpContext)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+        var bucketName = GetBucketName(configuration);
+
+        var asset = await assetRepository.GetByIdAsync(id);
+        if (asset == null)
+            return Results.NotFound();
+
+        // Check authorization
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        if (!canAccess)
+            return Results.Forbid();
+
+        try
+        {
+            var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey);
+            var fileName = asset.Title + Path.GetExtension(asset.OriginalObjectKey);
+            return Results.File(stream, asset.ContentType, fileName);
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Download failed: {ex.Message}");
+        }
+    }
+
+    private static async Task<IResult> GetThumbnail(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        HttpContext httpContext)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+        var bucketName = GetBucketName(configuration);
+
+        var asset = await assetRepository.GetByIdAsync(id);
+        if (asset == null)
+            return Results.NotFound();
+
+        // Check authorization
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        if (!canAccess)
+            return Results.Forbid();
+
+        if (string.IsNullOrEmpty(asset.ThumbObjectKey))
+            return Results.NotFound("Thumbnail not available");
+
+        try
+        {
+            var stream = await minioAdapter.DownloadAsync(bucketName, asset.ThumbObjectKey);
+            return Results.File(stream, "image/webp");
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Failed to get thumbnail: {ex.Message}");
+        }
+    }
+
+    private static async Task<IResult> GetMedium(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        HttpContext httpContext)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+        var bucketName = GetBucketName(configuration);
+
+        var asset = await assetRepository.GetByIdAsync(id);
+        if (asset == null)
+            return Results.NotFound();
+
+        // Check authorization
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        if (!canAccess)
+            return Results.Forbid();
+
+        if (string.IsNullOrEmpty(asset.MediumObjectKey))
+        {
+            // Fall back to original if medium not available
+            try
+            {
+                var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey);
+                return Results.File(stream, asset.ContentType);
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest($"Failed to get asset: {ex.Message}");
+            }
+        }
+
+        try
+        {
+            var stream = await minioAdapter.DownloadAsync(bucketName, asset.MediumObjectKey);
+            return Results.File(stream, asset.ContentType);
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Failed to get medium rendition: {ex.Message}");
+        }
+    }
+
+    private static async Task<IResult> GetPoster(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        HttpContext httpContext)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+        var bucketName = GetBucketName(configuration);
+
+        var asset = await assetRepository.GetByIdAsync(id);
+        if (asset == null)
+            return Results.NotFound();
+
+        // Check authorization
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        if (!canAccess)
+            return Results.Forbid();
+
+        if (string.IsNullOrEmpty(asset.PosterObjectKey))
+            return Results.NotFound("Poster not available");
+
+        try
+        {
+            var stream = await minioAdapter.DownloadAsync(bucketName, asset.PosterObjectKey);
+            return Results.File(stream, "image/webp");
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Failed to get poster: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static string DetermineAssetType(string contentType, string? extension)
+    {
+        // Check content type first
+        if (!string.IsNullOrEmpty(contentType))
+        {
+            if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                return Asset.TypeImage;
+            if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+                return Asset.TypeVideo;
+            if (contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+                return Asset.TypeDocument;
+        }
+
+        // Fall back to file extension
+        return extension switch
+        {
+            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" or ".tiff" or ".tif" or ".ico" => Asset.TypeImage,
+            ".mp4" or ".avi" or ".mov" or ".wmv" or ".mkv" or ".webm" or ".flv" or ".m4v" => Asset.TypeVideo,
+            ".pdf" or ".doc" or ".docx" or ".xls" or ".xlsx" or ".ppt" or ".pptx" or ".txt" or ".rtf" => Asset.TypeDocument,
+            _ => Asset.TypeDocument
+        };
+    }
+
+    #endregion
 }

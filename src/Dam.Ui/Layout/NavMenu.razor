@@ -1,12 +1,17 @@
 ﻿
+@using Microsoft.AspNetCore.Components.Authorization
+
 <MudNavMenu>
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
-    <MudNavLink Href="counter" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Add">Counter</MudNavLink>
-    
-    <MudNavLink Href="weather" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Weather</MudNavLink>
-
-    <MudNavLink Href="debug/keycloak" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.BugReport">Keycloak Debug</MudNavLink>
-
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+            <MudNavLink Href="assets" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PhotoLibrary">Assets</MudNavLink>
+            
+            <MudDivider Class="my-2" />
+            
+            <MudNavLink Href="debug/keycloak" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.BugReport">Keycloak Debug</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
 </MudNavMenu>
 
 

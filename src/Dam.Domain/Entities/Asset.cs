@@ -43,7 +43,7 @@ public class Asset
     public void MarkReady(string? thumbKey = null, string? mediumKey = null, string? posterKey = null)
     {
         Status = StatusReady;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.Now;
         if (thumbKey != null) ThumbObjectKey = thumbKey;
         if (mediumKey != null) MediumObjectKey = mediumKey;
         if (posterKey != null) PosterObjectKey = posterKey;
@@ -55,7 +55,7 @@ public class Asset
     public void MarkFailed(string errorMessage)
     {
         Status = StatusFailed;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.Now;
         MetadataJson["error"] = errorMessage;
     }
 

@@ -1,0 +1,80 @@
+@using Dam.Application.Dtos
+@using Dam.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject ISnackbar Snackbar
+
+@if (_isLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (_collections.Count == 0)
+{
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-2">
+        No collections yet. Create one to get started.
+    </MudText>
+}
+else
+{
+    <MudNavMenu Dense="true">
+        @foreach (var collection in _collections)
+        {
+            <MudNavLink Icon="@Icons.Material.Filled.Folder"
+                        IconColor="@(SelectedCollectionId == collection.Id ? Color.Primary : Color.Default)"
+                        OnClick="@(() => SelectCollection(collection))"
+                        Class="@(SelectedCollectionId == collection.Id ? "mud-nav-link-active" : "")">
+                @collection.Name
+                @if (collection.AssetCount > 0)
+                {
+                    <MudChip T="string" Size="Size.Small" Class="ml-auto" Variant="Variant.Text">
+                        @collection.AssetCount
+                    </MudChip>
+                }
+            </MudNavLink>
+        }
+    </MudNavMenu>
+}
+
+@code {
+    [Parameter]
+    public EventCallback<Guid?> OnCollectionSelected { get; set; }
+
+    [Parameter]
+    public Guid? SelectedCollectionId { get; set; }
+
+    private List<CollectionResponseDto> _collections = new();
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCollectionsAsync();
+    }
+
+    private async Task LoadCollectionsAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _collections = await Api.GetCollectionsAsync(null);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load collections: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectCollection(CollectionResponseDto collection)
+    {
+        await OnCollectionSelected.InvokeAsync(collection.Id);
+    }
+
+    public async Task RefreshAsync()
+    {
+        _collections.Clear();
+        await LoadCollectionsAsync();
+    }
+}

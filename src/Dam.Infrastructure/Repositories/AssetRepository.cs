@@ -103,4 +103,57 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         dbContext.Assets.RemoveRange(assets);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<(List<Asset> Assets, int Total)> SearchAsync(
+        Guid collectionId,
+        string? query = null,
+        string? assetType = null,
+        string sortBy = "created_desc",
+        int skip = 0,
+        int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var queryable = dbContext.Assets
+            .Where(a => a.CollectionId == collectionId);
+
+        // Apply text search filter
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var searchPattern = $"%{query}%";
+            queryable = queryable.Where(a =>
+                EF.Functions.ILike(a.Title, searchPattern) ||
+                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)));
+            // Note: Tag search requires client-side evaluation for complex patterns
+            // For now, we search only in title and description which covers most use cases
+        }
+
+        // Apply asset type filter
+        if (!string.IsNullOrWhiteSpace(assetType))
+        {
+            queryable = queryable.Where(a => a.AssetType == assetType);
+        }
+
+        // Get total count before pagination
+        var total = await queryable.CountAsync(cancellationToken);
+
+        // Apply sorting
+        queryable = sortBy switch
+        {
+            "created_asc" => queryable.OrderBy(a => a.CreatedAt),
+            "created_desc" => queryable.OrderByDescending(a => a.CreatedAt),
+            "title_asc" => queryable.OrderBy(a => a.Title),
+            "title_desc" => queryable.OrderByDescending(a => a.Title),
+            "size_asc" => queryable.OrderBy(a => a.SizeBytes),
+            "size_desc" => queryable.OrderByDescending(a => a.SizeBytes),
+            _ => queryable.OrderByDescending(a => a.CreatedAt)
+        };
+
+        // Apply pagination
+        var assets = await queryable
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        return (assets, total);
+    }
 }

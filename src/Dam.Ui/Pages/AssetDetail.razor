@@ -1,0 +1,408 @@
+@page "/assets/{AssetId:guid}"
+@attribute [Authorize]
+
+@using Dam.Application.Dtos
+@using Dam.Ui.Components
+@using Dam.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>@(_asset?.Title ?? "Asset") - AssetHub</PageTitle>
+
+@if (_isLoading)
+{
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+        <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+            <MudText Typo="Typo.body1" Class="mt-4">Loading asset...</MudText>
+        </MudStack>
+    </MudContainer>
+}
+else if (_asset == null)
+{
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+        <MudAlert Severity="Severity.Error">
+            <MudText>Asset not found or you don't have permission to view it.</MudText>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@NavigateBackToAssets">
+                Back to Assets
+            </MudButton>
+        </MudAlert>
+    </MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+        <!-- Back Button -->
+        <MudButton Variant="Variant.Text" 
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="@NavigateBackToAssets"
+                   Class="mb-3">
+            Back to Assets
+        </MudButton>
+
+        <MudGrid>
+            <!-- Preview Area -->
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-4" Elevation="1">
+                    @if (_asset.AssetType == "image")
+                    {
+                        <MudImage Src="@GetPreviewUrl()" 
+                                  Alt="@_asset.Title"
+                                  ObjectFit="ObjectFit.Contain"
+                                  Style="width: 100%; max-height: 600px;"
+                                  Class="rounded" />
+                    }
+                    else if (_asset.AssetType == "video")
+                    {
+                        <video controls style="width: 100%; max-height: 600px;">
+                            <source src="@GetPreviewUrl()" type="@_asset.ContentType">
+                            Your browser does not support the video tag.
+                        </video>
+                    }
+                    else
+                    {
+                        <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                            <MudIcon Icon="@GetAssetIcon()" Size="Size.Large" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">@_asset.Title</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Document preview not available
+                            </MudText>
+                        </MudStack>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <!-- Details Panel -->
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <!-- Title and Status -->
+                    <MudStack Spacing="3">
+                        <MudStack>
+                            <MudText Typo="Typo.h5">@_asset.Title</MudText>
+                            <MudStack Row="true" Spacing="1">
+                                <MudChip T="string" Size="Size.Small" Color="@GetAssetTypeColor()">
+                                    @_asset.AssetType.ToUpperInvariant()
+                                </MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor()">
+                                    @_asset.Status.ToUpperInvariant()
+                                </MudChip>
+                            </MudStack>
+                        </MudStack>
+
+                        <MudDivider />
+
+                        <!-- Description -->
+                        @if (!string.IsNullOrEmpty(_asset.Description))
+                        {
+                            <MudStack>
+                                <MudText Typo="Typo.subtitle2">Description</MudText>
+                                <MudText Typo="Typo.body2">@_asset.Description</MudText>
+                            </MudStack>
+                        }
+
+                        <!-- File Info -->
+                        <MudStack>
+                            <MudText Typo="Typo.subtitle2">File Information</MudText>
+                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                <tbody>
+                                    <tr>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Size</MudText></td>
+                                        <td><MudText Typo="Typo.body2">@FormatFileSize(_asset.SizeBytes)</MudText></td>
+                                    </tr>
+                                    <tr>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Type</MudText></td>
+                                        <td><MudText Typo="Typo.body2">@_asset.ContentType</MudText></td>
+                                    </tr>
+                                    <tr>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Created</MudText></td>
+                                        <td><MudText Typo="Typo.body2">@_asset.CreatedAt.ToLocalTime().ToString("g")</MudText></td>
+                                    </tr>
+                                    <tr>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Updated</MudText></td>
+                                        <td><MudText Typo="Typo.body2">@_asset.UpdatedAt.ToLocalTime().ToString("g")</MudText></td>
+                                    </tr>
+                                    @if (!string.IsNullOrEmpty(_asset.Sha256))
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">SHA256</MudText></td>
+                                            <td>
+                                                <MudTooltip Text="@_asset.Sha256">
+                                                    <MudText Typo="Typo.body2" Style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
+                                                        @_asset.Sha256[..16]...
+                                                    </MudText>
+                                                </MudTooltip>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        </MudStack>
+
+                        <!-- Tags -->
+                        @if (_asset.Tags.Any())
+                        {
+                            <MudStack>
+                                <MudText Typo="Typo.subtitle2">Tags</MudText>
+                                <MudChipSet T="string" ReadOnly="true">
+                                    @foreach (var tag in _asset.Tags)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@tag</MudChip>
+                                    }
+                                </MudChipSet>
+                            </MudStack>
+                        }
+
+                        <!-- Advanced Metadata (Expandable) -->
+                        <MudDivider />
+                        <MudStack>
+                            <MudExpansionPanels Elevation="0" Style="margin: -16px; padding: 0;">
+                                <MudExpansionPanel MaxHeight="400"
+                                                   Style="background: transparent; padding: 0;"
+                                                   Class="pa-0 ma-0">
+                                    <TitleContent>
+                                        <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">Advanced MetaData</MudText>
+                                    </TitleContent>
+                                    <ChildContent>
+                                        @if (_asset.MetadataJson.Any())
+                                        {
+                                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                                <tbody>
+                                                    @foreach (var kvp in _asset.MetadataJson.OrderBy(k => k.Key))
+                                                    {
+                                                        <tr>
+                                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@FormatMetadataKey(kvp.Key)</MudText></td>
+                                                            <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </MudSimpleTable>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                                No metadata available. Upload a new image with EXIF data to see metadata here.
+                                            </MudText>
+                                        }
+                                    </ChildContent>
+                                </MudExpansionPanel>
+                            </MudExpansionPanels>
+                        </MudStack>
+
+                        <MudDivider />
+
+                        <!-- Actions -->
+                        <MudStack Spacing="2">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       FullWidth="true"
+                                       Href="@GetDownloadUrl()"
+                                       Target="_blank">
+                                Download Original
+                            </MudButton>
+
+                            <MudButton Variant="Variant.Outlined"
+                                       StartIcon="@Icons.Material.Filled.Share"
+                                       FullWidth="true"
+                                       OnClick="ShareAssetAsync">
+                                Share
+                            </MudButton>
+
+                            <MudButton Variant="Variant.Outlined"
+                                       StartIcon="@Icons.Material.Filled.Edit"
+                                       FullWidth="true"
+                                       OnClick="EditAssetAsync">
+                                Edit Details
+                            </MudButton>
+
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Error"
+                                       StartIcon="@Icons.Material.Filled.Delete"
+                                       FullWidth="true"
+                                       OnClick="DeleteAssetAsync">
+                                Delete
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+}
+
+@code {
+    [Parameter]
+    public Guid AssetId { get; set; }
+
+    private AssetResponseDto? _asset;
+    private bool _isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAssetAsync();
+    }
+
+    private async Task LoadAssetAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _asset = await Api.GetAssetAsync(AssetId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load asset: {ex.Message}", Severity.Error);
+            _asset = null;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetPreviewUrl()
+    {
+        if (_asset == null) return "";
+
+        // Use medium rendition for images, poster for videos
+        if (_asset.AssetType == "image" && !string.IsNullOrEmpty(_asset.MediumObjectKey))
+        {
+            return $"/api/assets/{_asset.Id}/medium";
+        }
+        else if (_asset.AssetType == "video" && !string.IsNullOrEmpty(_asset.PosterObjectKey))
+        {
+            return $"/api/assets/{_asset.Id}/poster";
+        }
+
+        // Fallback to original
+        return $"/api/assets/{_asset.Id}/download";
+    }
+
+    private string GetDownloadUrl()
+    {
+        return $"/api/assets/{AssetId}/download";
+    }
+
+    private string GetAssetIcon()
+    {
+        return _asset?.AssetType switch
+        {
+            "image" => Icons.Material.Filled.Image,
+            "video" => Icons.Material.Filled.VideoFile,
+            "document" => Icons.Material.Filled.Description,
+            _ => Icons.Material.Filled.InsertDriveFile
+        };
+    }
+
+    private Color GetAssetTypeColor()
+    {
+        return _asset?.AssetType switch
+        {
+            "image" => Color.Success,
+            "video" => Color.Info,
+            "document" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetStatusColor()
+    {
+        return _asset?.Status switch
+        {
+            "ready" => Color.Success,
+            "processing" => Color.Info,
+            "failed" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private async Task ShareAssetAsync()
+    {
+        if (_asset == null) return;
+
+        try
+        {
+            var share = await Api.CreateShareAsync(_asset.Id, "asset");
+
+            var parameters = new DialogParameters<ShareLinkDialog>
+            {
+                { x => x.ShareUrl, share.ShareUrl },
+                { x => x.ExpiresAt, share.ExpiresAt }
+            };
+
+            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", parameters);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create share: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task EditAssetAsync()
+    {
+        // TODO: Implement edit dialog
+        Snackbar.Add("Edit functionality coming soon", Severity.Info);
+    }
+
+    private async Task DeleteAssetAsync()
+    {
+        if (_asset == null) return;
+
+        var result = await DialogService.ShowMessageBox(
+            "Delete Asset",
+            $"Are you sure you want to delete '{_asset.Title}'? This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                var collectionId = _asset.CollectionId;
+                await Api.DeleteAssetAsync(_asset.Id);
+                Snackbar.Add("Asset deleted successfully", Severity.Success);
+                Nav.NavigateTo($"/assets?collection={collectionId}");
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete asset: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void NavigateBackToAssets()
+    {
+        if (_asset != null)
+        {
+            Nav.NavigateTo($"/assets?collection={_asset.CollectionId}");
+        }
+        else
+        {
+            Nav.NavigateTo("/assets");
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    private string FormatMetadataKey(string key)
+    {
+        // Convert camelCase to Title Case with spaces
+        var result = System.Text.RegularExpressions.Regex.Replace(key, "([a-z])([A-Z])", "$1 $2");
+        return char.ToUpper(result[0]) + result[1..];
+    }
+}

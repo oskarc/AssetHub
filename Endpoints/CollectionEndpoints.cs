@@ -145,7 +145,7 @@ public static class CollectionEndpoints
             Description = dto.Description,
             ParentId = dto.ParentId,
             CreatedByUserId = userId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.Now
         };
 
         await collectionRepo.CreateAsync(collection);

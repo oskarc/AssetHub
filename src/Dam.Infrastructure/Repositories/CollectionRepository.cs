@@ -57,7 +57,7 @@ public class CollectionRepository : ICollectionRepository
     public async Task<Collection> CreateAsync(Collection collection)
     {
         collection.Id = Guid.NewGuid();
-        collection.CreatedAt = DateTime.UtcNow;
+        collection.CreatedAt = DateTime.Now;
 
         _dbContext.Collections.Add(collection);
         await _dbContext.SaveChangesAsync();
@@ -150,7 +150,7 @@ public class CollectionAclRepository : ICollectionAclRepository
                 PrincipalType = principalType,
                 PrincipalId = principalId,
                 Role = role,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
             _dbContext.CollectionAcls.Add(acl);
             existing = acl;

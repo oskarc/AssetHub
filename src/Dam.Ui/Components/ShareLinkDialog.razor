@@ -1,0 +1,76 @@
+@using MudBlazor
+
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Share" Class="mr-2" Color="Color.Success" />
+            Share Link Created
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Success" Dense="true">
+                Your share link has been created successfully!
+            </MudAlert>
+
+            <MudTextField Value="@ShareUrl"
+                          Label="Share URL"
+                          ReadOnly="true"
+                          Variant="Variant.Outlined"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                          OnAdornmentClick="CopyToClipboard" />
+
+            @if (ExpiresAt.HasValue)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                    Expires: @ExpiresAt.Value.ToLocalTime().ToString("f")
+                </MudText>
+            }
+
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Anyone with this link can access the shared content. 
+                You can revoke access at any time from your dashboard.
+            </MudAlert>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Close</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.ContentCopy"
+                   OnClick="CopyToClipboard">
+            Copy Link
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public string ShareUrl { get; set; } = "";
+
+    [Parameter]
+    public DateTime? ExpiresAt { get; set; }
+
+    private void Close() => MudDialog.Close();
+
+    private async Task CopyToClipboard()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
+            Snackbar.Add("Link copied to clipboard!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy to clipboard. Please copy manually.", Severity.Warning);
+        }
+    }
+}
