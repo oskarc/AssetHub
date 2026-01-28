@@ -1350,9 +1350,9 @@ public class SearchAssetsHandler
 
 ### Phase 3A: Blazor UI - Collections & Asset Grid (Days 11-12)
 
-**STATUS: 🔄 IN PROGRESS**
+**STATUS: ✅ COMPLETE**
 
-> UI development started. Core components implemented and compiling. MudBlazor 8.x integrated with updated APIs.
+> UI development complete. All core components implemented and functional. MudBlazor 8.x integrated with updated APIs.
 >
 > **Completed Components**:
 > - `Services/AssetHubApiClient.cs` - HTTP client for API calls
@@ -1361,20 +1361,28 @@ public class SearchAssetsHandler
 > - `Components/AssetUpload.razor` - Drag-and-drop file upload
 > - `Components/CreateCollectionDialog.razor` - Create collection modal
 > - `Components/ShareLinkDialog.razor` - Share URL display modal
-> - `Pages/Assets.razor` - Main asset browser page
-> - `Pages/AssetDetail.razor` - Asset detail/preview page
+> - `Pages/Assets.razor` - Main asset browser page with Download All button
+> - `Pages/AssetDetail.razor` - Asset detail/preview page with 2-column layout
+> - `Pages/Share.razor` - Public share page with consistent layout
 >
-> **Pending**:
-> - API endpoint for serving thumbnails (presigned URLs)
-> - Integration testing with running API
-> - Search/filter implementation
+> **Recent Enhancements (January 2026)**:
+> - Download All button for collections (ZIP archive streaming)
+> - Download All button for shared collections
+> - Clickable assets in shared collections with detail view
+> - Two-column layout for shared asset pages (matching authenticated view)
+> - Advanced MetaData display on shared asset pages
+> - Navigation menu hidden for non-authenticated share page visitors
+> - Timezone configured to Europe/Stockholm
+> - DateTime.UtcNow fix for PostgreSQL timestamptz compatibility
 
 #### Deliverables
-- [ ] Collections tree/breadcrumb navigation
-- [ ] Asset grid with virtualization
-- [ ] Search/filter UI
-- [ ] Asset detail modal/page
-- [ ] Upload UI (drag-and-drop, progress)
+- [x] Collections tree/breadcrumb navigation
+- [x] Asset grid with virtualization
+- [x] Search/filter UI
+- [x] Asset detail modal/page
+- [x] Upload UI (drag-and-drop, progress)
+- [x] Download All for collections (ZIP streaming)
+- [x] Shared collection asset detail view with metadata
 
 #### Modules Involved
 - **Dam.Ui**: Blazor Razor Class Library (pages, layouts, components)
@@ -1839,7 +1847,16 @@ else
 > - `POST /api/shares` - Create share with token generation
 > - `GET /api/shares/{token}` - Public access with password validation
 > - `GET /api/shares/{token}/download` - Download with presigned URL redirect
+> - `GET /api/shares/{token}/download-all` - Download all assets as ZIP (for shared collections)
 > - `DELETE /api/shares/{id}` - Revoke share (soft delete for audit)
+>
+> **Recent Enhancements (January 2026)**:
+> - Download All endpoint for shared collections (`GET /api/shares/{token}/download-all`)
+> - Clickable assets in shared collections with View button
+> - Selected asset detail view with File Information and Advanced MetaData
+> - Two-column layout matching authenticated AssetDetail.razor
+> - Fixed DateTime.UtcNow for PostgreSQL timestamptz compatibility (Npgsql 6+ requirement)
+> - Asset type chips styled with `width: fit-content` to prevent expansion
 
 #### Deliverables
 - [x] Share creation endpoint & UI
