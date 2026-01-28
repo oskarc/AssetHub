@@ -125,9 +125,9 @@ public static class AssetEndpoints
                 ContentType = file.ContentType,
                 SizeBytes = file.Length,
                 OriginalObjectKey = objectKey,
-                CreatedAt = DateTime.Now,
+                CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = userId,
-                UpdatedAt = DateTime.Now
+                UpdatedAt = DateTime.UtcNow
             };
 
             // Upload to MinIO
@@ -177,7 +177,7 @@ public static class AssetEndpoints
         asset.Tags = dto.Tags ?? new();
         if (dto.MetadataJson != null)
             asset.MetadataJson = dto.MetadataJson;
-        asset.UpdatedAt = DateTime.Now;
+        asset.UpdatedAt = DateTime.UtcNow;
 
         await assetRepository.UpdateAsync(asset);
         return Results.Ok(MapToDto(asset));
