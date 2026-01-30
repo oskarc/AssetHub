@@ -28,4 +28,17 @@ public interface IAssetRepository
         int skip = 0,
         int take = 50,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Search all assets across accessible collections with optional filters.
+    /// </summary>
+    /// <param name="accessibleCollectionIds">Collection IDs the user has access to. If null or empty, returns no assets.</param>
+    Task<(List<Asset> Assets, int Total)> SearchAllAsync(
+        IEnumerable<Guid>? accessibleCollectionIds,
+        string? query = null,
+        string? assetType = null,
+        string sortBy = "created_desc",
+        int skip = 0,
+        int take = 50,
+        CancellationToken cancellationToken = default);
 }

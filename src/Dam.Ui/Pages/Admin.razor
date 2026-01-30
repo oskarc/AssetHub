@@ -1,0 +1,528 @@
+@page "/admin"
+@using Microsoft.AspNetCore.Authorization
+@using Dam.Application.Dtos
+@attribute [Authorize(Policy = "RequireAdmin")]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+
+<PageTitle>Admin - AssetHub</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mr-2" />
+        Administration
+    </MudText>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text="Share Management" Icon="@Icons.Material.Filled.Share">
+            <ShareManagementTab />
+        </MudTabPanel>
+        <MudTabPanel Text="Collection Access" Icon="@Icons.Material.Filled.FolderShared">
+            <CollectionAccessTab />
+        </MudTabPanel>
+        <MudTabPanel Text="Users" Icon="@Icons.Material.Filled.People">
+            <UsersTab />
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@* ===== SHARE MANAGEMENT TAB ===== *@
+@code {
+    // Nested component for Share Management
+    private RenderFragment ShareManagementTab => __builder =>
+    {
+        <MudText Typo="Typo.h6" Class="mb-4">All Shared Links</MudText>
+        
+        @if (_sharesLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_shares == null || !_shares.Any())
+        {
+            <MudAlert Severity="Severity.Info">No shares found.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@_shares" Hover="true" Dense="true" Striped="true" Filter="ShareFilter">
+                <ToolBarContent>
+                    <MudTextField @bind-Value="_shareSearchString" Placeholder="Search shares..." 
+                        Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                        IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                    <MudSpacer />
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Active: @_shares.Count(s => s.Status == "Active")</MudChip>
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">Expired: @_shares.Count(s => s.Status == "Expired")</MudChip>
+                    <MudChip T="string" Color="Color.Error" Size="Size.Small">Revoked: @_shares.Count(s => s.Status == "Revoked")</MudChip>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Target</MudTh>
+                    <MudTh>Created By</MudTh>
+                    <MudTh>Created</MudTh>
+                    <MudTh>Expires</MudTh>
+                    <MudTh>Last Access</MudTh>
+                    <MudTh>Access Count</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="@(context.ScopeType == "asset" ? Color.Info : Color.Secondary)">
+                            @context.ScopeType
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudTooltip Text="@context.ScopeId.ToString()">
+                            @context.ScopeName
+                        </MudTooltip>
+                        @if (context.HasPassword)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Warning" Class="ml-1" />
+                        }
+                    </MudTd>
+                    <MudTd>@context.CreatedByUserId</MudTd>
+                    <MudTd>@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
+                    <MudTd>@context.ExpiresAt.ToLocalTime().ToString("g")</MudTd>
+                    <MudTd>@(context.LastAccessedAt?.ToLocalTime().ToString("g") ?? "Never")</MudTd>
+                    <MudTd><MudChip T="string" Size="Size.Small">@context.AccessCount</MudChip></MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                            @context.Status
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        @if (context.Status == "Active")
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
+                                OnClick="@(() => RevokeShare(context))" Title="Revoke Share" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        }
+    };
+}
+
+@* ===== COLLECTION ACCESS TAB ===== *@
+@code {
+    private RenderFragment CollectionAccessTab => __builder =>
+    {
+        <MudText Typo="Typo.h6" Class="mb-4">Collection Access Control</MudText>
+        
+        @if (_collectionsLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_collections == null || !_collections.Any())
+        {
+            <MudAlert Severity="Severity.Info">No collections found.</MudAlert>
+        }
+        else
+        {
+            <MudGrid>
+                <MudItem xs="12" md="5">
+                    <MudPaper Elevation="2" Class="pa-4 admin-collection-tree">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">Collections</MudText>
+                        @foreach (var collection in _collections)
+                        {
+                            @RenderCollectionTree(collection, 0)
+                        }
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="7">
+                    <MudPaper Elevation="2" Class="pa-4">
+                        @if (_selectedCollection == null)
+                        {
+                            <MudAlert Severity="Severity.Info">Select a collection to manage access.</MudAlert>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">
+                                Access for: <strong>@_selectedCollection.Name</strong>
+                            </MudText>
+                            
+                            @* Add user form *@
+                            <MudGrid Class="mb-4">
+                                <MudItem xs="12" sm="5">
+                                    <MudTextField @bind-Value="_newAclUserId" Label="User ID" 
+                                        Variant="Variant.Outlined" Size="Size.Small" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudSelect @bind-Value="_newAclRole" Label="Role" 
+                                        Variant="Variant.Outlined" Size="Size.Small">
+                                        <MudSelectItem Value="@("viewer")">Viewer</MudSelectItem>
+                                        <MudSelectItem Value="@("contributor")">Contributor</MudSelectItem>
+                                        <MudSelectItem Value="@("manager")">Manager</MudSelectItem>
+                                        <MudSelectItem Value="@("admin")">Admin</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                        OnClick="AddCollectionAccess" Disabled="@(string.IsNullOrWhiteSpace(_newAclUserId))"
+                                        FullWidth="true" Class="mt-1">
+                                        Add
+                                    </MudButton>
+                                </MudItem>
+                            </MudGrid>
+                            
+                            @* Current ACLs *@
+                            @if (!_selectedCollection.Acls.Any())
+                            {
+                                <MudAlert Severity="Severity.Warning">No users have access to this collection.</MudAlert>
+                            }
+                            else
+                            {
+                                <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                                    <thead>
+                                        <tr>
+                                            <th>User ID</th>
+                                            <th>Role</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var acl in _selectedCollection.Acls)
+                                        {
+                                            <tr>
+                                                <td>@acl.PrincipalId</td>
+                                                <td>
+                                                    <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(acl.Role)">
+                                                        @acl.Role
+                                                    </MudChip>
+                                                </td>
+                                                <td>
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" 
+                                                        Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            }
+                        }
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+    };
+}
+
+@* ===== USERS TAB ===== *@
+@code {
+    private RenderFragment UsersTab => __builder =>
+    {
+        <MudText Typo="Typo.h6" Class="mb-4">Users with Collection Access</MudText>
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            This shows users who have been granted access to collections. To manage Keycloak users directly, use the Keycloak Admin Console.
+        </MudAlert>
+        
+        @if (_usersLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_users == null || !_users.Any())
+        {
+            <MudAlert Severity="Severity.Warning">No users have been granted collection access.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@_users" Hover="true" Dense="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>User ID</MudTh>
+                    <MudTh>Collections</MudTh>
+                    <MudTh>Highest Role</MudTh>
+                    <MudTh>Details</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.UserId</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.CollectionCount</MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.HighestRole)">
+                            @context.HighestRole
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
+                            OnClick="@(() => ShowUserDetails(context))">
+                            View Access
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        }
+    };
+}
+
+@* ===== CODE-BEHIND ===== *@
+@code {
+    // Share Management State
+    private List<AdminShareDto>? _shares;
+    private bool _sharesLoading = true;
+    private string _shareSearchString = "";
+
+    // Collection Access State
+    private List<CollectionAccessDto>? _collections;
+    private bool _collectionsLoading = true;
+    private CollectionAccessDto? _selectedCollection;
+    private string _newAclUserId = "";
+    private string _newAclRole = "viewer";
+
+    // Users State
+    private List<UserAccessSummaryDto>? _users;
+    private bool _usersLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(
+            LoadShares(),
+            LoadCollections(),
+            LoadUsers()
+        );
+    }
+
+    // ===== SHARE MANAGEMENT =====
+    
+    private async Task LoadShares()
+    {
+        try
+        {
+            _sharesLoading = true;
+            _shares = await Http.GetFromJsonAsync<List<AdminShareDto>>("/api/admin/shares");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load shares: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _sharesLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool ShareFilter(AdminShareDto share)
+    {
+        if (string.IsNullOrWhiteSpace(_shareSearchString))
+            return true;
+        
+        return share.ScopeName.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase)
+            || share.CreatedByUserId.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase)
+            || share.Status.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task RevokeShare(AdminShareDto share)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Confirm Revoke",
+            $"Are you sure you want to revoke the share for \"{share.ScopeName}\"? This action cannot be undone.",
+            yesText: "Revoke", cancelText: "Cancel");
+        
+        if (confirmed != true)
+            return;
+
+        try
+        {
+            var response = await Http.PostAsync($"/api/admin/shares/{share.Id}/revoke", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Share revoked successfully", Severity.Success);
+                await LoadShares();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Failed to revoke share: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "Active" => Color.Success,
+        "Expired" => Color.Warning,
+        "Revoked" => Color.Error,
+        _ => Color.Default
+    };
+
+    // ===== COLLECTION ACCESS =====
+    
+    private async Task LoadCollections()
+    {
+        try
+        {
+            _collectionsLoading = true;
+            _collections = await Http.GetFromJsonAsync<List<CollectionAccessDto>>("/api/admin/collections/access");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load collections: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _collectionsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private RenderFragment RenderCollectionTree(CollectionAccessDto collection, int depth) => __builder =>
+    {
+        var isSelected = _selectedCollection?.Id == collection.Id;
+        var depthClass = $"admin-tree-item-depth-{Math.Min(depth, 5)}";
+        
+        <MudButton Variant="@(isSelected ? Variant.Filled : Variant.Text)" 
+            Color="@(isSelected ? Color.Primary : Color.Default)"
+            OnClick="@(() => SelectCollection(collection))"
+            FullWidth="true"
+            Class="@($"justify-start mb-1 admin-tree-item {depthClass}")">
+            <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Small" Class="mr-2" />
+            @collection.Name
+            <MudSpacer />
+            <MudChip T="string" Size="Size.Small" Color="Color.Default">@collection.Acls.Count</MudChip>
+        </MudButton>
+        
+        @foreach (var child in collection.Children)
+        {
+            @RenderCollectionTree(child, depth + 1)
+        }
+    };
+
+    private void SelectCollection(CollectionAccessDto collection)
+    {
+        _selectedCollection = collection;
+        _newAclUserId = "";
+        _newAclRole = "viewer";
+    }
+
+    private async Task AddCollectionAccess()
+    {
+        if (_selectedCollection == null || string.IsNullOrWhiteSpace(_newAclUserId))
+            return;
+
+        try
+        {
+            var request = new { principalType = "user", principalId = _newAclUserId, role = _newAclRole };
+            var response = await Http.PostAsJsonAsync($"/api/admin/collections/{_selectedCollection.Id}/acl", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"Access granted to {_newAclUserId}", Severity.Success);
+                _newAclUserId = "";
+                await LoadCollections();
+                
+                // Re-select the collection to refresh ACLs
+                _selectedCollection = FindCollection(_collections, _selectedCollection.Id);
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Failed: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RemoveCollectionAccess(CollectionAclDto acl)
+    {
+        if (_selectedCollection == null)
+            return;
+
+        var confirmed = await DialogService.ShowMessageBox(
+            "Confirm Remove Access",
+            $"Are you sure you want to remove access for \"{acl.PrincipalId}\" from \"{_selectedCollection.Name}\"?",
+            yesText: "Remove", cancelText: "Cancel");
+        
+        if (confirmed != true)
+            return;
+
+        try
+        {
+            var response = await Http.DeleteAsync(
+                $"/api/admin/collections/{_selectedCollection.Id}/acl/{Uri.EscapeDataString(acl.PrincipalId)}?principalType={acl.PrincipalType}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"Access removed for {acl.PrincipalId}", Severity.Success);
+                await LoadCollections();
+                _selectedCollection = FindCollection(_collections, _selectedCollection.Id);
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Failed: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static CollectionAccessDto? FindCollection(List<CollectionAccessDto>? collections, Guid id)
+    {
+        if (collections == null) return null;
+        
+        foreach (var col in collections)
+        {
+            if (col.Id == id) return col;
+            var found = FindCollection(col.Children, id);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private static Color GetRoleColor(string role) => role.ToLowerInvariant() switch
+    {
+        "admin" => Color.Error,
+        "manager" => Color.Warning,
+        "contributor" => Color.Info,
+        "viewer" => Color.Default,
+        _ => Color.Default
+    };
+
+    // ===== USERS =====
+    
+    private async Task LoadUsers()
+    {
+        try
+        {
+            _usersLoading = true;
+            _users = await Http.GetFromJsonAsync<List<UserAccessSummaryDto>>("/api/admin/users");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load users: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _usersLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowUserDetails(UserAccessSummaryDto user)
+    {
+        // Show a dialog with user's collection access details
+        var message = string.Join("\n", user.Collections.Select(c => $"• {c.CollectionName}: {c.Role}"));
+        Snackbar.Add($"Access for {user.UserId}:\n{message}", Severity.Info, config =>
+        {
+            config.ShowCloseIcon = true;
+            config.VisibleStateDuration = 10000;
+        });
+    }
+}

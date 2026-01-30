@@ -86,9 +86,39 @@ public class AssetHubApiClient
             ?? new AssetListResponse { CollectionId = collectionId, Total = 0, Items = new() };
     }
 
+    public async Task<AllAssetsListResponse> GetAllAssetsAsync(
+        string? query = null,
+        string? type = null,
+        Guid? collectionId = null,
+        string sortBy = "created_desc",
+        int skip = 0,
+        int take = 50)
+    {
+        var url = $"/api/assets/all?skip={skip}&take={take}&sortBy={sortBy}";
+        if (!string.IsNullOrWhiteSpace(query))
+            url += $"&query={Uri.EscapeDataString(query)}";
+        if (!string.IsNullOrWhiteSpace(type))
+            url += $"&type={Uri.EscapeDataString(type)}";
+        if (collectionId.HasValue)
+            url += $"&collectionId={collectionId.Value}";
+
+        var response = await _http.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<AllAssetsListResponse>()
+            ?? new AllAssetsListResponse { Total = 0, Items = new() };
+    }
+
     public async Task<AssetResponseDto?> GetAssetAsync(Guid id)
     {
         return await _http.GetFromJsonAsync<AssetResponseDto>($"/api/assets/{id}");
+    }
+
+    public async Task<AssetResponseDto> UpdateAssetAsync(Guid id, UpdateAssetDto dto)
+    {
+        var response = await _http.PatchAsJsonAsync($"/api/assets/{id}", dto);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<AssetResponseDto>()
+            ?? throw new InvalidOperationException("Failed to update asset");
     }
 
     public async Task<AssetUploadResult> UploadAssetAsync(Guid collectionId, string title, Stream fileStream, string fileName, string contentType)
@@ -165,57 +195,3 @@ public class AssetHubApiClient
     #endregion
 }
 
-#region Response Types
-
-public class AssetListResponse
-{
-    [JsonPropertyName("collectionId")]
-    public Guid CollectionId { get; set; }
-
-    [JsonPropertyName("total")]
-    public int Total { get; set; }
-
-    [JsonPropertyName("items")]
-    public List<AssetResponseDto> Items { get; set; } = new();
-}
-
-public class AssetUploadResult
-{
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; }
-
-    [JsonPropertyName("status")]
-    public string Status { get; set; } = "";
-
-    [JsonPropertyName("jobId")]
-    public string? JobId { get; set; }
-
-    [JsonPropertyName("message")]
-    public string? Message { get; set; }
-}
-
-public class ShareResponse
-{
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; }
-
-    [JsonPropertyName("scopeType")]
-    public string ScopeType { get; set; } = "";
-
-    [JsonPropertyName("scopeId")]
-    public Guid ScopeId { get; set; }
-
-    [JsonPropertyName("token")]
-    public string Token { get; set; } = "";
-
-    [JsonPropertyName("createdAt")]
-    public DateTime CreatedAt { get; set; }
-
-    [JsonPropertyName("expiresAt")]
-    public DateTime? ExpiresAt { get; set; }
-
-    [JsonPropertyName("shareUrl")]
-    public string ShareUrl { get; set; } = "";
-}
-
-#endregion

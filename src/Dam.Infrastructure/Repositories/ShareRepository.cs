@@ -37,6 +37,21 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Shares.AsQueryable();
+        
+        if (includeAsset)
+            query = query.Include(s => s.Asset);
+        
+        if (includeCollection)
+            query = query.Include(s => s.Collection);
+        
+        return await query
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task CreateAsync(Share share, CancellationToken cancellationToken = default)
     {
         dbContext.Shares.Add(share);

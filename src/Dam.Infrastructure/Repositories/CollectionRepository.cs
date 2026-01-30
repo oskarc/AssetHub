@@ -87,6 +87,14 @@ public class CollectionRepository : ICollectionRepository
         return await _dbContext.Collections.AnyAsync(c => c.Id == id);
     }
 
+    public async Task<IEnumerable<Collection>> GetAllWithAclsAsync()
+    {
+        return await _dbContext.Collections
+            .Include(c => c.Acls)
+            .OrderBy(c => c.Name)
+            .ToListAsync();
+    }
+
     private async Task DeleteRecursiveAsync(Collection collection)
     {
         // Delete all children recursively
@@ -177,5 +185,13 @@ public class CollectionAclRepository : ICollectionAclRepository
 
         _dbContext.CollectionAcls.RemoveRange(acls);
         await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<IEnumerable<CollectionAcl>> GetAllAsync()
+    {
+        return await _dbContext.CollectionAcls
+            .OrderBy(a => a.CollectionId)
+            .ThenBy(a => a.PrincipalId)
+            .ToListAsync();
     }
 }

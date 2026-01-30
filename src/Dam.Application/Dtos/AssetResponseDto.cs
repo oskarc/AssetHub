@@ -4,6 +4,7 @@ public class AssetResponseDto
 {
     public required Guid Id { get; set; }
     public required Guid CollectionId { get; set; }
+    public string? CollectionName { get; set; }
     public required string AssetType { get; set; }
     public required string Status { get; set; }
     public required string Title { get; set; }

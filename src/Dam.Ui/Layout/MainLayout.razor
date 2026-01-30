@@ -18,11 +18,11 @@
             </Authorized>
         </AuthorizeView>
 
-        <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3">AssetHub</MudText>
 
         <MudSpacer />
 
-        <!-- Auth: visa användare + login/logout -->
+        <!-- Auth: show user + login/logout -->
         <AuthorizeView>
             <Authorized Context="auth">
                 <MudText Class="mr-2" Typo="Typo.body2">
@@ -33,7 +33,7 @@
                            Size="Size.Small"
                            OnClick="@Logout"
                            Class="mr-2">
-                    Logga ut
+                    Sign Out
                 </MudButton>
             </Authorized>
 
@@ -42,7 +42,7 @@
                            Size="Size.Small"
                            OnClick="@Login"
                            Class="mr-2">
-                    Logga in
+                    Sign In
                 </MudButton>
             </NotAuthorized>
         </AuthorizeView>
@@ -105,16 +105,14 @@
 
     private static string DisplayName(System.Security.Claims.ClaimsPrincipal user)
     {
-        // Keycloak: preferred_username mappas ofta till Identity.Name (som vi satte)
         var name = user.Identity?.Name;
 
-        // fallback: ibland kommer email eller name istället
         if (!string.IsNullOrWhiteSpace(name))
             return name;
 
         return user.FindFirst("preferred_username")?.Value
             ?? user.FindFirst("email")?.Value
-            ?? "Inloggad";
+            ?? "Signed In";
     }
 
     private readonly PaletteLight _lightPalette = new()

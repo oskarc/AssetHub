@@ -1,0 +1,57 @@
+@page "/login"
+@using Microsoft.AspNetCore.Authorization
+
+@attribute [AllowAnonymous]
+
+@inject NavigationManager Nav
+
+<PageTitle>Login - AssetHub</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 100vh;">
+    <MudPaper Class="pa-8" Elevation="4" Style="width: 100%; max-width: 400px;">
+        <MudStack Spacing="4" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@Icons.Material.Filled.Collections" 
+                     Color="Color.Primary" 
+                     Size="Size.Large" 
+                     Style="font-size: 4rem;" />
+            
+            <MudText Typo="Typo.h4" Align="Align.Center">
+                AssetHub
+            </MudText>
+            
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Align="Align.Center">
+                Digital Asset Management
+            </MudText>
+
+            <MudDivider Class="my-4" FlexItem="true" Style="width: 100%;" />
+
+            <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">
+                Sign in with your organization account to access your digital assets.
+            </MudText>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Large"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Login"
+                       OnClick="SignIn">
+                Sign In
+            </MudButton>
+
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
+                You will be redirected to your identity provider
+            </MudText>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private void SignIn()
+    {
+        var returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl;
+        Nav.NavigateTo($"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+    }
+}

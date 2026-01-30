@@ -5,7 +5,15 @@
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
-            <MudNavLink Href="assets" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PhotoLibrary">Assets</MudNavLink>
+            <MudNavLink Href="assets" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PhotoLibrary">Collections</MudNavLink>
+            <MudNavLink Href="all-assets" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Collections">All Assets</MudNavLink>
+            
+            <AuthorizeView Policy="RequireAdmin" Context="adminContext">
+                <Authorized>
+                    <MudDivider Class="my-2" />
+                    <MudNavLink Href="admin" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.AdminPanelSettings">Admin</MudNavLink>
+                </Authorized>
+            </AuthorizeView>
             
             <MudDivider Class="my-2" />
             

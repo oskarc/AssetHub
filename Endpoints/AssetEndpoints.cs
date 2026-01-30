@@ -20,6 +20,7 @@ public static class AssetEndpoints
             .WithTags("Assets");
 
         group.MapGet("", GetAssets).WithName("GetAssets");
+        group.MapGet("all", GetAllAssets).WithName("GetAllAssets");
         group.MapGet("{id}", GetAsset).WithName("GetAsset");
         group.MapPost("", UploadAsset).WithName("UploadAsset");
         group.MapPatch("{id}", UpdateAsset).WithName("UpdateAsset");
@@ -28,6 +29,7 @@ public static class AssetEndpoints
 
         // Rendition/download endpoints
         group.MapGet("{id}/download", DownloadOriginal).WithName("DownloadOriginal");
+        group.MapGet("{id}/preview", PreviewOriginal).WithName("PreviewOriginal");
         group.MapGet("{id}/thumb", GetThumbnail).WithName("GetThumbnail");
         group.MapGet("{id}/medium", GetMedium).WithName("GetMedium");
         group.MapGet("{id}/poster", GetPoster).WithName("GetPoster");
@@ -42,6 +44,43 @@ public static class AssetEndpoints
         var assets = await assetRepository.GetByStatusAsync(Asset.StatusReady, skip, take);
         var dtos = assets.Select(MapToDto).ToList();
         return Results.Ok(dtos);
+    }
+
+    /// <summary>
+    /// Get all assets across all accessible collections with search and filter support.
+    /// </summary>
+    private static async Task<IResult> GetAllAssets(
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepository,
+        HttpContext httpContext,
+        string? query = null,
+        string? type = null,
+        Guid? collectionId = null,
+        string sortBy = "created_desc",
+        int skip = 0,
+        int take = 50)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+        
+        // Get all collections the user has access to
+        var accessibleCollections = await collectionRepository.GetAccessibleCollectionsAsync(userId);
+        var accessibleCollectionIds = accessibleCollections.Select(c => c.Id);
+
+        // If a specific collection is requested, filter to just that one (if accessible)
+        if (collectionId.HasValue)
+        {
+            if (!accessibleCollectionIds.Contains(collectionId.Value))
+                return Results.Forbid();
+            accessibleCollectionIds = new[] { collectionId.Value };
+        }
+
+        var (assets, total) = await assetRepository.SearchAllAsync(accessibleCollectionIds, query, type, sortBy, skip, take);
+        var dtos = assets.Select(MapToDto).ToList();
+        return Results.Ok(new
+        {
+            total,
+            items = dtos
+        });
     }
 
     private static async Task<IResult> GetAsset(
@@ -156,7 +195,7 @@ public static class AssetEndpoints
 
     private static async Task<IResult> UpdateAsset(
         Guid id,
-        CreateAssetDto dto,
+        UpdateAssetDto dto,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext)
@@ -172,9 +211,13 @@ public static class AssetEndpoints
         if (!canEdit)
             return Results.Forbid();
 
-        asset.Title = dto.Title;
-        asset.Description = dto.Description;
-        asset.Tags = dto.Tags ?? new();
+        // Only update fields that are provided
+        if (dto.Title != null)
+            asset.Title = dto.Title;
+        if (dto.Description != null)
+            asset.Description = dto.Description;
+        if (dto.Tags != null)
+            asset.Tags = dto.Tags;
         if (dto.MetadataJson != null)
             asset.MetadataJson = dto.MetadataJson;
         asset.UpdatedAt = DateTime.UtcNow;
@@ -231,6 +274,7 @@ public static class AssetEndpoints
         {
             Id = asset.Id,
             CollectionId = asset.CollectionId,
+            CollectionName = asset.Collection?.Name,
             AssetType = asset.AssetType,
             Status = asset.Status,
             Title = asset.Title,
@@ -280,6 +324,42 @@ public static class AssetEndpoints
         catch (Exception ex)
         {
             return Results.BadRequest($"Download failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Preview endpoint - returns file with inline disposition (for browser display, not download).
+    /// Supports PDF, images, and other browser-viewable content types.
+    /// </summary>
+    private static async Task<IResult> PreviewOriginal(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        HttpContext httpContext)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+        var bucketName = GetBucketName(configuration);
+
+        var asset = await assetRepository.GetByIdAsync(id);
+        if (asset == null)
+            return Results.NotFound();
+
+        // Check authorization
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        if (!canAccess)
+            return Results.Forbid();
+
+        try
+        {
+            var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey);
+            // Return without filename to trigger inline display (not attachment download)
+            return Results.File(stream, asset.ContentType, enableRangeProcessing: true);
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Preview failed: {ex.Message}");
         }
     }
 

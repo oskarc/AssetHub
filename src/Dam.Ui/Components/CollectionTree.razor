@@ -3,6 +3,7 @@
 
 @inject AssetHubApiClient Api
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 @if (_isLoading)
 {
@@ -19,18 +20,28 @@ else
     <MudNavMenu Dense="true">
         @foreach (var collection in _collections)
         {
-            <MudNavLink Icon="@Icons.Material.Filled.Folder"
-                        IconColor="@(SelectedCollectionId == collection.Id ? Color.Primary : Color.Default)"
-                        OnClick="@(() => SelectCollection(collection))"
-                        Class="@(SelectedCollectionId == collection.Id ? "mud-nav-link-active" : "")">
-                @collection.Name
-                @if (collection.AssetCount > 0)
-                {
-                    <MudChip T="string" Size="Size.Small" Class="ml-auto" Variant="Variant.Text">
-                        @collection.AssetCount
-                    </MudChip>
-                }
-            </MudNavLink>
+            <div class="d-flex align-center collection-item">
+                <MudNavLink Icon="@Icons.Material.Filled.Folder"
+                            IconColor="@(SelectedCollectionId == collection.Id ? Color.Primary : Color.Default)"
+                            OnClick="@(() => SelectCollection(collection))"
+                            Class="@(SelectedCollectionId == collection.Id ? "mud-nav-link-active flex-grow-1" : "flex-grow-1")">
+                    @collection.Name
+                    @if (collection.AssetCount > 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Class="ml-auto" Variant="Variant.Text">
+                            @collection.AssetCount
+                        </MudChip>
+                    }
+                </MudNavLink>
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomRight">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditCollection(collection))">
+                        Rename
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteCollection(collection))" IconColor="Color.Error">
+                        Delete
+                    </MudMenuItem>
+                </MudMenu>
+            </div>
         }
     </MudNavMenu>
 }
@@ -70,6 +81,46 @@ else
     private async Task SelectCollection(CollectionResponseDto collection)
     {
         await OnCollectionSelected.InvokeAsync(collection.Id);
+    }
+
+    private async Task EditCollection(CollectionResponseDto collection)
+    {
+        // TODO: Implement rename dialog
+        Snackbar.Add("Rename functionality coming soon", Severity.Info);
+    }
+
+    private async Task DeleteCollection(CollectionResponseDto collection)
+    {
+        var assetWarning = collection.AssetCount > 0 
+            ? $" This collection contains {collection.AssetCount} asset(s) that will also be deleted." 
+            : "";
+
+        var result = await DialogService.ShowMessageBox(
+            "Delete Collection",
+            $"Are you sure you want to delete '{collection.Name}'?{assetWarning} This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await Api.DeleteCollectionAsync(collection.Id);
+                _collections.Remove(collection);
+                
+                // If we deleted the selected collection, clear selection
+                if (SelectedCollectionId == collection.Id)
+                {
+                    await OnCollectionSelected.InvokeAsync(null);
+                }
+                
+                Snackbar.Add("Collection deleted", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete collection: {ex.Message}", Severity.Error);
+            }
+        }
     }
 
     public async Task RefreshAsync()

@@ -1,4 +1,5 @@
 @page "/share/{Token}"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 
 @using Dam.Ui.Services
 @using System.Net.Http.Json
@@ -87,14 +88,28 @@
                             Your browser does not support the video tag.
                         </video>
                     }
+                    else if (IsPdfPreviewable(_sharedAsset.ContentType))
+                    {
+                        <iframe src="@GetPreviewUrl()" 
+                                style="width: 100%; height: 600px; border: none;" 
+                                title="@_sharedAsset.Title">
+                        </iframe>
+                    }
                     else
                     {
                         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
                             <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Primary" />
                             <MudText Typo="Typo.h6">@_sharedAsset.Title</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Document preview not available
+                                Preview not available for this file type
                             </MudText>
+                            <MudButton Variant="Variant.Outlined"
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       Href="@GetDownloadUrl()"
+                                       Target="_blank"
+                                       Class="mt-2">
+                                Download to View
+                            </MudButton>
                         </MudStack>
                     }
                 </MudPaper>
@@ -511,7 +526,22 @@
     private string GetPreviewUrl()
     {
         if (_sharedAsset == null) return "";
-        return _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl ?? $"/api/shares/{Token}/download";
+        
+        // For PDF files, use the preview endpoint with inline display
+        if (IsPdfPreviewable(_sharedAsset.ContentType))
+        {
+            var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview";
+            if (!string.IsNullOrEmpty(_password))
+                url += $"?password={Uri.EscapeDataString(_password)}";
+            return url;
+        }
+        
+        return _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl ?? $"/api/shares/{Uri.EscapeDataString(Token)}/download";
+    }
+
+    private static bool IsPdfPreviewable(string? contentType)
+    {
+        return string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
     }
 
     private string GetAssetPreviewUrl(Guid assetId)

@@ -47,6 +47,11 @@ public interface ICollectionRepository
     /// Checks if a collection exists.
     /// </summary>
     Task<bool> ExistsAsync(Guid id);
+
+    /// <summary>
+    /// Gets all collections with their ACLs (admin use).
+    /// </summary>
+    Task<IEnumerable<Collection>> GetAllWithAclsAsync();
 }
 
 /// <summary>
@@ -79,4 +84,9 @@ public interface ICollectionAclRepository
     /// Removes all ACL entries for a collection (used when deleting).
     /// </summary>
     Task RevokeAllAccessAsync(Guid collectionId);
+
+    /// <summary>
+    /// Gets all ACL entries across all collections (admin use).
+    /// </summary>
+    Task<IEnumerable<CollectionAcl>> GetAllAsync();
 }

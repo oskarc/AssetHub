@@ -63,14 +63,28 @@ else
                             Your browser does not support the video tag.
                         </video>
                     }
+                    else if (IsPdfPreviewable())
+                    {
+                        <iframe src="@GetInlinePreviewUrl()" 
+                                style="width: 100%; height: 600px; border: none;" 
+                                title="@_asset.Title">
+                        </iframe>
+                    }
                     else
                     {
                         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
                             <MudIcon Icon="@GetAssetIcon()" Size="Size.Large" Color="Color.Primary" />
                             <MudText Typo="Typo.h6">@_asset.Title</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Document preview not available
+                                Preview not available for this file type
                             </MudText>
+                            <MudButton Variant="Variant.Outlined" 
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       Href="@GetDownloadUrl()"
+                                       Target="_blank"
+                                       Class="mt-2">
+                                Download to View
+                            </MudButton>
                         </MudStack>
                     }
                 </MudPaper>
@@ -287,6 +301,21 @@ else
         return $"/api/assets/{AssetId}/download";
     }
 
+    private string GetInlinePreviewUrl()
+    {
+        return $"/api/assets/{AssetId}/preview";
+    }
+
+    private bool IsPdfPreviewable()
+    {
+        return IsPdfContentType(_asset?.ContentType);
+    }
+
+    private static bool IsPdfContentType(string? contentType)
+    {
+        return string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+    }
+
     private string GetAssetIcon()
     {
         return _asset?.AssetType switch
@@ -344,8 +373,29 @@ else
 
     private async Task EditAssetAsync()
     {
-        // TODO: Implement edit dialog
-        Snackbar.Add("Edit functionality coming soon", Severity.Info);
+        if (_asset == null) return;
+
+        var parameters = new DialogParameters<EditAssetDialog>
+        {
+            { x => x.Asset, _asset }
+        };
+
+        var options = new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Small, 
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<EditAssetDialog>("Edit Asset", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is AssetResponseDto updatedAsset)
+        {
+            _asset = updatedAsset;
+            Snackbar.Add("Asset updated successfully", Severity.Success);
+            StateHasChanged();
+        }
     }
 
     private async Task DeleteAssetAsync()

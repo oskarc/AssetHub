@@ -519,6 +519,13 @@ public static class ShareEndpoints
         if (targetAsset == null)
             return Results.NotFound("Asset not found");
 
+        // For PDF files, return the original file for inline preview
+        if (string.Equals(targetAsset.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            var pdfStream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey);
+            return Results.File(pdfStream, "application/pdf", enableRangeProcessing: true);
+        }
+
         // Determine which object key to use based on size
         string? objectKey = size?.ToLower() switch
         {
@@ -534,15 +541,15 @@ public static class ShareEndpoints
         var previewStream = await minioAdapter.DownloadAsync(bucketName, objectKey);
         
         // Determine content type for preview
-        var contentType = targetAsset.ContentType;
+        var previewContentType = targetAsset.ContentType;
         if (objectKey.EndsWith(".jpg") || objectKey.EndsWith(".jpeg"))
-            contentType = "image/jpeg";
+            previewContentType = "image/jpeg";
         else if (objectKey.EndsWith(".png"))
-            contentType = "image/png";
+            previewContentType = "image/png";
         else if (objectKey.EndsWith(".webp"))
-            contentType = "image/webp";
+            previewContentType = "image/webp";
 
-        return Results.File(previewStream, contentType);
+        return Results.File(previewStream, previewContentType);
     }
 
     private static async Task<IResult> RevokeShare(

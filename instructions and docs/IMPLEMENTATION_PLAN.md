@@ -36,6 +36,70 @@
 - Groups/batch user management
 - Advanced analytics
 
+### Planned Features (Next Phase) 🔜
+
+The following features have been identified as high-priority improvements and should be implemented after MVP completion:
+
+#### 1. Multi-Collection Asset Assignment
+**Priority**: High  
+**Description**: Allow a single image/asset to belong to multiple collections simultaneously.
+- Add many-to-many relationship between Assets and Collections
+- Update UI to allow selecting multiple collections when uploading/editing
+- Display collection membership in asset detail view
+
+#### 2. All Assets View Page ✅ COMPLETE
+**Priority**: High  
+**Status**: Implemented on 2026-01-30  
+**Description**: A dedicated page showing all assets regardless of collection membership.
+- [x] New `/all-assets` page with full asset grid
+- [x] Filter/search across entire asset library (by type, search query, sort order)
+- [x] Shows collection name for each asset
+- [x] Quick navigation to asset's collection
+- [x] API endpoint: `GET /api/assets/all` with search/filter support
+
+#### 3. Asset Metadata Editing ✅ COMPLETE
+**Priority**: High  
+**Status**: Implemented on 2026-01-30  
+**Description**: Implement UI and API for editing asset metadata.
+- [x] Edit dialog for asset name, description, tags
+- [x] API endpoint: `PATCH /api/assets/{id}` with UpdateAssetDto
+- [x] EditAssetDialog component with tag management
+- [x] Integration in AssetDetail.razor page
+
+#### 4. Login Page (Authentication Gate) ✅ COMPLETE
+**Priority**: Critical  
+**Status**: Implemented on 2026-01-30  
+**Description**: Show a login page before displaying any menus or content.
+- [x] Login.razor page with branded sign-in UI
+- [x] RedirectToLogin component for automatic redirect
+- [x] Routes.razor updated with NotAuthorized handling
+- [x] Return URL support for post-login redirect
+- [x] Hide all navigation/menus until authenticated
+- [x] Application branding updated (AssetHub name, English text)
+
+#### 5. Admin Page for Share Management
+**Priority**: High  
+**Description**: Administrative interface for managing share links.
+- View all active share links across the system
+- Display: link URL, creator (user), creation date, expiration
+- Revoke/disable individual shares
+- Configure default share duration settings
+- Filter by user, collection, or status
+
+#### 6. Application Branding/Renaming
+**Priority**: Medium  
+**Description**: Change the application name from generic "application" references.
+- Update page titles, headers, and branding
+- Configure application display name in appsettings
+- Update Keycloak client display name if needed
+
+#### 7. Asset Collection Membership Display
+**Priority**: Medium  
+**Description**: On the asset detail view, show a list of all collections the asset belongs to.
+- Display collection badges/chips on asset detail
+- Click to navigate to parent collection
+- Quick add/remove from collections in asset detail
+
 ---
 
 ## Phase Breakdown (2-3 Weeks)

@@ -516,10 +516,11 @@ app.MapMethods("/signin-oidc", new[] { "GET", "POST" }, () =>
         Results.BadRequest("OIDC callback hit without state/code. Start login via /auth/login."))
     .AllowAnonymous();
 
-app.MapGet("/auth/login", async (HttpContext http) =>
+app.MapGet("/auth/login", async (HttpContext http, string? returnUrl) =>
 {
+    var redirectUri = string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl;
     await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
-        new() { RedirectUri = "/" });
+        new() { RedirectUri = redirectUri });
 });
 
 app.MapGet("/auth/logout", async (HttpContext http) =>
@@ -533,6 +534,7 @@ app.MapGet("/auth/logout", async (HttpContext http) =>
 app.MapCollectionEndpoints();
 app.MapAssetEndpoints();
 app.MapShareEndpoints();
+app.MapAdminEndpoints();
 
 // Blazor endpoints
 app.MapRazorComponents<App>()

@@ -1,0 +1,382 @@
+@page "/all-assets"
+@attribute [Authorize]
+
+@using Dam.Application.Dtos
+@using Dam.Ui.Components
+@using Dam.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+
+<PageTitle>All Assets - AssetHub</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <!-- Header -->
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack>
+            <MudText Typo="Typo.h4">All Assets</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Browse all assets across all collections
+            </MudText>
+        </MudStack>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="RefreshAsync">
+                Refresh
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    <!-- Search and Filter -->
+    <MudPaper Class="pa-3 mb-4" Elevation="0" Outlined="true">
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudTextField @bind-Value="_searchQuery"
+                              Placeholder="Search all assets..."
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              DebounceInterval="500"
+                              OnDebounceIntervalElapsed="SearchAsync" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="Guid?"
+                           Value="_filterCollectionId"
+                           Label="Collection"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           ValueChanged="@OnCollectionFilterChanged">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">All Collections</MudSelectItem>
+                    @foreach (var collection in _collections)
+                    {
+                        <MudSelectItem T="Guid?" Value="@collection.Id">@collection.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudSelect T="string"
+                           Value="_filterType"
+                           Label="Type"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           ValueChanged="@OnFilterChanged">
+                    <MudSelectItem Value="@((string?)null)">All Types</MudSelectItem>
+                    <MudSelectItem Value="@("image")">Images</MudSelectItem>
+                    <MudSelectItem Value="@("video")">Videos</MudSelectItem>
+                    <MudSelectItem Value="@("document")">Documents</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudSelect T="string"
+                           Value="_sortBy"
+                           Label="Sort By"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           ValueChanged="@OnSortChanged">
+                    <MudSelectItem Value="@("created_desc")">Newest First</MudSelectItem>
+                    <MudSelectItem Value="@("created_asc")">Oldest First</MudSelectItem>
+                    <MudSelectItem Value="@("title_asc")">Title A-Z</MudSelectItem>
+                    <MudSelectItem Value="@("size_desc")">Largest First</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
+                    <MudIconButton Icon="@Icons.Material.Filled.GridView" 
+                                   Color="@(_viewMode == "grid" ? Color.Primary : Color.Default)"
+                                   OnClick="@(() => _viewMode = "grid")" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ViewList"
+                                   Color="@(_viewMode == "list" ? Color.Primary : Color.Default)"
+                                   OnClick="@(() => _viewMode = "list")" />
+                </MudButtonGroup>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- Stats -->
+    @if (!_isLoading && _total > 0)
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+            Showing @_assets.Count of @_total assets
+        </MudText>
+    }
+
+    <!-- Asset Grid -->
+    @if (_isLoading)
+    {
+        <MudStack AlignItems="AlignItems.Center" Class="py-8">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Loading assets...</MudText>
+        </MudStack>
+    }
+    else if (_assets.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="mt-4">
+            <MudText>No assets found.</MudText>
+            <MudText Typo="Typo.body2">
+                @if (!string.IsNullOrWhiteSpace(_searchQuery) || !string.IsNullOrWhiteSpace(_filterType))
+                {
+                    <span>Try adjusting your search or filter criteria.</span>
+                }
+                else
+                {
+                    <span>Upload files to a collection to get started.</span>
+                }
+            </MudText>
+        </MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            @foreach (var asset in _assets)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3" xl="2">
+                    <MudCard Class="asset-card" Elevation="2">
+                        <div @onclick="() => ViewAsset(asset.Id)" style="cursor: pointer;">
+                            <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType)" 
+                                          Height="160" 
+                                          Class="asset-thumbnail" />
+                            <MudCardContent Class="pa-2">
+                                <MudText Typo="Typo.body2" Class="text-truncate">
+                                    @asset.Title
+                                </MudText>
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudChip T="string" 
+                                             Size="Size.Small" 
+                                             Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
+                                             Variant="Variant.Outlined">
+                                        @asset.AssetType
+                                    </MudChip>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
+                                    </MudText>
+                                </MudStack>
+                                @if (asset.CollectionId != Guid.Empty)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 text-truncate">
+                                        <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                                        @(asset.CollectionName ?? "Collection")
+                                    </MudText>
+                                }
+                            </MudCardContent>
+                        </div>
+                        <MudCardActions Class="pa-2 pt-0">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
+                                           Size="Size.Small" 
+                                           OnClick="@(() => ViewAsset(asset.Id))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Share" 
+                                           Size="Size.Small" 
+                                           OnClick="@(async () => await ShareAsset(asset))" />
+                            <MudTooltip Text="Go to collection">
+                                <MudIconButton Icon="@Icons.Material.Filled.FolderOpen"
+                                               Size="Size.Small"
+                                               OnClick="@(() => GoToCollection(asset.CollectionId))" />
+                            </MudTooltip>
+                            <MudSpacer />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                           Size="Size.Small" 
+                                           Color="Color.Error"
+                                           OnClick="@(async () => await DeleteAsset(asset))" />
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+
+        @if (_total > _assets.Count)
+        {
+            <MudStack Row="true" Justify="Justify.Center" Class="mt-4">
+                <MudButton Variant="Variant.Outlined" OnClick="LoadMoreAsync" Disabled="_isLoadingMore">
+                    @if (_isLoadingMore)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Load More (@(_total - _assets.Count) remaining)
+                </MudButton>
+            </MudStack>
+        }
+    }
+</MudContainer>
+
+@code {
+    private List<AssetResponseDto> _assets = new();
+    private List<CollectionResponseDto> _collections = new();
+    private int _total = 0;
+    private int _skip = 0;
+    private const int _take = 24;
+    private bool _isLoading = true;
+    private bool _isLoadingMore = false;
+
+    private string _searchQuery = "";
+    private string? _filterType;
+    private Guid? _filterCollectionId;
+    private string _sortBy = "created_desc";
+    private string _viewMode = "grid";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCollectionsAsync();
+        await LoadAssetsAsync();
+    }
+
+    private async Task LoadCollectionsAsync()
+    {
+        try
+        {
+            _collections = await Api.GetCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load collections: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadAssetsAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            var response = await Api.GetAllAssetsAsync(
+                _searchQuery,
+                _filterType,
+                _filterCollectionId,
+                _sortBy,
+                _skip,
+                _take);
+            
+            _assets.AddRange(response.Items);
+            _total = response.Total;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load assets: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _isLoadingMore = true;
+        _skip = _assets.Count;
+        
+        try
+        {
+            var response = await Api.GetAllAssetsAsync(
+                _searchQuery,
+                _filterType,
+                _filterCollectionId,
+                _sortBy,
+                _skip,
+                _take);
+            
+            _assets.AddRange(response.Items);
+            _total = response.Total;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load more assets: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingMore = false;
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        _skip = 0;
+        _assets.Clear();
+        await LoadAssetsAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        _skip = 0;
+        _assets.Clear();
+        await LoadAssetsAsync();
+    }
+
+    private async Task OnFilterChanged(string? value)
+    {
+        _filterType = value;
+        await SearchAsync();
+    }
+
+    private async Task OnCollectionFilterChanged(Guid? value)
+    {
+        _filterCollectionId = value;
+        await SearchAsync();
+    }
+
+    private async Task OnSortChanged(string value)
+    {
+        _sortBy = value;
+        await SearchAsync();
+    }
+
+    private void ViewAsset(Guid id)
+    {
+        Nav.NavigateTo($"/assets/{id}");
+    }
+
+    private void GoToCollection(Guid collectionId)
+    {
+        Nav.NavigateTo($"/assets?collection={collectionId}");
+    }
+
+    private async Task ShareAsset(AssetResponseDto asset)
+    {
+        try
+        {
+            var share = await Api.CreateShareAsync(asset.Id, "asset");
+            
+            var parameters = new DialogParameters<ShareLinkDialog>
+            {
+                { x => x.ShareUrl, share.ShareUrl },
+                { x => x.ExpiresAt, share.ExpiresAt }
+            };
+
+            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", parameters);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create share: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteAsset(AssetResponseDto asset)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Confirm Delete",
+            $"Are you sure you want to delete '{asset.Title}'? This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await Api.DeleteAssetAsync(asset.Id);
+                _assets.Remove(asset);
+                _total--;
+                Snackbar.Add("Asset deleted", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete asset: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

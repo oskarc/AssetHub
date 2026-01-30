@@ -28,4 +28,24 @@ public static class ClaimsPrincipalExtensions
     {
         return user.GetUserId() ?? fallback;
     }
+
+    /// <summary>
+    /// Checks if the user has the global admin role (Keycloak realm role).
+    /// </summary>
+    /// <param name="user">The claims principal representing the current user.</param>
+    /// <returns>True if the user has the admin role.</returns>
+    public static bool IsGlobalAdmin(this ClaimsPrincipal user)
+    {
+        return user.IsInRole("admin");
+    }
+
+    /// <summary>
+    /// Gets the user's display name from claims.
+    /// </summary>
+    public static string? GetDisplayName(this ClaimsPrincipal user)
+    {
+        return user.FindFirst("preferred_username")?.Value 
+            ?? user.FindFirst("name")?.Value 
+            ?? user.FindFirst(ClaimTypes.Name)?.Value;
+    }
 }
