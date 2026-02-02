@@ -11,6 +11,7 @@ public record AdminShareDto
     public Guid ScopeId { get; init; }
     public string ScopeName { get; init; } = string.Empty;
     public string CreatedByUserId { get; init; } = string.Empty;
+    public string CreatedByUserName { get; init; } = string.Empty;
     public DateTime CreatedAt { get; init; }
     public DateTime ExpiresAt { get; init; }
     public DateTime? RevokedAt { get; init; }
@@ -35,6 +36,7 @@ public record CollectionAclDto
     public Guid Id { get; init; }
     public string PrincipalType { get; init; } = string.Empty;
     public string PrincipalId { get; init; } = string.Empty;
+    public string PrincipalName { get; init; } = string.Empty;
     public string Role { get; init; } = string.Empty;
 }
 
@@ -48,6 +50,7 @@ public record SetCollectionAccessRequest
 public record UserAccessSummaryDto
 {
     public string UserId { get; init; } = string.Empty;
+    public string UserName { get; init; } = string.Empty;
     public int CollectionCount { get; init; }
     public string HighestRole { get; init; } = string.Empty;
     public List<UserCollectionAccessDto> Collections { get; init; } = new();

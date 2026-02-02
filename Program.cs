@@ -58,6 +58,7 @@ builder.Services.AddScoped<IAssetRepository, AssetRepository>();
 builder.Services.AddScoped<IShareRepository, ShareRepository>();
 builder.Services.AddScoped<IMinIOAdapter, MinIOAdapter>();
 builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
+builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 
 // HTTP Client for Blazor UI to call our own API
 // In Blazor Server, we need to forward the auth cookies when making internal API calls

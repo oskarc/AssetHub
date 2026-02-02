@@ -137,6 +137,13 @@ public class CollectionAclRepository : ICollectionAclRepository
                 a.PrincipalType == principalType &&
                 a.PrincipalId == principalId);
     }
+    
+    public async Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId)
+    {
+        return await _dbContext.CollectionAcls
+            .Where(a => a.PrincipalType == "user" && a.PrincipalId == userId)
+            .ToListAsync();
+    }
 
     public async Task<CollectionAcl> SetAccessAsync(Guid collectionId, string principalType, string principalId, string role)
     {

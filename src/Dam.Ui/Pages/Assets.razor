@@ -51,12 +51,15 @@
                                    OnClick="DownloadAllAsync">
                             Download All
                         </MudButton>
-                        <MudButton Variant="Variant.Outlined"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Share"
-                                   OnClick="ShareCollectionAsync">
-                            Share Collection
-                        </MudButton>
+                        @if (CanShare)
+                        {
+                            <MudButton Variant="Variant.Outlined"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Share"
+                                       OnClick="ShareCollectionAsync">
+                                Share Collection
+                            </MudButton>
+                        }
                         <MudButton Variant="Variant.Outlined"
                                    Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Refresh"
@@ -75,9 +78,12 @@
             }
             else
             {
-                <!-- Upload Area -->
-                <AssetUpload CollectionId="@_selectedCollectionId" 
-                             OnUploadComplete="@OnUploadComplete" />
+                <!-- Upload Area (Contributors and above can upload) -->
+                @if (CanUpload)
+                {
+                    <AssetUpload CollectionId="@_selectedCollectionId" 
+                                 OnUploadComplete="@OnUploadComplete" />
+                }
 
                 <!-- Search and Filter -->
                 <MudPaper Class="pa-3 my-3" Elevation="0" Outlined="true">
@@ -134,6 +140,7 @@
                            SearchQuery="@_searchQuery"
                            FilterType="@_filterType"
                            SortBy="@_sortBy"
+                           UserRole="@(_selectedCollection?.UserRole ?? "viewer")"
                            OnAssetsChanged="@OnAssetsChanged" />
             }
         </MudItem>
@@ -155,6 +162,11 @@
     private string? _filterType;
     private string _sortBy = "created_desc";
     private string _viewMode = "grid";
+    
+    // Role-based UI visibility using centralized permissions
+    private string CurrentUserRole => _selectedCollection?.UserRole ?? "viewer";
+    private bool CanUpload => RolePermissions.CanUpload(CurrentUserRole);
+    private bool CanShare => RolePermissions.CanShare(CurrentUserRole);
 
     protected override async Task OnInitializedAsync()
     {

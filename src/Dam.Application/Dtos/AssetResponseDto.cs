@@ -20,4 +20,10 @@ public class AssetResponseDto
     public required DateTime CreatedAt { get; set; }
     public required string CreatedByUserId { get; set; }
     public required DateTime UpdatedAt { get; set; }
+    
+    /// <summary>
+    /// The current user's role in this asset's collection.
+    /// Used for UI visibility of actions. Values: "viewer", "contributor", "manager", "admin"
+    /// </summary>
+    public string UserRole { get; set; } = "viewer";
 }

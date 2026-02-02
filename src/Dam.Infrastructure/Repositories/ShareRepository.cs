@@ -39,17 +39,47 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
 
     public async Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, CancellationToken cancellationToken = default)
     {
-        var query = dbContext.Shares.AsQueryable();
-        
-        if (includeAsset)
-            query = query.Include(s => s.Asset);
-        
-        if (includeCollection)
-            query = query.Include(s => s.Collection);
-        
-        return await query
+        var shares = await dbContext.Shares
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        // Asset and Collection are polymorphic (via ScopeType/ScopeId), not FK relationships
+        // so we need to manually load them
+        if (includeAsset || includeCollection)
+        {
+            var assetShares = shares.Where(s => s.ScopeType == "asset").ToList();
+            var collectionShares = shares.Where(s => s.ScopeType == "collection").ToList();
+
+            if (includeAsset && assetShares.Count > 0)
+            {
+                var assetIds = assetShares.Select(s => s.ScopeId).Distinct().ToList();
+                var assets = await dbContext.Assets
+                    .Where(a => assetIds.Contains(a.Id))
+                    .ToDictionaryAsync(a => a.Id, cancellationToken);
+
+                foreach (var share in assetShares)
+                {
+                    if (assets.TryGetValue(share.ScopeId, out var asset))
+                        share.Asset = asset;
+                }
+            }
+
+            if (includeCollection && collectionShares.Count > 0)
+            {
+                var collectionIds = collectionShares.Select(s => s.ScopeId).Distinct().ToList();
+                var collections = await dbContext.Collections
+                    .Where(c => collectionIds.Contains(c.Id))
+                    .ToDictionaryAsync(c => c.Id, cancellationToken);
+
+                foreach (var share in collectionShares)
+                {
+                    if (collections.TryGetValue(share.ScopeId, out var collection))
+                        share.Collection = collection;
+                }
+            }
+        }
+
+        return shares;
     }
 
     public async Task CreateAsync(Share share, CancellationToken cancellationToken = default)

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Dam.Application;
 using Dam.Application.Dtos;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
@@ -42,7 +43,7 @@ public static class AssetEndpoints
     {
         // In a production system, you'd filter by user's accessible collections
         var assets = await assetRepository.GetByStatusAsync(Asset.StatusReady, skip, take);
-        var dtos = assets.Select(MapToDto).ToList();
+        var dtos = assets.Select(a => MapToDto(a)).ToList();
         return Results.Ok(dtos);
     }
 
@@ -52,6 +53,7 @@ public static class AssetEndpoints
     private static async Task<IResult> GetAllAssets(
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepository,
         HttpContext httpContext,
         string? query = null,
         string? type = null,
@@ -64,18 +66,22 @@ public static class AssetEndpoints
         
         // Get all collections the user has access to
         var accessibleCollections = await collectionRepository.GetAccessibleCollectionsAsync(userId);
-        var accessibleCollectionIds = accessibleCollections.Select(c => c.Id);
+        var accessibleCollectionIds = accessibleCollections.Select(c => c.Id).ToList();
+        
+        // Get user's role for each collection from ACLs
+        var userAcls = await aclRepository.GetByUserAsync(userId);
+        var collectionRoles = userAcls.ToDictionary(a => a.CollectionId, a => a.Role);
 
         // If a specific collection is requested, filter to just that one (if accessible)
         if (collectionId.HasValue)
         {
             if (!accessibleCollectionIds.Contains(collectionId.Value))
                 return Results.Forbid();
-            accessibleCollectionIds = new[] { collectionId.Value };
+            accessibleCollectionIds = new List<Guid> { collectionId.Value };
         }
 
         var (assets, total) = await assetRepository.SearchAllAsync(accessibleCollectionIds, query, type, sortBy, skip, take);
-        var dtos = assets.Select(MapToDto).ToList();
+        var dtos = assets.Select(a => MapToDto(a, collectionRoles.GetValueOrDefault(a.CollectionId, RoleHierarchy.Roles.Viewer))).ToList();
         return Results.Ok(new
         {
             total,
@@ -107,13 +113,13 @@ public static class AssetEndpoints
     {
         var userId = httpContext.User.GetUserIdOrDefault();
 
-        // Check if user can access this collection
-        var canAccess = await authService.CheckAccessAsync(userId, collectionId, "viewer");
-        if (!canAccess)
+        // Check if user can access this collection and get their role
+        var userRole = await authService.GetUserRoleAsync(userId, collectionId);
+        if (userRole == null)
             return Results.Forbid();
 
         var (assets, total) = await assetRepository.SearchAsync(collectionId, query, type, sortBy, skip, take);
-        var dtos = assets.Select(MapToDto).ToList();
+        var dtos = assets.Select(a => MapToDto(a, userRole)).ToList();
         return Results.Ok(new
         {
             collectionId,
@@ -137,7 +143,7 @@ public static class AssetEndpoints
         var bucketName = GetBucketName(configuration);
 
         // Check if user can contribute to this collection
-        var canContribute = await authService.CheckAccessAsync(userId, collectionId, "contributor");
+        var canContribute = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
         if (!canContribute)
             return Results.Forbid();
 
@@ -207,7 +213,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canEdit = await authService.CheckAccessAsync(userId, asset.CollectionId, "contributor");
+        var canEdit = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Contributor);
         if (!canEdit)
             return Results.Forbid();
 
@@ -242,7 +248,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization - require manager role
-        var canDelete = await authService.CheckAccessAsync(userId, asset.CollectionId, "manager");
+        var canDelete = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Manager);
         if (!canDelete)
             return Results.Forbid();
 
@@ -268,7 +274,7 @@ public static class AssetEndpoints
         }
     }
 
-    private static AssetResponseDto MapToDto(Asset asset)
+    private static AssetResponseDto MapToDto(Asset asset, string userRole = RoleHierarchy.Roles.Viewer)
     {
         return new AssetResponseDto
         {
@@ -289,7 +295,8 @@ public static class AssetEndpoints
             PosterObjectKey = asset.PosterObjectKey,
             CreatedAt = asset.CreatedAt,
             CreatedByUserId = asset.CreatedByUserId,
-            UpdatedAt = asset.UpdatedAt
+            UpdatedAt = asset.UpdatedAt,
+            UserRole = userRole
         };
     }
 
@@ -311,7 +318,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
         if (!canAccess)
             return Results.Forbid();
 
@@ -347,7 +354,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
         if (!canAccess)
             return Results.Forbid();
 
@@ -379,7 +386,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
         if (!canAccess)
             return Results.Forbid();
 
@@ -413,7 +420,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
         if (!canAccess)
             return Results.Forbid();
 
@@ -458,7 +465,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, "viewer");
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
         if (!canAccess)
             return Results.Forbid();
 

@@ -69,6 +69,11 @@ public interface ICollectionAclRepository
     /// Gets ACL entry for a specific user/group on a collection.
     /// </summary>
     Task<CollectionAcl?> GetByPrincipalAsync(Guid collectionId, string principalType, string principalId);
+    
+    /// <summary>
+    /// Gets all ACL entries for a specific user across all collections.
+    /// </summary>
+    Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId);
 
     /// <summary>
     /// Creates or updates an ACL entry.

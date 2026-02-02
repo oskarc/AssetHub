@@ -1,5 +1,5 @@
 @page "/all-assets"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "RequireAdmin")]
 
 @using Dam.Application.Dtos
 @using Dam.Ui.Components
@@ -171,19 +171,25 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
                                            Size="Size.Small" 
                                            OnClick="@(() => ViewAsset(asset.Id))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Share" 
-                                           Size="Size.Small" 
-                                           OnClick="@(async () => await ShareAsset(asset))" />
+                            @if (CanShare(asset))
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Share" 
+                                               Size="Size.Small" 
+                                               OnClick="@(async () => await ShareAsset(asset))" />
+                            }
                             <MudTooltip Text="Go to collection">
                                 <MudIconButton Icon="@Icons.Material.Filled.FolderOpen"
                                                Size="Size.Small"
                                                OnClick="@(() => GoToCollection(asset.CollectionId))" />
                             </MudTooltip>
                             <MudSpacer />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                           Size="Size.Small" 
-                                           Color="Color.Error"
-                                           OnClick="@(async () => await DeleteAsset(asset))" />
+                            @if (CanDelete(asset))
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Size="Size.Small" 
+                                               Color="Color.Error"
+                                               OnClick="@(async () => await DeleteAsset(asset))" />
+                            }
                         </MudCardActions>
                     </MudCard>
                 </MudItem>
@@ -219,6 +225,10 @@
     private Guid? _filterCollectionId;
     private string _sortBy = "created_desc";
     private string _viewMode = "grid";
+    
+    // Role-based UI visibility using centralized permissions
+    private bool CanShare(AssetResponseDto asset) => RolePermissions.CanShare(asset.UserRole);
+    private bool CanDelete(AssetResponseDto asset) => RolePermissions.CanDelete(asset.UserRole);
 
     protected override async Task OnInitializedAsync()
     {

@@ -49,14 +49,20 @@ else
                         <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
                                        Size="Size.Small" 
                                        OnClick="@(() => ViewAsset(asset.Id))" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Share" 
-                                       Size="Size.Small" 
-                                       OnClick="@(async () => await ShareAsset(asset))" />
+                        @if (CanShare)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Share" 
+                                           Size="Size.Small" 
+                                           OnClick="@(async () => await ShareAsset(asset))" />
+                        }
                         <MudSpacer />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                       Size="Size.Small" 
-                                       Color="Color.Error"
-                                       OnClick="@(async () => await DeleteAsset(asset))" />
+                        @if (CanDelete)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                           Size="Size.Small" 
+                                           Color="Color.Error"
+                                           OnClick="@(async () => await DeleteAsset(asset))" />
+                        }
                     </MudCardActions>
                 </MudCard>
             </MudItem>
@@ -85,12 +91,23 @@ else
 
     [Parameter]
     public string SortBy { get; set; } = "created_desc";
+    
+    /// <summary>
+    /// The user's role in the current collection. Used to show/hide action buttons.
+    /// Valid values: "viewer", "contributor", "manager", "admin"
+    /// </summary>
+    [Parameter]
+    public string UserRole { get; set; } = "viewer";
 
     [Parameter]
     public EventCallback<AssetResponseDto> OnAssetSelected { get; set; }
 
     [Parameter]
     public EventCallback OnAssetsChanged { get; set; }
+    
+    // Role-based UI visibility using centralized permissions
+    private bool CanShare => RolePermissions.CanShare(UserRole);
+    private bool CanDelete => RolePermissions.CanDelete(UserRole);
 
     private List<AssetResponseDto> _assets = new();
     private int _total = 0;

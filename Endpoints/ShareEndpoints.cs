@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using Dam.Application;
+using Dam.Application.Dtos;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
@@ -85,25 +87,36 @@ public static class ShareEndpoints
         CreateShareDto dto,
         [FromServices] IAssetRepository assetRepository,
         [FromServices] ICollectionRepository collectionRepository,
+        [FromServices] ICollectionAuthorizationService authService,
         [FromServices] IShareRepository shareRepository,
         HttpContext httpContext)
     {
+        var userId = httpContext.User.GetUserIdOrDefault();
+
         // Validate scope
         if (dto.ScopeType != "asset" && dto.ScopeType != "collection")
-            return Results.BadRequest("ScopeType must be 'asset' or 'collection'");
+            return Results.BadRequest(ApiError.BadRequest("ScopeType must be 'asset' or 'collection'"));
+
+        Guid collectionIdToCheck;
 
         if (dto.ScopeType == "asset")
         {
             var asset = await assetRepository.GetByIdAsync(dto.ScopeId);
             if (asset == null)
-                return Results.NotFound("Asset not found");
+                return Results.NotFound(ApiError.NotFound("Asset not found"));
+            collectionIdToCheck = asset.CollectionId;
         }
-        else if (dto.ScopeType == "collection")
+        else // collection
         {
             var collection = await collectionRepository.GetByIdAsync(dto.ScopeId);
             if (collection == null)
-                return Results.NotFound("Collection not found");
+                return Results.NotFound(ApiError.NotFound("Collection not found"));
+            collectionIdToCheck = collection.Id;
         }
+
+        // Authorization: User must have contributor+ role to share
+        if (!await authService.CheckAccessAsync(userId, collectionIdToCheck, RoleHierarchy.Roles.Contributor))
+            return Results.Json(ApiError.Forbidden("You don't have permission to share this resource"), statusCode: 403);
 
         // Generate secure token
         var tokenBytes = new byte[32];
@@ -128,7 +141,7 @@ public static class ShareEndpoints
             CreatedByUserId = httpContext.User.GetUserIdOrDefault(),
             PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
             PasswordHash = !string.IsNullOrWhiteSpace(dto.Password)
-                ? Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(dto.Password)))
+                ? BCrypt.Net.BCrypt.HashPassword(dto.Password)
                 : null
         };
 
@@ -181,8 +194,7 @@ public static class ShareEndpoints
             if (string.IsNullOrEmpty(password))
                 return Results.Json(new { requiresPassword = true }, statusCode: 401);
 
-            var inputPasswordHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
-            if (inputPasswordHash != share.PasswordHash)
+            if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
                 return Results.Unauthorized();
         }
 
@@ -304,8 +316,7 @@ public static class ShareEndpoints
             if (string.IsNullOrEmpty(password))
                 return Results.Json(new { requiresPassword = true }, statusCode: 401);
 
-            var inputPasswordHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
-            if (inputPasswordHash != share.PasswordHash)
+            if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
                 return Results.Unauthorized();
         }
 
@@ -381,8 +392,7 @@ public static class ShareEndpoints
             if (string.IsNullOrEmpty(password))
                 return Results.Json(new { requiresPassword = true }, statusCode: 401);
 
-            var inputPasswordHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
-            if (inputPasswordHash != share.PasswordHash)
+            if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
                 return Results.Unauthorized();
         }
 
@@ -491,8 +501,7 @@ public static class ShareEndpoints
             if (string.IsNullOrEmpty(password))
                 return Results.Json(new { requiresPassword = true }, statusCode: 401);
 
-            var inputPasswordHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
-            if (inputPasswordHash != share.PasswordHash)
+            if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
                 return Results.Unauthorized();
         }
 
@@ -559,12 +568,12 @@ public static class ShareEndpoints
     {
         var share = await shareRepository.GetByIdAsync(id);
         if (share == null)
-            return Results.NotFound("Share not found");
+            return Results.NotFound(ApiError.NotFound("Share not found"));
 
         // Check authorization (owner can revoke)
         var userId = httpContext.User.GetUserIdOrDefault();
         if (share.CreatedByUserId != userId)
-            return Results.Forbid();
+            return Results.Json(ApiError.Forbidden("You don't have permission to revoke this share"), statusCode: 403);
 
         // Mark as revoked instead of deleting (for audit trail)
         share.RevokedAt = DateTime.UtcNow;

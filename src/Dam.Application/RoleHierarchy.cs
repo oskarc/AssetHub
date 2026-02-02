@@ -1,0 +1,78 @@
+namespace Dam.Application;
+
+/// <summary>
+/// Centralized role hierarchy definitions used across all layers.
+/// Defines the role-based access control levels for the DAM system.
+/// </summary>
+public static class RoleHierarchy
+{
+    /// <summary>
+    /// Role name constants.
+    /// </summary>
+    public static class Roles
+    {
+        public const string Viewer = "viewer";
+        public const string Contributor = "contributor";
+        public const string Manager = "manager";
+        public const string Admin = "admin";
+    }
+
+    /// <summary>
+    /// Role levels for hierarchy comparison.
+    /// Higher values indicate more permissions.
+    /// </summary>
+    private static readonly Dictionary<string, int> Levels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { Roles.Viewer, 1 },
+        { Roles.Contributor, 2 },
+        { Roles.Manager, 3 },
+        { Roles.Admin, 4 }
+    };
+
+    /// <summary>
+    /// Gets the numeric level for a role. Returns 0 for unknown roles.
+    /// </summary>
+    public static int GetLevel(string? role)
+    {
+        if (string.IsNullOrEmpty(role)) return 0;
+        return Levels.TryGetValue(role, out var level) ? level : 0;
+    }
+
+    /// <summary>
+    /// Checks if the user role meets or exceeds the required role level.
+    /// </summary>
+    public static bool MeetsRequirement(string? userRole, string requiredRole)
+    {
+        return GetLevel(userRole) >= GetLevel(requiredRole);
+    }
+
+    /// <summary>
+    /// Checks if user can upload assets (requires contributor+).
+    /// </summary>
+    public static bool CanUpload(string? role) => GetLevel(role) >= 2;
+
+    /// <summary>
+    /// Checks if user can share assets/collections (requires contributor+).
+    /// </summary>
+    public static bool CanShare(string? role) => GetLevel(role) >= 2;
+
+    /// <summary>
+    /// Checks if user can edit asset metadata (requires contributor+).
+    /// </summary>
+    public static bool CanEdit(string? role) => GetLevel(role) >= 2;
+
+    /// <summary>
+    /// Checks if user can delete assets (requires manager+).
+    /// </summary>
+    public static bool CanDelete(string? role) => GetLevel(role) >= 3;
+
+    /// <summary>
+    /// Checks if user can manage ACLs (requires manager+).
+    /// </summary>
+    public static bool CanManageAccess(string? role) => GetLevel(role) >= 3;
+
+    /// <summary>
+    /// All valid role names.
+    /// </summary>
+    public static IReadOnlyCollection<string> AllRoles => Levels.Keys.ToList().AsReadOnly();
+}

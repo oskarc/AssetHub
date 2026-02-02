@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Security.Claims;
+using Dam.Application;
 using Dam.Application.Dtos;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
@@ -89,7 +90,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check access
-        var hasAccess = await authService.CheckAccessAsync(userId, id, "viewer");
+        var hasAccess = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer);
         if (!hasAccess)
             return Results.Forbid();
 
@@ -155,7 +156,7 @@ public static class CollectionEndpoints
         await collectionRepo.CreateAsync(collection);
 
         // Grant creator admin access
-        await aclRepo.SetAccessAsync(collection.Id, "user", userId, "admin");
+        await aclRepo.SetAccessAsync(collection.Id, "user", userId, RoleHierarchy.Roles.Admin);
 
         var responseDto = new CollectionResponseDto
         {
@@ -165,7 +166,7 @@ public static class CollectionEndpoints
             ParentId = collection.ParentId,
             CreatedAt = collection.CreatedAt,
             CreatedByUserId = collection.CreatedByUserId,
-            UserRole = "admin"
+            UserRole = RoleHierarchy.Roles.Admin
         };
 
         return Results.Created($"/api/collections/{collection.Id}", responseDto);
@@ -195,7 +196,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check permission (must be manager)
-        var canUpdate = await authService.CheckAccessAsync(userId, id, "manager");
+        var canUpdate = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Manager);
         if (!canUpdate)
             return Results.Forbid();
 
@@ -224,7 +225,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check permission (must be admin)
-        var canDelete = await authService.CheckAccessAsync(userId, id, "admin");
+        var canDelete = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Admin);
         if (!canDelete)
             return Results.Forbid();
 
@@ -248,7 +249,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check access to parent
-        var hasAccess = await authService.CheckAccessAsync(userId, id, "viewer");
+        var hasAccess = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer);
         if (!hasAccess)
             return Results.Forbid();
 
@@ -314,7 +315,7 @@ public static class CollectionEndpoints
         if (string.IsNullOrWhiteSpace(dto.PrincipalType) || string.IsNullOrWhiteSpace(dto.PrincipalId) || string.IsNullOrWhiteSpace(dto.Role))
             return Results.BadRequest("PrincipalType, PrincipalId, and Role are required");
 
-        if (!new[] { "viewer", "contributor", "manager", "admin" }.Contains(dto.Role))
+        if (!RoleHierarchy.AllRoles.Contains(dto.Role))
             return Results.BadRequest("Invalid role");
 
         var acl = await aclRepo.SetAccessAsync(collectionId, dto.PrincipalType, dto.PrincipalId, dto.Role);
@@ -367,7 +368,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check viewer access
-        var canView = await authService.CheckAccessAsync(userId, id, "viewer");
+        var canView = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer);
         if (!canView)
             return Results.Forbid();
 

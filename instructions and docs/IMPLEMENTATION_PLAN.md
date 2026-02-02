@@ -77,21 +77,24 @@ The following features have been identified as high-priority improvements and sh
 - [x] Hide all navigation/menus until authenticated
 - [x] Application branding updated (AssetHub name, English text)
 
-#### 5. Admin Page for Share Management
+#### 5. Admin Page for Share Management ✅ COMPLETE
 **Priority**: High  
+**Status**: Implemented on 2026-02-01  
 **Description**: Administrative interface for managing share links.
-- View all active share links across the system
-- Display: link URL, creator (user), creation date, expiration
-- Revoke/disable individual shares
-- Configure default share duration settings
-- Filter by user, collection, or status
+- [x] View all active share links across the system
+- [x] Display: link URL, creator (user), creation date, expiration
+- [x] Revoke/disable individual shares
+- [x] Filter by user, collection, or status
+- [x] Three tabs: Shares, Collection Access, Users
+- [x] Username display (instead of subject IDs) via UserLookupService
 
-#### 6. Application Branding/Renaming
+#### 6. Application Branding/Renaming ✅ COMPLETE
 **Priority**: Medium  
+**Status**: Implemented on 2026-01-30  
 **Description**: Change the application name from generic "application" references.
-- Update page titles, headers, and branding
-- Configure application display name in appsettings
-- Update Keycloak client display name if needed
+- [x] Update page titles, headers, and branding
+- [x] Configure application display name in appsettings
+- [x] English language throughout
 
 #### 7. Asset Collection Membership Display
 **Priority**: Medium  
@@ -99,6 +102,119 @@ The following features have been identified as high-priority improvements and sh
 - Display collection badges/chips on asset detail
 - Click to navigate to parent collection
 - Quick add/remove from collections in asset detail
+
+#### 8. Role-Based UI Visibility ✅ COMPLETE
+**Priority**: High  
+**Status**: Implemented on 2026-02-01  
+**Description**: Hide/show UI elements based on user's role on a collection/asset.
+- [x] Viewers cannot see Share, Delete, or Upload buttons
+- [x] Contributors can see Upload, Share, Edit
+- [x] Managers can see Delete, manage ACL
+- [x] All Assets page restricted to admin only
+- [x] Centralized RolePermissions class for consistent role checks
+
+#### 9. Empty State Messages
+**Priority**: Medium  
+**Description**: Show friendly messages when there is no data to display.
+- Display "There is nothing to show here" or similar when lists/grids are empty
+- Consistent empty state styling across all data views (assets, collections, shares, users)
+- Provide helpful actions (e.g., "Create your first collection")
+
+#### 10. Error Handling & User Feedback
+**Priority**: High  
+**Description**: Improve error handling with user-friendly messages.
+- Display polite error messages for 401/500 errors (e.g., "Something went wrong while fetching users")
+- Never expose technical error details to users
+- Log API errors server-side for debugging
+- Consistent error toast notifications via MudBlazor Snackbar
+
+#### 11. API Error Logging
+**Priority**: Medium  
+**Description**: Add comprehensive logging for API errors.
+- Log all exceptions with stack traces
+- Log request context (user, endpoint, parameters)
+- Configure log levels per environment (Debug for dev, Warning+ for prod)
+- Consider structured logging (Serilog) for better searchability
+
+#### 12. User Access Details Modal
+**Priority**: Medium  
+**Description**: On Admin page Users tab, "View Access" should open a modal showing the user's collection access.
+- Display list of collections the user has access to
+- Show role per collection (viewer, contributor, manager, admin)
+- Show when access was granted (CreatedAt date)
+- Include "Revoke Access" button per collection
+- Quick navigation to collection
+
+#### 13. Role Permissions Documentation
+**Priority**: Low  
+**Description**: Document the permission model for clarity.
+- Clarify: Who can do what and when?
+- Question: If a contributor uploads an image, who owns it? (Answer: The asset is owned by the collection, not the user. CreatedByUserId is tracked for audit purposes, but permissions are based on collection ACL, not asset ownership)
+- Document in README or in-app help
+
+#### 14. Add CancellationToken Support
+**Priority**: Low  
+**Description**: Add CancellationToken to repository methods and endpoints for proper request cancellation.
+- Update IAssetRepository, ICollectionRepository methods
+- Propagate CancellationToken through endpoint handlers
+- Allows graceful cancellation of long-running operations
+
+---
+
+## Session Notes
+
+### 2026-02-01/02 Session: Code Quality & Security Review
+
+**Focus**: Security fixes, code consolidation, architecture improvements
+
+#### Completed Work
+
+**1. Critical Security Fix: CreateShare Authorization**
+- **Issue**: Any authenticated user could create share links for ANY asset/collection
+- **Fix**: Added authorization check requiring `contributor+` role on the collection
+- **File**: `Endpoints/ShareEndpoints.cs`
+
+**2. Security: BCrypt Password Hashing**
+- **Issue**: Share passwords were hashed with SHA256 (weak for passwords)
+- **Fix**: Replaced with BCrypt.Net-Next for proper password hashing
+- **Files**: `AssetHub.csproj`, `Endpoints/ShareEndpoints.cs`
+
+**3. Code Consolidation: Centralized RoleHierarchy**
+- **Issue**: Role hierarchy dictionary duplicated in 3+ locations
+- **Fix**: Created `Dam.Application/RoleHierarchy.cs` with constants and helper methods
+- **Updated Files**:
+  - `src/Dam.Ui/Services/RolePermissions.cs` - delegates to RoleHierarchy
+  - `src/Dam.Infrastructure/Services/AuthorizationService.cs` - uses RoleHierarchy.MeetsRequirement()
+  - `Endpoints/AssetEndpoints.cs` - uses RoleHierarchy.Roles.* constants
+  - `Endpoints/CollectionEndpoints.cs` - uses RoleHierarchy.Roles.* constants
+  - `Endpoints/AdminEndpoints.cs` - uses RoleHierarchy.AllRoles and GetLevel()
+
+**4. Standardized API Error Responses**
+- **Issue**: Inconsistent error response formats across endpoints
+- **Fix**: Created `Dam.Application/Dtos/ApiError.cs` with factory methods
+- **Updated**: AdminEndpoints, ShareEndpoints to use ApiError
+
+**5. Role-Based UI Visibility**
+- Viewers cannot see Share/Delete/Upload buttons
+- All Assets page restricted to admin only
+- Centralized permission checks in RolePermissions class
+
+**6. Username Display**
+- Created UserLookupService to query Keycloak's user_entity table
+- Admin page shows usernames instead of subject IDs
+- User validation when adding collection access
+
+**7. Architecture Improvements**
+- Moved IUserLookupService interface to Application layer (Clean Architecture)
+- Removed duplicate using directives
+
+#### Files Created
+- `src/Dam.Application/RoleHierarchy.cs`
+- `src/Dam.Application/Dtos/ApiError.cs`
+- `src/Dam.Application/Services/IUserLookupService.cs`
+
+#### Build Status
+✅ All changes compile successfully, API running
 
 ---
 
