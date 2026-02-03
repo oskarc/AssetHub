@@ -1,5 +1,6 @@
 using Npgsql;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Dam.Application.Services;
 
 namespace Dam.Infrastructure.Services;
@@ -8,15 +9,12 @@ namespace Dam.Infrastructure.Services;
 /// Keycloak implementation of IUserLookupService.
 /// Queries Keycloak's user_entity table directly for user information.
 /// </summary>
-public class UserLookupService : IUserLookupService
+public class UserLookupService(
+    IConfiguration configuration,
+    ILogger<UserLookupService> logger) : IUserLookupService
 {
-    private readonly string _connectionString;
-
-    public UserLookupService(IConfiguration configuration)
-    {
-        _connectionString = configuration.GetConnectionString("Postgres") 
-            ?? throw new InvalidOperationException("Postgres connection string is required");
-    }
+    private readonly string _connectionString = configuration.GetConnectionString("Postgres") 
+        ?? throw new InvalidOperationException("Postgres connection string is required");
 
     public async Task<Dictionary<string, string>> GetUserNamesAsync(IEnumerable<string> userIds, CancellationToken ct = default)
     {

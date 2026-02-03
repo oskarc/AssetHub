@@ -264,7 +264,7 @@ public static class AdminEndpoints
             Name = collection.Name,
             Description = collection.Description,
             ParentId = collection.ParentId,
-            Acls = collection.Acls.Select(a => new CollectionAclDto
+            Acls = collection.Acls.Select(a => new CollectionAclResponseDto
             {
                 Id = a.Id,
                 PrincipalType = a.PrincipalType,

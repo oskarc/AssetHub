@@ -1,3 +1,4 @@
+using Dam.Application;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Hangfire;
@@ -6,6 +7,7 @@ using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Iptc;
 using MetadataExtractor.Formats.Xmp;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
 
@@ -15,13 +17,10 @@ public class MediaProcessingService(
     IAssetRepository assetRepository,
     IMinIOAdapter minioAdapter,
     IBackgroundJobClient backgroundJobClient,
-    IOptions<MinIOSettings> minioSettings) : IMediaProcessingService
+    IOptions<MinIOSettings> minioSettings,
+    ILogger<MediaProcessingService> logger) : IMediaProcessingService
 {
     private readonly string _bucketName = minioSettings.Value.BucketName;
-    private const int ThumbWidth = 200;
-    private const int ThumbHeight = 200;
-    private const int MediumWidth = 800;
-    private const int MediumHeight = 800;
 
     public async Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, CancellationToken cancellationToken = default)
     {
@@ -29,14 +28,17 @@ public class MediaProcessingService(
         
         if (assetType == "image")
         {
+            logger.LogInformation("Scheduling image processing for asset {AssetId}", assetId);
             jobId = backgroundJobClient.Enqueue(() => ProcessImageAsync(assetId, originalObjectKey));
         }
         else if (assetType == "video")
         {
+            logger.LogInformation("Scheduling video processing for asset {AssetId}", assetId);
             jobId = backgroundJobClient.Enqueue(() => ProcessVideoAsync(assetId, originalObjectKey));
         }
         else
         {
+            logger.LogInformation("No processing required for asset {AssetId} of type {AssetType}", assetId, assetType);
             // For documents and other types, mark as ready immediately
             var asset = await assetRepository.GetByIdAsync(assetId, cancellationToken);
             if (asset != null)
@@ -52,15 +54,23 @@ public class MediaProcessingService(
 
     public async Task ProcessImageAsync(Guid assetId, string originalObjectKey)
     {
+        var tempOriginal = Path.GetTempFileName();
+        var thumbPath = Path.GetTempFileName();
+        var mediumPath = Path.GetTempFileName();
+        
         try
         {
+            logger.LogInformation("Starting image processing for asset {AssetId}", assetId);
+            
             var asset = await assetRepository.GetByIdAsync(assetId);
             if (asset == null)
+            {
+                logger.LogWarning("Asset {AssetId} not found, skipping processing", assetId);
                 return;
+            }
 
             // Download original image
             using var originalStream = await minioAdapter.DownloadAsync(_bucketName, originalObjectKey);
-            var tempOriginal = Path.GetTempFileName();
             using (var fs = File.Create(tempOriginal))
             {
                 await originalStream.CopyToAsync(fs);
@@ -74,42 +84,40 @@ public class MediaProcessingService(
                 {
                     asset.MetadataJson[kvp.Key] = kvp.Value;
                 }
+                logger.LogDebug("Extracted {Count} metadata fields for asset {AssetId}", metadata.Count, assetId);
             }
             catch (Exception ex)
             {
-                // Log but don't fail - metadata extraction is optional
+                logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}", assetId);
                 asset.MetadataJson["metadataExtractionError"] = ex.Message;
             }
 
             // Create thumbnail
-            var thumbPath = Path.GetTempFileName();
-            await ResizeImageAsync(tempOriginal, thumbPath, ThumbWidth, ThumbHeight);
-            var thumbKey = $"thumbs/{assetId}-thumb.jpg";
+            await ResizeImageAsync(tempOriginal, thumbPath, Constants.ImageDimensions.ThumbnailWidth, Constants.ImageDimensions.ThumbnailHeight);
+            var thumbKey = $"{Constants.StoragePrefixes.Thumbnails}/{assetId}-thumb.jpg";
             using (var fs = File.OpenRead(thumbPath))
             {
-                await minioAdapter.UploadAsync(_bucketName, thumbKey, fs, "image/jpeg");
+                await minioAdapter.UploadAsync(_bucketName, thumbKey, fs, Constants.ContentTypes.Jpeg);
             }
 
             // Create medium version
-            var mediumPath = Path.GetTempFileName();
-            await ResizeImageAsync(tempOriginal, mediumPath, MediumWidth, MediumHeight);
-            var mediumKey = $"medium/{assetId}-medium.jpg";
+            await ResizeImageAsync(tempOriginal, mediumPath, Constants.ImageDimensions.MediumWidth, Constants.ImageDimensions.MediumHeight);
+            var mediumKey = $"{Constants.StoragePrefixes.Medium}/{assetId}-medium.jpg";
             using (var fs = File.OpenRead(mediumPath))
             {
-                await minioAdapter.UploadAsync(_bucketName, mediumKey, fs, "image/jpeg");
+                await minioAdapter.UploadAsync(_bucketName, mediumKey, fs, Constants.ContentTypes.Jpeg);
             }
 
             // Update asset with processed variants
             asset.MarkReady(thumbKey, mediumKey);
             await assetRepository.UpdateAsync(asset);
-
-            // Cleanup
-            File.Delete(tempOriginal);
-            File.Delete(thumbPath);
-            File.Delete(mediumPath);
+            
+            logger.LogInformation("Successfully processed image asset {AssetId}", assetId);
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Image processing failed for asset {AssetId}", assetId);
+            
             var asset = await assetRepository.GetByIdAsync(assetId);
             if (asset != null)
             {
@@ -117,43 +125,56 @@ public class MediaProcessingService(
                 await assetRepository.UpdateAsync(asset);
             }
         }
+        finally
+        {
+            // Cleanup temp files
+            CleanupTempFile(tempOriginal);
+            CleanupTempFile(thumbPath);
+            CleanupTempFile(mediumPath);
+        }
     }
 
     public async Task ProcessVideoAsync(Guid assetId, string originalObjectKey)
     {
+        var tempOriginal = Path.GetTempFileName();
+        var posterPath = Path.GetTempFileName();
+        
         try
         {
+            logger.LogInformation("Starting video processing for asset {AssetId}", assetId);
+            
             var asset = await assetRepository.GetByIdAsync(assetId);
             if (asset == null)
+            {
+                logger.LogWarning("Asset {AssetId} not found, skipping processing", assetId);
                 return;
+            }
 
             // Download original video
             using var originalStream = await minioAdapter.DownloadAsync(_bucketName, originalObjectKey);
-            var tempOriginal = Path.GetTempFileName();
             using (var fs = File.Create(tempOriginal))
             {
                 await originalStream.CopyToAsync(fs);
             }
 
             // Extract poster frame at 5 seconds
-            var posterPath = Path.GetTempFileName();
             await ExtractPosterAsync(tempOriginal, posterPath, 5);
-            var posterKey = $"posters/{assetId}-poster.jpg";
+            var posterKey = $"{Constants.StoragePrefixes.Posters}/{assetId}-poster.jpg";
             using (var fs = File.OpenRead(posterPath))
             {
-                await minioAdapter.UploadAsync(_bucketName, posterKey, fs, "image/jpeg");
+                await minioAdapter.UploadAsync(_bucketName, posterKey, fs, Constants.ContentTypes.Jpeg);
             }
 
             // Update asset with poster
             asset.MarkReady(posterKey: posterKey);
             await assetRepository.UpdateAsync(asset);
-
-            // Cleanup
-            File.Delete(tempOriginal);
-            File.Delete(posterPath);
+            
+            logger.LogInformation("Successfully processed video asset {AssetId}", assetId);
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Video processing failed for asset {AssetId}", assetId);
+            
             var asset = await assetRepository.GetByIdAsync(assetId);
             if (asset != null)
             {
@@ -161,12 +182,16 @@ public class MediaProcessingService(
                 await assetRepository.UpdateAsync(asset);
             }
         }
+        finally
+        {
+            // Cleanup temp files
+            CleanupTempFile(tempOriginal);
+            CleanupTempFile(posterPath);
+        }
     }
 
     public async Task<(bool IsCompleted, string? Status, string? ErrorMessage)> GetJobStatusAsync(string jobId, CancellationToken cancellationToken = default)
     {
-        // This is a simplified implementation
-        // In production, you'd use Hangfire's job storage API
         if (jobId == "no-processing-required")
         {
             return (true, "completed", null);
@@ -174,6 +199,24 @@ public class MediaProcessingService(
 
         // Hangfire job tracking would be implemented here
         return (false, "processing", null);
+    }
+
+    /// <summary>
+    /// Safely delete a temp file, logging any errors.
+    /// </summary>
+    private void CleanupTempFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to cleanup temp file: {Path}", path);
+        }
     }
 
     /// <summary>

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Dam.Application.Dtos;
 
 /// <summary>
@@ -8,11 +10,14 @@ public class CreateCollectionDto
     /// <summary>
     /// Collection name (required, 1-255 chars).
     /// </summary>
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public required string Name { get; set; }
 
     /// <summary>
-    /// Collection description (optional).
+    /// Collection description (optional, max 2000 chars).
     /// </summary>
+    [StringLength(2000)]
     public string? Description { get; set; }
 
     /// <summary>
@@ -29,28 +34,30 @@ public class UpdateCollectionDto
     /// <summary>
     /// Collection name.
     /// </summary>
+    [StringLength(255, MinimumLength = 1)]
     public string? Name { get; set; }
 
     /// <summary>
     /// Collection description.
     /// </summary>
+    [StringLength(2000)]
     public string? Description { get; set; }
 }
 
 /// <summary>
 /// DTO for collection responses (GET endpoints).
 /// </summary>
-public class CollectionResponseDto
+public record CollectionResponseDto
 {
-    public Guid Id { get; set; }
-    public string Name { get; set; } = "";
-    public string? Description { get; set; }
-    public Guid? ParentId { get; set; }
-    public string UserRole { get; set; } = ""; // viewer, contributor, manager, admin
-    public DateTime CreatedAt { get; set; }
-    public string CreatedByUserId { get; set; } = "";
-    public int ChildCount { get; set; }
-    public int AssetCount { get; set; }
+    public Guid Id { get; init; }
+    public required string Name { get; init; }
+    public string? Description { get; init; }
+    public Guid? ParentId { get; init; }
+    public string UserRole { get; init; } = "";
+    public DateTime CreatedAt { get; init; }
+    public string CreatedByUserId { get; init; } = "";
+    public int ChildCount { get; init; }
+    public int AssetCount { get; init; }
 }
 
 /// <summary>
@@ -61,27 +68,34 @@ public class SetCollectionAccessDto
     /// <summary>
     /// Principal type: "user" or "group".
     /// </summary>
+    [Required]
+    [RegularExpression("^(user|group)$", ErrorMessage = "PrincipalType must be 'user' or 'group'")]
     public required string PrincipalType { get; set; }
 
     /// <summary>
     /// Principal ID (user ID or group ID from Keycloak).
     /// </summary>
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public required string PrincipalId { get; set; }
 
     /// <summary>
     /// Role to assign: "viewer", "contributor", "manager", "admin".
     /// </summary>
+    [Required]
+    [RegularExpression("^(viewer|contributor|manager|admin)$", ErrorMessage = "Role must be 'viewer', 'contributor', 'manager', or 'admin'")]
     public required string Role { get; set; }
 }
 
 /// <summary>
 /// DTO for ACL responses.
 /// </summary>
-public class CollectionAclResponseDto
+public record CollectionAclResponseDto
 {
-    public Guid Id { get; set; }
-    public string PrincipalType { get; set; } = "";
-    public string PrincipalId { get; set; } = "";
-    public string Role { get; set; } = "";
-    public DateTime CreatedAt { get; set; }
+    public Guid Id { get; init; }
+    public string PrincipalType { get; init; } = "";
+    public string PrincipalId { get; init; } = "";
+    public string? PrincipalName { get; init; }
+    public string Role { get; init; } = "";
+    public DateTime CreatedAt { get; init; }
 }

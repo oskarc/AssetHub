@@ -1,11 +1,23 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Dam.Application.Dtos;
 
+/// <summary>
+/// DTO for uploading a new asset.
+/// </summary>
 public class AssetUploadDto
 {
+    [Required]
     public required Guid CollectionId { get; set; }
+    
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public required string Title { get; set; }
+    
+    [StringLength(2000)]
     public string? Description { get; set; }
-    public List<string> Tags { get; set; } = new();
+    
+    public List<string> Tags { get; set; } = [];
+    
     public Dictionary<string, object>? MetadataJson { get; set; }
-    // File data will be handled separately via multipart form
 }

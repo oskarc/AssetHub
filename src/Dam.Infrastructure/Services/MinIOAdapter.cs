@@ -1,17 +1,14 @@
 using Dam.Application.Services;
+using Microsoft.Extensions.Logging;
 using Minio;
+using Minio.Exceptions;
 
 namespace Dam.Infrastructure.Services;
 
-public class MinIOAdapter : IMinIOAdapter
+public class MinIOAdapter(
+    IMinioClient minioClient,
+    ILogger<MinIOAdapter> logger) : IMinIOAdapter
 {
-    private readonly IMinioClient _minioClient;
-
-    public MinIOAdapter(IMinioClient minioClient)
-    {
-        _minioClient = minioClient;
-    }
-
     public async Task UploadAsync(string bucketName, string objectKey, Stream data, string contentType, CancellationToken cancellationToken = default)
     {
         await EnsureBucketExistsAsync(bucketName, cancellationToken);
@@ -23,7 +20,7 @@ public class MinIOAdapter : IMinIOAdapter
             .WithObjectSize(data.Length)
             .WithContentType(contentType);
 
-        await _minioClient.PutObjectAsync(putObjectArgs, cancellationToken);
+        await minioClient.PutObjectAsync(putObjectArgs, cancellationToken);
     }
 
     public async Task<Stream> DownloadAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
@@ -38,7 +35,7 @@ public class MinIOAdapter : IMinIOAdapter
                 await stream.CopyToAsync(memoryStream, cancellationToken);
             });
 
-        await _minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
+        await minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
         memoryStream.Position = 0;
         
         return memoryStream;
@@ -50,7 +47,7 @@ public class MinIOAdapter : IMinIOAdapter
             .WithBucket(bucketName)
             .WithObject(objectKey);
 
-        await _minioClient.RemoveObjectAsync(removeObjectArgs, cancellationToken);
+        await minioClient.RemoveObjectAsync(removeObjectArgs, cancellationToken);
     }
 
     public async Task<bool> ExistsAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
@@ -61,12 +58,21 @@ public class MinIOAdapter : IMinIOAdapter
                 .WithBucket(bucketName)
                 .WithObject(objectKey);
 
-            await _minioClient.StatObjectAsync(statObjectArgs, cancellationToken);
+            await minioClient.StatObjectAsync(statObjectArgs, cancellationToken);
             return true;
         }
-        catch (Exception)
+        catch (ObjectNotFoundException)
         {
             return false;
+        }
+        catch (BucketNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error checking if object exists: {Bucket}/{Key}", bucketName, objectKey);
+            throw;
         }
     }
 
@@ -77,7 +83,7 @@ public class MinIOAdapter : IMinIOAdapter
             .WithObject(objectKey)
             .WithExpiry(expirySeconds);
 
-        var url = await _minioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
+        var url = await minioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
         return url;
     }
 
@@ -86,14 +92,15 @@ public class MinIOAdapter : IMinIOAdapter
         var bucketExistsArgs = new BucketExistsArgs()
             .WithBucket(bucketName);
 
-        bool exists = await _minioClient.BucketExistsAsync(bucketExistsArgs, cancellationToken);
+        bool exists = await minioClient.BucketExistsAsync(bucketExistsArgs, cancellationToken);
 
         if (!exists)
         {
+            logger.LogInformation("Creating bucket: {BucketName}", bucketName);
             var makeBucketArgs = new MakeBucketArgs()
                 .WithBucket(bucketName);
 
-            await _minioClient.MakeBucketAsync(makeBucketArgs, cancellationToken);
+            await minioClient.MakeBucketAsync(makeBucketArgs, cancellationToken);
         }
     }
 }

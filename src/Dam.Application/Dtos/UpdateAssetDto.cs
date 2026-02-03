@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Dam.Application.Dtos;
 
 /// <summary>
@@ -5,8 +7,13 @@ namespace Dam.Application.Dtos;
 /// </summary>
 public class UpdateAssetDto
 {
+    [StringLength(255, MinimumLength = 1)]
     public string? Title { get; set; }
+    
+    [StringLength(2000)]
     public string? Description { get; set; }
+    
     public List<string>? Tags { get; set; }
+    
     public Dictionary<string, object>? MetadataJson { get; set; }
 }

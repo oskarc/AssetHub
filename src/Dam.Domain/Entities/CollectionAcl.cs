@@ -16,13 +16,12 @@ public enum CollectionRole
     Admin = 4
 }
 
+/// <summary>
+/// Access Control List entry for a collection.
+/// Links a principal (user/group) to a collection with a specific role.
+/// </summary>
 public class CollectionAcl
 {
-    /// <summary>
-    /// Valid role names for ACL entries.
-    /// </summary>
-    public static readonly string[] ValidRoles = { "viewer", "contributor", "manager", "admin" };
-
     public Guid Id { get; set; }
     public Guid CollectionId { get; set; }
     public string PrincipalType { get; set; } = string.Empty; // "user" or "group"

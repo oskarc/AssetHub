@@ -11,47 +11,47 @@ public interface ICollectionRepository
     /// <summary>
     /// Gets a collection by ID with optional related data.
     /// </summary>
-    Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, bool includeChildren = false);
+    Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, bool includeChildren = false, CancellationToken ct = default);
 
     /// <summary>
     /// Gets all root-level collections (no parent).
     /// </summary>
-    Task<IEnumerable<Collection>> GetRootCollectionsAsync();
+    Task<IEnumerable<Collection>> GetRootCollectionsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Gets all child collections of a parent.
     /// </summary>
-    Task<IEnumerable<Collection>> GetChildrenAsync(Guid parentId);
+    Task<IEnumerable<Collection>> GetChildrenAsync(Guid parentId, CancellationToken ct = default);
 
     /// <summary>
     /// Gets all collections accessible to a user (by checking ACLs).
     /// </summary>
-    Task<IEnumerable<Collection>> GetAccessibleCollectionsAsync(string userId);
+    Task<IEnumerable<Collection>> GetAccessibleCollectionsAsync(string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Creates a new collection.
     /// </summary>
-    Task<Collection> CreateAsync(Collection collection);
+    Task<Collection> CreateAsync(Collection collection, CancellationToken ct = default);
 
     /// <summary>
     /// Updates an existing collection.
     /// </summary>
-    Task<Collection> UpdateAsync(Collection collection);
+    Task<Collection> UpdateAsync(Collection collection, CancellationToken ct = default);
 
     /// <summary>
     /// Deletes a collection and its children.
     /// </summary>
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
     /// Checks if a collection exists.
     /// </summary>
-    Task<bool> ExistsAsync(Guid id);
+    Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
     /// Gets all collections with their ACLs (admin use).
     /// </summary>
-    Task<IEnumerable<Collection>> GetAllWithAclsAsync();
+    Task<IEnumerable<Collection>> GetAllWithAclsAsync(CancellationToken ct = default);
 }
 
 /// <summary>
@@ -63,35 +63,35 @@ public interface ICollectionAclRepository
     /// <summary>
     /// Gets ACL entries for a collection.
     /// </summary>
-    Task<IEnumerable<CollectionAcl>> GetByCollectionAsync(Guid collectionId);
+    Task<IEnumerable<CollectionAcl>> GetByCollectionAsync(Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
     /// Gets ACL entry for a specific user/group on a collection.
     /// </summary>
-    Task<CollectionAcl?> GetByPrincipalAsync(Guid collectionId, string principalType, string principalId);
+    Task<CollectionAcl?> GetByPrincipalAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default);
     
     /// <summary>
     /// Gets all ACL entries for a specific user across all collections.
     /// </summary>
-    Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId);
+    Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Creates or updates an ACL entry.
     /// </summary>
-    Task<CollectionAcl> SetAccessAsync(Guid collectionId, string principalType, string principalId, string role);
+    Task<CollectionAcl> SetAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default);
 
     /// <summary>
     /// Removes access for a principal on a collection.
     /// </summary>
-    Task RevokeAccessAsync(Guid collectionId, string principalType, string principalId);
+    Task RevokeAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default);
 
     /// <summary>
     /// Removes all ACL entries for a collection (used when deleting).
     /// </summary>
-    Task RevokeAllAccessAsync(Guid collectionId);
+    Task RevokeAllAccessAsync(Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
     /// Gets all ACL entries across all collections (admin use).
     /// </summary>
-    Task<IEnumerable<CollectionAcl>> GetAllAsync();
+    Task<IEnumerable<CollectionAcl>> GetAllAsync(CancellationToken ct = default);
 }

@@ -5,18 +5,11 @@ using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
-public class CollectionRepository : ICollectionRepository
+public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepository
 {
-    private readonly AssetHubDbContext _dbContext;
-
-    public CollectionRepository(AssetHubDbContext dbContext)
+    public async Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, bool includeChildren = false, CancellationToken ct = default)
     {
-        _dbContext = dbContext;
-    }
-
-    public async Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, bool includeChildren = false)
-    {
-        var query = _dbContext.Collections.AsQueryable();
+        var query = dbContext.Collections.AsQueryable();
 
         if (includeAcls)
             query = query.Include(c => c.Acls);
@@ -24,140 +17,128 @@ public class CollectionRepository : ICollectionRepository
         if (includeChildren)
             query = query.Include(c => c.Children);
 
-        return await query.FirstOrDefaultAsync(c => c.Id == id);
+        return await query.FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
-    public async Task<IEnumerable<Collection>> GetRootCollectionsAsync()
+    public async Task<IEnumerable<Collection>> GetRootCollectionsAsync(CancellationToken ct = default)
     {
-        return await _dbContext.Collections
+        return await dbContext.Collections
             .Where(c => c.ParentId == null)
             .OrderBy(c => c.Name)
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<IEnumerable<Collection>> GetChildrenAsync(Guid parentId)
+    public async Task<IEnumerable<Collection>> GetChildrenAsync(Guid parentId, CancellationToken ct = default)
     {
-        return await _dbContext.Collections
+        return await dbContext.Collections
             .Where(c => c.ParentId == parentId)
             .OrderBy(c => c.Name)
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<IEnumerable<Collection>> GetAccessibleCollectionsAsync(string userId)
+    public async Task<IEnumerable<Collection>> GetAccessibleCollectionsAsync(string userId, CancellationToken ct = default)
     {
-        // Get collections where user has direct ACL access
-        return await _dbContext.Collections
+        return await dbContext.Collections
             .Where(c => c.Acls.Any(a =>
                 a.PrincipalType == "user" &&
                 a.PrincipalId == userId))
             .OrderBy(c => c.Name)
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<Collection> CreateAsync(Collection collection)
+    public async Task<Collection> CreateAsync(Collection collection, CancellationToken ct = default)
     {
         collection.Id = Guid.NewGuid();
         collection.CreatedAt = DateTime.UtcNow;
 
-        _dbContext.Collections.Add(collection);
-        await _dbContext.SaveChangesAsync();
+        dbContext.Collections.Add(collection);
+        await dbContext.SaveChangesAsync(ct);
 
         return collection;
     }
 
-    public async Task<Collection> UpdateAsync(Collection collection)
+    public async Task<Collection> UpdateAsync(Collection collection, CancellationToken ct = default)
     {
-        _dbContext.Collections.Update(collection);
-        await _dbContext.SaveChangesAsync();
+        dbContext.Collections.Update(collection);
+        await dbContext.SaveChangesAsync(ct);
         return collection;
     }
 
-    public async Task DeleteAsync(Guid id)
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var collection = await GetByIdAsync(id, includeChildren: true);
+        var collection = await GetByIdAsync(id, includeChildren: true, ct: ct);
         if (collection == null) return;
 
-        // Delete recursively
-        await DeleteRecursiveAsync(collection);
-        await _dbContext.SaveChangesAsync();
+        await DeleteRecursiveAsync(collection, ct);
+        await dbContext.SaveChangesAsync(ct);
     }
 
-    public async Task<bool> ExistsAsync(Guid id)
+    public async Task<bool> ExistsAsync(Guid id, CancellationToken ct = default)
     {
-        return await _dbContext.Collections.AnyAsync(c => c.Id == id);
+        return await dbContext.Collections.AnyAsync(c => c.Id == id, ct);
     }
 
-    public async Task<IEnumerable<Collection>> GetAllWithAclsAsync()
+    public async Task<IEnumerable<Collection>> GetAllWithAclsAsync(CancellationToken ct = default)
     {
-        return await _dbContext.Collections
+        return await dbContext.Collections
             .Include(c => c.Acls)
             .OrderBy(c => c.Name)
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    private async Task DeleteRecursiveAsync(Collection collection)
+    private async Task DeleteRecursiveAsync(Collection collection, CancellationToken ct = default)
     {
-        // Delete all children recursively
-        var children = await _dbContext.Collections
+        var children = await dbContext.Collections
             .Where(c => c.ParentId == collection.Id)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         foreach (var child in children)
         {
-            await DeleteRecursiveAsync(child);
+            await DeleteRecursiveAsync(child, ct);
         }
 
-        _dbContext.Collections.Remove(collection);
+        dbContext.Collections.Remove(collection);
     }
 }
 
-public class CollectionAclRepository : ICollectionAclRepository
+public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionAclRepository
 {
-    private readonly AssetHubDbContext _dbContext;
-
-    public CollectionAclRepository(AssetHubDbContext dbContext)
+    public async Task<IEnumerable<CollectionAcl>> GetByCollectionAsync(Guid collectionId, CancellationToken ct = default)
     {
-        _dbContext = dbContext;
-    }
-
-    public async Task<IEnumerable<CollectionAcl>> GetByCollectionAsync(Guid collectionId)
-    {
-        return await _dbContext.CollectionAcls
+        return await dbContext.CollectionAcls
             .Where(a => a.CollectionId == collectionId)
             .OrderBy(a => a.PrincipalType)
             .ThenBy(a => a.PrincipalId)
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<CollectionAcl?> GetByPrincipalAsync(Guid collectionId, string principalType, string principalId)
+    public async Task<CollectionAcl?> GetByPrincipalAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
-        return await _dbContext.CollectionAcls
+        return await dbContext.CollectionAcls
             .FirstOrDefaultAsync(a =>
                 a.CollectionId == collectionId &&
                 a.PrincipalType == principalType &&
-                a.PrincipalId == principalId);
+                a.PrincipalId == principalId, ct);
     }
     
-    public async Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId)
+    public async Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId, CancellationToken ct = default)
     {
-        return await _dbContext.CollectionAcls
+        return await dbContext.CollectionAcls
             .Where(a => a.PrincipalType == "user" && a.PrincipalId == userId)
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<CollectionAcl> SetAccessAsync(Guid collectionId, string principalType, string principalId, string role)
+    public async Task<CollectionAcl> SetAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default)
     {
-        var existing = await GetByPrincipalAsync(collectionId, principalType, principalId);
+        var existing = await GetByPrincipalAsync(collectionId, principalType, principalId, ct);
 
         if (existing != null)
         {
-            // Update existing
             existing.Role = role;
-            _dbContext.CollectionAcls.Update(existing);
+            dbContext.CollectionAcls.Update(existing);
         }
         else
         {
-            // Create new
             var acl = new CollectionAcl
             {
                 Id = Guid.NewGuid(),
@@ -167,38 +148,38 @@ public class CollectionAclRepository : ICollectionAclRepository
                 Role = role,
                 CreatedAt = DateTime.UtcNow
             };
-            _dbContext.CollectionAcls.Add(acl);
+            dbContext.CollectionAcls.Add(acl);
             existing = acl;
         }
 
-        await _dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(ct);
         return existing;
     }
 
-    public async Task RevokeAccessAsync(Guid collectionId, string principalType, string principalId)
+    public async Task RevokeAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
-        var acl = await GetByPrincipalAsync(collectionId, principalType, principalId);
+        var acl = await GetByPrincipalAsync(collectionId, principalType, principalId, ct);
         if (acl == null) return;
 
-        _dbContext.CollectionAcls.Remove(acl);
-        await _dbContext.SaveChangesAsync();
+        dbContext.CollectionAcls.Remove(acl);
+        await dbContext.SaveChangesAsync(ct);
     }
 
-    public async Task RevokeAllAccessAsync(Guid collectionId)
+    public async Task RevokeAllAccessAsync(Guid collectionId, CancellationToken ct = default)
     {
-        var acls = await _dbContext.CollectionAcls
+        var acls = await dbContext.CollectionAcls
             .Where(a => a.CollectionId == collectionId)
-            .ToListAsync();
+            .ToListAsync(ct);
 
-        _dbContext.CollectionAcls.RemoveRange(acls);
-        await _dbContext.SaveChangesAsync();
+        dbContext.CollectionAcls.RemoveRange(acls);
+        await dbContext.SaveChangesAsync(ct);
     }
 
-    public async Task<IEnumerable<CollectionAcl>> GetAllAsync()
+    public async Task<IEnumerable<CollectionAcl>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _dbContext.CollectionAcls
+        return await dbContext.CollectionAcls
             .OrderBy(a => a.CollectionId)
             .ThenBy(a => a.PrincipalId)
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 }
