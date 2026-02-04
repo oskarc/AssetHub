@@ -262,24 +262,36 @@ public class AssetHubApiClient
     /// <param name="scopeId">The ID of the asset or collection to share.</param>
     /// <param name="scopeType">"asset" or "collection".</param>
     /// <param name="expiresAt">When the share expires (defaults to 7 days).</param>
-    /// <param name="password">Optional password protection.</param>
+    /// <param name="password">Optional password (if not provided, one will be generated).</param>
+    /// <param name="notifyEmails">Optional list of email addresses to notify about the share.</param>
     public async Task<ShareResponse> CreateShareAsync(
         Guid scopeId,
         string scopeType,
         DateTime? expiresAt = null,
-        string? password = null)
+        string? password = null,
+        List<string>? notifyEmails = null)
     {
         var dto = new
         {
             ScopeId = scopeId,
             ScopeType = scopeType,
             ExpiresAt = expiresAt ?? DateTime.UtcNow.AddDays(7),
-            Password = password
+            Password = password,
+            NotifyEmails = notifyEmails
         };
 
         var response = await _http.PostAsJsonAsync("/api/shares", dto);
         await EnsureSuccessAsync(response, "Create share");
         return await ReadRequiredJsonAsync<ShareResponse>(response, "Create share");
+    }
+
+    /// <summary>
+    /// Updates the password for an existing share.
+    /// </summary>
+    public async Task UpdateSharePasswordAsync(Guid shareId, string newPassword)
+    {
+        var response = await _http.PutAsJsonAsync($"/api/shares/{shareId}/password", new { Password = newPassword });
+        await EnsureSuccessAsync(response, "Update share password");
     }
 
     /// <summary>

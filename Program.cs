@@ -49,6 +49,7 @@ builder.Services.AddMudServices();
 
 // Configuration
 builder.Services.Configure<MinIOSettings>(builder.Configuration.GetSection(MinIOSettings.SectionName));
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
 
 // Application Services
 builder.Services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizationService>();
@@ -59,6 +60,10 @@ builder.Services.AddScoped<IShareRepository, ShareRepository>();
 builder.Services.AddScoped<IMinIOAdapter, MinIOAdapter>();
 builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+
+// UI Services
+builder.Services.AddScoped<Dam.Ui.Services.IUserFeedbackService, Dam.Ui.Services.UserFeedbackService>();
 
 // HTTP Client for Blazor UI to call our own API
 // In Blazor Server, we need to forward the auth cookies when making internal API calls
@@ -208,7 +213,7 @@ builder.Services.AddAuthentication(options =>
         OnRemoteFailure = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogError(context.Failure, "OIDC remote failure: {Message}", context.Failure?.Message);
+            logger.LogError(context.Failure, $"OIDC remote failure: {context.Failure?.Message}");
 
             // Avoid unhandled exception page in dev; bounce home with a lightweight signal.
             context.HandleResponse();
@@ -224,11 +229,7 @@ builder.Services.AddAuthentication(options =>
             var idTokenLen = context.TokenEndpointResponse?.IdToken?.Length ?? 0;
             var tokenType = context.TokenEndpointResponse?.TokenType;
 
-            logger.LogInformation(
-                "OIDC token response received. token_type={TokenType}, access_token_len={AccessTokenLen}, id_token_len={IdTokenLen}",
-                tokenType,
-                accessTokenLen,
-                idTokenLen);
+            logger.LogInformation($"OIDC token response received. token_type={tokenType}, access_token_len={accessTokenLen}, id_token_len={idTokenLen}");
 
             return Task.CompletedTask;
         },
@@ -242,9 +243,7 @@ builder.Services.AddAuthentication(options =>
         {
             // Log authentication failures for debugging
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogError("Authentication failed: {Message}. Exception: {Exception}", 
-                context.Exception?.Message ?? "Unknown error",
-                context.Exception?.InnerException?.Message ?? "No inner exception");
+            logger.LogError($"Authentication failed: {context.Exception?.Message ?? "Unknown error"}. Exception: {context.Exception?.InnerException?.Message ?? "No inner exception"}");
 
             // Prevent a 500/developer exception page on auth errors; redirect to home.
             context.HandleResponse();
@@ -325,7 +324,7 @@ var app = builder.Build();
 // Always log a build stamp so it's easy to verify which binary is running.
 {
     var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("BuildStamp");
-    logger.LogInformation("AssetHub starting. BuildStamp={BuildStamp}. Environment={Environment}", Dam.Application.BuildInfo.Stamp, app.Environment.EnvironmentName);
+    logger.LogInformation($"AssetHub starting. BuildStamp={Dam.Application.BuildInfo.Stamp}. Environment={app.Environment.EnvironmentName}");
 }
 
 if (!app.Environment.IsDevelopment())
@@ -343,12 +342,7 @@ if (app.Environment.IsDevelopment())
         {
             var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("OidcCallback");
 
-            logger.LogInformation(
-                "OIDC callback received: {Method} {Path}{Query}. ContentType={ContentType}",
-                context.Request.Method,
-                context.Request.Path,
-                context.Request.QueryString,
-                context.Request.ContentType ?? "<null>");
+            logger.LogInformation($"OIDC callback received: {context.Request.Method} {context.Request.Path}{context.Request.QueryString}. ContentType={context.Request.ContentType ?? "<null>"}");
 
             try
             {
@@ -357,22 +351,18 @@ if (app.Environment.IsDevelopment())
                 if (context.Request.HasFormContentType)
                 {
                     var form = await context.Request.ReadFormAsync(context.RequestAborted);
-                    logger.LogInformation("OIDC callback form keys: {Keys}", string.Join(", ", form.Keys.OrderBy(k => k, StringComparer.Ordinal)));
-                    logger.LogInformation("OIDC callback has state={HasState}, code={HasCode}",
-                        form.TryGetValue("state", out var state) && !string.IsNullOrWhiteSpace(state.ToString()),
-                        form.TryGetValue("code", out var code) && !string.IsNullOrWhiteSpace(code.ToString()));
+                    logger.LogInformation($"OIDC callback form keys: {string.Join(", ", form.Keys.OrderBy(k => k, StringComparer.Ordinal))}");
+                    logger.LogInformation($"OIDC callback has state={form.TryGetValue("state", out var state) && !string.IsNullOrWhiteSpace(state.ToString())}, code={form.TryGetValue("code", out var code) && !string.IsNullOrWhiteSpace(code.ToString())}");
                 }
                 else
                 {
-                    logger.LogInformation("OIDC callback query keys: {Keys}", string.Join(", ", context.Request.Query.Keys.OrderBy(k => k, StringComparer.Ordinal)));
-                    logger.LogInformation("OIDC callback has state={HasState}, code={HasCode}",
-                        context.Request.Query.ContainsKey("state") && !string.IsNullOrWhiteSpace(context.Request.Query["state"].ToString()),
-                        context.Request.Query.ContainsKey("code") && !string.IsNullOrWhiteSpace(context.Request.Query["code"].ToString()));
+                    logger.LogInformation($"OIDC callback query keys: {string.Join(", ", context.Request.Query.Keys.OrderBy(k => k, StringComparer.Ordinal))}");
+                    logger.LogInformation($"OIDC callback has state={context.Request.Query.ContainsKey("state") && !string.IsNullOrWhiteSpace(context.Request.Query["state"].ToString())}, code={context.Request.Query.ContainsKey("code") && !string.IsNullOrWhiteSpace(context.Request.Query["code"].ToString())}");
                 }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to inspect OIDC callback request");
+                logger.LogWarning(ex, $"Failed to inspect OIDC callback request");
             }
             finally
             {
@@ -392,7 +382,7 @@ if (app.Environment.IsDevelopment())
             catch (Exception ex)
             {
                 var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("OidcCallback");
-                logger.LogError(ex, "Unhandled exception during /signin-oidc pipeline: {Message}", ex.Message);
+                logger.LogError(ex, $"Unhandled exception during /signin-oidc pipeline: {ex.Message}");
 
                 if (!context.Response.HasStarted)
                 {

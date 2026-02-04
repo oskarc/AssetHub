@@ -1,0 +1,254 @@
+@using MudBlazor
+@using Dam.Ui.Services
+@using System.ComponentModel.DataAnnotations
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Share" Class="mr-2" Color="Color.Primary" />
+            Create Share Link
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Create a password-protected share link for "@ContentName".
+            </MudText>
+
+            <MudDivider />
+
+            @* Password Section *@
+            <MudText Typo="Typo.subtitle2">Password</MudText>
+            <MudTextField @bind-Value="_password"
+                          Label="Password"
+                          Variant="Variant.Outlined"
+                          InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                          OnAdornmentClick="TogglePasswordVisibility"
+                          HelperText="A secure password has been generated. You can edit it if needed." />
+
+            <MudStack Row="true">
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Text"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="GenerateNewPassword">
+                    Generate New
+                </MudButton>
+            </MudStack>
+
+            <MudDivider />
+
+            @* Expiration Section *@
+            <MudText Typo="Typo.subtitle2">Expiration</MudText>
+            <MudSelect T="int" @bind-Value="_expirationDays" Variant="Variant.Outlined" Label="Expires in">
+                <MudSelectItem Value="1">1 day</MudSelectItem>
+                <MudSelectItem Value="7">7 days</MudSelectItem>
+                <MudSelectItem Value="14">14 days</MudSelectItem>
+                <MudSelectItem Value="30">30 days</MudSelectItem>
+                <MudSelectItem Value="90">90 days</MudSelectItem>
+            </MudSelect>
+
+            <MudDivider />
+
+            @* Email Notification Section *@
+            <MudText Typo="Typo.subtitle2">
+                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Class="mr-1" />
+                Notify via Email (Optional)
+            </MudText>
+
+            <MudTextField @bind-Value="_emailInput"
+                          Label="Add email address"
+                          Variant="Variant.Outlined"
+                          Placeholder="Enter email and press Enter"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.Add"
+                          OnAdornmentClick="AddEmail"
+                          OnKeyDown="OnEmailKeyDown"
+                          Error="@(!string.IsNullOrEmpty(_emailError))"
+                          ErrorText="@_emailError" />
+
+            @if (_emails.Any())
+            {
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                    @foreach (var email in _emails)
+                    {
+                        <MudChip T="string"
+                                 Color="Color.Primary"
+                                 Variant="Variant.Outlined"
+                                 Size="Size.Small"
+                                 OnClose="@(() => RemoveEmail(email))">
+                            @email
+                        </MudChip>
+                    }
+                </MudStack>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @_emails.Count email(s) will receive the share link and password.
+                </MudText>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Share"
+                   OnClick="CreateShare"
+                   Disabled="_isCreating">
+            @if (_isCreating)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Create Share
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>
+    /// The ID of the asset or collection to share.
+    /// </summary>
+    [Parameter]
+    public Guid ScopeId { get; set; }
+
+    /// <summary>
+    /// "asset" or "collection"
+    /// </summary>
+    [Parameter]
+    public string ScopeType { get; set; } = "asset";
+
+    /// <summary>
+    /// Display name of the content being shared.
+    /// </summary>
+    [Parameter]
+    public string ContentName { get; set; } = "this content";
+
+    private string _password = "";
+    private bool _showPassword = true;
+    private int _expirationDays = 7;
+    private string _emailInput = "";
+    private string _emailError = "";
+    private List<string> _emails = new();
+    private bool _isCreating = false;
+
+    protected override void OnInitialized()
+    {
+        _password = GeneratePassword();
+    }
+
+    private void TogglePasswordVisibility() => _showPassword = !_showPassword;
+
+    private void GenerateNewPassword()
+    {
+        _password = GeneratePassword();
+    }
+
+    private static string GeneratePassword(int length = 12)
+    {
+        const string upperCase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string lowerCase = "abcdefghjkmnpqrstuvwxyz";
+        const string digits = "23456789";
+        const string special = "!@#$%&*";
+        const string allChars = upperCase + lowerCase + digits + special;
+
+        var random = new Random();
+        var password = new char[length];
+
+        // Ensure at least one from each category
+        password[0] = upperCase[random.Next(upperCase.Length)];
+        password[1] = lowerCase[random.Next(lowerCase.Length)];
+        password[2] = digits[random.Next(digits.Length)];
+        password[3] = special[random.Next(special.Length)];
+
+        // Fill rest randomly
+        for (int i = 4; i < length; i++)
+        {
+            password[i] = allChars[random.Next(allChars.Length)];
+        }
+
+        // Shuffle
+        return new string(password.OrderBy(_ => random.Next()).ToArray());
+    }
+
+    private void OnEmailKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddEmail();
+        }
+    }
+
+    private void AddEmail()
+    {
+        _emailError = "";
+
+        if (string.IsNullOrWhiteSpace(_emailInput))
+            return;
+
+        var email = _emailInput.Trim().ToLowerInvariant();
+
+        // Basic email validation
+        if (!new EmailAddressAttribute().IsValid(email))
+        {
+            _emailError = "Please enter a valid email address.";
+            return;
+        }
+
+        if (_emails.Contains(email))
+        {
+            _emailError = "This email has already been added.";
+            return;
+        }
+
+        _emails.Add(email);
+        _emailInput = "";
+    }
+
+    private void RemoveEmail(string email)
+    {
+        _emails.Remove(email);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task CreateShare()
+    {
+        if (string.IsNullOrWhiteSpace(_password))
+        {
+            Feedback.ShowError("Password is required.");
+            return;
+        }
+
+        _isCreating = true;
+        try
+        {
+            var expiresAt = DateTime.UtcNow.AddDays(_expirationDays);
+            var emailList = _emails.Any() ? _emails : null;
+
+            var share = await Api.CreateShareAsync(
+                ScopeId,
+                ScopeType,
+                expiresAt,
+                _password,
+                emailList
+            );
+
+            // Return the share result so the caller can show the success dialog
+            MudDialog.Close(DialogResult.Ok(share));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "create share");
+        }
+        finally
+        {
+            _isCreating = false;
+        }
+    }
+}

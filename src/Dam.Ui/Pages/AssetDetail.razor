@@ -8,7 +8,7 @@
 
 @inject AssetHubApiClient Api
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
 
 <PageTitle>@(_asset?.Title ?? "Asset") - AssetHub</PageTitle>
@@ -269,7 +269,7 @@ else
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load asset: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load asset");
             _asset = null;
         }
         finally
@@ -353,21 +353,26 @@ else
     {
         if (_asset == null) return;
 
-        try
+        var createParams = new DialogParameters<CreateShareDialog>
         {
-            var share = await Api.CreateShareAsync(_asset.Id, "asset");
+            { x => x.ScopeId, _asset.Id },
+            { x => x.ScopeType, "asset" },
+            { x => x.ContentName, _asset.Title }
+        };
 
-            var parameters = new DialogParameters<ShareLinkDialog>
+        var createResult = await DialogService.ShowAsync<CreateShareDialog>("Create Share Link", createParams);
+        var result = await createResult.Result;
+
+        if (result != null && !result.Canceled && result.Data is ShareResponse share)
+        {
+            var successParams = new DialogParameters<ShareLinkDialog>
             {
                 { x => x.ShareUrl, share.ShareUrl },
+                { x => x.Password, share.Password ?? "" },
                 { x => x.ExpiresAt, share.ExpiresAt }
             };
 
-            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", parameters);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to create share: {ex.Message}", Severity.Error);
+            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", successParams);
         }
     }
 
@@ -393,7 +398,7 @@ else
         if (result != null && !result.Canceled && result.Data is AssetResponseDto updatedAsset)
         {
             _asset = updatedAsset;
-            Snackbar.Add("Asset updated successfully", Severity.Success);
+            Feedback.ShowSuccess("Asset updated successfully");
             StateHasChanged();
         }
     }
@@ -410,16 +415,15 @@ else
 
         if (result == true)
         {
-            try
+            var collectionId = _asset.CollectionId;
+            var success = await Feedback.ExecuteWithFeedbackAsync(
+                () => Api.DeleteAssetAsync(_asset.Id),
+                "delete asset",
+                "Asset deleted successfully");
+            
+            if (success)
             {
-                var collectionId = _asset.CollectionId;
-                await Api.DeleteAssetAsync(_asset.Id);
-                Snackbar.Add("Asset deleted successfully", Severity.Success);
                 Nav.NavigateTo($"/assets?collection={collectionId}");
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Failed to delete asset: {ex.Message}", Severity.Error);
             }
         }
     }

@@ -3,6 +3,7 @@ using Dam.Application;
 using Dam.Application.Dtos;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
+using Dam.Application.Services.Email.Templates;
 using Dam.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +19,10 @@ public class CreateShareDto
     public DateTime? ExpiresAt { get; set; }
     public string? Password { get; set; }
     public Dictionary<string, bool>? PermissionsJson { get; set; }
+    /// <summary>
+    /// Optional list of email addresses to notify about this share.
+    /// </summary>
+    public List<string>? NotifyEmails { get; set; }
 }
 
 public class ShareResponseDto
@@ -30,6 +35,10 @@ public class ShareResponseDto
     public DateTime? ExpiresAt { get; set; }
     public required Dictionary<string, bool> PermissionsJson { get; set; }
     public required string ShareUrl { get; set; }
+    /// <summary>
+    /// The plaintext password (only returned once at creation time).
+    /// </summary>
+    public string? Password { get; set; }
 }
 
 public class SharedAssetDto
@@ -81,6 +90,7 @@ public static class ShareEndpoints
         var authGroup = group.RequireAuthorization();
         authGroup.MapPost("", CreateShare).WithName("CreateShare");
         authGroup.MapDelete("{id}", RevokeShare).WithName("RevokeShare");
+        authGroup.MapPut("{id}/password", UpdateSharePassword).WithName("UpdateSharePassword");
     }
 
     private static async Task<IResult> CreateShare(
@@ -89,6 +99,8 @@ public static class ShareEndpoints
         [FromServices] ICollectionRepository collectionRepository,
         [FromServices] ICollectionAuthorizationService authService,
         [FromServices] IShareRepository shareRepository,
+        [FromServices] IEmailService emailService,
+        [FromServices] IUserLookupService userLookupService,
         HttpContext httpContext)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
@@ -98,6 +110,7 @@ public static class ShareEndpoints
             return Results.BadRequest(ApiError.BadRequest("ScopeType must be 'asset' or 'collection'"));
 
         Guid collectionIdToCheck;
+        string contentName;
 
         if (dto.ScopeType == "asset")
         {
@@ -105,6 +118,7 @@ public static class ShareEndpoints
             if (asset == null)
                 return Results.NotFound(ApiError.NotFound("Asset not found"));
             collectionIdToCheck = asset.CollectionId;
+            contentName = asset.Title;
         }
         else // collection
         {
@@ -112,6 +126,7 @@ public static class ShareEndpoints
             if (collection == null)
                 return Results.NotFound(ApiError.NotFound("Collection not found"));
             collectionIdToCheck = collection.Id;
+            contentName = collection.Name;
         }
 
         // Authorization: User must have contributor+ role to share
@@ -130,6 +145,13 @@ public static class ShareEndpoints
         using var sha256 = SHA256.Create();
         var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
 
+        // Generate password if not provided (always require password)
+        var plainPassword = dto.Password;
+        if (string.IsNullOrWhiteSpace(plainPassword))
+        {
+            plainPassword = GenerateSecurePassword();
+        }
+
         var share = new Share
         {
             Id = Guid.NewGuid(),
@@ -140,15 +162,44 @@ public static class ShareEndpoints
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = httpContext.User.GetUserIdOrDefault(),
             PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
-            PasswordHash = !string.IsNullOrWhiteSpace(dto.Password)
-                ? BCrypt.Net.BCrypt.HashPassword(dto.Password)
-                : null
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword)
         };
 
         // Save share to database
         await shareRepository.CreateAsync(share);
 
         var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+        var shareUrl = $"{baseUrl}/share/{token}";
+
+        // Send notification emails if recipients are provided
+        if (dto.NotifyEmails?.Any() == true)
+        {
+            try
+            {
+                // Get sender's display name
+                var userNames = await userLookupService.GetUserNamesAsync(new[] { userId }, default);
+                var senderName = userNames.TryGetValue(userId, out var name) ? name : null;
+
+                var emailTemplate = new ShareCreatedEmailTemplate(
+                    shareUrl: shareUrl,
+                    password: plainPassword,
+                    contentName: contentName,
+                    contentType: dto.ScopeType,
+                    senderName: senderName,
+                    expiresAt: share.ExpiresAt
+                );
+
+                await emailService.SendEmailAsync(dto.NotifyEmails, emailTemplate);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the share creation
+                // The share is already created successfully
+                var loggerFactory = httpContext.RequestServices.GetRequiredService<ILoggerFactory>();
+                var logger = loggerFactory.CreateLogger("AssetHub.ShareEndpoints");
+                logger.LogError(ex, $"Failed to send share notification emails for share {share.Id} to {string.Join(", ", dto.NotifyEmails)}");
+            }
+        }
 
         return Results.Created($"/api/shares/{share.Id}", new ShareResponseDto
         {
@@ -159,8 +210,55 @@ public static class ShareEndpoints
             CreatedAt = share.CreatedAt,
             ExpiresAt = share.ExpiresAt,
             PermissionsJson = share.PermissionsJson,
-            ShareUrl = $"{baseUrl}/share/{token}"
+            ShareUrl = shareUrl,
+            Password = plainPassword // Return password for one-time display
         });
+    }
+
+    /// <summary>
+    /// Generates a secure, user-friendly password.
+    /// </summary>
+    private static string GenerateSecurePassword(int length = 12)
+    {
+        // Use a character set that avoids ambiguous characters (0/O, 1/l/I)
+        const string upperCase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string lowerCase = "abcdefghjkmnpqrstuvwxyz";
+        const string digits = "23456789";
+        const string special = "!@#$%&*";
+        const string allChars = upperCase + lowerCase + digits + special;
+
+        var password = new char[length];
+        var randomBytes = new byte[length];
+
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(randomBytes);
+        }
+
+        // Ensure at least one character from each category
+        password[0] = upperCase[randomBytes[0] % upperCase.Length];
+        password[1] = lowerCase[randomBytes[1] % lowerCase.Length];
+        password[2] = digits[randomBytes[2] % digits.Length];
+        password[3] = special[randomBytes[3] % special.Length];
+
+        // Fill the rest randomly
+        for (int i = 4; i < length; i++)
+        {
+            password[i] = allChars[randomBytes[i] % allChars.Length];
+        }
+
+        // Shuffle the password
+        var shuffledBytes = new byte[length];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(shuffledBytes);
+        }
+
+        return new string(password
+            .Select((c, i) => new { Char = c, Order = shuffledBytes[i] })
+            .OrderBy(x => x.Order)
+            .Select(x => x.Char)
+            .ToArray());
     }
 
     private static async Task<IResult> GetSharedAsset(
@@ -581,4 +679,40 @@ public static class ShareEndpoints
 
         return Results.NoContent();
     }
+
+    /// <summary>
+    /// Updates the password for an existing share.
+    /// </summary>
+    private static async Task<IResult> UpdateSharePassword(
+        Guid id,
+        [FromBody] UpdateSharePasswordDto dto,
+        [FromServices] IShareRepository shareRepository,
+        HttpContext httpContext)
+    {
+        var share = await shareRepository.GetByIdAsync(id);
+        if (share == null)
+            return Results.NotFound(ApiError.NotFound("Share not found"));
+
+        // Check authorization (owner or admin can update)
+        var userId = httpContext.User.GetUserIdOrDefault();
+        var isAdmin = httpContext.User.IsInRole("admin");
+        if (share.CreatedByUserId != userId && !isAdmin)
+            return Results.Json(ApiError.Forbidden("You don't have permission to update this share"), statusCode: 403);
+
+        if (string.IsNullOrWhiteSpace(dto.Password))
+            return Results.BadRequest(ApiError.BadRequest("Password cannot be empty"));
+
+        share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+        await shareRepository.UpdateAsync(share);
+
+        return Results.Ok(new { message = "Password updated successfully" });
+    }
+}
+
+/// <summary>
+/// DTO for updating a share's password.
+/// </summary>
+public class UpdateSharePasswordDto
+{
+    public required string Password { get; set; }
 }

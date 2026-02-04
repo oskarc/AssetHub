@@ -22,7 +22,31 @@
                           Variant="Variant.Outlined"
                           Adornment="Adornment.End"
                           AdornmentIcon="@Icons.Material.Filled.ContentCopy"
-                          OnAdornmentClick="CopyToClipboard" />
+                          OnAdornmentClick="CopyUrlToClipboard" />
+
+            <MudTextField Value="@Password"
+                          Label="Password"
+                          ReadOnly="true"
+                          Variant="Variant.Outlined"
+                          InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                          OnAdornmentClick="TogglePasswordVisibility" />
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Text"
+                           StartIcon="@Icons.Material.Filled.ContentCopy"
+                           OnClick="CopyPasswordToClipboard">
+                    Copy Password
+                </MudButton>
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Text"
+                           StartIcon="@Icons.Material.Filled.ContentCopy"
+                           OnClick="CopyAllToClipboard">
+                    Copy All
+                </MudButton>
+            </MudStack>
 
             @if (ExpiresAt.HasValue)
             {
@@ -32,9 +56,9 @@
                 </MudText>
             }
 
-            <MudAlert Severity="Severity.Info" Dense="true">
-                Anyone with this link can access the shared content. 
-                You can revoke access at any time from your dashboard.
+            <MudAlert Severity="Severity.Warning" Dense="true">
+                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                This link is password protected. Share the password securely with recipients.
             </MudAlert>
         </MudStack>
     </DialogContent>
@@ -43,8 +67,8 @@
         <MudButton Color="Color.Primary" 
                    Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.ContentCopy"
-                   OnClick="CopyToClipboard">
-            Copy Link
+                   OnClick="CopyAllToClipboard">
+            Copy All
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -57,16 +81,50 @@
     public string ShareUrl { get; set; } = "";
 
     [Parameter]
+    public string Password { get; set; } = "";
+
+    [Parameter]
     public DateTime? ExpiresAt { get; set; }
+
+    private bool _showPassword = false;
 
     private void Close() => MudDialog.Close();
 
-    private async Task CopyToClipboard()
+    private void TogglePasswordVisibility() => _showPassword = !_showPassword;
+
+    private async Task CopyUrlToClipboard()
     {
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
             Snackbar.Add("Link copied to clipboard!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy to clipboard. Please copy manually.", Severity.Warning);
+        }
+    }
+
+    private async Task CopyPasswordToClipboard()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Password);
+            Snackbar.Add("Password copied to clipboard!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy to clipboard. Please copy manually.", Severity.Warning);
+        }
+    }
+
+    private async Task CopyAllToClipboard()
+    {
+        try
+        {
+            var text = $"Share Link: {ShareUrl}\nPassword: {Password}";
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            Snackbar.Add("Link and password copied to clipboard!", Severity.Success);
         }
         catch
         {

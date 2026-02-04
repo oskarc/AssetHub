@@ -24,4 +24,7 @@ public class ShareResponse
 
     [JsonPropertyName("expiresAt")]
     public DateTime? ExpiresAt { get; set; }
+
+    [JsonPropertyName("password")]
+    public string? Password { get; set; }
 }

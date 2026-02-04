@@ -1,0 +1,78 @@
+@using MudBlazor
+
+<MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="@($"py-8 {Class}")">
+    <MudIcon Icon="@Icon" 
+             Size="Size.Large" 
+             Color="Color.Default" 
+             Style="opacity: 0.5;" />
+    <MudText Typo="Typo.h6" Color="Color.Secondary" Align="Align.Center" Class="mt-3">
+        @Title
+    </MudText>
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Style="max-width: 400px;">
+            @Description
+        </MudText>
+    }
+    @if (ActionText != null && OnAction.HasDelegate)
+    {
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   StartIcon="@ActionIcon"
+                   OnClick="OnAction"
+                   Class="mt-4">
+            @ActionText
+        </MudButton>
+    }
+    @ChildContent
+</MudStack>
+
+@code {
+    /// <summary>
+    /// The main title/message to display.
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "Nothing here yet";
+
+    /// <summary>
+    /// A secondary description providing more context.
+    /// </summary>
+    [Parameter]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// The icon to display above the message.
+    /// </summary>
+    [Parameter]
+    public string Icon { get; set; } = Icons.Material.Filled.Inbox;
+
+    /// <summary>
+    /// Optional action button text.
+    /// </summary>
+    [Parameter]
+    public string? ActionText { get; set; }
+
+    /// <summary>
+    /// Optional action button icon.
+    /// </summary>
+    [Parameter]
+    public string? ActionIcon { get; set; }
+
+    /// <summary>
+    /// Callback when action button is clicked.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnAction { get; set; }
+
+    /// <summary>
+    /// Additional CSS classes.
+    /// </summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>
+    /// Optional child content for additional customization.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

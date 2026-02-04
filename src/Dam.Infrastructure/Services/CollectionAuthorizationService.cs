@@ -22,7 +22,7 @@ public class CollectionAuthorizationService(
         var collectionExists = await dbContext.Collections.AnyAsync(c => c.Id == collectionId);
         if (!collectionExists)
         {
-            logger.LogDebug("Collection {CollectionId} not found", collectionId);
+            logger.LogDebug($"Collection {collectionId} not found");
             return null;
         }
 

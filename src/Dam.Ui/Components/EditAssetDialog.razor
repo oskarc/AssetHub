@@ -2,7 +2,7 @@
 @using Dam.Ui.Services
 
 @inject AssetHubApiClient Api
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 
 <MudDialog>
     <TitleContent>
@@ -150,7 +150,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to update asset: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "update asset");
         }
         finally
         {

@@ -2,7 +2,7 @@
 @using Dam.Ui.Services
 
 @inject AssetHubApiClient Api
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
 
 @if (_isLoading)
@@ -11,9 +11,12 @@
 }
 else if (_collections.Count == 0)
 {
-    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-2">
-        No collections yet. Create one to get started.
-    </MudText>
+    <MudStack AlignItems="AlignItems.Center" Class="py-4">
+        <MudIcon Icon="@Icons.Material.Filled.CreateNewFolder" Size="Size.Medium" Color="Color.Default" Style="opacity: 0.5;" />
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="pa-2">
+            No collections yet. Click the folder icon above to create your first collection.
+        </MudText>
+    </MudStack>
 }
 else
 {
@@ -70,7 +73,7 @@ else
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load collections: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load collections");
         }
         finally
         {
@@ -86,7 +89,7 @@ else
     private async Task EditCollection(CollectionResponseDto collection)
     {
         // TODO: Implement rename dialog
-        Snackbar.Add("Rename functionality coming soon", Severity.Info);
+        Feedback.ShowInfo("Rename functionality coming soon");
     }
 
     private async Task DeleteCollection(CollectionResponseDto collection)
@@ -103,9 +106,13 @@ else
 
         if (result == true)
         {
-            try
+            var success = await Feedback.ExecuteWithFeedbackAsync(
+                () => Api.DeleteCollectionAsync(collection.Id),
+                "delete collection",
+                "Collection deleted successfully");
+            
+            if (success)
             {
-                await Api.DeleteCollectionAsync(collection.Id);
                 _collections.Remove(collection);
                 
                 // If we deleted the selected collection, clear selection
@@ -113,12 +120,6 @@ else
                 {
                     await OnCollectionSelected.InvokeAsync(null);
                 }
-                
-                Snackbar.Add("Collection deleted", Severity.Success);
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Failed to delete collection: {ex.Message}", Severity.Error);
             }
         }
     }

@@ -28,17 +28,17 @@ public class MediaProcessingService(
         
         if (assetType == "image")
         {
-            logger.LogInformation("Scheduling image processing for asset {AssetId}", assetId);
+            logger.LogInformation($"Scheduling image processing for asset {assetId}");
             jobId = backgroundJobClient.Enqueue(() => ProcessImageAsync(assetId, originalObjectKey));
         }
         else if (assetType == "video")
         {
-            logger.LogInformation("Scheduling video processing for asset {AssetId}", assetId);
+            logger.LogInformation($"Scheduling video processing for asset {assetId}");
             jobId = backgroundJobClient.Enqueue(() => ProcessVideoAsync(assetId, originalObjectKey));
         }
         else
         {
-            logger.LogInformation("No processing required for asset {AssetId} of type {AssetType}", assetId, assetType);
+            logger.LogInformation($"No processing required for asset {assetId} of type {assetType}");
             // For documents and other types, mark as ready immediately
             var asset = await assetRepository.GetByIdAsync(assetId, cancellationToken);
             if (asset != null)
@@ -60,12 +60,12 @@ public class MediaProcessingService(
         
         try
         {
-            logger.LogInformation("Starting image processing for asset {AssetId}", assetId);
+            logger.LogInformation($"Starting image processing for asset {assetId}");
             
             var asset = await assetRepository.GetByIdAsync(assetId);
             if (asset == null)
             {
-                logger.LogWarning("Asset {AssetId} not found, skipping processing", assetId);
+                logger.LogWarning($"Asset {assetId} not found, skipping processing");
                 return;
             }
 
@@ -84,11 +84,11 @@ public class MediaProcessingService(
                 {
                     asset.MetadataJson[kvp.Key] = kvp.Value;
                 }
-                logger.LogDebug("Extracted {Count} metadata fields for asset {AssetId}", metadata.Count, assetId);
+                logger.LogDebug($"Extracted {metadata.Count} metadata fields for asset {assetId}");
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}", assetId);
+                logger.LogWarning(ex, $"Failed to extract metadata for asset {assetId}");
                 asset.MetadataJson["metadataExtractionError"] = ex.Message;
             }
 
@@ -112,11 +112,11 @@ public class MediaProcessingService(
             asset.MarkReady(thumbKey, mediumKey);
             await assetRepository.UpdateAsync(asset);
             
-            logger.LogInformation("Successfully processed image asset {AssetId}", assetId);
+            logger.LogInformation($"Successfully processed image asset {assetId}");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Image processing failed for asset {AssetId}", assetId);
+            logger.LogError(ex, $"Image processing failed for asset {assetId}");
             
             var asset = await assetRepository.GetByIdAsync(assetId);
             if (asset != null)
@@ -141,12 +141,12 @@ public class MediaProcessingService(
         
         try
         {
-            logger.LogInformation("Starting video processing for asset {AssetId}", assetId);
+            logger.LogInformation($"Starting video processing for asset {assetId}");
             
             var asset = await assetRepository.GetByIdAsync(assetId);
             if (asset == null)
             {
-                logger.LogWarning("Asset {AssetId} not found, skipping processing", assetId);
+                logger.LogWarning($"Asset {assetId} not found, skipping processing");
                 return;
             }
 
@@ -169,11 +169,11 @@ public class MediaProcessingService(
             asset.MarkReady(posterKey: posterKey);
             await assetRepository.UpdateAsync(asset);
             
-            logger.LogInformation("Successfully processed video asset {AssetId}", assetId);
+            logger.LogInformation($"Successfully processed video asset {assetId}");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Video processing failed for asset {AssetId}", assetId);
+            logger.LogError(ex, $"Video processing failed for asset {assetId}");
             
             var asset = await assetRepository.GetByIdAsync(assetId);
             if (asset != null)
@@ -215,7 +215,7 @@ public class MediaProcessingService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to cleanup temp file: {Path}", path);
+            logger.LogWarning(ex, $"Failed to cleanup temp file: {path}");
         }
     }
 

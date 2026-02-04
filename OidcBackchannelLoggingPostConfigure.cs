@@ -79,15 +79,7 @@ public sealed class OidcBackchannelLoggingPostConfigure : IPostConfigureOptions<
             if (body is { Length: > 4000 })
                 body = body[..4000] + "…(truncated)";
 
-            _logger.LogError(
-                "Keycloak userinfo failed: {StatusCode} {ReasonPhrase}. Endpoint={Endpoint}. Authorization={AuthScheme}({AuthLen}). WWW-Authenticate={WwwAuthenticate}. Body={Body}",
-                (int)response.StatusCode,
-                response.ReasonPhrase,
-                request.RequestUri?.ToString(),
-                authScheme,
-                authParamLen,
-                wwwAuthenticate,
-                body);
+            _logger.LogError($"Keycloak userinfo failed: {(int)response.StatusCode} {response.ReasonPhrase}. Endpoint={request.RequestUri?.ToString()}. Authorization={authScheme}({authParamLen}). WWW-Authenticate={wwwAuthenticate}. Body={body}");
 
             return response;
         }

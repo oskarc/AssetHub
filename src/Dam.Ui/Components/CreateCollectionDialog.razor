@@ -3,7 +3,7 @@
 @using MudBlazor
 
 @inject AssetHubApiClient Api
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 
 <MudDialog>
     <TitleContent>
@@ -97,7 +97,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to create collection: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "create collection");
         }
         finally
         {

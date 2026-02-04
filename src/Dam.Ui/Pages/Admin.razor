@@ -2,9 +2,10 @@
 @using Microsoft.AspNetCore.Authorization
 @using Dam.Application.Dtos
 @using Dam.Ui.Services
+@using Dam.Ui.Components
 @attribute [Authorize(Policy = "RequireAdmin")]
 @inject AssetHubApiClient Api
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
 
@@ -42,7 +43,9 @@
         }
         else if (_shares == null || !_shares.Any())
         {
-            <MudAlert Severity="Severity.Info">No shares found.</MudAlert>
+            <EmptyState Title="No shares yet"
+                        Description="When users create share links for assets or collections, they will appear here for management."
+                        Icon="@Icons.Material.Filled.Share" />
         }
         else
         {
@@ -95,8 +98,15 @@
                     <MudTd>
                         @if (context.Status == "Active")
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
-                                OnClick="@(() => RevokeShare(context))" Title="Revoke Share" />
+                            <MudStack Row="true" Spacing="1">
+                                @if (context.HasPassword)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Key" Color="Color.Primary" Size="Size.Small"
+                                        OnClick="@(() => EditSharePassword(context))" Title="Edit Password" />
+                                }
+                                <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
+                                    OnClick="@(() => RevokeShare(context))" Title="Revoke Share" />
+                            </MudStack>
                         }
                     </MudTd>
                 </RowTemplate>
@@ -120,7 +130,9 @@
         }
         else if (_collections == null || !_collections.Any())
         {
-            <MudAlert Severity="Severity.Info">No collections found.</MudAlert>
+            <EmptyState Title="No collections yet"
+                        Description="Create collections from the Assets page to start organizing your media."
+                        Icon="@Icons.Material.Filled.Folder" />
         }
         else
         {
@@ -138,7 +150,9 @@
                     <MudPaper Elevation="2" Class="pa-4">
                         @if (_selectedCollection == null)
                         {
-                            <MudAlert Severity="Severity.Info">Select a collection to manage access.</MudAlert>
+                            <EmptyState Title="Select a collection"
+                                        Description="Choose a collection from the list to view and manage user access permissions."
+                                        Icon="@Icons.Material.Filled.FolderShared" />
                         }
                         else
                         {
@@ -173,7 +187,9 @@
                             @* Current ACLs *@
                             @if (!_selectedCollection.Acls.Any())
                             {
-                                <MudAlert Severity="Severity.Warning">No users have access to this collection.</MudAlert>
+                                <EmptyState Title="No users have access"
+                                            Description="Grant access to users using the form above. They will be able to view or manage assets based on their role."
+                                            Icon="@Icons.Material.Filled.PersonAdd" />
                             }
                             else
                             {
@@ -227,7 +243,9 @@
         }
         else if (_users == null || !_users.Any())
         {
-            <MudAlert Severity="Severity.Warning">No users have been granted collection access.</MudAlert>
+            <EmptyState Title="No users found"
+                        Description="When you grant collection access to users, they will appear here."
+                        Icon="@Icons.Material.Filled.People" />
         }
         else
         {
@@ -301,7 +319,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load shares: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load shares");
         }
         finally
         {
@@ -320,6 +338,23 @@
             || share.Status.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase);
     }
 
+    private async Task EditSharePassword(AdminShareDto share)
+    {
+        var parameters = new DialogParameters<SharePasswordDialog>
+        {
+            { x => x.Share, share }
+        };
+
+        var dialog = await DialogService.ShowAsync<SharePasswordDialog>("Edit Share Password", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            // Refresh the shares list to reflect any changes
+            await LoadShares();
+        }
+    }
+
     private async Task RevokeShare(AdminShareDto share)
     {
         var confirmed = await DialogService.ShowMessageBox(
@@ -330,15 +365,14 @@
         if (confirmed != true)
             return;
 
-        try
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RevokeShareAdminAsync(share.Id),
+            "revoke share",
+            "Share revoked successfully");
+        
+        if (success)
         {
-            await Api.RevokeShareAdminAsync(share.Id);
-            Snackbar.Add("Share revoked successfully", Severity.Success);
             await LoadShares();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
     }
 
@@ -361,7 +395,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load collections: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load collections");
         }
         finally
         {
@@ -407,7 +441,7 @@
         try
         {
             await Api.AddCollectionAclAsync(_selectedCollection.Id, "user", _newAclUserId, _newAclRole);
-            Snackbar.Add($"Access granted to '{_newAclUserId}'", Severity.Success);
+            Feedback.ShowSuccess($"Access granted to '{_newAclUserId}'");
             _newAclUserId = "";
             await LoadCollections();
             
@@ -419,11 +453,11 @@
             // Check if it's a "user not found" error and show a helpful message
             if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
             {
-                Snackbar.Add($"User '{_newAclUserId}' does not exist. Please check the username and try again.", Severity.Warning);
+                Feedback.ShowWarning($"User '{_newAclUserId}' does not exist. Please check the username and try again.");
             }
             else
             {
-                Snackbar.Add($"Failed to add access: {ex.Message}", Severity.Error);
+                Feedback.HandleError(ex, "add access");
             }
         }
     }
@@ -441,16 +475,15 @@
         if (confirmed != true)
             return;
 
-        try
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RemoveCollectionAclAsync(_selectedCollection.Id, acl.PrincipalId, acl.PrincipalType),
+            "remove access",
+            $"Access removed for {acl.PrincipalId}");
+        
+        if (success)
         {
-            await Api.RemoveCollectionAclAsync(_selectedCollection.Id, acl.PrincipalId, acl.PrincipalType);
-            Snackbar.Add($"Access removed for {acl.PrincipalId}", Severity.Success);
             await LoadCollections();
             _selectedCollection = FindCollection(_collections, _selectedCollection.Id);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
     }
 
@@ -487,7 +520,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load users: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load users");
         }
         finally
         {
@@ -500,10 +533,6 @@
     {
         // Show a dialog with user's collection access details
         var message = string.Join("\n", user.Collections.Select(c => $"• {c.CollectionName}: {c.Role}"));
-        Snackbar.Add($"Access for {user.UserId}:\n{message}", Severity.Info, config =>
-        {
-            config.ShowCloseIcon = true;
-            config.VisibleStateDuration = 10000;
-        });
+        Feedback.ShowInfo($"Access for {user.UserId}:\n{message}");
     }
 }

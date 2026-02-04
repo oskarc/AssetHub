@@ -8,7 +8,7 @@
 
 @inject AssetHubApiClient Api
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 
@@ -118,19 +118,18 @@
     }
     else if (_assets.Count == 0)
     {
-        <MudAlert Severity="Severity.Info" Class="mt-4">
-            <MudText>No assets found.</MudText>
-            <MudText Typo="Typo.body2">
-                @if (!string.IsNullOrWhiteSpace(_searchQuery) || !string.IsNullOrWhiteSpace(_filterType))
-                {
-                    <span>Try adjusting your search or filter criteria.</span>
-                }
-                else
-                {
-                    <span>Upload files to a collection to get started.</span>
-                }
-            </MudText>
-        </MudAlert>
+        @if (!string.IsNullOrWhiteSpace(_searchQuery) || !string.IsNullOrWhiteSpace(_filterType) || _filterCollectionId.HasValue)
+        {
+            <EmptyState Title="No matching assets"
+                        Description="Try adjusting your search or filter criteria to find what you're looking for."
+                        Icon="@Icons.Material.Filled.SearchOff" />
+        }
+        else
+        {
+            <EmptyState Title="No assets yet"
+                        Description="Upload files to a collection to get started. Assets from all your collections will appear here."
+                        Icon="@Icons.Material.Filled.PhotoLibrary" />
+        }
     }
     else
     {
@@ -244,7 +243,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load collections: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load collections");
         }
     }
 
@@ -268,7 +267,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load assets: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load assets");
         }
         finally
         {
@@ -296,7 +295,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load more assets: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load more assets");
         }
         finally
         {
@@ -348,21 +347,26 @@
 
     private async Task ShareAsset(AssetResponseDto asset)
     {
-        try
+        var createParams = new DialogParameters<CreateShareDialog>
         {
-            var share = await Api.CreateShareAsync(asset.Id, "asset");
-            
-            var parameters = new DialogParameters<ShareLinkDialog>
+            { x => x.ScopeId, asset.Id },
+            { x => x.ScopeType, "asset" },
+            { x => x.ContentName, asset.Title }
+        };
+
+        var createResult = await DialogService.ShowAsync<CreateShareDialog>("Create Share Link", createParams);
+        var result = await createResult.Result;
+
+        if (result != null && !result.Canceled && result.Data is ShareResponse share)
+        {
+            var successParams = new DialogParameters<ShareLinkDialog>
             {
                 { x => x.ShareUrl, share.ShareUrl },
+                { x => x.Password, share.Password ?? "" },
                 { x => x.ExpiresAt, share.ExpiresAt }
             };
 
-            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", parameters);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to create share: {ex.Message}", Severity.Error);
+            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", successParams);
         }
     }
 
@@ -376,16 +380,15 @@
 
         if (result == true)
         {
-            try
+            var success = await Feedback.ExecuteWithFeedbackAsync(
+                () => Api.DeleteAssetAsync(asset.Id),
+                "delete asset",
+                "Asset deleted successfully");
+            
+            if (success)
             {
-                await Api.DeleteAssetAsync(asset.Id);
                 _assets.Remove(asset);
                 _total--;
-                Snackbar.Add("Asset deleted", Severity.Success);
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Failed to delete asset: {ex.Message}", Severity.Error);
             }
         }
     }

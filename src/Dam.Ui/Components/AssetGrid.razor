@@ -3,19 +3,21 @@
 
 @inject AssetHubApiClient Api
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
 
 @if (_isLoading)
 {
-    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Loading assets...</MudText>
+    </MudStack>
 }
 else if (_assets.Count == 0)
 {
-    <MudAlert Severity="Severity.Info" Class="mt-4">
-        <MudText>No assets in this collection yet.</MudText>
-        <MudText Typo="Typo.body2">Upload files using the button above to get started.</MudText>
-    </MudAlert>
+    <EmptyState Title="No assets yet"
+                Description="Upload files using the upload area above to get started with this collection."
+                Icon="@Icons.Material.Filled.PhotoLibrary" />
 }
 else
 {
@@ -157,7 +159,7 @@ else
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load assets: {ex.Message}", Severity.Error);
+            Feedback.HandleError(ex, "load assets");
         }
         finally
         {
@@ -185,15 +187,27 @@ else
 
     private async Task ShareAsset(AssetResponseDto asset)
     {
-        try
+        var createParams = new DialogParameters<CreateShareDialog>
         {
-            var share = await Api.CreateShareAsync(asset.Id, "asset");
-            Snackbar.Add($"Share link created! URL: {share.ShareUrl}", Severity.Success);
+            { x => x.ScopeId, asset.Id },
+            { x => x.ScopeType, "asset" },
+            { x => x.ContentName, asset.Title }
+        };
+
+        var createResult = await DialogService.ShowAsync<CreateShareDialog>("Create Share Link", createParams);
+        var result = await createResult.Result;
+
+        if (result != null && !result.Canceled && result.Data is ShareResponse share)
+        {
+            var successParams = new DialogParameters<ShareLinkDialog>
+            {
+                { x => x.ShareUrl, share.ShareUrl },
+                { x => x.Password, share.Password ?? "" },
+                { x => x.ExpiresAt, share.ExpiresAt }
+            };
+
+            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", successParams);
             await OnAssetsChanged.InvokeAsync();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to create share: {ex.Message}", Severity.Error);
         }
     }
 
@@ -207,17 +221,16 @@ else
 
         if (result == true)
         {
-            try
+            var success = await Feedback.ExecuteWithFeedbackAsync(
+                () => Api.DeleteAssetAsync(asset.Id),
+                "delete asset",
+                "Asset deleted successfully");
+            
+            if (success)
             {
-                await Api.DeleteAssetAsync(asset.Id);
                 _assets.Remove(asset);
                 _total--;
-                Snackbar.Add("Asset deleted", Severity.Success);
                 await OnAssetsChanged.InvokeAsync();
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Failed to delete asset: {ex.Message}", Severity.Error);
             }
         }
     }

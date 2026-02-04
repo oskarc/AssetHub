@@ -2,7 +2,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 
 @inject AssetHubApiClient Api
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 
 <MudPaper Class="@_uploadAreaClass"
           Elevation="0"
@@ -96,7 +96,7 @@
     {
         if (!CollectionId.HasValue)
         {
-            Snackbar.Add("Please select a collection first", Severity.Warning);
+            Feedback.ShowWarning("Please select a collection first");
             return;
         }
 
@@ -140,7 +140,7 @@
             {
                 upload.Status = UploadStatus.Failed;
                 upload.ErrorMessage = ex.Message;
-                Snackbar.Add($"Upload failed: {file.Name} - {ex.Message}", Severity.Error);
+                Feedback.ShowError($"Upload failed: {file.Name}");
             }
 
             StateHasChanged();
