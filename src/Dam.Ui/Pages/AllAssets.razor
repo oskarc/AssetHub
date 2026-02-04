@@ -337,7 +337,8 @@
 
     private void ViewAsset(Guid id)
     {
-        Nav.NavigateTo($"/assets/{id}");
+        var currentUrl = Nav.ToBaseRelativePath(Nav.Uri);
+        Nav.NavigateTo($"/assets/{id}?returnUrl=/{Uri.EscapeDataString(currentUrl)}");
     }
 
     private void GoToCollection(Guid? collectionId)

@@ -182,7 +182,14 @@ else
 
     private void ViewAsset(Guid id)
     {
-        Nav.NavigateTo($"/assets/{id}");
+        if (CollectionId.HasValue)
+        {
+            Nav.NavigateTo($"/assets/{id}?returnUrl=/assets%3Fcollection%3D{CollectionId.Value}");
+        }
+        else
+        {
+            Nav.NavigateTo($"/assets/{id}");
+        }
     }
 
     private async Task ShareAsset(AssetResponseDto asset)

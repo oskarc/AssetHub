@@ -155,14 +155,9 @@ else
                             }
                             else
                             {
-                                <MudChip T="string" 
-                                         Size="Size.Small" 
-                                         Color="Color.Secondary"
-                                         Icon="@Icons.Material.Filled.Folder"
-                                         OnClick="@(() => Nav.NavigateTo($"/assets?collection={_asset.CollectionId}"))"
-                                         Style="cursor: pointer;">
-                                    @(_asset.CollectionName ?? "Unknown Collection")
-                                </MudChip>
+                                <MudText Typo="Typo.body2" Style="opacity: 0.6; font-style: italic;">
+                                    Not assigned to any collection
+                                </MudText>
                             }
                         </MudStack>
 
@@ -308,6 +303,9 @@ else
 @code {
     [Parameter]
     public Guid AssetId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
 
     private AssetResponseDto? _asset;
     private List<AssetCollectionDto> _assetCollections = new();
@@ -569,7 +567,11 @@ else
 
     private void NavigateBackToAssets()
     {
-        if (_asset != null)
+        if (!string.IsNullOrEmpty(ReturnUrl))
+        {
+            Nav.NavigateTo(ReturnUrl);
+        }
+        else if (_asset?.CollectionId != null)
         {
             Nav.NavigateTo($"/assets?collection={_asset.CollectionId}");
         }

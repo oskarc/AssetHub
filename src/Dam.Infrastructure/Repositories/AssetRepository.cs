@@ -158,7 +158,6 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
     }
 
     public async Task<(List<Asset> Assets, int Total)> SearchAllAsync(
-        IEnumerable<Guid>? accessibleCollectionIds,
         string? query = null,
         string? assetType = null,
         string sortBy = "created_desc",
@@ -166,17 +165,9 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         int take = 50,
         CancellationToken cancellationToken = default)
     {
-        // If no accessible collections, return empty
-        var collectionIdList = accessibleCollectionIds?.ToList();
-        if (collectionIdList == null || collectionIdList.Count == 0)
-        {
-            return (new List<Asset>(), 0);
-        }
-
         var queryable = dbContext.Assets
             .Include(a => a.Collection)
-            .Where(a => a.Status == Asset.StatusReady)
-            .Where(a => a.CollectionId != null && collectionIdList.Contains(a.CollectionId.Value));
+            .Where(a => a.Status == Asset.StatusReady);
 
         // Apply text search filter
         if (!string.IsNullOrWhiteSpace(query))

@@ -87,7 +87,7 @@ public static class AssetEndpoints
             accessibleCollectionIds = new List<Guid> { collectionId.Value };
         }
 
-        var (assets, total) = await assetRepository.SearchAllAsync(accessibleCollectionIds, query, type, sortBy, skip, take, ct);
+        var (assets, total) = await assetRepository.SearchAllAsync(query, type, sortBy, skip, take, ct);
         var dtos = assets.Select(a => MapToDto(a, a.CollectionId.HasValue ? collectionRoles.GetValueOrDefault(a.CollectionId.Value, RoleHierarchy.Roles.Viewer) : RoleHierarchy.Roles.Viewer)).ToList();
         return Results.Ok(new
         {
