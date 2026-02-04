@@ -238,6 +238,43 @@ public static class AdminEndpoints
         .WithName("GetUsers")
         .WithSummary("Gets all users with collection access (admin only)")
         .Produces<List<UserAccessSummaryDto>>();
+
+        /// <summary>
+        /// Gets all users from Keycloak realm (admin only).
+        /// </summary>
+        group.MapGet("/keycloak-users", async (
+            [FromServices] IUserLookupService userLookup,
+            [FromServices] ICollectionAclRepository aclRepo,
+            CancellationToken ct) =>
+        {
+            var allUsers = await userLookup.GetAllUsersAsync(ct);
+            var allAcls = await aclRepo.GetAllAsync();
+            
+            // Group ACLs by user to get collection count and highest role
+            var userAclGroups = allAcls
+                .Where(a => a.PrincipalType == "user")
+                .GroupBy(a => a.PrincipalId)
+                .ToDictionary(g => g.Key, g => new
+                {
+                    CollectionCount = g.Count(),
+                    HighestRole = GetHighestRole(g.Select(a => a.Role))
+                });
+            
+            var result = allUsers.Select(u => new KeycloakUserDto
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Email = u.Email,
+                CreatedAt = u.CreatedAt,
+                CollectionCount = userAclGroups.TryGetValue(u.Id, out var acl) ? acl.CollectionCount : 0,
+                HighestRole = userAclGroups.TryGetValue(u.Id, out var acl2) ? acl2.HighestRole : null
+            }).ToList();
+
+            return Results.Ok(result);
+        })
+        .WithName("GetKeycloakUsers")
+        .WithSummary("Gets all users from Keycloak (admin only)")
+        .Produces<List<KeycloakUserDto>>();
     }
 
     // ===== HELPER METHODS =====

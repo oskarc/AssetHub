@@ -21,9 +21,19 @@
             <MudPaper Class="pa-3" Elevation="1">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
                     <MudText Typo="Typo.h6">Collections</MudText>
-                    <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder" 
-                                   Size="Size.Small"
-                                   OnClick="CreateCollectionAsync" />
+                    <MudStack Row="true" Spacing="1">
+                        @if (_selectedCollectionId.HasValue)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                           Size="Size.Small"
+                                           OnClick="DeselectCollection"
+                                           Title="Clear selection" />
+                        }
+                        <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder" 
+                                       Size="Size.Small"
+                                       OnClick="CreateCollectionAsync"
+                                       Title="Create collection" />
+                    </MudStack>
                 </MudStack>
                 
                 <CollectionTree @ref="_collectionTree" 
@@ -208,11 +218,17 @@
         }
     }
 
+    private async Task DeselectCollection()
+    {
+        await OnCollectionSelected(null);
+    }
+
     private async Task CreateCollectionAsync()
     {
+        // Always create top-level collections - users can create sub-collections from the tree context menu
         var parameters = new DialogParameters<CreateCollectionDialog>
         {
-            { x => x.ParentId, _selectedCollectionId }
+            { x => x.ParentId, (Guid?)null }
         };
 
         var dialog = await DialogService.ShowAsync<CreateCollectionDialog>("Create Collection", parameters);

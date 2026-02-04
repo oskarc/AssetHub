@@ -25,4 +25,9 @@ public interface IUserLookupService
     /// Checks if a user with the given username exists.
     /// </summary>
     Task<bool> UserExistsAsync(string username, CancellationToken ct = default);
+    
+    /// <summary>
+    /// Gets all users from the identity provider.
+    /// </summary>
+    Task<List<(string Id, string Username, string? Email, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default);
 }

@@ -57,7 +57,6 @@ public class AssetHubDbContext : DbContext
         modelBuilder.Entity<Asset>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.CollectionId }).HasName("idx_assets_collection_id");
             entity.HasIndex(e => new { e.AssetType }).HasName("idx_assets_type");
             entity.HasIndex(e => new { e.Status }).HasName("idx_assets_status");
             entity.HasIndex(e => new { e.CreatedAt }).HasName("idx_assets_created_at");
@@ -77,12 +76,6 @@ public class AssetHubDbContext : DbContext
                 v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
 
             entity.Property(e => e.MetadataJson).HasColumnType("jsonb");
-
-            entity.HasOne(e => e.Collection)
-                .WithMany(e => e.Assets)
-                .HasForeignKey(e => e.CollectionId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // AssetCollection (many-to-many join table)

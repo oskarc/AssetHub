@@ -41,7 +41,7 @@ public record CollectionAccessDto
 public record SetCollectionAccessRequest
 {
     [RegularExpression("^(user|group)$")]
-    public string PrincipalType { get; init; } = "user";
+    public string PrincipalType { get; init; } = Constants.PrincipalTypes.User;
     
     [Required]
     public string? PrincipalId { get; init; }
@@ -70,5 +70,18 @@ public record UserCollectionAccessDto
 {
     public Guid CollectionId { get; init; }
     public required string CollectionName { get; init; }
-    public required string Role { get; init; }
+    public required string Role { get; set; }
+}
+
+/// <summary>
+/// User details from Keycloak.
+/// </summary>
+public record KeycloakUserDto
+{
+    public required string Id { get; init; }
+    public required string Username { get; init; }
+    public string? Email { get; init; }
+    public DateTime? CreatedAt { get; init; }
+    public int CollectionCount { get; init; }
+    public string? HighestRole { get; init; }
 }

@@ -70,4 +70,27 @@ public class UserLookupService(
         var userId = await GetUserIdByUsernameAsync(username, ct);
         return userId != null;
     }
+    
+    public async Task<List<(string Id, string Username, string? Email, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default)
+    {
+        var result = new List<(string, string, string?, DateTime?)>();
+        
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(ct);
+
+        var sql = "SELECT id, username, email, created_timestamp FROM user_entity ORDER BY username";
+        await using var cmd = new NpgsqlCommand(sql, connection);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var id = reader.GetString(0);
+            var username = reader.GetString(1);
+            var email = reader.IsDBNull(2) ? null : reader.GetString(2);
+            var createdTimestamp = reader.IsDBNull(3) ? (DateTime?)null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(3)).UtcDateTime;
+            result.Add((id, username, email, createdTimestamp));
+        }
+
+        return result;
+    }
 }

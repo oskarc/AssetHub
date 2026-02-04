@@ -19,26 +19,14 @@ public class AssetCollectionRepository : IAssetCollectionRepository
 
     public async Task<List<Collection>> GetCollectionsForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
-        // Get the asset with its primary collection
-        var asset = await _context.Assets
-            .Include(a => a.Collection)
-            .FirstOrDefaultAsync(a => a.Id == assetId, ct);
-
-        if (asset == null)
-            return new List<Collection>();
-
-        // Get additional collections from the join table
-        var additionalCollections = await _context.AssetCollections
+        // Get all collections from the join table only
+        var collections = await _context.AssetCollections
             .Where(ac => ac.AssetId == assetId)
             .Include(ac => ac.Collection)
             .Select(ac => ac.Collection)
             .ToListAsync(ct);
 
-        // Combine primary collection with additional collections
-        var allCollections = new List<Collection> { asset.Collection };
-        allCollections.AddRange(additionalCollections.Where(c => c.Id != asset.CollectionId));
-
-        return allCollections;
+        return collections;
     }
 
     public async Task<List<AssetCollection>> GetByAssetAsync(Guid assetId, CancellationToken ct = default)
@@ -68,10 +56,6 @@ public class AssetCollectionRepository : IAssetCollectionRepository
         var collection = await _context.Collections.FindAsync(new object[] { collectionId }, ct);
         if (collection == null)
             return null;
-
-        // Check if this is the asset's primary collection
-        if (asset.CollectionId == collectionId)
-            return null; // Already belongs to this collection as primary
 
         // Check if already linked
         var existing = await _context.AssetCollections
@@ -111,15 +95,7 @@ public class AssetCollectionRepository : IAssetCollectionRepository
 
     public async Task<bool> BelongsToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
-        // Check primary collection
-        var asset = await _context.Assets.FindAsync(new object[] { assetId }, ct);
-        if (asset == null)
-            return false;
-
-        if (asset.CollectionId == collectionId)
-            return true;
-
-        // Check join table
+        // Check if it's in the collections join table
         return await _context.AssetCollections
             .AnyAsync(ac => ac.AssetId == assetId && ac.CollectionId == collectionId, ct);
     }

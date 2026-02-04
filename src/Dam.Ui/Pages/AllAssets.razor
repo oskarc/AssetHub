@@ -157,13 +157,6 @@
                                         @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
                                     </MudText>
                                 </MudStack>
-                                @if (asset.CollectionId != Guid.Empty)
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 text-truncate">
-                                        <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
-                                        @(asset.CollectionName ?? "Collection")
-                                    </MudText>
-                                }
                             </MudCardContent>
                         </div>
                         <MudCardActions Class="pa-2 pt-0">
@@ -176,11 +169,6 @@
                                                Size="Size.Small" 
                                                OnClick="@(async () => await ShareAsset(asset))" />
                             }
-                            <MudTooltip Text="Go to collection">
-                                <MudIconButton Icon="@Icons.Material.Filled.FolderOpen"
-                                               Size="Size.Small"
-                                               OnClick="@(() => GoToCollection(asset.CollectionId))" />
-                            </MudTooltip>
                             <MudSpacer />
                             @if (CanDelete(asset))
                             {

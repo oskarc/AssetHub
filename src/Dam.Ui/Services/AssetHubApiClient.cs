@@ -384,6 +384,20 @@ public class AssetHubApiClient
     }
 
     /// <summary>
+    /// Updates a user or group's role in a collection's ACL (admin only).
+    /// </summary>
+    public async Task UpdateCollectionAclAsync(
+        Guid collectionId,
+        string principalType,
+        string principalId,
+        string role)
+    {
+        var request = new { principalType, principalId, role };
+        var response = await _http.PostAsJsonAsync($"/api/admin/collections/{collectionId}/acl", request);
+        await EnsureSuccessAsync(response, "Update collection access");
+    }
+
+    /// <summary>
     /// Removes a user or group from a collection's ACL (admin only).
     /// </summary>
     public async Task RemoveCollectionAclAsync(Guid collectionId, string principalId, string principalType)
@@ -401,6 +415,16 @@ public class AssetHubApiClient
         var response = await _http.GetAsync("/api/admin/users");
         await EnsureSuccessAsync(response, "Get users");
         return await response.Content.ReadFromJsonAsync<List<UserAccessSummaryDto>>() ?? new();
+    }
+
+    /// <summary>
+    /// Gets all users from Keycloak realm (admin only).
+    /// </summary>
+    public async Task<List<KeycloakUserDto>> GetKeycloakUsersAsync()
+    {
+        var response = await _http.GetAsync("/api/admin/keycloak-users");
+        await EnsureSuccessAsync(response, "Get Keycloak users");
+        return await response.Content.ReadFromJsonAsync<List<KeycloakUserDto>>() ?? new();
     }
 
     #endregion

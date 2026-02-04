@@ -1,0 +1,358 @@
+@using MudBlazor
+@using Dam.Application
+@using Dam.Application.Dtos
+@using Dam.Ui.Services
+
+@inject NavigationManager Nav
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.ManageAccounts" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Manage User Access</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <!-- User Info Header -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle1"><strong>@Username</strong></MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">User ID: @UserId</MudText>
+                    @if (!string.IsNullOrEmpty(Email))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Email: @Email</MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <!-- Add New Collection Access -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Add Collection Access</MudText>
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
+                    <MudSelect T="Guid?" 
+                               @bind-Value="_selectedCollectionId" 
+                               Label="Collection" 
+                               Variant="Variant.Outlined" 
+                               Dense="true"
+                               Disabled="@(_availableCollections.Count == 0)"
+                               Style="flex: 1;">
+                        @foreach (var collection in _availableCollections)
+                        {
+                            <MudSelectItem T="Guid?" Value="@collection.Id">@collection.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudSelect T="string" 
+                               @bind-Value="_selectedRole" 
+                               Label="Role" 
+                               Variant="Variant.Outlined" 
+                               Dense="true"
+                               Style="width: 150px;">
+                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">Viewer</MudSelectItem>
+                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">Contributor</MudSelectItem>
+                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">Manager</MudSelectItem>
+                    </MudSelect>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="AddCollectionAccess"
+                               Disabled="@(!_selectedCollectionId.HasValue || _isAdding)">
+                        Add
+                    </MudButton>
+                </MudStack>
+                @if (_availableCollections.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                        User has access to all collections
+                    </MudAlert>
+                }
+            </MudPaper>
+
+            <!-- Current Collections List -->
+            <MudText Typo="Typo.subtitle2" Class="mt-2">
+                Current Collection Access (@_userCollections.Count)
+            </MudText>
+
+            @if (_userCollections.Count == 0)
+            {
+                <EmptyState Title="No collection access"
+                            Description="This user doesn't have access to any collections yet."
+                            Icon="@Icons.Material.Filled.FolderOff"
+                            Class="py-4" />
+            }
+            else
+            {
+                <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Style="border: 1px solid var(--mud-palette-lines-default);">
+                    <thead>
+                        <tr>
+                            <th>Collection</th>
+                            <th>Role</th>
+                            <th style="width: 180px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var collection in _userCollections.OrderBy(c => c.CollectionName))
+                        {
+                            <tr>
+                                <td>
+                                    <MudLink Href="@($"/assets?collection={collection.CollectionId}")" 
+                                             Color="Color.Primary"
+                                             Underline="Underline.Hover"
+                                             Target="_blank">
+                                        @collection.CollectionName
+                                    </MudLink>
+                                </td>
+                                <td>
+                                    @if (_editingCollectionId == collection.CollectionId)
+                                    {
+                                        <MudSelect T="string" 
+                                                   @bind-Value="_editingRole" 
+                                                   Variant="Variant.Outlined" 
+                                                   Dense="true"
+                                                   Margin="Margin.Dense"
+                                                   Style="width: 150px;">
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">Viewer</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">Contributor</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">Manager</MudSelectItem>
+                                        </MudSelect>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(collection.Role)" Variant="Variant.Outlined">
+                                            @collection.Role
+                                        </MudChip>
+                                    }
+                                </td>
+                                <td>
+                                    @if (_editingCollectionId == collection.CollectionId)
+                                    {
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Save" 
+                                                           Size="Size.Small" 
+                                                           Color="Color.Success"
+                                                           OnClick="SaveRoleEdit"
+                                                           Title="Save" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" 
+                                                           Size="Size.Small" 
+                                                           Color="Color.Default"
+                                                           OnClick="CancelRoleEdit"
+                                                           Title="Cancel" />
+                                        </MudStack>
+                                    }
+                                    else
+                                    {
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                           Size="Size.Small" 
+                                                           Color="Color.Primary"
+                                                           OnClick="@(() => StartRoleEdit(collection))"
+                                                           Disabled="@(_revokingCollections.Count > 0)"
+                                                           Title="Change Role" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" 
+                                                           Size="Size.Small" 
+                                                           Color="Color.Error"
+                                                           OnClick="@(() => RevokeAccess(collection))"
+                                                           Disabled="@(_revokingCollections.Contains(collection.CollectionId))"
+                                                           Title="Revoke Access" />
+                                        </MudStack>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public string UserId { get; set; } = default!;
+
+    [Parameter]
+    public string Username { get; set; } = default!;
+
+    [Parameter]
+    public string? Email { get; set; }
+
+    private List<UserCollectionAccessDto> _userCollections = new();
+    private List<CollectionAccessDto> _allCollections = new();
+    private List<CollectionAccessDto> _availableCollections = new();
+    private Guid? _selectedCollectionId;
+    private string _selectedRole = RoleHierarchy.Roles.Viewer;
+    private bool _isAdding = false;
+    private HashSet<Guid> _revokingCollections = new();
+    
+    private Guid? _editingCollectionId;
+    private string _editingRole = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserCollections();
+        await LoadAllCollections();
+        UpdateAvailableCollections();
+    }
+
+    private async Task LoadUserCollections()
+    {
+        try
+        {
+            var users = await Api.GetUsersAsync();
+            var user = users.FirstOrDefault(u => u.UserId == UserId);
+            _userCollections = user?.Collections.ToList() ?? new List<UserCollectionAccessDto>();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load user collections");
+        }
+    }
+
+    private async Task LoadAllCollections()
+    {
+        try
+        {
+            var hierarchicalCollections = await Api.GetCollectionAccessAsync();
+            // Flatten the hierarchy to make all collections available
+            _allCollections = FlattenCollections(hierarchicalCollections).ToList();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+        }
+    }
+
+    private static IEnumerable<CollectionAccessDto> FlattenCollections(List<CollectionAccessDto> collections)
+    {
+        foreach (var collection in collections)
+        {
+            yield return collection;
+            foreach (var child in FlattenCollections(collection.Children))
+            {
+                yield return child;
+            }
+        }
+    }
+
+    private void UpdateAvailableCollections()
+    {
+        var userCollectionIds = _userCollections.Select(c => c.CollectionId).ToHashSet();
+        _availableCollections = _allCollections
+            .Where(c => !userCollectionIds.Contains(c.Id))
+            .ToList();
+    }
+
+    private async Task AddCollectionAccess()
+    {
+        if (!_selectedCollectionId.HasValue) return;
+
+        _isAdding = true;
+        StateHasChanged();
+
+        try
+        {
+            await Api.AddCollectionAclAsync(_selectedCollectionId.Value, Constants.PrincipalTypes.User, UserId, _selectedRole);
+            Feedback.ShowSuccess("Collection access added");
+
+            // Reload user collections to confirm the change persisted
+            await LoadUserCollections();
+
+            // Reset and update available collections
+            _selectedCollectionId = null;
+            _selectedRole = RoleHierarchy.Roles.Viewer;
+            UpdateAvailableCollections();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "add collection access");
+        }
+        finally
+        {
+            _isAdding = false;
+            StateHasChanged();
+        }
+    }
+
+    private void StartRoleEdit(UserCollectionAccessDto collection)
+    {
+        _editingCollectionId = collection.CollectionId;
+        _editingRole = collection.Role;
+    }
+
+    private async Task SaveRoleEdit()
+    {
+        if (!_editingCollectionId.HasValue) return;
+
+        try
+        {
+            await Api.UpdateCollectionAclAsync(_editingCollectionId.Value, Constants.PrincipalTypes.User, UserId, _editingRole);
+            
+            // Reload user collections to confirm the change persisted
+            await LoadUserCollections();
+            
+            Feedback.ShowSuccess("Role updated");
+            
+            _editingCollectionId = null;
+            _editingRole = "";
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "update role");
+        }
+    }
+
+    private void CancelRoleEdit()
+    {
+        _editingCollectionId = null;
+        _editingRole = "";
+    }
+
+    private async Task RevokeAccess(UserCollectionAccessDto collection)
+    {
+        _revokingCollections.Add(collection.CollectionId);
+        StateHasChanged();
+
+        try
+        {
+            await Api.RemoveCollectionAclAsync(collection.CollectionId, UserId, Constants.PrincipalTypes.User);
+            Feedback.ShowSuccess($"Revoked access to '{collection.CollectionName}'");
+            
+            // Reload user collections to confirm the change persisted
+            await LoadUserCollections();
+            
+            // Update available collections
+            UpdateAvailableCollections();
+            
+            // Force UI refresh before removing from tracking
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "revoke access");
+        }
+        finally
+        {
+            _revokingCollections.Remove(collection.CollectionId);
+            StateHasChanged();
+        }
+    }
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+
+    private static Color GetRoleColor(string role) => role.ToLowerInvariant() switch
+    {
+        var r when r == RoleHierarchy.Roles.Admin => Color.Error,
+        var r when r == RoleHierarchy.Roles.Manager => Color.Warning,
+        var r when r == RoleHierarchy.Roles.Contributor => Color.Info,
+        var r when r == RoleHierarchy.Roles.Viewer => Color.Default,
+        _ => Color.Default
+    };
+}

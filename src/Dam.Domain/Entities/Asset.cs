@@ -13,10 +13,6 @@ public class Asset
     public const string TypeDocument = "document";
 
     public Guid Id { get; set; }
-    /// <summary>
-    /// Primary collection. Null means the asset is an orphan (not in any collection).
-    /// </summary>
-    public Guid? CollectionId { get; set; }
     public string AssetType { get; set; } = string.Empty; // image|video|document
     public string Status { get; set; } = StatusProcessing; // processing|ready|failed
     public string Title { get; set; } = string.Empty;
@@ -37,11 +33,8 @@ public class Asset
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime UpdatedAt { get; set; }
 
-    // Navigation
-    public Collection? Collection { get; set; }
-    
     /// <summary>
-    /// Additional collections this asset belongs to (beyond the primary CollectionId).
+    /// All collections this asset belongs to. All collections are equal - no hierarchy.
     /// </summary>
     public ICollection<AssetCollection> AssetCollections { get; set; } = new List<AssetCollection>();
 

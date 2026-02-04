@@ -96,6 +96,7 @@ public static class ShareEndpoints
     private static async Task<IResult> CreateShare(
         CreateShareDto dto,
         [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
         [FromServices] ICollectionRepository collectionRepository,
         [FromServices] ICollectionAuthorizationService authService,
         [FromServices] IShareRepository shareRepository,
@@ -118,9 +119,14 @@ public static class ShareEndpoints
             var asset = await assetRepository.GetByIdAsync(dto.ScopeId, ct);
             if (asset == null)
                 return Results.NotFound(ApiError.NotFound("Asset not found"));
-            if (asset.CollectionId == null)
+            
+            // Get collections the asset belongs to
+            var assetCollections = await assetCollectionRepo.GetCollectionsForAssetAsync(dto.ScopeId, ct);
+            if (assetCollections.Count == 0)
                 return Results.BadRequest(ApiError.BadRequest("Cannot create share for orphan asset. Add asset to a collection first."));
-            collectionIdToCheck = asset.CollectionId.Value;
+            
+            // Use the first collection for authorization (user must have access to at least one collection)
+            collectionIdToCheck = assetCollections[0].Id;
             contentName = asset.Title;
         }
         else // collection
@@ -389,6 +395,7 @@ public static class ShareEndpoints
         Guid? assetId,
         [FromServices] IShareRepository shareRepository,
         [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
         [FromServices] IMinIOAdapter minioAdapter,
         IConfiguration configuration,
         CancellationToken ct)
@@ -438,8 +445,12 @@ public static class ShareEndpoints
 
             targetAsset = await assetRepository.GetByIdAsync(assetId.Value, ct);
 
-            // Verify the asset belongs to the shared collection
-            if (targetAsset == null || targetAsset.CollectionId != share.ScopeId)
+            // Verify the asset belongs to the shared collection using join table
+            if (targetAsset == null)
+                return Results.NotFound("Asset not found in this shared collection");
+            
+            var belongsToCollection = await assetCollectionRepo.BelongsToCollectionAsync(assetId.Value, share.ScopeId, ct);
+            if (!belongsToCollection)
                 return Results.NotFound("Asset not found in this shared collection");
         }
 
@@ -585,6 +596,7 @@ public static class ShareEndpoints
         Guid? assetId,
         [FromServices] IShareRepository shareRepository,
         [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
         [FromServices] IMinIOAdapter minioAdapter,
         IConfiguration configuration,
         CancellationToken ct)
@@ -630,8 +642,12 @@ public static class ShareEndpoints
 
             targetAsset = await assetRepository.GetByIdAsync(assetId.Value, ct);
 
-            // Verify the asset belongs to the shared collection
-            if (targetAsset == null || targetAsset.CollectionId != share.ScopeId)
+            // Verify the asset belongs to the shared collection using join table
+            if (targetAsset == null)
+                return Results.NotFound("Asset not found in this shared collection");
+            
+            var belongsToCollection = await assetCollectionRepo.BelongsToCollectionAsync(assetId.Value, share.ScopeId, ct);
+            if (!belongsToCollection)
                 return Results.NotFound("Asset not found in this shared collection");
         }
 

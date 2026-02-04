@@ -23,6 +23,15 @@ public static class Constants
     }
 
     /// <summary>
+    /// Scope types for share links.
+    /// </summary>
+    public static class ScopeTypes
+    {
+        public const string Asset = "asset";
+        public const string Collection = "collection";
+    }
+
+    /// <summary>
     /// Object key prefixes for MinIO storage.
     /// </summary>
     public static class StoragePrefixes

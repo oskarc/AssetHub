@@ -1,5 +1,6 @@
 @page "/admin"
 @using Microsoft.AspNetCore.Authorization
+@using Dam.Application
 @using Dam.Application.Dtos
 @using Dam.Ui.Services
 @using Dam.Ui.Components
@@ -24,8 +25,8 @@
         <MudTabPanel Text="Collection Access" Icon="@Icons.Material.Filled.FolderShared">
             @CollectionAccessTab
         </MudTabPanel>
-        <MudTabPanel Text="Users" Icon="@Icons.Material.Filled.People">
-            @UsersTab
+        <MudTabPanel Text="User Management" Icon="@Icons.Material.Filled.ManageAccounts">
+            @UserManagementTab
         </MudTabPanel>
     </MudTabs>
 </MudContainer>
@@ -49,7 +50,7 @@
         }
         else
         {
-            <MudTable Items="@_shares" Hover="true" Dense="true" Striped="true" Filter="ShareFilter">
+            <MudTable Items="@_shares" Hover="true" Dense="true" Striped="true" Filter="ShareFilter" SortLabel="Sort By">
                 <ToolBarContent>
                     <MudTextField @bind-Value="_shareSearchString" Placeholder="Search shares..." 
                         Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
@@ -60,14 +61,14 @@
                     <MudChip T="string" Color="Color.Error" Size="Size.Small">Revoked: @_shares.Count(s => s.Status == "Revoked")</MudChip>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>Type</MudTh>
-                    <MudTh>Target</MudTh>
-                    <MudTh>Created By</MudTh>
-                    <MudTh>Created</MudTh>
-                    <MudTh>Expires</MudTh>
-                    <MudTh>Last Access</MudTh>
-                    <MudTh>Access Count</MudTh>
-                    <MudTh>Status</MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeType)">Type</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeName)">Target</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.CreatedByUserName)">Created By</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.CreatedAt)">Created</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ExpiresAt)">Expires</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.LastAccessedAt ?? DateTime.MinValue)">Last Access</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.AccessCount)">Access Count</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.Status)">Status</MudTableSortLabel></MudTh>
                     <MudTh>Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -169,10 +170,10 @@
                                 <MudItem xs="12" sm="4">
                                     <MudSelect @bind-Value="_newAclRole" Label="Role" 
                                         Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="@("viewer")">Viewer</MudSelectItem>
-                                        <MudSelectItem Value="@("contributor")">Contributor</MudSelectItem>
-                                        <MudSelectItem Value="@("manager")">Manager</MudSelectItem>
-                                        <MudSelectItem Value="@("admin")">Admin</MudSelectItem>
+                                        <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">Viewer</MudSelectItem>
+                                        <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">Contributor</MudSelectItem>
+                                        <MudSelectItem Value="@RoleHierarchy.Roles.Manager">Manager</MudSelectItem>
+                                        <MudSelectItem Value="@RoleHierarchy.Roles.Admin">Admin</MudSelectItem>
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
@@ -228,48 +229,77 @@
     };
 }
 
-@* ===== USERS TAB ===== *@
+@* ===== USER MANAGEMENT TAB ===== *@
 @code {
-    private RenderFragment UsersTab => __builder =>
+    private RenderFragment UserManagementTab => __builder =>
     {
-        <MudText Typo="Typo.h6" Class="mb-4">Users with Collection Access</MudText>
+        <MudText Typo="Typo.h6" Class="mb-4">User Management</MudText>
         <MudAlert Severity="Severity.Info" Class="mb-4">
-            This shows users who have been granted access to collections. To manage Keycloak users directly, use the Keycloak Admin Console.
+            Manage all users in the Keycloak realm. Click "Manage Access" to grant or revoke collection access for any user.
         </MudAlert>
         
-        @if (_usersLoading)
+        @if (_allUsersLoading)
         {
             <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
         }
-        else if (_users == null || !_users.Any())
+        else if (_allUsers == null || !_allUsers.Any())
         {
             <EmptyState Title="No users found"
-                        Description="When you grant collection access to users, they will appear here."
-                        Icon="@Icons.Material.Filled.People" />
+                        Description="No users exist in the Keycloak realm yet."
+                        Icon="@Icons.Material.Filled.PeopleAlt" />
         }
         else
         {
-            <MudTable Items="@_users" Hover="true" Dense="true" Striped="true">
+            <MudTable Items="@_allUsers" Hover="true" Dense="true" Striped="true" Filter="new Func<KeycloakUserDto,bool>(UserFilter)" SortLabel="Sort By">
+                <ToolBarContent>
+                    <MudTextField @bind-Value="_userSearchString" Placeholder="Search users..." 
+                        Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                        IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                    <MudSpacer />
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small">Total: @_allUsers.Count</MudChip>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">With Access: @_allUsers.Count(u => u.CollectionCount > 0)</MudChip>
+                </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>User</MudTh>
-                    <MudTh>Collections</MudTh>
-                    <MudTh>Highest Role</MudTh>
-                    <MudTh>Details</MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Username)">Username</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Email ?? string.Empty)">Email</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.CreatedAt ?? DateTime.MinValue)">Created</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.CollectionCount)">Collections</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.HighestRole ?? string.Empty)">Highest Role</MudTableSortLabel></MudTh>
+                    <MudTh>Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.UserName</MudTd>
+                    <MudTd>@context.Username</MudTd>
+                    <MudTd>@(context.Email ?? "-")</MudTd>
+                    <MudTd>@(context.CreatedAt?.ToLocalTime().ToString("g") ?? "-")</MudTd>
                     <MudTd>
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.CollectionCount</MudChip>
+                        @if (context.CollectionCount > 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.CollectionCount</MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Style="opacity: 0.6;">None</MudText>
+                        }
                     </MudTd>
                     <MudTd>
-                        <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.HighestRole)">
-                            @context.HighestRole
-                        </MudChip>
+                        @if (!string.IsNullOrEmpty(context.HighestRole))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.HighestRole)">
+                                @context.HighestRole
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Style="opacity: 0.6;">No access</MudText>
+                        }
                     </MudTd>
                     <MudTd>
-                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
-                            OnClick="@(() => ShowUserDetails(context))">
-                            View Access
+                        <MudButton Size="Size.Small" 
+                                   Variant="Variant.Filled" 
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.ManageAccounts"
+                                   OnClick="@(() => ManageUserAccess(context))">
+                            Manage Access
                         </MudButton>
                     </MudTd>
                 </RowTemplate>
@@ -293,18 +323,19 @@
     private bool _collectionsLoading = true;
     private CollectionAccessDto? _selectedCollection;
     private string _newAclUserId = "";
-    private string _newAclRole = "viewer";
+    private string _newAclRole = RoleHierarchy.Roles.Viewer;
 
-    // Users State
-    private List<UserAccessSummaryDto>? _users;
-    private bool _usersLoading = true;
+    // All Keycloak Users State
+    private List<KeycloakUserDto>? _allUsers;
+    private bool _allUsersLoading = true;
+    private string _userSearchString = "";
 
     protected override async Task OnInitializedAsync()
     {
         await Task.WhenAll(
             LoadShares(),
             LoadCollections(),
-            LoadUsers()
+            LoadAllUsers()
         );
     }
 
@@ -391,7 +422,14 @@
         try
         {
             _collectionsLoading = true;
+            var selectedId = _selectedCollection?.Id;
             _collections = await Api.GetCollectionAccessAsync();
+            
+            // Re-select the previously selected collection to show updated ACLs
+            if (selectedId.HasValue)
+            {
+                _selectedCollection = FindCollection(_collections, selectedId.Value);
+            }
         }
         catch (Exception ex)
         {
@@ -430,7 +468,7 @@
     {
         _selectedCollection = collection;
         _newAclUserId = "";
-        _newAclRole = "viewer";
+        _newAclRole = RoleHierarchy.Roles.Viewer;
     }
 
     private async Task AddCollectionAccess()
@@ -440,7 +478,7 @@
 
         try
         {
-            await Api.AddCollectionAclAsync(_selectedCollection.Id, "user", _newAclUserId, _newAclRole);
+            await Api.AddCollectionAclAsync(_selectedCollection.Id, Constants.PrincipalTypes.User, _newAclUserId, _newAclRole);
             Feedback.ShowSuccess($"Access granted to '{_newAclUserId}'");
             _newAclUserId = "";
             await LoadCollections();
@@ -502,54 +540,65 @@
 
     private static Color GetRoleColor(string role) => role.ToLowerInvariant() switch
     {
-        "admin" => Color.Error,
-        "manager" => Color.Warning,
-        "contributor" => Color.Info,
-        "viewer" => Color.Default,
+        var r when r == RoleHierarchy.Roles.Admin => Color.Error,
+        var r when r == RoleHierarchy.Roles.Manager => Color.Warning,
+        var r when r == RoleHierarchy.Roles.Contributor => Color.Info,
+        var r when r == RoleHierarchy.Roles.Viewer => Color.Default,
         _ => Color.Default
     };
 
-    // ===== USERS =====
+    // ===== USER MANAGEMENT =====
     
-    private async Task LoadUsers()
+    private async Task LoadAllUsers()
     {
         try
         {
-            _usersLoading = true;
-            _users = await Api.GetUsersAsync();
+            _allUsersLoading = true;
+            _allUsers = await Api.GetKeycloakUsersAsync();
         }
         catch (Exception ex)
         {
-            Feedback.HandleError(ex, "load users");
+            Feedback.HandleError(ex, "load Keycloak users");
         }
         finally
         {
-            _usersLoading = false;
+            _allUsersLoading = false;
             StateHasChanged();
         }
     }
 
-    private async Task ShowUserDetails(UserAccessSummaryDto user)
+    private bool UserFilter(KeycloakUserDto user)
     {
-        var parameters = new DialogParameters<UserAccessDialog>
+        if (string.IsNullOrWhiteSpace(_userSearchString))
+            return true;
+        
+        return user.Username.Contains(_userSearchString, StringComparison.OrdinalIgnoreCase)
+            || (user.Email?.Contains(_userSearchString, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private async Task ManageUserAccess(KeycloakUserDto user)
+    {
+        var parameters = new DialogParameters<ManageUserAccessDialog>
         {
-            { x => x.User, user }
+            { x => x.UserId, user.Id },
+            { x => x.Username, user.Username },
+            { x => x.Email, user.Email }
         };
 
         var options = new DialogOptions
         {
-            MaxWidth = MaxWidth.Medium,
+            MaxWidth = MaxWidth.Large,
             FullWidth = true,
             CloseOnEscapeKey = true
         };
 
-        var dialog = await DialogService.ShowAsync<UserAccessDialog>("User Access", parameters, options);
+        var dialog = await DialogService.ShowAsync<ManageUserAccessDialog>("Manage User Access", parameters, options);
         var result = await dialog.Result;
 
-        // If access was revoked (dialog returns Ok), refresh the users list
+        // Refresh both user list and collection access to show updated data
         if (result != null && !result.Canceled)
         {
-            await LoadUsers();
+            await Task.WhenAll(LoadAllUsers(), LoadCollections());
         }
     }
 }

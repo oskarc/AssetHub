@@ -15,7 +15,4 @@ public class AssetCollectionDto
 
     [JsonPropertyName("description")]
     public string? Description { get; set; }
-
-    [JsonPropertyName("isPrimary")]
-    public bool IsPrimary { get; set; }
 }

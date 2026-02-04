@@ -131,15 +131,11 @@ else
                                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                             <MudChip T="string" 
                                                      Size="Size.Small" 
-                                                     Color="@(collection.IsPrimary ? Color.Primary : Color.Secondary)"
+                                                     Color="Color.Secondary"
                                                      Icon="@Icons.Material.Filled.Folder"
                                                      OnClick="@(() => Nav.NavigateTo($"/assets?collection={collection.Id}"))"
                                                      Style="cursor: pointer;">
                                                 @collection.Name
-                                                @if (collection.IsPrimary)
-                                                {
-                                                    <MudText Typo="Typo.caption" Class="ml-1" Style="opacity: 0.7;">(primary)</MudText>
-                                                }
                                             </MudChip>
                                             @if (CanManageCollections())
                                             {
@@ -384,15 +380,7 @@ else
 
     private async Task RemoveFromCollectionAsync(AssetCollectionDto collection)
     {
-        string message;
-        if (collection.IsPrimary)
-        {
-            message = $"Remove this asset from its primary collection '{collection.Name}'? The asset will become an orphan but can still be found in 'All Assets'.";
-        }
-        else
-        {
-            message = $"Remove this asset from '{collection.Name}'?";
-        }
+        var message = $"Remove this asset from '{collection.Name}'?";
 
         var confirm = await DialogService.ShowMessageBox(
             "Remove from Collection",
@@ -552,7 +540,6 @@ else
 
         if (result == true)
         {
-            var collectionId = _asset.CollectionId;
             var success = await Feedback.ExecuteWithFeedbackAsync(
                 () => Api.DeleteAssetAsync(_asset.Id),
                 "delete asset",
@@ -560,7 +547,7 @@ else
             
             if (success)
             {
-                Nav.NavigateTo($"/assets?collection={collectionId}");
+                Nav.NavigateTo("/assets");
             }
         }
     }
@@ -570,10 +557,6 @@ else
         if (!string.IsNullOrEmpty(ReturnUrl))
         {
             Nav.NavigateTo(ReturnUrl);
-        }
-        else if (_asset?.CollectionId != null)
-        {
-            Nav.NavigateTo($"/assets?collection={_asset.CollectionId}");
         }
         else
         {
