@@ -340,9 +340,12 @@
         Nav.NavigateTo($"/assets/{id}");
     }
 
-    private void GoToCollection(Guid collectionId)
+    private void GoToCollection(Guid? collectionId)
     {
-        Nav.NavigateTo($"/assets?collection={collectionId}");
+        if (collectionId.HasValue)
+        {
+            Nav.NavigateTo($"/assets?collection={collectionId.Value}");
+        }
     }
 
     private async Task ShareAsset(AssetResponseDto asset)

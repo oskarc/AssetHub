@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Dam.Application;
 
 namespace AssetHub.Endpoints;
 
@@ -36,7 +37,7 @@ public static class ClaimsPrincipalExtensions
     /// <returns>True if the user has the admin role.</returns>
     public static bool IsGlobalAdmin(this ClaimsPrincipal user)
     {
-        return user.IsInRole("admin");
+        return user.IsInRole(RoleHierarchy.Roles.Admin);
     }
 
     /// <summary>

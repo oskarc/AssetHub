@@ -123,4 +123,12 @@ public class AssetCollectionRepository : IAssetCollectionRepository
         return await _context.AssetCollections
             .AnyAsync(ac => ac.AssetId == assetId && ac.CollectionId == collectionId, ct);
     }
+
+    public async Task<List<Guid>> GetCollectionIdsForAssetAsync(Guid assetId, CancellationToken ct = default)
+    {
+        return await _context.AssetCollections
+            .Where(ac => ac.AssetId == assetId)
+            .Select(ac => ac.CollectionId)
+            .ToListAsync(ct);
+    }
 }

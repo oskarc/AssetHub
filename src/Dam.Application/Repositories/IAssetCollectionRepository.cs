@@ -37,4 +37,9 @@ public interface IAssetCollectionRepository
     /// Checks if an asset belongs to a collection (either primary or via join table).
     /// </summary>
     Task<bool> BelongsToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the IDs of all collections an asset is linked to (excluding primary collection).
+    /// </summary>
+    Task<List<Guid>> GetCollectionIdsForAssetAsync(Guid assetId, CancellationToken ct = default);
 }

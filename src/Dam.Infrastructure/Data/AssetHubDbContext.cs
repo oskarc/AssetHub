@@ -81,7 +81,8 @@ public class AssetHubDbContext : DbContext
             entity.HasOne(e => e.Collection)
                 .WithMany(e => e.Assets)
                 .HasForeignKey(e => e.CollectionId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // AssetCollection (many-to-many join table)

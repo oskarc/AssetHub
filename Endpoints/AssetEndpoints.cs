@@ -88,7 +88,7 @@ public static class AssetEndpoints
         }
 
         var (assets, total) = await assetRepository.SearchAllAsync(accessibleCollectionIds, query, type, sortBy, skip, take, ct);
-        var dtos = assets.Select(a => MapToDto(a, collectionRoles.GetValueOrDefault(a.CollectionId, RoleHierarchy.Roles.Viewer))).ToList();
+        var dtos = assets.Select(a => MapToDto(a, a.CollectionId.HasValue ? collectionRoles.GetValueOrDefault(a.CollectionId.Value, RoleHierarchy.Roles.Viewer) : RoleHierarchy.Roles.Viewer)).ToList();
         return Results.Ok(new
         {
             total,
@@ -99,13 +99,41 @@ public static class AssetEndpoints
     private static async Task<IResult> GetAsset(
         Guid id,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        HttpContext httpContext,
         CancellationToken ct)
     {
+        var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
+        
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
             return Results.NotFound();
 
-        return Results.Ok(MapToDto(asset));
+        // System admins have full access to everything
+        if (isSystemAdmin)
+            return Results.Ok(MapToDto(asset, RoleHierarchy.Roles.Admin));
+
+        // For orphan assets, check if user has access via any linked collection
+        if (asset.CollectionId == null)
+        {
+            var linkedCollections = await assetCollectionRepo.GetCollectionsForAssetAsync(id, ct);
+            foreach (var collection in linkedCollections)
+            {
+                var role = await authService.GetUserRoleAsync(userId, collection.Id);
+                if (role != null)
+                    return Results.Ok(MapToDto(asset, role));
+            }
+            return Results.Forbid(); // No access to any linked collection
+        }
+
+        // Get user's role on the asset's primary collection
+        var userRole = await authService.GetUserRoleAsync(userId, asset.CollectionId.Value);
+        if (userRole == null)
+            return Results.Forbid(); // User has no access to this asset's collection
+
+        return Results.Ok(MapToDto(asset, userRole));
     }
 
     private static async Task<IResult> GetAssetsByCollection(
@@ -121,11 +149,22 @@ public static class AssetEndpoints
         int take = 50)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
-        // Check if user can access this collection and get their role
-        var userRole = await authService.GetUserRoleAsync(userId, collectionId);
-        if (userRole == null)
-            return Results.Forbid();
+        // System admins have full access
+        string userRole;
+        if (isSystemAdmin)
+        {
+            userRole = RoleHierarchy.Roles.Admin;
+        }
+        else
+        {
+            // Check if user can access this collection and get their role
+            var role = await authService.GetUserRoleAsync(userId, collectionId);
+            if (role == null)
+                return Results.Forbid();
+            userRole = role;
+        }
 
         var (assets, total) = await assetRepository.SearchAsync(collectionId, query, type, sortBy, skip, take, ct);
         var dtos = assets.Select(a => MapToDto(a, userRole)).ToList();
@@ -218,15 +257,21 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
             return Results.NotFound();
 
-        // Check authorization
-        var canEdit = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Contributor);
-        if (!canEdit)
-            return Results.Forbid();
+        // Check authorization (orphan assets require admin, or contributor on primary collection)
+        if (!isSystemAdmin)
+        {
+            if (asset.CollectionId == null)
+                return Results.Forbid(); // Only admins can edit orphan assets
+            var canEdit = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Contributor);
+            if (!canEdit)
+                return Results.Forbid();
+        }
 
         // Only update fields that are provided
         if (dto.Title != null)
@@ -253,16 +298,22 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
             return Results.NotFound();
 
-        // Check authorization - require manager role
-        var canDelete = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Manager);
-        if (!canDelete)
-            return Results.Forbid();
+        // Check authorization - require manager role (orphan assets require admin)
+        if (!isSystemAdmin)
+        {
+            if (asset.CollectionId == null)
+                return Results.Forbid(); // Only admins can delete orphan assets
+            var canDelete = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Manager);
+            if (!canDelete)
+                return Results.Forbid();
+        }
 
         try
         {
@@ -326,15 +377,39 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
             return Results.NotFound();
 
-        // Check if user can access the primary collection
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
-        if (!canAccess)
-            return Results.Forbid();
+        // Check if user can access the primary collection or any linked collection (system admins bypass)
+        if (!isSystemAdmin)
+        {
+            bool canAccess = false;
+            
+            if (asset.CollectionId != null)
+            {
+                canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Viewer);
+            }
+            
+            // If no access via primary, check linked collections
+            if (!canAccess)
+            {
+                var linkedCollections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
+                foreach (var linkedCollectionId in linkedCollections)
+                {
+                    if (await authService.CheckAccessAsync(userId, linkedCollectionId, RoleHierarchy.Roles.Viewer))
+                    {
+                        canAccess = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!canAccess)
+                return Results.Forbid();
+        }
 
         var collections = await assetCollectionRepo.GetCollectionsForAssetAsync(id, ct);
 
@@ -362,19 +437,43 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
             return Results.NotFound(ApiError.NotFound("Asset not found"));
 
-        // Check if user can contribute to both the source and target collections
-        var canAccessSource = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Contributor);
-        if (!canAccessSource)
-            return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset"), statusCode: 403);
+        // System admins bypass permission checks
+        if (!isSystemAdmin)
+        {
+            // Check if user can contribute to the source collection (if it has one)
+            if (asset.CollectionId != null)
+            {
+                var canAccessSource = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Contributor);
+                if (!canAccessSource)
+                    return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset"), statusCode: 403);
+            }
+            else
+            {
+                // For orphan assets, check if user has access via any linked collection
+                var linkedCollections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
+                bool canAccessAny = false;
+                foreach (var linkedCollectionId in linkedCollections)
+                {
+                    if (await authService.CheckAccessAsync(userId, linkedCollectionId, RoleHierarchy.Roles.Contributor))
+                    {
+                        canAccessAny = true;
+                        break;
+                    }
+                }
+                if (!canAccessAny)
+                    return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset"), statusCode: 403);
+            }
 
-        var canAccessTarget = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
-        if (!canAccessTarget)
-            return Results.Json(ApiError.Forbidden("You don't have permission to add assets to this collection"), statusCode: 403);
+            var canAccessTarget = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
+            if (!canAccessTarget)
+                return Results.Json(ApiError.Forbidden("You don't have permission to add assets to this collection"), statusCode: 403);
+        }
 
         // Check if it's the primary collection
         if (asset.CollectionId == collectionId)
@@ -394,7 +493,7 @@ public static class AssetEndpoints
     }
 
     /// <summary>
-    /// Remove an asset from a linked collection (cannot remove from primary collection).
+    /// Remove an asset from a collection. If removing from primary collection, the asset becomes an orphan.
     /// </summary>
     private static async Task<IResult> RemoveAssetFromCollection(
         Guid id,
@@ -406,20 +505,31 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
             return Results.NotFound(ApiError.NotFound("Asset not found"));
 
-        // Cannot remove from primary collection
+        // Check if user can manage the asset (system admins bypass)
+        if (!isSystemAdmin)
+        {
+            // User needs contributor access to the collection they're removing from
+            var canAccess = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
+            if (!canAccess)
+                return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset in this collection"), statusCode: 403);
+        }
+
+        // If removing from primary collection, make the asset an orphan
         if (asset.CollectionId == collectionId)
-            return Results.BadRequest(ApiError.BadRequest("Cannot remove asset from its primary collection. Use delete to remove the asset entirely."));
+        {
+            asset.CollectionId = null;
+            asset.UpdatedAt = DateTime.UtcNow;
+            await assetRepository.UpdateAsync(asset, ct);
+            return Results.Ok(new { message = "Asset removed from primary collection and is now an orphan" });
+        }
 
-        // Check if user can manage the asset (contributor to source collection)
-        var canAccessSource = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Contributor);
-        if (!canAccessSource)
-            return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset"), statusCode: 403);
-
+        // Otherwise remove from the linked collection
         var removed = await assetCollectionRepo.RemoveFromCollectionAsync(id, collectionId, ct);
         if (!removed)
             return Results.NotFound(ApiError.NotFound("Asset is not linked to this collection"));
@@ -441,16 +551,20 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
             return Results.NotFound();
 
-        // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
-        if (!canAccess)
-            return Results.Forbid();
+        // Check authorization (admins bypass, orphan assets are publicly viewable via linked collections)
+        if (!isSystemAdmin && asset.CollectionId != null)
+        {
+            var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Viewer);
+            if (!canAccess)
+                return Results.Forbid();
+        }
 
         try
         {
@@ -478,6 +592,7 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -485,9 +600,12 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
-        if (!canAccess)
-            return Results.Forbid();
+        if (!isSystemAdmin && asset.CollectionId != null)
+        {
+            var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Viewer);
+            if (!canAccess)
+                return Results.Forbid();
+        }
 
         try
         {
@@ -511,6 +629,7 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -518,9 +637,12 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
-        if (!canAccess)
-            return Results.Forbid();
+        if (!isSystemAdmin && asset.CollectionId != null)
+        {
+            var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Viewer);
+            if (!canAccess)
+                return Results.Forbid();
+        }
 
         if (string.IsNullOrEmpty(asset.ThumbObjectKey))
             return Results.NotFound("Thumbnail not available");
@@ -546,6 +668,7 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -553,9 +676,12 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
-        if (!canAccess)
-            return Results.Forbid();
+        if (!isSystemAdmin && asset.CollectionId != null)
+        {
+            var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Viewer);
+            if (!canAccess)
+                return Results.Forbid();
+        }
 
         if (string.IsNullOrEmpty(asset.MediumObjectKey))
         {
@@ -592,6 +718,7 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -599,9 +726,12 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
-        if (!canAccess)
-            return Results.Forbid();
+        if (!isSystemAdmin && asset.CollectionId != null)
+        {
+            var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId.Value, RoleHierarchy.Roles.Viewer);
+            if (!canAccess)
+                return Results.Forbid();
+        }
 
         if (string.IsNullOrEmpty(asset.PosterObjectKey))
             return Results.NotFound("Poster not available");

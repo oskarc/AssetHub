@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Net;
 using Dam.Ui;
+using Dam.Application;
 using AssetHub.Endpoints;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
@@ -300,24 +301,24 @@ builder.Services.AddAuthorization(options =>
     // Role-based policies - these use Keycloak realm roles mapped to ClaimTypes.Role
     options.AddPolicy("RequireViewer", policy => 
         policy.RequireAssertion(context => 
-            context.User.IsInRole("viewer") || 
-            context.User.IsInRole("contributor") || 
-            context.User.IsInRole("manager") || 
-            context.User.IsInRole("admin")));
+            context.User.IsInRole(RoleHierarchy.Roles.Viewer) || 
+            context.User.IsInRole(RoleHierarchy.Roles.Contributor) || 
+            context.User.IsInRole(RoleHierarchy.Roles.Manager) || 
+            context.User.IsInRole(RoleHierarchy.Roles.Admin)));
     
     options.AddPolicy("RequireContributor", policy => 
         policy.RequireAssertion(context => 
-            context.User.IsInRole("contributor") || 
-            context.User.IsInRole("manager") || 
-            context.User.IsInRole("admin")));
+            context.User.IsInRole(RoleHierarchy.Roles.Contributor) || 
+            context.User.IsInRole(RoleHierarchy.Roles.Manager) || 
+            context.User.IsInRole(RoleHierarchy.Roles.Admin)));
     
     options.AddPolicy("RequireManager", policy => 
         policy.RequireAssertion(context => 
-            context.User.IsInRole("manager") || 
-            context.User.IsInRole("admin")));
+            context.User.IsInRole(RoleHierarchy.Roles.Manager) || 
+            context.User.IsInRole(RoleHierarchy.Roles.Admin)));
     
     options.AddPolicy("RequireAdmin", policy => 
-        policy.RequireRole("admin"));
+        policy.RequireRole(RoleHierarchy.Roles.Admin));
 });
 
 var app = builder.Build();

@@ -176,7 +176,7 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         var queryable = dbContext.Assets
             .Include(a => a.Collection)
             .Where(a => a.Status == Asset.StatusReady)
-            .Where(a => collectionIdList.Contains(a.CollectionId));
+            .Where(a => a.CollectionId != null && collectionIdList.Contains(a.CollectionId.Value));
 
         // Apply text search filter
         if (!string.IsNullOrWhiteSpace(query))

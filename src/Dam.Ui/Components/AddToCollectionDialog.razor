@@ -27,20 +27,27 @@
                            @bind-Value="_selectedCollectionId"
                            Label="Collection"
                            Variant="Variant.Outlined"
-                           AnchorOrigin="Origin.BottomCenter">
+                           AnchorOrigin="Origin.BottomLeft"
+                           TransformOrigin="Origin.TopLeft"
+                           FullWidth="true">
                     @foreach (var collection in _availableCollections)
                     {
-                        <MudSelectItem Value="@((Guid?)collection.Id)">
+                        <MudSelectItem T="Guid?" Value="@collection.Id">
                             @collection.Name
-                            @if (!string.IsNullOrEmpty(collection.Description))
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">
-                                    - @collection.Description
-                                </MudText>
-                            }
                         </MudSelectItem>
                     }
                 </MudSelect>
+                
+                @if (_selectedCollectionId.HasValue)
+                {
+                    var selected = _availableCollections.FirstOrDefault(c => c.Id == _selectedCollectionId.Value);
+                    @if (selected != null && !string.IsNullOrEmpty(selected.Description))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @selected.Description
+                        </MudText>
+                    }
+                }
             }
         </MudStack>
     </DialogContent>

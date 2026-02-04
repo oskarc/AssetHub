@@ -118,7 +118,9 @@ public static class ShareEndpoints
             var asset = await assetRepository.GetByIdAsync(dto.ScopeId, ct);
             if (asset == null)
                 return Results.NotFound(ApiError.NotFound("Asset not found"));
-            collectionIdToCheck = asset.CollectionId;
+            if (asset.CollectionId == null)
+                return Results.BadRequest(ApiError.BadRequest("Cannot create share for orphan asset. Add asset to a collection first."));
+            collectionIdToCheck = asset.CollectionId.Value;
             contentName = asset.Title;
         }
         else // collection
@@ -707,7 +709,7 @@ public static class ShareEndpoints
 
         // Check authorization (owner or admin can update)
         var userId = httpContext.User.GetUserIdOrDefault();
-        var isAdmin = httpContext.User.IsInRole("admin");
+        var isAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         if (share.CreatedByUserId != userId && !isAdmin)
             return Results.Json(ApiError.Forbidden("You don't have permission to update this share"), statusCode: 403);
 
