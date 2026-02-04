@@ -36,6 +36,11 @@ public class Asset
 
     // Navigation
     public Collection Collection { get; set; } = null!;
+    
+    /// <summary>
+    /// Additional collections this asset belongs to (beyond the primary CollectionId).
+    /// </summary>
+    public ICollection<AssetCollection> AssetCollections { get; set; } = new List<AssetCollection>();
 
     /// <summary>
     /// Mark asset as ready after processing completes.

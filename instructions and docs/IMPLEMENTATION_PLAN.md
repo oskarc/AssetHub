@@ -40,12 +40,27 @@
 
 The following features have been identified as high-priority improvements and should be implemented after MVP completion:
 
-#### 1. Multi-Collection Asset Assignment
+#### 1. Multi-Collection Asset Assignment ✅ COMPLETE
 **Priority**: High  
+**Status**: Implemented on 2026-02-04  
 **Description**: Allow a single image/asset to belong to multiple collections simultaneously.
-- Add many-to-many relationship between Assets and Collections
-- Update UI to allow selecting multiple collections when uploading/editing
-- Display collection membership in asset detail view
+- [x] Add many-to-many relationship between Assets and Collections
+  - Created `AssetCollection` join entity with AssetId, CollectionId, AddedAt, AddedByUserId
+  - EF migration: `20260204185835_AddAssetCollections`
+  - Unique index on (AssetId, CollectionId)
+- [x] Create repository layer
+  - `IAssetCollectionRepository` interface with GetCollectionsForAsset, AddToCollection, RemoveFromCollection
+  - `AssetCollectionRepository` implementation
+- [x] API endpoints
+  - `GET /api/assets/{id}/collections` - Get all collections for an asset
+  - `POST /api/assets/{id}/collections/{collectionId}` - Add asset to collection
+  - `DELETE /api/assets/{id}/collections/{collectionId}` - Remove asset from collection
+- [x] Updated UI (AssetDetail.razor)
+  - Shows all collections with primary indicator
+  - Add to collection dialog (AddToCollectionDialog.razor)
+  - Remove from collection with confirmation
+  - Role-based visibility (contributor+ can manage)
+- **Note**: Primary collection (CollectionId) is preserved for backwards compatibility. Additional collections are stored in the join table.
 
 #### 2. All Assets View Page ✅ COMPLETE
 **Priority**: High  
@@ -283,6 +298,78 @@ The following features have been identified as high-priority improvements and sh
 
 #### Build Status
 ✅ All changes compile successfully
+
+---
+
+### 2026-02-04 Session: Multi-Collection Asset Assignment
+
+**Focus**: Allow assets to belong to multiple collections simultaneously
+
+#### Completed Work
+
+**1. Database Schema**
+- Created `AssetCollection` join entity (`src/Dam.Domain/Entities/AssetCollection.cs`)
+  - Fields: Id, AssetId, CollectionId, AddedAt, AddedByUserId
+- EF configuration with unique index on (AssetId, CollectionId)
+- Migration: `20260204185835_AddAssetCollections`
+
+**2. Domain Layer Updates**
+- Added `AssetCollections` navigation property to `Asset` entity
+- Added `AssetCollections` navigation property to `Collection` entity
+- Preserved `CollectionId` as primary collection for backwards compatibility
+
+**3. Repository Layer**
+- Created `IAssetCollectionRepository` interface
+- Created `AssetCollectionRepository` implementation
+  - `GetCollectionsForAssetAsync` - Returns primary + linked collections
+  - `AddToCollectionAsync` - Creates link (validates asset/collection exist)
+  - `RemoveFromCollectionAsync` - Removes link
+  - `BelongsToCollectionAsync` - Checks membership
+
+**4. API Endpoints (AssetEndpoints.cs)**
+- `GET /api/assets/{id}/collections` - Get all collections for asset
+- `POST /api/assets/{id}/collections/{collectionId}` - Add to collection
+- `DELETE /api/assets/{id}/collections/{collectionId}` - Remove from collection
+- Authorization: Contributor+ on source collection to add/remove
+
+**5. UI Components**
+- `AddToCollectionDialog.razor` - Modal for selecting collection to add asset to
+- `AssetDetail.razor` - Updated to show all collections with:
+  - Primary collection indicator
+  - Add button (contributors+)
+  - Remove button per linked collection
+  - Confirmation before removing
+
+**6. API Client (AssetHubApiClient.cs)**
+- Added `GetAssetCollectionsAsync`
+- Added `AddAssetToCollectionAsync`
+- Added `RemoveAssetFromCollectionAsync`
+
+**7. DTO**
+- Created `AssetCollectionDto` for API responses
+
+#### Files Created
+- `src/Dam.Domain/Entities/AssetCollection.cs`
+- `src/Dam.Application/Repositories/IAssetCollectionRepository.cs`
+- `src/Dam.Infrastructure/Repositories/AssetCollectionRepository.cs`
+- `src/Dam.Application/Dtos/AssetCollectionDto.cs`
+- `src/Dam.Ui/Components/AddToCollectionDialog.razor`
+- `src/Dam.Infrastructure/Migrations/20260204185835_AddAssetCollections.cs`
+
+#### Files Modified
+- `src/Dam.Domain/Entities/Asset.cs`
+- `src/Dam.Domain/Entities/Collection.cs`
+- `src/Dam.Infrastructure/Data/AssetHubDbContext.cs`
+- `Endpoints/AssetEndpoints.cs`
+- `src/Dam.Ui/Services/AssetHubApiClient.cs`
+- `src/Dam.Ui/Pages/AssetDetail.razor`
+- `Program.cs` (DI registration)
+
+#### Build Status
+✅ All changes compile successfully
+
+#### Migration Pending
+Run `dotnet ef database update` to apply the new AssetCollections table
 
 ---
 

@@ -28,6 +28,11 @@ public static class AssetEndpoints
         group.MapDelete("{id}", DeleteAsset).WithName("DeleteAsset");
         group.MapGet("collection/{collectionId}", GetAssetsByCollection).WithName("GetAssetsByCollection");
 
+        // Multi-collection management
+        group.MapGet("{id}/collections", GetAssetCollections).WithName("GetAssetCollections");
+        group.MapPost("{id}/collections/{collectionId}", AddAssetToCollection).WithName("AddAssetToCollection");
+        group.MapDelete("{id}/collections/{collectionId}", RemoveAssetFromCollection).WithName("RemoveAssetFromCollection");
+
         // Rendition/download endpoints
         group.MapGet("{id}/download", DownloadOriginal).WithName("DownloadOriginal");
         group.MapGet("{id}/preview", PreviewOriginal).WithName("PreviewOriginal");
@@ -306,6 +311,123 @@ public static class AssetEndpoints
             UserRole = userRole
         };
     }
+
+    #region Multi-Collection Endpoints
+
+    /// <summary>
+    /// Get all collections an asset belongs to (primary + linked).
+    /// </summary>
+    private static async Task<IResult> GetAssetCollections(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+
+        var asset = await assetRepository.GetByIdAsync(id, ct);
+        if (asset == null)
+            return Results.NotFound();
+
+        // Check if user can access the primary collection
+        var canAccess = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Viewer);
+        if (!canAccess)
+            return Results.Forbid();
+
+        var collections = await assetCollectionRepo.GetCollectionsForAssetAsync(id, ct);
+
+        var result = collections.Select(c => new
+        {
+            id = c.Id,
+            name = c.Name,
+            description = c.Description,
+            isPrimary = c.Id == asset.CollectionId
+        });
+
+        return Results.Ok(result);
+    }
+
+    /// <summary>
+    /// Add an asset to an additional collection.
+    /// </summary>
+    private static async Task<IResult> AddAssetToCollection(
+        Guid id,
+        Guid collectionId,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+
+        var asset = await assetRepository.GetByIdAsync(id, ct);
+        if (asset == null)
+            return Results.NotFound(ApiError.NotFound("Asset not found"));
+
+        // Check if user can contribute to both the source and target collections
+        var canAccessSource = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Contributor);
+        if (!canAccessSource)
+            return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset"), statusCode: 403);
+
+        var canAccessTarget = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
+        if (!canAccessTarget)
+            return Results.Json(ApiError.Forbidden("You don't have permission to add assets to this collection"), statusCode: 403);
+
+        // Check if it's the primary collection
+        if (asset.CollectionId == collectionId)
+            return Results.BadRequest(ApiError.BadRequest("Asset already belongs to this collection as its primary collection"));
+
+        var result = await assetCollectionRepo.AddToCollectionAsync(id, collectionId, userId, ct);
+        if (result == null)
+            return Results.BadRequest(ApiError.BadRequest("Asset is already linked to this collection or collection not found"));
+
+        return Results.Created($"/api/assets/{id}/collections/{collectionId}", new
+        {
+            assetId = id,
+            collectionId,
+            addedAt = result.AddedAt,
+            message = "Asset added to collection"
+        });
+    }
+
+    /// <summary>
+    /// Remove an asset from a linked collection (cannot remove from primary collection).
+    /// </summary>
+    private static async Task<IResult> RemoveAssetFromCollection(
+        Guid id,
+        Guid collectionId,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var userId = httpContext.User.GetUserIdOrDefault();
+
+        var asset = await assetRepository.GetByIdAsync(id, ct);
+        if (asset == null)
+            return Results.NotFound(ApiError.NotFound("Asset not found"));
+
+        // Cannot remove from primary collection
+        if (asset.CollectionId == collectionId)
+            return Results.BadRequest(ApiError.BadRequest("Cannot remove asset from its primary collection. Use delete to remove the asset entirely."));
+
+        // Check if user can manage the asset (contributor to source collection)
+        var canAccessSource = await authService.CheckAccessAsync(userId, asset.CollectionId, RoleHierarchy.Roles.Contributor);
+        if (!canAccessSource)
+            return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset"), statusCode: 403);
+
+        var removed = await assetCollectionRepo.RemoveFromCollectionAsync(id, collectionId, ct);
+        if (!removed)
+            return Results.NotFound(ApiError.NotFound("Asset is not linked to this collection"));
+
+        return Results.NoContent();
+    }
+
+    #endregion
 
     #region Rendition Endpoints
 

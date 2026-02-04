@@ -109,17 +109,61 @@ else
 
                         <MudDivider />
 
-                        <!-- Collection Membership -->
+                        <!-- Collection Membership (Multi-Collection) -->
                         <MudStack>
-                            <MudText Typo="Typo.subtitle2">Collection</MudText>
-                            <MudChip T="string" 
-                                     Size="Size.Small" 
-                                     Color="Color.Secondary"
-                                     Icon="@Icons.Material.Filled.Folder"
-                                     OnClick="@(() => Nav.NavigateTo($"/assets?collection={_asset.CollectionId}"))"
-                                     Style="cursor: pointer;">
-                                @(_asset.CollectionName ?? "Unknown Collection")
-                            </MudChip>
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.subtitle2">Collections</MudText>
+                                @if (CanManageCollections())
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                                   Size="Size.Small"
+                                                   Color="Color.Primary"
+                                                   OnClick="OpenAddToCollectionDialogAsync"
+                                                   Title="Add to Collection" />
+                                }
+                            </MudStack>
+                            
+                            @if (_assetCollections.Any())
+                            {
+                                <MudStack Spacing="1">
+                                    @foreach (var collection in _assetCollections)
+                                    {
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudChip T="string" 
+                                                     Size="Size.Small" 
+                                                     Color="@(collection.IsPrimary ? Color.Primary : Color.Secondary)"
+                                                     Icon="@Icons.Material.Filled.Folder"
+                                                     OnClick="@(() => Nav.NavigateTo($"/assets?collection={collection.Id}"))"
+                                                     Style="cursor: pointer;">
+                                                @collection.Name
+                                                @if (collection.IsPrimary)
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="ml-1" Style="opacity: 0.7;">(primary)</MudText>
+                                                }
+                                            </MudChip>
+                                            @if (!collection.IsPrimary && CanManageCollections())
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                                               Size="Size.Small"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => RemoveFromCollectionAsync(collection))"
+                                                               Title="Remove from collection" />
+                                            }
+                                        </MudStack>
+                                    }
+                                </MudStack>
+                            }
+                            else
+                            {
+                                <MudChip T="string" 
+                                         Size="Size.Small" 
+                                         Color="Color.Secondary"
+                                         Icon="@Icons.Material.Filled.Folder"
+                                         OnClick="@(() => Nav.NavigateTo($"/assets?collection={_asset.CollectionId}"))"
+                                         Style="cursor: pointer;">
+                                    @(_asset.CollectionName ?? "Unknown Collection")
+                                </MudChip>
+                            }
                         </MudStack>
 
                         <!-- Description -->
@@ -266,6 +310,7 @@ else
     public Guid AssetId { get; set; }
 
     private AssetResponseDto? _asset;
+    private List<AssetCollectionDto> _assetCollections = new();
     private bool _isLoading = true;
 
     protected override async Task OnParametersSetAsync()
@@ -279,6 +324,7 @@ else
         {
             _isLoading = true;
             _asset = await Api.GetAssetAsync(AssetId);
+            await LoadAssetCollectionsAsync();
         }
         catch (Exception ex)
         {
@@ -288,6 +334,76 @@ else
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private async Task LoadAssetCollectionsAsync()
+    {
+        try
+        {
+            _assetCollections = await Api.GetAssetCollectionsAsync(AssetId);
+        }
+        catch
+        {
+            // Silently fail - collections will show fallback to primary collection
+            _assetCollections = new();
+        }
+    }
+
+    private bool CanManageCollections()
+    {
+        // Contributors and above can manage collection membership
+        if (_asset == null) return false;
+        var role = _asset.UserRole?.ToLowerInvariant() ?? "viewer";
+        return role is "contributor" or "manager" or "admin";
+    }
+
+    private async Task OpenAddToCollectionDialogAsync()
+    {
+        var options = new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Small, 
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var parameters = new DialogParameters<AddToCollectionDialog>
+        {
+            { x => x.AssetId, AssetId },
+            { x => x.ExistingCollectionIds, _assetCollections.Select(c => c.Id).ToList() }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddToCollectionDialog>("Add to Collection", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            await LoadAssetCollectionsAsync();
+            StateHasChanged();
+            Feedback.ShowSuccess("Asset added to collection");
+        }
+    }
+
+    private async Task RemoveFromCollectionAsync(AssetCollectionDto collection)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Remove from Collection",
+            $"Remove this asset from '{collection.Name}'?",
+            yesText: "Remove",
+            cancelText: "Cancel");
+
+        if (confirm != true) return;
+
+        try
+        {
+            await Api.RemoveAssetFromCollectionAsync(AssetId, collection.Id);
+            await LoadAssetCollectionsAsync();
+            StateHasChanged();
+            Feedback.ShowSuccess($"Removed from {collection.Name}");
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "remove from collection");
         }
     }
 

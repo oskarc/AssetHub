@@ -404,6 +404,38 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Asset Collections (Multi-Collection)
+
+    /// <summary>
+    /// Gets all collections an asset belongs to.
+    /// </summary>
+    public async Task<List<AssetCollectionDto>> GetAssetCollectionsAsync(Guid assetId)
+    {
+        var response = await _http.GetAsync($"/api/assets/{assetId}/collections");
+        await EnsureSuccessAsync(response, "Get asset collections");
+        return await response.Content.ReadFromJsonAsync<List<AssetCollectionDto>>() ?? new();
+    }
+
+    /// <summary>
+    /// Adds an asset to a collection.
+    /// </summary>
+    public async Task AddAssetToCollectionAsync(Guid assetId, Guid collectionId)
+    {
+        var response = await _http.PostAsync($"/api/assets/{assetId}/collections/{collectionId}", null);
+        await EnsureSuccessAsync(response, "Add asset to collection");
+    }
+
+    /// <summary>
+    /// Removes an asset from a collection.
+    /// </summary>
+    public async Task RemoveAssetFromCollectionAsync(Guid assetId, Guid collectionId)
+    {
+        var response = await _http.DeleteAsync($"/api/assets/{assetId}/collections/{collectionId}");
+        await EnsureSuccessAsync(response, "Remove asset from collection");
+    }
+
+    #endregion
 }
 
 /// <summary>

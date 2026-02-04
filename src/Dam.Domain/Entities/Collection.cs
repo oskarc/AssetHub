@@ -14,4 +14,9 @@ public class Collection
     public ICollection<Collection> Children { get; set; } = new List<Collection>();
     public ICollection<CollectionAcl> Acls { get; set; } = new List<CollectionAcl>();
     public ICollection<Asset> Assets { get; set; } = new List<Asset>();
+    
+    /// <summary>
+    /// Assets that are linked to this collection (via the many-to-many relationship).
+    /// </summary>
+    public ICollection<AssetCollection> AssetCollections { get; set; } = new List<AssetCollection>();
 }

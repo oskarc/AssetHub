@@ -12,6 +12,7 @@ public class AssetHubDbContext : DbContext
     public DbSet<Collection> Collections { get; set; } = null!;
     public DbSet<CollectionAcl> CollectionAcls { get; set; } = null!;
     public DbSet<Asset> Assets { get; set; } = null!;
+    public DbSet<AssetCollection> AssetCollections { get; set; } = null!;
     public DbSet<Share> Shares { get; set; } = null!;
     public DbSet<AuditEvent> AuditEvents { get; set; } = null!;
 
@@ -79,6 +80,26 @@ public class AssetHubDbContext : DbContext
 
             entity.HasOne(e => e.Collection)
                 .WithMany(e => e.Assets)
+                .HasForeignKey(e => e.CollectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // AssetCollection (many-to-many join table)
+        modelBuilder.Entity<AssetCollection>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.AssetId, e.CollectionId }).IsUnique().HasName("idx_asset_collection_unique");
+            entity.HasIndex(e => e.CollectionId).HasName("idx_asset_collection_collection_id");
+
+            entity.Property(e => e.AddedByUserId).HasMaxLength(255);
+
+            entity.HasOne(e => e.Asset)
+                .WithMany(e => e.AssetCollections)
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Collection)
+                .WithMany(e => e.AssetCollections)
                 .HasForeignKey(e => e.CollectionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
