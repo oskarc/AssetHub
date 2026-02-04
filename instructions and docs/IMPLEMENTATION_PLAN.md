@@ -198,9 +198,407 @@ The following features have been identified as high-priority improvements and sh
 - [ ] Remaining endpoints (low priority, can be added incrementally)
 - [ ] ICollectionAuthorizationService (would require interface change)
 
+#### 15. Localization (Swedish & English) ⏳ PLANNED
+**Priority**: Medium  
+**Status**: Not started - Planned for future phase  
+**Description**: Implement multi-language support for user-facing text in Swedish and English.
+
+**Scope**:
+- [ ] **Resource Files Setup**
+  - Create resource files (.resx) for Swedish (sv-SE) and English (en-US)
+  - Organize by feature area (Common, Assets, Collections, Admin, Shares, Auth)
+  - Example structure:
+    ```
+    Resources/
+      ├── Common.resx (default/English)
+      ├── Common.sv-SE.resx
+      ├── Assets.resx
+      ├── Assets.sv-SE.resx
+      ├── Collections.resx
+      ├── Collections.sv-SE.resx
+      └── ...
+    ```
+
+- [ ] **Blazor Localization Configuration**
+  - Configure `IStringLocalizer<T>` in Blazor components
+  - Add `Microsoft.Extensions.Localization` package
+  - Configure supported cultures in Program.cs:
+    ```csharp
+    builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+    builder.Services.Configure<RequestLocalizationOptions>(options =>
+    {
+        var supportedCultures = new[] { "en-US", "sv-SE" };
+        options.SetDefaultCulture("en-US")
+               .AddSupportedCultures(supportedCultures)
+               .AddSupportedUICultures(supportedCultures);
+    });
+    ```
+
+- [ ] **UI Components to Localize**
+  - All button labels (Upload, Delete, Share, Edit, etc.)
+  - Navigation menu items (Collections, Assets, Admin, Shares)
+  - Page titles and headers
+  - Form labels and placeholders
+  - Validation messages
+  - Empty state messages
+  - Toast notifications (success/error/warning messages)
+  - Dialog titles and content
+  - Role names (Viewer, Contributor, Manager, Admin)
+  - File type labels (Image, Video, Document)
+
+- [ ] **Language Switcher Component**
+  - Add language selector in navigation bar or user menu
+  - Persist user's language preference (local storage or user profile)
+  - Switch language without page reload
+  - Component template:
+    ```razor
+    <MudSelect T="string" Value="@CurrentCulture" ValueChanged="OnLanguageChanged">
+        <MudSelectItem Value="en-US">English</MudSelectItem>
+        <MudSelectItem Value="sv-SE">Svenska</MudSelectItem>
+    </MudSelect>
+    ```
+
+- [ ] **API Localization (Optional)**
+  - Error messages from API endpoints
+  - Validation messages
+  - Email notifications (share links, invitations)
+  - Use `Accept-Language` header for API responses
+
+- [ ] **Date/Time Formatting**
+  - Respect culture-specific date formats
+  - Swedish: `yyyy-MM-dd HH:mm`
+  - English (US): `MM/dd/yyyy h:mm tt`
+  - Use `@bind-Value:culture` in Blazor components
+
+- [ ] **Number Formatting**
+  - File sizes (KB, MB, GB)
+  - Respect culture-specific number separators
+
+- [ ] **Testing**
+  - Test all UI text displays correctly in both languages
+  - Verify language switching works across all pages
+  - Check for missing translations (fallback to default language)
+  - Test with Swedish characters (å, ä, ö, Å, Ä, Ö)
+
+**Implementation Notes**:
+- Start with high-traffic pages (Assets, Collections, AssetDetail)
+- Use descriptive resource keys (e.g., `Assets_Upload_Button` not `Button1`)
+- Keep translations concise for button labels (space constraints)
+- Consider right-to-left (RTL) for future language expansion
+- Document translation process for content team
+
+**Translation Examples**:
+| Key | English | Swedish |
+|-----|---------|---------|
+| `Common_Upload` | Upload | Ladda upp |
+| `Common_Delete` | Delete | Ta bort |
+| `Common_Share` | Share | Dela |
+| `Common_Edit` | Edit | Redigera |
+| `Assets_NoAssets` | No assets yet | Inga tillgångar ännu |
+| `Collections_CreateCollection` | Create Collection | Skapa samling |
+| `Admin_Users` | Users | Användare |
+| `Roles_Viewer` | Viewer | Betraktare |
+| `Roles_Contributor` | Contributor | Bidragsgivare |
+| `Roles_Manager` | Manager | Förvaltare |
+| `Roles_Admin` | Administrator | Administratör |
+
+**Time Estimate**: 8-12 hours (setup + translation + testing)
+
+**Dependencies**: None - can be implemented independently
+
+#### 16. Create User Functionality ⏳ PLANNED
+**Priority**: High  
+**Status**: Not started - Planned for future phase  
+**Description**: Implement user creation functionality through the Admin interface, integrated with Keycloak.
+
+**Current Limitation**: Users must be manually created in Keycloak admin console. The application can only manage existing users' collection access.
+
+**Scope**:
+- [ ] **Keycloak Admin API Integration**
+  - Install `Keycloak.AuthServices.Sdk` or use HttpClient for Keycloak Admin REST API
+  - Configure Keycloak admin client credentials in appsettings.json
+  - Implement `IKeycloakUserService` for user management operations
+  - Methods: CreateUser, UpdateUser, ResetPassword, EnableUser, DisableUser
+  - Handle Keycloak API authentication (service account or admin user)
+
+- [ ] **Backend API Endpoint**
+  - `POST /api/admin/users` - Create new user
+  - Request DTO: `CreateUserDto`
+    ```csharp
+    public class CreateUserDto
+    {
+        public required string Username { get; set; }
+        public required string Email { get; set; }
+        public required string FirstName { get; set; }
+        public required string LastName { get; set; }
+        public required string Password { get; set; } // Or generate temporary password
+        public bool EmailVerified { get; set; } = false;
+        public bool RequirePasswordChange { get; set; } = true;
+        public List<string> InitialCollectionIds { get; set; } = new(); // Optional
+        public string InitialRole { get; set; } = "viewer"; // Default role for initial collections
+    }
+    ```
+  - Authorization: Admin role required
+  - Create user in Keycloak
+  - Optionally assign to collections via CollectionAcl
+  - Return user details or error
+
+- [ ] **UI Components**
+  - **CreateUserDialog.razor** component with form:
+    - Username (required, unique validation)
+    - Email (required, format validation)
+    - First Name (required)
+    - Last Name (required)
+    - Password options:
+      - Generate temporary password (recommended)
+      - Manual password entry (with strength indicator)
+    - "Require password change on first login" checkbox (default: checked)
+    - Initial collection access (optional):
+      - Multi-select collection picker
+      - Role selector per collection (or single role for all)
+  - Add "Create User" button to Admin page Users tab
+  - Success message with created username
+  - Error handling for duplicate username/email
+
+- [ ] **Validation**
+  - Username requirements:
+    - 3-50 characters
+    - Alphanumeric, underscore, hyphen allowed
+    - No spaces
+    - Unique across Keycloak realm
+  - Email: Valid email format, unique
+  - Password requirements (Keycloak policy):
+    - Minimum 8 characters
+    - At least one uppercase letter
+    - At least one number
+    - At least one special character
+  - Client-side validation with immediate feedback
+  - Server-side validation before Keycloak API call
+
+- [ ] **Password Handling**
+  - **Option 1: Generated Password** (Recommended)
+    - Generate secure random password (16 chars, mixed case, numbers, symbols)
+    - Display to admin once (copy to clipboard)
+    - Mark as temporary (user must change on first login)
+    - Optionally send via email (requires SMTP configuration)
+  
+  - **Option 2: Manual Password**
+    - Admin enters password
+    - Show password strength indicator
+    - Confirm password field
+    - Option to force change on first login
+
+- [ ] **Email Notification (Optional)**
+  - Send welcome email to new user
+  - Include:
+    - Application URL
+    - Username
+    - Temporary password (if generated)
+    - Instructions to log in and change password
+  - Requires SMTP configuration in appsettings.json
+  - Template-based email with AssetHub branding
+
+- [ ] **Keycloak Configuration**
+  - Create dedicated service account or admin user for API access
+  - Required Keycloak admin API permissions:
+    - `manage-users` (create, update users)
+    - `view-realm` (read realm settings)
+  - Store credentials securely (appsettings.json or Azure Key Vault)
+  - Configure token endpoint and admin API base URL
+
+- [ ] **User Feedback**
+  - Success toast: "User [username] created successfully"
+  - Display temporary password in dialog (if generated)
+  - Copy password to clipboard button
+  - Error messages for:
+    - Duplicate username/email
+    - Keycloak API errors
+    - Network/connection issues
+    - Validation failures
+
+- [ ] **Security Considerations**
+  - Admin-only access (check role in endpoint)
+  - Log user creation events (audit trail)
+  - Don't log passwords
+  - Secure password transmission (HTTPS only)
+  - Rate limiting for user creation endpoint
+  - CAPTCHA consideration for production
+
+- [ ] **Post-Creation Actions**
+  - Option to immediately assign to collections
+  - Redirect to user access management
+  - Refresh users list to show new user
+  - Option to create another user (stay in dialog)
+
+- [ ] **Testing Checklist**
+  - [ ] Create user with generated password
+  - [ ] Create user with manual password
+  - [ ] Verify user can log in with temporary password
+  - [ ] Verify password change is required on first login
+  - [ ] Duplicate username rejection
+  - [ ] Duplicate email rejection
+  - [ ] Invalid email format rejection
+  - [ ] Weak password rejection
+  - [ ] Admin authorization check (non-admin cannot create users)
+  - [ ] Collection assignment during creation
+  - [ ] Email notification delivery (if implemented)
+  - [ ] Keycloak API error handling
+
+**Keycloak Admin API Example**:
+```csharp
+public async Task<string> CreateUserAsync(CreateUserDto dto)
+{
+    var user = new
+    {
+        username = dto.Username,
+        email = dto.Email,
+        firstName = dto.FirstName,
+        lastName = dto.LastName,
+        enabled = true,
+        emailVerified = dto.EmailVerified,
+        credentials = new[]
+        {
+            new
+            {
+                type = "password",
+                value = dto.Password,
+                temporary = dto.RequirePasswordChange
+            }
+        }
+    };
+    
+    var response = await _httpClient.PostAsJsonAsync(
+        $"{_keycloakBaseUrl}/admin/realms/{_realm}/users", 
+        user);
+    
+    response.EnsureSuccessStatusCode();
+    
+    // Extract user ID from Location header
+    var location = response.Headers.Location?.ToString();
+    var userId = location?.Split('/').Last();
+    
+    return userId;
+}
+```
+
+**Alternative Approach**: 
+If Keycloak Admin API is too complex, consider:
+- User self-registration page (publicly accessible)
+- Admin approval workflow
+- Email verification required
+
+**Time Estimate**: 6-10 hours (Keycloak integration + UI + testing)
+
+**Dependencies**: 
+- Keycloak admin API access configured
+- SMTP server (optional, for email notifications)
+
 ---
 
 ## Session Notes
+
+### 2026-02-04 Session: Removal of Primary Collection Architecture
+
+**Focus**: Complete removal of the "primary collection" concept and CollectionId field
+
+#### Problem Identified
+User identified a fundamental architectural flaw: "An asset does not have a primary or secondary collection. It has collections. Meaning there isn't hierarchy in the relationship."
+
+The system was incorrectly treating one collection as "primary" (via `Asset.CollectionId`) while others were "secondary" (via `AssetCollections` join table). This created unnecessary complexity and inconsistent behavior.
+
+#### Completed Work
+
+**1. Domain Model Changes**
+- **Asset.cs**: Removed `CollectionId` field (Guid?) and `Collection` navigation property
+- **Collection.cs**: Removed `Assets` navigation property (one-to-many relationship)
+- Both now exclusively use `AssetCollections` for many-to-many relationships
+
+**2. Database Schema Updates**
+- **Migration**: `20260204213956_RemoveAssetCollectionId`
+  - Dropped `CollectionId` column from Assets table
+  - Dropped foreign key constraint `FK_Assets_Collections_CollectionId`
+  - Dropped index `idx_assets_collection_id`
+- Migration applied successfully to database
+
+**3. Repository Layer Refactoring**
+- **AssetRepository.cs**: 
+  - Removed all `.Include(a => a.Collection)` from queries
+  - `CountByCollectionAsync` now queries via AssetCollections join table
+  - `DeleteByCollectionAsync` now queries via AssetCollections join table
+  - `SearchAsync` no longer includes Collection navigation
+  - `GetByIdAsync` no longer includes Collection navigation
+
+- **AssetCollectionRepository.cs**:
+  - `GetCollectionsForAssetAsync` returns only from join table (no primary collection logic)
+  - `AddToCollectionAsync` no longer checks for primary collection
+  - `BelongsToCollectionAsync` only checks join table
+  - All methods exclusively use AssetCollections table
+
+**4. API Endpoints Refactoring**
+- **AssetEndpoints.cs**:
+  - Created `CanAccessAssetAsync()` helper method for consistent permission checks
+  - Updated all endpoints to check access via **any** collection (not just primary):
+    - `GetAsset`, `UpdateAsset`, `DeleteAsset`
+    - `AddAssetToCollection`, `RemoveAssetFromCollection`, `GetAssetCollections`
+  - All rendition endpoints updated to use helper:
+    - `DownloadOriginal`, `PreviewOriginal`, `GetThumbnail`, `GetMedium`, `GetPoster`
+  - `GetAllAssets`: Now determines user's highest role across all asset collections
+  - `UploadAsset`: Creates only AssetCollections entry (no CollectionId assignment)
+  - `MapToDto`: Removed CollectionId and CollectionName from response
+
+- **ShareEndpoints.cs**:
+  - `CreateShare`: Uses join table to check if asset belongs to any collection
+  - `DownloadSharedAsset`: Verifies asset-collection membership via `BelongsToCollectionAsync`
+  - `PreviewSharedAsset`: Verifies asset-collection membership via `BelongsToCollectionAsync`
+
+**5. DTO Updates**
+- **AssetResponseDto**: Removed `CollectionId` and `CollectionName` properties
+
+**6. UI Updates**
+- **AssetDetail.razor**: 
+  - Removed navigation to specific collection after delete (navigates to /assets)
+  - Removed fallback to CollectionId in `NavigateBackToAssets()`
+- **AllAssets.razor**: 
+  - Removed collection name display from asset cards
+  - Removed "Go to collection" button (assets can belong to multiple collections)
+
+**7. DbContext Configuration**
+- **AssetHubDbContext.cs**:
+  - Removed Collection navigation configuration
+  - Removed CollectionId index
+  - Removed foreign key relationship definition
+
+#### Files Modified
+- `src/Dam.Domain/Entities/Asset.cs`
+- `src/Dam.Domain/Entities/Collection.cs`
+- `src/Dam.Application/Dtos/AssetResponseDto.cs`
+- `src/Dam.Infrastructure/Repositories/AssetRepository.cs`
+- `src/Dam.Infrastructure/Repositories/AssetCollectionRepository.cs`
+- `src/Dam.Infrastructure/Data/AssetHubDbContext.cs`
+- `Endpoints/AssetEndpoints.cs`
+- `Endpoints/ShareEndpoints.cs`
+- `src/Dam.Ui/Pages/AssetDetail.razor`
+- `src/Dam.Ui/Pages/AllAssets.razor`
+
+#### Migration Created & Applied
+- `src/Dam.Infrastructure/Migrations/20260204213956_RemoveAssetCollectionId.cs`
+- Successfully applied to database via `dotnet ef database update`
+
+#### Build & Deployment Status
+✅ All changes compile successfully with no errors
+✅ Docker container rebuilt and deployed: `docker compose build api && docker compose up -d api`
+✅ System fully operational with new architecture
+
+#### Architecture Benefits
+- **Simplified Model**: Single source of truth for asset-collection relationships
+- **Consistent Permissions**: All permission checks use the same logic (any collection)
+- **No Hierarchy**: All collections have equal relationship with assets
+- **Better Scalability**: Easier to implement features requiring multi-collection assets
+
+#### Testing Required ⚠️
+**Status**: Testing deferred to future session (see Testing Plan section below)
+
+---
 
 ### 2026-02-04 Session: Error Handling & User Feedback
 
@@ -3662,6 +4060,260 @@ docker compose logs -f postgres
 - Asset grid with search/filter
 - Upload UI with progress tracking
 - Share management UI
+
+---
+
+## Comprehensive Testing Plan
+
+**Priority**: HIGH  
+**Status**: ⚠️ PENDING - Scheduled for dedicated testing session  
+**Last Updated**: 2026-02-04
+
+### Overview
+
+Following the major architectural refactoring (removal of primary collection concept), comprehensive testing is required to verify all functionality works correctly with the new many-to-many collection relationships.
+
+### Testing Scope
+
+#### 1. Unit Tests (Backend)
+
+**Repository Layer**
+- [ ] **AssetRepository**
+  - `GetByIdAsync` - Verify returns asset without Collection navigation
+  - `GetByCollectionAsync` - Verify queries via AssetCollections join table
+  - `CountByCollectionAsync` - Verify counts via join table
+  - `DeleteByCollectionAsync` - Verify deletes assets via join table lookup
+  - `SearchAsync` - Verify search works without Collection include
+
+- [ ] **AssetCollectionRepository**
+  - `GetCollectionsForAssetAsync` - Verify returns all linked collections
+  - `AddToCollectionAsync` - Verify creates join table entry
+  - `RemoveFromCollectionAsync` - Verify removes join table entry
+  - `BelongsToCollectionAsync` - Verify membership check via join table
+  - `GetCollectionIdsForAssetAsync` - Verify returns correct collection IDs
+
+**Authorization Helper**
+- [ ] **CanAccessAssetAsync**
+  - Verify returns true when user has viewer+ role in any asset collection
+  - Verify returns true for system admins regardless of collection membership
+  - Verify returns false when user has no access to any asset collection
+  - Verify returns false for orphaned assets (no collections)
+
+#### 2. Integration Tests (API Endpoints)
+
+**Asset Management**
+- [ ] **Upload Asset** (`POST /api/assets/upload`)
+  - Verify asset created without CollectionId field
+  - Verify AssetCollections entry created
+  - Verify contributor+ can upload
+  - Verify viewer cannot upload
+
+- [ ] **Get Asset** (`GET /api/assets/{id}`)
+  - Verify returns asset data without CollectionId/CollectionName
+  - Verify permission check via any collection membership
+  - Verify 403 when user has no access to any asset collection
+  - Verify 404 for non-existent asset
+
+- [ ] **Update Asset** (`PATCH /api/assets/{id}`)
+  - Verify contributor+ can edit metadata
+  - Verify permission checked via any collection
+  - Verify viewer cannot edit
+
+- [ ] **Delete Asset** (`DELETE /api/assets/{id}`)
+  - Verify manager+ can delete
+  - Verify permission checked via any collection
+  - Verify asset removed from all collections
+
+- [ ] **Get All Assets** (`GET /api/assets/all`)
+  - Verify returns assets from all accessible collections
+  - Verify user role calculated correctly (highest across all collections)
+  - Verify search/filter works correctly
+  - Verify pagination works
+
+**Collection Assignment**
+- [ ] **Get Asset Collections** (`GET /api/assets/{id}/collections`)
+  - Verify returns all collections asset belongs to
+  - Verify no "primary" indicator
+  - Verify permission check via any collection
+
+- [ ] **Add to Collection** (`POST /api/assets/{id}/collections/{collectionId}`)
+  - Verify contributor+ can add
+  - Verify creates join table entry
+  - Verify duplicate prevention
+  - Verify 403 for viewers
+
+- [ ] **Remove from Collection** (`DELETE /api/assets/{id}/collections/{collectionId}`)
+  - Verify contributor+ can remove
+  - Verify removes join table entry
+  - Verify asset can be removed from all collections
+  - Verify 403 for viewers
+
+**Rendition Endpoints**
+- [ ] **Download Original** (`GET /api/assets/{id}/original/download`)
+  - Verify permission via CanAccessAssetAsync
+  - Verify works for assets in multiple collections
+
+- [ ] **Preview Original** (`GET /api/assets/{id}/original/preview`)
+  - Verify permission check works
+  - Verify PDF preview works
+
+- [ ] **Get Thumbnail** (`GET /api/assets/{id}/thumb`)
+  - Verify permission check works
+  - Verify returns correct size
+
+- [ ] **Get Medium** (`GET /api/assets/{id}/medium`)
+  - Verify permission check works
+  - Verify returns correct size
+
+- [ ] **Get Poster** (`GET /api/assets/{id}/poster`)
+  - Verify permission check works
+  - Verify works for video assets
+
+**Share Endpoints**
+- [ ] **Create Share** (`POST /api/shares`)
+  - Verify requires asset belongs to at least one collection
+  - Verify uses join table for validation
+  - Verify contributor+ can create shares
+  - Verify shares work for multi-collection assets
+
+- [ ] **Download Shared Asset** (`GET /shares/{token}/download`)
+  - Verify validates asset-collection membership via join table
+  - Verify works for collection shares
+  - Verify works for asset shares
+
+- [ ] **Preview Shared Asset** (`GET /shares/{token}/preview`)
+  - Verify validates asset-collection membership via join table
+  - Verify works correctly
+
+#### 3. Edge Cases & Scenarios
+
+**Multi-Collection Assets**
+- [ ] Asset belongs to 2+ collections
+  - Verify user with different roles in each collection gets highest role
+  - Verify removing from one collection doesn't affect other memberships
+  - Verify deletion removes from all collections
+
+**Orphaned Assets**
+- [ ] Asset belongs to zero collections
+  - Verify cannot be accessed via normal endpoints
+  - Verify admin can still access
+  - Verify can be re-assigned to a collection
+
+**Permission Scenarios**
+- [ ] User has viewer in Collection A, contributor in Collection B
+  - Asset belongs to both collections
+  - Verify user gets contributor permissions
+
+- [ ] User has manager in Collection A only
+  - Asset belongs to Collection A and B
+  - Verify user can delete asset (has manager in any collection)
+
+**Collection Deletion**
+- [ ] Delete collection that has assets
+  - Verify cascade behavior on AssetCollections
+  - Verify assets remain if in other collections
+  - Verify orphaned assets handled correctly
+
+#### 4. UI Testing
+
+**AssetDetail Page**
+- [ ] Verify collections section displays correctly
+- [ ] Verify Add to Collection works
+- [ ] Verify Remove from Collection works with confirmation
+- [ ] Verify proper button visibility based on role
+
+**AllAssets Page**
+- [ ] Verify asset grid displays without collection names
+- [ ] Verify no "Go to collection" button
+- [ ] Verify role-based actions work correctly
+
+**Admin Page**
+- [ ] Verify share management works
+- [ ] Verify collection access management works
+- [ ] Verify user management works
+
+#### 5. Performance Testing
+
+- [ ] **Large Collections**: Test with 1000+ assets in a single collection
+- [ ] **Many Collections**: Test asset in 20+ collections
+- [ ] **Search Performance**: Verify search across all collections performs adequately
+- [ ] **Permission Checks**: Profile CanAccessAssetAsync with many collections
+
+#### 6. Database Integrity
+
+- [ ] Verify no orphaned records in AssetCollections table
+- [ ] Verify CollectionId column is fully removed from Assets table
+- [ ] Verify all foreign key constraints are correct
+- [ ] Run database consistency check
+
+### Test Execution Plan
+
+**Phase 1: Repository & Unit Tests (Priority 1)**
+- Focus on data access layer correctness
+- Ensure join table queries work properly
+- Estimated time: 3-4 hours
+
+**Phase 2: API Integration Tests (Priority 2)**
+- Test all endpoints with various permission scenarios
+- Verify authorization logic works correctly
+- Estimated time: 4-6 hours
+
+**Phase 3: UI & E2E Tests (Priority 3)**
+- Manual testing of UI workflows
+- Verify user experience is consistent
+- Estimated time: 2-3 hours
+
+**Phase 4: Performance & Edge Cases (Priority 4)**
+- Stress testing with large datasets
+- Verify edge case handling
+- Estimated time: 2-3 hours
+
+### Testing Framework Setup
+
+**Required Packages**:
+```xml
+<PackageReference Include="xUnit" Version="2.6.6" />
+<PackageReference Include="xUnit.runner.visualstudio" Version="2.5.6" />
+<PackageReference Include="Moq" Version="4.20.70" />
+<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
+<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
+```
+
+**Test Project Structure**:
+```
+AssetHub.Tests/
+  ├── Unit/
+  │   ├── Repositories/
+  │   │   ├── AssetRepositoryTests.cs
+  │   │   └── AssetCollectionRepositoryTests.cs
+  │   └── Helpers/
+  │       └── CanAccessAssetAsyncTests.cs
+  ├── Integration/
+  │   ├── AssetEndpointsTests.cs
+  │   ├── ShareEndpointsTests.cs
+  │   └── CollectionEndpointsTests.cs
+  └── TestFixtures/
+      ├── DatabaseFixture.cs
+      └── AuthenticationFixture.cs
+```
+
+### Success Criteria
+
+- [ ] All unit tests pass (100% of new repository methods)
+- [ ] All integration tests pass (all endpoints)
+- [ ] No 500 errors in manual testing
+- [ ] Performance requirements met (< 1s response time)
+- [ ] No regression in existing functionality
+- [ ] Code coverage > 80% for modified code
+
+### Notes for Future Testing Session
+
+1. **Start with Repository Tests**: These are the foundation - if these fail, everything else will fail
+2. **Use In-Memory Database**: For unit tests, use EF InMemory provider for speed
+3. **Real Database for Integration**: Use test container or dedicated test database
+4. **Mock Authentication**: Use test authentication handler to simulate different users/roles
+5. **Document Test Data**: Create seed data scripts for consistent test scenarios
+6. **Regression Testing**: Ensure existing functionality (collections, shares, admin) still works
 
 ---
 
