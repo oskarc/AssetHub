@@ -2,6 +2,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 
 @using Dam.Ui.Services
+@using Dam.Ui.Components
 @using System.Net.Http.Json
 @using Microsoft.Extensions.Logging
 
@@ -367,9 +368,19 @@
             </MudPaper>
 
             <MudGrid Spacing="3">
-                @foreach (var asset in _sharedCollection.Assets)
+                @if (_sharedCollection.Assets.Count == 0)
                 {
-                    <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudItem xs="12">
+                        <EmptyState Title="No assets in this collection"
+                                    Description="This shared collection doesn't contain any assets."
+                                    Icon="@Icons.Material.Filled.FolderOff" />
+                    </MudItem>
+                }
+                else
+                {
+                    @foreach (var asset in _sharedCollection.Assets)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
                         <MudCard Elevation="2" Class="cursor-pointer" Style="cursor: pointer;" @onclick="@(() => SelectAsset(asset))">
                             <MudCardMedia Image="@(asset.ThumbnailUrl ?? GetPlaceholderIcon(asset.AssetType))"
                                           Height="160" />
@@ -397,6 +408,7 @@
                             </MudCardActions>
                         </MudCard>
                     </MudItem>
+                    }
                 }
             </MudGrid>
         }

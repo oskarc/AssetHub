@@ -96,12 +96,14 @@ The following features have been identified as high-priority improvements and sh
 - [x] Configure application display name in appsettings
 - [x] English language throughout
 
-#### 7. Asset Collection Membership Display
+#### 7. Asset Collection Membership Display ✅ COMPLETE
 **Priority**: Medium  
+**Status**: Implemented on 2026-02-04  
 **Description**: On the asset detail view, show a list of all collections the asset belongs to.
-- Display collection badges/chips on asset detail
-- Click to navigate to parent collection
-- Quick add/remove from collections in asset detail
+- [x] Display collection badges/chips on asset detail
+- [x] Click to navigate to parent collection
+- [ ] Quick add/remove from collections - *Deferred: Requires Multi-Collection Asset Assignment (#1)*
+- **Note**: Currently assets belong to a single collection. Multi-collection support is planned for Phase 2.
 
 #### 8. Role-Based UI Visibility ✅ COMPLETE
 **Priority**: High  
@@ -113,12 +115,15 @@ The following features have been identified as high-priority improvements and sh
 - [x] All Assets page restricted to admin only
 - [x] Centralized RolePermissions class for consistent role checks
 
-#### 9. Empty State Messages
+#### 9. Empty State Messages ✅ COMPLETE
 **Priority**: Medium  
+**Status**: Implemented on 2026-02-04  
 **Description**: Show friendly messages when there is no data to display.
-- Display "There is nothing to show here" or similar when lists/grids are empty
-- Consistent empty state styling across all data views (assets, collections, shares, users)
-- Provide helpful actions (e.g., "Create your first collection")
+- [x] Display "There is nothing to show here" or similar when lists/grids are empty
+- [x] Consistent empty state styling across all data views (assets, collections, shares, users)
+- [x] Provide helpful actions (e.g., "Create your first collection")
+- [x] EmptyState component with Title, Description, Icon, ActionText, ActionIcon, OnAction parameters
+- [x] Used in: Admin.razor (3 tabs), AllAssets.razor, Assets.razor, AssetGrid.razor, CollectionTree.razor, AssetDetail.razor, Share.razor
 
 #### 10. Error Handling & User Feedback ✅ COMPLETE
 **Priority**: High  
@@ -143,28 +148,40 @@ The following features have been identified as high-priority improvements and sh
 - [x] Structured logging ready (Microsoft.Extensions.Logging)
 - [x] Share.razor uses ILogger<Share> for proper logging
 
-#### 12. User Access Details Modal
+#### 12. User Access Details Modal ✅ COMPLETE
 **Priority**: Medium  
+**Status**: Implemented on 2026-02-04  
 **Description**: On Admin page Users tab, "View Access" should open a modal showing the user's collection access.
-- Display list of collections the user has access to
-- Show role per collection (viewer, contributor, manager, admin)
-- Show when access was granted (CreatedAt date)
-- Include "Revoke Access" button per collection
-- Quick navigation to collection
+- [x] Display list of collections the user has access to
+- [x] Show role per collection (viewer, contributor, manager, admin)
+- [ ] Show when access was granted (CreatedAt date) - *Deferred: requires API update*
+- [x] Include "Revoke Access" button per collection
+- [x] Quick navigation to collection (click collection name)
+- [x] Auto-refresh users list after revoking access
+- [x] UserAccessDialog.razor component created
 
-#### 13. Role Permissions Documentation
+#### 13. Role Permissions Documentation ✅ COMPLETE
 **Priority**: Low  
+**Status**: Implemented on 2026-02-04  
 **Description**: Document the permission model for clarity.
-- Clarify: Who can do what and when?
-- Question: If a contributor uploads an image, who owns it? (Answer: The asset is owned by the collection, not the user. CreatedByUserId is tracked for audit purposes, but permissions are based on collection ACL, not asset ownership)
-- Document in README or in-app help
+- [x] Clarify: Who can do what and when?
+- [x] Question answered: If a contributor uploads an image, who owns it? (The asset is owned by the collection, not the user)
+- [x] Documented in README.md with:
+  - Role hierarchy table (Viewer → Contributor → Manager → Admin)
+  - Permission matrix showing actions per role
+  - Key concepts section
+  - Code reference to RoleHierarchy.cs
 
-#### 14. Add CancellationToken Support
+#### 14. Add CancellationToken Support ✅ PARTIAL
 **Priority**: Low  
+**Status**: Implemented on 2026-02-04 (key endpoints)  
 **Description**: Add CancellationToken to repository methods and endpoints for proper request cancellation.
-- Update IAssetRepository, ICollectionRepository methods
-- Propagate CancellationToken through endpoint handlers
-- Allows graceful cancellation of long-running operations
+- [x] IAssetRepository methods already have CancellationToken
+- [x] ICollectionRepository methods already have CancellationToken
+- [x] ICollectionAclRepository methods already have CancellationToken
+- [x] Key Asset endpoints updated (GetAssets, GetAllAssets, GetAsset, GetAssetsByCollection)
+- [ ] Remaining endpoints (low priority, can be added incrementally)
+- [ ] ICollectionAuthorizationService (would require interface change)
 
 ---
 
@@ -198,6 +215,136 @@ The following features have been identified as high-priority improvements and sh
 #### Files Modified
 - `src/Dam.Ui/Components/ShareLinkDialog.razor`
 - `src/Dam.Ui/Pages/Share.razor`
+
+#### Build Status
+✅ All changes compile successfully
+
+---
+
+### 2026-02-04 Session: Empty State Messages
+
+**Focus**: Consistent empty state messaging across the application
+
+#### Completed Work
+
+**1. EmptyState Component**
+- Already well-designed with Title, Description, Icon, ActionText, ActionIcon, OnAction parameters
+- Supports optional child content for additional customization
+
+**2. Standardized Empty States**
+- **CollectionTree.razor**: Converted inline empty state to use EmptyState component
+- **AssetDetail.razor**: Improved "not found" message to use EmptyState with action button
+- **Share.razor**: Added empty state when shared collection has no assets
+
+**3. Verified Existing Usage**
+- Admin.razor: 4 empty states (shares, collections, collection selection, users)
+- AllAssets.razor: 2 empty states (no results, no assets)
+- Assets.razor: "Select a collection" empty state
+- AssetGrid.razor: "No assets yet" empty state
+
+#### Files Modified
+- `src/Dam.Ui/Components/CollectionTree.razor`
+- `src/Dam.Ui/Pages/AssetDetail.razor`
+- `src/Dam.Ui/Pages/Share.razor`
+
+#### Build Status
+✅ All changes compile successfully
+
+---
+
+### 2026-02-04 Session: Role Permissions Documentation & CancellationToken
+
+**Focus**: Documentation and request cancellation support
+
+#### Completed Work
+
+**1. Role Permissions Documentation (README.md)**
+- Added comprehensive RBAC section with:
+  - Role hierarchy table (Viewer → Contributor → Manager → Admin)
+  - Permission matrix showing what each role can do
+  - Key concepts explanation
+  - Code reference to RoleHierarchy.cs
+
+**2. CancellationToken Support (Partial)**
+- Repository interfaces already support CancellationToken
+- Updated key Asset endpoints:
+  - `GetAssets` - now passes ct to repository
+  - `GetAllAssets` - now passes ct to repository
+  - `GetAsset` - now passes ct to repository
+  - `GetAssetsByCollection` - now passes ct to repository
+
+#### Files Modified
+- `README.md` - Added Role-Based Access Control section
+- `Endpoints/AssetEndpoints.cs` - Added CancellationToken parameters
+
+#### Deferred
+- ICollectionAuthorizationService CancellationToken (requires interface change)
+- Remaining endpoints (low priority)
+
+#### Build Status
+✅ All changes compile successfully
+
+---
+
+### 2026-02-04 Session: Asset Collection Membership Display
+
+**Focus**: Show collection membership on asset detail page
+
+#### Completed Work
+
+**1. AssetDetail.razor Enhancement**
+- Added "Collection" section with clickable chip
+- Shows collection name with folder icon
+- Click navigates to collection in Assets page
+
+**2. Verified Existing Features**
+- AllAssets.razor already shows collection name on asset cards
+- CollectionName is returned by API endpoints
+
+#### Files Modified
+- `src/Dam.Ui/Pages/AssetDetail.razor`
+
+#### Deferred
+- Add/remove from collections (requires Multi-Collection Asset Assignment, Phase 2)
+
+#### Build Status
+✅ All changes compile successfully
+
+---
+
+### 2026-02-04 Session: User Access Details Modal
+
+**Focus**: Implement detailed user access modal for Admin page
+
+#### Completed Work
+
+**1. UserAccessDialog Component**
+- Created `src/Dam.Ui/Components/UserAccessDialog.razor`
+- Shows user info (username, user ID, highest role)
+- Lists all collections with roles in a table
+- Each collection row has:
+  - Clickable collection name (navigates to collection)
+  - Role chip with color coding
+  - "Revoke" button to remove access
+
+**2. Revoke Access Functionality**
+- Removes user's ACL via `Api.RemoveCollectionAclAsync()`
+- Shows success toast on completion
+- Updates local list immediately
+- Closes dialog if no collections remain
+
+**3. Admin.razor Integration**
+- Updated `ShowUserDetails()` to open dialog instead of toast
+- Auto-refreshes users list when dialog closes after changes
+
+#### Files Created
+- `src/Dam.Ui/Components/UserAccessDialog.razor`
+
+#### Files Modified
+- `src/Dam.Ui/Pages/Admin.razor`
+
+#### Deferred
+- "CreatedAt" date for when access was granted (requires API/DTO update)
 
 #### Build Status
 ✅ All changes compile successfully

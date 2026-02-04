@@ -101,7 +101,8 @@ public static class ShareEndpoints
         [FromServices] IShareRepository shareRepository,
         [FromServices] IEmailService emailService,
         [FromServices] IUserLookupService userLookupService,
-        HttpContext httpContext)
+        HttpContext httpContext,
+        CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
 
@@ -114,7 +115,7 @@ public static class ShareEndpoints
 
         if (dto.ScopeType == "asset")
         {
-            var asset = await assetRepository.GetByIdAsync(dto.ScopeId);
+            var asset = await assetRepository.GetByIdAsync(dto.ScopeId, ct);
             if (asset == null)
                 return Results.NotFound(ApiError.NotFound("Asset not found"));
             collectionIdToCheck = asset.CollectionId;
@@ -122,7 +123,7 @@ public static class ShareEndpoints
         }
         else // collection
         {
-            var collection = await collectionRepository.GetByIdAsync(dto.ScopeId);
+            var collection = await collectionRepository.GetByIdAsync(dto.ScopeId, ct: ct);
             if (collection == null)
                 return Results.NotFound(ApiError.NotFound("Collection not found"));
             collectionIdToCheck = collection.Id;
@@ -166,7 +167,7 @@ public static class ShareEndpoints
         };
 
         // Save share to database
-        await shareRepository.CreateAsync(share);
+        await shareRepository.CreateAsync(share, ct);
 
         var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
         var shareUrl = $"{baseUrl}/share/{token}";
@@ -268,13 +269,14 @@ public static class ShareEndpoints
         [FromServices] IAssetRepository assetRepository,
         [FromServices] ICollectionRepository collectionRepository,
         [FromServices] IMinIOAdapter minioAdapter,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        CancellationToken ct)
     {
         // Compute token hash to lookup in database
         using var sha256 = SHA256.Create();
         var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
 
-        var share = await shareRepository.GetByTokenHashAsync(tokenHash);
+        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
             return Results.NotFound("Share link not found or invalid");
 
@@ -299,13 +301,13 @@ public static class ShareEndpoints
         // Update access tracking
         share.LastAccessedAt = DateTime.UtcNow;
         share.AccessCount++;
-        await shareRepository.UpdateAsync(share);
+        await shareRepository.UpdateAsync(share, ct);
 
         var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
 
         if (share.ScopeType == "asset")
         {
-            var asset = await assetRepository.GetByIdAsync(share.ScopeId);
+            var asset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
             if (asset == null)
                 return Results.NotFound("Asset not found");
 
@@ -334,11 +336,11 @@ public static class ShareEndpoints
         }
         else if (share.ScopeType == "collection")
         {
-            var collection = await collectionRepository.GetByIdAsync(share.ScopeId);
+            var collection = await collectionRepository.GetByIdAsync(share.ScopeId, ct: ct);
             if (collection == null)
                 return Results.NotFound("Collection not found");
 
-            var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, 0, 100);
+            var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, 0, 100, ct);
             var assetDtos = new List<SharedAssetDto>();
 
             foreach (var asset in assets)
@@ -386,13 +388,14 @@ public static class ShareEndpoints
         [FromServices] IShareRepository shareRepository,
         [FromServices] IAssetRepository assetRepository,
         [FromServices] IMinIOAdapter minioAdapter,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        CancellationToken ct)
     {
         // Compute token hash to lookup in database
         using var sha256 = SHA256.Create();
         var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
 
-        var share = await shareRepository.GetByTokenHashAsync(tokenHash);
+        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
             return Results.NotFound("Share link not found or invalid");
 
@@ -423,7 +426,7 @@ public static class ShareEndpoints
 
         if (share.ScopeType == "asset")
         {
-            targetAsset = await assetRepository.GetByIdAsync(share.ScopeId);
+            targetAsset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
         }
         else if (share.ScopeType == "collection")
         {
@@ -431,7 +434,7 @@ public static class ShareEndpoints
             if (!assetId.HasValue)
                 return Results.BadRequest("assetId query parameter is required for collection share downloads");
 
-            targetAsset = await assetRepository.GetByIdAsync(assetId.Value);
+            targetAsset = await assetRepository.GetByIdAsync(assetId.Value, ct);
 
             // Verify the asset belongs to the shared collection
             if (targetAsset == null || targetAsset.CollectionId != share.ScopeId)
@@ -447,10 +450,10 @@ public static class ShareEndpoints
         // Update access tracking
         share.LastAccessedAt = DateTime.UtcNow;
         share.AccessCount++;
-        await shareRepository.UpdateAsync(share);
+        await shareRepository.UpdateAsync(share, ct);
 
         // Stream the file through the API to hide MinIO URLs
-        var stream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey);
+        var stream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey, ct);
         var fileName = !string.IsNullOrEmpty(targetAsset.Title) ? targetAsset.Title : Path.GetFileName(targetAsset.OriginalObjectKey);
         return Results.File(stream, targetAsset.ContentType, fileName);
     }
@@ -462,13 +465,14 @@ public static class ShareEndpoints
         [FromServices] IAssetRepository assetRepository,
         [FromServices] ICollectionRepository collectionRepository,
         [FromServices] IMinIOAdapter minioAdapter,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        CancellationToken ct)
     {
         // Compute token hash to lookup in database
         using var sha256 = SHA256.Create();
         var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
 
-        var share = await shareRepository.GetByTokenHashAsync(tokenHash);
+        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
             return Results.NotFound("Share link not found or invalid");
 
@@ -498,11 +502,11 @@ public static class ShareEndpoints
         if (share.ScopeType != "collection")
             return Results.BadRequest("Download all is only available for collection shares");
 
-        var collection = await collectionRepository.GetByIdAsync(share.ScopeId);
+        var collection = await collectionRepository.GetByIdAsync(share.ScopeId, ct: ct);
         if (collection == null)
             return Results.NotFound("Collection not found");
 
-        var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, 0, 1000);
+        var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, 0, 1000, ct);
         if (!assets.Any())
             return Results.BadRequest("No assets in collection");
 
@@ -519,14 +523,19 @@ public static class ShareEndpoints
         {
             foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
             {
+                ct.ThrowIfCancellationRequested();
                 try
                 {
-                    var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!);
+                    var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
                     var fileName = GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
                     
                     var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
-                    await assetStream.CopyToAsync(entryStream);
+                    await assetStream.CopyToAsync(entryStream, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch
                 {
@@ -575,13 +584,14 @@ public static class ShareEndpoints
         [FromServices] IShareRepository shareRepository,
         [FromServices] IAssetRepository assetRepository,
         [FromServices] IMinIOAdapter minioAdapter,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        CancellationToken ct)
     {
         // Compute token hash to lookup in database
         using var sha256 = SHA256.Create();
         var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
 
-        var share = await shareRepository.GetByTokenHashAsync(tokenHash);
+        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
             return Results.NotFound("Share link not found or invalid");
 
@@ -608,7 +618,7 @@ public static class ShareEndpoints
 
         if (share.ScopeType == "asset")
         {
-            targetAsset = await assetRepository.GetByIdAsync(share.ScopeId);
+            targetAsset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
         }
         else if (share.ScopeType == "collection")
         {
@@ -616,7 +626,7 @@ public static class ShareEndpoints
             if (!assetId.HasValue)
                 return Results.BadRequest("assetId query parameter is required for collection share previews");
 
-            targetAsset = await assetRepository.GetByIdAsync(assetId.Value);
+            targetAsset = await assetRepository.GetByIdAsync(assetId.Value, ct);
 
             // Verify the asset belongs to the shared collection
             if (targetAsset == null || targetAsset.CollectionId != share.ScopeId)
@@ -629,7 +639,7 @@ public static class ShareEndpoints
         // For PDF files, return the original file for inline preview
         if (string.Equals(targetAsset.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
         {
-            var pdfStream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey);
+            var pdfStream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey, ct);
             return Results.File(pdfStream, "application/pdf", enableRangeProcessing: true);
         }
 
@@ -645,7 +655,7 @@ public static class ShareEndpoints
             return Results.NotFound("Preview not available");
 
         // Stream the preview through the API
-        var previewStream = await minioAdapter.DownloadAsync(bucketName, objectKey);
+        var previewStream = await minioAdapter.DownloadAsync(bucketName, objectKey, ct);
         
         // Determine content type for preview
         var previewContentType = targetAsset.ContentType;
@@ -662,9 +672,10 @@ public static class ShareEndpoints
     private static async Task<IResult> RevokeShare(
         Guid id,
         [FromServices] IShareRepository shareRepository,
-        HttpContext httpContext)
+        HttpContext httpContext,
+        CancellationToken ct)
     {
-        var share = await shareRepository.GetByIdAsync(id);
+        var share = await shareRepository.GetByIdAsync(id, ct);
         if (share == null)
             return Results.NotFound(ApiError.NotFound("Share not found"));
 
@@ -675,7 +686,7 @@ public static class ShareEndpoints
 
         // Mark as revoked instead of deleting (for audit trail)
         share.RevokedAt = DateTime.UtcNow;
-        await shareRepository.UpdateAsync(share);
+        await shareRepository.UpdateAsync(share, ct);
 
         return Results.NoContent();
     }
@@ -687,9 +698,10 @@ public static class ShareEndpoints
         Guid id,
         [FromBody] UpdateSharePasswordDto dto,
         [FromServices] IShareRepository shareRepository,
-        HttpContext httpContext)
+        HttpContext httpContext,
+        CancellationToken ct)
     {
-        var share = await shareRepository.GetByIdAsync(id);
+        var share = await shareRepository.GetByIdAsync(id, ct);
         if (share == null)
             return Results.NotFound(ApiError.NotFound("Share not found"));
 
@@ -703,7 +715,7 @@ public static class ShareEndpoints
             return Results.BadRequest(ApiError.BadRequest("Password cannot be empty"));
 
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
-        await shareRepository.UpdateAsync(share);
+        await shareRepository.UpdateAsync(share, ct);
 
         return Results.Ok(new { message = "Password updated successfully" });
     }

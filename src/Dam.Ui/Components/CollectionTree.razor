@@ -11,12 +11,10 @@
 }
 else if (_collections.Count == 0)
 {
-    <MudStack AlignItems="AlignItems.Center" Class="py-4">
-        <MudIcon Icon="@Icons.Material.Filled.CreateNewFolder" Size="Size.Medium" Color="Color.Default" Style="opacity: 0.5;" />
-        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="pa-2">
-            No collections yet. Click the folder icon above to create your first collection.
-        </MudText>
-    </MudStack>
+    <EmptyState Title="No collections yet"
+                Description="Click the folder icon above to create your first collection."
+                Icon="@Icons.Material.Filled.CreateNewFolder"
+                Class="py-4" />
 }
 else
 {

@@ -1,0 +1,140 @@
+@using MudBlazor
+@using Dam.Application.Dtos
+@using Dam.Ui.Services
+
+@inject NavigationManager Nav
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">User Access Details</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <!-- User Info Header -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.subtitle1">@User.UserName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@User.UserId</MudText>
+                    </MudStack>
+                    <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(User.HighestRole)">
+                        Highest: @User.HighestRole
+                    </MudChip>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Collections List -->
+            <MudText Typo="Typo.subtitle2" Class="mt-2">
+                Collection Access (@User.CollectionCount)
+            </MudText>
+
+            @if (User.Collections.Count == 0)
+            {
+                <EmptyState Title="No collection access"
+                            Description="This user doesn't have access to any collections."
+                            Icon="@Icons.Material.Filled.FolderOff"
+                            Class="py-4" />
+            }
+            else
+            {
+                <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Style="border: 1px solid var(--mud-palette-lines-default);">
+                    <thead>
+                        <tr>
+                            <th>Collection</th>
+                            <th>Role</th>
+                            <th style="width: 120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var collection in User.Collections.OrderBy(c => c.CollectionName))
+                        {
+                            <tr>
+                                <td>
+                                    <MudLink Href="@($"/assets?collection={collection.CollectionId}")" 
+                                             Color="Color.Primary"
+                                             Underline="Underline.Hover">
+                                        @collection.CollectionName
+                                    </MudLink>
+                                </td>
+                                <td>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(collection.Role)" Variant="Variant.Outlined">
+                                        @collection.Role
+                                    </MudChip>
+                                </td>
+                                <td>
+                                    <MudButton Size="Size.Small" 
+                                               Variant="Variant.Text" 
+                                               Color="Color.Error"
+                                               StartIcon="@Icons.Material.Filled.RemoveCircle"
+                                               OnClick="@(() => RevokeAccess(collection))"
+                                               Disabled="@_isRevoking">
+                                        Revoke
+                                    </MudButton>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public UserAccessSummaryDto User { get; set; } = default!;
+
+    private bool _isRevoking = false;
+
+    private void Close() => MudDialog.Close();
+
+    private async Task RevokeAccess(UserCollectionAccessDto collection)
+    {
+        _isRevoking = true;
+        StateHasChanged();
+
+        try
+        {
+            await Api.RemoveCollectionAclAsync(collection.CollectionId, User.UserId, "user");
+            Feedback.ShowSuccess($"Revoked access to '{collection.CollectionName}'");
+            
+            // Remove from local list
+            User.Collections.Remove(collection);
+            
+            // If no more collections, close the dialog
+            if (User.Collections.Count == 0)
+            {
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "revoke access");
+        }
+        finally
+        {
+            _isRevoking = false;
+            StateHasChanged();
+        }
+    }
+
+    private static Color GetRoleColor(string role) => role.ToLowerInvariant() switch
+    {
+        "admin" => Color.Error,
+        "manager" => Color.Warning,
+        "contributor" => Color.Info,
+        "viewer" => Color.Default,
+        _ => Color.Default
+    };
+}

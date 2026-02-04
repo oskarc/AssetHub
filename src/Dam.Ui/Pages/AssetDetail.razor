@@ -25,12 +25,12 @@
 else if (_asset == null)
 {
     <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
-        <MudAlert Severity="Severity.Error">
-            <MudText>Asset not found or you don't have permission to view it.</MudText>
-            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@NavigateBackToAssets">
-                Back to Assets
-            </MudButton>
-        </MudAlert>
+        <EmptyState Title="Asset not found"
+                    Description="This asset doesn't exist or you don't have permission to view it."
+                    Icon="@Icons.Material.Filled.BrokenImage"
+                    ActionText="Back to Assets"
+                    ActionIcon="@Icons.Material.Filled.ArrowBack"
+                    OnAction="@NavigateBackToAssets" />
     </MudContainer>
 }
 else
@@ -108,6 +108,19 @@ else
                         </MudStack>
 
                         <MudDivider />
+
+                        <!-- Collection Membership -->
+                        <MudStack>
+                            <MudText Typo="Typo.subtitle2">Collection</MudText>
+                            <MudChip T="string" 
+                                     Size="Size.Small" 
+                                     Color="Color.Secondary"
+                                     Icon="@Icons.Material.Filled.Folder"
+                                     OnClick="@(() => Nav.NavigateTo($"/assets?collection={_asset.CollectionId}"))"
+                                     Style="cursor: pointer;">
+                                @(_asset.CollectionName ?? "Unknown Collection")
+                            </MudChip>
+                        </MudStack>
 
                         <!-- Description -->
                         @if (!string.IsNullOrEmpty(_asset.Description))

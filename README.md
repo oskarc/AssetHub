@@ -132,6 +132,54 @@ DELETE /api/shares/{id}              # Revoke share (auth required)
 4. API validates token signature against Keycloak's public key
 5. Claims (user ID, roles, groups) extracted and available in `HttpContext.User`
 
+## 🎭 Role-Based Access Control (RBAC)
+
+AssetHub uses a hierarchical role system for collection-level access control. Roles are assigned per-collection through Access Control Lists (ACLs).
+
+### Role Hierarchy
+
+| Role | Level | Description |
+|------|-------|-------------|
+| **Viewer** | 1 | Read-only access - can view and download assets |
+| **Contributor** | 2 | Can upload assets, edit metadata, create share links |
+| **Manager** | 3 | Can delete assets, manage collection ACLs |
+| **Admin** | 4 | Full access including system administration |
+
+### Permission Matrix
+
+| Action | Viewer | Contributor | Manager | Admin |
+|--------|--------|-------------|---------|-------|
+| View/Download assets | ✅ | ✅ | ✅ | ✅ |
+| Upload assets | ❌ | ✅ | ✅ | ✅ |
+| Edit asset metadata | ❌ | ✅ | ✅ | ✅ |
+| Create share links | ❌ | ✅ | ✅ | ✅ |
+| Delete assets | ❌ | ❌ | ✅ | ✅ |
+| Manage collection access | ❌ | ❌ | ✅ | ✅ |
+| View all assets (admin page) | ❌ | ❌ | ❌ | ✅ |
+| Manage all shares (admin page) | ❌ | ❌ | ❌ | ✅ |
+
+### Key Concepts
+
+1. **Permissions are collection-scoped**: A user may have different roles on different collections.
+
+2. **Assets inherit collection permissions**: An asset's permissions are determined by its parent collection's ACL, not by who uploaded it.
+
+3. **Asset ownership tracking**: `CreatedByUserId` is stored for audit purposes, but does not affect permissions.
+
+4. **Role inheritance**: Higher roles include all permissions of lower roles (e.g., a Manager can do everything a Contributor can).
+
+### Code Reference
+
+The role hierarchy is centralized in `Dam.Application/RoleHierarchy.cs`:
+
+```csharp
+// Check if user can perform an action
+RoleHierarchy.CanUpload(userRole);    // Requires contributor+
+RoleHierarchy.CanShare(userRole);     // Requires contributor+
+RoleHierarchy.CanDelete(userRole);    // Requires manager+
+RoleHierarchy.CanManageAccess(userRole); // Requires manager+
+```
+
 ## 📊 Project Status
 
 ### Phase 1: Foundation ✅ COMPLETE

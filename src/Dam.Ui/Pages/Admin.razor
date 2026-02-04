@@ -529,10 +529,27 @@
         }
     }
 
-    private void ShowUserDetails(UserAccessSummaryDto user)
+    private async Task ShowUserDetails(UserAccessSummaryDto user)
     {
-        // Show a dialog with user's collection access details
-        var message = string.Join("\n", user.Collections.Select(c => $"• {c.CollectionName}: {c.Role}"));
-        Feedback.ShowInfo($"Access for {user.UserId}:\n{message}");
+        var parameters = new DialogParameters<UserAccessDialog>
+        {
+            { x => x.User, user }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<UserAccessDialog>("User Access", parameters, options);
+        var result = await dialog.Result;
+
+        // If access was revoked (dialog returns Ok), refresh the users list
+        if (result != null && !result.Canceled)
+        {
+            await LoadUsers();
+        }
     }
 }

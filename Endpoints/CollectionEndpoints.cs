@@ -59,13 +59,14 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> GetRootCollections(
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
-        var collections = await collectionRepo.GetAccessibleCollectionsAsync(userId);
+        var collections = await collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
         var dtos = collections.Select(c => new CollectionResponseDto
         {
             Id = c.Id,
@@ -83,7 +84,8 @@ public static class CollectionEndpoints
         Guid id,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
@@ -94,7 +96,7 @@ public static class CollectionEndpoints
         if (!hasAccess)
             return Results.Forbid();
 
-        var collection = await collectionRepo.GetByIdAsync(id);
+        var collection = await collectionRepo.GetByIdAsync(id, ct: ct);
         if (collection == null)
             return Results.NotFound();
 
@@ -118,7 +120,8 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
@@ -153,7 +156,7 @@ public static class CollectionEndpoints
             CreatedAt = DateTime.UtcNow
         };
 
-        await collectionRepo.CreateAsync(collection);
+        await collectionRepo.CreateAsync(collection, ct);
 
         // Grant creator admin access
         await aclRepo.SetAccessAsync(collection.Id, "user", userId, RoleHierarchy.Roles.Admin);
@@ -178,10 +181,11 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         dto.ParentId = id;
-        return await CreateCollection(dto, collectionRepo, aclRepo, authService, user);
+        return await CreateCollection(dto, collectionRepo, aclRepo, authService, user, ct);
     }
 
     private static async Task<IResult> UpdateCollection(
@@ -189,7 +193,8 @@ public static class CollectionEndpoints
         UpdateCollectionDto dto,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
@@ -200,7 +205,7 @@ public static class CollectionEndpoints
         if (!canUpdate)
             return Results.Forbid();
 
-        var collection = await collectionRepo.GetByIdAsync(id);
+        var collection = await collectionRepo.GetByIdAsync(id, ct: ct);
         if (collection == null)
             return Results.NotFound();
 
@@ -209,7 +214,7 @@ public static class CollectionEndpoints
         if (dto.Description != null)
             collection.Description = dto.Description;
 
-        await collectionRepo.UpdateAsync(collection);
+        await collectionRepo.UpdateAsync(collection, ct);
 
         return Results.Ok(new { message = "Collection updated" });
     }
@@ -218,7 +223,8 @@ public static class CollectionEndpoints
         Guid id,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
@@ -229,11 +235,11 @@ public static class CollectionEndpoints
         if (!canDelete)
             return Results.Forbid();
 
-        var exists = await collectionRepo.ExistsAsync(id);
+        var exists = await collectionRepo.ExistsAsync(id, ct);
         if (!exists)
             return Results.NotFound();
 
-        await collectionRepo.DeleteAsync(id);
+        await collectionRepo.DeleteAsync(id, ct);
 
         return Results.NoContent();
     }
@@ -242,7 +248,8 @@ public static class CollectionEndpoints
         Guid id,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
@@ -253,7 +260,7 @@ public static class CollectionEndpoints
         if (!hasAccess)
             return Results.Forbid();
 
-        var children = await collectionRepo.GetChildrenAsync(id);
+        var children = await collectionRepo.GetChildrenAsync(id, ct);
         var dtos = children.Select(c => new CollectionResponseDto
         {
             Id = c.Id,
@@ -361,7 +368,8 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
@@ -372,11 +380,11 @@ public static class CollectionEndpoints
         if (!canView)
             return Results.Forbid();
 
-        var collection = await collectionRepo.GetByIdAsync(id);
+        var collection = await collectionRepo.GetByIdAsync(id, ct: ct);
         if (collection == null)
             return Results.NotFound("Collection not found");
 
-        var assets = await assetRepo.GetByCollectionAsync(id, 0, 1000);
+        var assets = await assetRepo.GetByCollectionAsync(id, 0, 1000, ct);
         if (!assets.Any())
             return Results.BadRequest("No assets in collection");
 
@@ -388,14 +396,19 @@ public static class CollectionEndpoints
         {
             foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
             {
+                ct.ThrowIfCancellationRequested();
                 try
                 {
-                    var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!);
+                    var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
                     var fileName = GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
                     
                     var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
-                    await assetStream.CopyToAsync(entryStream);
+                    await assetStream.CopyToAsync(entryStream, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch
                 {
