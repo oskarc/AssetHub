@@ -1,6 +1,7 @@
 @using MudBlazor
+@using Dam.Ui.Services
 
-@inject ISnackbar Snackbar
+@inject IUserFeedbackService Feedback
 @inject IJSRuntime JS
 
 <MudDialog>
@@ -97,11 +98,11 @@
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
-            Snackbar.Add("Link copied to clipboard!", Severity.Success);
+            Feedback.ShowSuccess("Link copied to clipboard!");
         }
         catch
         {
-            Snackbar.Add("Failed to copy to clipboard. Please copy manually.", Severity.Warning);
+            Feedback.ShowWarning("Failed to copy to clipboard. Please copy manually.");
         }
     }
 
@@ -110,11 +111,11 @@
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", Password);
-            Snackbar.Add("Password copied to clipboard!", Severity.Success);
+            Feedback.ShowSuccess("Password copied to clipboard!");
         }
         catch
         {
-            Snackbar.Add("Failed to copy to clipboard. Please copy manually.", Severity.Warning);
+            Feedback.ShowWarning("Failed to copy to clipboard. Please copy manually.");
         }
     }
 
@@ -124,11 +125,11 @@
         {
             var text = $"Share Link: {ShareUrl}\nPassword: {Password}";
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
-            Snackbar.Add("Link and password copied to clipboard!", Severity.Success);
+            Feedback.ShowSuccess("Link and password copied to clipboard!");
         }
         catch
         {
-            Snackbar.Add("Failed to copy to clipboard. Please copy manually.", Severity.Warning);
+            Feedback.ShowWarning("Failed to copy to clipboard. Please copy manually.");
         }
     }
 }
