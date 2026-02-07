@@ -55,15 +55,4 @@ public static class Constants
         public const string Mp4 = "video/mp4";
         public const string Webm = "video/webm";
     }
-
-    /// <summary>
-    /// Image processing dimensions.
-    /// </summary>
-    public static class ImageDimensions
-    {
-        public const int ThumbnailWidth = 200;
-        public const int ThumbnailHeight = 200;
-        public const int MediumWidth = 800;
-        public const int MediumHeight = 800;
-    }
 }

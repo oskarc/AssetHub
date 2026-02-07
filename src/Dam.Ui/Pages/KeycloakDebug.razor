@@ -107,7 +107,7 @@ else
                 return;
             }
 
-            var clientId = Config["Keycloak:ClientId"] ?? "assethub-app";
+            var clientId = Config["Keycloak:ClientId"] ?? "";
             var clientSecret = Config["Keycloak:ClientSecret"];
             if (string.IsNullOrWhiteSpace(clientSecret))
             {

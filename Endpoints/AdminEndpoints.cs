@@ -325,7 +325,9 @@ public static class AdminEndpoints
 
                 if (request.SendWelcomeEmail && !string.IsNullOrWhiteSpace(email))
                 {
-                    var baseUrl = configuration["App:BaseUrl"] ?? $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+                    var baseUrl = configuration["App:BaseUrl"];
+                    if (string.IsNullOrWhiteSpace(baseUrl))
+                        baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
                     var adminUsername = httpContext.User.Identity?.Name ?? "An administrator";
                     await provisioning.SendWelcomeEmailAsync(
                         email, username, request.Password, request.RequirePasswordChange,

@@ -22,6 +22,9 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Allow personal overrides via appsettings.Local.json (gitignored)
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // Blazor Server (.NET 9 template style)
 builder.Services
     .AddRazorComponents()
@@ -38,10 +41,13 @@ var dataSource = dataSourceBuilder.Build();
 builder.Services.AddDbContext<AssetHubDbContext>(options =>
     options.UseNpgsql(dataSource));
 
-// Hangfire
+// Hangfire — prefer dedicated connection string, fall back to the main Postgres one
+var hangfireConnectionString = builder.Configuration["Hangfire:ConnectionString"];
+if (string.IsNullOrWhiteSpace(hangfireConnectionString))
+    hangfireConnectionString = builder.Configuration.GetConnectionString("Postgres") ?? "";
 builder.Services.AddHangfire(config =>
 {
-    config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("Postgres") ?? "");
+    config.UsePostgreSqlStorage(hangfireConnectionString);
 });
 builder.Services.AddHangfireServer();
 
@@ -51,6 +57,9 @@ builder.Services.AddMudServices();
 // Configuration
 builder.Services.Configure<MinIOSettings>(builder.Configuration.GetSection(MinIOSettings.SectionName));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
+builder.Services.Configure<KeycloakSettings>(builder.Configuration.GetSection(KeycloakSettings.SectionName));
+builder.Services.Configure<AppSettings>(builder.Configuration.GetSection(AppSettings.SectionName));
+builder.Services.Configure<ImageProcessingSettings>(builder.Configuration.GetSection(ImageProcessingSettings.SectionName));
 
 // Application Services
 builder.Services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizationService>();
@@ -66,14 +75,20 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IUserProvisioningService, UserProvisioningService>();
 
 // Keycloak Admin API client for user management
+var keycloakTimeoutSeconds = builder.Configuration.GetValue("Keycloak:TimeoutSeconds", 30);
 builder.Services.AddHttpClient<IKeycloakUserService, KeycloakUserService>(client =>
 {
     // HttpClient is configured with no base address; KeycloakUserService builds full URLs from config
-    client.Timeout = TimeSpan.FromSeconds(30);
+    client.Timeout = TimeSpan.FromSeconds(keycloakTimeoutSeconds);
 })
-.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+.ConfigurePrimaryHttpMessageHandler(() =>
 {
-    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    var handler = new HttpClientHandler();
+    if (builder.Environment.IsDevelopment())
+    {
+        handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+    }
+    return handler;
 });
 
 // UI Services
@@ -95,23 +110,37 @@ builder.Services.AddHttpClient<Dam.Ui.Services.AssetHubApiClient>((sp, client) =
     }
     else
     {
-        // Fallback for when HttpContext is not available
-        client.BaseAddress = new Uri("http://localhost:7252");
+        // Fallback for when HttpContext is not available — use configured BaseUrl
+        var baseUrl = builder.Configuration["App:BaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            throw new InvalidOperationException("App:BaseUrl is required when HttpContext is not available. Check appsettings for the current environment.");
+        client.BaseAddress = new Uri(baseUrl);
     }
 })
-.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+.ConfigurePrimaryHttpMessageHandler(() =>
 {
-    // Allow self-signed certs in development
-    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    var handler = new HttpClientHandler();
+    if (builder.Environment.IsDevelopment())
+    {
+        // Allow self-signed certs in development
+        handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+    }
+    return handler;
 })
 .AddHttpMessageHandler<Dam.Ui.Services.CookieForwardingHandler>();
 
 // MinIO client
-var minioSettings = builder.Configuration.GetSection("MinIO");
-var minioEndpoint = minioSettings["Endpoint"] ?? "localhost:9000";
-var minioAccessKey = minioSettings["AccessKey"] ?? "minioadmin";
-var minioSecretKey = minioSettings["SecretKey"] ?? "minioadmin";
-var minioUseSsl = minioSettings.GetValue("UseSsl", false);
+var minioConfig = builder.Configuration.GetSection("MinIO");
+var minioEndpoint = minioConfig["Endpoint"];
+if (string.IsNullOrWhiteSpace(minioEndpoint))
+    throw new InvalidOperationException("MinIO:Endpoint is required. Check appsettings for the current environment.");
+var minioAccessKey = minioConfig["AccessKey"];
+if (string.IsNullOrWhiteSpace(minioAccessKey))
+    throw new InvalidOperationException("MinIO:AccessKey is required. Check appsettings for the current environment.");
+var minioSecretKey = minioConfig["SecretKey"];
+if (string.IsNullOrWhiteSpace(minioSecretKey))
+    throw new InvalidOperationException("MinIO:SecretKey is required. Check appsettings for the current environment.");
+var minioUseSsl = minioConfig.GetValue("UseSSL", true);
 
 var minioClient = new Minio.MinioClient()
     .WithEndpoint(minioEndpoint)
@@ -127,10 +156,13 @@ builder.Services.AddSingleton<IPostConfigureOptions<OpenIdConnectOptions>, Asset
 
 // Keycloak configuration
 var keycloakConfig = builder.Configuration.GetSection("Keycloak");
-var keycloakAuthority = keycloakConfig["Authority"] ?? "http://keycloak:8080/realms/media";
+var keycloakAuthority = keycloakConfig["Authority"];
+if (string.IsNullOrWhiteSpace(keycloakAuthority))
+    throw new InvalidOperationException("Keycloak:Authority is required. Check appsettings for the current environment.");
 var clientSecret = keycloakConfig["ClientSecret"];
 if (string.IsNullOrWhiteSpace(clientSecret))
-    throw new InvalidOperationException("Keycloak:ClientSecret must be configured in appsettings. Check appsettings.json or environment variables.");
+    throw new InvalidOperationException("Keycloak:ClientSecret is required. Check appsettings for the current environment.");
+var requireHttpsMetadata = keycloakConfig.GetValue("RequireHttpsMetadata", true);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -151,7 +183,7 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     options.Authority = keycloakAuthority;
-    options.RequireHttpsMetadata = false;
+    options.RequireHttpsMetadata = requireHttpsMetadata;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -176,13 +208,16 @@ builder.Services.AddAuthentication(options =>
     options.Authority = keycloakAuthority;
     options.MetadataAddress = keycloakAuthority + "/.well-known/openid-configuration";
     
-    options.ClientId = keycloakConfig["ClientId"] ?? "assethub-app";
+    var clientId = keycloakConfig["ClientId"];
+    if (string.IsNullOrWhiteSpace(clientId))
+        throw new InvalidOperationException("Keycloak:ClientId is required. Check appsettings for the current environment.");
+    options.ClientId = clientId;
     
     // Client secret for confidential client flow - required for confidential clients
     options.ClientSecret = clientSecret;
 
-    // .NET dev: Keycloak kör oftast http lokalt
-    options.RequireHttpsMetadata = false;
+    // RequireHttpsMetadata: true in production, false in development (set in appsettings)
+    options.RequireHttpsMetadata = requireHttpsMetadata;
     
     options.CallbackPath = "/signin-oidc";
     options.SignedOutCallbackPath = "/signout-callback-oidc";
@@ -440,8 +475,8 @@ app.MapPost("/debug/keycloak/userinfo-probe", async (HttpContext http, IConfigur
         if (!Dam.Application.DebugGuard.IsLocalDebugRequest(http))
             return Results.NotFound();
 
-        var authority = config["Keycloak:Authority"] ?? "http://keycloak:8080/realms/media";
-        var clientId = config["Keycloak:ClientId"] ?? "assethub-app";
+        var authority = config["Keycloak:Authority"] ?? "";
+        var clientId = config["Keycloak:ClientId"] ?? "";
         var clientSecret = config["Keycloak:ClientSecret"];
 
         if (string.IsNullOrWhiteSpace(clientSecret))

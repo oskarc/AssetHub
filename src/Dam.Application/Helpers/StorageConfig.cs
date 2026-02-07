@@ -8,13 +8,15 @@ namespace Dam.Application.Helpers;
 /// </summary>
 public static class StorageConfig
 {
-    private const string DefaultBucketName = "assethub-dev";
-
     /// <summary>
-    /// Gets the MinIO bucket name from configuration, with a consistent default fallback.
+    /// Gets the MinIO bucket name from configuration.
+    /// Throws if not configured.
     /// </summary>
     public static string GetBucketName(IConfiguration configuration)
     {
-        return configuration["MinIO:BucketName"] ?? DefaultBucketName;
+        var bucketName = configuration["MinIO:BucketName"];
+        if (string.IsNullOrWhiteSpace(bucketName))
+            throw new InvalidOperationException("MinIO:BucketName is required. Check appsettings for the current environment.");
+        return bucketName;
     }
 }

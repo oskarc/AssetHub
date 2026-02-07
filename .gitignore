@@ -34,7 +34,7 @@ obj/
 .env
 .env.local
 .env.*.local
-appsettings.Development.json
+appsettings.Local.json
 
 # Docker
 docker-compose.override.yml

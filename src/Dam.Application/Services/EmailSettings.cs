@@ -10,7 +10,7 @@ public class EmailSettings
     /// <summary>
     /// SMTP server hostname.
     /// </summary>
-    public string SmtpHost { get; set; } = "localhost";
+    public string SmtpHost { get; set; } = "";
 
     /// <summary>
     /// SMTP server port (default: 587 for TLS, 465 for SSL, 25 for unencrypted).
@@ -35,7 +35,7 @@ public class EmailSettings
     /// <summary>
     /// The sender's email address.
     /// </summary>
-    public string FromAddress { get; set; } = "noreply@assethub.local";
+    public string FromAddress { get; set; } = "";
 
     /// <summary>
     /// The sender's display name.
@@ -45,5 +45,5 @@ public class EmailSettings
     /// <summary>
     /// Whether email sending is enabled. When false, emails are logged but not sent.
     /// </summary>
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; } = false;
 }

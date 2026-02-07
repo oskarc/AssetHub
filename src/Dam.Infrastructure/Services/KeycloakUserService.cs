@@ -35,8 +35,9 @@ public class KeycloakUserService : IKeycloakUserService
 
         // Parse authority URL to extract base URL and realm
         // Authority is like "http://keycloak:8080/realms/media"
-        var authority = configuration["Keycloak:Authority"] 
-            ?? throw new InvalidOperationException("Keycloak:Authority is required");
+        var authority = configuration["Keycloak:Authority"];
+        if (string.IsNullOrWhiteSpace(authority))
+            throw new InvalidOperationException("Keycloak:Authority is required. Check appsettings for the current environment.");
         
         var authorityUri = new Uri(authority);
         _keycloakBaseUrl = $"{authorityUri.Scheme}://{authorityUri.Authority}";
@@ -46,9 +47,14 @@ public class KeycloakUserService : IKeycloakUserService
         _realm = pathSegments.Length >= 2 ? pathSegments[1] : "master";
 
         // Admin credentials for Keycloak Admin API
-        _adminUsername = configuration["Keycloak:AdminUsername"] ?? "admin";
-        _adminPassword = configuration["Keycloak:AdminPassword"] 
-            ?? throw new InvalidOperationException("Keycloak:AdminPassword is required for user management");
+        var adminUsername = configuration["Keycloak:AdminUsername"];
+        if (string.IsNullOrWhiteSpace(adminUsername))
+            throw new InvalidOperationException("Keycloak:AdminUsername is required. Check appsettings for the current environment.");
+        _adminUsername = adminUsername;
+        var adminPassword = configuration["Keycloak:AdminPassword"];
+        if (string.IsNullOrWhiteSpace(adminPassword))
+            throw new InvalidOperationException("Keycloak:AdminPassword is required. Check appsettings for the current environment.");
+        _adminPassword = adminPassword;
     }
 
     /// <inheritdoc />

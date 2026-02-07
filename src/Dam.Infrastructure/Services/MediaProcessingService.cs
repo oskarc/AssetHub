@@ -18,9 +18,11 @@ public class MediaProcessingService(
     IMinIOAdapter minioAdapter,
     IBackgroundJobClient backgroundJobClient,
     IOptions<MinIOSettings> minioSettings,
+    IOptions<ImageProcessingSettings> imageProcessingSettings,
     ILogger<MediaProcessingService> logger) : IMediaProcessingService
 {
     private readonly string _bucketName = minioSettings.Value.BucketName;
+    private readonly ImageProcessingSettings _imageSettings = imageProcessingSettings.Value;
 
     public async Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, CancellationToken cancellationToken = default)
     {
@@ -93,7 +95,7 @@ public class MediaProcessingService(
             }
 
             // Create thumbnail
-            await ResizeImageAsync(tempOriginal, thumbPath, Constants.ImageDimensions.ThumbnailWidth, Constants.ImageDimensions.ThumbnailHeight);
+            await ResizeImageAsync(tempOriginal, thumbPath, _imageSettings.ThumbnailWidth, _imageSettings.ThumbnailHeight);
             var thumbKey = $"{Constants.StoragePrefixes.Thumbnails}/{assetId}-thumb.jpg";
             using (var fs = File.OpenRead(thumbPath))
             {
@@ -101,7 +103,7 @@ public class MediaProcessingService(
             }
 
             // Create medium version
-            await ResizeImageAsync(tempOriginal, mediumPath, Constants.ImageDimensions.MediumWidth, Constants.ImageDimensions.MediumHeight);
+            await ResizeImageAsync(tempOriginal, mediumPath, _imageSettings.MediumWidth, _imageSettings.MediumHeight);
             var mediumKey = $"{Constants.StoragePrefixes.Medium}/{assetId}-medium.jpg";
             using (var fs = File.OpenRead(mediumPath))
             {
@@ -157,8 +159,8 @@ public class MediaProcessingService(
                 await originalStream.CopyToAsync(fs);
             }
 
-            // Extract poster frame at 5 seconds
-            await ExtractPosterAsync(tempOriginal, posterPath, 5);
+            // Extract poster frame
+            await ExtractPosterAsync(tempOriginal, posterPath, _imageSettings.PosterFrameSeconds);
             var posterKey = $"{Constants.StoragePrefixes.Posters}/{assetId}-poster.jpg";
             using (var fs = File.OpenRead(posterPath))
             {
@@ -226,8 +228,8 @@ public class MediaProcessingService(
     private async Task ResizeImageAsync(string inputPath, string outputPath, int maxWidth, int maxHeight)
     {
         var command = OperatingSystem.IsWindows()
-            ? new ProcessStartInfo("magick", $"\"{inputPath}\" -resize {maxWidth}x{maxHeight} -quality 85 \"{outputPath}\"")
-            : new ProcessStartInfo("convert", $"\"{inputPath}\" -resize {maxWidth}x{maxHeight} -quality 85 \"{outputPath}\"");
+            ? new ProcessStartInfo("magick", $"\"{inputPath}\" -resize {maxWidth}x{maxHeight} -quality {_imageSettings.JpegQuality} \"{outputPath}\"")
+            : new ProcessStartInfo("convert", $"\"{inputPath}\" -resize {maxWidth}x{maxHeight} -quality {_imageSettings.JpegQuality} \"{outputPath}\"");
 
         command.RedirectStandardOutput = true;
         command.RedirectStandardError = true;
@@ -252,7 +254,7 @@ public class MediaProcessingService(
     private async Task ExtractPosterAsync(string inputPath, string outputPath, int atSecond)
     {
         var command = new ProcessStartInfo("ffmpeg",
-            $"-ss {atSecond} -i \"{inputPath}\" -vframes 1 -vf \"scale=800:-1\" -q:v 5 \"{outputPath}\" -y")
+            $"-ss {atSecond} -i \"{inputPath}\" -vframes 1 -vf \"scale={_imageSettings.PosterWidth}:-1\" -q:v {_imageSettings.PosterQuality} \"{outputPath}\" -y")
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
