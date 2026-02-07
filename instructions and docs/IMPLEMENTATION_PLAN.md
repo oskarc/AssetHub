@@ -441,6 +441,237 @@ If Keycloak Admin API is too complex, consider:
 - Keycloak admin API access configured
 - SMTP server (optional, for email notifications)
 
+#### 17. Caching Strategy ⏳ PLANNED
+**Priority**: Medium  
+**Status**: Not started  
+**Description**: Identify and implement a caching strategy to reduce database load, improve response times, and handle repeated reads efficiently.
+
+**Scope**:
+- [ ] **Audit Current Performance**
+  - Profile hot paths (asset listing, collection tree, ACL checks, user lookups)
+  - Identify N+1 queries and repeated DB round-trips
+  - Measure baseline response times for key endpoints
+
+- [ ] **Choose Caching Layers**
+  - **In-Memory Cache** (`IMemoryCache`) for single-instance deployments
+    - Collection tree structure (changes infrequently)
+    - User role/ACL lookups per request
+    - Keycloak user info (username, email) from `UserLookupService`
+  - **Distributed Cache** (`IDistributedCache` / Redis) for multi-instance deployments
+    - Share token validation results
+    - Asset metadata (read-heavy, write-light)
+    - Session-scoped data
+  - **Response Caching / Output Caching** for static-ish endpoints
+    - Asset thumbnails / renditions (immutable once generated)
+    - Collection listings with short TTL
+  - **ETag / Conditional Requests** for API consumers
+    - Asset detail endpoint
+    - Collection listing endpoint
+
+- [ ] **Cache Invalidation Strategy**
+  - Define TTLs per cache category (e.g. ACL = 30s, thumbnails = 1h, user info = 5min)
+  - Event-driven invalidation for writes (collection rename, ACL change, asset update)
+  - Consider `ICacheInvalidationService` for centralized cache-busting
+  - Document cache consistency trade-offs
+
+- [ ] **Implementation**
+  - Register caching services in Program.cs
+  - Add caching decorators or integrate into existing services/repositories
+  - Add `Cache-Control` headers for static file endpoints (renditions, thumbnails)
+  - Consider `HybridCache` (.NET 9) for combined memory + distributed caching
+
+- [ ] **Monitoring & Validation**
+  - Log cache hit/miss ratios
+  - Verify no stale data issues in manual testing
+  - Compare before/after response times
+
+**Time Estimate**: 6-10 hours  
+**Dependencies**: None (Redis optional, in-memory cache works out of the box)
+
+#### 18. Metrics & Observability ⏳ PLANNED
+**Priority**: Medium  
+**Status**: Not started  
+**Description**: Select and integrate a metrics/observability tool to monitor application health, performance, and usage in production.
+
+**Scope**:
+- [ ] **Evaluate Tooling Options**
+  - **OpenTelemetry** (.NET native support) — vendor-neutral, exports to multiple backends
+  - **Prometheus + Grafana** — pull-based metrics, mature dashboarding
+  - **Application Insights** (Azure) — if Azure-hosted, zero-config .NET integration
+  - **Seq** — structured log aggregation (lightweight, self-hosted)
+  - **Elastic APM / ELK Stack** — full observability suite
+  - Decision criteria: self-hosted vs cloud, cost, complexity, team familiarity
+
+- [ ] **Metrics to Capture**
+  - **HTTP**: Request rate, latency (p50/p95/p99), error rate per endpoint
+  - **Business**: Uploads/day, shares created, active users, assets processed
+  - **Infrastructure**: CPU/memory usage, DB connection pool, MinIO latency
+  - **Background Jobs**: Hangfire queue depth, processing time, failure rate
+  - **Cache**: Hit/miss ratio (ties into #17)
+
+- [ ] **Structured Logging**
+  - Audit current `ILogger` usage for consistency
+  - Add correlation IDs for request tracing
+  - Configure log levels per environment (Debug for dev, Warning+ for prod)
+  - Consider Serilog sinks for structured output (JSON, Seq, Elasticsearch)
+
+- [ ] **Health Checks**
+  - `AspNetCore.Diagnostics.HealthChecks` for readiness/liveness probes
+  - PostgreSQL connectivity check
+  - MinIO connectivity check
+  - Keycloak connectivity check
+  - Hangfire server status
+  - Expose `/health` and `/health/ready` endpoints
+
+- [ ] **Dashboarding**
+  - Set up Grafana dashboards (or equivalent) for key metrics
+  - Define alerting rules (error rate spike, job queue backlog, disk usage)
+
+**Time Estimate**: 8-12 hours  
+**Dependencies**: Tooling decision must be made first; Docker Compose updated for any new services (Prometheus, Grafana, Seq)
+
+#### 19. Frontend Testing ⏳ PLANNED
+**Priority**: Medium  
+**Status**: Not started  
+**Description**: Establish a frontend testing strategy for the Blazor Server UI to catch regressions and validate component behavior.
+
+**Scope**:
+- [ ] **Evaluate Testing Approaches**
+  - **bUnit** — Unit/component testing for Blazor (in-process, fast, mocks services)
+  - **Playwright** — E2E browser testing (real browser, full user flows)
+  - **Both** — bUnit for component logic, Playwright for critical user journeys
+  - Decision: bUnit as primary, Playwright for smoke tests
+
+- [ ] **bUnit Component Tests**
+  - Set up `Dam.Ui.Tests` project with bUnit + xUnit
+  - Mock `AssetHubApiClient`, `IUserFeedbackService`, `IStringLocalizer<T>`, `NavigationManager`
+  - Priority components to test:
+    - `AssetGrid.razor` — renders assets, pagination, empty state, delete confirmation
+    - `CollectionTree.razor` — tree rendering, selection, rename, delete
+    - `CreateShareDialog.razor` — form validation, password generation, email list
+    - `CreateCollectionDialog.razor` — form submission, validation
+    - `EditAssetDialog.razor` — pre-populated fields, tag management, save
+    - `LanguageSwitcher.razor` — culture change, cookie set
+    - `AssetUpload.razor` — file selection, progress tracking, error states
+  - Test localization: verify components render with both `en` and `sv` cultures
+
+- [ ] **Playwright E2E Tests**
+  - Set up `Dam.E2E.Tests` project with Playwright for .NET
+  - Critical user flows to cover:
+    - Login → navigate to collections → select collection → view assets
+    - Upload asset → verify thumbnail appears → view detail
+    - Create share link → open share URL → enter password → view content
+    - Admin: manage users → create user → assign collection access
+    - Language switch: toggle to Swedish → verify nav/buttons change → toggle back
+  - Configure test fixtures for seeded data (test collection, test assets)
+  - Run against Docker Compose environment
+
+- [ ] **CI Integration**
+  - bUnit tests run on every build (fast, no infrastructure needed)
+  - Playwright tests run on PR / nightly (requires running app + services)
+  - Fail build on test failures
+
+- [ ] **Visual Regression (Optional)**
+  - Playwright screenshot comparison for key pages
+  - Detect unintended layout/style changes
+
+**Time Estimate**: 12-20 hours (bUnit setup + core tests + Playwright setup + critical flows)  
+**Dependencies**: None for bUnit; Docker Compose environment for Playwright
+
+#### 20. Deployment Playbooks & Onboarding Guide ⏳ PLANNED
+**Priority**: High  
+**Status**: Not started  
+**Description**: Create step-by-step playbooks that allow any organisation to clone the repo from GitHub and stand up a fully working AssetHub instance — covering both infrastructure provisioning and application configuration.
+
+**Scope**:
+
+- [ ] **Infrastructure Playbook**
+  - **Docker Compose (Self-Hosted)**
+    - Production-ready `docker-compose.prod.yml` with all services (app, worker, PostgreSQL, MinIO, Keycloak, Hangfire)
+    - `.env.template` file with every required variable documented (descriptions, defaults, examples)
+    - Volume mount strategy for persistent data (DB, MinIO buckets, Keycloak H2/Postgres)
+    - Networking configuration (internal service mesh, exposed ports)
+    - TLS/SSL termination setup (reverse proxy with Nginx/Traefik, Let's Encrypt)
+    - Resource limits and restart policies per container
+  - **Kubernetes (Optional)**
+    - Helm chart or Kustomize manifests for k8s deployment
+    - ConfigMap/Secret templates for environment configuration
+    - Ingress configuration with TLS
+    - PersistentVolumeClaim definitions for stateful services
+  - **Cloud-Specific Guides** (optional appendices)
+    - AWS: ECS/Fargate or EC2 + RDS + S3 (instead of MinIO)
+    - Azure: App Service + Azure Database for PostgreSQL + Blob Storage
+    - Bare metal / VPS: systemd units or Docker Compose on a single server
+  - **Backup & Restore**
+    - PostgreSQL backup script (`pg_dump` schedule, retention policy)
+    - MinIO bucket replication or backup strategy
+    - Keycloak realm export/import for disaster recovery
+    - Documented restore procedure with verification steps
+
+- [ ] **Keycloak Setup Playbook**
+  - Realm creation script or importable `realm-export.json` with all required configuration
+  - Client registration: OIDC client for AssetHub with correct redirect URIs, scopes, mappers
+  - Role definitions (if using Keycloak realm roles)
+  - User federation options (LDAP/AD integration guide)
+  - SMTP configuration for Keycloak email verification/password reset
+  - Admin service account creation for the Create User API (#16)
+  - Identity provider federation (optional: Google, Azure AD, SAML)
+  - Checklist: verify token endpoint, userinfo endpoint, JWKS URI all reachable from app
+
+- [ ] **MinIO Setup Playbook**
+  - Bucket creation script (asset storage bucket, naming convention)
+  - Access policy configuration (application service account, read/write permissions)
+  - CORS configuration for direct browser uploads (if applicable)
+  - Lifecycle rules (e.g., auto-delete incomplete multipart uploads)
+  - Optional: migration guide from MinIO to AWS S3 / Azure Blob (S3-compatible API)
+
+- [ ] **Application Configuration Playbook**
+  - `appsettings.Production.json` template with all sections explained:
+    - `ConnectionStrings:DefaultConnection` — PostgreSQL
+    - `StorageConfig` — MinIO endpoint, bucket, access key, secret key
+    - `Authentication` — Keycloak authority, client ID, client secret, audience
+    - `HangfireConfig` — dashboard credentials, worker count
+    - `MediaProcessing` — ImageMagick/ffmpeg paths (or container paths)
+  - Environment variable override reference (`ASPNETCORE_*`, `ConnectionStrings__*`, etc.)
+  - CORS and allowed origins configuration
+  - Logging level configuration per environment
+  - Feature flags / toggles (if any)
+
+- [ ] **Database Setup Playbook**
+  - EF Core migrations: how to apply (`dotnet ef database update` or migration bundle)
+  - Initial seed data (default admin user, root collection — if applicable)
+  - Connection string format with SSL mode for production
+  - Performance tuning recommendations (connection pooling, `pg_trgm` extension for search)
+
+- [ ] **First-Run Quickstart**
+  - Single-page "5-minute setup" guide:
+    1. Clone repo
+    2. Copy `.env.template` → `.env`, fill in values
+    3. `docker compose -f docker-compose.prod.yml up -d`
+    4. Run database migrations
+    5. Import Keycloak realm (or run setup script)
+    6. Create first admin user in Keycloak
+    7. Open browser → login → create first collection → upload an asset
+  - Troubleshooting FAQ (common issues: Keycloak redirect mismatch, MinIO connection refused, migration failures)
+  - Health check verification: `curl /health` returns healthy for all dependencies
+
+- [ ] **Upgrade & Migration Guide**
+  - How to upgrade to a new version (pull, migrate, restart)
+  - Breaking change policy and changelog format
+  - Database migration safety (always backup before `ef database update`)
+  - Configuration diff tool or changelog for new settings between versions
+
+- [ ] **Security Hardening Checklist**
+  - Change all default passwords (Keycloak admin, MinIO root, Hangfire dashboard, PostgreSQL)
+  - Enable HTTPS everywhere (app, Keycloak, MinIO)
+  - Restrict Hangfire dashboard access (IP whitelist or auth)
+  - Review Keycloak client settings (confidential client, PKCE, token lifetimes)
+  - Set `ASPNETCORE_ENVIRONMENT=Production` (disables dev-only features)
+  - Firewall rules: only expose ports 443 (app) and 8443 (Keycloak) externally
+
+**Time Estimate**: 10-16 hours  
+**Dependencies**: Production Docker Compose (#17–#18 inform monitoring additions), stable configuration schema
+
 ---
 
 ## Session Notes
