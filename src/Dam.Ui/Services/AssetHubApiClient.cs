@@ -427,6 +427,16 @@ public class AssetHubApiClient
         return await response.Content.ReadFromJsonAsync<List<KeycloakUserDto>>() ?? new();
     }
 
+    /// <summary>
+    /// Creates a new user in Keycloak (admin only).
+    /// </summary>
+    public async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request)
+    {
+        var response = await _http.PostAsJsonAsync("/api/admin/users", request);
+        await EnsureSuccessAsync(response, "Create user");
+        return await ReadRequiredJsonAsync<CreateUserResponse>(response, "Create user");
+    }
+
     #endregion
 
     #region Asset Collections (Multi-Collection)

@@ -46,14 +46,14 @@
             @foreach (var upload in _uploads)
             {
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudIcon Icon="@GetFileIcon(upload.ContentType)" 
+                    <MudIcon Icon="@AssetDisplayHelpers.GetContentTypeIcon(upload.ContentType)" 
                              Size="Size.Small" 
                              Color="@GetStatusColor(upload.Status)" />
                     <MudText Typo="Typo.body2" Class="flex-grow-1 text-truncate" Style="max-width: 200px;">
                         @upload.FileName
                     </MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        @FormatFileSize(upload.Size)
+                        @AssetDisplayHelpers.FormatFileSize(upload.Size)
                     </MudText>
                     @if (upload.Status == UploadStatus.Uploading)
                     {
@@ -155,14 +155,6 @@
         StateHasChanged();
     }
 
-    private string GetFileIcon(string contentType)
-    {
-        if (contentType.StartsWith("image/")) return Icons.Material.Filled.Image;
-        if (contentType.StartsWith("video/")) return Icons.Material.Filled.VideoFile;
-        if (contentType.Contains("pdf")) return Icons.Material.Filled.PictureAsPdf;
-        return Icons.Material.Filled.InsertDriveFile;
-    }
-
     private Color GetStatusColor(UploadStatus status)
     {
         return status switch
@@ -173,19 +165,6 @@
             UploadStatus.Failed => Color.Error,
             _ => Color.Default
         };
-    }
-
-    private string FormatFileSize(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB" };
-        double len = bytes;
-        int order = 0;
-        while (len >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            len /= 1024;
-        }
-        return $"{len:0.##} {sizes[order]}";
     }
 
     private class UploadItem

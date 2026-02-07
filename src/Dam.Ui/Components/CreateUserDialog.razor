@@ -1,0 +1,311 @@
+@using MudBlazor
+@using Dam.Application
+@using Dam.Application.Dtos
+@using Dam.Application.Helpers
+@using Dam.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Create New User</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (_createdUser != null)
+        {
+            @* Success state *@
+            <MudStack Spacing="3">
+                <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
+                    User "@_createdUser.Username" created successfully!
+                </MudAlert>
+
+                <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Account Details</MudText>
+                        <MudGrid>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Style="font-weight: 600;">Username</MudText></MudItem>
+                            <MudItem xs="8"><MudText Typo="Typo.body2">@_createdUser.Username</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Style="font-weight: 600;">Email</MudText></MudItem>
+                            <MudItem xs="8"><MudText Typo="Typo.body2">@_createdUser.Email</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Style="font-weight: 600;">User ID</MudText></MudItem>
+                            <MudItem xs="8"><MudText Typo="Typo.caption" Style="word-break: break-all;">@_createdUser.UserId</MudText></MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudPaper>
+
+                @if (!string.IsNullOrEmpty(_generatedPassword))
+                {
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.body2" Style="font-weight: 600;">Temporary Password</MudText>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudTextField Value="@_generatedPassword" ReadOnly="true" Variant="Variant.Outlined"
+                                              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                                              OnAdornmentClick="CopyPassword" AdornmentColor="Color.Primary"
+                                              Style="font-family: monospace;" />
+                            </MudStack>
+                            <MudText Typo="Typo.caption" Color="Color.Warning">
+                                @if (_model.RequirePasswordChange)
+                                {
+                                    <text>The user will be required to change this password on first login.</text>
+                                }
+                                else
+                                {
+                                    <text>Save this password — it cannot be retrieved later.</text>
+                                }
+                            </MudText>
+                        </MudStack>
+                    </MudAlert>
+                }
+
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@_createdUser.Message</MudText>
+
+                @if (_model.SendWelcomeEmail)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+                        <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Class="mr-1" />
+                        A welcome email with login instructions has been sent to <strong>@_createdUser.Email</strong>.
+                    </MudAlert>
+                }
+            </MudStack>
+        }
+        else
+        {
+            @* Form state *@
+            <MudForm @ref="_form" @bind-IsValid="_formIsValid">
+                <MudStack Spacing="3">
+                    @* Basic Info *@
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">Account Information</MudText>
+
+                    <MudTextField @bind-Value="_model.Username" Label="Username" Required="true"
+                                  RequiredError="Username is required"
+                                  Validation="@(new Func<string, string?>(ValidateUsername))"
+                                  Variant="Variant.Outlined" Immediate="true"
+                                  HelperText="3-50 characters, letters/numbers/underscores/hyphens" />
+
+                    <MudTextField @bind-Value="_model.Email" Label="Email" Required="true"
+                                  RequiredError="Email is required"
+                                  Validation="@(new Func<string, string?>(ValidateEmail))"
+                                  Variant="Variant.Outlined" Immediate="true"
+                                  InputType="InputType.Email" />
+
+                    <MudGrid>
+                        <MudItem xs="6">
+                            <MudTextField @bind-Value="_model.FirstName" Label="First Name" Required="true"
+                                          RequiredError="First name is required"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudTextField @bind-Value="_model.LastName" Label="Last Name" Required="true"
+                                          RequiredError="Last name is required"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+
+                    @* Password *@
+                    <MudDivider Class="my-1" />
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">Password</MudText>
+
+                    <MudStack Row="true" AlignItems="AlignItems.End" Spacing="2">
+                        <MudTextField @bind-Value="_model.Password" Label="Password" Required="true"
+                                      RequiredError="Password is required"
+                                      Validation="@(new Func<string, string?>(ValidatePassword))"
+                                      Variant="Variant.Outlined" Immediate="true"
+                                      InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                      OnAdornmentClick="() => _showPassword = !_showPassword"
+                                      Style="flex: 1;" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Medium"
+                                   StartIcon="@Icons.Material.Filled.Casino"
+                                   OnClick="GeneratePassword"
+                                   Style="height: 56px; white-space: nowrap;">
+                            Generate
+                        </MudButton>
+                    </MudStack>
+
+                    <MudCheckBox @bind-Value="_model.RequirePasswordChange" Color="Color.Primary"
+                                 Label="Require password change on first login" />
+
+                    <MudCheckBox @bind-Value="_model.SendWelcomeEmail" Color="Color.Primary"
+                                 Label="Send welcome email with login credentials" />
+
+                    @* Optional: Initial Collection Access *@
+                    @if (_collections != null && _collections.Any())
+                    {
+                        <MudDivider Class="my-1" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">
+                            Initial Collection Access (optional)
+                        </MudText>
+
+                        <MudSelect @bind-Value="_model.InitialRole" Label="Role for selected collections"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">Viewer</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">Contributor</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Manager">Manager</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Admin">Admin</MudSelectItem>
+                        </MudSelect>
+
+                        <MudSelect T="Guid" MultiSelection="true" @bind-SelectedValues="_selectedCollectionIds"
+                                   Label="Collections" Variant="Variant.Outlined"
+                                   MultiSelectionTextFunc="@(ids => $"{ids.Count()} collection(s) selected")"
+                                   HelperText="Select collections to grant access to the new user">
+                            @foreach (var col in _flatCollections)
+                            {
+                                <MudSelectItem T="Guid" Value="@col.Id">
+                                    @(new string('\u00A0', col.Depth * 4))@(col.Depth > 0 ? "└ " : "")@col.Name
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true">@_errorMessage</MudAlert>
+                    }
+                </MudStack>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_createdUser != null)
+        {
+            <MudButton OnClick="Close" Color="Color.Primary" Variant="Variant.Filled">Done</MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="Cancel">Cancel</MudButton>
+            <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
+                       Disabled="@(!_formIsValid || _submitting)"
+                       StartIcon="@(_submitting ? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.PersonAdd)">
+                @if (_submitting)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <text>Creating...</text>
+                }
+                else
+                {
+                    <text>Create User</text>
+                }
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm _form = null!;
+    private bool _formIsValid;
+    private bool _submitting;
+    private bool _showPassword;
+    private string? _errorMessage;
+    private string? _generatedPassword;
+    private CreateUserResponse? _createdUser;
+
+    private CreateUserFormModel _model = new()
+    {
+        RequirePasswordChange = true,
+        InitialRole = RoleHierarchy.Roles.Viewer
+    };
+
+    // Collections for the multi-select
+    private List<CollectionAccessDto>? _collections;
+    private List<FlatCollection> _flatCollections = [];
+    private IEnumerable<Guid> _selectedCollectionIds = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _collections = await Api.GetCollectionAccessAsync();
+            _flatCollections = CollectionTreeHelper.Flatten(_collections);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+        }
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid)
+            return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new CreateUserRequest
+            {
+                Username = _model.Username.Trim(),
+                Email = _model.Email.Trim(),
+                FirstName = _model.FirstName.Trim(),
+                LastName = _model.LastName.Trim(),
+                Password = _model.Password,
+                RequirePasswordChange = _model.RequirePasswordChange,
+                SendWelcomeEmail = _model.SendWelcomeEmail,
+                InitialCollectionIds = _selectedCollectionIds.ToList(),
+                InitialRole = _model.InitialRole
+            };
+
+            _createdUser = await Api.CreateUserAsync(request);
+            _generatedPassword = _model.Password;
+            Feedback.ShowSuccess($"User \"{_model.Username}\" created successfully");
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "create user");
+            _errorMessage = "An unexpected error occurred. Please try again.";
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(_createdUser));
+
+    private void GeneratePassword()
+    {
+        _model.Password = PasswordGenerator.Generate(16);
+        _showPassword = true;
+        _form.Validate();
+    }
+
+    private async Task CopyPassword()
+    {
+        // The password field is read-only in success state, just show a feedback message
+        Feedback.ShowSuccess("Password displayed — please copy it manually and share securely with the user");
+    }
+
+    // Validation methods — delegate to shared InputValidation helpers
+    private static string? ValidateUsername(string value) => InputValidation.ValidateUsername(value);
+    private static string? ValidateEmail(string value) => InputValidation.ValidateEmail(value);
+    private static string? ValidatePassword(string value) => InputValidation.ValidatePassword(value);
+
+    private class CreateUserFormModel
+    {
+        public string Username { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Password { get; set; } = "";
+        public bool RequirePasswordChange { get; set; } = true;
+        public bool SendWelcomeEmail { get; set; } = true;
+        public string InitialRole { get; set; } = "viewer";
+    }
+}

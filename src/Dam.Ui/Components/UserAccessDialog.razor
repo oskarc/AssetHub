@@ -22,7 +22,7 @@
                         <MudText Typo="Typo.subtitle1">@User.UserName</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">@User.UserId</MudText>
                     </MudStack>
-                    <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(User.HighestRole)">
+                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(User.HighestRole)">
                         Highest: @User.HighestRole
                     </MudChip>
                 </MudStack>
@@ -62,7 +62,7 @@
                                     </MudLink>
                                 </td>
                                 <td>
-                                    <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(collection.Role)" Variant="Variant.Outlined">
+                                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(collection.Role)" Variant="Variant.Outlined">
                                         @collection.Role
                                     </MudChip>
                                 </td>
@@ -129,12 +129,4 @@
         }
     }
 
-    private static Color GetRoleColor(string role) => role.ToLowerInvariant() switch
-    {
-        "admin" => Color.Error,
-        "manager" => Color.Warning,
-        "contributor" => Color.Info,
-        "viewer" => Color.Default,
-        _ => Color.Default
-    };
 }

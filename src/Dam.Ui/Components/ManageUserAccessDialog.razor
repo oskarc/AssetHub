@@ -1,6 +1,7 @@
 @using MudBlazor
 @using Dam.Application
 @using Dam.Application.Dtos
+@using Dam.Application.Helpers
 @using Dam.Ui.Services
 
 @inject NavigationManager Nav
@@ -120,7 +121,7 @@
                                     }
                                     else
                                     {
-                                        <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(collection.Role)" Variant="Variant.Outlined">
+                                        <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(collection.Role)" Variant="Variant.Outlined">
                                             @collection.Role
                                         </MudChip>
                                     }
@@ -222,23 +223,11 @@
         {
             var hierarchicalCollections = await Api.GetCollectionAccessAsync();
             // Flatten the hierarchy to make all collections available
-            _allCollections = FlattenCollections(hierarchicalCollections).ToList();
+            _allCollections = CollectionTreeHelper.FlattenAll(hierarchicalCollections).ToList();
         }
         catch (Exception ex)
         {
             Feedback.HandleError(ex, "load collections");
-        }
-    }
-
-    private static IEnumerable<CollectionAccessDto> FlattenCollections(List<CollectionAccessDto> collections)
-    {
-        foreach (var collection in collections)
-        {
-            yield return collection;
-            foreach (var child in FlattenCollections(collection.Children))
-            {
-                yield return child;
-            }
         }
     }
 
@@ -346,13 +335,4 @@
     }
 
     private void Close() => MudDialog.Close(DialogResult.Ok(true));
-
-    private static Color GetRoleColor(string role) => role.ToLowerInvariant() switch
-    {
-        var r when r == RoleHierarchy.Roles.Admin => Color.Error,
-        var r when r == RoleHierarchy.Roles.Manager => Color.Warning,
-        var r when r == RoleHierarchy.Roles.Contributor => Color.Info,
-        var r when r == RoleHierarchy.Roles.Viewer => Color.Default,
-        _ => Color.Default
-    };
 }

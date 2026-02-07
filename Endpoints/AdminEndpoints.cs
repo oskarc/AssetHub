@@ -1,5 +1,6 @@
 using Dam.Application;
 using Dam.Application.Dtos;
+using Dam.Application.Helpers;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -50,7 +51,7 @@ public static class AdminEndpoints
                 LastAccessedAt = s.LastAccessedAt,
                 AccessCount = s.AccessCount,
                 HasPassword = !string.IsNullOrEmpty(s.PasswordHash),
-                Status = GetShareStatus(s)
+                Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt)
             }).ToList();
             
             return Results.Ok(result);
@@ -105,7 +106,7 @@ public static class AdminEndpoints
                 .ToList();
             var userNames = await userLookup.GetUserNamesAsync(allUserIds, ct);
             
-            var result = rootCollections.Select(c => BuildCollectionAccessTree(c, allCollections, userNames)).ToList();
+            var result = rootCollections.Select(c => CollectionTreeHelper.BuildAccessTree(c, allCollections, userNames)).ToList();
             
             return Results.Ok(result);
         })
@@ -222,7 +223,7 @@ public static class AdminEndpoints
                     UserId = g.Key,
                     UserName = userNames.TryGetValue(g.Key, out var name) ? name : g.Key,
                     CollectionCount = g.Count(),
-                    HighestRole = GetHighestRole(g.Select(a => a.Role)),
+                    HighestRole = RoleHierarchy.GetHighestRole(g.Select(a => a.Role)),
                     Collections = g.Select(a => new UserCollectionAccessDto
                     {
                         CollectionId = a.CollectionId,
@@ -257,7 +258,7 @@ public static class AdminEndpoints
                 .ToDictionary(g => g.Key, g => new
                 {
                     CollectionCount = g.Count(),
-                    HighestRole = GetHighestRole(g.Select(a => a.Role))
+                    HighestRole = RoleHierarchy.GetHighestRole(g.Select(a => a.Role))
                 });
             
             var result = allUsers.Select(u => new KeycloakUserDto
@@ -275,50 +276,89 @@ public static class AdminEndpoints
         .WithName("GetKeycloakUsers")
         .WithSummary("Gets all users from Keycloak (admin only)")
         .Produces<List<KeycloakUserDto>>();
-    }
 
-    // ===== HELPER METHODS =====
-    
-    private static string GetShareStatus(Dam.Domain.Entities.Share share)
-    {
-        if (share.RevokedAt.HasValue)
-            return "Revoked";
-        if (share.ExpiresAt < DateTime.UtcNow)
-            return "Expired";
-        return "Active";
-    }
+        // ===== USER CREATION =====
 
-    private static CollectionAccessDto BuildCollectionAccessTree(
-        Dam.Domain.Entities.Collection collection, 
-        List<Dam.Domain.Entities.Collection> allCollections,
-        Dictionary<string, string> userNames)
-    {
-        var children = allCollections.Where(c => c.ParentId == collection.Id).ToList();
-        
-        return new CollectionAccessDto
+        /// <summary>
+        /// Creates a new user in Keycloak with optional initial collection access.
+        /// </summary>
+        group.MapPost("/users", async (
+            [FromBody] CreateUserRequest request,
+            [FromServices] IKeycloakUserService keycloakUserService,
+            [FromServices] IUserProvisioningService provisioning,
+            [FromServices] IConfiguration configuration,
+            HttpContext httpContext,
+            ILogger<Program> logger,
+            CancellationToken ct) =>
         {
-            Id = collection.Id,
-            Name = collection.Name,
-            Description = collection.Description,
-            ParentId = collection.ParentId,
-            Acls = collection.Acls.Select(a => new CollectionAclResponseDto
-            {
-                Id = a.Id,
-                PrincipalType = a.PrincipalType,
-                PrincipalId = a.PrincipalId,
-                PrincipalName = a.PrincipalType == "user" && userNames.TryGetValue(a.PrincipalId, out var name) 
-                    ? name 
-                    : a.PrincipalId,
-                Role = a.Role
-            }).ToList(),
-            Children = children.Select(c => BuildCollectionAccessTree(c, allCollections, userNames)).ToList()
-        };
-    }
+            var username = request.Username?.Trim() ?? "";
+            var email = request.Email?.Trim() ?? "";
+            var firstName = request.FirstName?.Trim() ?? "";
+            var lastName = request.LastName?.Trim() ?? "";
 
-    private static string GetHighestRole(IEnumerable<string> roles)
-    {
-        return roles
-            .OrderByDescending(r => RoleHierarchy.GetLevel(r))
-            .FirstOrDefault() ?? RoleHierarchy.Roles.Viewer;
+            // Validate inputs using shared validators
+            if (!InputValidation.TryValidate(out var errors,
+                ("username", InputValidation.ValidateUsername(username)),
+                ("email", InputValidation.ValidateEmail(email)),
+                ("firstName", InputValidation.ValidateRequired(firstName, "First name")),
+                ("lastName", InputValidation.ValidateRequired(lastName, "Last name")),
+                ("password", InputValidation.ValidatePassword(request.Password))))
+            {
+                return Results.BadRequest(ApiError.ValidationError("Validation failed", errors));
+            }
+
+            // Validate initial collections exist
+            var collectionErrors = await provisioning.ValidateCollectionsExistAsync(request.InitialCollectionIds, ct);
+            if (collectionErrors.Count > 0)
+                return Results.BadRequest(ApiError.ValidationError("One or more collections not found", collectionErrors));
+
+            try
+            {
+                var userId = await keycloakUserService.CreateUserAsync(
+                    username, email, firstName, lastName,
+                    request.Password, request.RequirePasswordChange, ct);
+
+                logger.LogInformation("Admin created user '{Username}' (ID: {UserId})", username, userId);
+
+                var role = RoleHierarchy.ResolveRole(request.InitialRole);
+                await provisioning.GrantCollectionAccessAsync(request.InitialCollectionIds, userId, role, username, ct);
+
+                if (request.SendWelcomeEmail && !string.IsNullOrWhiteSpace(email))
+                {
+                    var baseUrl = configuration["App:BaseUrl"] ?? $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+                    var adminUsername = httpContext.User.Identity?.Name ?? "An administrator";
+                    await provisioning.SendWelcomeEmailAsync(
+                        email, username, request.Password, request.RequirePasswordChange,
+                        baseUrl, adminUsername, ct);
+                }
+
+                return Results.Created($"/api/admin/users/{userId}", new CreateUserResponse
+                {
+                    UserId = userId,
+                    Username = username,
+                    Email = email,
+                    Message = request.InitialCollectionIds.Count > 0
+                        ? $"User created and granted {role} access to {request.InitialCollectionIds.Count} collection(s)"
+                        : "User created successfully"
+                });
+            }
+            catch (KeycloakApiException ex)
+            {
+                logger.LogWarning(ex, "Keycloak API error creating user '{Username}'", username);
+                return ex.StatusCode == 409
+                    ? Results.Conflict(ApiError.BadRequest(ex.Message))
+                    : Results.BadRequest(ApiError.BadRequest(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unexpected error creating user '{Username}'", username);
+                return Results.StatusCode(500);
+            }
+        })
+        .WithName("CreateUser")
+        .WithSummary("Creates a new user in Keycloak (admin only)")
+        .Produces<CreateUserResponse>(StatusCodes.Status201Created)
+        .Produces<ApiError>(StatusCodes.Status400BadRequest)
+        .Produces<ApiError>(StatusCodes.Status409Conflict);
     }
 }

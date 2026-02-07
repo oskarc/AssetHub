@@ -24,6 +24,11 @@ public static class RolePermissions
     public static bool CanEdit(string? role) => RoleHierarchy.CanEdit(role);
 
     /// <summary>
+    /// Checks if a user with the given role can manage collection membership (requires contributor+).
+    /// </summary>
+    public static bool CanManageCollections(string? role) => RoleHierarchy.CanManageCollections(role);
+
+    /// <summary>
     /// Checks if a user with the given role can delete assets (requires manager+).
     /// </summary>
     public static bool CanDelete(string? role) => RoleHierarchy.CanDelete(role);

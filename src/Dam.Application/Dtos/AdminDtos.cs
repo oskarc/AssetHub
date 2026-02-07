@@ -85,3 +85,62 @@ public record KeycloakUserDto
     public int CollectionCount { get; init; }
     public string? HighestRole { get; init; }
 }
+
+/// <summary>
+/// Request to create a new user via Keycloak Admin API.
+/// </summary>
+public record CreateUserRequest
+{
+    [Required]
+    [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters")]
+    [RegularExpression(@"^[a-zA-Z0-9_\-\.]+$", ErrorMessage = "Username can only contain letters, numbers, underscores, hyphens, and dots")]
+    public string Username { get; init; } = "";
+
+    [Required]
+    [EmailAddress(ErrorMessage = "Invalid email address")]
+    public string Email { get; init; } = "";
+
+    [Required]
+    [StringLength(100, MinimumLength = 1, ErrorMessage = "First name is required")]
+    public string FirstName { get; init; } = "";
+
+    [Required]
+    [StringLength(100, MinimumLength = 1, ErrorMessage = "Last name is required")]
+    public string LastName { get; init; } = "";
+
+    [Required]
+    [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+    public string Password { get; init; } = "";
+
+    /// <summary>
+    /// If true, the user must change their password on first login.
+    /// </summary>
+    public bool RequirePasswordChange { get; init; } = true;
+
+    /// <summary>
+    /// If true, a welcome email with login credentials will be sent to the user.
+    /// </summary>
+    public bool SendWelcomeEmail { get; init; } = true;
+
+    /// <summary>
+    /// Optional: Collection IDs to grant initial access to.
+    /// </summary>
+    public List<Guid> InitialCollectionIds { get; init; } = [];
+
+    /// <summary>
+    /// Role to assign for initial collections (default: viewer).
+    /// </summary>
+    [RegularExpression("^(viewer|contributor|manager|admin)$", ErrorMessage = "Invalid role")]
+    public string InitialRole { get; init; } = "viewer";
+}
+
+/// <summary>
+/// Response after successfully creating a user.
+/// </summary>
+public record CreateUserResponse
+{
+    public required string UserId { get; init; }
+    public required string Username { get; init; }
+    public required string Email { get; init; }
+    public required string Message { get; init; }
+}

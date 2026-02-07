@@ -62,6 +62,11 @@ public static class RoleHierarchy
     public static bool CanEdit(string? role) => GetLevel(role) >= 2;
 
     /// <summary>
+    /// Checks if user can manage collection membership (requires contributor+).
+    /// </summary>
+    public static bool CanManageCollections(string? role) => GetLevel(role) >= 2;
+
+    /// <summary>
     /// Checks if user can delete assets (requires manager+).
     /// </summary>
     public static bool CanDelete(string? role) => GetLevel(role) >= 3;
@@ -75,4 +80,24 @@ public static class RoleHierarchy
     /// All valid role names.
     /// </summary>
     public static IReadOnlyCollection<string> AllRoles => Levels.Keys.ToList().AsReadOnly();
+
+    /// <summary>
+    /// Returns the highest role from a set of roles based on the hierarchy.
+    /// Falls back to Viewer if the set is empty or contains only unknown roles.
+    /// </summary>
+    public static string GetHighestRole(IEnumerable<string> roles)
+    {
+        return roles
+            .OrderByDescending(r => GetLevel(r))
+            .FirstOrDefault() ?? Roles.Viewer;
+    }
+
+    /// <summary>
+    /// Resolves a role string to a valid role, falling back to Viewer for unknown values.
+    /// </summary>
+    public static string ResolveRole(string? role)
+    {
+        var normalized = role?.ToLowerInvariant() ?? "";
+        return AllRoles.Contains(normalized) ? normalized : Roles.Viewer;
+    }
 }

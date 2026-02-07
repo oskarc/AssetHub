@@ -83,6 +83,8 @@ services:
       Keycloak__Authority: "http://keycloak:8080/realms/media"
       Keycloak__ClientId: "assethub-app"
       Keycloak__ClientSecret: "VxBiV29QVchYHFzD5N62l43fTXbTMzSl"
+      Keycloak__AdminUsername: "admin"
+      Keycloak__AdminPassword: "admin123"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: "minioadmin"
       MinIO__SecretKey: "minioadmin_dev_password"

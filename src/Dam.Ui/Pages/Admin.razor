@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using Dam.Application
 @using Dam.Application.Dtos
+@using Dam.Application.Helpers
 @using Dam.Ui.Services
 @using Dam.Ui.Components
 @attribute [Authorize(Policy = "RequireAdmin")]
@@ -92,7 +93,7 @@
                     <MudTd>@(context.LastAccessedAt?.ToLocalTime().ToString("g") ?? "Never")</MudTd>
                     <MudTd><MudChip T="string" Size="Size.Small">@context.AccessCount</MudChip></MudTd>
                     <MudTd>
-                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                        <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetShareStatusColor(context.Status)">
                             @context.Status
                         </MudChip>
                     </MudTd>
@@ -208,7 +209,7 @@
                                             <tr>
                                                 <td>@acl.PrincipalName</td>
                                                 <td>
-                                                    <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(acl.Role)">
+                                                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(acl.Role)">
                                                         @acl.Role
                                                     </MudChip>
                                                 </td>
@@ -245,8 +246,11 @@
         else if (_allUsers == null || !_allUsers.Any())
         {
             <EmptyState Title="No users found"
-                        Description="No users exist in the Keycloak realm yet."
-                        Icon="@Icons.Material.Filled.PeopleAlt" />
+                        Description="No users exist in the Keycloak realm yet. Create a user to get started."
+                        Icon="@Icons.Material.Filled.PeopleAlt"
+                        ActionText="Create User"
+                        ActionIcon="@Icons.Material.Filled.PersonAdd"
+                        OnAction="OpenCreateUserDialog" />
         }
         else
         {
@@ -258,6 +262,11 @@
                     <MudSpacer />
                     <MudChip T="string" Color="Color.Info" Size="Size.Small">Total: @_allUsers.Count</MudChip>
                     <MudChip T="string" Color="Color.Success" Size="Size.Small">With Access: @_allUsers.Count(u => u.CollectionCount > 0)</MudChip>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.PersonAdd"
+                               OnClick="OpenCreateUserDialog" Class="ml-2">
+                        Create User
+                    </MudButton>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Username)">Username</MudTableSortLabel></MudTh>
@@ -284,7 +293,7 @@
                     <MudTd>
                         @if (!string.IsNullOrEmpty(context.HighestRole))
                         {
-                            <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.HighestRole)">
+                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(context.HighestRole)">
                                 @context.HighestRole
                             </MudChip>
                         }
@@ -407,14 +416,6 @@
         }
     }
 
-    private static Color GetStatusColor(string status) => status switch
-    {
-        "Active" => Color.Success,
-        "Expired" => Color.Warning,
-        "Revoked" => Color.Error,
-        _ => Color.Default
-    };
-
     // ===== COLLECTION ACCESS =====
     
     private async Task LoadCollections()
@@ -428,7 +429,7 @@
             // Re-select the previously selected collection to show updated ACLs
             if (selectedId.HasValue)
             {
-                _selectedCollection = FindCollection(_collections, selectedId.Value);
+                _selectedCollection = CollectionTreeHelper.FindById(_collections, selectedId.Value);
             }
         }
         catch (Exception ex)
@@ -484,7 +485,7 @@
             await LoadCollections();
             
             // Re-select the collection to refresh ACLs
-            _selectedCollection = FindCollection(_collections, _selectedCollection.Id);
+            _selectedCollection = CollectionTreeHelper.FindById(_collections, _selectedCollection.Id);
         }
         catch (Exception ex)
         {
@@ -521,31 +522,9 @@
         if (success)
         {
             await LoadCollections();
-            _selectedCollection = FindCollection(_collections, _selectedCollection.Id);
+            _selectedCollection = CollectionTreeHelper.FindById(_collections, _selectedCollection.Id);
         }
     }
-
-    private static CollectionAccessDto? FindCollection(List<CollectionAccessDto>? collections, Guid id)
-    {
-        if (collections == null) return null;
-        
-        foreach (var col in collections)
-        {
-            if (col.Id == id) return col;
-            var found = FindCollection(col.Children, id);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    private static Color GetRoleColor(string role) => role.ToLowerInvariant() switch
-    {
-        var r when r == RoleHierarchy.Roles.Admin => Color.Error,
-        var r when r == RoleHierarchy.Roles.Manager => Color.Warning,
-        var r when r == RoleHierarchy.Roles.Contributor => Color.Info,
-        var r when r == RoleHierarchy.Roles.Viewer => Color.Default,
-        _ => Color.Default
-    };
 
     // ===== USER MANAGEMENT =====
     
@@ -596,6 +575,25 @@
         var result = await dialog.Result;
 
         // Refresh both user list and collection access to show updated data
+        if (result != null && !result.Canceled)
+        {
+            await Task.WhenAll(LoadAllUsers(), LoadCollections());
+        }
+    }
+
+    private async Task OpenCreateUserDialog()
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<CreateUserDialog>("Create New User", options);
+        var result = await dialog.Result;
+
+        // Refresh user list if a user was created
         if (result != null && !result.Canceled)
         {
             await Task.WhenAll(LoadAllUsers(), LoadCollections());

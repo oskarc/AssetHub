@@ -90,7 +90,7 @@
                             Your browser does not support the video tag.
                         </video>
                     }
-                    else if (IsPdfPreviewable(_sharedAsset.ContentType))
+                    else if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType))
                     {
                         <iframe src="@GetPreviewUrl()" 
                                 style="width: 100%; height: 600px; border: none;" 
@@ -124,7 +124,7 @@
                         <!-- Title and Type -->
                         <MudStack>
                             <MudText Typo="Typo.h5">@_sharedAsset.Title</MudText>
-                            <MudChip T="string" Size="Size.Small" Color="@GetAssetTypeColor(_sharedAsset.AssetType)" Style="width: fit-content;">
+                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_sharedAsset.AssetType)" Style="width: fit-content;">
                                 @_sharedAsset.AssetType.ToUpperInvariant()
                             </MudChip>
                         </MudStack>
@@ -147,7 +147,7 @@
                                 <tbody>
                                     <tr>
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">Size</MudText></td>
-                                        <td><MudText Typo="Typo.body2">@FormatFileSize(_sharedAsset.SizeBytes)</MudText></td>
+                                        <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(_sharedAsset.SizeBytes)</MudText></td>
                                     </tr>
                                     <tr>
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">Type</MudText></td>
@@ -175,7 +175,7 @@
                                                     @foreach (var kvp in _sharedAsset.MetadataJson.OrderBy(k => k.Key))
                                                     {
                                                         <tr>
-                                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@FormatMetadataKey(kvp.Key)</MudText></td>
+                                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
                                                             <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
                                                         </tr>
                                                     }
@@ -259,7 +259,7 @@
                             <!-- Title and Type -->
                             <MudStack>
                                 <MudText Typo="Typo.h5">@_selectedAsset.Title</MudText>
-                                <MudChip T="string" Size="Size.Small" Color="@GetAssetTypeColor(_selectedAsset.AssetType)" Style="width: fit-content;">
+                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_selectedAsset.AssetType)" Style="width: fit-content;">
                                     @_selectedAsset.AssetType.ToUpperInvariant()
                                 </MudChip>
                             </MudStack>
@@ -282,7 +282,7 @@
                                     <tbody>
                                         <tr>
                                             <td><MudText Typo="Typo.body2" Color="Color.Secondary">Size</MudText></td>
-                                            <td><MudText Typo="Typo.body2">@FormatFileSize(_selectedAsset.SizeBytes)</MudText></td>
+                                            <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(_selectedAsset.SizeBytes)</MudText></td>
                                         </tr>
                                         <tr>
                                             <td><MudText Typo="Typo.body2" Color="Color.Secondary">Type</MudText></td>
@@ -310,7 +310,7 @@
                                                         @foreach (var kvp in _selectedAsset.MetadataJson.OrderBy(k => k.Key))
                                                         {
                                                             <tr>
-                                                                <td><MudText Typo="Typo.body2" Color="Color.Secondary">@FormatMetadataKey(kvp.Key)</MudText></td>
+                                                                <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
                                                                 <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
                                                             </tr>
                                                         }
@@ -382,11 +382,11 @@
                     {
                         <MudItem xs="12" sm="6" md="4" lg="3">
                         <MudCard Elevation="2" Class="cursor-pointer" Style="cursor: pointer;" @onclick="@(() => SelectAsset(asset))">
-                            <MudCardMedia Image="@(asset.ThumbnailUrl ?? GetPlaceholderIcon(asset.AssetType))"
+                            <MudCardMedia Image="@(asset.ThumbnailUrl ?? AssetDisplayHelpers.GetPlaceholderForType(asset.AssetType))"
                                           Height="160" />
                             <MudCardContent Class="pa-2">
                                 <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
-                                <MudChip T="string" Size="Size.Small" Color="@GetAssetTypeColor(asset.AssetType)" Variant="Variant.Outlined">
+                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)" Variant="Variant.Outlined">
                                     @asset.AssetType
                                 </MudChip>
                             </MudCardContent>
@@ -541,7 +541,7 @@
         if (_sharedAsset == null) return "";
         
         // For PDF files, use the preview endpoint with inline display
-        if (IsPdfPreviewable(_sharedAsset.ContentType))
+        if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType))
         {
             var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview";
             if (!string.IsNullOrEmpty(_password))
@@ -550,11 +550,6 @@
         }
         
         return _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl ?? $"/api/shares/{Uri.EscapeDataString(Token)}/download";
-    }
-
-    private static bool IsPdfPreviewable(string? contentType)
-    {
-        return string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
     }
 
     private string GetAssetPreviewUrl(Guid assetId)
@@ -624,46 +619,6 @@
                 document.body.removeChild(a);
             }})();
         ");
-    }
-
-    private string GetPlaceholderIcon(string assetType)
-    {
-        return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23757575' d='M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z'/%3E%3C/svg%3E";
-    }
-
-    private string FormatMetadataKey(string key)
-    {
-        // Convert camelCase or PascalCase to readable format
-        // e.g., "cameraModel" -> "Camera Model", "Artist" -> "Artist"
-        if (string.IsNullOrEmpty(key)) return key;
-        
-        var result = System.Text.RegularExpressions.Regex.Replace(key, "([a-z])([A-Z])", "$1 $2");
-        result = System.Text.RegularExpressions.Regex.Replace(result, "([A-Z]+)([A-Z][a-z])", "$1 $2");
-        return char.ToUpper(result[0]) + result.Substring(1);
-    }
-
-    private Color GetAssetTypeColor(string assetType)
-    {
-        return assetType switch
-        {
-            "image" => Color.Success,
-            "video" => Color.Info,
-            "document" => Color.Warning,
-            _ => Color.Default
-        };
-    }
-
-    private string FormatFileSize(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
-        while (len >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            len = len / 1024;
-        }
-        return $"{len:0.##} {sizes[order]}";
     }
 
     // DTOs for JSON deserialization

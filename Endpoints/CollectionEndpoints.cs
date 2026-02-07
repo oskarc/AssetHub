@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Claims;
 using Dam.Application;
 using Dam.Application.Dtos;
+using Dam.Application.Helpers;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
@@ -388,7 +389,7 @@ public static class CollectionEndpoints
         if (!assets.Any())
             return Results.BadRequest("No assets in collection");
 
-        var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         // Create ZIP in memory
         var memoryStream = new MemoryStream();
@@ -400,7 +401,7 @@ public static class CollectionEndpoints
                 try
                 {
                     var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
-                    var fileName = GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
+                    var fileName = FileHelpers.GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
                     
                     var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
@@ -422,30 +423,4 @@ public static class CollectionEndpoints
         return Results.File(memoryStream, "application/zip", zipFileName);
     }
 
-    private static string GetSafeFileName(string title, string objectKey, string contentType)
-    {
-        // Get extension from content type or object key
-        var extension = Path.GetExtension(objectKey);
-        if (string.IsNullOrEmpty(extension))
-        {
-            extension = contentType switch
-            {
-                "image/jpeg" => ".jpg",
-                "image/png" => ".png",
-                "image/gif" => ".gif",
-                "image/webp" => ".webp",
-                "video/mp4" => ".mp4",
-                "video/webm" => ".webm",
-                "application/pdf" => ".pdf",
-                _ => ""
-            };
-        }
-
-        // Sanitize title for filename
-        var safeName = string.Join("_", title.Split(Path.GetInvalidFileNameChars()));
-        if (string.IsNullOrEmpty(safeName))
-            safeName = Path.GetFileNameWithoutExtension(objectKey);
-
-        return safeName + extension;
-    }
 }

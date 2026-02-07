@@ -63,6 +63,18 @@ builder.Services.AddScoped<IMinIOAdapter, MinIOAdapter>();
 builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<IUserProvisioningService, UserProvisioningService>();
+
+// Keycloak Admin API client for user management
+builder.Services.AddHttpClient<IKeycloakUserService, KeycloakUserService>(client =>
+{
+    // HttpClient is configured with no base address; KeycloakUserService builds full URLs from config
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
 
 // UI Services
 builder.Services.AddScoped<Dam.Ui.Services.IUserFeedbackService, Dam.Ui.Services.UserFeedbackService>();

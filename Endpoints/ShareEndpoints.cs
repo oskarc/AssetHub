@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using Dam.Application;
 using Dam.Application.Dtos;
+using Dam.Application.Helpers;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Application.Services.Email.Templates;
@@ -143,22 +144,14 @@ public static class ShareEndpoints
             return Results.Json(ApiError.Forbidden("You don't have permission to share this resource"), statusCode: 403);
 
         // Generate secure token
-        var tokenBytes = new byte[32];
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(tokenBytes);
-        }
-        var token = Convert.ToBase64String(tokenBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-        // Hash token for storage
-        using var sha256 = SHA256.Create();
-        var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
+        var token = ShareHelpers.GenerateToken();
+        var tokenHash = ShareHelpers.ComputeTokenHash(token);
 
         // Generate password if not provided (always require password)
         var plainPassword = dto.Password;
         if (string.IsNullOrWhiteSpace(plainPassword))
         {
-            plainPassword = GenerateSecurePassword();
+            plainPassword = PasswordGenerator.Generate(12);
         }
 
         var share = new Share
@@ -224,52 +217,6 @@ public static class ShareEndpoints
         });
     }
 
-    /// <summary>
-    /// Generates a secure, user-friendly password.
-    /// </summary>
-    private static string GenerateSecurePassword(int length = 12)
-    {
-        // Use a character set that avoids ambiguous characters (0/O, 1/l/I)
-        const string upperCase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-        const string lowerCase = "abcdefghjkmnpqrstuvwxyz";
-        const string digits = "23456789";
-        const string special = "!@#$%&*";
-        const string allChars = upperCase + lowerCase + digits + special;
-
-        var password = new char[length];
-        var randomBytes = new byte[length];
-
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(randomBytes);
-        }
-
-        // Ensure at least one character from each category
-        password[0] = upperCase[randomBytes[0] % upperCase.Length];
-        password[1] = lowerCase[randomBytes[1] % lowerCase.Length];
-        password[2] = digits[randomBytes[2] % digits.Length];
-        password[3] = special[randomBytes[3] % special.Length];
-
-        // Fill the rest randomly
-        for (int i = 4; i < length; i++)
-        {
-            password[i] = allChars[randomBytes[i] % allChars.Length];
-        }
-
-        // Shuffle the password
-        var shuffledBytes = new byte[length];
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(shuffledBytes);
-        }
-
-        return new string(password
-            .Select((c, i) => new { Char = c, Order = shuffledBytes[i] })
-            .OrderBy(x => x.Order)
-            .Select(x => x.Char)
-            .ToArray());
-    }
-
     private static async Task<IResult> GetSharedAsset(
         string token,
         string? password,
@@ -280,21 +227,15 @@ public static class ShareEndpoints
         IConfiguration configuration,
         CancellationToken ct)
     {
-        // Compute token hash to lookup in database
-        using var sha256 = SHA256.Create();
-        var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
+        var tokenHash = ShareHelpers.ComputeTokenHash(token);
 
         var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
             return Results.NotFound("Share link not found or invalid");
 
-        // Check if share is revoked
-        if (share.RevokedAt.HasValue)
-            return Results.BadRequest("This share link has been revoked");
-
-        // Check if share is expired
-        if (share.ExpiresAt < DateTime.UtcNow)
-            return Results.BadRequest("This share link has expired");
+        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
+        if (accessError != null)
+            return Results.BadRequest(accessError);
 
         // Check password if required
         if (!string.IsNullOrEmpty(share.PasswordHash))
@@ -311,7 +252,7 @@ public static class ShareEndpoints
         share.AccessCount++;
         await shareRepository.UpdateAsync(share, ct);
 
-        var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         if (share.ScopeType == "asset")
         {
@@ -400,21 +341,15 @@ public static class ShareEndpoints
         IConfiguration configuration,
         CancellationToken ct)
     {
-        // Compute token hash to lookup in database
-        using var sha256 = SHA256.Create();
-        var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
+        var tokenHash = ShareHelpers.ComputeTokenHash(token);
 
         var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
             return Results.NotFound("Share link not found or invalid");
 
-        // Check if share is revoked
-        if (share.RevokedAt.HasValue)
-            return Results.BadRequest("This share link has been revoked");
-
-        // Check if share is expired
-        if (share.ExpiresAt < DateTime.UtcNow)
-            return Results.BadRequest("This share link has expired");
+        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
+        if (accessError != null)
+            return Results.BadRequest(accessError);
 
         // Check if download permission is granted
         if (!share.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
@@ -430,7 +365,7 @@ public static class ShareEndpoints
                 return Results.Unauthorized();
         }
 
-        var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
+        var bucketName = StorageConfig.GetBucketName(configuration);
         Asset? targetAsset = null;
 
         if (share.ScopeType == "asset")
@@ -481,21 +416,15 @@ public static class ShareEndpoints
         IConfiguration configuration,
         CancellationToken ct)
     {
-        // Compute token hash to lookup in database
-        using var sha256 = SHA256.Create();
-        var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
+        var tokenHash = ShareHelpers.ComputeTokenHash(token);
 
         var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
             return Results.NotFound("Share link not found or invalid");
 
-        // Check if share is revoked
-        if (share.RevokedAt.HasValue)
-            return Results.BadRequest("This share link has been revoked");
-
-        // Check if share is expired
-        if (share.ExpiresAt < DateTime.UtcNow)
-            return Results.BadRequest("This share link has expired");
+        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
+        if (accessError != null)
+            return Results.BadRequest(accessError);
 
         // Check if download permission is granted
         if (!share.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
@@ -523,7 +452,7 @@ public static class ShareEndpoints
         if (!assets.Any())
             return Results.BadRequest("No assets in collection");
 
-        var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         // Update access tracking
         share.LastAccessedAt = DateTime.UtcNow;
@@ -540,7 +469,7 @@ public static class ShareEndpoints
                 try
                 {
                     var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
-                    var fileName = GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
+                    var fileName = FileHelpers.GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
                     
                     var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
@@ -562,33 +491,6 @@ public static class ShareEndpoints
         return Results.File(memoryStream, "application/zip", zipFileName);
     }
 
-    private static string GetSafeFileName(string title, string objectKey, string contentType)
-    {
-        // Get extension from content type or object key
-        var extension = Path.GetExtension(objectKey);
-        if (string.IsNullOrEmpty(extension))
-        {
-            extension = contentType switch
-            {
-                "image/jpeg" => ".jpg",
-                "image/png" => ".png",
-                "image/gif" => ".gif",
-                "image/webp" => ".webp",
-                "video/mp4" => ".mp4",
-                "video/webm" => ".webm",
-                "application/pdf" => ".pdf",
-                _ => ""
-            };
-        }
-
-        // Sanitize title for filename
-        var safeName = string.Join("_", title.Split(Path.GetInvalidFileNameChars()));
-        if (string.IsNullOrEmpty(safeName))
-            safeName = Path.GetFileNameWithoutExtension(objectKey);
-
-        return safeName + extension;
-    }
-
     private static async Task<IResult> PreviewSharedAsset(
         string token,
         string? password,
@@ -602,20 +504,15 @@ public static class ShareEndpoints
         CancellationToken ct)
     {
         // Compute token hash to lookup in database
-        using var sha256 = SHA256.Create();
-        var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
+        var tokenHash = ShareHelpers.ComputeTokenHash(token);
 
         var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
             return Results.NotFound("Share link not found or invalid");
 
-        // Check if share is revoked
-        if (share.RevokedAt.HasValue)
-            return Results.BadRequest("This share link has been revoked");
-
-        // Check if share is expired
-        if (share.ExpiresAt < DateTime.UtcNow)
-            return Results.BadRequest("This share link has expired");
+        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
+        if (accessError != null)
+            return Results.BadRequest(accessError);
 
         // Check password if required
         if (!string.IsNullOrEmpty(share.PasswordHash))
@@ -627,7 +524,7 @@ public static class ShareEndpoints
                 return Results.Unauthorized();
         }
 
-        var bucketName = configuration["MinIO:BucketName"] ?? "assethub-dev";
+        var bucketName = StorageConfig.GetBucketName(configuration);
         Asset? targetAsset = null;
 
         if (share.ScopeType == "asset")

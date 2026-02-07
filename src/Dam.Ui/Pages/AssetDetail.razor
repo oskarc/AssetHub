@@ -63,7 +63,7 @@ else
                             Your browser does not support the video tag.
                         </video>
                     }
-                    else if (IsPdfPreviewable())
+                    else if (AssetDisplayHelpers.IsPdfContentType(_asset?.ContentType))
                     {
                         <iframe src="@GetInlinePreviewUrl()" 
                                 style="width: 100%; height: 600px; border: none;" 
@@ -73,7 +73,7 @@ else
                     else
                     {
                         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
-                            <MudIcon Icon="@GetAssetIcon()" Size="Size.Large" Color="Color.Primary" />
+                            <MudIcon Icon="@AssetDisplayHelpers.GetAssetIcon(_asset?.AssetType)" Size="Size.Large" Color="Color.Primary" />
                             <MudText Typo="Typo.h6">@_asset.Title</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
                                 Preview not available for this file type
@@ -98,10 +98,10 @@ else
                         <MudStack>
                             <MudText Typo="Typo.h5">@_asset.Title</MudText>
                             <MudStack Row="true" Spacing="1">
-                                <MudChip T="string" Size="Size.Small" Color="@GetAssetTypeColor()">
+                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_asset?.AssetType)">
                                     @_asset.AssetType.ToUpperInvariant()
                                 </MudChip>
-                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor()">
+                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetStatusColor(_asset?.Status)">
                                     @_asset.Status.ToUpperInvariant()
                                 </MudChip>
                             </MudStack>
@@ -113,7 +113,7 @@ else
                         <MudStack>
                             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                 <MudText Typo="Typo.subtitle2">Collections</MudText>
-                                @if (CanManageCollections())
+                                @if (RolePermissions.CanManageCollections(_asset?.UserRole))
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.Add"
                                                    Size="Size.Small"
@@ -137,7 +137,7 @@ else
                                                      Style="cursor: pointer;">
                                                 @collection.Name
                                             </MudChip>
-                                            @if (CanManageCollections())
+                                            @if (RolePermissions.CanManageCollections(_asset?.UserRole))
                                             {
                                                 <MudIconButton Icon="@Icons.Material.Filled.Close"
                                                                Size="Size.Small"
@@ -173,7 +173,7 @@ else
                                 <tbody>
                                     <tr>
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">Size</MudText></td>
-                                        <td><MudText Typo="Typo.body2">@FormatFileSize(_asset.SizeBytes)</MudText></td>
+                                        <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(_asset.SizeBytes)</MudText></td>
                                     </tr>
                                     <tr>
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">Type</MudText></td>
@@ -236,7 +236,7 @@ else
                                                     @foreach (var kvp in _asset.MetadataJson.OrderBy(k => k.Key))
                                                     {
                                                         <tr>
-                                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@FormatMetadataKey(kvp.Key)</MudText></td>
+                                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
                                                             <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
                                                         </tr>
                                                     }
@@ -344,14 +344,6 @@ else
         }
     }
 
-    private bool CanManageCollections()
-    {
-        // Contributors and above can manage collection membership
-        if (_asset == null) return false;
-        var role = _asset.UserRole?.ToLowerInvariant() ?? "viewer";
-        return role is "contributor" or "manager" or "admin";
-    }
-
     private async Task OpenAddToCollectionDialogAsync()
     {
         var options = new DialogOptions 
@@ -429,49 +421,6 @@ else
     private string GetInlinePreviewUrl()
     {
         return $"/api/assets/{AssetId}/preview";
-    }
-
-    private bool IsPdfPreviewable()
-    {
-        return IsPdfContentType(_asset?.ContentType);
-    }
-
-    private static bool IsPdfContentType(string? contentType)
-    {
-        return string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private string GetAssetIcon()
-    {
-        return _asset?.AssetType switch
-        {
-            "image" => Icons.Material.Filled.Image,
-            "video" => Icons.Material.Filled.VideoFile,
-            "document" => Icons.Material.Filled.Description,
-            _ => Icons.Material.Filled.InsertDriveFile
-        };
-    }
-
-    private Color GetAssetTypeColor()
-    {
-        return _asset?.AssetType switch
-        {
-            "image" => Color.Success,
-            "video" => Color.Info,
-            "document" => Color.Warning,
-            _ => Color.Default
-        };
-    }
-
-    private Color GetStatusColor()
-    {
-        return _asset?.Status switch
-        {
-            "ready" => Color.Success,
-            "processing" => Color.Info,
-            "failed" => Color.Error,
-            _ => Color.Default
-        };
     }
 
     private async Task ShareAssetAsync()
@@ -562,25 +511,5 @@ else
         {
             Nav.NavigateTo("/assets");
         }
-    }
-
-    private string FormatFileSize(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB" };
-        double len = bytes;
-        int order = 0;
-        while (len >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            len /= 1024;
-        }
-        return $"{len:0.##} {sizes[order]}";
-    }
-
-    private string FormatMetadataKey(string key)
-    {
-        // Convert camelCase to Title Case with spaces
-        var result = System.Text.RegularExpressions.Regex.Replace(key, "([a-z])([A-Z])", "$1 $2");
-        return char.ToUpper(result[0]) + result[1..];
     }
 }

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Dam.Application;
 using Dam.Application.Dtos;
+using Dam.Application.Helpers;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
@@ -10,9 +11,6 @@ namespace AssetHub.Endpoints;
 
 public static class AssetEndpoints
 {
-    private static string GetBucketName(IConfiguration configuration) =>
-        configuration["MinIO:BucketName"] ?? "assethub-dev";
-
     public static void MapAssetEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/assets")
@@ -49,7 +47,7 @@ public static class AssetEndpoints
     {
         // In a production system, you'd filter by user's accessible collections
         var assets = await assetRepository.GetByStatusAsync(Asset.StatusReady, skip, take, ct);
-        var dtos = assets.Select(a => MapToDto(a)).ToList();
+        var dtos = assets.Select(a => AssetMapper.ToDto(a)).ToList();
         return Results.Ok(dtos);
     }
 
@@ -110,7 +108,7 @@ public static class AssetEndpoints
                 }
             }
             
-            dtos.Add(MapToDto(asset, role));
+            dtos.Add(AssetMapper.ToDto(asset, role));
         }
         
         return Results.Ok(new
@@ -137,7 +135,7 @@ public static class AssetEndpoints
 
         // System admins have full access to everything
         if (isSystemAdmin)
-            return Results.Ok(MapToDto(asset, RoleHierarchy.Roles.Admin));
+            return Results.Ok(AssetMapper.ToDto(asset, RoleHierarchy.Roles.Admin));
 
         // Check if user has access via any of the asset's collections
         var linkedCollections = await assetCollectionRepo.GetCollectionsForAssetAsync(id, ct);
@@ -145,7 +143,7 @@ public static class AssetEndpoints
         {
             var role = await authService.GetUserRoleAsync(userId, collection.Id);
             if (role != null)
-                return Results.Ok(MapToDto(asset, role));
+                return Results.Ok(AssetMapper.ToDto(asset, role));
         }
         
         return Results.Forbid(); // No access to any of the asset's collections
@@ -182,7 +180,7 @@ public static class AssetEndpoints
         }
 
         var (assets, total) = await assetRepository.SearchAsync(collectionId, query, type, sortBy, skip, take, ct);
-        var dtos = assets.Select(a => MapToDto(a, userRole)).ToList();
+        var dtos = assets.Select(a => AssetMapper.ToDto(a, userRole)).ToList();
         return Results.Ok(new
         {
             collectionId,
@@ -205,7 +203,7 @@ public static class AssetEndpoints
         CancellationToken ct)
     {
         var userId = httpContext.User.GetUserIdOrDefault();
-        var bucketName = GetBucketName(configuration);
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         // Check if user can contribute to this collection
         var canContribute = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
@@ -219,7 +217,7 @@ public static class AssetEndpoints
         {
             // Determine asset type from content type and file extension
             var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
-            var assetType = DetermineAssetType(file.ContentType, extension);
+            var assetType = AssetTypeHelper.DetermineAssetType(file.ContentType, extension);
 
             // Create asset entity
             var assetId = Guid.NewGuid();
@@ -311,7 +309,7 @@ public static class AssetEndpoints
         asset.UpdatedAt = DateTime.UtcNow;
 
         await assetRepository.UpdateAsync(asset, ct);
-        return Results.Ok(MapToDto(asset));
+        return Results.Ok(AssetMapper.ToDto(asset));
     }
 
     private static async Task<IResult> DeleteAsset(
@@ -326,7 +324,7 @@ public static class AssetEndpoints
     {
         var userId = httpContext.User.GetUserIdOrDefault();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = GetBucketName(configuration);
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
@@ -369,30 +367,6 @@ public static class AssetEndpoints
         {
             return Results.BadRequest($"Deletion failed: {ex.Message}");
         }
-    }
-
-    private static AssetResponseDto MapToDto(Asset asset, string userRole = RoleHierarchy.Roles.Viewer)
-    {
-        return new AssetResponseDto
-        {
-            Id = asset.Id,
-            AssetType = asset.AssetType,
-            Status = asset.Status,
-            Title = asset.Title,
-            Description = asset.Description,
-            Tags = asset.Tags,
-            MetadataJson = asset.MetadataJson,
-            ContentType = asset.ContentType,
-            SizeBytes = asset.SizeBytes,
-            Sha256 = asset.Sha256,
-            ThumbObjectKey = asset.ThumbObjectKey,
-            MediumObjectKey = asset.MediumObjectKey,
-            PosterObjectKey = asset.PosterObjectKey,
-            CreatedAt = asset.CreatedAt,
-            CreatedByUserId = asset.CreatedByUserId,
-            UpdatedAt = asset.UpdatedAt,
-            UserRole = userRole
-        };
     }
 
     #region Multi-Collection Endpoints
@@ -559,7 +533,7 @@ public static class AssetEndpoints
     {
         var userId = httpContext.User.GetUserIdOrDefault();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = GetBucketName(configuration);
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
@@ -597,7 +571,7 @@ public static class AssetEndpoints
     {
         var userId = httpContext.User.GetUserIdOrDefault();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = GetBucketName(configuration);
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
@@ -631,7 +605,7 @@ public static class AssetEndpoints
     {
         var userId = httpContext.User.GetUserIdOrDefault();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = GetBucketName(configuration);
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
@@ -667,7 +641,7 @@ public static class AssetEndpoints
     {
         var userId = httpContext.User.GetUserIdOrDefault();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = GetBucketName(configuration);
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
@@ -714,7 +688,7 @@ public static class AssetEndpoints
     {
         var userId = httpContext.User.GetUserIdOrDefault();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = GetBucketName(configuration);
+        var bucketName = StorageConfig.GetBucketName(configuration);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
         if (asset == null)
@@ -763,29 +737,6 @@ public static class AssetEndpoints
                 return true;
         }
         return false;
-    }
-
-    private static string DetermineAssetType(string contentType, string? extension)
-    {
-        // Check content type first
-        if (!string.IsNullOrEmpty(contentType))
-        {
-            if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-                return Asset.TypeImage;
-            if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
-                return Asset.TypeVideo;
-            if (contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
-                return Asset.TypeDocument;
-        }
-
-        // Fall back to file extension
-        return extension switch
-        {
-            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" or ".tiff" or ".tif" or ".ico" => Asset.TypeImage,
-            ".mp4" or ".avi" or ".mov" or ".wmv" or ".mkv" or ".webm" or ".flv" or ".m4v" => Asset.TypeVideo,
-            ".pdf" or ".doc" or ".docx" or ".xls" or ".xlsx" or ".ppt" or ".pptx" or ".txt" or ".rtf" => Asset.TypeDocument,
-            _ => Asset.TypeDocument
-        };
     }
 
     #endregion

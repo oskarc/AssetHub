@@ -1,4 +1,5 @@
 @using MudBlazor
+@using Dam.Application.Helpers
 @using Dam.Ui.Services
 @using System.ComponentModel.DataAnnotations
 
@@ -139,41 +140,14 @@
 
     protected override void OnInitialized()
     {
-        _password = GeneratePassword();
+        _password = PasswordGenerator.Generate(12);
     }
 
     private void TogglePasswordVisibility() => _showPassword = !_showPassword;
 
     private void GenerateNewPassword()
     {
-        _password = GeneratePassword();
-    }
-
-    private static string GeneratePassword(int length = 12)
-    {
-        const string upperCase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-        const string lowerCase = "abcdefghjkmnpqrstuvwxyz";
-        const string digits = "23456789";
-        const string special = "!@#$%&*";
-        const string allChars = upperCase + lowerCase + digits + special;
-
-        var random = new Random();
-        var password = new char[length];
-
-        // Ensure at least one from each category
-        password[0] = upperCase[random.Next(upperCase.Length)];
-        password[1] = lowerCase[random.Next(lowerCase.Length)];
-        password[2] = digits[random.Next(digits.Length)];
-        password[3] = special[random.Next(special.Length)];
-
-        // Fill rest randomly
-        for (int i = 4; i < length; i++)
-        {
-            password[i] = allChars[random.Next(allChars.Length)];
-        }
-
-        // Shuffle
-        return new string(password.OrderBy(_ => random.Next()).ToArray());
+        _password = PasswordGenerator.Generate(12);
     }
 
     private void OnEmailKeyDown(KeyboardEventArgs e)
