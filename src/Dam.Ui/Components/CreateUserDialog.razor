@@ -6,12 +6,14 @@
 
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
 
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">Create New User</MudText>
+            <MudText Typo="Typo.h6">@AdminLoc["CreateNewUser"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
@@ -81,13 +83,13 @@
                     @* Basic Info *@
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">Account Information</MudText>
 
-                    <MudTextField @bind-Value="_model.Username" Label="Username" Required="true"
+                    <MudTextField @bind-Value="_model.Username" Label="@CommonLoc["Label_Username"]" Required="true"
                                   RequiredError="Username is required"
                                   Validation="@(new Func<string, string?>(ValidateUsername))"
                                   Variant="Variant.Outlined" Immediate="true"
                                   HelperText="3-50 characters, letters/numbers/underscores/hyphens" />
 
-                    <MudTextField @bind-Value="_model.Email" Label="Email" Required="true"
+                    <MudTextField @bind-Value="_model.Email" Label="@CommonLoc["Label_Email"]" Required="true"
                                   RequiredError="Email is required"
                                   Validation="@(new Func<string, string?>(ValidateEmail))"
                                   Variant="Variant.Outlined" Immediate="true"
@@ -95,12 +97,12 @@
 
                     <MudGrid>
                         <MudItem xs="6">
-                            <MudTextField @bind-Value="_model.FirstName" Label="First Name" Required="true"
+                            <MudTextField @bind-Value="_model.FirstName" Label="@CommonLoc["Label_FirstName"]" Required="true"
                                           RequiredError="First name is required"
                                           Variant="Variant.Outlined" />
                         </MudItem>
                         <MudItem xs="6">
-                            <MudTextField @bind-Value="_model.LastName" Label="Last Name" Required="true"
+                            <MudTextField @bind-Value="_model.LastName" Label="@CommonLoc["Label_LastName"]" Required="true"
                                           RequiredError="Last name is required"
                                           Variant="Variant.Outlined" />
                         </MudItem>
@@ -111,7 +113,7 @@
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">Password</MudText>
 
                     <MudStack Row="true" AlignItems="AlignItems.End" Spacing="2">
-                        <MudTextField @bind-Value="_model.Password" Label="Password" Required="true"
+                        <MudTextField @bind-Value="_model.Password" Label="@CommonLoc["Label_Password"]" Required="true"
                                       RequiredError="Password is required"
                                       Validation="@(new Func<string, string?>(ValidatePassword))"
                                       Variant="Variant.Outlined" Immediate="true"
@@ -124,7 +126,7 @@
                                    StartIcon="@Icons.Material.Filled.Casino"
                                    OnClick="GeneratePassword"
                                    Style="height: 56px; white-space: nowrap;">
-                            Generate
+                            @CommonLoc["Btn_GenerateNew"]
                         </MudButton>
                     </MudStack>
 
@@ -139,15 +141,15 @@
                     {
                         <MudDivider Class="my-1" />
                         <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">
-                            Initial Collection Access (optional)
+                            @AdminLoc["AddCollectionAccess"]
                         </MudText>
 
                         <MudSelect @bind-Value="_model.InitialRole" Label="Role for selected collections"
                                    Variant="Variant.Outlined">
-                            <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">Viewer</MudSelectItem>
-                            <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">Contributor</MudSelectItem>
-                            <MudSelectItem Value="@RoleHierarchy.Roles.Manager">Manager</MudSelectItem>
-                            <MudSelectItem Value="@RoleHierarchy.Roles.Admin">Admin</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Admin">@CommonLoc["Role_Admin"]</MudSelectItem>
                         </MudSelect>
 
                         <MudSelect T="Guid" MultiSelection="true" @bind-SelectedValues="_selectedCollectionIds"
@@ -174,11 +176,11 @@
     <DialogActions>
         @if (_createdUser != null)
         {
-            <MudButton OnClick="Close" Color="Color.Primary" Variant="Variant.Filled">Done</MudButton>
+            <MudButton OnClick="Close" Color="Color.Primary" Variant="Variant.Filled">@CommonLoc["Btn_Close"]</MudButton>
         }
         else
         {
-            <MudButton OnClick="Cancel">Cancel</MudButton>
+            <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
             <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
                        Disabled="@(!_formIsValid || _submitting)"
                        StartIcon="@(_submitting ? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.PersonAdd)">
@@ -189,7 +191,7 @@
                 }
                 else
                 {
-                    <text>Create User</text>
+                    <text>@CommonLoc["Btn_CreateUser"]</text>
                 }
             </MudButton>
         }

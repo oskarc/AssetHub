@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Share Page -->
+  <data name="SharedContent" xml:space="preserve"><value>Shared Content</value></data>
+  <data name="LoadingSharedContent" xml:space="preserve"><value>Loading shared content...</value></data>
+  <data name="PasswordRequired" xml:space="preserve"><value>Password Required</value></data>
+  <data name="PasswordProtected" xml:space="preserve"><value>This shared content is password protected.</value></data>
+  <data name="InvalidPassword" xml:space="preserve"><value>Invalid password</value></data>
+  <data name="InvalidOrRemoved" xml:space="preserve"><value>This share link is invalid or has been removed.</value></data>
+  <data name="LinkExpired" xml:space="preserve"><value>This share link has expired.</value></data>
+  <data name="LinkRevoked" xml:space="preserve"><value>This share link has been revoked.</value></data>
+  <data name="UnableToAccess" xml:space="preserve"><value>Unable to access shared content.</value></data>
+  <data name="ErrorLoading" xml:space="preserve"><value>An error occurred while loading the shared content.</value></data>
+  <data name="FailedToLoad" xml:space="preserve"><value>Failed to load shared content. Please try again later.</value></data>
+  <data name="NoAssetsInCollection" xml:space="preserve"><value>No assets in this collection</value></data>
+  <data name="EmptyCollectionDesc" xml:space="preserve"><value>This shared collection doesn't contain any assets.</value></data>
+
+  <!-- Create Share Dialog -->
+  <data name="CreateShareLink" xml:space="preserve"><value>Create Share Link</value></data>
+  <data name="CreateShareDesc" xml:space="preserve"><value>Create a password-protected share link for "{0}".</value></data>
+  <data name="Expiration" xml:space="preserve"><value>Expiration</value></data>
+  <data name="ExpiresIn" xml:space="preserve"><value>Expires in</value></data>
+  <data name="NotifyEmail" xml:space="preserve"><value>Notify via Email (Optional)</value></data>
+  <data name="AddEmailPlaceholder" xml:space="preserve"><value>Enter email and press Enter</value></data>
+  <data name="AddEmailLabel" xml:space="preserve"><value>Add email address</value></data>
+  <data name="EmailsWillReceive" xml:space="preserve"><value>{0} email(s) will receive the share link and password.</value></data>
+  <data name="CreateShare" xml:space="preserve"><value>Create Share</value></data>
+
+  <!-- Share Link Dialog -->
+  <data name="ShareLinkCreated" xml:space="preserve"><value>Share Link Created</value></data>
+  <data name="CreatedSuccess" xml:space="preserve"><value>Your share link has been created successfully!</value></data>
+  <data name="PasswordProtectedWarning" xml:space="preserve"><value>This link is password protected. Share the password securely with recipients.</value></data>
+  <data name="PasswordHelperText" xml:space="preserve"><value>A secure password has been generated. You can edit it if needed.</value></data>
+
+  <!-- Share Password Dialog -->
+  <data name="SharePassword" xml:space="preserve"><value>Share Password</value></data>
+  <data name="ManagePasswordDesc" xml:space="preserve"><value>Manage the password for this shared {0}: </value></data>
+  <data name="NewPasswordHelper" xml:space="preserve"><value>Enter a new password for this share.</value></data>
+  <data name="PasswordUpdateWarning" xml:space="preserve"><value>Updating the password will require all users to use the new password to access the share.</value></data>
+  <data name="UpdatePassword" xml:space="preserve"><value>Update Password</value></data>
+</root>

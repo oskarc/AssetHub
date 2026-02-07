@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Share Page -->
+  <data name="SharedContent" xml:space="preserve"><value>Delat innehåll</value></data>
+  <data name="LoadingSharedContent" xml:space="preserve"><value>Laddar delat innehåll...</value></data>
+  <data name="PasswordRequired" xml:space="preserve"><value>Lösenord krävs</value></data>
+  <data name="PasswordProtected" xml:space="preserve"><value>Detta delade innehåll är lösenordsskyddat.</value></data>
+  <data name="InvalidPassword" xml:space="preserve"><value>Ogiltigt lösenord</value></data>
+  <data name="InvalidOrRemoved" xml:space="preserve"><value>Denna dellänk är ogiltig eller har tagits bort.</value></data>
+  <data name="LinkExpired" xml:space="preserve"><value>Denna dellänk har utgått.</value></data>
+  <data name="LinkRevoked" xml:space="preserve"><value>Denna dellänk har återkallats.</value></data>
+  <data name="UnableToAccess" xml:space="preserve"><value>Kan inte komma åt delat innehåll.</value></data>
+  <data name="ErrorLoading" xml:space="preserve"><value>Ett fel uppstod vid laddning av det delade innehållet.</value></data>
+  <data name="FailedToLoad" xml:space="preserve"><value>Kunde inte ladda delat innehåll. Försök igen senare.</value></data>
+  <data name="NoAssetsInCollection" xml:space="preserve"><value>Inga tillgångar i denna samling</value></data>
+  <data name="EmptyCollectionDesc" xml:space="preserve"><value>Denna delade samling innehåller inga tillgångar.</value></data>
+
+  <!-- Create Share Dialog -->
+  <data name="CreateShareLink" xml:space="preserve"><value>Skapa dellänk</value></data>
+  <data name="CreateShareDesc" xml:space="preserve"><value>Skapa en lösenordsskyddad dellänk för "{0}".</value></data>
+  <data name="Expiration" xml:space="preserve"><value>Utgångsdatum</value></data>
+  <data name="ExpiresIn" xml:space="preserve"><value>Utgår om</value></data>
+  <data name="NotifyEmail" xml:space="preserve"><value>Meddela via e-post (valfritt)</value></data>
+  <data name="AddEmailPlaceholder" xml:space="preserve"><value>Ange e-post och tryck Enter</value></data>
+  <data name="AddEmailLabel" xml:space="preserve"><value>Lägg till e-postadress</value></data>
+  <data name="EmailsWillReceive" xml:space="preserve"><value>{0} e-postadress(er) kommer att få dellänken och lösenordet.</value></data>
+  <data name="CreateShare" xml:space="preserve"><value>Skapa delning</value></data>
+
+  <!-- Share Link Dialog -->
+  <data name="ShareLinkCreated" xml:space="preserve"><value>Dellänk skapad</value></data>
+  <data name="CreatedSuccess" xml:space="preserve"><value>Din dellänk har skapats!</value></data>
+  <data name="PasswordProtectedWarning" xml:space="preserve"><value>Denna länk är lösenordsskyddad. Dela lösenordet säkert med mottagarna.</value></data>
+  <data name="PasswordHelperText" xml:space="preserve"><value>Ett säkert lösenord har genererats. Du kan redigera det vid behov.</value></data>
+
+  <!-- Share Password Dialog -->
+  <data name="SharePassword" xml:space="preserve"><value>Delningslösenord</value></data>
+  <data name="ManagePasswordDesc" xml:space="preserve"><value>Hantera lösenordet för denna delade {0}: </value></data>
+  <data name="NewPasswordHelper" xml:space="preserve"><value>Ange ett nytt lösenord för denna delning.</value></data>
+  <data name="PasswordUpdateWarning" xml:space="preserve"><value>Uppdatering av lösenordet kräver att alla användare använder det nya lösenordet för att komma åt delningen.</value></data>
+  <data name="UpdatePassword" xml:space="preserve"><value>Uppdatera lösenord</value></data>
+</root>

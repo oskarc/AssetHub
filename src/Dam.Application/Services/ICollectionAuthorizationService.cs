@@ -12,19 +12,22 @@ public interface ICollectionAuthorizationService
     /// <param name="userId">User ID (from Keycloak token)</param>
     /// <param name="collectionId">Collection ID to check</param>
     /// <param name="requiredRole">Required role: "viewer", "contributor", "manager", "admin"</param>
+    /// <param name="ct">Cancellation token</param>
     /// <returns>True if user has the role or higher</returns>
-    Task<bool> CheckAccessAsync(string userId, Guid collectionId, string requiredRole);
+    Task<bool> CheckAccessAsync(string userId, Guid collectionId, string requiredRole, CancellationToken ct = default);
 
     /// <summary>
     /// Gets the user's role on a specific collection.
     /// </summary>
+    /// <param name="ct">Cancellation token</param>
     /// <returns>Role name or null if no access</returns>
-    Task<string?> GetUserRoleAsync(string userId, Guid collectionId);
+    Task<string?> GetUserRoleAsync(string userId, Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
     /// Checks if user can manage ACL (must be owner/admin or collection manager)
     /// </summary>
-    Task<bool> CanManageAclAsync(string userId, Guid collectionId);
+    /// <param name="ct">Cancellation token</param>
+    Task<bool> CanManageAclAsync(string userId, Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
     /// Checks if user can create collections at root level.
@@ -35,5 +38,6 @@ public interface ICollectionAuthorizationService
     /// <summary>
     /// Checks if user can create a sub-collection under a parent.
     /// </summary>
-    Task<bool> CanCreateSubCollectionAsync(string userId, Guid parentCollectionId);
+    /// <param name="ct">Cancellation token</param>
+    Task<bool> CanCreateSubCollectionAsync(string userId, Guid parentCollectionId, CancellationToken ct = default);
 }

@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- App Branding -->
+  <data name="AppName" xml:space="preserve"><value>AssetHub</value></data>
+  <data name="AppSubtitle" xml:space="preserve"><value>Digital tillgångshantering</value></data>
+
+  <!-- Navigation -->
+  <data name="Nav_Home" xml:space="preserve"><value>Hem</value></data>
+  <data name="Nav_Collections" xml:space="preserve"><value>Samlingar</value></data>
+  <data name="Nav_AllAssets" xml:space="preserve"><value>Alla tillgångar</value></data>
+  <data name="Nav_Admin" xml:space="preserve"><value>Administration</value></data>
+
+  <!-- Common Buttons -->
+  <data name="Btn_Cancel" xml:space="preserve"><value>Avbryt</value></data>
+  <data name="Btn_Close" xml:space="preserve"><value>Stäng</value></data>
+  <data name="Btn_Done" xml:space="preserve"><value>Klar</value></data>
+  <data name="Btn_Add" xml:space="preserve"><value>Lägg till</value></data>
+  <data name="Btn_Save" xml:space="preserve"><value>Spara</value></data>
+  <data name="Btn_Create" xml:space="preserve"><value>Skapa</value></data>
+  <data name="Btn_Delete" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="Btn_Edit" xml:space="preserve"><value>Redigera</value></data>
+  <data name="Btn_Remove" xml:space="preserve"><value>Ta bort</value></data>
+  <data name="Btn_Refresh" xml:space="preserve"><value>Uppdatera</value></data>
+  <data name="Btn_Update" xml:space="preserve"><value>Uppdatera</value></data>
+  <data name="Btn_Upload" xml:space="preserve"><value>Ladda upp</value></data>
+  <data name="Btn_Download" xml:space="preserve"><value>Ladda ner</value></data>
+  <data name="Btn_DownloadOriginal" xml:space="preserve"><value>Ladda ner original</value></data>
+  <data name="Btn_DownloadAll" xml:space="preserve"><value>Ladda ner alla</value></data>
+  <data name="Btn_DownloadToView" xml:space="preserve"><value>Ladda ner för att visa</value></data>
+  <data name="Btn_Share" xml:space="preserve"><value>Dela</value></data>
+  <data name="Btn_View" xml:space="preserve"><value>Visa</value></data>
+  <data name="Btn_Revoke" xml:space="preserve"><value>Återkalla</value></data>
+  <data name="Btn_SignIn" xml:space="preserve"><value>Logga in</value></data>
+  <data name="Btn_SignOut" xml:space="preserve"><value>Logga ut</value></data>
+  <data name="Btn_LoadMore" xml:space="preserve"><value>Ladda fler</value></data>
+  <data name="Btn_BrowseFiles" xml:space="preserve"><value>Bläddra bland filer</value></data>
+  <data name="Btn_GenerateNew" xml:space="preserve"><value>Generera nytt</value></data>
+  <data name="Btn_BackToAssets" xml:space="preserve"><value>Tillbaka till tillgångar</value></data>
+  <data name="Btn_BackToCollection" xml:space="preserve"><value>Tillbaka till samling</value></data>
+  <data name="Btn_GoToHome" xml:space="preserve"><value>Gå till startsidan</value></data>
+  <data name="Btn_SaveChanges" xml:space="preserve"><value>Spara ändringar</value></data>
+  <data name="Btn_AccessContent" xml:space="preserve"><value>Visa innehåll</value></data>
+  <data name="Btn_ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
+  <data name="Btn_CreateUser" xml:space="preserve"><value>Skapa användare</value></data>
+  <data name="Btn_Creating" xml:space="preserve"><value>Skapar...</value></data>
+  <data name="Btn_Generate" xml:space="preserve"><value>Generera</value></data>
+  <data name="Btn_CopyPassword" xml:space="preserve"><value>Kopiera lösenord</value></data>
+  <data name="Btn_CopyAll" xml:space="preserve"><value>Kopiera allt</value></data>
+
+  <!-- Common Labels -->
+  <data name="Label_Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="Label_Role" xml:space="preserve"><value>Roll</value></data>
+  <data name="Label_Actions" xml:space="preserve"><value>Åtgärder</value></data>
+  <data name="Label_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Label_User" xml:space="preserve"><value>Användare</value></data>
+  <data name="Label_Email" xml:space="preserve"><value>E-post</value></data>
+  <data name="Label_Password" xml:space="preserve"><value>Lösenord</value></data>
+  <data name="Label_Collection" xml:space="preserve"><value>Samling</value></data>
+  <data name="Label_Collections" xml:space="preserve"><value>Samlingar</value></data>
+  <data name="Label_Description" xml:space="preserve"><value>Beskrivning</value></data>
+  <data name="Label_Size" xml:space="preserve"><value>Storlek</value></data>
+  <data name="Label_Created" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Label_Updated" xml:space="preserve"><value>Uppdaterad</value></data>
+  <data name="Label_SortBy" xml:space="preserve"><value>Sortera efter</value></data>
+  <data name="Label_UserId" xml:space="preserve"><value>Användar-ID</value></data>
+  <data name="Label_Username" xml:space="preserve"><value>Användarnamn</value></data>
+  <data name="Label_FirstName" xml:space="preserve"><value>Förnamn</value></data>
+  <data name="Label_LastName" xml:space="preserve"><value>Efternamn</value></data>
+  <data name="Label_Title" xml:space="preserve"><value>Titel</value></data>
+  <data name="Label_Tags" xml:space="preserve"><value>Taggar</value></data>
+  <data name="Label_AddTag" xml:space="preserve"><value>Lägg till tagg</value></data>
+  <data name="Label_Expires" xml:space="preserve"><value>Utgår</value></data>
+  <data name="Label_ShareUrl" xml:space="preserve"><value>Dellänk</value></data>
+  <data name="Label_NewPassword" xml:space="preserve"><value>Nytt lösenord</value></data>
+  <data name="Label_Build" xml:space="preserve"><value>Bygge:</value></data>
+  <data name="Label_Environment" xml:space="preserve"><value>Miljö:</value></data>
+
+  <!-- Roles -->
+  <data name="Role_Viewer" xml:space="preserve"><value>Betraktare</value></data>
+  <data name="Role_Contributor" xml:space="preserve"><value>Bidragsgivare</value></data>
+  <data name="Role_Manager" xml:space="preserve"><value>Förvaltare</value></data>
+  <data name="Role_Admin" xml:space="preserve"><value>Administratör</value></data>
+
+  <!-- Asset Types / Filters -->
+  <data name="Filter_AllTypes" xml:space="preserve"><value>Alla typer</value></data>
+  <data name="Filter_AllCollections" xml:space="preserve"><value>Alla samlingar</value></data>
+  <data name="Filter_Images" xml:space="preserve"><value>Bilder</value></data>
+  <data name="Filter_Videos" xml:space="preserve"><value>Videor</value></data>
+  <data name="Filter_Documents" xml:space="preserve"><value>Dokument</value></data>
+
+  <!-- Sort Options -->
+  <data name="Sort_NewestFirst" xml:space="preserve"><value>Nyast först</value></data>
+  <data name="Sort_OldestFirst" xml:space="preserve"><value>Äldst först</value></data>
+  <data name="Sort_TitleAZ" xml:space="preserve"><value>Titel A-Ö</value></data>
+  <data name="Sort_LargestFirst" xml:space="preserve"><value>Störst först</value></data>
+
+  <!-- Common Text -->
+  <data name="Text_Loading" xml:space="preserve"><value>Laddar...</value></data>
+  <data name="Text_Never" xml:space="preserve"><value>Aldrig</value></data>
+  <data name="Text_None" xml:space="preserve"><value>Inget</value></data>
+  <data name="Text_NoAccess" xml:space="preserve"><value>Ingen åtkomst</value></data>
+  <data name="Text_SignedIn" xml:space="preserve"><value>Inloggad</value></data>
+  <data name="Text_NoTags" xml:space="preserve"><value>Inga taggar</value></data>
+  <data name="Text_Processing" xml:space="preserve"><value>Bearbetar</value></data>
+  <data name="Text_Remaining" xml:space="preserve"><value>({0} kvar)</value></data>
+  <data name="Text_ShowingOfAssets" xml:space="preserve"><value>Visar {0} av {1} tillgångar</value></data>
+  <data name="Text_CountAssets" xml:space="preserve"><value>{0} tillgångar</value></data>
+  <data name="Text_ExpiresDate" xml:space="preserve"><value>Utgår: {0}</value></data>
+  <data name="Text_CannotUndone" xml:space="preserve"><value>Denna åtgärd kan inte ångras.</value></data>
+  <data name="Text_RedirectIdentityProvider" xml:space="preserve"><value>Du omdirigeras till din identitetsleverantör</value></data>
+  <data name="Text_SignInDescription" xml:space="preserve"><value>Logga in med ditt organisationskonto för att komma åt dina digitala tillgångar.</value></data>
+  <data name="Text_PreviewNotAvailable" xml:space="preserve"><value>Förhandsgranskning ej tillgänglig för denna filtyp</value></data>
+  <data name="Text_DocumentPreviewNotAvailable" xml:space="preserve"><value>Förhandsgranskning av dokument ej tillgänglig</value></data>
+  <data name="Text_BrowserNoVideo" xml:space="preserve"><value>Din webbläsare stödjer inte videotaggen.</value></data>
+  <data name="Text_NoMetadata" xml:space="preserve"><value>Ingen metadata tillgänglig.</value></data>
+  <data name="Text_NoMetadataUploadHint" xml:space="preserve"><value>Ingen metadata tillgänglig. Ladda upp en ny bild med EXIF-data för att se metadata här.</value></data>
+  <data name="Text_NotAssignedToCollection" xml:space="preserve"><value>Inte tilldelad någon samling</value></data>
+  <data name="Text_SupportedFormats" xml:space="preserve"><value>Stöds: Bilder (JPEG, PNG, WebP), Videor (MP4), Dokument (PDF)</value></data>
+  <data name="Text_DragDropFiles" xml:space="preserve"><value>Dra och släpp filer här eller</value></data>
+  <data name="Text_Uploads" xml:space="preserve"><value>Uppladdningar</value></data>
+  <data name="Text_FileInformation" xml:space="preserve"><value>Filinformation</value></data>
+  <data name="Text_AdvancedMetadata" xml:space="preserve"><value>Avancerad metadata</value></data>
+  <data name="Text_SHA256" xml:space="preserve"><value>SHA256</value></data>
+
+  <!-- Confirmation Dialogs -->
+  <data name="Confirm_Delete" xml:space="preserve"><value>Bekräfta borttagning</value></data>
+  <data name="Confirm_Remove" xml:space="preserve"><value>Bekräfta borttagning</value></data>
+  <data name="Confirm_Revoke" xml:space="preserve"><value>Bekräfta återkallande</value></data>
+  <data name="Confirm_RemoveAccess" xml:space="preserve"><value>Bekräfta borttagning av åtkomst</value></data>
+
+  <!-- Validation -->
+  <data name="Validation_Required" xml:space="preserve"><value>{0} krävs</value></data>
+  <data name="Validation_NameRequired" xml:space="preserve"><value>Namn krävs</value></data>
+  <data name="Validation_TitleRequired" xml:space="preserve"><value>Titel krävs</value></data>
+  <data name="Validation_PasswordRequired" xml:space="preserve"><value>Lösenord krävs</value></data>
+  <data name="Validation_PasswordEmpty" xml:space="preserve"><value>Lösenordet får inte vara tomt.</value></data>
+  <data name="Validation_InvalidEmail" xml:space="preserve"><value>Ange en giltig e-postadress.</value></data>
+  <data name="Validation_DuplicateEmail" xml:space="preserve"><value>Denna e-postadress har redan lagts till.</value></data>
+  <data name="Validation_EnterPassword" xml:space="preserve"><value>Ange ett lösenord</value></data>
+  <data name="Validation_InvalidPassword" xml:space="preserve"><value>Ogiltigt lösenord</value></data>
+
+  <!-- Success Messages -->
+  <data name="Success_Deleted" xml:space="preserve"><value>{0} har tagits bort</value></data>
+  <data name="Success_Updated" xml:space="preserve"><value>{0} har uppdaterats</value></data>
+  <data name="Success_Created" xml:space="preserve"><value>{0} har skapats</value></data>
+  <data name="Success_Revoked" xml:space="preserve"><value>{0} har återkallats</value></data>
+  <data name="Success_AccessGranted" xml:space="preserve"><value>Åtkomst beviljad till '{0}'</value></data>
+  <data name="Success_AccessRemoved" xml:space="preserve"><value>Åtkomst borttagen för {0}</value></data>
+  <data name="Success_RevokedAccessTo" xml:space="preserve"><value>Återkallad åtkomst till '{0}'</value></data>
+  <data name="Success_AddedToCollection" xml:space="preserve"><value>Tillgång tillagd i samling</value></data>
+  <data name="Success_RemovedFromCollection" xml:space="preserve"><value>Borttagen från {0}</value></data>
+  <data name="Success_CollectionAccessAdded" xml:space="preserve"><value>Samlingsåtkomst tillagd</value></data>
+  <data name="Success_RoleUpdated" xml:space="preserve"><value>Roll uppdaterad</value></data>
+  <data name="Success_PasswordUpdated" xml:space="preserve"><value>Lösenordet har uppdaterats!</value></data>
+  <data name="Success_LinkCopied" xml:space="preserve"><value>Länk kopierad till urklipp!</value></data>
+  <data name="Success_PasswordCopied" xml:space="preserve"><value>Lösenord kopierat till urklipp!</value></data>
+  <data name="Success_LinkAndPasswordCopied" xml:space="preserve"><value>Länk och lösenord kopierade till urklipp!</value></data>
+
+  <!-- Warning Messages -->
+  <data name="Warning_CopyFailed" xml:space="preserve"><value>Det gick inte att kopiera till urklipp. Kopiera manuellt.</value></data>
+  <data name="Warning_SelectCollectionFirst" xml:space="preserve"><value>Välj en samling först</value></data>
+  <data name="Warning_UserNotFound" xml:space="preserve"><value>Användaren '{0}' finns inte. Kontrollera användarnamnet och försök igen.</value></data>
+
+  <!-- Error Messages -->
+  <data name="Error_UnhandledError" xml:space="preserve"><value>Ett oväntat fel har inträffat.</value></data>
+  <data name="Error_Reload" xml:space="preserve"><value>Ladda om</value></data>
+  <data name="Error_UploadFailed" xml:space="preserve"><value>Uppladdning misslyckades: {0}</value></data>
+  <data name="Error_UnexpectedError" xml:space="preserve"><value>Ett oväntat fel inträffade. Försök igen.</value></data>
+
+  <!-- Expiration Options -->
+  <data name="Expiry_1Day" xml:space="preserve"><value>1 dag</value></data>
+  <data name="Expiry_7Days" xml:space="preserve"><value>7 dagar</value></data>
+  <data name="Expiry_14Days" xml:space="preserve"><value>14 dagar</value></data>
+  <data name="Expiry_30Days" xml:space="preserve"><value>30 dagar</value></data>
+  <data name="Expiry_90Days" xml:space="preserve"><value>90 dagar</value></data>
+
+  <!-- User Creation -->
+  <data name="User_AccountInfo" xml:space="preserve"><value>Kontoinformation</value></data>
+  <data name="User_UsernameHelper" xml:space="preserve"><value>3-50 tecken, bokstäver/siffror/understreck/bindestreck</value></data>
+  <data name="User_RequirePasswordChange" xml:space="preserve"><value>Kräv lösenordsbyte vid första inloggning</value></data>
+  <data name="User_SendWelcomeEmail" xml:space="preserve"><value>Skicka välkomstmail med inloggningsuppgifter</value></data>
+  <data name="User_InitialCollectionAccess" xml:space="preserve"><value>Initiala samlingsrättigheter (valfritt)</value></data>
+  <data name="User_RoleForCollections" xml:space="preserve"><value>Roll för valda samlingar</value></data>
+  <data name="User_SelectCollections" xml:space="preserve"><value>Välj samlingar att ge den nya användaren åtkomst till</value></data>
+  <data name="User_CollectionsSelected" xml:space="preserve"><value>{0} samling(ar) valda</value></data>
+  <data name="User_CreatedSuccess" xml:space="preserve"><value>Användaren "{0}" har skapats!</value></data>
+  <data name="User_AccountDetails" xml:space="preserve"><value>Kontouppgifter</value></data>
+  <data name="User_TempPassword" xml:space="preserve"><value>Tillfälligt lösenord</value></data>
+  <data name="User_MustChangePassword" xml:space="preserve"><value>Användaren måste byta lösenord vid första inloggningen.</value></data>
+  <data name="User_SavePassword" xml:space="preserve"><value>Spara detta lösenord — det kan inte hämtas senare.</value></data>
+  <data name="User_WelcomeEmailSent" xml:space="preserve"><value>Ett välkomstmail med inloggningsinstruktioner har skickats till {0}.</value></data>
+
+  <!-- Language Switcher -->
+  <data name="Language_English" xml:space="preserve"><value>English</value></data>
+  <data name="Language_Swedish" xml:space="preserve"><value>Svenska</value></data>
+  <data name="Language_Label" xml:space="preserve"><value>Språk</value></data>
+</root>

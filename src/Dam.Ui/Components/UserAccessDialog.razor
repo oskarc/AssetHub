@@ -5,12 +5,14 @@
 @inject NavigationManager Nav
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
 
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">User Access Details</MudText>
+            <MudText Typo="Typo.h6">@AdminLoc["UserAccessDetails"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
@@ -23,20 +25,20 @@
                         <MudText Typo="Typo.caption" Color="Color.Secondary">@User.UserId</MudText>
                     </MudStack>
                     <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(User.HighestRole)">
-                        Highest: @User.HighestRole
+                        @AdminLoc["Highest"]: @User.HighestRole
                     </MudChip>
                 </MudStack>
             </MudPaper>
 
             <!-- Collections List -->
             <MudText Typo="Typo.subtitle2" Class="mt-2">
-                Collection Access (@User.CollectionCount)
+                @AdminLoc["CollectionAccessCount"] (@User.CollectionCount)
             </MudText>
 
             @if (User.Collections.Count == 0)
             {
-                <EmptyState Title="No collection access"
-                            Description="This user doesn't have access to any collections."
+                <EmptyState Title="@AdminLoc["NoCollectionAccess"]"
+                            Description="@AdminLoc["NoCollectionAccessUserDesc"]"
                             Icon="@Icons.Material.Filled.FolderOff"
                             Class="py-4" />
             }
@@ -45,9 +47,9 @@
                 <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Style="border: 1px solid var(--mud-palette-lines-default);">
                     <thead>
                         <tr>
-                            <th>Collection</th>
-                            <th>Role</th>
-                            <th style="width: 120px;">Actions</th>
+                            <th>@CommonLoc["Label_Collection"]</th>
+                            <th>@CommonLoc["Label_Role"]</th>
+                            <th style="width: 120px;">@CommonLoc["Label_Actions"]</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -73,7 +75,7 @@
                                                StartIcon="@Icons.Material.Filled.RemoveCircle"
                                                OnClick="@(() => RevokeAccess(collection))"
                                                Disabled="@_isRevoking">
-                                        Revoke
+                                        @AdminLoc["RevokeAccess"]
                                     </MudButton>
                                 </td>
                             </tr>
@@ -84,7 +86,7 @@
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Close">Close</MudButton>
+        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
     </DialogActions>
 </MudDialog>
 

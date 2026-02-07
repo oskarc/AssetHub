@@ -1,6 +1,7 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
+@inject IStringLocalizer<CommonResource> CommonLoc
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -18,9 +19,11 @@
             </Authorized>
         </AuthorizeView>
 
-        <MudText Typo="Typo.h5" Class="ml-3">AssetHub</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3">@CommonLoc["AppName"]</MudText>
 
         <MudSpacer />
+
+        <LanguageSwitcher />
 
         <!-- Auth: show user + login/logout -->
         <AuthorizeView>
@@ -33,7 +36,7 @@
                            Size="Size.Small"
                            OnClick="@Logout"
                            Class="mr-2">
-                    Sign Out
+                    @CommonLoc["Btn_SignOut"]
                 </MudButton>
             </Authorized>
 
@@ -42,7 +45,7 @@
                            Size="Size.Small"
                            OnClick="@Login"
                            Class="mr-2">
-                    Sign In
+                    @CommonLoc["Btn_SignIn"]
                 </MudButton>
             </NotAuthorized>
         </AuthorizeView>
@@ -66,8 +69,8 @@
 </MudLayout>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
+    @CommonLoc["Error_UnhandledError"]
+    <a href="." class="reload">@CommonLoc["Error_Reload"]</a>
     <span class="dismiss">🗙</span>
 </div>
 

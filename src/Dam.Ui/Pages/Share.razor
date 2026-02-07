@@ -10,15 +10,17 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<Share> Logger
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<SharesResource> ShareLoc
 
-<PageTitle>Shared Content - AssetHub</PageTitle>
+<PageTitle>@ShareLoc["SharedContent"] - @CommonLoc["AppName"]</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
     @if (_isLoading)
     {
         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
             <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-            <MudText Typo="Typo.body1" Class="mt-4">Loading shared content...</MudText>
+            <MudText Typo="Typo.body1" Class="mt-4">@ShareLoc["LoadingSharedContent"]</MudText>
         </MudStack>
     }
     else if (_requiresPassword)
@@ -27,14 +29,14 @@
             <MudStack Spacing="4">
                 <MudStack AlignItems="AlignItems.Center">
                     <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Primary" />
-                    <MudText Typo="Typo.h5">Password Required</MudText>
+                    <MudText Typo="Typo.h5">@ShareLoc["PasswordRequired"]</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        This shared content is password protected.
+                        @ShareLoc["PasswordProtected"]
                     </MudText>
                 </MudStack>
                 
                 <MudTextField @bind-Value="_password"
-                              Label="Password"
+                              Label="@CommonLoc["Label_Password"]"
                               Variant="Variant.Outlined"
                               InputType="InputType.Password"
                               Immediate="true"
@@ -54,7 +56,7 @@
                     {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                     }
-                    Access Content
+                    @CommonLoc["Btn_AccessContent"]
                 </MudButton>
             </MudStack>
         </MudPaper>
@@ -65,7 +67,7 @@
             <MudText Typo="Typo.body1">@_errorMessage</MudText>
         </MudAlert>
         <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/">
-            Go to Home
+            @CommonLoc["Btn_GoToHome"]
         </MudButton>
     }
     else if (_sharedAsset != null)
@@ -87,7 +89,7 @@
                     {
                         <video controls style="width: 100%; max-height: 600px;">
                             <source src="@GetPreviewUrl()" type="@_sharedAsset.ContentType">
-                            Your browser does not support the video tag.
+                            @CommonLoc["Text_BrowserNoVideo"]
                         </video>
                     }
                     else if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType))
@@ -103,14 +105,14 @@
                             <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Primary" />
                             <MudText Typo="Typo.h6">@_sharedAsset.Title</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Preview not available for this file type
+                                @CommonLoc["Text_PreviewNotAvailable"]
                             </MudText>
                             <MudButton Variant="Variant.Outlined"
                                        StartIcon="@Icons.Material.Filled.Download"
                                        Href="@GetDownloadUrl()"
                                        Target="_blank"
                                        Class="mt-2">
-                                Download to View
+                                @CommonLoc["Btn_DownloadToView"]
                             </MudButton>
                         </MudStack>
                     }
@@ -135,22 +137,22 @@
                         @if (!string.IsNullOrEmpty(_sharedAsset.Description))
                         {
                             <MudStack>
-                                <MudText Typo="Typo.subtitle2">Description</MudText>
+                                <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Description"]</MudText>
                                 <MudText Typo="Typo.body2">@_sharedAsset.Description</MudText>
                             </MudStack>
                         }
 
                         <!-- File Information -->
                         <MudStack>
-                            <MudText Typo="Typo.subtitle2">File Information</MudText>
+                            <MudText Typo="Typo.subtitle2">@CommonLoc["Text_FileInformation"]</MudText>
                             <MudSimpleTable Dense="true" Hover="true" Elevation="0">
                                 <tbody>
                                     <tr>
-                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Size</MudText></td>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Size"]</MudText></td>
                                         <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(_sharedAsset.SizeBytes)</MudText></td>
                                     </tr>
                                     <tr>
-                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Type</MudText></td>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Type"]</MudText></td>
                                         <td><MudText Typo="Typo.body2">@_sharedAsset.ContentType</MudText></td>
                                     </tr>
                                 </tbody>
@@ -165,7 +167,7 @@
                                                    Style="background: transparent; padding: 0;"
                                                    Class="pa-0 ma-0">
                                     <TitleContent>
-                                        <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">Advanced MetaData</MudText>
+                                        <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">@CommonLoc["Text_AdvancedMetadata"]</MudText>
                                     </TitleContent>
                                     <ChildContent>
                                         @if (_sharedAsset.MetadataJson.Any())
@@ -185,7 +187,7 @@
                                         else
                                         {
                                             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                                No metadata available.
+                                                @CommonLoc["Text_NoMetadata"]
                                             </MudText>
                                         }
                                     </ChildContent>
@@ -201,7 +203,7 @@
                                    StartIcon="@Icons.Material.Filled.Download"
                                    FullWidth="true"
                                    OnClick="@(() => DownloadAsset(null))">
-                            Download Original
+                            @CommonLoc["Btn_DownloadOriginal"]
                         </MudButton>
                     </MudStack>
                 </MudPaper>
@@ -217,7 +219,7 @@
                        StartIcon="@Icons.Material.Filled.ArrowBack"
                        OnClick="@(() => _selectedAsset = null)"
                        Class="mb-3">
-                Back to Collection
+                @CommonLoc["Btn_BackToCollection"]
             </MudButton>
 
             <MudGrid>
@@ -236,7 +238,7 @@
                         {
                             <video controls style="width: 100%; max-height: 600px;">
                                 <source src="@GetAssetPreviewUrl(_selectedAsset.Id)" type="@_selectedAsset.ContentType">
-                                Your browser does not support the video tag.
+                                @CommonLoc["Text_BrowserNoVideo"]
                             </video>
                         }
                         else
@@ -245,7 +247,7 @@
                                 <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Primary" />
                                 <MudText Typo="Typo.h6">@_selectedAsset.Title</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    Document preview not available
+                                    @CommonLoc["Text_DocumentPreviewNotAvailable"]
                                 </MudText>
                             </MudStack>
                         }
@@ -270,22 +272,22 @@
                             @if (!string.IsNullOrEmpty(_selectedAsset.Description))
                             {
                                 <MudStack>
-                                    <MudText Typo="Typo.subtitle2">Description</MudText>
+                                    <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Description"]</MudText>
                                     <MudText Typo="Typo.body2">@_selectedAsset.Description</MudText>
                                 </MudStack>
                             }
 
                             <!-- File Information -->
                             <MudStack>
-                                <MudText Typo="Typo.subtitle2">File Information</MudText>
+                                <MudText Typo="Typo.subtitle2">@CommonLoc["Text_FileInformation"]</MudText>
                                 <MudSimpleTable Dense="true" Hover="true" Elevation="0">
                                     <tbody>
                                         <tr>
-                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">Size</MudText></td>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Size"]</MudText></td>
                                             <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(_selectedAsset.SizeBytes)</MudText></td>
                                         </tr>
                                         <tr>
-                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">Type</MudText></td>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Type"]</MudText></td>
                                             <td><MudText Typo="Typo.body2">@_selectedAsset.ContentType</MudText></td>
                                         </tr>
                                     </tbody>
@@ -300,7 +302,7 @@
                                                        Style="background: transparent; padding: 0;"
                                                        Class="pa-0 ma-0">
                                         <TitleContent>
-                                            <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">Advanced MetaData</MudText>
+                                            <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">@CommonLoc["Text_AdvancedMetadata"]</MudText>
                                         </TitleContent>
                                         <ChildContent>
                                             @if (_selectedAsset.MetadataJson.Any())
@@ -320,7 +322,7 @@
                                             else
                                             {
                                                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                                    No metadata available.
+                                                    @CommonLoc["Text_NoMetadata"]
                                                 </MudText>
                                             }
                                         </ChildContent>
@@ -336,7 +338,7 @@
                                        StartIcon="@Icons.Material.Filled.Download"
                                        FullWidth="true"
                                        OnClick="@(() => DownloadAsset(_selectedAsset.Id))">
-                                Download Original
+                                @CommonLoc["Btn_DownloadOriginal"]
                             </MudButton>
                         </MudStack>
                     </MudPaper>
@@ -358,7 +360,7 @@
                                Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Download"
                                OnClick="DownloadAllAssets">
-                        Download All
+                        @CommonLoc["Btn_DownloadAll"]
                     </MudButton>
                 </MudStack>
                 @if (!string.IsNullOrEmpty(_sharedCollection.Description))
@@ -371,8 +373,8 @@
                 @if (_sharedCollection.Assets.Count == 0)
                 {
                     <MudItem xs="12">
-                        <EmptyState Title="No assets in this collection"
-                                    Description="This shared collection doesn't contain any assets."
+                        <EmptyState Title="@ShareLoc["NoAssetsInCollection"]"
+                                    Description="@ShareLoc["EmptyCollectionDesc"]"
                                     Icon="@Icons.Material.Filled.FolderOff" />
                     </MudItem>
                 }
@@ -396,14 +398,14 @@
                                            StartIcon="@Icons.Material.Filled.Download"
                                            OnClick="@(() => DownloadAsset(asset.Id))"
                                            OnClick:stopPropagation="true">
-                                    Download
+                                    @CommonLoc["Btn_Download"]
                                 </MudButton>
                                 <MudButton Variant="Variant.Text"
                                            Size="Size.Small"
                                            StartIcon="@Icons.Material.Filled.Visibility"
                                            OnClick="@(() => SelectAsset(asset))"
                                            OnClick:stopPropagation="true">
-                                    View
+                                    @CommonLoc["Btn_View"]
                                 </MudButton>
                             </MudCardActions>
                         </MudCard>
@@ -454,7 +456,7 @@
                     _isLoading = false;
                     return;
                 }
-                _error = "Invalid password";
+                _error = ShareLoc["InvalidPassword"];
                 _isLoading = false;
                 return;
             }
@@ -464,13 +466,13 @@
                 var error = await response.Content.ReadAsStringAsync();
                 _errorMessage = response.StatusCode switch
                 {
-                    System.Net.HttpStatusCode.NotFound => "This share link is invalid or has been removed.",
+                    System.Net.HttpStatusCode.NotFound => ShareLoc["InvalidOrRemoved"],
                     System.Net.HttpStatusCode.BadRequest => error.Contains("expired") 
-                        ? "This share link has expired." 
+                        ? ShareLoc["LinkExpired"] 
                         : error.Contains("revoked") 
-                            ? "This share link has been revoked."
-                            : "Unable to access shared content.",
-                    _ => "An error occurred while loading the shared content."
+                            ? ShareLoc["LinkRevoked"]
+                            : ShareLoc["UnableToAccess"],
+                    _ => ShareLoc["ErrorLoading"]
                 };
                 _isLoading = false;
                 return;
@@ -498,7 +500,7 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = "Failed to load shared content. Please try again later.";
+            _errorMessage = ShareLoc["FailedToLoad"];
             Logger.LogError(ex, "Error loading shared content for token {Token}", Token);
         }
         finally
@@ -511,7 +513,7 @@
     {
         if (string.IsNullOrEmpty(_password))
         {
-            _error = "Please enter a password";
+            _error = CommonLoc["Validation_EnterPassword"];
             return;
         }
 
@@ -522,7 +524,7 @@
 
         if (_requiresPassword)
         {
-            _error = "Invalid password";
+            _error = ShareLoc["InvalidPassword"];
         }
 
         _isSubmitting = false;

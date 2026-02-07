@@ -4,6 +4,8 @@
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<CollectionsResource> CollectionLoc
 
 @if (_isLoading)
 {
@@ -11,8 +13,8 @@
 }
 else if (_collections.Count == 0)
 {
-    <EmptyState Title="No collections yet"
-                Description="Click the folder icon above to create your first collection."
+    <EmptyState Title="@CollectionLoc["NoCollectionsYet"]"
+                Description="@CollectionLoc["CreateFirstHint"]"
                 Icon="@Icons.Material.Filled.CreateNewFolder"
                 Class="py-4" />
 }
@@ -36,10 +38,10 @@ else
                 </MudNavLink>
                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomRight">
                     <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditCollection(collection))">
-                        Rename
+                        @CollectionLoc["Rename"]
                     </MudMenuItem>
                     <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteCollection(collection))" IconColor="Color.Error">
-                        Delete
+                        @CommonLoc["Btn_Delete"]
                     </MudMenuItem>
                 </MudMenu>
             </div>
@@ -97,17 +99,17 @@ else
             : "";
 
         var result = await DialogService.ShowMessageBox(
-            "Delete Collection",
-            $"Are you sure you want to delete '{collection.Name}'?{assetWarning} This action cannot be undone.",
-            yesText: "Delete",
-            cancelText: "Cancel");
+            CollectionLoc["DeleteCollection"],
+            string.Format(CollectionLoc["ConfirmDeleteCollection"], collection.Name) + assetWarning,
+            yesText: CommonLoc["Btn_Delete"],
+            cancelText: CommonLoc["Btn_Cancel"]);
 
         if (result == true)
         {
             var success = await Feedback.ExecuteWithFeedbackAsync(
                 () => Api.DeleteCollectionAsync(collection.Id),
                 "delete collection",
-                "Collection deleted successfully");
+                CollectionLoc["DeletedSuccess"]);
             
             if (success)
             {

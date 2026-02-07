@@ -141,7 +141,7 @@ public static class AssetEndpoints
         var linkedCollections = await assetCollectionRepo.GetCollectionsForAssetAsync(id, ct);
         foreach (var collection in linkedCollections)
         {
-            var role = await authService.GetUserRoleAsync(userId, collection.Id);
+            var role = await authService.GetUserRoleAsync(userId, collection.Id, ct);
             if (role != null)
                 return Results.Ok(AssetMapper.ToDto(asset, role));
         }
@@ -173,7 +173,7 @@ public static class AssetEndpoints
         else
         {
             // Check if user can access this collection and get their role
-            var role = await authService.GetUserRoleAsync(userId, collectionId);
+            var role = await authService.GetUserRoleAsync(userId, collectionId, ct);
             if (role == null)
                 return Results.Forbid();
             userRole = role;
@@ -206,7 +206,7 @@ public static class AssetEndpoints
         var bucketName = StorageConfig.GetBucketName(configuration);
 
         // Check if user can contribute to this collection
-        var canContribute = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
+        var canContribute = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
         if (!canContribute)
             return Results.Forbid();
 
@@ -248,7 +248,7 @@ public static class AssetEndpoints
             await assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
 
             // Schedule processing job
-            var jobId = await mediaProcessingService.ScheduleProcessingAsync(assetId, assetType, objectKey);
+            var jobId = await mediaProcessingService.ScheduleProcessingAsync(assetId, assetType, objectKey, ct);
 
             return Results.Accepted($"/api/assets/{assetId}", new
             {
@@ -287,7 +287,7 @@ public static class AssetEndpoints
             bool canEdit = false;
             foreach (var collId in assetCollections)
             {
-                if (await authService.CheckAccessAsync(userId, collId, RoleHierarchy.Roles.Contributor))
+                if (await authService.CheckAccessAsync(userId, collId, RoleHierarchy.Roles.Contributor, ct))
                 {
                     canEdit = true;
                     break;
@@ -337,7 +337,7 @@ public static class AssetEndpoints
             bool canDelete = false;
             foreach (var collId in assetCollections)
             {
-                if (await authService.CheckAccessAsync(userId, collId, RoleHierarchy.Roles.Manager))
+                if (await authService.CheckAccessAsync(userId, collId, RoleHierarchy.Roles.Manager, ct))
                 {
                     canDelete = true;
                     break;
@@ -396,7 +396,7 @@ public static class AssetEndpoints
             bool canAccess = false;
             foreach (var linkedCollectionId in linkedCollections)
             {
-                if (await authService.CheckAccessAsync(userId, linkedCollectionId, RoleHierarchy.Roles.Viewer))
+                if (await authService.CheckAccessAsync(userId, linkedCollectionId, RoleHierarchy.Roles.Viewer, ct))
                 {
                     canAccess = true;
                     break;
@@ -447,7 +447,7 @@ public static class AssetEndpoints
             
             foreach (var assetCollectionId in assetCollections)
             {
-                if (await authService.CheckAccessAsync(userId, assetCollectionId, RoleHierarchy.Roles.Contributor))
+                if (await authService.CheckAccessAsync(userId, assetCollectionId, RoleHierarchy.Roles.Contributor, ct))
                 {
                     canAccessAsset = true;
                     break;
@@ -457,13 +457,13 @@ public static class AssetEndpoints
             // If asset has no collections yet, allow adding to first collection if user has access
             if (!canAccessAsset && assetCollections.Count == 0)
             {
-                canAccessAsset = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
+                canAccessAsset = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
             }
             
             if (!canAccessAsset)
                 return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset"), statusCode: 403);
 
-            var canAccessTarget = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
+            var canAccessTarget = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
             if (!canAccessTarget)
                 return Results.Json(ApiError.Forbidden("You don't have permission to add assets to this collection"), statusCode: 403);
         }
@@ -504,7 +504,7 @@ public static class AssetEndpoints
         if (!isSystemAdmin)
         {
             // User needs contributor access to the collection they're removing from
-            var canAccess = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor);
+            var canAccess = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
             if (!canAccess)
                 return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset in this collection"), statusCode: 403);
         }
@@ -540,7 +540,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization via any of the asset's collections
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService))
+        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
         try
@@ -578,7 +578,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService))
+        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
         try
@@ -612,7 +612,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService))
+        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
         if (string.IsNullOrEmpty(asset.ThumbObjectKey))
@@ -648,7 +648,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService))
+        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
         if (string.IsNullOrEmpty(asset.MediumObjectKey))
@@ -695,7 +695,7 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService))
+        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
         if (string.IsNullOrEmpty(asset.PosterObjectKey))
@@ -725,15 +725,16 @@ public static class AssetEndpoints
         bool isSystemAdmin,
         IAssetCollectionRepository assetCollectionRepo,
         ICollectionAuthorizationService authService,
+        CancellationToken ct = default,
         string requiredRole = RoleHierarchy.Roles.Viewer)
     {
         if (isSystemAdmin)
             return true;
             
-        var collections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(assetId);
+        var collections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(assetId, ct);
         foreach (var collectionId in collections)
         {
-            if (await authService.CheckAccessAsync(userId, collectionId, requiredRole))
+            if (await authService.CheckAccessAsync(userId, collectionId, requiredRole, ct))
                 return true;
         }
         return false;

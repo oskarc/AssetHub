@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="PageTitle" xml:space="preserve"><value>Administration</value></data>
+  <data name="Tab_ShareManagement" xml:space="preserve"><value>Delningshantering</value></data>
+  <data name="Tab_CollectionAccess" xml:space="preserve"><value>Samlingsåtkomst</value></data>
+  <data name="Tab_UserManagement" xml:space="preserve"><value>Användarhantering</value></data>
+
+  <!-- Share Management -->
+  <data name="AllSharedLinks" xml:space="preserve"><value>Alla delade länkar</value></data>
+  <data name="NoSharesYet" xml:space="preserve"><value>Inga delningar ännu</value></data>
+  <data name="NoSharesDesc" xml:space="preserve"><value>När användare skapar dellänkar för tillgångar eller samlingar visas de här för hantering.</value></data>
+  <data name="SearchSharesPlaceholder" xml:space="preserve"><value>Sök delningar...</value></data>
+  <data name="Active" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="Expired" xml:space="preserve"><value>Utgången</value></data>
+  <data name="Revoked" xml:space="preserve"><value>Återkallad</value></data>
+  <data name="Header_Target" xml:space="preserve"><value>Mål</value></data>
+  <data name="Header_CreatedBy" xml:space="preserve"><value>Skapad av</value></data>
+  <data name="Header_LastAccess" xml:space="preserve"><value>Senast använd</value></data>
+  <data name="Header_AccessCount" xml:space="preserve"><value>Antal åtkomster</value></data>
+  <data name="EditPassword" xml:space="preserve"><value>Redigera lösenord</value></data>
+  <data name="RevokeShare" xml:space="preserve"><value>Återkalla delning</value></data>
+  <data name="ConfirmRevokeShare" xml:space="preserve"><value>Är du säker på att du vill återkalla delningen för "{0}"? Denna åtgärd kan inte ångras.</value></data>
+  <data name="ShareRevokedSuccess" xml:space="preserve"><value>Delning återkallad</value></data>
+
+  <!-- Collection Access -->
+  <data name="CollectionAccessControl" xml:space="preserve"><value>Åtkomstkontroll för samlingar</value></data>
+  <data name="NoCollectionsYet" xml:space="preserve"><value>Inga samlingar ännu</value></data>
+  <data name="NoCollectionsDesc" xml:space="preserve"><value>Skapa samlingar från sidan Tillgångar för att börja organisera dina media.</value></data>
+  <data name="SelectACollection" xml:space="preserve"><value>Välj en samling</value></data>
+  <data name="SelectACollectionDesc" xml:space="preserve"><value>Välj en samling från listan för att visa och hantera användares åtkomsträttigheter.</value></data>
+  <data name="AccessFor" xml:space="preserve"><value>Åtkomst för:</value></data>
+  <data name="NoUsersHaveAccess" xml:space="preserve"><value>Inga användare har åtkomst</value></data>
+  <data name="NoUsersHaveAccessDesc" xml:space="preserve"><value>Ge åtkomst till användare med formuläret ovan. De kan visa eller hantera tillgångar beroende på sin roll.</value></data>
+
+  <!-- User Management -->
+  <data name="UserManagement" xml:space="preserve"><value>Användarhantering</value></data>
+  <data name="UserManagementDesc" xml:space="preserve"><value>Hantera alla användare i Keycloak-domänen. Klicka på "Hantera åtkomst" för att bevilja eller återkalla samlingsåtkomst för alla användare.</value></data>
+  <data name="NoUsersFound" xml:space="preserve"><value>Inga användare hittades</value></data>
+  <data name="NoUsersFoundDesc" xml:space="preserve"><value>Inga användare finns i Keycloak-domänen ännu. Skapa en användare för att komma igång.</value></data>
+  <data name="SearchUsersPlaceholder" xml:space="preserve"><value>Sök användare...</value></data>
+  <data name="Total" xml:space="preserve"><value>Totalt</value></data>
+  <data name="WithAccess" xml:space="preserve"><value>Med åtkomst</value></data>
+  <data name="Header_Username" xml:space="preserve"><value>Användarnamn</value></data>
+  <data name="Header_Email" xml:space="preserve"><value>E-post</value></data>
+  <data name="Header_Created" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Header_HighestRole" xml:space="preserve"><value>Högsta roll</value></data>
+
+  <!-- Manage User Access Dialog -->
+  <data name="ManageUserAccess" xml:space="preserve"><value>Hantera användaråtkomst</value></data>
+  <data name="AddCollectionAccess" xml:space="preserve"><value>Lägg till samlingsåtkomst</value></data>
+  <data name="UserHasAllAccess" xml:space="preserve"><value>Användaren har åtkomst till alla samlingar</value></data>
+  <data name="CurrentCollectionAccess" xml:space="preserve"><value>Nuvarande samlingsåtkomst ({0})</value></data>
+  <data name="NoCollectionAccess" xml:space="preserve"><value>Ingen samlingsåtkomst</value></data>
+  <data name="NoCollectionAccessDesc" xml:space="preserve"><value>Denna användare har inte åtkomst till några samlingar ännu.</value></data>
+  <data name="ChangeRole" xml:space="preserve"><value>Ändra roll</value></data>
+  <data name="RevokeAccess" xml:space="preserve"><value>Återkalla åtkomst</value></data>
+
+  <!-- Create User Dialog -->
+  <data name="CreateNewUser" xml:space="preserve"><value>Skapa ny användare</value></data>
+  <data name="EditSharePassword" xml:space="preserve"><value>Redigera delningslösenord</value></data>
+
+  <!-- User Access Dialog -->
+  <data name="UserAccessDetails" xml:space="preserve"><value>Användaråtkomstdetaljer</value></data>
+  <data name="Highest" xml:space="preserve"><value>Högsta:</value></data>
+  <data name="CollectionAccessCount" xml:space="preserve"><value>Samlingsåtkomst ({0})</value></data>
+  <data name="NoCollectionAccessUserDesc" xml:space="preserve"><value>Denna användare har inte åtkomst till några samlingar.</value></data>
+</root>

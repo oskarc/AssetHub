@@ -1,0 +1,42 @@
+@using Microsoft.AspNetCore.Localization
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<MudSelect T="string"
+           Value="@_currentCulture"
+           ValueChanged="OnCultureChanged"
+           Variant="Variant.Text"
+           Dense="true"
+           Margin="Margin.Dense"
+           Class="language-switcher"
+           Style="max-width: 120px; color: inherit;">
+    <MudSelectItem Value="@("en")">English</MudSelectItem>
+    <MudSelectItem Value="@("sv")">Svenska</MudSelectItem>
+</MudSelect>
+
+@code {
+    private string _currentCulture = "en";
+
+    protected override void OnInitialized()
+    {
+        _currentCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+    }
+
+    private async Task OnCultureChanged(string culture)
+    {
+        if (culture == _currentCulture) return;
+
+        _currentCulture = culture;
+
+        // Set the culture cookie that RequestLocalization reads
+        var cookieValue = CookieRequestCultureProvider.MakeCookieValue(
+            new RequestCulture(culture, culture));
+
+        await JS.InvokeVoidAsync("eval",
+            $"document.cookie = '{CookieRequestCultureProvider.DefaultCookieName}={cookieValue};path=/;max-age=31536000;samesite=lax'");
+
+        // Force a full page reload so the server-side middleware picks up the new cookie
+        Nav.NavigateTo(Nav.Uri, forceLoad: true);
+    }
+}

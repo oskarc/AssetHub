@@ -3,11 +3,13 @@
 
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AssetsResource> AssetLoc
 
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="3">
-            <MudText Typo="Typo.body1">Select a collection to add this asset to:</MudText>
+            <MudText Typo="Typo.body1">@AssetLoc["SelectCollectionToAdd"]</MudText>
             
             @if (_isLoading)
             {
@@ -18,7 +20,7 @@
             else if (!_availableCollections.Any())
             {
                 <MudAlert Severity="Severity.Info">
-                    No additional collections available. This asset is already in all collections you have access to.
+                    @AssetLoc["NoAdditionalCollections"]
                 </MudAlert>
             }
             else
@@ -52,7 +54,7 @@
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
         <MudButton Color="Color.Primary" 
                    Variant="Variant.Filled"
                    OnClick="AddToCollectionAsync"
@@ -61,7 +63,7 @@
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
             }
-            Add
+            @CommonLoc["Btn_Add"]
         </MudButton>
     </DialogActions>
 </MudDialog>

@@ -31,12 +31,12 @@ public class MediaProcessingService(
         if (assetType == "image")
         {
             logger.LogInformation($"Scheduling image processing for asset {assetId}");
-            jobId = backgroundJobClient.Enqueue(() => ProcessImageAsync(assetId, originalObjectKey));
+            jobId = backgroundJobClient.Enqueue(() => ProcessImageAsync(assetId, originalObjectKey, CancellationToken.None));
         }
         else if (assetType == "video")
         {
             logger.LogInformation($"Scheduling video processing for asset {assetId}");
-            jobId = backgroundJobClient.Enqueue(() => ProcessVideoAsync(assetId, originalObjectKey));
+            jobId = backgroundJobClient.Enqueue(() => ProcessVideoAsync(assetId, originalObjectKey, CancellationToken.None));
         }
         else
         {
@@ -54,7 +54,7 @@ public class MediaProcessingService(
         return jobId;
     }
 
-    public async Task ProcessImageAsync(Guid assetId, string originalObjectKey)
+    public async Task ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
         var tempOriginal = Path.GetTempFileName();
         var thumbPath = Path.GetTempFileName();
@@ -64,7 +64,7 @@ public class MediaProcessingService(
         {
             logger.LogInformation($"Starting image processing for asset {assetId}");
             
-            var asset = await assetRepository.GetByIdAsync(assetId);
+            var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset == null)
             {
                 logger.LogWarning($"Asset {assetId} not found, skipping processing");
@@ -72,10 +72,10 @@ public class MediaProcessingService(
             }
 
             // Download original image
-            using var originalStream = await minioAdapter.DownloadAsync(_bucketName, originalObjectKey);
+            using var originalStream = await minioAdapter.DownloadAsync(_bucketName, originalObjectKey, ct);
             using (var fs = File.Create(tempOriginal))
             {
-                await originalStream.CopyToAsync(fs);
+                await originalStream.CopyToAsync(fs, ct);
             }
 
             // Extract EXIF metadata
@@ -95,24 +95,24 @@ public class MediaProcessingService(
             }
 
             // Create thumbnail
-            await ResizeImageAsync(tempOriginal, thumbPath, _imageSettings.ThumbnailWidth, _imageSettings.ThumbnailHeight);
+            await ResizeImageAsync(tempOriginal, thumbPath, _imageSettings.ThumbnailWidth, _imageSettings.ThumbnailHeight, ct);
             var thumbKey = $"{Constants.StoragePrefixes.Thumbnails}/{assetId}-thumb.jpg";
             using (var fs = File.OpenRead(thumbPath))
             {
-                await minioAdapter.UploadAsync(_bucketName, thumbKey, fs, Constants.ContentTypes.Jpeg);
+                await minioAdapter.UploadAsync(_bucketName, thumbKey, fs, Constants.ContentTypes.Jpeg, ct);
             }
 
             // Create medium version
-            await ResizeImageAsync(tempOriginal, mediumPath, _imageSettings.MediumWidth, _imageSettings.MediumHeight);
+            await ResizeImageAsync(tempOriginal, mediumPath, _imageSettings.MediumWidth, _imageSettings.MediumHeight, ct);
             var mediumKey = $"{Constants.StoragePrefixes.Medium}/{assetId}-medium.jpg";
             using (var fs = File.OpenRead(mediumPath))
             {
-                await minioAdapter.UploadAsync(_bucketName, mediumKey, fs, Constants.ContentTypes.Jpeg);
+                await minioAdapter.UploadAsync(_bucketName, mediumKey, fs, Constants.ContentTypes.Jpeg, ct);
             }
 
             // Update asset with processed variants
             asset.MarkReady(thumbKey, mediumKey);
-            await assetRepository.UpdateAsync(asset);
+            await assetRepository.UpdateAsync(asset, ct);
             
             logger.LogInformation($"Successfully processed image asset {assetId}");
         }
@@ -120,11 +120,11 @@ public class MediaProcessingService(
         {
             logger.LogError(ex, $"Image processing failed for asset {assetId}");
             
-            var asset = await assetRepository.GetByIdAsync(assetId);
+            var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset != null)
             {
                 asset.MarkFailed($"Image processing failed: {ex.Message}");
-                await assetRepository.UpdateAsync(asset);
+                await assetRepository.UpdateAsync(asset, ct);
             }
         }
         finally
@@ -136,7 +136,7 @@ public class MediaProcessingService(
         }
     }
 
-    public async Task ProcessVideoAsync(Guid assetId, string originalObjectKey)
+    public async Task ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
         var tempOriginal = Path.GetTempFileName();
         var posterPath = Path.GetTempFileName();
@@ -145,7 +145,7 @@ public class MediaProcessingService(
         {
             logger.LogInformation($"Starting video processing for asset {assetId}");
             
-            var asset = await assetRepository.GetByIdAsync(assetId);
+            var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset == null)
             {
                 logger.LogWarning($"Asset {assetId} not found, skipping processing");
@@ -153,23 +153,23 @@ public class MediaProcessingService(
             }
 
             // Download original video
-            using var originalStream = await minioAdapter.DownloadAsync(_bucketName, originalObjectKey);
+            using var originalStream = await minioAdapter.DownloadAsync(_bucketName, originalObjectKey, ct);
             using (var fs = File.Create(tempOriginal))
             {
-                await originalStream.CopyToAsync(fs);
+                await originalStream.CopyToAsync(fs, ct);
             }
 
             // Extract poster frame
-            await ExtractPosterAsync(tempOriginal, posterPath, _imageSettings.PosterFrameSeconds);
+            await ExtractPosterAsync(tempOriginal, posterPath, _imageSettings.PosterFrameSeconds, ct);
             var posterKey = $"{Constants.StoragePrefixes.Posters}/{assetId}-poster.jpg";
             using (var fs = File.OpenRead(posterPath))
             {
-                await minioAdapter.UploadAsync(_bucketName, posterKey, fs, Constants.ContentTypes.Jpeg);
+                await minioAdapter.UploadAsync(_bucketName, posterKey, fs, Constants.ContentTypes.Jpeg, ct);
             }
 
             // Update asset with poster
             asset.MarkReady(posterKey: posterKey);
-            await assetRepository.UpdateAsync(asset);
+            await assetRepository.UpdateAsync(asset, ct);
             
             logger.LogInformation($"Successfully processed video asset {assetId}");
         }
@@ -177,11 +177,11 @@ public class MediaProcessingService(
         {
             logger.LogError(ex, $"Video processing failed for asset {assetId}");
             
-            var asset = await assetRepository.GetByIdAsync(assetId);
+            var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset != null)
             {
                 asset.MarkFailed($"Video processing failed: {ex.Message}");
-                await assetRepository.UpdateAsync(asset);
+                await assetRepository.UpdateAsync(asset, ct);
             }
         }
         finally
@@ -225,7 +225,7 @@ public class MediaProcessingService(
     /// Resize image using ImageMagick command-line tool.
     /// Assumes 'magick' or 'convert' is in PATH.
     /// </summary>
-    private async Task ResizeImageAsync(string inputPath, string outputPath, int maxWidth, int maxHeight)
+    private async Task ResizeImageAsync(string inputPath, string outputPath, int maxWidth, int maxHeight, CancellationToken ct = default)
     {
         var command = OperatingSystem.IsWindows()
             ? new ProcessStartInfo("magick", $"\"{inputPath}\" -resize {maxWidth}x{maxHeight} -quality {_imageSettings.JpegQuality} \"{outputPath}\"")
@@ -239,10 +239,10 @@ public class MediaProcessingService(
         using var process = Process.Start(command);
         if (process != null)
         {
-            await process.WaitForExitAsync();
+            await process.WaitForExitAsync(ct);
             if (process.ExitCode != 0)
             {
-                var error = await process.StandardError.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync(ct);
                 throw new InvalidOperationException($"ImageMagick error: {error}");
             }
         }
@@ -251,7 +251,7 @@ public class MediaProcessingService(
     /// <summary>
     /// Extract poster frame from video at specified second using ffmpeg.
     /// </summary>
-    private async Task ExtractPosterAsync(string inputPath, string outputPath, int atSecond)
+    private async Task ExtractPosterAsync(string inputPath, string outputPath, int atSecond, CancellationToken ct = default)
     {
         var command = new ProcessStartInfo("ffmpeg",
             $"-ss {atSecond} -i \"{inputPath}\" -vframes 1 -vf \"scale={_imageSettings.PosterWidth}:-1\" -q:v {_imageSettings.PosterQuality} \"{outputPath}\" -y")
@@ -265,10 +265,10 @@ public class MediaProcessingService(
         using var process = Process.Start(command);
         if (process != null)
         {
-            await process.WaitForExitAsync();
+            await process.WaitForExitAsync(ct);
             if (process.ExitCode != 0)
             {
-                var error = await process.StandardError.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync(ct);
                 throw new InvalidOperationException($"FFmpeg error: {error}");
             }
         }

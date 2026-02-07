@@ -93,7 +93,7 @@ public static class AdminEndpoints
             [FromServices] IUserLookupService userLookup,
             CancellationToken ct) =>
         {
-            var collections = await collectionRepo.GetAllWithAclsAsync();
+            var collections = await collectionRepo.GetAllWithAclsAsync(ct);
             
             // Build hierarchical structure
             var allCollections = collections.ToList();
@@ -126,7 +126,7 @@ public static class AdminEndpoints
             [FromServices] IUserLookupService userLookup,
             CancellationToken ct) =>
         {
-            if (!await collectionRepo.ExistsAsync(collectionId))
+            if (!await collectionRepo.ExistsAsync(collectionId, ct))
                 return Results.NotFound(ApiError.NotFound("Collection not found"));
 
             if (string.IsNullOrWhiteSpace(request.PrincipalId))
@@ -163,7 +163,8 @@ public static class AdminEndpoints
                 collectionId, 
                 principalType, 
                 principalId, 
-                request.Role!.ToLowerInvariant());
+                request.Role!.ToLowerInvariant(),
+                ct);
 
             return Results.Ok(new { 
                 message = "Access updated", 
@@ -186,10 +187,10 @@ public static class AdminEndpoints
             [FromServices] ICollectionAclRepository aclRepo,
             CancellationToken ct) =>
         {
-            if (!await collectionRepo.ExistsAsync(collectionId))
+            if (!await collectionRepo.ExistsAsync(collectionId, ct))
                 return Results.NotFound(ApiError.NotFound("Collection not found"));
 
-            await aclRepo.RevokeAccessAsync(collectionId, principalType ?? "user", principalId);
+            await aclRepo.RevokeAccessAsync(collectionId, principalType ?? "user", principalId, ct);
 
             return Results.Ok(new { message = "Access revoked", collectionId, principalId });
         })
@@ -207,8 +208,8 @@ public static class AdminEndpoints
             [FromServices] IUserLookupService userLookup,
             CancellationToken ct) =>
         {
-            var allAcls = await aclRepo.GetAllAsync();
-            var allCollections = (await collectionRepo.GetAllWithAclsAsync()).ToDictionary(c => c.Id);
+            var allAcls = await aclRepo.GetAllAsync(ct);
+            var allCollections = (await collectionRepo.GetAllWithAclsAsync(ct)).ToDictionary(c => c.Id);
             
             // Lookup usernames
             var userIds = allAcls.Where(a => a.PrincipalType == "user").Select(a => a.PrincipalId).Distinct().ToList();
@@ -249,7 +250,7 @@ public static class AdminEndpoints
             CancellationToken ct) =>
         {
             var allUsers = await userLookup.GetAllUsersAsync(ct);
-            var allAcls = await aclRepo.GetAllAsync();
+            var allAcls = await aclRepo.GetAllAsync(ct);
             
             // Group ACLs by user to get collection count and highest role
             var userAclGroups = allAcls

@@ -3,22 +3,24 @@
 
 @inject IUserFeedbackService Feedback
 @inject IJSRuntime JS
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<SharesResource> ShareLoc
 
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Share" Class="mr-2" Color="Color.Success" />
-            Share Link Created
+            @ShareLoc["ShareLinkCreated"]
         </MudText>
     </TitleContent>
     <DialogContent>
         <MudStack Spacing="3">
             <MudAlert Severity="Severity.Success" Dense="true">
-                Your share link has been created successfully!
+                @ShareLoc["ShareLinkSuccess"]
             </MudAlert>
 
             <MudTextField Value="@ShareUrl"
-                          Label="Share URL"
+                          Label="@ShareLoc["ShareURL"]"
                           ReadOnly="true"
                           Variant="Variant.Outlined"
                           Adornment="Adornment.End"
@@ -26,7 +28,7 @@
                           OnAdornmentClick="CopyUrlToClipboard" />
 
             <MudTextField Value="@Password"
-                          Label="Password"
+                          Label="@CommonLoc["Label_Password"]"
                           ReadOnly="true"
                           Variant="Variant.Outlined"
                           InputType="@(_showPassword ? InputType.Text : InputType.Password)"
@@ -39,13 +41,13 @@
                            Variant="Variant.Text"
                            StartIcon="@Icons.Material.Filled.ContentCopy"
                            OnClick="CopyPasswordToClipboard">
-                    Copy Password
+                    @CommonLoc["Btn_CopyPassword"]
                 </MudButton>
                 <MudButton Size="Size.Small"
                            Variant="Variant.Text"
                            StartIcon="@Icons.Material.Filled.ContentCopy"
                            OnClick="CopyAllToClipboard">
-                    Copy All
+                    @CommonLoc["Btn_CopyAll"]
                 </MudButton>
             </MudStack>
 
@@ -53,23 +55,23 @@
             {
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
                     <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
-                    Expires: @ExpiresAt.Value.ToLocalTime().ToString("f")
+                    @CommonLoc["Label_Expires"]: @ExpiresAt.Value.ToLocalTime().ToString("f")
                 </MudText>
             }
 
             <MudAlert Severity="Severity.Warning" Dense="true">
                 <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
-                This link is password protected. Share the password securely with recipients.
+                @ShareLoc["PasswordProtectedWarning"]
             </MudAlert>
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Close">Close</MudButton>
+        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
         <MudButton Color="Color.Primary" 
                    Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.ContentCopy"
                    OnClick="CopyAllToClipboard">
-            Copy All
+            @CommonLoc["Btn_CopyAll"]
         </MudButton>
     </DialogActions>
 </MudDialog>

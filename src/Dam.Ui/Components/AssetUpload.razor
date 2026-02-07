@@ -3,6 +3,7 @@
 
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
 
 <MudPaper Class="@_uploadAreaClass"
           Elevation="0"
@@ -22,7 +23,7 @@
                  Size="Size.Large" 
                  Color="Color.Primary" />
         <MudText Typo="Typo.body1">
-            Drag and drop files here or
+            @CommonLoc["Text_DragDropFiles"]
         </MudText>
         <MudButton HtmlTag="label"
                    Variant="Variant.Filled"
@@ -30,10 +31,10 @@
                    StartIcon="@Icons.Material.Filled.AttachFile"
                    for="fileInput"
                    Disabled="@(!CollectionId.HasValue || _isUploading)">
-            Browse Files
+            @CommonLoc["Btn_BrowseFiles"]
         </MudButton>
         <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Supported: Images (JPEG, PNG, WebP), Videos (MP4), Documents (PDF)
+            @CommonLoc["Text_SupportedFormats"]
         </MudText>
     </MudStack>
 </MudPaper>
@@ -41,7 +42,7 @@
 @if (_uploads.Any())
 {
     <MudPaper Class="pa-3 mt-3" Elevation="1">
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Uploads</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@CommonLoc["Label_Uploads"]</MudText>
         <MudStack Spacing="2">
             @foreach (var upload in _uploads)
             {
@@ -61,7 +62,7 @@
                     }
                     else if (upload.Status == UploadStatus.Processing)
                     {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info">Processing</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@CommonLoc["Text_Processing"]</MudChip>
                     }
                     else if (upload.Status == UploadStatus.Completed)
                     {

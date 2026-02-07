@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="PageTitle" xml:space="preserve"><value>Administration</value></data>
+  <data name="Tab_ShareManagement" xml:space="preserve"><value>Share Management</value></data>
+  <data name="Tab_CollectionAccess" xml:space="preserve"><value>Collection Access</value></data>
+  <data name="Tab_UserManagement" xml:space="preserve"><value>User Management</value></data>
+
+  <!-- Share Management -->
+  <data name="AllSharedLinks" xml:space="preserve"><value>All Shared Links</value></data>
+  <data name="NoSharesYet" xml:space="preserve"><value>No shares yet</value></data>
+  <data name="NoSharesDesc" xml:space="preserve"><value>When users create share links for assets or collections, they will appear here for management.</value></data>
+  <data name="SearchSharesPlaceholder" xml:space="preserve"><value>Search shares...</value></data>
+  <data name="Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Expired" xml:space="preserve"><value>Expired</value></data>
+  <data name="Revoked" xml:space="preserve"><value>Revoked</value></data>
+  <data name="Header_Target" xml:space="preserve"><value>Target</value></data>
+  <data name="Header_CreatedBy" xml:space="preserve"><value>Created By</value></data>
+  <data name="Header_LastAccess" xml:space="preserve"><value>Last Access</value></data>
+  <data name="Header_AccessCount" xml:space="preserve"><value>Access Count</value></data>
+  <data name="EditPassword" xml:space="preserve"><value>Edit Password</value></data>
+  <data name="RevokeShare" xml:space="preserve"><value>Revoke Share</value></data>
+  <data name="ConfirmRevokeShare" xml:space="preserve"><value>Are you sure you want to revoke the share for "{0}"? This action cannot be undone.</value></data>
+  <data name="ShareRevokedSuccess" xml:space="preserve"><value>Share revoked successfully</value></data>
+
+  <!-- Collection Access -->
+  <data name="CollectionAccessControl" xml:space="preserve"><value>Collection Access Control</value></data>
+  <data name="NoCollectionsYet" xml:space="preserve"><value>No collections yet</value></data>
+  <data name="NoCollectionsDesc" xml:space="preserve"><value>Create collections from the Assets page to start organizing your media.</value></data>
+  <data name="SelectACollection" xml:space="preserve"><value>Select a collection</value></data>
+  <data name="SelectACollectionDesc" xml:space="preserve"><value>Choose a collection from the list to view and manage user access permissions.</value></data>
+  <data name="AccessFor" xml:space="preserve"><value>Access for:</value></data>
+  <data name="NoUsersHaveAccess" xml:space="preserve"><value>No users have access</value></data>
+  <data name="NoUsersHaveAccessDesc" xml:space="preserve"><value>Grant access to users using the form above. They will be able to view or manage assets based on their role.</value></data>
+
+  <!-- User Management -->
+  <data name="UserManagement" xml:space="preserve"><value>User Management</value></data>
+  <data name="UserManagementDesc" xml:space="preserve"><value>Manage all users in the Keycloak realm. Click "Manage Access" to grant or revoke collection access for any user.</value></data>
+  <data name="NoUsersFound" xml:space="preserve"><value>No users found</value></data>
+  <data name="NoUsersFoundDesc" xml:space="preserve"><value>No users exist in the Keycloak realm yet. Create a user to get started.</value></data>
+  <data name="SearchUsersPlaceholder" xml:space="preserve"><value>Search users...</value></data>
+  <data name="Total" xml:space="preserve"><value>Total</value></data>
+  <data name="WithAccess" xml:space="preserve"><value>With Access</value></data>
+  <data name="Header_Username" xml:space="preserve"><value>Username</value></data>
+  <data name="Header_Email" xml:space="preserve"><value>Email</value></data>
+  <data name="Header_Created" xml:space="preserve"><value>Created</value></data>
+  <data name="Header_HighestRole" xml:space="preserve"><value>Highest Role</value></data>
+
+  <!-- Manage User Access Dialog -->
+  <data name="ManageUserAccess" xml:space="preserve"><value>Manage User Access</value></data>
+  <data name="AddCollectionAccess" xml:space="preserve"><value>Add Collection Access</value></data>
+  <data name="UserHasAllAccess" xml:space="preserve"><value>User has access to all collections</value></data>
+  <data name="CurrentCollectionAccess" xml:space="preserve"><value>Current Collection Access ({0})</value></data>
+  <data name="NoCollectionAccess" xml:space="preserve"><value>No collection access</value></data>
+  <data name="NoCollectionAccessDesc" xml:space="preserve"><value>This user doesn't have access to any collections yet.</value></data>
+  <data name="ChangeRole" xml:space="preserve"><value>Change Role</value></data>
+  <data name="RevokeAccess" xml:space="preserve"><value>Revoke Access</value></data>
+
+  <!-- Create User Dialog -->
+  <data name="CreateNewUser" xml:space="preserve"><value>Create New User</value></data>
+  <data name="EditSharePassword" xml:space="preserve"><value>Edit Share Password</value></data>
+
+  <!-- User Access Dialog -->
+  <data name="UserAccessDetails" xml:space="preserve"><value>User Access Details</value></data>
+  <data name="Highest" xml:space="preserve"><value>Highest:</value></data>
+  <data name="CollectionAccessCount" xml:space="preserve"><value>Collection Access ({0})</value></data>
+  <data name="NoCollectionAccessUserDesc" xml:space="preserve"><value>This user doesn't have access to any collections.</value></data>
+</root>

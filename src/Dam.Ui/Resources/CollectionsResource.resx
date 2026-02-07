@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Collection Dialog -->
+  <data name="CreateCollection" xml:space="preserve"><value>Create Collection</value></data>
+  <data name="CollectionName" xml:space="preserve"><value>Collection Name</value></data>
+  <data name="SubCollectionHint" xml:space="preserve"><value>This will be created as a sub-collection.</value></data>
+
+  <!-- Collection Tree -->
+  <data name="NoCollectionsYet" xml:space="preserve"><value>No collections yet</value></data>
+  <data name="CreateFirstHint" xml:space="preserve"><value>Click the folder icon above to create your first collection.</value></data>
+  <data name="Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="DeleteCollection" xml:space="preserve"><value>Delete Collection</value></data>
+  <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Are you sure you want to delete '{0}'?{1} This action cannot be undone.</value></data>
+  <data name="AssetCountWarning" xml:space="preserve"><value> This collection contains {0} asset(s) that will also be deleted.</value></data>
+  <data name="ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
+</root>

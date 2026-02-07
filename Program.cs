@@ -25,6 +25,19 @@ var builder = WebApplication.CreateBuilder(args);
 // Allow personal overrides via appsettings.Local.json (gitignored)
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
+// Localization (Swedish & English)
+builder.Services.AddLocalization();
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    var supportedCultures = new[] { "en", "sv" };
+    options.SetDefaultCulture("en")
+        .AddSupportedCultures(supportedCultures)
+        .AddSupportedUICultures(supportedCultures);
+    // Use a cookie so the LanguageSwitcher component can persist the user's choice
+    options.RequestCultureProviders.Insert(0,
+        new Microsoft.AspNetCore.Localization.CookieRequestCultureProvider());
+});
+
 // Blazor Server (.NET 9 template style)
 builder.Services
     .AddRazorComponents()
@@ -448,6 +461,8 @@ if (app.Environment.IsDevelopment())
     });
 }
 app.UseStaticFiles();
+
+app.UseRequestLocalization();
 
 app.UseAuthentication();
 app.UseAuthorization();

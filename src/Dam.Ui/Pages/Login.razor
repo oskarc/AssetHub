@@ -4,8 +4,9 @@
 @attribute [AllowAnonymous]
 
 @inject NavigationManager Nav
+@inject IStringLocalizer<CommonResource> CommonLoc
 
-<PageTitle>Login - AssetHub</PageTitle>
+<PageTitle>@CommonLoc["Btn_SignIn"] - @CommonLoc["AppName"]</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 100vh;">
     <MudPaper Class="pa-8" Elevation="4" Style="width: 100%; max-width: 400px;">
@@ -16,17 +17,17 @@
                      Style="font-size: 4rem;" />
             
             <MudText Typo="Typo.h4" Align="Align.Center">
-                AssetHub
+                @CommonLoc["AppName"]
             </MudText>
             
             <MudText Typo="Typo.body1" Color="Color.Secondary" Align="Align.Center">
-                Digital Asset Management
+                @CommonLoc["AppSubtitle"]
             </MudText>
 
             <MudDivider Class="my-4" FlexItem="true" Style="width: 100%;" />
 
             <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">
-                Sign in with your organization account to access your digital assets.
+                @CommonLoc["Text_SignInDescription"]
             </MudText>
 
             <MudButton Variant="Variant.Filled"
@@ -35,11 +36,11 @@
                        FullWidth="true"
                        StartIcon="@Icons.Material.Filled.Login"
                        OnClick="SignIn">
-                Sign In
+                @CommonLoc["Btn_SignIn"]
             </MudButton>
 
             <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
-                You will be redirected to your identity provider
+                @CommonLoc["Text_RedirectIdentityProvider"]
             </MudText>
         </MudStack>
     </MudPaper>

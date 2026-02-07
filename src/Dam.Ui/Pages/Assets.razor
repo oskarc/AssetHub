@@ -11,8 +11,10 @@
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
 @inject IJSRuntime JS
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AssetsResource> AssetLoc
 
-<PageTitle>Assets - AssetHub</PageTitle>
+<PageTitle>@AssetLoc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
     <MudGrid>
@@ -20,19 +22,19 @@
         <MudItem xs="12" md="3" lg="2">
             <MudPaper Class="pa-3" Elevation="1">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
-                    <MudText Typo="Typo.h6">Collections</MudText>
+                    <MudText Typo="Typo.h6">@CommonLoc["Label_Collections"]</MudText>
                     <MudStack Row="true" Spacing="1">
                         @if (_selectedCollectionId.HasValue)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Close" 
                                            Size="Size.Small"
                                            OnClick="DeselectCollection"
-                                           Title="Clear selection" />
+                                           Title="@CommonLoc["Btn_Close"]" />
                         }
                         <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder" 
                                        Size="Size.Small"
                                        OnClick="CreateCollectionAsync"
-                                       Title="Create collection" />
+                                       Title="@AssetLoc["CreateCollection"]" />
                     </MudStack>
                 </MudStack>
                 
@@ -59,7 +61,7 @@
                                    Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Download"
                                    OnClick="DownloadAllAsync">
-                            Download All
+                            @CommonLoc["Btn_DownloadAll"]
                         </MudButton>
                         @if (CanShare)
                         {
@@ -67,14 +69,14 @@
                                        Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.Share"
                                        OnClick="ShareCollectionAsync">
-                                Share Collection
+                                @AssetLoc["ShareCollection"]
                             </MudButton>
                         }
                         <MudButton Variant="Variant.Outlined"
                                    Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Refresh"
                                    OnClick="RefreshAsync">
-                            Refresh
+                            @CommonLoc["Btn_Refresh"]
                         </MudButton>
                     </MudStack>
                 }
@@ -82,8 +84,8 @@
 
             @if (!_selectedCollectionId.HasValue)
             {
-                <EmptyState Title="Select a collection"
-                            Description="Choose a collection from the sidebar to view and manage your assets, or create a new collection to get started."
+                <EmptyState Title="@AssetLoc["SelectCollection"]"
+                            Description="@AssetLoc["SelectCollectionDesc"]"
                             Icon="@Icons.Material.Filled.FolderOpen" />
             }
             else
@@ -100,7 +102,7 @@
                     <MudGrid>
                         <MudItem xs="12" sm="6" md="4">
                             <MudTextField @bind-Value="_searchQuery"
-                                          Placeholder="Search assets..."
+                                          Placeholder="@AssetLoc["SearchPlaceholder"]"
                                           Variant="Variant.Outlined"
                                           Margin="Margin.Dense"
                                           Adornment="Adornment.Start"
@@ -111,24 +113,24 @@
                         </MudItem>
                         <MudItem xs="12" sm="6" md="3">
                             <MudSelect @bind-Value="_filterType"
-                                       Label="Type"
+                                       Label="@CommonLoc["Label_Type"]"
                                        Variant="Variant.Outlined"
                                        Margin="Margin.Dense">
-                                <MudSelectItem Value="@((string?)null)">All Types</MudSelectItem>
-                                <MudSelectItem Value="@("image")">Images</MudSelectItem>
-                                <MudSelectItem Value="@("video")">Videos</MudSelectItem>
-                                <MudSelectItem Value="@("document")">Documents</MudSelectItem>
+                                <MudSelectItem Value="@((string?)null)">@CommonLoc["Filter_AllTypes"]</MudSelectItem>
+                                <MudSelectItem Value="@("image")">@CommonLoc["Filter_Images"]</MudSelectItem>
+                                <MudSelectItem Value="@("video")">@CommonLoc["Filter_Videos"]</MudSelectItem>
+                                <MudSelectItem Value="@("document")">@CommonLoc["Filter_Documents"]</MudSelectItem>
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="6" md="3">
                             <MudSelect @bind-Value="_sortBy"
-                                       Label="Sort By"
+                                       Label="@CommonLoc["Label_SortBy"]"
                                        Variant="Variant.Outlined"
                                        Margin="Margin.Dense">
-                                <MudSelectItem Value="@("created_desc")">Newest First</MudSelectItem>
-                                <MudSelectItem Value="@("created_asc")">Oldest First</MudSelectItem>
-                                <MudSelectItem Value="@("title_asc")">Title A-Z</MudSelectItem>
-                                <MudSelectItem Value="@("size_desc")">Largest First</MudSelectItem>
+                                <MudSelectItem Value="@("created_desc")">@CommonLoc["Sort_NewestFirst"]</MudSelectItem>
+                                <MudSelectItem Value="@("created_asc")">@CommonLoc["Sort_OldestFirst"]</MudSelectItem>
+                                <MudSelectItem Value="@("title_asc")">@CommonLoc["Sort_TitleAZ"]</MudSelectItem>
+                                <MudSelectItem Value="@("size_desc")">@CommonLoc["Sort_LargestFirst"]</MudSelectItem>
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="6" md="2">
@@ -231,7 +233,7 @@
             { x => x.ParentId, (Guid?)null }
         };
 
-        var dialog = await DialogService.ShowAsync<CreateCollectionDialog>("Create Collection", parameters);
+        var dialog = await DialogService.ShowAsync<CreateCollectionDialog>(AssetLoc["CreateCollection"], parameters);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled)
@@ -240,7 +242,7 @@
             {
                 await _collectionTree.RefreshAsync();
             }
-            Feedback.ShowSuccess("Collection created successfully");
+            Feedback.ShowSuccess(AssetLoc["CollectionCreatedSuccess"]);
         }
     }
 
@@ -257,7 +259,7 @@
             { x => x.ContentName, contentName }
         };
 
-        var createResult = await DialogService.ShowAsync<CreateShareDialog>("Create Share Link", createParams);
+        var createResult = await DialogService.ShowAsync<CreateShareDialog>(AssetLoc["CreateShareLink"], createParams);
         var result = await createResult.Result;
 
         if (result != null && !result.Canceled && result.Data is ShareResponse share)
@@ -269,7 +271,7 @@
                 { x => x.ExpiresAt, share.ExpiresAt }
             };
 
-            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", successParams);
+            await DialogService.ShowAsync<ShareLinkDialog>(AssetLoc["ShareLinkCreated"], successParams);
         }
     }
 

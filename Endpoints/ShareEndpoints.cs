@@ -140,7 +140,7 @@ public static class ShareEndpoints
         }
 
         // Authorization: User must have contributor+ role to share
-        if (!await authService.CheckAccessAsync(userId, collectionIdToCheck, RoleHierarchy.Roles.Contributor))
+        if (!await authService.CheckAccessAsync(userId, collectionIdToCheck, RoleHierarchy.Roles.Contributor, ct))
             return Results.Json(ApiError.Forbidden("You don't have permission to share this resource"), statusCode: 403);
 
         // Generate secure token
@@ -457,7 +457,7 @@ public static class ShareEndpoints
         // Update access tracking
         share.LastAccessedAt = DateTime.UtcNow;
         share.AccessCount++;
-        await shareRepository.UpdateAsync(share);
+        await shareRepository.UpdateAsync(share, ct);
 
         // Create ZIP in memory
         var memoryStream = new MemoryStream();

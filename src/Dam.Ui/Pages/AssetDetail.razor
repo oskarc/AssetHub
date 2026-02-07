@@ -10,25 +10,27 @@
 @inject NavigationManager Nav
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AssetsResource> AssetLoc
 
-<PageTitle>@(_asset?.Title ?? "Asset") - AssetHub</PageTitle>
+<PageTitle>@(_isLoading ? AssetLoc["LoadingAsset"] : _asset?.Title ?? AssetLoc["AssetNotFound"]) - @CommonLoc["AppName"]</PageTitle>
 
 @if (_isLoading)
 {
     <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
             <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-            <MudText Typo="Typo.body1" Class="mt-4">Loading asset...</MudText>
+            <MudText Typo="Typo.body1" Class="mt-4">@AssetLoc["LoadingAsset"]</MudText>
         </MudStack>
     </MudContainer>
 }
 else if (_asset == null)
 {
     <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
-        <EmptyState Title="Asset not found"
-                    Description="This asset doesn't exist or you don't have permission to view it."
+        <EmptyState Title="@AssetLoc["AssetNotFound"]"
+                    Description="@AssetLoc["AssetNotFoundDesc"]"
                     Icon="@Icons.Material.Filled.BrokenImage"
-                    ActionText="Back to Assets"
+                    ActionText="@CommonLoc["Btn_BackToAssets"]"
                     ActionIcon="@Icons.Material.Filled.ArrowBack"
                     OnAction="@NavigateBackToAssets" />
     </MudContainer>
@@ -41,7 +43,7 @@ else
                    StartIcon="@Icons.Material.Filled.ArrowBack"
                    OnClick="@NavigateBackToAssets"
                    Class="mb-3">
-            Back to Assets
+            @CommonLoc["Btn_BackToAssets"]
         </MudButton>
 
         <MudGrid>
@@ -60,7 +62,7 @@ else
                     {
                         <video controls style="width: 100%; max-height: 600px;">
                             <source src="@GetPreviewUrl()" type="@_asset.ContentType">
-                            Your browser does not support the video tag.
+                            @CommonLoc["Text_BrowserNoVideo"]
                         </video>
                     }
                     else if (AssetDisplayHelpers.IsPdfContentType(_asset?.ContentType))
@@ -76,14 +78,14 @@ else
                             <MudIcon Icon="@AssetDisplayHelpers.GetAssetIcon(_asset?.AssetType)" Size="Size.Large" Color="Color.Primary" />
                             <MudText Typo="Typo.h6">@_asset.Title</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Preview not available for this file type
+                                @CommonLoc["Text_PreviewNotAvailable"]
                             </MudText>
                             <MudButton Variant="Variant.Outlined" 
                                        StartIcon="@Icons.Material.Filled.Download"
                                        Href="@GetDownloadUrl()"
                                        Target="_blank"
                                        Class="mt-2">
-                                Download to View
+                                @CommonLoc["Btn_DownloadToView"]
                             </MudButton>
                         </MudStack>
                     }
@@ -112,14 +114,14 @@ else
                         <!-- Collection Membership (Multi-Collection) -->
                         <MudStack>
                             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                <MudText Typo="Typo.subtitle2">Collections</MudText>
+                                <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Collections"]</MudText>
                                 @if (RolePermissions.CanManageCollections(_asset?.UserRole))
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.Add"
                                                    Size="Size.Small"
                                                    Color="Color.Primary"
                                                    OnClick="OpenAddToCollectionDialogAsync"
-                                                   Title="Add to Collection" />
+                                                   Title="@AssetLoc["AddToCollection"]" />
                                 }
                             </MudStack>
                             
@@ -168,29 +170,29 @@ else
 
                         <!-- File Info -->
                         <MudStack>
-                            <MudText Typo="Typo.subtitle2">File Information</MudText>
+                            <MudText Typo="Typo.subtitle2">@CommonLoc["Text_FileInformation"]</MudText>
                             <MudSimpleTable Dense="true" Hover="true" Elevation="0">
                                 <tbody>
                                     <tr>
-                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Size</MudText></td>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Size"]</MudText></td>
                                         <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(_asset.SizeBytes)</MudText></td>
                                     </tr>
                                     <tr>
-                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Type</MudText></td>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Type"]</MudText></td>
                                         <td><MudText Typo="Typo.body2">@_asset.ContentType</MudText></td>
                                     </tr>
                                     <tr>
-                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Created</MudText></td>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Created"]</MudText></td>
                                         <td><MudText Typo="Typo.body2">@_asset.CreatedAt.ToLocalTime().ToString("g")</MudText></td>
                                     </tr>
                                     <tr>
-                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">Updated</MudText></td>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Updated"]</MudText></td>
                                         <td><MudText Typo="Typo.body2">@_asset.UpdatedAt.ToLocalTime().ToString("g")</MudText></td>
                                     </tr>
                                     @if (!string.IsNullOrEmpty(_asset.Sha256))
                                     {
                                         <tr>
-                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">SHA256</MudText></td>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_SHA256"]</MudText></td>
                                             <td>
                                                 <MudTooltip Text="@_asset.Sha256">
                                                     <MudText Typo="Typo.body2" Style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
@@ -208,7 +210,7 @@ else
                         @if (_asset.Tags.Any())
                         {
                             <MudStack>
-                                <MudText Typo="Typo.subtitle2">Tags</MudText>
+                                <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Tags"]</MudText>
                                 <MudChipSet T="string" ReadOnly="true">
                                     @foreach (var tag in _asset.Tags)
                                     {
@@ -226,7 +228,7 @@ else
                                                    Style="background: transparent; padding: 0;"
                                                    Class="pa-0 ma-0">
                                     <TitleContent>
-                                        <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">Advanced MetaData</MudText>
+                                        <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">@CommonLoc["Text_AdvancedMetadata"]</MudText>
                                     </TitleContent>
                                     <ChildContent>
                                         @if (_asset.MetadataJson.Any())
@@ -246,7 +248,7 @@ else
                                         else
                                         {
                                             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                                No metadata available. Upload a new image with EXIF data to see metadata here.
+                                                @CommonLoc["Text_NoMetadata"]
                                             </MudText>
                                         }
                                     </ChildContent>
@@ -264,21 +266,21 @@ else
                                        FullWidth="true"
                                        Href="@GetDownloadUrl()"
                                        Target="_blank">
-                                Download Original
+                                @CommonLoc["Btn_DownloadOriginal"]
                             </MudButton>
 
                             <MudButton Variant="Variant.Outlined"
                                        StartIcon="@Icons.Material.Filled.Share"
                                        FullWidth="true"
                                        OnClick="ShareAssetAsync">
-                                Share
+                                @CommonLoc["Btn_Share"]
                             </MudButton>
 
                             <MudButton Variant="Variant.Outlined"
                                        StartIcon="@Icons.Material.Filled.Edit"
                                        FullWidth="true"
                                        OnClick="EditAssetAsync">
-                                Edit Details
+                                @AssetLoc["EditDetails"]
                             </MudButton>
 
                             <MudButton Variant="Variant.Outlined"
@@ -286,7 +288,7 @@ else
                                        StartIcon="@Icons.Material.Filled.Delete"
                                        FullWidth="true"
                                        OnClick="DeleteAssetAsync">
-                                Delete
+                                @CommonLoc["Btn_Delete"]
                             </MudButton>
                         </MudStack>
                     </MudStack>
@@ -359,7 +361,7 @@ else
             { x => x.ExistingCollectionIds, _assetCollections.Select(c => c.Id).ToList() }
         };
 
-        var dialog = await DialogService.ShowAsync<AddToCollectionDialog>("Add to Collection", parameters, options);
+        var dialog = await DialogService.ShowAsync<AddToCollectionDialog>(AssetLoc["AddToCollection"], parameters, options);
         var result = await dialog.Result;
 
         if (!result!.Canceled)
@@ -372,13 +374,13 @@ else
 
     private async Task RemoveFromCollectionAsync(AssetCollectionDto collection)
     {
-        var message = $"Remove this asset from '{collection.Name}'?";
+        var message = string.Format(AssetLoc["ConfirmRemoveFromCollection"], collection.Name);
 
         var confirm = await DialogService.ShowMessageBox(
-            "Remove from Collection",
+            AssetLoc["RemoveFromCollection"],
             message,
-            yesText: "Remove",
-            cancelText: "Cancel");
+            yesText: CommonLoc["Btn_Remove"],
+            cancelText: CommonLoc["Btn_Cancel"]);
 
         if (confirm != true) return;
 
@@ -434,7 +436,7 @@ else
             { x => x.ContentName, _asset.Title }
         };
 
-        var createResult = await DialogService.ShowAsync<CreateShareDialog>("Create Share Link", createParams);
+        var createResult = await DialogService.ShowAsync<CreateShareDialog>(AssetLoc["CreateShareLink"], createParams);
         var result = await createResult.Result;
 
         if (result != null && !result.Canceled && result.Data is ShareResponse share)
@@ -446,7 +448,7 @@ else
                 { x => x.ExpiresAt, share.ExpiresAt }
             };
 
-            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", successParams);
+            await DialogService.ShowAsync<ShareLinkDialog>(AssetLoc["ShareLinkCreated"], successParams);
         }
     }
 
@@ -466,13 +468,13 @@ else
             CloseOnEscapeKey = true
         };
 
-        var dialog = await DialogService.ShowAsync<EditAssetDialog>("Edit Asset", parameters, options);
+        var dialog = await DialogService.ShowAsync<EditAssetDialog>(AssetLoc["EditAssetDetails"], parameters, options);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled && result.Data is AssetResponseDto updatedAsset)
         {
             _asset = updatedAsset;
-            Feedback.ShowSuccess("Asset updated successfully");
+            Feedback.ShowSuccess(AssetLoc["AssetUpdatedSuccess"]);
             StateHasChanged();
         }
     }
@@ -482,17 +484,17 @@ else
         if (_asset == null) return;
 
         var result = await DialogService.ShowMessageBox(
-            "Delete Asset",
-            $"Are you sure you want to delete '{_asset.Title}'? This action cannot be undone.",
-            yesText: "Delete",
-            cancelText: "Cancel");
+            AssetLoc["DeleteAsset"],
+            string.Format(AssetLoc["ConfirmDeleteAsset"], _asset.Title),
+            yesText: CommonLoc["Btn_Delete"],
+            cancelText: CommonLoc["Btn_Cancel"]);
 
         if (result == true)
         {
             var success = await Feedback.ExecuteWithFeedbackAsync(
                 () => Api.DeleteAssetAsync(_asset.Id),
                 "delete asset",
-                "Asset deleted successfully");
+                AssetLoc["AssetDeletedSuccess"]);
             
             if (success)
             {

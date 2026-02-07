@@ -10,23 +10,25 @@
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
 
-<PageTitle>Admin - AssetHub</PageTitle>
+<PageTitle>@AdminLoc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" Class="mb-4">
         <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mr-2" />
-        Administration
+        @AdminLoc["PageTitle"]
     </MudText>
 
     <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
-        <MudTabPanel Text="Share Management" Icon="@Icons.Material.Filled.Share">
+        <MudTabPanel Text="@AdminLoc["Tab_ShareManagement"]" Icon="@Icons.Material.Filled.Share">
             @ShareManagementTab
         </MudTabPanel>
-        <MudTabPanel Text="Collection Access" Icon="@Icons.Material.Filled.FolderShared">
+        <MudTabPanel Text="@AdminLoc["Tab_CollectionAccess"]" Icon="@Icons.Material.Filled.FolderShared">
             @CollectionAccessTab
         </MudTabPanel>
-        <MudTabPanel Text="User Management" Icon="@Icons.Material.Filled.ManageAccounts">
+        <MudTabPanel Text="@AdminLoc["Tab_UserManagement"]" Icon="@Icons.Material.Filled.ManageAccounts">
             @UserManagementTab
         </MudTabPanel>
     </MudTabs>
@@ -37,7 +39,7 @@
     // Nested component for Share Management
     private RenderFragment ShareManagementTab => __builder =>
     {
-        <MudText Typo="Typo.h6" Class="mb-4">All Shared Links</MudText>
+        <MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["AllSharedLinks"]</MudText>
         
         @if (_sharesLoading)
         {
@@ -45,32 +47,32 @@
         }
         else if (_shares == null || !_shares.Any())
         {
-            <EmptyState Title="No shares yet"
-                        Description="When users create share links for assets or collections, they will appear here for management."
+            <EmptyState Title="@AdminLoc["NoSharesYet"]"
+                        Description="@AdminLoc["NoSharesDesc"]"
                         Icon="@Icons.Material.Filled.Share" />
         }
         else
         {
             <MudTable Items="@_shares" Hover="true" Dense="true" Striped="true" Filter="ShareFilter" SortLabel="Sort By">
                 <ToolBarContent>
-                    <MudTextField @bind-Value="_shareSearchString" Placeholder="Search shares..." 
+                    <MudTextField @bind-Value="_shareSearchString" Placeholder="@AdminLoc["SearchSharesPlaceholder"]" 
                         Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
                         IconSize="Size.Medium" Class="mt-0" Immediate="true" />
                     <MudSpacer />
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Active: @_shares.Count(s => s.Status == "Active")</MudChip>
-                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">Expired: @_shares.Count(s => s.Status == "Expired")</MudChip>
-                    <MudChip T="string" Color="Color.Error" Size="Size.Small">Revoked: @_shares.Count(s => s.Status == "Revoked")</MudChip>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">@AdminLoc["Active"]: @_shares.Count(s => s.Status == "Active")</MudChip>
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">@AdminLoc["Expired"]: @_shares.Count(s => s.Status == "Expired")</MudChip>
+                    <MudChip T="string" Color="Color.Error" Size="Size.Small">@AdminLoc["Revoked"]: @_shares.Count(s => s.Status == "Revoked")</MudChip>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeType)">Type</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeName)">Target</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.CreatedByUserName)">Created By</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.CreatedAt)">Created</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ExpiresAt)">Expires</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.LastAccessedAt ?? DateTime.MinValue)">Last Access</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.AccessCount)">Access Count</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.Status)">Status</MudTableSortLabel></MudTh>
-                    <MudTh>Actions</MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeType)">@CommonLoc["Label_Type"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeName)">@AdminLoc["Header_Target"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.CreatedByUserName)">@AdminLoc["Header_CreatedBy"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.CreatedAt)">@CommonLoc["Label_Created"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ExpiresAt)">@CommonLoc["Label_Expires"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.LastAccessedAt ?? DateTime.MinValue)">@AdminLoc["Header_LastAccess"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.AccessCount)">@AdminLoc["Header_AccessCount"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.Status)">@CommonLoc["Label_Status"]</MudTableSortLabel></MudTh>
+                    <MudTh>@CommonLoc["Label_Actions"]</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>
@@ -90,7 +92,7 @@
                     <MudTd>@context.CreatedByUserName</MudTd>
                     <MudTd>@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
                     <MudTd>@context.ExpiresAt.ToLocalTime().ToString("g")</MudTd>
-                    <MudTd>@(context.LastAccessedAt?.ToLocalTime().ToString("g") ?? "Never")</MudTd>
+                    <MudTd>@(context.LastAccessedAt?.ToLocalTime().ToString("g") ?? @CommonLoc["Text_Never"])</MudTd>
                     <MudTd><MudChip T="string" Size="Size.Small">@context.AccessCount</MudChip></MudTd>
                     <MudTd>
                         <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetShareStatusColor(context.Status)">
@@ -104,10 +106,10 @@
                                 @if (context.HasPassword)
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.Key" Color="Color.Primary" Size="Size.Small"
-                                        OnClick="@(() => EditSharePassword(context))" Title="Edit Password" />
+                                        OnClick="@(() => EditSharePassword(context))" Title="@AdminLoc["EditPassword"]" />
                                 }
                                 <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
-                                    OnClick="@(() => RevokeShare(context))" Title="Revoke Share" />
+                                    OnClick="@(() => RevokeShare(context))" Title="@AdminLoc["RevokeShare"]" />
                             </MudStack>
                         }
                     </MudTd>
@@ -124,7 +126,7 @@
 @code {
     private RenderFragment CollectionAccessTab => __builder =>
     {
-        <MudText Typo="Typo.h6" Class="mb-4">Collection Access Control</MudText>
+        <MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["CollectionAccessControl"]</MudText>
         
         @if (_collectionsLoading)
         {
@@ -132,8 +134,8 @@
         }
         else if (_collections == null || !_collections.Any())
         {
-            <EmptyState Title="No collections yet"
-                        Description="Create collections from the Assets page to start organizing your media."
+            <EmptyState Title="@AdminLoc["NoCollectionsYet"]"
+                        Description="@AdminLoc["NoCollectionsDesc"]"
                         Icon="@Icons.Material.Filled.Folder" />
         }
         else
@@ -141,7 +143,7 @@
             <MudGrid>
                 <MudItem xs="12" md="5">
                     <MudPaper Elevation="2" Class="pa-4 admin-collection-tree">
-                        <MudText Typo="Typo.subtitle1" Class="mb-2">Collections</MudText>
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">@CommonLoc["Label_Collections"]</MudText>
                         @foreach (var collection in _collections)
                         {
                             @RenderCollectionTree(collection, 0)
@@ -152,36 +154,36 @@
                     <MudPaper Elevation="2" Class="pa-4">
                         @if (_selectedCollection == null)
                         {
-                            <EmptyState Title="Select a collection"
-                                        Description="Choose a collection from the list to view and manage user access permissions."
+                            <EmptyState Title="@AdminLoc["SelectACollection"]"
+                                        Description="@AdminLoc["SelectACollectionDesc"]"
                                         Icon="@Icons.Material.Filled.FolderShared" />
                         }
                         else
                         {
                             <MudText Typo="Typo.subtitle1" Class="mb-2">
-                                Access for: <strong>@_selectedCollection.Name</strong>
+                                @AdminLoc["AccessFor"] <strong>@_selectedCollection.Name</strong>
                             </MudText>
                             
                             @* Add user form *@
                             <MudGrid Class="mb-4">
                                 <MudItem xs="12" sm="5">
-                                    <MudTextField @bind-Value="_newAclUserId" Label="User ID" 
+                                    <MudTextField @bind-Value="_newAclUserId" Label="@CommonLoc["Label_UserId"]" 
                                         Variant="Variant.Outlined" Size="Size.Small" />
                                 </MudItem>
                                 <MudItem xs="12" sm="4">
-                                    <MudSelect @bind-Value="_newAclRole" Label="Role" 
+                                    <MudSelect @bind-Value="_newAclRole" Label="@CommonLoc["Label_Role"]" 
                                         Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">Viewer</MudSelectItem>
-                                        <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">Contributor</MudSelectItem>
-                                        <MudSelectItem Value="@RoleHierarchy.Roles.Manager">Manager</MudSelectItem>
-                                        <MudSelectItem Value="@RoleHierarchy.Roles.Admin">Admin</MudSelectItem>
+                                        <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                                        <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                                        <MudSelectItem Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                                        <MudSelectItem Value="@RoleHierarchy.Roles.Admin">@CommonLoc["Role_Admin"]</MudSelectItem>
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                         OnClick="AddCollectionAccess" Disabled="@(string.IsNullOrWhiteSpace(_newAclUserId))"
                                         FullWidth="true" Class="mt-1">
-                                        Add
+                                        @CommonLoc["Btn_Add"]
                                     </MudButton>
                                 </MudItem>
                             </MudGrid>
@@ -189,8 +191,8 @@
                             @* Current ACLs *@
                             @if (!_selectedCollection.Acls.Any())
                             {
-                                <EmptyState Title="No users have access"
-                                            Description="Grant access to users using the form above. They will be able to view or manage assets based on their role."
+                                <EmptyState Title="@AdminLoc["NoUsersHaveAccess"]"
+                                            Description="@AdminLoc["NoUsersHaveAccessDesc"]"
                                             Icon="@Icons.Material.Filled.PersonAdd" />
                             }
                             else
@@ -198,9 +200,9 @@
                                 <MudSimpleTable Dense="true" Hover="true" Striped="true">
                                     <thead>
                                         <tr>
-                                            <th>User</th>
-                                            <th>Role</th>
-                                            <th>Actions</th>
+                                            <th>@CommonLoc["Label_User"]</th>
+                                            <th>@CommonLoc["Label_Role"]</th>
+                                            <th>@CommonLoc["Label_Actions"]</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -234,9 +236,9 @@
 @code {
     private RenderFragment UserManagementTab => __builder =>
     {
-        <MudText Typo="Typo.h6" Class="mb-4">User Management</MudText>
+        <MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["UserManagement"]</MudText>
         <MudAlert Severity="Severity.Info" Class="mb-4">
-            Manage all users in the Keycloak realm. Click "Manage Access" to grant or revoke collection access for any user.
+            @AdminLoc["UserManagementDesc"]
         </MudAlert>
         
         @if (_allUsersLoading)
@@ -245,10 +247,10 @@
         }
         else if (_allUsers == null || !_allUsers.Any())
         {
-            <EmptyState Title="No users found"
-                        Description="No users exist in the Keycloak realm yet. Create a user to get started."
+            <EmptyState Title="@AdminLoc["NoUsersFound"]"
+                        Description="@AdminLoc["NoUsersFoundDesc"]"
                         Icon="@Icons.Material.Filled.PeopleAlt"
-                        ActionText="Create User"
+                        ActionText="@CommonLoc["Btn_CreateUser"]"
                         ActionIcon="@Icons.Material.Filled.PersonAdd"
                         OnAction="OpenCreateUserDialog" />
         }
@@ -256,25 +258,25 @@
         {
             <MudTable Items="@_allUsers" Hover="true" Dense="true" Striped="true" Filter="new Func<KeycloakUserDto,bool>(UserFilter)" SortLabel="Sort By">
                 <ToolBarContent>
-                    <MudTextField @bind-Value="_userSearchString" Placeholder="Search users..." 
+                    <MudTextField @bind-Value="_userSearchString" Placeholder="@AdminLoc["SearchUsersPlaceholder"]" 
                         Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
                         IconSize="Size.Medium" Class="mt-0" Immediate="true" />
                     <MudSpacer />
-                    <MudChip T="string" Color="Color.Info" Size="Size.Small">Total: @_allUsers.Count</MudChip>
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small">With Access: @_allUsers.Count(u => u.CollectionCount > 0)</MudChip>
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@AdminLoc["Total"]: @_allUsers.Count</MudChip>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">@AdminLoc["WithAccess"]: @_allUsers.Count(u => u.CollectionCount > 0)</MudChip>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.PersonAdd"
                                OnClick="OpenCreateUserDialog" Class="ml-2">
-                        Create User
+                        @CommonLoc["Btn_CreateUser"]
                     </MudButton>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Username)">Username</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Email ?? string.Empty)">Email</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.CreatedAt ?? DateTime.MinValue)">Created</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.CollectionCount)">Collections</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.HighestRole ?? string.Empty)">Highest Role</MudTableSortLabel></MudTh>
-                    <MudTh>Actions</MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Username)">@AdminLoc["Header_Username"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Email ?? string.Empty)">@AdminLoc["Header_Email"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.CreatedAt ?? DateTime.MinValue)">@AdminLoc["Header_Created"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.CollectionCount)">@CommonLoc["Label_Collections"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.HighestRole ?? string.Empty)">@AdminLoc["Header_HighestRole"]</MudTableSortLabel></MudTh>
+                    <MudTh>@CommonLoc["Label_Actions"]</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.Username</MudTd>
@@ -287,7 +289,7 @@
                         }
                         else
                         {
-                            <MudText Typo="Typo.body2" Style="opacity: 0.6;">None</MudText>
+                            <MudText Typo="Typo.body2" Style="opacity: 0.6;">@CommonLoc["Text_None"]</MudText>
                         }
                     </MudTd>
                     <MudTd>
@@ -299,7 +301,7 @@
                         }
                         else
                         {
-                            <MudText Typo="Typo.body2" Style="opacity: 0.6;">No access</MudText>
+                            <MudText Typo="Typo.body2" Style="opacity: 0.6;">@CommonLoc["Text_NoAccess"]</MudText>
                         }
                     </MudTd>
                     <MudTd>
@@ -308,7 +310,7 @@
                                    Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.ManageAccounts"
                                    OnClick="@(() => ManageUserAccess(context))">
-                            Manage Access
+                            @CommonLoc["Btn_ManageAccess"]
                         </MudButton>
                     </MudTd>
                 </RowTemplate>
@@ -385,7 +387,7 @@
             { x => x.Share, share }
         };
 
-        var dialog = await DialogService.ShowAsync<SharePasswordDialog>("Edit Share Password", parameters);
+        var dialog = await DialogService.ShowAsync<SharePasswordDialog>(AdminLoc["EditSharePassword"], parameters);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled)
@@ -398,9 +400,9 @@
     private async Task RevokeShare(AdminShareDto share)
     {
         var confirmed = await DialogService.ShowMessageBox(
-            "Confirm Revoke",
-            $"Are you sure you want to revoke the share for \"{share.ScopeName}\"? This action cannot be undone.",
-            yesText: "Revoke", cancelText: "Cancel");
+            CommonLoc["Confirm_Revoke"],
+            string.Format(AdminLoc["ConfirmRevokeShare"], share.ScopeName),
+            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
         
         if (confirmed != true)
             return;
@@ -408,7 +410,7 @@
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.RevokeShareAdminAsync(share.Id),
             "revoke share",
-            "Share revoked successfully");
+            AdminLoc["ShareRevokedSuccess"]);
         
         if (success)
         {
@@ -480,7 +482,7 @@
         try
         {
             await Api.AddCollectionAclAsync(_selectedCollection.Id, Constants.PrincipalTypes.User, _newAclUserId, _newAclRole);
-            Feedback.ShowSuccess($"Access granted to '{_newAclUserId}'");
+            Feedback.ShowSuccess(string.Format(CommonLoc["Success_AccessGranted"], _newAclUserId));
             _newAclUserId = "";
             await LoadCollections();
             
@@ -492,7 +494,7 @@
             // Check if it's a "user not found" error and show a helpful message
             if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
             {
-                Feedback.ShowWarning($"User '{_newAclUserId}' does not exist. Please check the username and try again.");
+                Feedback.ShowWarning(string.Format(CommonLoc["Warning_UserNotFound"], _newAclUserId));
             }
             else
             {
@@ -507,9 +509,9 @@
             return;
 
         var confirmed = await DialogService.ShowMessageBox(
-            "Confirm Remove Access",
-            $"Are you sure you want to remove access for \"{acl.PrincipalId}\" from \"{_selectedCollection.Name}\"?",
-            yesText: "Remove", cancelText: "Cancel");
+            CommonLoc["Confirm_RemoveAccess"],
+            string.Format(AdminLoc["ConfirmRemoveAccess"], acl.PrincipalId, _selectedCollection.Name),
+            yesText: CommonLoc["Btn_Remove"], cancelText: CommonLoc["Btn_Cancel"]);
         
         if (confirmed != true)
             return;
@@ -517,7 +519,7 @@
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.RemoveCollectionAclAsync(_selectedCollection.Id, acl.PrincipalId, acl.PrincipalType),
             "remove access",
-            $"Access removed for {acl.PrincipalId}");
+            string.Format(CommonLoc["Success_AccessRemoved"], acl.PrincipalId));
         
         if (success)
         {
@@ -571,7 +573,7 @@
             CloseOnEscapeKey = true
         };
 
-        var dialog = await DialogService.ShowAsync<ManageUserAccessDialog>("Manage User Access", parameters, options);
+        var dialog = await DialogService.ShowAsync<ManageUserAccessDialog>(AdminLoc["ManageUserAccess"], parameters, options);
         var result = await dialog.Result;
 
         // Refresh both user list and collection access to show updated data
@@ -590,7 +592,7 @@
             CloseOnEscapeKey = true
         };
 
-        var dialog = await DialogService.ShowAsync<CreateUserDialog>("Create New User", options);
+        var dialog = await DialogService.ShowAsync<CreateUserDialog>(AdminLoc["CreateNewUser"], options);
         var result = await dialog.Result;
 
         // Refresh user list if a user was created

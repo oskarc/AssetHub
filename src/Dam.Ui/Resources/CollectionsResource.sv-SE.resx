@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Collection Dialog -->
+  <data name="CreateCollection" xml:space="preserve"><value>Skapa samling</value></data>
+  <data name="CollectionName" xml:space="preserve"><value>Samlingsnamn</value></data>
+  <data name="SubCollectionHint" xml:space="preserve"><value>Denna skapas som en undersamling.</value></data>
+
+  <!-- Collection Tree -->
+  <data name="NoCollectionsYet" xml:space="preserve"><value>Inga samlingar ännu</value></data>
+  <data name="CreateFirstHint" xml:space="preserve"><value>Klicka på mappikonen ovan för att skapa din första samling.</value></data>
+  <data name="Rename" xml:space="preserve"><value>Byt namn</value></data>
+  <data name="DeleteCollection" xml:space="preserve"><value>Ta bort samling</value></data>
+  <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Är du säker på att du vill ta bort '{0}'?{1} Denna åtgärd kan inte ångras.</value></data>
+  <data name="AssetCountWarning" xml:space="preserve"><value> Denna samling innehåller {0} tillgång(ar) som också kommer att tas bort.</value></data>
+  <data name="ClearSelection" xml:space="preserve"><value>Rensa val</value></data>
+</root>

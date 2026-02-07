@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Assets Page -->
+  <data name="PageTitle" xml:space="preserve"><value>Assets</value></data>
+  <data name="SelectCollection" xml:space="preserve"><value>Select a collection</value></data>
+  <data name="SelectCollectionDesc" xml:space="preserve"><value>Choose a collection from the sidebar to view and manage your assets, or create a new collection to get started.</value></data>
+  <data name="SearchPlaceholder" xml:space="preserve"><value>Search assets...</value></data>
+  <data name="ShareCollection" xml:space="preserve"><value>Share Collection</value></data>
+  <data name="LoadingAssets" xml:space="preserve"><value>Loading assets...</value></data>
+  <data name="CreateCollection" xml:space="preserve"><value>Create Collection</value></data>
+  <data name="CreateShareLink" xml:space="preserve"><value>Create Share Link</value></data>
+  <data name="ShareLinkCreated" xml:space="preserve"><value>Share Link Created</value></data>
+  <data name="DeleteAsset" xml:space="preserve"><value>Delete Asset</value></data>
+  <data name="ConfirmDeleteAsset" xml:space="preserve"><value>Are you sure you want to delete '{0}'? This action cannot be undone.</value></data>
+
+  <!-- Asset Detail Page -->
+  <data name="AssetNotFound" xml:space="preserve"><value>Asset not found</value></data>
+  <data name="AssetNotFoundDesc" xml:space="preserve"><value>This asset doesn't exist or you don't have permission to view it.</value></data>
+  <data name="LoadingAsset" xml:space="preserve"><value>Loading asset...</value></data>
+  <data name="EditDetails" xml:space="preserve"><value>Edit Details</value></data>
+  <data name="EditAsset" xml:space="preserve"><value>Edit Asset</value></data>
+  <data name="EditAssetDetails" xml:space="preserve"><value>Edit Asset Details</value></data>
+  <data name="AddToCollection" xml:space="preserve"><value>Add to Collection</value></data>
+  <data name="RemoveFromCollection" xml:space="preserve"><value>Remove from Collection</value></data>
+  <data name="ConfirmRemoveFromCollection" xml:space="preserve"><value>Remove this asset from '{0}'?</value></data>
+  <data name="DescriptionOptional" xml:space="preserve"><value>Description (optional)</value></data>
+  <data name="SelectCollectionToAdd" xml:space="preserve"><value>Select a collection to add this asset to:</value></data>
+  <data name="NoAdditionalCollections" xml:space="preserve"><value>No additional collections available. This asset is already in all collections you have access to.</value></data>
+
+  <!-- All Assets Page -->
+  <data name="AllAssetsTitle" xml:space="preserve"><value>All Assets</value></data>
+  <data name="BrowseAllAssets" xml:space="preserve"><value>Browse all assets across all collections</value></data>
+  <data name="SearchAllPlaceholder" xml:space="preserve"><value>Search all assets...</value></data>
+  <data name="ShowingOfAssets" xml:space="preserve"><value>Showing {0} of {1} assets</value></data>
+  <data name="NoMatchingAssets" xml:space="preserve"><value>No matching assets</value></data>
+  <data name="NoMatchingAssetsDesc" xml:space="preserve"><value>Try adjusting your search or filter criteria to find what you're looking for.</value></data>
+  <data name="NoAssetsYet" xml:space="preserve"><value>No assets yet</value></data>
+  <data name="NoAssetsUploadHint" xml:space="preserve"><value>Upload files to a collection to get started. Assets from all your collections will appear here.</value></data>
+  <data name="NoAssetsGridHint" xml:space="preserve"><value>Upload files using the upload area above to get started with this collection.</value></data>
+  <data name="LoadMoreRemaining" xml:space="preserve"><value>Load More ({0} remaining)</value></data>
+
+  <!-- Asset Grid Dialogs -->
+  <data name="ConfirmDelete" xml:space="preserve"><value>Confirm Delete</value></data>
+  <data name="CollectionDeletedSuccess" xml:space="preserve"><value>Collection deleted successfully</value></data>
+  <data name="CollectionCreatedSuccess" xml:space="preserve"><value>Collection created successfully</value></data>
+  <data name="AssetUpdatedSuccess" xml:space="preserve"><value>Asset updated successfully</value></data>
+  <data name="AssetDeletedSuccess" xml:space="preserve"><value>Asset deleted successfully</value></data>
+</root>

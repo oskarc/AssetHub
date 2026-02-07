@@ -7,12 +7,14 @@
 @inject NavigationManager Nav
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
 
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.ManageAccounts" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">Manage User Access</MudText>
+            <MudText Typo="Typo.h6">@AdminLoc["ManageUserAccess"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
@@ -31,11 +33,11 @@
 
             <!-- Add New Collection Access -->
             <MudPaper Class="pa-3" Elevation="0" Outlined="true">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Add Collection Access</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2">@AdminLoc["AddCollectionAccess"]</MudText>
                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
                     <MudSelect T="Guid?" 
                                @bind-Value="_selectedCollectionId" 
-                               Label="Collection" 
+                               Label="@CommonLoc["Label_Collection"]" 
                                Variant="Variant.Outlined" 
                                Dense="true"
                                Disabled="@(_availableCollections.Count == 0)"
@@ -47,39 +49,39 @@
                     </MudSelect>
                     <MudSelect T="string" 
                                @bind-Value="_selectedRole" 
-                               Label="Role" 
+                               Label="@CommonLoc["Label_Role"]" 
                                Variant="Variant.Outlined" 
                                Dense="true"
                                Style="width: 150px;">
-                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">Viewer</MudSelectItem>
-                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">Contributor</MudSelectItem>
-                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">Manager</MudSelectItem>
+                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
                     </MudSelect>
                     <MudButton Variant="Variant.Filled" 
                                Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Add"
                                OnClick="AddCollectionAccess"
                                Disabled="@(!_selectedCollectionId.HasValue || _isAdding)">
-                        Add
+                        @CommonLoc["Btn_Add"]
                     </MudButton>
                 </MudStack>
                 @if (_availableCollections.Count == 0)
                 {
                     <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
-                        User has access to all collections
+                        @AdminLoc["UserHasAllAccess"]
                     </MudAlert>
                 }
             </MudPaper>
 
             <!-- Current Collections List -->
             <MudText Typo="Typo.subtitle2" Class="mt-2">
-                Current Collection Access (@_userCollections.Count)
+                @AdminLoc["CurrentCollectionAccess"] (@_userCollections.Count)
             </MudText>
 
             @if (_userCollections.Count == 0)
             {
-                <EmptyState Title="No collection access"
-                            Description="This user doesn't have access to any collections yet."
+                <EmptyState Title="@AdminLoc["NoCollectionAccess"]"
+                            Description="@AdminLoc["NoCollectionAccessUserDesc"]"
                             Icon="@Icons.Material.Filled.FolderOff"
                             Class="py-4" />
             }
@@ -88,9 +90,9 @@
                 <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Style="border: 1px solid var(--mud-palette-lines-default);">
                     <thead>
                         <tr>
-                            <th>Collection</th>
-                            <th>Role</th>
-                            <th style="width: 180px;">Actions</th>
+                            <th>@CommonLoc["Label_Collection"]</th>
+                            <th>@CommonLoc["Label_Role"]</th>
+                            <th style="width: 180px;">@CommonLoc["Label_Actions"]</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -114,9 +116,9 @@
                                                    Dense="true"
                                                    Margin="Margin.Dense"
                                                    Style="width: 150px;">
-                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">Viewer</MudSelectItem>
-                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">Contributor</MudSelectItem>
-                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">Manager</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
                                         </MudSelect>
                                     }
                                     else
@@ -134,12 +136,12 @@
                                                            Size="Size.Small" 
                                                            Color="Color.Success"
                                                            OnClick="SaveRoleEdit"
-                                                           Title="Save" />
+                                                           Title="@CommonLoc["Btn_Save"]" />
                                             <MudIconButton Icon="@Icons.Material.Filled.Cancel" 
                                                            Size="Size.Small" 
                                                            Color="Color.Default"
                                                            OnClick="CancelRoleEdit"
-                                                           Title="Cancel" />
+                                                           Title="@CommonLoc["Btn_Cancel"]" />
                                         </MudStack>
                                     }
                                     else
@@ -150,13 +152,13 @@
                                                            Color="Color.Primary"
                                                            OnClick="@(() => StartRoleEdit(collection))"
                                                            Disabled="@(_revokingCollections.Count > 0)"
-                                                           Title="Change Role" />
+                                                           Title="@AdminLoc["ChangeRole"]" />
                                             <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" 
                                                            Size="Size.Small" 
                                                            Color="Color.Error"
                                                            OnClick="@(() => RevokeAccess(collection))"
                                                            Disabled="@(_revokingCollections.Contains(collection.CollectionId))"
-                                                           Title="Revoke Access" />
+                                                           Title="@AdminLoc["RevokeAccess"]" />
                                         </MudStack>
                                     }
                                 </td>
@@ -168,7 +170,7 @@
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Close">Close</MudButton>
+        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
     </DialogActions>
 </MudDialog>
 

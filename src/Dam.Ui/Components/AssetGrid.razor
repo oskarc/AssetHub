@@ -5,6 +5,8 @@
 @inject NavigationManager Nav
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AssetsResource> AssetLoc
 
 @if (_isLoading)
 {
@@ -15,8 +17,8 @@
 }
 else if (_assets.Count == 0)
 {
-    <EmptyState Title="No assets yet"
-                Description="Upload files using the upload area above to get started with this collection."
+    <EmptyState Title="@AssetLoc["NoAssetsYet"]"
+                Description="@AssetLoc["NoAssetsGridHint"]"
                 Icon="@Icons.Material.Filled.PhotoLibrary" />
 }
 else
@@ -75,7 +77,7 @@ else
     {
         <MudStack Row="true" Justify="Justify.Center" Class="mt-4">
             <MudButton Variant="Variant.Outlined" OnClick="LoadMoreAsync">
-                Load More (@(_total - _assets.Count) remaining)
+                @CommonLoc["Btn_LoadMore"] (@(_total - _assets.Count) remaining)
             </MudButton>
         </MudStack>
     }
@@ -201,7 +203,7 @@ else
             { x => x.ContentName, asset.Title }
         };
 
-        var createResult = await DialogService.ShowAsync<CreateShareDialog>("Create Share Link", createParams);
+        var createResult = await DialogService.ShowAsync<CreateShareDialog>(AssetLoc["CreateShareLink"], createParams);
         var result = await createResult.Result;
 
         if (result != null && !result.Canceled && result.Data is ShareResponse share)
@@ -213,7 +215,7 @@ else
                 { x => x.ExpiresAt, share.ExpiresAt }
             };
 
-            await DialogService.ShowAsync<ShareLinkDialog>("Share Link Created", successParams);
+            await DialogService.ShowAsync<ShareLinkDialog>(AssetLoc["ShareLinkCreated"], successParams);
             await OnAssetsChanged.InvokeAsync();
         }
     }
@@ -221,17 +223,17 @@ else
     private async Task DeleteAsset(AssetResponseDto asset)
     {
         var result = await DialogService.ShowMessageBox(
-            "Delete Asset",
-            $"Are you sure you want to delete '{asset.Title}'? This action cannot be undone.",
-            yesText: "Delete",
-            cancelText: "Cancel");
+            AssetLoc["ConfirmDelete"],
+            string.Format(AssetLoc["ConfirmDeleteAsset"], asset.Title),
+            yesText: CommonLoc["Btn_Delete"],
+            cancelText: CommonLoc["Btn_Cancel"]);
 
         if (result == true)
         {
             var success = await Feedback.ExecuteWithFeedbackAsync(
                 () => Api.DeleteAssetAsync(asset.Id),
                 "delete asset",
-                "Asset deleted successfully");
+                AssetLoc["AssetDeletedSuccess"]);
             
             if (success)
             {

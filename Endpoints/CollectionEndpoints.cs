@@ -93,7 +93,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check access
-        var hasAccess = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer);
+        var hasAccess = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
         if (!hasAccess)
             return Results.Forbid();
 
@@ -101,7 +101,7 @@ public static class CollectionEndpoints
         if (collection == null)
             return Results.NotFound();
 
-        var userRole = await authService.GetUserRoleAsync(userId, id);
+        var userRole = await authService.GetUserRoleAsync(userId, id, ct);
         var dto = new CollectionResponseDto
         {
             Id = collection.Id,
@@ -135,7 +135,7 @@ public static class CollectionEndpoints
         // Check permission
         if (dto.ParentId.HasValue)
         {
-            var canCreate = await authService.CanCreateSubCollectionAsync(userId, dto.ParentId.Value);
+            var canCreate = await authService.CanCreateSubCollectionAsync(userId, dto.ParentId.Value, ct);
             if (!canCreate)
                 return Results.Forbid();
         }
@@ -160,7 +160,7 @@ public static class CollectionEndpoints
         await collectionRepo.CreateAsync(collection, ct);
 
         // Grant creator admin access
-        await aclRepo.SetAccessAsync(collection.Id, "user", userId, RoleHierarchy.Roles.Admin);
+        await aclRepo.SetAccessAsync(collection.Id, "user", userId, RoleHierarchy.Roles.Admin, ct);
 
         var responseDto = new CollectionResponseDto
         {
@@ -202,7 +202,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check permission (must be manager)
-        var canUpdate = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Manager);
+        var canUpdate = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Manager, ct);
         if (!canUpdate)
             return Results.Forbid();
 
@@ -232,7 +232,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check permission (must be admin)
-        var canDelete = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Admin);
+        var canDelete = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Admin, ct);
         if (!canDelete)
             return Results.Forbid();
 
@@ -257,7 +257,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check access to parent
-        var hasAccess = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer);
+        var hasAccess = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
         if (!hasAccess)
             return Results.Forbid();
 
@@ -279,18 +279,19 @@ public static class CollectionEndpoints
         Guid collectionId,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
         // Must have manager+ access
-        var canManage = await authService.CanManageAclAsync(userId, collectionId);
+        var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
         if (!canManage)
             return Results.Forbid();
 
-        var acls = await aclRepo.GetByCollectionAsync(collectionId);
+        var acls = await aclRepo.GetByCollectionAsync(collectionId, ct);
         var dtos = acls.Select(a => new CollectionAclResponseDto
         {
             Id = a.Id,
@@ -308,14 +309,15 @@ public static class CollectionEndpoints
         SetCollectionAccessDto dto,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
         // Must have manager+ access
-        var canManage = await authService.CanManageAclAsync(userId, collectionId);
+        var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
         if (!canManage)
             return Results.Forbid();
 
@@ -326,7 +328,7 @@ public static class CollectionEndpoints
         if (!RoleHierarchy.AllRoles.Contains(dto.Role))
             return Results.BadRequest("Invalid role");
 
-        var acl = await aclRepo.SetAccessAsync(collectionId, dto.PrincipalType, dto.PrincipalId, dto.Role);
+        var acl = await aclRepo.SetAccessAsync(collectionId, dto.PrincipalType, dto.PrincipalId, dto.Role, ct);
 
         var responseDto = new CollectionAclResponseDto
         {
@@ -346,18 +348,19 @@ public static class CollectionEndpoints
         string principalId,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null)
             return Results.Unauthorized();
 
         // Must have manager+ access
-        var canManage = await authService.CanManageAclAsync(userId, collectionId);
+        var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
         if (!canManage)
             return Results.Forbid();
 
-        await aclRepo.RevokeAccessAsync(collectionId, principalType, principalId);
+        await aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
 
         return Results.NoContent();
     }
@@ -377,7 +380,7 @@ public static class CollectionEndpoints
             return Results.Unauthorized();
 
         // Check viewer access
-        var canView = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer);
+        var canView = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
         if (!canView)
             return Results.Forbid();
 

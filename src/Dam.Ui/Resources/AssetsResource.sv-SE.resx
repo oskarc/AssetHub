@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Assets Page -->
+  <data name="PageTitle" xml:space="preserve"><value>Tillgångar</value></data>
+  <data name="SelectCollection" xml:space="preserve"><value>Välj en samling</value></data>
+  <data name="SelectCollectionDesc" xml:space="preserve"><value>Välj en samling från sidofältet för att visa och hantera dina tillgångar, eller skapa en ny samling för att komma igång.</value></data>
+  <data name="SearchPlaceholder" xml:space="preserve"><value>Sök tillgångar...</value></data>
+  <data name="ShareCollection" xml:space="preserve"><value>Dela samling</value></data>
+  <data name="LoadingAssets" xml:space="preserve"><value>Laddar tillgångar...</value></data>
+  <data name="CreateCollection" xml:space="preserve"><value>Skapa samling</value></data>
+  <data name="CreateShareLink" xml:space="preserve"><value>Skapa dellänk</value></data>
+  <data name="ShareLinkCreated" xml:space="preserve"><value>Dellänk skapad</value></data>
+  <data name="DeleteAsset" xml:space="preserve"><value>Ta bort tillgång</value></data>
+  <data name="ConfirmDeleteAsset" xml:space="preserve"><value>Är du säker på att du vill ta bort '{0}'? Denna åtgärd kan inte ångras.</value></data>
+
+  <!-- Asset Detail Page -->
+  <data name="AssetNotFound" xml:space="preserve"><value>Tillgång hittades inte</value></data>
+  <data name="AssetNotFoundDesc" xml:space="preserve"><value>Denna tillgång finns inte eller så har du inte behörighet att visa den.</value></data>
+  <data name="LoadingAsset" xml:space="preserve"><value>Laddar tillgång...</value></data>
+  <data name="EditDetails" xml:space="preserve"><value>Redigera detaljer</value></data>
+  <data name="EditAsset" xml:space="preserve"><value>Redigera tillgång</value></data>
+  <data name="EditAssetDetails" xml:space="preserve"><value>Redigera tillgångsdetaljer</value></data>
+  <data name="AddToCollection" xml:space="preserve"><value>Lägg till i samling</value></data>
+  <data name="RemoveFromCollection" xml:space="preserve"><value>Ta bort från samling</value></data>
+  <data name="ConfirmRemoveFromCollection" xml:space="preserve"><value>Ta bort denna tillgång från '{0}'?</value></data>
+  <data name="DescriptionOptional" xml:space="preserve"><value>Beskrivning (valfritt)</value></data>
+  <data name="SelectCollectionToAdd" xml:space="preserve"><value>Välj en samling att lägga till denna tillgång i:</value></data>
+  <data name="NoAdditionalCollections" xml:space="preserve"><value>Inga ytterligare samlingar tillgängliga. Denna tillgång finns redan i alla samlingar du har åtkomst till.</value></data>
+
+  <!-- All Assets Page -->
+  <data name="AllAssetsTitle" xml:space="preserve"><value>Alla tillgångar</value></data>
+  <data name="BrowseAllAssets" xml:space="preserve"><value>Bläddra bland alla tillgångar i alla samlingar</value></data>
+  <data name="SearchAllPlaceholder" xml:space="preserve"><value>Sök alla tillgångar...</value></data>
+  <data name="ShowingOfAssets" xml:space="preserve"><value>Visar {0} av {1} tillgångar</value></data>
+  <data name="NoMatchingAssets" xml:space="preserve"><value>Inga matchande tillgångar</value></data>
+  <data name="NoMatchingAssetsDesc" xml:space="preserve"><value>Prova att ändra dina sök- eller filterkriterier för att hitta det du letar efter.</value></data>
+  <data name="NoAssetsYet" xml:space="preserve"><value>Inga tillgångar ännu</value></data>
+  <data name="NoAssetsUploadHint" xml:space="preserve"><value>Ladda upp filer till en samling för att komma igång. Tillgångar från alla dina samlingar visas här.</value></data>
+  <data name="NoAssetsGridHint" xml:space="preserve"><value>Ladda upp filer via uppladdningsytan ovan för att komma igång med denna samling.</value></data>
+  <data name="LoadMoreRemaining" xml:space="preserve"><value>Ladda fler ({0} kvar)</value></data>
+
+  <!-- Asset Grid Dialogs -->
+  <data name="ConfirmDelete" xml:space="preserve"><value>Bekräfta borttagning</value></data>
+  <data name="CollectionDeletedSuccess" xml:space="preserve"><value>Samling har tagits bort</value></data>
+  <data name="CollectionCreatedSuccess" xml:space="preserve"><value>Samling har skapats</value></data>
+  <data name="AssetUpdatedSuccess" xml:space="preserve"><value>Tillgång har uppdaterats</value></data>
+  <data name="AssetDeletedSuccess" xml:space="preserve"><value>Tillgång har tagits bort</value></data>
+</root>
