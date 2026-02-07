@@ -87,7 +87,7 @@
                     }
                     else if (_sharedAsset.AssetType == "video")
                     {
-                        <video controls style="width: 100%; max-height: 600px;">
+                        <video controls poster="@GetPosterUrl()" style="width: 100%; max-height: 600px;">
                             <source src="@GetPreviewUrl()" type="@_sharedAsset.ContentType">
                             @CommonLoc["Text_BrowserNoVideo"]
                         </video>
@@ -236,7 +236,7 @@
                         }
                         else if (_selectedAsset.AssetType == "video")
                         {
-                            <video controls style="width: 100%; max-height: 600px;">
+                            <video controls poster="@GetAssetPosterUrl(_selectedAsset.Id)" style="width: 100%; max-height: 600px;">
                                 <source src="@GetAssetPreviewUrl(_selectedAsset.Id)" type="@_selectedAsset.ContentType">
                                 @CommonLoc["Text_BrowserNoVideo"]
                             </video>
@@ -541,17 +541,33 @@
     private string GetPreviewUrl()
     {
         if (_sharedAsset == null) return "";
-        
-        // For PDF files, use the preview endpoint with inline display
-        if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType))
+
+        var escapedToken = Uri.EscapeDataString(Token);
+
+        // For PDFs and videos/audio, use the preview endpoint without size
+        // so the server returns the original file for inline display / playback.
+        if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType)
+            || _sharedAsset.AssetType == "video"
+            || _sharedAsset.AssetType == "audio")
         {
-            var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview";
+            var url = $"/api/shares/{escapedToken}/preview";
             if (!string.IsNullOrEmpty(_password))
                 url += $"?password={Uri.EscapeDataString(_password)}";
             return url;
         }
-        
-        return _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl ?? $"/api/shares/{Uri.EscapeDataString(Token)}/download";
+
+        // For images / other types, use the rendition URL (medium → thumb → download)
+        var previewUrl = _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl
+                         ?? $"/api/shares/{escapedToken}/download";
+        return AppendPassword(previewUrl);
+    }
+
+    /// <summary>Returns a poster/thumbnail URL for the single shared-asset video element.</summary>
+    private string GetPosterUrl()
+    {
+        if (_sharedAsset == null) return "";
+        var url = _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl ?? "";
+        return string.IsNullOrEmpty(url) ? url : AppendPassword(url);
     }
 
     private string GetAssetPreviewUrl(Guid assetId)
@@ -560,6 +576,23 @@
         if (!string.IsNullOrEmpty(_password))
             url += $"&password={Uri.EscapeDataString(_password)}";
         return url;
+    }
+
+    /// <summary>Returns a poster/thumbnail URL for a collection-asset video element.</summary>
+    private string GetAssetPosterUrl(Guid assetId)
+    {
+        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}&size=medium";
+        if (!string.IsNullOrEmpty(_password))
+            url += $"&password={Uri.EscapeDataString(_password)}";
+        return url;
+    }
+
+    /// <summary>Appends the share password as a query parameter when present.</summary>
+    private string AppendPassword(string url)
+    {
+        if (string.IsNullOrEmpty(_password)) return url;
+        var separator = url.Contains('?') ? '&' : '?';
+        return $"{url}{separator}password={Uri.EscapeDataString(_password)}";
     }
 
     private string GetDownloadUrl()

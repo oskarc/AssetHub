@@ -90,6 +90,8 @@ services:
       MinIO__SecretKey: "minioadmin_dev_password"
       MinIO__BucketName: "assethub-dev"
       MinIO__UseSSL: "false"
+      MinIO__PublicUrl: "localhost:9000"
+      MinIO__PublicUseSSL: "false"
       Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=assethub;User Id=postgres;Password=postgres_dev_password;"
       App__BaseUrl: "http://localhost:7252"
     ports:

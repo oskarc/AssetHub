@@ -1,9 +1,13 @@
 @using Dam.Ui.Services
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
 
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
 @inject IStringLocalizer<CommonResource> CommonLoc
+@inject IJSRuntime JS
+
+@implements IAsyncDisposable
 
 <MudPaper Class="@_uploadAreaClass"
           Elevation="0"
@@ -12,7 +16,8 @@
           @ondragleave="@(() => _isDragOver = false)"
           @ondrop="@(() => _isDragOver = false)">
 
-    <InputFile id="fileInput"
+    <InputFile @ref="_inputFile"
+               id="fileInput"
                OnChange="OnFilesSelected"
                hidden
                multiple
@@ -58,7 +63,11 @@
                     </MudText>
                     @if (upload.Status == UploadStatus.Uploading)
                     {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <MudProgressLinear Value="@upload.ProgressPercent" 
+                                           Min="0" Max="100" 
+                                           Color="Color.Primary"
+                                           Style="width: 80px;" />
+                        <MudText Typo="Typo.caption">@upload.ProgressPercent%</MudText>
                     }
                     else if (upload.Status == UploadStatus.Processing)
                     {
@@ -87,11 +96,21 @@
     [Parameter]
     public EventCallback OnUploadComplete { get; set; }
 
+    private InputFile? _inputFile;
+    private IJSObjectReference? _jsModule;
     private List<UploadItem> _uploads = new();
     private bool _isUploading = false;
     private bool _isDragOver = false;
 
     private string _uploadAreaClass => $"pa-4 upload-area {(_isDragOver ? "drag-over" : "")}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/fileUpload.js");
+        }
+    }
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
     {
@@ -101,39 +120,74 @@
             return;
         }
 
+        if (_jsModule == null || _inputFile?.Element == null)
+        {
+            Feedback.ShowError("Upload module not initialized");
+            return;
+        }
+
         _isUploading = true;
         var files = e.GetMultipleFiles(10); // Max 10 files at once
 
-        foreach (var file in files)
+        // Get file metadata from JS (no file data sent over SignalR)
+        var fileMetadata = await _jsModule.InvokeAsync<FileMetadata[]>(
+            "getFileMetadata", _inputFile.Element);
+
+        for (var i = 0; i < files.Count; i++)
         {
+            var file = files[i];
+            var metadata = i < fileMetadata.Length ? fileMetadata[i] : null;
+
             var upload = new UploadItem
             {
                 FileName = file.Name,
-                Size = file.Size,
-                ContentType = file.ContentType,
-                Status = UploadStatus.Uploading
+                Size = metadata?.Size ?? file.Size,
+                ContentType = metadata?.Type ?? file.ContentType,
+                Status = UploadStatus.Uploading,
+                FileIndex = i
             };
             _uploads.Insert(0, upload);
             StateHasChanged();
 
             try
             {
-                // Max 500MB per file
-                using var stream = file.OpenReadStream(maxAllowedSize: 500 * 1024 * 1024);
-                
-                var result = await Api.UploadAssetAsync(
+                // Step 1: Init upload — get presigned PUT URL from API
+                var initResult = await Api.InitUploadAsync(
                     CollectionId.Value,
-                    Path.GetFileNameWithoutExtension(file.Name),
-                    stream,
                     file.Name,
-                    file.ContentType);
+                    upload.ContentType,
+                    upload.Size,
+                    Path.GetFileNameWithoutExtension(file.Name));
 
-                upload.AssetId = result.Id;
+                upload.AssetId = initResult.AssetId;
+
+                // Step 2: Upload directly to MinIO via JS interop (bypasses SignalR)
+                var callbackHelper = new UploadCallbackHelper(upload, () => InvokeAsync(StateHasChanged));
+                var dotNetRef = DotNetObjectReference.Create(callbackHelper);
+
+                var success = await _jsModule.InvokeAsync<bool>(
+                    "uploadFile",
+                    initResult.UploadUrl,
+                    _inputFile.Element,
+                    i,
+                    dotNetRef);
+
+                if (!success)
+                {
+                    upload.Status = UploadStatus.Failed;
+                    upload.ErrorMessage ??= "Upload failed";
+                    Feedback.ShowError($"Upload failed: {file.Name}");
+                    StateHasChanged();
+                    continue;
+                }
+
+                // Step 3: Confirm upload — triggers media processing
+                var confirmResult = await Api.ConfirmUploadAsync(initResult.AssetId);
                 upload.Status = UploadStatus.Processing;
-                upload.Message = result.Message;
+                upload.Message = confirmResult.Message;
                 StateHasChanged();
 
-                // After a short delay, mark as completed (in reality, we'd poll for status)
+                // After a short delay, mark as completed (in production, would poll for status)
                 await Task.Delay(2000);
                 upload.Status = UploadStatus.Completed;
             }
@@ -168,12 +222,22 @@
         };
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule != null)
+        {
+            await _jsModule.DisposeAsync();
+        }
+    }
+
     private class UploadItem
     {
         public string FileName { get; set; } = "";
         public long Size { get; set; }
         public string ContentType { get; set; } = "";
         public UploadStatus Status { get; set; }
+        public int ProgressPercent { get; set; }
+        public int FileIndex { get; set; }
         public Guid? AssetId { get; set; }
         public string? Message { get; set; }
         public string? ErrorMessage { get; set; }
@@ -185,5 +249,43 @@
         Processing,
         Completed,
         Failed
+    }
+
+    /// <summary>
+    /// JS interop callback helper — receives progress/completion events from the JS upload module.
+    /// </summary>
+    private class UploadCallbackHelper(UploadItem upload, Func<Task> stateChanged)
+    {
+        [JSInvokable]
+        public async Task OnUploadProgress(int percent, long loaded, long total)
+        {
+            upload.ProgressPercent = percent;
+            await stateChanged();
+        }
+
+        [JSInvokable]
+        public async Task OnUploadComplete()
+        {
+            upload.ProgressPercent = 100;
+            await stateChanged();
+        }
+
+        [JSInvokable]
+        public async Task OnUploadError(string error)
+        {
+            upload.ErrorMessage = error;
+            upload.Status = UploadStatus.Failed;
+            await stateChanged();
+        }
+    }
+
+    /// <summary>
+    /// File metadata returned by JS interop — avoids reading file content over SignalR.
+    /// </summary>
+    private class FileMetadata
+    {
+        public string Name { get; set; } = "";
+        public long Size { get; set; }
+        public string Type { get; set; } = "";
     }
 }

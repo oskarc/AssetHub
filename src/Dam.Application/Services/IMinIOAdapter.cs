@@ -23,12 +23,30 @@ public interface IMinIOAdapter
     Task<bool> ExistsAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get object metadata (size, content type, etag) without downloading the content.
+    /// Returns null if the object does not exist.
+    /// </summary>
+    Task<ObjectStatInfo?> StatObjectAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Generate a presigned URL for downloading an object.
+    /// Uses the public MinIO endpoint so browsers can access it directly.
     /// </summary>
     Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Generate a presigned URL for uploading (PUT) an object.
+    /// Uses the public MinIO endpoint so browsers can upload directly.
+    /// </summary>
+    Task<string> GetPresignedUploadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Ensure a bucket exists, creating it if necessary.
     /// </summary>
     Task EnsureBucketExistsAsync(string bucketName, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// MinIO object metadata returned by StatObject.
+/// </summary>
+public record ObjectStatInfo(long Size, string ContentType, string ETag);

@@ -63,9 +63,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         var collections = await collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
         var dtos = collections.Select(c => new CollectionResponseDto
@@ -88,9 +86,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Check access
         var hasAccess = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
@@ -124,9 +120,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Validate name
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 255)
@@ -197,9 +191,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Check permission (must be manager)
         var canUpdate = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Manager, ct);
@@ -227,9 +219,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Check permission (must be admin)
         var canDelete = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Admin, ct);
@@ -252,9 +242,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Check access to parent
         var hasAccess = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
@@ -282,9 +270,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Must have manager+ access
         var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
@@ -312,9 +298,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Must have manager+ access
         var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
@@ -356,9 +340,7 @@ public static class CollectionEndpoints
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Must have manager+ access
         var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
@@ -384,11 +366,10 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
         ClaimsPrincipal user,
+        HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
-        if (userId == null)
-            return Results.Unauthorized();
+        var userId = user.GetRequiredUserId();
 
         // Check viewer access
         var canView = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
@@ -405,36 +386,36 @@ public static class CollectionEndpoints
 
         var bucketName = StorageConfig.GetBucketName(configuration);
 
-        // Create ZIP in memory
-        var memoryStream = new MemoryStream();
-        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        // Stream ZIP directly to the HTTP response — never buffer entire collection in memory.
+        var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
+        httpContext.Response.ContentType = "application/zip";
+        httpContext.Response.Headers.ContentDisposition = $"attachment; filename=\"{zipFileName}\"";
+
+        await using var responseStream = httpContext.Response.BodyWriter.AsStream();
+        using var archive = new ZipArchive(responseStream, ZipArchiveMode.Create, leaveOpen: true);
+        foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
         {
-            foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
+            ct.ThrowIfCancellationRequested();
+            try
             {
-                ct.ThrowIfCancellationRequested();
-                try
-                {
-                    var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
-                    var fileName = FileHelpers.GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
-                    
-                    var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
-                    using var entryStream = entry.Open();
-                    await assetStream.CopyToAsync(entryStream, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch
-                {
-                    // Skip assets that fail to download
-                }
+                var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
+                var fileName = FileHelpers.GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
+
+                var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
+                await using var entryStream = entry.Open();
+                await assetStream.CopyToAsync(entryStream, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                // Skip assets that fail to download
             }
         }
 
-        memoryStream.Position = 0;
-        var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        return Results.File(memoryStream, "application/zip", zipFileName);
+        return Results.Empty;
     }
 
 }

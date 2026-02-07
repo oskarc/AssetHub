@@ -31,6 +31,10 @@ public static class AssetEndpoints
         group.MapPost("{id}/collections/{collectionId}", AddAssetToCollection).WithName("AddAssetToCollection");
         group.MapDelete("{id}/collections/{collectionId}", RemoveAssetFromCollection).WithName("RemoveAssetFromCollection");
 
+        // Presigned upload flow (for large files — browser uploads directly to MinIO)
+        group.MapPost("init-upload", InitUpload).WithName("InitUpload");
+        group.MapPost("{id}/confirm-upload", ConfirmUpload).WithName("ConfirmUpload");
+
         // Rendition/download endpoints
         group.MapGet("{id}/download", DownloadOriginal).WithName("DownloadOriginal");
         group.MapGet("{id}/preview", PreviewOriginal).WithName("PreviewOriginal");
@@ -212,6 +216,12 @@ public static class AssetEndpoints
 
         if (file == null || file.Length == 0)
             return Results.BadRequest("File is required");
+
+        // Enforce MaxUploadSizeMb
+        var maxSizeMb = configuration.GetValue("App:MaxUploadSizeMb", 500);
+        var maxSizeBytes = (long)maxSizeMb * 1024 * 1024;
+        if (file.Length > maxSizeBytes)
+            return Results.BadRequest($"File size exceeds the maximum allowed size of {maxSizeMb} MB");
 
         // Determine asset type from content type and file extension
         var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
@@ -505,6 +515,129 @@ public static class AssetEndpoints
 
     #endregion
 
+    #region Presigned Upload Endpoints
+
+    /// <summary>
+    /// Step 1 of presigned upload: Creates an asset record, generates a presigned PUT URL,
+    /// and returns it to the client. The client then uploads the file directly to MinIO.
+    /// This avoids the file passing through the API server and SignalR circuit,
+    /// which is critical for large files (up to 700MB video).
+    /// </summary>
+    private static async Task<IResult> InitUpload(
+        InitUploadRequest request,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var userId = httpContext.User.GetRequiredUserId();
+        var bucketName = StorageConfig.GetBucketName(configuration);
+
+        // Enforce MaxUploadSizeMb
+        var maxSizeMb = configuration.GetValue("App:MaxUploadSizeMb", 500);
+        var maxSizeBytes = (long)maxSizeMb * 1024 * 1024;
+        if (request.FileSize > maxSizeBytes)
+            return Results.BadRequest($"File size exceeds the maximum allowed size of {maxSizeMb} MB");
+
+        // Check contribution permission
+        var canContribute = await authService.CheckAccessAsync(userId, request.CollectionId, RoleHierarchy.Roles.Contributor, ct);
+        if (!canContribute)
+            return Results.Forbid();
+
+        // Determine asset type from content type and extension
+        var extension = Path.GetExtension(request.FileName)?.ToLowerInvariant();
+        var assetType = AssetTypeHelper.DetermineAssetType(request.ContentType, extension);
+
+        // Create asset record in "uploading" status
+        var assetId = Guid.NewGuid();
+        var objectKey = $"originals/{assetId}-{Path.GetFileName(request.FileName)}";
+
+        var asset = new Asset
+        {
+            Id = assetId,
+            AssetType = assetType,
+            Status = Asset.StatusUploading,
+            Title = request.Title ?? Path.GetFileNameWithoutExtension(request.FileName),
+            ContentType = request.ContentType,
+            SizeBytes = request.FileSize,
+            OriginalObjectKey = objectKey,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = userId,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await assetRepository.CreateAsync(asset, ct);
+        await assetCollectionRepo.AddToCollectionAsync(assetId, request.CollectionId, userId, ct);
+
+        // Generate presigned PUT URL (15 minute expiry for large uploads)
+        var presignedUrl = await minioAdapter.GetPresignedUploadUrlAsync(bucketName, objectKey, expirySeconds: 900, ct);
+
+        return Results.Ok(new InitUploadResponse
+        {
+            AssetId = assetId,
+            ObjectKey = objectKey,
+            UploadUrl = presignedUrl,
+            ExpiresInSeconds = 900
+        });
+    }
+
+    /// <summary>
+    /// Step 2 of presigned upload: Client calls this after uploading the file to MinIO.
+    /// Verifies the object exists and matches expected size, then schedules processing.
+    /// </summary>
+    private static async Task<IResult> ConfirmUpload(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] IMediaProcessingService mediaProcessingService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var userId = httpContext.User.GetRequiredUserId();
+        var bucketName = StorageConfig.GetBucketName(configuration);
+
+        var asset = await assetRepository.GetByIdAsync(id, ct);
+        if (asset == null)
+            return Results.NotFound();
+
+        // Only the uploader can confirm
+        if (asset.CreatedByUserId != userId)
+            return Results.Forbid();
+
+        // Must be in "uploading" status
+        if (asset.Status != Asset.StatusUploading)
+            return Results.BadRequest("Asset is not in uploading state");
+
+        // Verify the object actually exists in MinIO and check size
+        var stat = await minioAdapter.StatObjectAsync(bucketName, asset.OriginalObjectKey, ct);
+        if (stat == null)
+            return Results.BadRequest("File not found in storage. Upload may have failed or expired.");
+
+        // Update asset with actual size from MinIO and set to processing
+        asset.SizeBytes = stat.Size;
+        asset.Status = Asset.StatusProcessing;
+        asset.UpdatedAt = DateTime.UtcNow;
+        await assetRepository.UpdateAsync(asset, ct);
+
+        // Schedule media processing
+        var jobId = await mediaProcessingService.ScheduleProcessingAsync(asset.Id, asset.AssetType, asset.OriginalObjectKey, ct);
+
+        return Results.Ok(new
+        {
+            id = asset.Id,
+            status = Asset.StatusProcessing,
+            sizeBytes = stat.Size,
+            jobId,
+            message = "Upload confirmed. Processing in progress."
+        });
+    }
+
+    #endregion
+
     #region Rendition Endpoints
 
     private static async Task<IResult> DownloadOriginal(
@@ -529,14 +662,14 @@ public static class AssetEndpoints
         if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
-        var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
-        var fileName = asset.Title + Path.GetExtension(asset.OriginalObjectKey);
-        return Results.File(stream, asset.ContentType, fileName);
+        // Redirect to presigned URL — file goes directly from MinIO to browser, zero RAM usage
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.OriginalObjectKey, expirySeconds: 300, ct);
+        return Results.Redirect(presignedUrl);
     }
 
     /// <summary>
-    /// Preview endpoint - returns file with inline disposition (for browser display, not download).
-    /// Supports PDF, images, and other browser-viewable content types.
+    /// Preview endpoint — redirects to a presigned URL for inline browser display.
+    /// Supports PDF, images, video, and other browser-viewable content types.
     /// </summary>
     private static async Task<IResult> PreviewOriginal(
         Guid id,
@@ -560,9 +693,8 @@ public static class AssetEndpoints
         if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
-        var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
-        // Return without filename to trigger inline display (not attachment download)
-        return Results.File(stream, asset.ContentType, enableRangeProcessing: true);
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.OriginalObjectKey, expirySeconds: 300, ct);
+        return Results.Redirect(presignedUrl);
     }
 
     private static async Task<IResult> GetThumbnail(
@@ -590,8 +722,8 @@ public static class AssetEndpoints
         if (string.IsNullOrEmpty(asset.ThumbObjectKey))
             return Results.NotFound("Thumbnail not available");
 
-        var stream = await minioAdapter.DownloadAsync(bucketName, asset.ThumbObjectKey, ct);
-        return Results.File(stream, "image/webp");
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.ThumbObjectKey, expirySeconds: 300, ct);
+        return Results.Redirect(presignedUrl);
     }
 
     private static async Task<IResult> GetMedium(
@@ -616,15 +748,12 @@ public static class AssetEndpoints
         if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
-        if (string.IsNullOrEmpty(asset.MediumObjectKey))
-        {
-            // Fall back to original if medium not available
-            var fallbackStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
-            return Results.File(fallbackStream, asset.ContentType);
-        }
+        var objectKey = !string.IsNullOrEmpty(asset.MediumObjectKey)
+            ? asset.MediumObjectKey
+            : asset.OriginalObjectKey; // Fall back to original if medium not available
 
-        var stream = await minioAdapter.DownloadAsync(bucketName, asset.MediumObjectKey, ct);
-        return Results.File(stream, asset.ContentType);
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, objectKey, expirySeconds: 300, ct);
+        return Results.Redirect(presignedUrl);
     }
 
     private static async Task<IResult> GetPoster(
@@ -652,8 +781,8 @@ public static class AssetEndpoints
         if (string.IsNullOrEmpty(asset.PosterObjectKey))
             return Results.NotFound("Poster not available");
 
-        var stream = await minioAdapter.DownloadAsync(bucketName, asset.PosterObjectKey, ct);
-        return Results.File(stream, "image/webp");
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.PosterObjectKey, expirySeconds: 300, ct);
+        return Results.Redirect(presignedUrl);
     }
 
     #endregion

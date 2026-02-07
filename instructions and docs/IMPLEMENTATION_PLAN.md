@@ -4750,3 +4750,118 @@ AssetHub.Tests/
 This plan is aggressive but realistic for a 2-3 week MVP. The key is strict scope management and testing as you go.
 
 Good luck! 🚀
+
+---
+
+## Session: Large File Handling (Presigned URL Architecture)
+
+**Problem**: The system needs to handle video files up to 700 MB. The existing implementation had multiple critical bottlenecks:
+
+1. **Kestrel 28.6 MB default limit** — blocks large uploads entirely
+2. **All uploads stream through SignalR** — Blazor Server routes file data through the SignalR circuit, which is extremely slow for large files
+3. **All downloads proxy through server RAM** — `DownloadAsync` copies entire objects into `MemoryStream` before sending to client (700 MB file = 700 MB RAM per concurrent download)
+4. **ZIP download-all buffers everything** — loads up to 1000 assets into a single `MemoryStream`
+5. **`MaxUploadSizeMb` config existed but was never enforced** — dead config
+
+### Architecture: Presigned URL Flow
+
+#### Upload (browser → MinIO directly)
+```
+Browser → API: POST /api/assets/init-upload {fileName, size, contentType, collectionId}
+API: Creates asset record (status="uploading"), generates presigned PUT URL
+API → Browser: {assetId, uploadUrl, expiresInSeconds}
+Browser → MinIO: PUT <presignedUrl> (via JS XMLHttpRequest with progress tracking)
+Browser → API: POST /api/assets/{id}/confirm-upload
+API: Stat object in MinIO, verify exists, update asset to "processing", schedule Hangfire job
+```
+
+#### Download (API → presigned redirect)
+```
+Browser → API: GET /api/assets/{id}/download (with auth)
+API: Auth check → generate short-lived presigned GET URL (5 min)
+API → Browser: 302 Redirect to presigned MinIO URL
+Browser → MinIO: GET <presignedUrl> (direct download, zero server RAM)
+```
+
+### Changes Implemented
+
+#### Infrastructure Layer
+
+**`MinIOSettings.cs`** — Added `PublicUrl` and `PublicUseSSL` properties. When the API server uses an internal MinIO endpoint (e.g., `minio:9000` in Docker), presigned URLs would contain that internal hostname which browsers can't resolve. `PublicUrl` provides the browser-accessible endpoint (e.g., `localhost:9000`).
+
+**`IMinIOAdapter.cs`** — Added:
+- `GetPresignedUploadUrlAsync()` — generates presigned PUT URL for browser uploads
+- `StatObjectAsync()` — returns object metadata (size, content type, etag) without downloading; used by confirm-upload to verify the file was actually uploaded
+- `ObjectStatInfo` record type
+
+**`MinIOAdapter.cs`** — Now accepts two `IMinioClient` instances:
+- Internal client: for server-side operations (upload, download, delete, stat, bucket management)
+- Public client: for presigned URL generation (configured with `PublicUrl` endpoint so URLs are browser-accessible)
+
+**`Program.cs`** — Registers both MinIO clients:
+- Standard `IMinioClient` singleton with internal endpoint
+- Keyed `IMinioClient("public")` singleton with public endpoint (falls back to internal if `PublicUrl` not configured)
+- `MinIOAdapter` factory registration that injects both clients
+- Kestrel `MaxRequestBodySize` set to `MaxUploadSizeMb` (for IFormFile fallback path)
+
+#### API Endpoints
+
+**`AssetEndpoints.cs`**:
+- **`POST /api/assets/init-upload`** — Step 1 of presigned upload. Validates auth + collection access + file size, creates asset record with `StatusUploading`, generates presigned PUT URL (15 min expiry)
+- **`POST /api/assets/{id}/confirm-upload`** — Step 2. Verifies object exists in MinIO via `StatObject`, updates asset to `StatusProcessing`, schedules Hangfire job
+- **Existing `POST /api/assets`** — Kept as fallback for small files and API clients. Now enforces `MaxUploadSizeMb`
+- **All download/preview endpoints** — Replaced `DownloadAsync` → `Results.File` (MemoryStream proxy) with `GetPresignedDownloadUrlAsync` → `Results.Redirect` (zero RAM usage)
+- Added `StatusUploading = "uploading"` to `Asset` entity
+
+**`ShareEndpoints.cs`**:
+- **`DownloadSharedAsset`** — After token/password validation, redirects to presigned URL instead of proxying through RAM
+- **`PreviewSharedAsset`** — Same presigned redirect for all renditions (thumb, medium, PDF)
+- **`DownloadAllSharedAssets`** — Streams ZIP directly to `Response.BodyWriter` instead of buffering in `MemoryStream`. Each asset still fetched individually but written to the response stream incrementally
+
+#### Frontend (Blazor Server)
+
+**`fileUpload.js`** — New JS interop module for direct-to-MinIO upload:
+- `uploadFile()` — PUT file directly to MinIO via presigned URL using `XMLHttpRequest`
+- Real-time progress tracking via `xhr.upload.progress` events
+- Callbacks to Blazor via `DotNetObjectReference` (progress %, loaded/total bytes, completion, errors)
+- `getFileMetadata()` — reads file names/sizes/types without sending data over SignalR
+
+**`AssetUpload.razor`** — Complete rewrite:
+- Uses `InputFile @ref` + JS interop instead of `OpenReadStream()`
+- Flow: file selection → `getFileMetadata()` (JS) → `InitUploadAsync()` (API) → `uploadFile()` (JS → MinIO) → `ConfirmUploadAsync()` (API)
+- Real progress bar (`MudProgressLinear`) instead of indeterminate spinner
+- Implements `IAsyncDisposable` for JS module cleanup
+- `UploadCallbackHelper` class receives JS interop callbacks with `[JSInvokable]` methods
+
+**`AssetHubApiClient.cs`** — Added `InitUploadAsync()` and `ConfirmUploadAsync()` methods
+
+**`InitUploadResult.cs`** — New DTO for the init-upload response
+
+**`PresignedUploadDtos.cs`** — New DTOs: `InitUploadRequest`, `InitUploadResponse`
+
+#### Configuration
+
+- `appsettings.json` / `appsettings.Development.json` — Added `MinIO:PublicUrl` and `MinIO:PublicUseSSL`
+- `docker-compose.yml` — Added `MinIO__PublicUrl` and `MinIO__PublicUseSSL` env vars for the API container
+
+### CORS Requirement
+
+For presigned uploads to work, MinIO must allow CORS from the application origin. In development:
+```bash
+mc alias set local http://localhost:9000 minioadmin minioadmin_dev_password
+mc admin config set local api cors_allow_origin="http://localhost:7252"
+mc admin service restart local
+```
+
+Or via the MinIO Console (http://localhost:9001) → Configuration → API → CORS.
+
+### Impact Summary
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Max upload size | 28.6 MB (Kestrel default) | 700 MB+ (presigned, no Kestrel limit) |
+| Upload path | SignalR → API → MinIO | Browser → MinIO (direct PUT) |
+| Download RAM usage | Full file in MemoryStream | 0 bytes (presigned redirect) |
+| Upload progress | Indeterminate spinner | Real % with bytes loaded |
+| ZIP download RAM | All assets buffered | Streamed to response |
+| MaxUploadSizeMb enforced | No | Yes (both upload paths) |

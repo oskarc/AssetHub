@@ -22,6 +22,14 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Kestrel limits — allow the IFormFile upload fallback path to handle files
+// up to MaxUploadSizeMb. The presigned upload path bypasses this entirely.
+var maxUploadMb = builder.Configuration.GetValue("App:MaxUploadSizeMb", 500);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = (long)maxUploadMb * 1024 * 1024;
+});
+
 // Allow personal overrides via appsettings.Local.json (gitignored)
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
@@ -84,7 +92,13 @@ builder.Services.AddScoped<ICollectionAclRepository, CollectionAclRepository>();
 builder.Services.AddScoped<IAssetRepository, AssetRepository>();
 builder.Services.AddScoped<IAssetCollectionRepository, AssetCollectionRepository>();
 builder.Services.AddScoped<IShareRepository, ShareRepository>();
-builder.Services.AddScoped<IMinIOAdapter, MinIOAdapter>();
+builder.Services.AddScoped<IMinIOAdapter>(sp =>
+{
+    var internalClient = sp.GetRequiredService<Minio.IMinioClient>();
+    var publicClient = sp.GetRequiredKeyedService<Minio.IMinioClient>("public");
+    var adapterLogger = sp.GetRequiredService<ILogger<MinIOAdapter>>();
+    return new MinIOAdapter(internalClient, publicClient, adapterLogger);
+});
 builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
@@ -145,7 +159,7 @@ builder.Services.AddHttpClient<Dam.Ui.Services.AssetHubApiClient>((sp, client) =
 })
 .AddHttpMessageHandler<Dam.Ui.Services.CookieForwardingHandler>();
 
-// MinIO client
+// MinIO client (internal — for server-side data operations)
 var minioConfig = builder.Configuration.GetSection("MinIO");
 var minioEndpoint = minioConfig["Endpoint"];
 if (string.IsNullOrWhiteSpace(minioEndpoint))
@@ -165,6 +179,25 @@ var minioClient = new Minio.MinioClient()
     .Build();
 
 builder.Services.AddSingleton<Minio.IMinioClient>(minioClient);
+
+// MinIO public client — for presigned URLs that browsers access directly.
+// Falls back to the internal endpoint if PublicUrl is not configured.
+var publicEndpoint = minioConfig["PublicUrl"];
+var publicUseSsl = minioConfig.GetValue("PublicUseSSL", minioUseSsl);
+Minio.IMinioClient publicMinioClient;
+if (!string.IsNullOrWhiteSpace(publicEndpoint) && publicEndpoint != minioEndpoint)
+{
+    publicMinioClient = new Minio.MinioClient()
+        .WithEndpoint(publicEndpoint)
+        .WithCredentials(minioAccessKey, minioSecretKey)
+        .WithSSL(publicUseSsl)
+        .Build();
+}
+else
+{
+    publicMinioClient = minioClient; // same client when endpoint matches
+}
+builder.Services.AddKeyedSingleton<Minio.IMinioClient>("public", publicMinioClient);
 
 // AuthN/AuthZ
 // Development-only diagnostics: capture Keycloak userinfo failures (401/403/etc) with response body.

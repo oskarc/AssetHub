@@ -5,8 +5,14 @@ using Minio.Exceptions;
 
 namespace Dam.Infrastructure.Services;
 
+/// <summary>
+/// MinIO adapter with dual-client support:
+/// - Internal client for server-side operations (upload, download, delete, stat)
+/// - Public client for presigned URLs that browsers access directly
+/// </summary>
 public class MinIOAdapter(
     IMinioClient minioClient,
+    IMinioClient publicMinioClient,
     ILogger<MinIOAdapter> logger) : IMinIOAdapter
 {
     public async Task UploadAsync(string bucketName, string objectKey, Stream data, string contentType, CancellationToken cancellationToken = default)
@@ -76,6 +82,31 @@ public class MinIOAdapter(
         }
     }
 
+    public async Task<ObjectStatInfo?> StatObjectAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var statObjectArgs = new StatObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectKey);
+
+            var stat = await minioClient.StatObjectAsync(statObjectArgs, cancellationToken);
+            return new ObjectStatInfo(stat.Size, stat.ContentType, stat.ETag);
+        }
+        catch (ObjectNotFoundException)
+        {
+            return null;
+        }
+        catch (BucketNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Generate presigned download URL using the PUBLIC MinIO client,
+    /// so the URL is accessible from browsers.
+    /// </summary>
     public async Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, CancellationToken cancellationToken = default)
     {
         var presignedGetObjectArgs = new PresignedGetObjectArgs()
@@ -83,7 +114,24 @@ public class MinIOAdapter(
             .WithObject(objectKey)
             .WithExpiry(expirySeconds);
 
-        var url = await minioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
+        var url = await publicMinioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
+        return url;
+    }
+
+    /// <summary>
+    /// Generate presigned upload (PUT) URL using the PUBLIC MinIO client,
+    /// so browsers can upload directly to MinIO.
+    /// </summary>
+    public async Task<string> GetPresignedUploadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, CancellationToken cancellationToken = default)
+    {
+        await EnsureBucketExistsAsync(bucketName, cancellationToken);
+
+        var presignedPutObjectArgs = new PresignedPutObjectArgs()
+            .WithBucket(bucketName)
+            .WithObject(objectKey)
+            .WithExpiry(expirySeconds);
+
+        var url = await publicMinioClient.PresignedPutObjectAsync(presignedPutObjectArgs);
         return url;
     }
 

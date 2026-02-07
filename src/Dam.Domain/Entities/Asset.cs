@@ -3,6 +3,7 @@ namespace Dam.Domain.Entities;
 public class Asset
 {
     // Asset status constants
+    public const string StatusUploading = "uploading";
     public const string StatusProcessing = "processing";
     public const string StatusReady = "ready";
     public const string StatusFailed = "failed";

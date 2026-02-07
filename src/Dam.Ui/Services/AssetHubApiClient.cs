@@ -226,7 +226,9 @@ public class AssetHubApiClient
     }
 
     /// <summary>
-    /// Uploads a new asset to a collection.
+    /// Uploads a new asset to a collection via IFormFile (legacy fallback).
+    /// Prefer <see cref="InitUploadAsync"/> + JS interop + <see cref="ConfirmUploadAsync"/>
+    /// for large files, which bypasses SignalR and uploads directly to MinIO.
     /// </summary>
     public async Task<AssetUploadResult> UploadAssetAsync(
         Guid collectionId,
@@ -244,6 +246,42 @@ public class AssetHubApiClient
         var response = await _http.PostAsync("/api/assets", content, ct);
         await EnsureSuccessAsync(response, "Upload asset");
         return await ReadRequiredJsonAsync<AssetUploadResult>(response, "Upload asset");
+    }
+
+    /// <summary>
+    /// Step 1 of presigned upload: Creates an asset record and returns a presigned PUT URL.
+    /// The browser then uploads the file directly to MinIO via JS interop.
+    /// </summary>
+    public async Task<InitUploadResult> InitUploadAsync(
+        Guid collectionId,
+        string fileName,
+        string contentType,
+        long fileSize,
+        string? title = null,
+        CancellationToken ct = default)
+    {
+        var request = new
+        {
+            collectionId,
+            fileName,
+            contentType,
+            fileSize,
+            title = title ?? Path.GetFileNameWithoutExtension(fileName)
+        };
+
+        var response = await _http.PostAsJsonAsync("/api/assets/init-upload", request, ct);
+        await EnsureSuccessAsync(response, "Init upload");
+        return await ReadRequiredJsonAsync<InitUploadResult>(response, "Init upload");
+    }
+
+    /// <summary>
+    /// Step 2 of presigned upload: Confirms the file was uploaded to MinIO and triggers processing.
+    /// </summary>
+    public async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/assets/{assetId}/confirm-upload", null, ct);
+        await EnsureSuccessAsync(response, "Confirm upload");
+        return await ReadRequiredJsonAsync<AssetUploadResult>(response, "Confirm upload");
     }
 
     /// <summary>

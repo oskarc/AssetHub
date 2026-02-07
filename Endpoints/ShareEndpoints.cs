@@ -400,10 +400,9 @@ public static class ShareEndpoints
         share.AccessCount++;
         await shareRepository.UpdateAsync(share, ct);
 
-        // Stream the file through the API to hide MinIO URLs
-        var stream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey, ct);
-        var fileName = !string.IsNullOrEmpty(targetAsset.Title) ? targetAsset.Title : Path.GetFileName(targetAsset.OriginalObjectKey);
-        return Results.File(stream, targetAsset.ContentType, fileName);
+        // Redirect to presigned URL — file goes directly from MinIO to browser
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: 300, ct);
+        return Results.Redirect(presignedUrl);
     }
 
     private static async Task<IResult> DownloadAllSharedAssets(
@@ -414,6 +413,7 @@ public static class ShareEndpoints
         [FromServices] ICollectionRepository collectionRepository,
         [FromServices] IMinIOAdapter minioAdapter,
         IConfiguration configuration,
+        HttpContext httpContext,
         CancellationToken ct)
     {
         var tokenHash = ShareHelpers.ComputeTokenHash(token);
@@ -459,36 +459,37 @@ public static class ShareEndpoints
         share.AccessCount++;
         await shareRepository.UpdateAsync(share, ct);
 
-        // Create ZIP in memory
-        var memoryStream = new MemoryStream();
-        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        // Stream ZIP directly to the HTTP response — never buffer entire collection in memory.
+        // Each asset is fetched from MinIO and written to the ZIP entry one at a time.
+        var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
+        httpContext.Response.ContentType = "application/zip";
+        httpContext.Response.Headers.ContentDisposition = $"attachment; filename=\"{zipFileName}\"";
+
+        await using var responseStream = httpContext.Response.BodyWriter.AsStream();
+        using var archive = new ZipArchive(responseStream, ZipArchiveMode.Create, leaveOpen: true);
+        foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
         {
-            foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
+            ct.ThrowIfCancellationRequested();
+            try
             {
-                ct.ThrowIfCancellationRequested();
-                try
-                {
-                    var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
-                    var fileName = FileHelpers.GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
-                    
-                    var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
-                    using var entryStream = entry.Open();
-                    await assetStream.CopyToAsync(entryStream, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch
-                {
-                    // Skip assets that fail to download
-                }
+                var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
+                var fileName = FileHelpers.GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
+
+                var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
+                await using var entryStream = entry.Open();
+                await assetStream.CopyToAsync(entryStream, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                // Skip assets that fail to download
             }
         }
 
-        memoryStream.Position = 0;
-        var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        return Results.File(memoryStream, "application/zip", zipFileName);
+        return Results.Empty;
     }
 
     private static async Task<IResult> PreviewSharedAsset(
@@ -551,11 +552,22 @@ public static class ShareEndpoints
         if (targetAsset == null)
             return Results.NotFound("Asset not found");
 
-        // For PDF files, return the original file for inline preview
+        // For PDF files, redirect to presigned URL for inline preview
         if (string.Equals(targetAsset.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
         {
-            var pdfStream = await minioAdapter.DownloadAsync(bucketName, targetAsset.OriginalObjectKey, ct);
-            return Results.File(pdfStream, "application/pdf", enableRangeProcessing: true);
+            var pdfUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: 300, ct);
+            return Results.Redirect(pdfUrl);
+        }
+
+        // For video/audio files without a specific rendition size, serve the original
+        // so <video>/<audio> elements can play the actual media file.
+        if (string.IsNullOrEmpty(size)
+            && targetAsset.ContentType != null
+            && (targetAsset.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
+                || targetAsset.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)))
+        {
+            var mediaUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: 300, ct);
+            return Results.Redirect(mediaUrl);
         }
 
         // Determine which object key to use based on size
@@ -569,19 +581,9 @@ public static class ShareEndpoints
         if (string.IsNullOrEmpty(objectKey))
             return Results.NotFound("Preview not available");
 
-        // Stream the preview through the API
-        var previewStream = await minioAdapter.DownloadAsync(bucketName, objectKey, ct);
-        
-        // Determine content type for preview
-        var previewContentType = targetAsset.ContentType;
-        if (objectKey.EndsWith(".jpg") || objectKey.EndsWith(".jpeg"))
-            previewContentType = "image/jpeg";
-        else if (objectKey.EndsWith(".png"))
-            previewContentType = "image/png";
-        else if (objectKey.EndsWith(".webp"))
-            previewContentType = "image/webp";
-
-        return Results.File(previewStream, previewContentType);
+        // Redirect to presigned URL — file goes directly from MinIO to browser
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, objectKey, expirySeconds: 300, ct);
+        return Results.Redirect(presignedUrl);
     }
 
     private static async Task<IResult> RevokeShare(
