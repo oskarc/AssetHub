@@ -187,124 +187,72 @@ The following features have been identified as high-priority improvements and sh
   - Key concepts section
   - Code reference to RoleHierarchy.cs
 
-#### 14. Add CancellationToken Support ✅ PARTIAL
+#### 14. Add CancellationToken Support ✅ COMPLETE
 **Priority**: Low  
-**Status**: Implemented on 2026-02-04 (key endpoints)  
-**Description**: Add CancellationToken to repository methods and endpoints for proper request cancellation.
+**Status**: Completed on 2026-02-07  
+**Description**: Add CancellationToken to repository methods, service interfaces, endpoints, and UI API client for proper request cancellation.
 - [x] IAssetRepository methods already have CancellationToken
 - [x] ICollectionRepository methods already have CancellationToken
 - [x] ICollectionAclRepository methods already have CancellationToken
 - [x] Key Asset endpoints updated (GetAssets, GetAllAssets, GetAsset, GetAssetsByCollection)
-- [ ] Remaining endpoints (low priority, can be added incrementally)
-- [ ] ICollectionAuthorizationService (would require interface change)
+- [x] ICollectionAuthorizationService — 4 methods updated with CancellationToken parameter
+- [x] CollectionAuthorizationService — 4 methods updated, forwarded to EF Core calls
+- [x] IMediaProcessingService — 2 methods updated with CancellationToken parameter
+- [x] MediaProcessingService — 2 public + 2 private methods updated, all inner calls forwarded; Hangfire Enqueue passes `CancellationToken.None`
+- [x] AssetEndpoints.cs — ~15 call sites updated (auth checks, helper methods, ScheduleProcessing, renditions)
+- [x] CollectionEndpoints.cs — 10+ call sites updated
+- [x] ShareEndpoints.cs — 2 call sites updated
+- [x] AdminEndpoints.cs — 6+ call sites updated
+- [x] AssetHubApiClient.cs — all 29 HTTP methods updated with CancellationToken parameter
+- **Total**: ~63 gaps fixed across the entire stack. Build verified: 0 errors.
 
-#### 15. Localization (Swedish & English) ⏳ PLANNED
+#### 15. Localization (Swedish & English) ✅ COMPLETE
 **Priority**: Medium  
-**Status**: Not started - Planned for future phase  
-**Description**: Implement multi-language support for user-facing text in Swedish and English.
+**Status**: Completed on 2026-02-07  
+**Description**: Full multi-language support for all user-facing text in Swedish and English.
 
-**Scope**:
-- [ ] **Resource Files Setup**
-  - Create resource files (.resx) for Swedish (sv-SE) and English (en-US)
-  - Organize by feature area (Common, Assets, Collections, Admin, Shares, Auth)
-  - Example structure:
+- [x] **Resource Files Setup** (10 .resx files)
+  - `Resources/ResourceMarkers.cs` — 5 marker classes: `CommonResource`, `AssetsResource`, `CollectionsResource`, `AdminResource`, `SharesResource`
+  - File structure:
     ```
     Resources/
-      ├── Common.resx (default/English)
-      ├── Common.sv-SE.resx
-      ├── Assets.resx
-      ├── Assets.sv-SE.resx
-      ├── Collections.resx
-      ├── Collections.sv-SE.resx
-      └── ...
+      ├── ResourceMarkers.cs
+      ├── CommonResource.resx          (English, ~170+ keys)
+      ├── CommonResource.sv-SE.resx    (Swedish)
+      ├── AssetsResource.resx          (English, ~35 keys)
+      ├── AssetsResource.sv-SE.resx    (Swedish)
+      ├── CollectionsResource.resx     (English, ~10 keys)
+      ├── CollectionsResource.sv-SE.resx (Swedish)
+      ├── AdminResource.resx           (English, ~40 keys)
+      ├── AdminResource.sv-SE.resx     (Swedish)
+      ├── SharesResource.resx          (English, ~30 keys)
+      └── SharesResource.sv-SE.resx   (Swedish)
     ```
+  - Key naming convention: `Category_Name` (e.g. `Btn_Delete`, `Nav_Home`, `Role_Viewer`, `Filter_AllTypes`, `Sort_NewestFirst`, `Expiry_1Day`, `Label_Size`, `Text_NoMetadata`, `Success_AccessGranted`, `Confirm_Revoke`, `Validation_EnterPassword`)
 
-- [ ] **Blazor Localization Configuration**
-  - Configure `IStringLocalizer<T>` in Blazor components
-  - Add `Microsoft.Extensions.Localization` package
-  - Configure supported cultures in Program.cs:
-    ```csharp
-    builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
-    builder.Services.Configure<RequestLocalizationOptions>(options =>
-    {
-        var supportedCultures = new[] { "en-US", "sv-SE" };
-        options.SetDefaultCulture("en-US")
-               .AddSupportedCultures(supportedCultures)
-               .AddSupportedUICultures(supportedCultures);
-    });
-    ```
+- [x] **Blazor Localization Configuration**
+  - `AddLocalization()` in Program.cs
+  - `RequestLocalizationOptions` with `en` (default) and `sv` supported cultures
+  - `CookieRequestCultureProvider` at position 0 for culture persistence
+  - `UseRequestLocalization()` middleware after `UseStaticFiles()`, before `UseAuthentication()`
+  - `_Imports.razor` updated with `@using Microsoft.Extensions.Localization` and `@using Dam.Ui.Resources`
 
-- [ ] **UI Components to Localize**
-  - All button labels (Upload, Delete, Share, Edit, etc.)
-  - Navigation menu items (Collections, Assets, Admin, Shares)
-  - Page titles and headers
-  - Form labels and placeholders
-  - Validation messages
-  - Empty state messages
-  - Toast notifications (success/error/warning messages)
-  - Dialog titles and content
-  - Role names (Viewer, Contributor, Manager, Admin)
-  - File type labels (Image, Video, Document)
+- [x] **All UI Files Localized** (22 files)
+  - **Layouts (2):** MainLayout.razor, NavMenu.razor
+  - **Pages (7):** Login.razor, Home.razor, Assets.razor, AssetDetail.razor, AllAssets.razor, Admin.razor, Share.razor
+  - **Components (13):** LanguageSwitcher.razor, AssetUpload.razor, AssetGrid.razor, CollectionTree.razor, CreateCollectionDialog.razor, CreateShareDialog.razor, ShareLinkDialog.razor, SharePasswordDialog.razor, EditAssetDialog.razor, AddToCollectionDialog.razor, ManageUserAccessDialog.razor, CreateUserDialog.razor, UserAccessDialog.razor
+  - Localizer naming convention: `CommonLoc`, `AssetLoc`, `AdminLoc`, `ShareLoc`, `CollectionLoc` (descriptive `{Domain}Loc` pattern)
 
-- [ ] **Language Switcher Component**
-  - Add language selector in navigation bar or user menu
-  - Persist user's language preference (local storage or user profile)
-  - Switch language without page reload
-  - Component template:
-    ```razor
-    <MudSelect T="string" Value="@CurrentCulture" ValueChanged="OnLanguageChanged">
-        <MudSelectItem Value="en-US">English</MudSelectItem>
-        <MudSelectItem Value="sv-SE">Svenska</MudSelectItem>
-    </MudSelect>
-    ```
+- [x] **Language Switcher Component**
+  - `LanguageSwitcher.razor` — MudSelect-based dropdown in AppBar
+  - Reads `CultureInfo.CurrentUICulture.TwoLetterISOLanguageName` on init
+  - Sets `.AspNetCore.Culture` cookie via `CookieRequestCultureProvider`
+  - Forces full page reload via `NavigationManager.NavigateTo(uri, forceLoad: true)`
 
-- [ ] **API Localization (Optional)**
-  - Error messages from API endpoints
-  - Validation messages
-  - Email notifications (share links, invitations)
-  - Use `Accept-Language` header for API responses
+- [ ] **API Localization** — Deferred (API error messages remain in English)
+- [ ] **Date/Time & Number Formatting** — Deferred (uses default culture formatting)
 
-- [ ] **Date/Time Formatting**
-  - Respect culture-specific date formats
-  - Swedish: `yyyy-MM-dd HH:mm`
-  - English (US): `MM/dd/yyyy h:mm tt`
-  - Use `@bind-Value:culture` in Blazor components
-
-- [ ] **Number Formatting**
-  - File sizes (KB, MB, GB)
-  - Respect culture-specific number separators
-
-- [ ] **Testing**
-  - Test all UI text displays correctly in both languages
-  - Verify language switching works across all pages
-  - Check for missing translations (fallback to default language)
-  - Test with Swedish characters (å, ä, ö, Å, Ä, Ö)
-
-**Implementation Notes**:
-- Start with high-traffic pages (Assets, Collections, AssetDetail)
-- Use descriptive resource keys (e.g., `Assets_Upload_Button` not `Button1`)
-- Keep translations concise for button labels (space constraints)
-- Consider right-to-left (RTL) for future language expansion
-- Document translation process for content team
-
-**Translation Examples**:
-| Key | English | Swedish |
-|-----|---------|---------|
-| `Common_Upload` | Upload | Ladda upp |
-| `Common_Delete` | Delete | Ta bort |
-| `Common_Share` | Share | Dela |
-| `Common_Edit` | Edit | Redigera |
-| `Assets_NoAssets` | No assets yet | Inga tillgångar ännu |
-| `Collections_CreateCollection` | Create Collection | Skapa samling |
-| `Admin_Users` | Users | Användare |
-| `Roles_Viewer` | Viewer | Betraktare |
-| `Roles_Contributor` | Contributor | Bidragsgivare |
-| `Roles_Manager` | Manager | Förvaltare |
-| `Roles_Admin` | Administrator | Administratör |
-
-**Time Estimate**: 8-12 hours (setup + translation + testing)
-
-**Dependencies**: None - can be implemented independently
+**Dependencies**: None
 
 #### 16. Create User Functionality ✅ COMPLETE
 **Priority**: High  
