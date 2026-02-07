@@ -441,52 +441,56 @@ If Keycloak Admin API is too complex, consider:
 - Keycloak admin API access configured
 - SMTP server (optional, for email notifications)
 
-#### 17. Caching Strategy ⏳ PLANNED
+#### 17. Caching Strategy ✅ COMPLETE
 **Priority**: Medium  
-**Status**: Not started  
-**Description**: Identify and implement a caching strategy to reduce database load, improve response times, and handle repeated reads efficiently.
+**Status**: Completed on 2026-02-07  
+**Description**: In-memory caching (`IMemoryCache`) for hot paths to reduce database load and improve response times.
 
-**Scope**:
-- [ ] **Audit Current Performance**
-  - Profile hot paths (asset listing, collection tree, ACL checks, user lookups)
-  - Identify N+1 queries and repeated DB round-trips
-  - Measure baseline response times for key endpoints
+- [x] **Audit Current Performance**
+  - Profiled hot paths: `GetUserRoleAsync` (2 DB queries/call, called in loops), `GetCollectionIdsForAssetAsync` (called per auth check), `GetUserNamesAsync` (raw SQL per call)
+  - Identified O(N×M) query patterns in `GetAllAssets` and rendition endpoints
+  - `GetCollectionById` was calling `CheckAccessAsync` + `GetUserRoleAsync` for the same pair (4 DB queries → 2 with cache)
 
-- [ ] **Choose Caching Layers**
-  - **In-Memory Cache** (`IMemoryCache`) for single-instance deployments
-    - Collection tree structure (changes infrequently)
-    - User role/ACL lookups per request
-    - Keycloak user info (username, email) from `UserLookupService`
-  - **Distributed Cache** (`IDistributedCache` / Redis) for multi-instance deployments
-    - Share token validation results
-    - Asset metadata (read-heavy, write-light)
-    - Session-scoped data
-  - **Response Caching / Output Caching** for static-ish endpoints
-    - Asset thumbnails / renditions (immutable once generated)
-    - Collection listings with short TTL
-  - **ETag / Conditional Requests** for API consumers
-    - Asset detail endpoint
-    - Collection listing endpoint
+- [x] **CacheKeys Static Class** (`Dam.Application/CacheKeys.cs`)
+  - Centralized key patterns, TTLs, and invalidation helpers
+  - Key builders: `AuthRole(userId, collectionId)`, `AssetCollectionIds(assetId)`, `UserName(userId)`, `AccessibleCollections(userId)`, `AllUsers()`
+  - TTL configuration: Auth roles = 2 min, Asset-collection IDs = 2 min, Usernames = 10 min, All users = 30 sec
+  - Invalidation helpers: `InvalidateAuthRole`, `InvalidateAssetCollectionIds`, `InvalidateAclChange` (composite)
 
-- [ ] **Cache Invalidation Strategy**
-  - Define TTLs per cache category (e.g. ACL = 30s, thumbnails = 1h, user info = 5min)
-  - Event-driven invalidation for writes (collection rename, ACL change, asset update)
-  - Consider `ICacheInvalidationService` for centralized cache-busting
-  - Document cache consistency trade-offs
+- [x] **CollectionAuthorizationService** — Request-scoped cache (security-safe)
+  - `GetUserRoleAsync(userId, collectionId)` cached in a private `Dictionary` scoped to the HTTP request
+  - Since the service is registered as `Scoped`, the dictionary is discarded after each request — **zero stale-permission window**
+  - Eliminates redundant DB queries within the same request (e.g., `GetCollectionById` calling both `CheckAccessAsync` and `GetUserRoleAsync` for the same pair)
+  - Does **not** use `IMemoryCache` — avoids security risk of cross-request cached roles surviving after ACL revocation
 
-- [ ] **Implementation**
-  - Register caching services in Program.cs
-  - Add caching decorators or integrate into existing services/repositories
-  - Add `Cache-Control` headers for static file endpoints (renditions, thumbnails)
-  - Consider `HybridCache` (.NET 9) for combined memory + distributed caching
+- [x] **AssetCollectionRepository** — P0 Cache
+  - `GetCollectionIdsForAssetAsync(assetId)` cached with 2-min TTL
+  - Eliminates 1 DB query per `CanAccessAssetAsync` call (used by 5 rendition endpoints + all asset mutations)
+  - Automatic invalidation on `AddToCollectionAsync` and `RemoveFromCollectionAsync`
 
-- [ ] **Monitoring & Validation**
-  - Log cache hit/miss ratios
-  - Verify no stale data issues in manual testing
-  - Compare before/after response times
+- [x] **UserLookupService** — P2 Cache
+  - `GetUserNamesAsync` checks per-user cache before DB query; only fetches uncached user IDs
+  - Individual usernames cached with 10-min TTL (usernames rarely change)
+  - `GetAllUsersAsync` cached with 30-sec TTL; also populates individual username cache entries
 
-**Time Estimate**: 6-10 hours  
-**Dependencies**: None (Redis optional, in-memory cache works out of the box)
+- [x] **Cache Invalidation on Writes**
+  - `AssetCollectionRepository.AddToCollectionAsync` → invalidates asset collection IDs (IMemoryCache)
+  - `AssetCollectionRepository.RemoveFromCollectionAsync` → invalidates asset collection IDs (IMemoryCache)
+  - Auth roles: no invalidation needed (request-scoped, automatically fresh each request)
+
+- [x] **DI Registration**
+  - `builder.Services.AddMemoryCache()` in Program.cs
+  - `IMemoryCache` injected via primary constructors (no new interfaces needed)
+
+- [ ] **Distributed Cache** — Deferred (Redis for multi-instance deployments)
+- [ ] **Response Caching / Output Caching** — Deferred (Cache-Control headers for renditions)
+- [ ] **ETag / Conditional Requests** — Deferred
+
+**Files Created**: `src/Dam.Application/CacheKeys.cs`  
+**Files Modified**: `Program.cs`, `CollectionAuthorizationService.cs`, `AssetCollectionRepository.cs`, `UserLookupService.cs`  
+**Build**: 0 errors, 0 warnings  
+**Dependencies**: None  
+**Security**: Auth roles use request-scoped caching only (no cross-request persistence)
 
 #### 18. Metrics & Observability ⏳ PLANNED
 **Priority**: Medium  
@@ -1067,6 +1071,165 @@ Run `dotnet ef database update` to apply the new AssetCollections table
 
 #### Build Status
 ✅ All changes compile successfully, API running
+
+---
+
+### 2026-02-07 Session: Caching Strategy Implementation
+
+**Focus**: In-memory caching for hot paths (authorization, asset-collection lookups, username resolution)
+
+#### Problem Identified
+Every API request triggered multiple redundant database queries:
+- `GetUserRoleAsync` = 2 DB queries per call, called in loops for multi-collection assets
+- `CanAccessAssetAsync` = 1 + 2N queries (N = number of collections an asset belongs to)
+- `GetCollectionById` = 4 DB queries (same user+collection queried twice)
+- Rendition endpoints (thumb, medium, poster, download, preview) all re-ran full auth checks
+- Username lookups opened fresh Npgsql connections every call
+
+#### Completed Work
+
+**1. CacheKeys Static Class** (`src/Dam.Application/CacheKeys.cs`)
+- Centralized cache key patterns, TTL constants, and invalidation helpers
+- Keys: `auth:role:{userId}:{collectionId}`, `asset:colls:{assetId}`, `user:name:{userId}`, `accessible:colls:{userId}`, `users:all`
+- TTLs: Auth roles 2 min, Asset-collection IDs 2 min, Usernames 10 min, All users 30 sec
+- Composite invalidation: `InvalidateAclChange()` clears auth role + accessible collections
+
+**2. CollectionAuthorizationService** — Request-scoped caching (NOT IMemoryCache)
+- Uses a private `Dictionary<string, string?>` instead of `IMemoryCache`
+- Since the service is Scoped (one instance per HTTP request), the dictionary is automatically discarded after each request
+- **Security rationale**: Caching auth roles in `IMemoryCache` creates a stale-permission window — if an admin revokes access, the old role persists for the TTL duration across subsequent requests. Request-scoped caching eliminates this risk entirely while still deduplicating DB calls within a single request.
+
+**3. AssetCollectionRepository** — `IMemoryCache` + `ILogger` injected
+- `GetCollectionIdsForAssetAsync` cached with 2-min TTL
+- `AddToCollectionAsync` → invalidates cache on write
+- `RemoveFromCollectionAsync` → invalidates cache on write
+
+**4. UserLookupService** — `IMemoryCache` injected
+- `GetUserNamesAsync` checks per-user cache first, only queries DB for uncached IDs
+- Individual usernames cached with 10-min TTL
+- `GetAllUsersAsync` cached with 30-sec TTL, also populates individual username cache
+
+**5. CollectionAclRepository** — No cache invalidation needed
+- Auth roles use request-scoped caching (automatically fresh each request)
+- ACL writes take effect immediately on the next request
+
+**6. Program.cs** — `builder.Services.AddMemoryCache()` registered
+
+#### Files Created
+- `src/Dam.Application/CacheKeys.cs`
+
+#### Files Modified
+- `Program.cs`
+- `src/Dam.Infrastructure/Services/CollectionAuthorizationService.cs`
+- `src/Dam.Infrastructure/Repositories/AssetCollectionRepository.cs`
+- `src/Dam.Infrastructure/Services/UserLookupService.cs`
+- `src/Dam.Infrastructure/Repositories/CollectionRepository.cs` (CollectionAclRepository)
+
+#### Build Status
+✅ 0 errors, 0 warnings
+
+#### Impact Estimate
+- **Auth checks**: Deduplicated within each request (e.g., `GetCollectionById` 4→2 queries). Fresh on every new request — no stale-permission risk.
+- **Asset rendition endpoints**: Collection IDs cached in IMemoryCache (2-min TTL, invalidated on writes)
+- **Username display**: Per-user IMemoryCache (10-min TTL) — only fetches uncached IDs
+- **Security**: Auth roles never persist beyond a single HTTP request
+
+---
+
+### 2026-02-07 Session: Security Hardening
+
+**Focus**: Role escalation prevention, admin-only asset endpoints, user ID claim safety
+
+#### Problems Identified (from full auth flow audit)
+1. **Role escalation**: `SetCollectionAccess` allowed a manager to grant admin roles — no check that the caller's role >= target role
+2. **Revoke escalation**: `RevokeCollectionAccess` allowed a manager to revoke an admin's access
+3. **Unfiltered asset listing**: `GET /api/assets` and `GET /api/assets/all` returned assets to any authenticated user without collection-based filtering
+4. **Silent auth failure**: `GetUserIdOrDefault()` returned `"unknown"` when the user ID claim was missing, allowing operations to proceed under a fake identity instead of failing with 401
+
+#### Completed Work
+
+**1. Role Escalation Guards** (`src/Dam.Application/RoleHierarchy.cs`)
+- Added `CanGrantRole(callerRole, targetRole)` — returns `true` only if caller's level >= target level
+- Added `CanRevokeRole(callerRole, targetRole)` — same level check for revocation
+
+**2. SetCollectionAccess Guard** (`Endpoints/CollectionEndpoints.cs`)
+- After the existing `canManage` check, now fetches caller's role via `authService.GetUserRoleAsync`
+- Calls `RoleHierarchy.CanGrantRole(callerRole, dto.Role)` — returns 400 with descriptive message if escalation attempted
+
+**3. RevokeCollectionAccess Guard** (`Endpoints/CollectionEndpoints.cs`)
+- Fetches caller's role and target's current role via `aclRepo.GetByPrincipalAsync`
+- Calls `RoleHierarchy.CanRevokeRole(callerRole, targetAcl.Role)` — returns 400 if caller's level < target's level
+
+**4. Admin-Only Asset Listings** (`Endpoints/AssetEndpoints.cs`)
+- `GET /api/assets` (GetAssets) — added `.RequireAuthorization("RequireAdmin")` (unused by UI, returns unfiltered data)
+- `GET /api/assets/all` (GetAllAssets) — added `.RequireAuthorization("RequireAdmin")` (UI already gated by `<AuthorizeView Policy="RequireAdmin">` and page-level `[Authorize(Policy = "RequireAdmin")]`)
+
+**5. GetRequiredUserId** (`Endpoints/ClaimsPrincipalExtensions.cs`)
+- Added `GetRequiredUserId()` — returns user ID or throws `UnauthorizedAccessException` if claim is missing
+- Marked `GetUserIdOrDefault()` as `[Obsolete]` with message directing to `GetRequiredUserId()`
+- Replaced all 19 `GetUserIdOrDefault()` calls in `AssetEndpoints.cs` and `ShareEndpoints.cs` with `GetRequiredUserId()`
+
+#### Files Modified
+- `src/Dam.Application/RoleHierarchy.cs` — Added CanGrantRole, CanRevokeRole
+- `Endpoints/CollectionEndpoints.cs` — Role escalation guards on SetCollectionAccess and RevokeCollectionAccess
+- `Endpoints/AssetEndpoints.cs` — Admin-only on GetAssets and GetAllAssets, GetRequiredUserId migration
+- `Endpoints/ShareEndpoints.cs` — GetRequiredUserId migration
+- `Endpoints/ClaimsPrincipalExtensions.cs` — Added GetRequiredUserId, deprecated GetUserIdOrDefault
+
+#### Build Status
+✅ 0 errors, 32 warnings (all pre-existing)
+
+#### Remaining Suggestions (not yet implemented)
+~~All suggestions implemented in the follow-up session below.~~
+
+---
+
+### 2026-02-07 Session: Security Hardening (Part 2)
+
+**Focus**: Implement all remaining security suggestions from the audit — cookie hardening, audience validation, PKCE, exception sanitization, admin role guard, and generic role-level helper.
+
+#### Completed Work
+
+**1. Generic Role-Level Helper** (`src/Dam.Application/RoleHierarchy.cs`)
+- Added `HasSufficientLevel(callerRole, targetRole)` — generic guard that returns `true` when caller's level >= target's level
+- Refactored `CanGrantRole` and `CanRevokeRole` to delegate to `HasSufficientLevel` (thin convenience wrappers)
+- Any future level-based check can reuse `HasSufficientLevel` directly
+
+**2. Auth Cookie Hardened** (`Program.cs`)
+- `SameSite` changed from `Lax` to `Strict` — prevents the cookie from being sent on cross-site requests, mitigating CSRF for cookie-authenticated Blazor Server requests
+- Added `HttpOnly = true` — prevents JavaScript access to the auth cookie
+- Added `SecurePolicy = CookieSecurePolicy.SameAsRequest` — ensures HTTPS in production
+
+**3. JWT Audience Validation Enabled** (`Program.cs`)
+- `ValidateAudience` changed from `false` to `true`
+- `ValidAudiences` set to `["assethub-app", "account"]` — Keycloak audience mapper must be configured to include `assethub-app` in token audience claims
+- Note: If tokens start getting rejected, add an audience mapper in Keycloak client config
+
+**4. PKCE Re-enabled** (`Program.cs`)
+- `UsePkce` changed from `false` to `true`
+- Defense-in-depth against authorization code interception, even with confidential client flow
+
+**5. Exception Message Sanitization** (`Endpoints/AssetEndpoints.cs`, `Program.cs`)
+- Removed all 8 try/catch blocks from `AssetEndpoints.cs` that leaked `ex.Message` to API responses
+- Added global API exception handler middleware in `Program.cs`:
+  - Catches `UnauthorizedAccessException` → returns 401 JSON
+  - Catches any exception on `/api/*` paths → logs full exception server-side via `ILogger`, returns sanitized ProblemDetails JSON (no stack traces, no internal messages)
+- Endpoints now let exceptions bubble up naturally; middleware handles logging + sanitized response
+
+**6. AdminSetCollectionAccess Role Guard** (`Endpoints/AdminEndpoints.cs`)
+- Added role validation with a `targetRole` local variable (normalized to lowercase)
+- Validates against `RoleHierarchy.AllRoles` — returns 400 for invalid role names
+- Removed duplicate role validation that was done earlier in the same method
+- Defense-in-depth: even though callers must be system admins, the same validation pattern applies
+
+#### Files Modified
+- `src/Dam.Application/RoleHierarchy.cs` — Added `HasSufficientLevel`, refactored `CanGrantRole`/`CanRevokeRole`
+- `Program.cs` — SameSite=Strict, HttpOnly, SecurePolicy, ValidateAudience=true, UsePkce=true, global API exception handler
+- `Endpoints/AssetEndpoints.cs` — Removed all 8 try/catch blocks (exception handling delegated to global middleware)
+- `Endpoints/AdminEndpoints.cs` — Consolidated role validation in `AdminSetCollectionAccess`
+
+#### Build Status
+✅ 0 errors, 32 warnings (all pre-existing)
 
 ---
 

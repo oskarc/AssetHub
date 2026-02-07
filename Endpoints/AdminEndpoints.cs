@@ -132,9 +132,6 @@ public static class AdminEndpoints
             if (string.IsNullOrWhiteSpace(request.PrincipalId))
                 return Results.BadRequest(ApiError.BadRequest("PrincipalId is required"));
 
-            if (!RoleHierarchy.AllRoles.Contains(request.Role?.ToLowerInvariant() ?? ""))
-                return Results.BadRequest(ApiError.BadRequest($"Invalid role. Must be one of: {string.Join(", ", RoleHierarchy.AllRoles)}"));
-
             // For user principals, resolve username to user ID and validate user exists
             var principalType = request.PrincipalType ?? "user";
             var principalId = request.PrincipalId;
@@ -159,11 +156,17 @@ public static class AdminEndpoints
                 }
             }
 
+            // Role escalation guard: even system admins should not accidentally
+            // grant roles above the hierarchy (defense-in-depth).
+            var targetRole = request.Role!.ToLowerInvariant();
+            if (!RoleHierarchy.AllRoles.Contains(targetRole))
+                return Results.BadRequest(ApiError.BadRequest($"Invalid role '{targetRole}'"));
+
             var acl = await aclRepo.SetAccessAsync(
                 collectionId, 
                 principalType, 
                 principalId, 
-                request.Role!.ToLowerInvariant(),
+                targetRole,
                 ct);
 
             return Results.Ok(new { 

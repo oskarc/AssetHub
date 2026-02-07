@@ -18,8 +18,8 @@ public static class AssetEndpoints
             .DisableAntiforgery() // API uses JWT Bearer auth, not cookies with CSRF tokens
             .WithTags("Assets");
 
-        group.MapGet("", GetAssets).WithName("GetAssets");
-        group.MapGet("all", GetAllAssets).WithName("GetAllAssets");
+        group.MapGet("", GetAssets).RequireAuthorization("RequireAdmin").WithName("GetAssets");
+        group.MapGet("all", GetAllAssets).RequireAuthorization("RequireAdmin").WithName("GetAllAssets");
         group.MapGet("{id}", GetAsset).WithName("GetAsset");
         group.MapPost("", UploadAsset).WithName("UploadAsset");
         group.MapPatch("{id}", UpdateAsset).WithName("UpdateAsset");
@@ -68,7 +68,7 @@ public static class AssetEndpoints
         int skip = 0,
         int take = 50)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         
         // Get all collections the user has access to
         var accessibleCollections = await collectionRepository.GetAccessibleCollectionsAsync(userId, ct);
@@ -126,7 +126,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -161,7 +161,7 @@ public static class AssetEndpoints
         int skip = 0,
         int take = 50)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         // System admins have full access
@@ -202,7 +202,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var bucketName = StorageConfig.GetBucketName(configuration);
 
         // Check if user can contribute to this collection
@@ -213,55 +213,48 @@ public static class AssetEndpoints
         if (file == null || file.Length == 0)
             return Results.BadRequest("File is required");
 
-        try
+        // Determine asset type from content type and file extension
+        var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+        var assetType = AssetTypeHelper.DetermineAssetType(file.ContentType, extension);
+
+        // Create asset entity
+        var assetId = Guid.NewGuid();
+        var objectKey = $"originals/{assetId}-{Path.GetFileName(file.FileName)}";
+
+        var asset = new Asset
         {
-            // Determine asset type from content type and file extension
-            var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
-            var assetType = AssetTypeHelper.DetermineAssetType(file.ContentType, extension);
+            Id = assetId,
+            AssetType = assetType,
+            Status = Asset.StatusProcessing,
+            Title = title ?? Path.GetFileNameWithoutExtension(file.FileName),
+            ContentType = file.ContentType,
+            SizeBytes = file.Length,
+            OriginalObjectKey = objectKey,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = userId,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-            // Create asset entity
-            var assetId = Guid.NewGuid();
-            var objectKey = $"originals/{assetId}-{Path.GetFileName(file.FileName)}";
+        // Upload to MinIO
+        using var stream = file.OpenReadStream();
+        await minioAdapter.UploadAsync(bucketName, objectKey, stream, file.ContentType, ct);
 
-            var asset = new Asset
-            {
-                Id = assetId,
-                AssetType = assetType,
-                Status = Asset.StatusProcessing,
-                Title = title ?? Path.GetFileNameWithoutExtension(file.FileName),
-                ContentType = file.ContentType,
-                SizeBytes = file.Length,
-                OriginalObjectKey = objectKey,
-                CreatedAt = DateTime.UtcNow,
-                CreatedByUserId = userId,
-                UpdatedAt = DateTime.UtcNow
-            };
+        // Save asset to database
+        await assetRepository.CreateAsync(asset, ct);
+        
+        // Add asset to the collection via join table
+        await assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
 
-            // Upload to MinIO
-            using var stream = file.OpenReadStream();
-            await minioAdapter.UploadAsync(bucketName, objectKey, stream, file.ContentType, ct);
+        // Schedule processing job
+        var jobId = await mediaProcessingService.ScheduleProcessingAsync(assetId, assetType, objectKey, ct);
 
-            // Save asset to database
-            await assetRepository.CreateAsync(asset, ct);
-            
-            // Add asset to the collection via join table
-            await assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
-
-            // Schedule processing job
-            var jobId = await mediaProcessingService.ScheduleProcessingAsync(assetId, assetType, objectKey, ct);
-
-            return Results.Accepted($"/api/assets/{assetId}", new
-            {
-                id = assetId,
-                status = Asset.StatusProcessing,
-                jobId,
-                message = "Asset uploaded. Processing in progress."
-            });
-        }
-        catch (Exception ex)
+        return Results.Accepted($"/api/assets/{assetId}", new
         {
-            return Results.BadRequest($"Upload failed: {ex.Message}");
-        }
+            id = assetId,
+            status = Asset.StatusProcessing,
+            jobId,
+            message = "Asset uploaded. Processing in progress."
+        });
     }
 
     private static async Task<IResult> UpdateAsset(
@@ -273,7 +266,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -322,7 +315,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = StorageConfig.GetBucketName(configuration);
 
@@ -347,26 +340,19 @@ public static class AssetEndpoints
                 return Results.Forbid();
         }
 
-        try
-        {
-            // Delete from MinIO
-            await minioAdapter.DeleteAsync(bucketName, asset.OriginalObjectKey, ct);
-            if (asset.ThumbObjectKey != null)
-                await minioAdapter.DeleteAsync(bucketName, asset.ThumbObjectKey, ct);
-            if (asset.MediumObjectKey != null)
-                await minioAdapter.DeleteAsync(bucketName, asset.MediumObjectKey, ct);
-            if (asset.PosterObjectKey != null)
-                await minioAdapter.DeleteAsync(bucketName, asset.PosterObjectKey, ct);
+        // Delete from MinIO
+        await minioAdapter.DeleteAsync(bucketName, asset.OriginalObjectKey, ct);
+        if (asset.ThumbObjectKey != null)
+            await minioAdapter.DeleteAsync(bucketName, asset.ThumbObjectKey, ct);
+        if (asset.MediumObjectKey != null)
+            await minioAdapter.DeleteAsync(bucketName, asset.MediumObjectKey, ct);
+        if (asset.PosterObjectKey != null)
+            await minioAdapter.DeleteAsync(bucketName, asset.PosterObjectKey, ct);
 
-            // Delete from database
-            await assetRepository.DeleteAsync(id, ct);
+        // Delete from database
+        await assetRepository.DeleteAsync(id, ct);
 
-            return Results.NoContent();
-        }
-        catch (Exception ex)
-        {
-            return Results.BadRequest($"Deletion failed: {ex.Message}");
-        }
+        return Results.NoContent();
     }
 
     #region Multi-Collection Endpoints
@@ -382,7 +368,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -431,7 +417,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -493,7 +479,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
 
         var asset = await assetRepository.GetByIdAsync(id, ct);
@@ -531,7 +517,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = StorageConfig.GetBucketName(configuration);
 
@@ -543,16 +529,9 @@ public static class AssetEndpoints
         if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
-        try
-        {
-            var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
-            var fileName = asset.Title + Path.GetExtension(asset.OriginalObjectKey);
-            return Results.File(stream, asset.ContentType, fileName);
-        }
-        catch (Exception ex)
-        {
-            return Results.BadRequest($"Download failed: {ex.Message}");
-        }
+        var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
+        var fileName = asset.Title + Path.GetExtension(asset.OriginalObjectKey);
+        return Results.File(stream, asset.ContentType, fileName);
     }
 
     /// <summary>
@@ -569,7 +548,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = StorageConfig.GetBucketName(configuration);
 
@@ -581,16 +560,9 @@ public static class AssetEndpoints
         if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
             return Results.Forbid();
 
-        try
-        {
-            var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
-            // Return without filename to trigger inline display (not attachment download)
-            return Results.File(stream, asset.ContentType, enableRangeProcessing: true);
-        }
-        catch (Exception ex)
-        {
-            return Results.BadRequest($"Preview failed: {ex.Message}");
-        }
+        var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
+        // Return without filename to trigger inline display (not attachment download)
+        return Results.File(stream, asset.ContentType, enableRangeProcessing: true);
     }
 
     private static async Task<IResult> GetThumbnail(
@@ -603,7 +575,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = StorageConfig.GetBucketName(configuration);
 
@@ -618,15 +590,8 @@ public static class AssetEndpoints
         if (string.IsNullOrEmpty(asset.ThumbObjectKey))
             return Results.NotFound("Thumbnail not available");
 
-        try
-        {
-            var stream = await minioAdapter.DownloadAsync(bucketName, asset.ThumbObjectKey, ct);
-            return Results.File(stream, "image/webp");
-        }
-        catch (Exception ex)
-        {
-            return Results.BadRequest($"Failed to get thumbnail: {ex.Message}");
-        }
+        var stream = await minioAdapter.DownloadAsync(bucketName, asset.ThumbObjectKey, ct);
+        return Results.File(stream, "image/webp");
     }
 
     private static async Task<IResult> GetMedium(
@@ -639,7 +604,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = StorageConfig.GetBucketName(configuration);
 
@@ -654,26 +619,12 @@ public static class AssetEndpoints
         if (string.IsNullOrEmpty(asset.MediumObjectKey))
         {
             // Fall back to original if medium not available
-            try
-            {
-                var stream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
-                return Results.File(stream, asset.ContentType);
-            }
-            catch (Exception ex)
-            {
-                return Results.BadRequest($"Failed to get asset: {ex.Message}");
-            }
+            var fallbackStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey, ct);
+            return Results.File(fallbackStream, asset.ContentType);
         }
 
-        try
-        {
-            var stream = await minioAdapter.DownloadAsync(bucketName, asset.MediumObjectKey, ct);
-            return Results.File(stream, asset.ContentType);
-        }
-        catch (Exception ex)
-        {
-            return Results.BadRequest($"Failed to get medium rendition: {ex.Message}");
-        }
+        var stream = await minioAdapter.DownloadAsync(bucketName, asset.MediumObjectKey, ct);
+        return Results.File(stream, asset.ContentType);
     }
 
     private static async Task<IResult> GetPoster(
@@ -686,7 +637,7 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         var bucketName = StorageConfig.GetBucketName(configuration);
 
@@ -701,15 +652,8 @@ public static class AssetEndpoints
         if (string.IsNullOrEmpty(asset.PosterObjectKey))
             return Results.NotFound("Poster not available");
 
-        try
-        {
-            var stream = await minioAdapter.DownloadAsync(bucketName, asset.PosterObjectKey, ct);
-            return Results.File(stream, "image/webp");
-        }
-        catch (Exception ex)
-        {
-            return Results.BadRequest($"Failed to get poster: {ex.Message}");
-        }
+        var stream = await minioAdapter.DownloadAsync(bucketName, asset.PosterObjectKey, ct);
+        return Results.File(stream, "image/webp");
     }
 
     #endregion

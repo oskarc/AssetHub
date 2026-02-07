@@ -328,6 +328,11 @@ public static class CollectionEndpoints
         if (!RoleHierarchy.AllRoles.Contains(dto.Role))
             return Results.BadRequest("Invalid role");
 
+        // Role escalation guard: caller can only grant roles at or below their own level
+        var callerRole = await authService.GetUserRoleAsync(userId, collectionId, ct);
+        if (!RoleHierarchy.CanGrantRole(callerRole, dto.Role))
+            return Results.BadRequest($"You cannot grant the '{dto.Role}' role because it exceeds your own access level");
+
         var acl = await aclRepo.SetAccessAsync(collectionId, dto.PrincipalType, dto.PrincipalId, dto.Role, ct);
 
         var responseDto = new CollectionAclResponseDto
@@ -359,6 +364,12 @@ public static class CollectionEndpoints
         var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
         if (!canManage)
             return Results.Forbid();
+
+        // Role escalation guard: caller can only revoke roles at or below their own level
+        var callerRole = await authService.GetUserRoleAsync(userId, collectionId, ct);
+        var targetAcl = await aclRepo.GetByPrincipalAsync(collectionId, principalType, principalId, ct);
+        if (targetAcl != null && !RoleHierarchy.CanRevokeRole(callerRole, targetAcl.Role))
+            return Results.BadRequest($"You cannot revoke a '{targetAcl.Role}' role because it exceeds your own access level");
 
         await aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
 

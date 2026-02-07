@@ -1,6 +1,8 @@
 using Npgsql;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Dam.Application;
 using Dam.Application.Services;
 
 namespace Dam.Infrastructure.Services;
@@ -8,9 +10,11 @@ namespace Dam.Infrastructure.Services;
 /// <summary>
 /// Keycloak implementation of IUserLookupService.
 /// Queries Keycloak's user_entity table directly for user information.
+/// Caches username lookups (rarely change) and all-users list (short TTL).
 /// </summary>
 public class UserLookupService(
     IConfiguration configuration,
+    IMemoryCache cache,
     ILogger<UserLookupService> logger) : IUserLookupService
 {
     private readonly string _connectionString = configuration.GetConnectionString("Postgres") 
@@ -19,18 +23,33 @@ public class UserLookupService(
     public async Task<Dictionary<string, string>> GetUserNamesAsync(IEnumerable<string> userIds, CancellationToken ct = default)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var idList = userIds.Distinct().ToList();
-        
-        if (idList.Count == 0)
+        var idsToFetch = new List<string>();
+
+        foreach (var id in userIds.Distinct())
+        {
+            var cacheKey = CacheKeys.UserName(id);
+            if (cache.TryGetValue(cacheKey, out string? cachedName) && cachedName is not null)
+            {
+                result[id] = cachedName;
+            }
+            else
+            {
+                idsToFetch.Add(id);
+            }
+        }
+
+        if (idsToFetch.Count == 0)
+        {
+            logger.LogDebug("Cache hit: all {Count} usernames resolved from cache", result.Count);
             return result;
+        }
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(ct);
 
-        // Query Keycloak's user_entity table directly
         var sql = "SELECT id, username FROM user_entity WHERE id = ANY(@ids)";
         await using var cmd = new NpgsqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("ids", idList.ToArray());
+        cmd.Parameters.AddWithValue("ids", idsToFetch.ToArray());
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -38,8 +57,10 @@ public class UserLookupService(
             var id = reader.GetString(0);
             var username = reader.GetString(1);
             result[id] = username;
+            cache.Set(CacheKeys.UserName(id), username, CacheKeys.UserNameTtl);
         }
 
+        logger.LogDebug("Username lookup: {CacheHits} from cache, {DbFetches} from DB", result.Count - idsToFetch.Count + (result.Count - idsToFetch.Count), idsToFetch.Count);
         return result;
     }
 
@@ -73,6 +94,14 @@ public class UserLookupService(
     
     public async Task<List<(string Id, string Username, string? Email, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default)
     {
+        var cacheKey = CacheKeys.AllUsers();
+
+        if (cache.TryGetValue(cacheKey, out List<(string, string, string?, DateTime?)>? cached) && cached is not null)
+        {
+            logger.LogDebug("Cache hit: all users list ({Count} users)", cached.Count);
+            return cached;
+        }
+
         var result = new List<(string, string, string?, DateTime?)>();
         
         await using var connection = new NpgsqlConnection(_connectionString);
@@ -89,8 +118,12 @@ public class UserLookupService(
             var email = reader.IsDBNull(2) ? null : reader.GetString(2);
             var createdTimestamp = reader.IsDBNull(3) ? (DateTime?)null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(3)).UtcDateTime;
             result.Add((id, username, email, createdTimestamp));
+            
+            // Also populate the individual username cache
+            cache.Set(CacheKeys.UserName(id), username, CacheKeys.UserNameTtl);
         }
 
+        cache.Set(cacheKey, result, CacheKeys.AllUsersTtl);
         return result;
     }
 }

@@ -67,6 +67,9 @@ builder.Services.AddHangfireServer();
 // MudBlazor
 builder.Services.AddMudServices();
 
+// In-memory cache for authorization lookups, user names, asset-collection mappings
+builder.Services.AddMemoryCache();
+
 // Configuration
 builder.Services.Configure<MinIOSettings>(builder.Configuration.GetSection(MinIOSettings.SectionName));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
@@ -202,7 +205,8 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuer = true,
         // Only accept tokens issued from keycloak:8080 (Docker internal hostname)
         ValidIssuer = keycloakAuthority,
-        ValidateAudience = false, // Keycloak doesn't always include audience
+        ValidateAudience = true,
+        ValidAudiences = new[] { "assethub-app", "account" }, // Keycloak audience mapper must be configured
         ValidateLifetime = true,
         NameClaimType = "preferred_username",
         RoleClaimType = ClaimTypes.Role
@@ -211,7 +215,9 @@ builder.Services.AddAuthentication(options =>
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
     options.Cookie.Name = "__Host.assethub.auth";
-    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 })
 .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
@@ -242,8 +248,8 @@ builder.Services.AddAuthentication(options =>
     // This prevents unhandled exceptions on refresh/bookmark.
     options.SkipUnrecognizedRequests = true;
 
-    // Using confidential client (with client secret)
-    options.UsePkce = false;
+    // PKCE enabled for defense-in-depth even with confidential client
+    options.UsePkce = true;
 
     options.ResponseType = OpenIdConnectResponseType.Code;
 
@@ -460,6 +466,43 @@ if (app.Environment.IsDevelopment())
         }
     });
 }
+
+// Global exception handler for API endpoints — logs the real exception
+// and returns a sanitized ProblemDetails response (no stack traces / internal messages).
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (UnauthorizedAccessException)
+    {
+        if (!context.Response.HasStarted)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
+        }
+    }
+    catch (Exception ex) when (context.Request.Path.StartsWithSegments("/api"))
+    {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("ApiExceptionHandler");
+        logger.LogError(ex, "Unhandled exception on {Method} {Path}", context.Request.Method, context.Request.Path);
+
+        if (!context.Response.HasStarted)
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+                title = "An unexpected error occurred",
+                status = 500,
+                detail = "Please try again or contact support."
+            });
+        }
+    }
+});
+
 app.UseStaticFiles();
 
 app.UseRequestLocalization();

@@ -1,20 +1,28 @@
+using Dam.Application;
 using Dam.Application.Repositories;
 using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace Dam.Infrastructure.Repositories;
 
 /// <summary>
 /// Repository implementation for managing asset-collection relationships.
+/// Caches GetCollectionIdsForAssetAsync (the primary hot path used in authorization checks).
 /// </summary>
 public class AssetCollectionRepository : IAssetCollectionRepository
 {
     private readonly AssetHubDbContext _context;
+    private readonly IMemoryCache _cache;
+    private readonly ILogger<AssetCollectionRepository> _logger;
 
-    public AssetCollectionRepository(AssetHubDbContext context)
+    public AssetCollectionRepository(AssetHubDbContext context, IMemoryCache cache, ILogger<AssetCollectionRepository> logger)
     {
         _context = context;
+        _cache = cache;
+        _logger = logger;
     }
 
     public async Task<List<Collection>> GetCollectionsForAssetAsync(Guid assetId, CancellationToken ct = default)
@@ -76,6 +84,10 @@ public class AssetCollectionRepository : IAssetCollectionRepository
         _context.AssetCollections.Add(assetCollection);
         await _context.SaveChangesAsync(ct);
 
+        // Invalidate cached collection IDs for this asset
+        CacheKeys.InvalidateAssetCollectionIds(_cache, assetId);
+        _logger.LogDebug("Cache invalidated: asset-collection IDs for asset {AssetId}", assetId);
+
         return assetCollection;
     }
 
@@ -90,6 +102,10 @@ public class AssetCollectionRepository : IAssetCollectionRepository
         _context.AssetCollections.Remove(assetCollection);
         await _context.SaveChangesAsync(ct);
 
+        // Invalidate cached collection IDs for this asset
+        CacheKeys.InvalidateAssetCollectionIds(_cache, assetId);
+        _logger.LogDebug("Cache invalidated: asset-collection IDs for asset {AssetId}", assetId);
+
         return true;
     }
 
@@ -102,9 +118,20 @@ public class AssetCollectionRepository : IAssetCollectionRepository
 
     public async Task<List<Guid>> GetCollectionIdsForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
-        return await _context.AssetCollections
+        var cacheKey = CacheKeys.AssetCollectionIds(assetId);
+
+        if (_cache.TryGetValue(cacheKey, out List<Guid>? cached) && cached is not null)
+        {
+            _logger.LogDebug("Cache hit: collection IDs for asset {AssetId} ({Count} collections)", assetId, cached.Count);
+            return cached;
+        }
+
+        var result = await _context.AssetCollections
             .Where(ac => ac.AssetId == assetId)
             .Select(ac => ac.CollectionId)
             .ToListAsync(ct);
+
+        _cache.Set(cacheKey, result, CacheKeys.AssetCollectionIdsTtl);
+        return result;
     }
 }

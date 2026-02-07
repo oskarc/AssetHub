@@ -106,7 +106,7 @@ public static class ShareEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
 
         // Validate scope
         if (dto.ScopeType != "asset" && dto.ScopeType != "collection")
@@ -162,7 +162,7 @@ public static class ShareEndpoints
             TokenHash = tokenHash,
             ExpiresAt = dto.ExpiresAt?.ToUniversalTime() ?? DateTime.UtcNow.AddDays(7), // Default 7 days
             CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = httpContext.User.GetUserIdOrDefault(),
+            CreatedByUserId = httpContext.User.GetRequiredUserId(),
             PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword)
         };
@@ -595,7 +595,7 @@ public static class ShareEndpoints
             return Results.NotFound(ApiError.NotFound("Share not found"));
 
         // Check authorization (owner can revoke)
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         if (share.CreatedByUserId != userId)
             return Results.Json(ApiError.Forbidden("You don't have permission to revoke this share"), statusCode: 403);
 
@@ -621,7 +621,7 @@ public static class ShareEndpoints
             return Results.NotFound(ApiError.NotFound("Share not found"));
 
         // Check authorization (owner or admin can update)
-        var userId = httpContext.User.GetUserIdOrDefault();
+        var userId = httpContext.User.GetRequiredUserId();
         var isAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         if (share.CreatedByUserId != userId && !isAdmin)
             return Results.Json(ApiError.Forbidden("You don't have permission to update this share"), statusCode: 403);

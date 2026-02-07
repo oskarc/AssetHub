@@ -77,6 +77,30 @@ public static class RoleHierarchy
     public static bool CanManageAccess(string? role) => GetLevel(role) >= 3;
 
     /// <summary>
+    /// Generic role-level guard: returns true when the caller's role level is
+    /// at least as high as the target role level. Use this for any operation
+    /// that requires "you can only affect roles at or below your own".
+    /// </summary>
+    public static bool HasSufficientLevel(string? callerRole, string? targetRole)
+    {
+        return GetLevel(callerRole) >= GetLevel(targetRole);
+    }
+
+    /// <summary>
+    /// Checks if a caller can grant/set a target role.
+    /// Convenience wrapper around <see cref="HasSufficientLevel"/>.
+    /// </summary>
+    public static bool CanGrantRole(string? callerRole, string targetRole)
+        => HasSufficientLevel(callerRole, targetRole);
+
+    /// <summary>
+    /// Checks if a caller can revoke access from a target with the given role.
+    /// Convenience wrapper around <see cref="HasSufficientLevel"/>.
+    /// </summary>
+    public static bool CanRevokeRole(string? callerRole, string? targetRole)
+        => HasSufficientLevel(callerRole, targetRole);
+
+    /// <summary>
     /// All valid role names.
     /// </summary>
     public static IReadOnlyCollection<string> AllRoles => Levels.Keys.ToList().AsReadOnly();
