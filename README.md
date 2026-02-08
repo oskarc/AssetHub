@@ -234,6 +234,16 @@ RoleHierarchy.CanDelete(userRole);        // manager+
 RoleHierarchy.CanManageAccess(userRole);  // manager+
 ```
 
+## Production Deployment
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full production deployment guide, including:
+- Five-minute quickstart
+- `.env.template` with all environment variables
+- `docker-compose.prod.yml` (production-ready)
+- Keycloak, MinIO, and database setup playbooks
+- Reverse proxy / TLS configuration (Caddy, Nginx, Traefik)
+- Backup & restore, upgrades, security hardening
+
 ## Credentials & Configuration
 
 See [CREDENTIALS.md](CREDENTIALS.md) for:
@@ -375,7 +385,7 @@ See [CREDENTIALS.md](CREDENTIALS.md) for additional troubleshooting.
 - [ ] Caching strategy (IMemoryCache / IDistributedCache for hot paths)
 - [ ] Metrics & observability (OpenTelemetry, health checks, structured logging)
 - [ ] Frontend testing (bUnit component tests, Playwright E2E)
-- [ ] Deployment playbooks & onboarding guide (production Docker Compose, env templates, security hardening)
+- [x] Deployment playbooks & onboarding guide (production Docker Compose, env templates, security hardening)
 - [ ] Document preview (PDF/PPTX)
 - [ ] Video transcoding (HLS/DASH)
 - [ ] Advanced DLP / watermarking

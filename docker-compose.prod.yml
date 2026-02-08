@@ -1,0 +1,236 @@
+# ============================================================================
+# AssetHub — Production Docker Compose
+# ============================================================================
+# Prerequisites:
+#   1. Copy .env.template → .env and fill in all values.
+#   2. Read docs/DEPLOYMENT.md for the full setup guide.
+#
+# Start:   docker compose -f docker-compose.prod.yml up -d
+# Stop:    docker compose -f docker-compose.prod.yml down
+# Rebuild: docker compose -f docker-compose.prod.yml up -d --build
+# Logs:    docker compose -f docker-compose.prod.yml logs -f
+# ============================================================================
+
+services:
+
+  # ---------- PostgreSQL 16 ---------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: assethub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # In production, do NOT expose the port externally. Only internal services
+    # need to reach PostgreSQL. Uncomment the line below only for debugging.
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ---------- MinIO (S3-compatible object storage) ----------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: assethub-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - miniodata:/data
+    command: server /data --console-address ":9001"
+    # Expose only the Console port on localhost for initial bucket setup.
+    # After setup, comment out or remove.
+    # ports:
+    #   - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ---------- Keycloak (OIDC provider) ----------------------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    container_name: assethub-keycloak
+    restart: unless-stopped
+    environment:
+      # Database — shares PostgreSQL but uses its own schema
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # Admin bootstrap
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+
+      # Production hostname — must match the URL users see in the browser.
+      # Keycloak embeds this in tokens; the app validates it.
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
+      KC_HOSTNAME_STRICT: "true"
+
+      # Proxy / TLS — assumes a reverse proxy (Nginx, Traefik, Caddy)
+      # terminates HTTPS and forwards to Keycloak on port 8080 (HTTP).
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+    command:
+      - start
+      - --import-realm
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # ---------- AssetHub API + Blazor UI ----------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assethub-api
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Stockholm}
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:7252
+
+      # Database
+      ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+
+      # Keycloak OIDC
+      Keycloak__Authority: "https://${KEYCLOAK_HOSTNAME}/realms/media"
+      Keycloak__ClientId: "${KEYCLOAK_CLIENT_ID}"
+      Keycloak__ClientSecret: "${KEYCLOAK_CLIENT_SECRET}"
+      Keycloak__RequireHttpsMetadata: "true"
+      Keycloak__AdminUsername: "${KEYCLOAK_ADMIN_API_USERNAME}"
+      Keycloak__AdminPassword: "${KEYCLOAK_ADMIN_API_PASSWORD}"
+
+      # MinIO — internal endpoint (container-to-container)
+      MinIO__Endpoint: "minio:9000"
+      MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
+      MinIO__SecretKey: "${MINIO_SECRET_KEY}"
+      MinIO__BucketName: "${MINIO_BUCKET_NAME}"
+      MinIO__UseSSL: "false"
+      # Public endpoint for presigned download URLs (what browsers use).
+      # Leave MINIO_PUBLIC_URL blank if MinIO is not directly exposed.
+      MinIO__PublicUrl: "${MINIO_PUBLIC_URL:-}"
+      MinIO__PublicUseSSL: "${MINIO_PUBLIC_USE_SSL:-true}"
+
+      # Hangfire
+      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+
+      # Application
+      App__BaseUrl: "${APP_BASE_URL}"
+      App__MaxUploadSizeMb: "${APP_MAX_UPLOAD_SIZE_MB:-500}"
+      App__DefaultPageSize: "${APP_DEFAULT_PAGE_SIZE:-50}"
+
+      # Email
+      Email__Enabled: "${EMAIL_ENABLED:-false}"
+      Email__SmtpHost: "${EMAIL_SMTP_HOST:-}"
+      Email__SmtpPort: "${EMAIL_SMTP_PORT:-587}"
+      Email__SmtpUsername: "${EMAIL_SMTP_USERNAME:-}"
+      Email__SmtpPassword: "${EMAIL_SMTP_PASSWORD:-}"
+      Email__UseSsl: "${EMAIL_USE_SSL:-true}"
+      Email__FromAddress: "${EMAIL_FROM_ADDRESS:-}"
+      Email__FromName: "${EMAIL_FROM_NAME:-AssetHub}"
+
+      # Image / Video Processing
+      ImageProcessing__ThumbnailWidth: "${IMAGE_THUMBNAIL_WIDTH:-200}"
+      ImageProcessing__ThumbnailHeight: "${IMAGE_THUMBNAIL_HEIGHT:-200}"
+      ImageProcessing__MediumWidth: "${IMAGE_MEDIUM_WIDTH:-800}"
+      ImageProcessing__MediumHeight: "${IMAGE_MEDIUM_HEIGHT:-800}"
+      ImageProcessing__JpegQuality: "${IMAGE_JPEG_QUALITY:-85}"
+      ImageProcessing__PosterFrameSeconds: "${VIDEO_POSTER_FRAME_SECONDS:-5}"
+      ImageProcessing__PosterWidth: "${VIDEO_POSTER_WIDTH:-800}"
+      ImageProcessing__PosterQuality: "${VIDEO_POSTER_QUALITY:-5}"
+    ports:
+      - "127.0.0.1:7252:7252"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7252/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------- Hangfire Background Worker --------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.Worker
+    container_name: assethub-worker
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Stockholm}
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      MinIO__Endpoint: "minio:9000"
+      MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
+      MinIO__SecretKey: "${MINIO_SECRET_KEY}"
+      MinIO__BucketName: "${MINIO_BUCKET_NAME}"
+      MinIO__UseSSL: "false"
+      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      ImageProcessing__ThumbnailWidth: "${IMAGE_THUMBNAIL_WIDTH:-200}"
+      ImageProcessing__ThumbnailHeight: "${IMAGE_THUMBNAIL_HEIGHT:-200}"
+      ImageProcessing__MediumWidth: "${IMAGE_MEDIUM_WIDTH:-800}"
+      ImageProcessing__MediumHeight: "${IMAGE_MEDIUM_HEIGHT:-800}"
+      ImageProcessing__JpegQuality: "${IMAGE_JPEG_QUALITY:-85}"
+      ImageProcessing__PosterFrameSeconds: "${VIDEO_POSTER_FRAME_SECONDS:-5}"
+      ImageProcessing__PosterWidth: "${VIDEO_POSTER_WIDTH:-800}"
+      ImageProcessing__PosterQuality: "${VIDEO_POSTER_QUALITY:-5}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+volumes:
+  pgdata:
+  miniodata:
+
+networks:
+  internal:
+    driver: bridge

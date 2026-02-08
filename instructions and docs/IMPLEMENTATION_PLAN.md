@@ -4032,7 +4032,7 @@ The original detailed test checklists (repository tests, API integration tests, 
 | Phase 3A: UI - Collections & Grid | ✅ COMPLETE | Full Blazor Server UI with MudBlazor |
 | Phase 3B: Sharing & Audit | ✅ COMPLETE | Share workflow, audit logging, encrypted tokens |
 | Phase 3C: Testing | ⏳ V2 | See IMPLEMENTATION_PLAN_V2.md #3 & #5 |
-| Phase 3D: Deployment & Docs | ⏳ V2 | See IMPLEMENTATION_PLAN_V2.md #4 |
+| Phase 3D: Deployment & Docs | ✅ COMPLETE | Production compose, .env.template, full deployment guide |
 
 ---
 

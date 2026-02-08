@@ -21,6 +21,8 @@ using Hangfire.PostgreSql;
 using Minio;
 using Microsoft.Extensions.Options;
 
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Kestrel limits — allow the IFormFile upload fallback path to handle files
@@ -429,7 +431,70 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole(RoleHierarchy.Roles.Admin));
 });
 
+// Health checks — verifies all external dependencies
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        connectionString ?? throw new InvalidOperationException("ConnectionStrings:Postgres required"),
+        name: "postgresql",
+        tags: ["db", "ready"])
+    .AddCheck<MinioHealthCheck>("minio", tags: ["storage", "ready"])
+    .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", "ready"]);
+
 var app = builder.Build();
+
+// ---------------------------------------------------------------------------
+// Startup tasks: auto-migrate database & ensure MinIO bucket exists
+// ---------------------------------------------------------------------------
+{
+    using var startupScope = app.Services.CreateScope();
+    var startupLogger = startupScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+
+    // 1. Apply any pending EF Core migrations
+    try
+    {
+        var db = startupScope.ServiceProvider.GetRequiredService<AssetHubDbContext>();
+        var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+        if (pending.Count > 0)
+        {
+            startupLogger.LogInformation("Applying {Count} pending migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
+            await db.Database.MigrateAsync();
+            startupLogger.LogInformation("Database migrations applied successfully.");
+        }
+        else
+        {
+            startupLogger.LogInformation("Database is up to date — no pending migrations.");
+        }
+
+        // Ensure pg_trgm extension for trigram search
+        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
+    }
+    catch (Exception ex)
+    {
+        startupLogger.LogError(ex, "Failed to apply database migrations. The application will start but may not function correctly.");
+    }
+
+    // 2. Ensure MinIO bucket exists
+    try
+    {
+        var minio = startupScope.ServiceProvider.GetRequiredService<Minio.IMinioClient>();
+        var bucketName = builder.Configuration["MinIO:BucketName"] ?? "assethub";
+        var bucketExists = await minio.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName));
+        if (!bucketExists)
+        {
+            startupLogger.LogInformation("Creating MinIO bucket '{Bucket}'...", bucketName);
+            await minio.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
+            startupLogger.LogInformation("MinIO bucket '{Bucket}' created.", bucketName);
+        }
+        else
+        {
+            startupLogger.LogInformation("MinIO bucket '{Bucket}' already exists.", bucketName);
+        }
+    }
+    catch (Exception ex)
+    {
+        startupLogger.LogError(ex, "Failed to verify/create MinIO bucket. The application will start but uploads may fail.");
+    }
+}
 
 // Always log a build stamp so it's easy to verify which binary is running.
 {
@@ -683,6 +748,41 @@ app.MapRazorComponents<App>()
 // Hangfire Dashboard
 app.MapHangfireDashboard();
 
+// Health check endpoints (unauthenticated — for load balancers & monitoring)
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    // Lightweight liveness probe — always returns 200 if the process is running
+    Predicate = _ => false,
+    ResponseWriter = WriteHealthResponse
+}).AllowAnonymous();
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    // Full readiness probe — verifies PostgreSQL, MinIO, and Keycloak
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = WriteHealthResponse
+}).AllowAnonymous();
+
+// Health check JSON response writer
+static Task WriteHealthResponse(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+    var result = new
+    {
+        status = report.Status.ToString(),
+        duration = report.TotalDuration.TotalMilliseconds + "ms",
+        checks = report.Entries.Select(e => new
+        {
+            name = e.Key,
+            status = e.Value.Status.ToString(),
+            duration = e.Value.Duration.TotalMilliseconds + "ms",
+            description = e.Value.Description,
+            error = e.Value.Exception?.Message
+        })
+    };
+    return context.Response.WriteAsJsonAsync(result);
+}
+
 // ------------------
 // Minimal JSON helpers (no extra library needed)
 // ------------------
@@ -733,5 +833,63 @@ static IEnumerable<string> ExtractClientRolesFromKeycloakJson(string json, strin
 
 app.Run();
 
+// ---------------------------------------------------------------------------
+// Custom Health Checks
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Verifies MinIO connectivity by checking if the configured bucket exists.
+/// </summary>
+internal sealed class MinioHealthCheck(Minio.IMinioClient minio, IConfiguration config) : IHealthCheck
+{
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
+    {
+        try
+        {
+            var bucket = config["MinIO:BucketName"] ?? "assethub";
+            var exists = await minio.BucketExistsAsync(
+                new BucketExistsArgs().WithBucket(bucket), ct);
+            return exists
+                ? HealthCheckResult.Healthy($"Bucket '{bucket}' is accessible.")
+                : HealthCheckResult.Degraded($"Bucket '{bucket}' does not exist.");
+        }
+        catch (Exception ex)
+        {
+            return HealthCheckResult.Unhealthy("MinIO unreachable.", ex);
+        }
+    }
+}
+
+/// <summary>
+/// Verifies Keycloak is reachable by fetching the OIDC discovery document.
+/// </summary>
+internal sealed class KeycloakHealthCheck(IConfiguration config, IHttpClientFactory httpClientFactory) : IHealthCheck
+{
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
+    {
+        try
+        {
+            var authority = config["Keycloak:Authority"];
+            if (string.IsNullOrWhiteSpace(authority))
+                return HealthCheckResult.Degraded("Keycloak:Authority not configured.");
+
+            var discoveryUrl = authority.TrimEnd('/') + "/.well-known/openid-configuration";
+            using var client = httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(5);
+            var response = await client.GetAsync(discoveryUrl, ct);
+
+            return response.IsSuccessStatusCode
+                ? HealthCheckResult.Healthy($"OIDC discovery endpoint returned {(int)response.StatusCode}.")
+                : HealthCheckResult.Degraded($"OIDC discovery returned {(int)response.StatusCode}.");
+        }
+        catch (Exception ex)
+        {
+            return HealthCheckResult.Unhealthy("Keycloak unreachable.", ex);
+        }
+    }
+}
 
 internal sealed record UserInfoProbeRequest(string Username, string Password, string? Scope);
+
+// Make the auto-generated Program class visible for WebApplicationFactory<Program> in integration tests
+public partial class Program { }

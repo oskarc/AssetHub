@@ -1,0 +1,257 @@
+using Dam.Infrastructure.Data;
+using Dam.Infrastructure.Repositories;
+using Dam.Tests.Fixtures;
+using Dam.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
+
+namespace Dam.Tests.Repositories;
+
+[Collection("Database")]
+public class ShareRepositoryTests : IAsyncLifetime
+{
+    private readonly PostgresFixture _fixture;
+    private AssetHubDbContext _db = null!;
+    private ShareRepository _repo = null!;
+
+    public ShareRepositoryTests(PostgresFixture fixture) => _fixture = fixture;
+
+    public async Task InitializeAsync()
+    {
+        _db = await _fixture.CreateDbContextAsync();
+        _repo = new ShareRepository(_db);
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _db.Database.EnsureDeletedAsync();
+        await _db.DisposeAsync();
+    }
+
+    // ── GetByIdAsync ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetByIdAsync_ReturnsShare()
+    {
+        var share = TestData.CreateShare();
+        _db.Shares.Add(share);
+        await _db.SaveChangesAsync();
+
+        var result = await _repo.GetByIdAsync(share.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal(share.Id, result.Id);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ReturnsNull_WhenNotExists()
+    {
+        var result = await _repo.GetByIdAsync(Guid.NewGuid());
+        Assert.Null(result);
+    }
+
+    // ── GetByTokenHashAsync ─────────────────────────────────────────
+
+    [Fact]
+    public async Task GetByTokenHashAsync_FindsShare()
+    {
+        var share = TestData.CreateShare(tokenHash: "unique_token_hash");
+        _db.Shares.Add(share);
+        await _db.SaveChangesAsync();
+
+        var result = await _repo.GetByTokenHashAsync("unique_token_hash");
+
+        Assert.NotNull(result);
+        Assert.Equal(share.Id, result.Id);
+    }
+
+    [Fact]
+    public async Task GetByTokenHashAsync_ReturnsNull_WhenNotFound()
+    {
+        var result = await _repo.GetByTokenHashAsync("nonexistent_hash");
+        Assert.Null(result);
+    }
+
+    // ── GetByScopeAsync ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetByScopeAsync_ReturnsSharesForScope()
+    {
+        var assetId = Guid.NewGuid();
+        var share1 = TestData.CreateShare(scopeType: "asset", scopeId: assetId);
+        var share2 = TestData.CreateShare(scopeType: "asset", scopeId: assetId);
+        var otherShare = TestData.CreateShare(scopeType: "asset", scopeId: Guid.NewGuid());
+
+        _db.Shares.AddRange(share1, share2, otherShare);
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByScopeAsync("asset", assetId);
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, s => Assert.Equal(assetId, s.ScopeId));
+    }
+
+    // ── CreateAsync ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CreateAsync_PersistsShare()
+    {
+        var share = TestData.CreateShare();
+
+        await _repo.CreateAsync(share);
+
+        var found = await _db.Shares.FindAsync(share.Id);
+        Assert.NotNull(found);
+        Assert.Equal(share.TokenHash, found.TokenHash);
+    }
+
+    // ── UpdateAsync ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateAsync_ModifiesFields()
+    {
+        var share = TestData.CreateShare();
+        _db.Shares.Add(share);
+        await _db.SaveChangesAsync();
+
+        share.RevokedAt = DateTime.UtcNow;
+        await _repo.UpdateAsync(share);
+
+        var found = await _db.Shares.FindAsync(share.Id);
+        Assert.NotNull(found!.RevokedAt);
+    }
+
+    // ── DeleteAsync ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DeleteAsync_RemovesShare()
+    {
+        var share = TestData.CreateShare();
+        _db.Shares.Add(share);
+        await _db.SaveChangesAsync();
+
+        await _repo.DeleteAsync(share.Id);
+
+        Assert.Null(await _db.Shares.FindAsync(share.Id));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_NoOp_WhenNotExists()
+    {
+        await _repo.DeleteAsync(Guid.NewGuid()); // should not throw
+    }
+
+    // ── IncrementAccessAsync (atomic SQL UPDATE) ────────────────────
+
+    [Fact]
+    public async Task IncrementAccessAsync_IncrementsCountAndSetsLastAccessed()
+    {
+        var share = TestData.CreateShare();
+        share.AccessCount = 0;
+        share.LastAccessedAt = null;
+        _db.Shares.Add(share);
+        await _db.SaveChangesAsync();
+
+        await _repo.IncrementAccessAsync(share.Id);
+
+        // Detach and re-fetch to see updated values
+        _db.ChangeTracker.Clear();
+        var updated = await _db.Shares.FindAsync(share.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(1, updated.AccessCount);
+        Assert.NotNull(updated.LastAccessedAt);
+    }
+
+    [Fact]
+    public async Task IncrementAccessAsync_IncrementsMultipleTimes()
+    {
+        var share = TestData.CreateShare();
+        share.AccessCount = 5;
+        _db.Shares.Add(share);
+        await _db.SaveChangesAsync();
+
+        await _repo.IncrementAccessAsync(share.Id);
+        await _repo.IncrementAccessAsync(share.Id);
+        await _repo.IncrementAccessAsync(share.Id);
+
+        _db.ChangeTracker.Clear();
+        var updated = await _db.Shares.FindAsync(share.Id);
+        Assert.Equal(8, updated!.AccessCount);
+    }
+
+    // ── GetByUserAsync ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetByUserAsync_ReturnsOnlyUserShares()
+    {
+        _db.Shares.Add(TestData.CreateShare(createdByUserId: "user1"));
+        _db.Shares.Add(TestData.CreateShare(createdByUserId: "user1"));
+        _db.Shares.Add(TestData.CreateShare(createdByUserId: "user2"));
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByUserAsync("user1");
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, s => Assert.Equal("user1", s.CreatedByUserId));
+    }
+
+    [Fact]
+    public async Task GetByUserAsync_SupportsPagination()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            var share = TestData.CreateShare(createdByUserId: "pager");
+            share.CreatedAt = DateTime.UtcNow.AddMinutes(-i);
+            _db.Shares.Add(share);
+        }
+        await _db.SaveChangesAsync();
+
+        var page = await _repo.GetByUserAsync("pager", skip: 2, take: 3);
+        Assert.Equal(3, page.Count);
+    }
+
+    // ── GetAllAsync ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetAllAsync_ReturnsAllShares()
+    {
+        _db.Shares.Add(TestData.CreateShare());
+        _db.Shares.Add(TestData.CreateShare());
+        _db.Shares.Add(TestData.CreateShare());
+        await _db.SaveChangesAsync();
+
+        var all = await _repo.GetAllAsync();
+        Assert.Equal(3, all.Count);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WithIncludeAsset_LoadsAssetNavigation()
+    {
+        var asset = TestData.CreateAsset(title: "Shared Asset");
+        _db.Assets.Add(asset);
+        var share = TestData.CreateShare(scopeType: "asset", scopeId: asset.Id);
+        _db.Shares.Add(share);
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetAllAsync(includeAsset: true);
+
+        Assert.Single(results);
+        Assert.NotNull(results[0].Asset);
+        Assert.Equal("Shared Asset", results[0].Asset!.Title);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WithIncludeCollection_LoadsCollectionNavigation()
+    {
+        var collection = TestData.CreateCollection(name: "Shared Collection");
+        _db.Collections.Add(collection);
+        var share = TestData.CreateShare(scopeType: "collection", scopeId: collection.Id);
+        _db.Shares.Add(share);
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetAllAsync(includeCollection: true);
+
+        Assert.Single(results);
+        Assert.NotNull(results[0].Collection);
+        Assert.Equal("Shared Collection", results[0].Collection!.Name);
+    }
+}

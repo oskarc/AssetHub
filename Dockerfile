@@ -25,8 +25,10 @@ RUN dotnet publish "AssetHub.csproj" -c Release -o /app/publish /p:UseAppHost=fa
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 
 # Install ImageMagick for image processing (thumbnails, resizing)
+# Install curl for Docker health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
