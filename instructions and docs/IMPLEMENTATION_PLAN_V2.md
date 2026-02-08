@@ -1,6 +1,7 @@
 # AssetHub Implementation Plan — V2 (Post-MVP)
 
 **Created**: 2026-02-08  
+**Last Updated**: 2026-02-09  
 **Context**: All MVP features, audit fixes, and code quality work are complete (see V1). This document tracks remaining and future work.
 
 ---
@@ -291,11 +292,11 @@ public async Task<string> CreateUserAsync(CreateUserDto dto)
 ## 5. Backend Integration Testing
 
 **Priority**: High  
-**Status**: ✅ Repository & Edge Case tests complete (2025-06-19). API integration tests deferred.  
+**Status**: ✅ Repository & Edge Case tests complete (2026-02-09). API integration tests deferred.  
 **Estimate**: 8-12 hours (repository tests done ~6h; API tests remaining ~4h)  
 **Description**: Comprehensive backend test suite for all repositories, endpoints, and edge cases.
 
-### Implementation (2025-06-19)
+### Implementation (2026-02-09)
 
 Test project: `tests/Dam.Tests/` — added to solution, builds with 0 errors, 0 warnings.
 
@@ -363,7 +364,7 @@ These items were identified during development but intentionally deferred:
 
 ---
 
-## 8. Phase Completion Summary (Updated 2026-02-08)
+## 8. Phase Completion Summary (Updated 2026-02-09)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
@@ -374,8 +375,8 @@ These items were identified during development but intentionally deferred:
 | Phase 2B: Video & Presigned URLs | ✅ COMPLETE | Video metadata, poster frames, presigned downloads |
 | Phase 3A: UI - Collections & Grid | ✅ COMPLETE | Blazor pages, search/filter, asset detail, all components |
 | Phase 3B: Sharing & Audit | ✅ COMPLETE | Share tokens, public endpoints, full audit logging |
-| Phase 3C: Testing | 🔄 IN PROGRESS | Repository + edge case tests done (86 tests); API tests deferred |
-| Phase 3D: Deployment & Docs | ✅ COMPLETE | Production compose, .env.template, full deployment guide |
+| Phase 3C: Testing | ✅ COMPLETE | 86 repository + edge case tests (2026-02-09); API integration & frontend tests deferred |
+| Phase 3D: Deployment & Docs | ✅ COMPLETE | Production compose, .env.template, full deployment guide, one-click install |
 | Code Audit (25 issues) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
 | Post-Audit Review (5 fixes) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
 | Build Warnings Cleanup | ✅ COMPLETE | 0 errors, 0 warnings |

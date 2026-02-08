@@ -1,414 +1,417 @@
-# AssetHub - Digital Asset Management System
+# AssetHub
 
-A modern, self-hosted digital asset management (DAM) system built with ASP.NET Core 9, Blazor Server, Keycloak, and MinIO. Features hierarchical collections, many-to-many asset-collection relationships, role-based access control, automated media processing, public share links, multi-language UI, and a full admin interface.
+**A self-hosted digital asset management system for teams who want full control over their files.**
 
-## Features
+AssetHub lets you organise images, videos, and documents into hierarchical collections, control who sees what with per-collection roles, share files via password-protected links, and get automatic thumbnails and previews — all running on your own infrastructure.
 
-### Core
-- **Hierarchical Collections** — Nested folders with parent-child relationships
-- **Multi-Collection Assets** — Assets belong to one or more collections (many-to-many, no primary/secondary distinction)
-- **Role-Based Access Control** — Per-collection permissions: viewer / contributor / manager / admin
-- **Multi-File Upload** — Drag-and-drop with progress tracking and automatic background processing
-- **Image Processing** — Automatic thumbnail and medium rendition generation (ImageMagick)
-- **Video Support** — Metadata extraction and poster frame generation (ffmpeg)
-- **Share Links** — Time-limited public tokens with optional password protection (BCrypt hashed)
-- **Audit Logging** — Tracks uploads, shares, downloads, and access changes
-- **Full-Text Search** — PostgreSQL trigram search on asset metadata
-- **Localization** — Full Swedish and English UI with language switcher
+Built with ASP.NET Core 9, Blazor Server, Keycloak, MinIO, and PostgreSQL. One `docker compose up` gets you a working system.
 
-### UI
-- **Blazor Server + MudBlazor** — Responsive asset browser with grid view, filters, and sorting
-- **Login Gate** — Authentication required before any content is visible
-- **Asset Detail** — Preview, metadata editing, tag management, collection membership display
-- **All Assets View** — Admin-only page to browse all assets across collections
-- **Admin Dashboard** — Three tabs: Shares management, Collection Access, User management
-- **User Access Modal** — View and revoke per-collection access for any user
-- **Create User** — Create Keycloak users directly from the admin UI
-- **Role-Based Visibility** — UI elements hidden/shown based on the user's role
-- **Empty States** — Friendly messages with suggested actions when lists are empty
-- **Error Handling** — Consistent toast notifications via `IUserFeedbackService`; no technical details exposed to users
+---
 
-### Technical Highlights
-- **Authentication**: OIDC via Keycloak (dual Cookie + JWT Bearer scheme)
-- **Async Processing**: Hangfire background jobs with PostgreSQL storage
-- **Object Storage**: S3-compatible MinIO with presigned URLs for direct browser downloads
-- **Clean Architecture**: Domain / Application / Infrastructure / UI layer separation
-- **CancellationToken Support**: Propagated through endpoints, services, and repositories
-- **Centralized Role Logic**: `RoleHierarchy.cs` for consistent permission checks across API and UI
+## What You Get
 
-## Tech Stack
+- **Hierarchical collections** — Nest folders as deep as you like. Assets can live in multiple collections at once.
+- **Fine-grained access control** — Viewer, Contributor, Manager, and Admin roles assigned per collection. A user can be a viewer in one collection and a manager in another.
+- **Drag-and-drop upload** — Multi-file upload with progress tracking. Thumbnails and previews are generated automatically in the background.
+- **Share links** — Create time-limited, optionally password-protected public links for any asset or collection. No account needed to view.
+- **Full-text search** — PostgreSQL trigram search across asset names, descriptions, and tags.
+- **Admin dashboard** — Manage shares, collection access, and users. Create Keycloak users directly from the UI.
+- **Localisation** — Swedish and English, switchable from the UI.
+- **Audit trail** — Every upload, download, share, and access change is logged.
 
-| Component | Technology |
-|-----------|-----------|
-| API | ASP.NET Core 9 (Minimal APIs) |
-| Frontend | Blazor Server + MudBlazor |
-| Auth | Keycloak 24.0.1 (OIDC) |
-| Database | PostgreSQL 16 (EF Core) |
-| Storage | MinIO (S3-compatible) |
-| Background Jobs | Hangfire (PostgreSQL storage) |
-| Media Tools | ImageMagick, ffmpeg (CLI in container) |
-| Deployment | Docker Compose |
-
-## Prerequisites
-
-- **Docker Desktop** (Windows/Mac) or Docker Engine + Docker Compose (Linux)
-- **Git**
-- **.NET 9 SDK** (optional, only if running outside Docker)
-- **Available ports**: 7252 (App), 8080 (Keycloak), 5432 (PostgreSQL), 9000/9001 (MinIO)
-- **Hosts file entry**: `127.0.0.1 keycloak` (see Quick Start)
+---
 
 ## Quick Start
 
-### 1. Add Keycloak to Hosts File
+You need **Docker Desktop** (or Docker Engine + Compose on Linux) and **Git**. That's it.
 
-Add this line to your hosts file:
-- **Windows**: `C:\Windows\System32\drivers\etc\hosts`
-- **Mac/Linux**: `/etc/hosts`
+### 1. Add Keycloak to your hosts file
+
+Append this line so token issuer URLs resolve correctly from both your browser and the server:
+
+| OS | File |
+|----|------|
+| Windows | `C:\Windows\System32\drivers\etc\hosts` |
+| Mac / Linux | `/etc/hosts` |
 
 ```
 127.0.0.1 keycloak
 ```
 
-This ensures JWT tokens issued by Keycloak have the correct issuer URL for both browser and server-side validation.
+### 2. Clone, configure, start
 
-### 2. Clone and Navigate
 ```bash
 git clone <repository-url>
 cd AssetHub
-```
-
-### 3. Start All Services
-```bash
 docker compose up --build
 ```
 
-This starts:
-- **PostgreSQL 16** on `localhost:5432`
-- **MinIO** on `localhost:9000` (API) / `localhost:9001` (Console)
-- **Keycloak** on `keycloak:8080`
-- **AssetHub App** on `localhost:7252`
-- **Hangfire Worker** for background job processing
+On first boot the app will automatically:
+- Run database migrations and enable `pg_trgm` for search
+- Create the MinIO storage bucket
+- Import the Keycloak realm with test users
 
-### 4. Access the Application
+Wait until the health check passes (usually under 30 seconds), then open the app.
+
+### 3. Open the app
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| App | http://localhost:7252 | See test users below |
-| Keycloak Admin | http://keycloak:8080/admin | admin / admin123 |
-| MinIO Console | http://localhost:9001 | minioadmin / minioadmin_dev_password |
-| Hangfire Dashboard | http://localhost:7252/hangfire | — |
+| **AssetHub** | http://localhost:7252 | See test users below |
+| Keycloak Admin | http://keycloak:8080/admin | `admin` / `admin123` |
+| MinIO Console | http://localhost:9001 | `minioadmin` / `minioadmin_dev_password` |
+| Hangfire Dashboard | http://localhost:7252/hangfire | (no auth in dev) |
 
-### 5. Log In
+### 4. Log in
 
 | User | Password | Role |
 |------|----------|------|
-| `testuser` | `testuser123` | Viewer |
-| `mediaadmin` | `mediaadmin123` | Admin |
+| `mediaadmin` | `mediaadmin123` | Admin — full access, can manage users |
+| `testuser` | `testuser123` | Viewer — read-only access to assigned collections |
 
-## API Endpoints
+Create a collection, upload some files, and explore. The `mediaadmin` account has access to everything; `testuser` needs to be granted access to specific collections.
 
-### Collections — `/api/collections`
-```
-GET    /api/collections                    # List root collections
-GET    /api/collections/{id}               # Get collection details
-POST   /api/collections                    # Create root collection
-POST   /api/collections/{id}/children      # Create child collection
-PATCH  /api/collections/{id}               # Update collection
-DELETE /api/collections/{id}               # Delete collection
-GET    /api/collections/{id}/children      # List child collections
-GET    /api/collections/{id}/download-all  # Download all assets as zip
-```
+---
 
-### Collection ACLs — `/api/collections/{id}/acl`
-```
-GET    /api/collections/{id}/acl                          # List ACL entries
-POST   /api/collections/{id}/acl                          # Assign role to user
-DELETE /api/collections/{id}/acl/{principalType}/{principalId}  # Revoke access
-```
+## Architecture
 
-### Assets — `/api/assets`
 ```
-GET    /api/assets                                  # List assets (filtered)
-GET    /api/assets/all                              # List all assets (admin only)
-GET    /api/assets/{id}                             # Get asset details
-POST   /api/assets                                  # Upload asset (multipart form)
-PATCH  /api/assets/{id}                             # Update metadata (name, description, tags)
-DELETE /api/assets/{id}                             # Delete asset
-GET    /api/assets/collection/{collectionId}        # Assets in a collection
+┌─────────────────────────────────────────────────┐
+│  Browser                                        │
+│  (Blazor Server + MudBlazor)                    │
+└──────────────┬──────────────────────────────────┘
+               │ SignalR / HTTP
+┌──────────────▼──────────────────────────────────┐
+│  ASP.NET Core 9 — Minimal APIs                  │
+│  ┌──────────┐ ┌────────────┐ ┌──────────────┐   │
+│  │Endpoints │ │ Services   │ │ Repositories │   │
+│  └──────────┘ └────────────┘ └──────────────┘   │
+│  Cookie + JWT Bearer Auth (Keycloak OIDC)       │
+│  Health checks: /health  /health/ready          │
+└──┬──────────┬──────────┬────────────────────────┘
+   │          │          │
+┌──▼──┐  ┌───▼───┐  ┌───▼────┐  ┌───────────┐
+│ PG  │  │ MinIO │  │Keycloak│  │ Hangfire  │
+│ 16  │  │ (S3)  │  │ (OIDC) │  │ (worker)  │
+└─────┘  └───────┘  └────────┘  └───────────┘
 ```
 
-### Asset Collections (many-to-many)
-```
-GET    /api/assets/{id}/collections                 # List collections for asset
-POST   /api/assets/{id}/collections/{collectionId}  # Add asset to collection
-DELETE /api/assets/{id}/collections/{collectionId}  # Remove asset from collection
-```
+### Tech Stack
 
-### Asset Renditions
-```
-GET    /api/assets/{id}/download   # Download original (presigned URL redirect)
-GET    /api/assets/{id}/preview    # Preview original (inline)
-GET    /api/assets/{id}/thumb      # Thumbnail rendition
-GET    /api/assets/{id}/medium     # Medium rendition
-GET    /api/assets/{id}/poster     # Video poster frame
-```
-
-### Shares — `/api/shares`
-```
-POST   /api/shares                        # Create share token (contributor+ required)
-DELETE /api/shares/{id}                   # Revoke share
-PUT    /api/shares/{id}/password          # Update share password
-GET    /api/shares/{token}                # Get shared content (public)
-GET    /api/shares/{token}/download       # Download via share link (public)
-GET    /api/shares/{token}/download-all   # Download all shared assets (public)
-GET    /api/shares/{token}/preview        # Preview shared asset (public)
-```
-
-### Admin — `/api/admin` (admin role required)
-```
-GET    /api/admin/shares                                    # List all shares
-POST   /api/admin/shares/{id}/revoke                        # Revoke any share
-GET    /api/admin/collections/access                        # List all collection access
-POST   /api/admin/collections/{collectionId}/acl            # Grant collection access
-DELETE /api/admin/collections/{collectionId}/acl/{principalId}  # Revoke access
-GET    /api/admin/users                                     # List users with access
-GET    /api/admin/keycloak-users                            # List all Keycloak users
-POST   /api/admin/users                                     # Create new Keycloak user
-```
-
-## Authentication & Security
-
-- **OIDC** via Keycloak (media realm)
-- **Dual auth scheme**: Cookie (Blazor UI) + JWT Bearer (API clients)
-- **Login gate**: All navigation and content hidden until authenticated
-- **Share passwords**: BCrypt hashed
-- **Authorization checks**: Every endpoint validates the user's role on the relevant collection(s)
-
-### Auth Flow
-1. Browser navigates to app → redirected to Keycloak login
-2. Keycloak authenticates and returns tokens
-3. Cookie auth persists the session for Blazor Server
-4. API endpoints validate JWT Bearer tokens against Keycloak's public key
-5. Claims (user ID, roles) extracted from token and used for authorization
-
-## Role-Based Access Control (RBAC)
-
-Roles are assigned per-collection through Access Control Lists (ACLs). Higher roles inherit all permissions of lower roles.
-
-### Role Hierarchy
-
-| Role | Level | Description |
-|------|-------|-------------|
-| **Viewer** | 1 | View and download assets |
-| **Contributor** | 2 | Upload assets, edit metadata, create share links |
-| **Manager** | 3 | Delete assets, manage collection ACLs |
-| **Admin** | 4 | Full system access including admin dashboard |
-
-### Permission Matrix
-
-| Action | Viewer | Contributor | Manager | Admin |
-|--------|--------|-------------|---------|-------|
-| View / download assets | ✅ | ✅ | ✅ | ✅ |
-| Upload assets | ❌ | ✅ | ✅ | ✅ |
-| Edit asset metadata | ❌ | ✅ | ✅ | ✅ |
-| Create share links | ❌ | ✅ | ✅ | ✅ |
-| Delete assets | ❌ | ❌ | ✅ | ✅ |
-| Manage collection access | ❌ | ❌ | ✅ | ✅ |
-| All Assets page | ❌ | ❌ | ❌ | ✅ |
-| Admin dashboard | ❌ | ❌ | ❌ | ✅ |
-| Create users | ❌ | ❌ | ❌ | ✅ |
-
-### Key Concepts
-
-1. **Collection-scoped permissions** — A user may have different roles on different collections.
-2. **Assets inherit collection permissions** — Access is determined by the collection's ACL, not by who uploaded the asset.
-3. **No primary collection** — Assets have equal relationships with all their collections (many-to-many).
-4. **Ownership is for audit only** — `CreatedByUserId` is tracked but does not affect permissions.
-
-The role hierarchy is centralized in `Dam.Application/RoleHierarchy.cs`:
-
-```csharp
-RoleHierarchy.CanUpload(userRole);        // contributor+
-RoleHierarchy.CanShare(userRole);         // contributor+
-RoleHierarchy.CanDelete(userRole);        // manager+
-RoleHierarchy.CanManageAccess(userRole);  // manager+
-```
-
-## Production Deployment
-
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full production deployment guide, including:
-- Five-minute quickstart
-- `.env.template` with all environment variables
-- `docker-compose.prod.yml` (production-ready)
-- Keycloak, MinIO, and database setup playbooks
-- Reverse proxy / TLS configuration (Caddy, Nginx, Traefik)
-- Backup & restore, upgrades, security hardening
-
-## Credentials & Configuration
-
-See [CREDENTIALS.md](CREDENTIALS.md) for:
-- Keycloak admin credentials
-- Test user accounts
-- MinIO access keys
-- OAuth client configuration
-- Connection strings
-
-## Development
+| Layer | Technology |
+|-------|-----------|
+| API | ASP.NET Core 9 (Minimal APIs) |
+| UI | Blazor Server + MudBlazor v8 |
+| Auth | Keycloak 24 (OIDC, dual Cookie + JWT Bearer) |
+| Database | PostgreSQL 16 + EF Core (Npgsql) |
+| Storage | MinIO (S3-compatible, presigned URLs) |
+| Background jobs | Hangfire with PostgreSQL storage |
+| Media processing | ImageMagick + ffmpeg (in container) |
+| Deployment | Docker Compose |
 
 ### Project Structure
+
 ```
 AssetHub/
-├── Program.cs                         # App configuration & DI
-├── Endpoints/                         # Minimal API endpoints
+├── Program.cs                          # DI, middleware, endpoints, health checks
+├── Endpoints/                          # Minimal API route handlers
 │   ├── AssetEndpoints.cs
 │   ├── CollectionEndpoints.cs
 │   ├── ShareEndpoints.cs
 │   └── AdminEndpoints.cs
 ├── src/
-│   ├── Dam.Domain/                    # Entities, value objects
-│   │   └── Entities/
-│   ├── Dam.Application/               # DTOs, interfaces, services, RoleHierarchy
-│   │   ├── Dtos/
-│   │   ├── Repositories/
-│   │   ├── Services/
-│   │   └── Helpers/
-│   ├── Dam.Infrastructure/            # EF Core, MinIO, Hangfire, migrations
-│   │   ├── Data/
-│   │   ├── Migrations/
-│   │   ├── Repositories/
-│   │   └── Services/
-│   ├── Dam.Ui/                        # Blazor Server UI
-│   │   ├── Pages/                     # Razor pages (Home, Assets, Admin, Share, etc.)
-│   │   ├── Components/                # Reusable components (dialogs, grid, tree, upload)
-│   │   ├── Layout/                    # MainLayout, NavMenu
-│   │   ├── Services/                  # AssetHubApiClient, RolePermissions, UserFeedback
-│   │   └── Resources/                 # Localization (.resx) files
-│   └── Dam.Worker/                    # Hangfire background worker
-├── keycloak/import/                   # Keycloak realm import file
-├── docker-compose.yml
+│   ├── Dam.Domain/                     # Entities
+│   ├── Dam.Application/                # DTOs, interfaces, validation, role hierarchy
+│   ├── Dam.Infrastructure/             # EF Core, MinIO adapter, Keycloak, migrations
+│   ├── Dam.Ui/                         # Blazor pages, components, localisation
+│   └── Dam.Worker/                     # Hangfire background worker
+├── tests/
+│   └── Dam.Tests/                      # xUnit + Testcontainers integration tests
+├── docs/
+│   └── DEPLOYMENT.md                   # Production deployment guide
+├── keycloak/import/                    # Realm auto-import
+├── docker-compose.yml                  # Development stack
+├── docker-compose.prod.yml             # Production stack
+├── .env.template                       # Environment variable reference
 ├── Dockerfile / Dockerfile.Worker
-├── appsettings.*.json
-└── instructions and docs/
-    ├── IMPLEMENTATION_PLAN.md
-    └── draft1.md
+└── appsettings.*.json
 ```
 
-### Building Locally (without Docker)
+---
+
+## Role-Based Access Control
+
+Roles are assigned **per collection** through Access Control Lists. Higher roles inherit all lower permissions.
+
+| Role | Can view | Can upload | Can edit | Can share | Can delete | Can manage access | Admin panel |
+|------|----------|-----------|---------|----------|-----------|------------------|-------------|
+| Viewer | ✅ | | | | | | |
+| Contributor | ✅ | ✅ | ✅ | ✅ | | | |
+| Manager | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Admin | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+**Key concepts:**
+- A user can hold different roles on different collections.
+- Assets inherit permissions from their collections — access is never per-asset.
+- Assets can belong to multiple collections simultaneously (many-to-many, no primary).
+- The role hierarchy is centralised in `RoleHierarchy.cs` for consistency across API and UI.
+
+---
+
+## API Reference
+
+All endpoints require authentication unless marked *(public)*.
+
+### Collections
+
+```http
+GET    /api/collections                           # Root collections
+GET    /api/collections/{id}                      # Collection details
+POST   /api/collections                           # Create root collection
+POST   /api/collections/{id}/children             # Create child collection
+PATCH  /api/collections/{id}                      # Rename / move collection
+DELETE /api/collections/{id}                      # Delete (cascades to children)
+GET    /api/collections/{id}/children             # List children
+GET    /api/collections/{id}/download-all         # Zip download
+```
+
+### Collection ACLs
+
+```http
+GET    /api/collections/{id}/acl                  # List access entries
+POST   /api/collections/{id}/acl                  # Grant role to user
+DELETE /api/collections/{id}/acl/{type}/{id}      # Revoke access
+```
+
+### Assets
+
+```http
+GET    /api/assets                                # List (filtered by collection access)
+GET    /api/assets/all                            # All assets (admin only)
+GET    /api/assets/{id}                           # Asset details
+POST   /api/assets                                # Upload (multipart form)
+PATCH  /api/assets/{id}                           # Update name, description, tags
+DELETE /api/assets/{id}                           # Delete asset + storage
+GET    /api/assets/collection/{collectionId}      # Assets in collection
+```
+
+### Asset ↔ Collection
+
+```http
+GET    /api/assets/{id}/collections               # Collections containing asset
+POST   /api/assets/{id}/collections/{collId}      # Add asset to collection
+DELETE /api/assets/{id}/collections/{collId}      # Remove from collection
+```
+
+### Renditions
+
+```http
+GET    /api/assets/{id}/download                  # Original (presigned redirect)
+GET    /api/assets/{id}/preview                   # Inline preview
+GET    /api/assets/{id}/thumb                     # Thumbnail
+GET    /api/assets/{id}/medium                    # Medium rendition
+GET    /api/assets/{id}/poster                    # Video poster frame
+```
+
+### Shares
+
+```http
+POST   /api/shares                                # Create share link
+DELETE /api/shares/{id}                           # Revoke share
+PUT    /api/shares/{id}/password                  # Update password
+GET    /api/shares/{token}                        # View shared content (public)
+GET    /api/shares/{token}/download               # Download via share (public)
+GET    /api/shares/{token}/download-all           # Zip download (public)
+GET    /api/shares/{token}/preview                # Preview shared asset (public)
+```
+
+### Admin *(admin role required)*
+
+```http
+GET    /api/admin/shares                          # All shares
+POST   /api/admin/shares/{id}/revoke              # Revoke any share
+GET    /api/admin/collections/access              # All collection access
+POST   /api/admin/collections/{id}/acl            # Grant access
+DELETE /api/admin/collections/{id}/acl/{userId}   # Revoke access
+GET    /api/admin/users                           # Users with access
+GET    /api/admin/keycloak-users                  # All Keycloak users
+POST   /api/admin/users                           # Create Keycloak user
+```
+
+### Health
+
+```http
+GET    /health                                    # Liveness (always 200)
+GET    /health/ready                              # Readiness (checks PG, MinIO, Keycloak)
+```
+
+---
+
+## Production Deployment
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full guide. The short version:
+
+```bash
+cp .env.template .env        # Fill in your passwords and domain
+docker compose -f docker-compose.prod.yml up -d
+curl http://localhost:7252/health/ready   # Wait for "Healthy"
+```
+
+The guide covers reverse proxy setup (Caddy / Nginx / Traefik), TLS, backup & restore, upgrades, and a security hardening checklist.
+
+---
+
+## Testing
+
+The test suite lives in `tests/Dam.Tests/` and uses **real PostgreSQL** via Testcontainers — no in-memory fakes.
+
+| Category | Tests | What's covered |
+|----------|-------|----------------|
+| Asset repository | 21 | CRUD, search (ILike, trigram), pagination, status filtering |
+| Collection repository | 17 | Hierarchy, cascading deletes, ACL includes, root queries |
+| Asset ↔ Collection repository | 12 | Many-to-many, duplicates, orphaning, batch lookups, caching |
+| Collection ACL repository | 11 | Grant/revoke, update-in-place, user isolation |
+| Share repository | 15 | Token hash lookup, increment access, scoped queries, navigation |
+| Edge cases | 10 | Multi-collection assets, cascading deletes, hierarchical cleanup |
+| **Total** | **86** | |
+
+### Running tests
+
+```bash
+# Requires Docker running (for Testcontainers)
+dotnet test tests/Dam.Tests/Dam.Tests.csproj
+```
+
+Each test class gets its own isolated database — tests never interfere with each other.
+
+---
+
+## Development
+
+### Prerequisites for local development (outside Docker)
+
+- .NET 9 SDK
+- PostgreSQL 16 running locally
+- MinIO running locally
+- Keycloak running locally with the `media` realm imported
+
+### Build and run
+
 ```bash
 dotnet restore
-dotnet build
-# Requires PostgreSQL, MinIO, and Keycloak running externally
+dotnet build          # 0 errors, 0 warnings
 dotnet run --project AssetHub.csproj
 ```
 
-### Common Commands
+### Useful commands
 
 ```bash
-# View logs
-docker compose logs -f              # All services
-docker logs assethub-api            # API only
-docker logs assethub-worker         # Worker only
+# Follow logs
+docker compose logs -f
 
-# Database access
+# Database shell
 docker exec -it assethub-postgres psql -U postgres -d assethub
 
-# Rebuild and restart
-docker compose down
-docker compose up --build
+# Rebuild everything
+docker compose down && docker compose up --build
 
-# Scale workers
-docker compose up -d --scale assethub-worker=3
-```
-
-### Database Backup & Restore
-```bash
-# Backup
+# Backup database
 docker exec assethub-postgres pg_dump -U postgres assethub > backup.sql
 
-# Restore
+# Restore database
 docker exec -i assethub-postgres psql -U postgres assethub < backup.sql
 ```
 
+---
+
 ## Monitoring
 
-- **Hangfire Dashboard**: http://localhost:7252/hangfire — job queues, processing, failures, history
-- **Keycloak Admin**: http://keycloak:8080/admin — users, realms, clients, roles
-- **MinIO Console**: http://localhost:9001 — buckets, objects, storage usage
+| Tool | URL | Purpose |
+|------|-----|---------|
+| Health check | http://localhost:7252/health/ready | Readiness probe (PG + MinIO + Keycloak) |
+| Hangfire | http://localhost:7252/hangfire | Job queues, processing status, failure history |
+| Keycloak Admin | http://keycloak:8080/admin | Users, realms, clients, sessions |
+| MinIO Console | http://localhost:9001 | Buckets, objects, storage usage |
+
+---
 
 ## Troubleshooting
 
-### API won't start
-```bash
-docker logs assethub-api
-docker exec assethub-postgres pg_isready
-docker compose down && docker compose up --build
-```
+**App won't start?**
+Check the logs: `docker compose logs assethub-api`. Common causes: PostgreSQL not ready yet (the app retries on startup), incorrect connection string, port conflict.
 
-### Can't log in
-- Verify `127.0.0.1 keycloak` is in your hosts file
-- Check Keycloak is healthy: `docker logs assethub-keycloak`
-- Verify `media` realm and test users exist in Keycloak admin console
-- Check browser console (F12) for OIDC errors
+**Can't log in?**
+Make sure `127.0.0.1 keycloak` is in your hosts file. Without it, the token issuer URL won't match and auth will silently fail. Check Keycloak is running: `docker compose logs keycloak`.
 
-### MinIO access issues
-- Check bucket exists via MinIO Console at http://localhost:9001
-- Verify credentials in appsettings match docker-compose environment
+**Uploads fail?**
+Verify MinIO is healthy via the console at http://localhost:9001. The app creates the bucket automatically on startup — check logs for errors if it didn't.
 
-See [CREDENTIALS.md](CREDENTIALS.md) for additional troubleshooting.
+**Health check failing?**
+Hit `/health/ready` to see which dependency is down. The response body names the unhealthy component.
+
+For production troubleshooting, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#8-troubleshooting).
+
+---
+
+## Credentials
+
+See [CREDENTIALS.md](CREDENTIALS.md) for all default passwords, OAuth client config, and connection strings.
+
+---
 
 ## Project Status
 
-### Completed
-- [x] Docker Compose with all services (PostgreSQL, MinIO, Keycloak, Hangfire)
-- [x] Database schema & EF Core migrations
-- [x] Collections API — full CRUD with hierarchical support
-- [x] Keycloak OIDC authentication (Cookie + JWT Bearer)
-- [x] Asset upload, processing (ImageMagick thumbnails, ffmpeg poster frames)
-- [x] Hangfire background job scheduling
-- [x] Share links with password protection and expiration
-- [x] Blazor Server UI — complete page set (Login, Home, Assets, AssetDetail, AllAssets, Admin, Share)
-- [x] 13+ reusable Blazor components (grid, tree, dialogs, upload, language switcher)
-- [x] Multi-collection asset assignment (many-to-many, no primary collection)
-- [x] Asset metadata editing (name, description, tags)
-- [x] Admin dashboard (shares, collection access, user management)
-- [x] User creation via Keycloak Admin API
-- [x] Role-based UI visibility
-- [x] Error handling with `IUserFeedbackService`
-- [x] Empty state messages across all views
-- [x] Localization — Swedish and English with language switcher
-- [x] CancellationToken propagation across endpoints and services
-- [x] Centralized role hierarchy (`RoleHierarchy.cs`)
-- [x] BCrypt password hashing for share links
-- [x] Standardized API error responses (`ApiError`)
+**MVP is complete.** All core features are implemented and operational. The codebase builds with 0 errors and 0 warnings.
 
-### Planned (Next Phase)
-- [ ] Caching strategy (IMemoryCache / IDistributedCache for hot paths)
-- [ ] Metrics & observability (OpenTelemetry, health checks, structured logging)
-- [ ] Frontend testing (bUnit component tests, Playwright E2E)
-- [x] Deployment playbooks & onboarding guide (production Docker Compose, env templates, security hardening)
-- [ ] Document preview (PDF/PPTX)
-- [ ] Video transcoding (HLS/DASH)
-- [ ] Advanced DLP / watermarking
-- [ ] Mobile responsiveness
+See [IMPLEMENTATION_PLAN_V2.md](instructions%20and%20docs/IMPLEMENTATION_PLAN_V2.md) for remaining work — frontend testing, metrics/observability, and optional enhancements.
+
+### What's done
+
+- Docker Compose development and production stacks
+- Full collections API with hierarchical support and cascading deletes
+- Keycloak OIDC authentication (Cookie + JWT Bearer)
+- Asset upload with automatic thumbnail/preview generation
+- Video metadata extraction and poster frames
+- Share links with BCrypt passwords and expiration
+- Complete Blazor Server UI (13+ components, two languages)
+- Admin dashboard (shares, access, user management)
+- User creation via Keycloak Admin API
+- 86 integration tests with real PostgreSQL
+- One-click production deployment with auto-migration
+- Health check endpoints (`/health`, `/health/ready`)
+- Full deployment documentation
+
+### What's next
+
+- Frontend testing (bUnit component tests, Playwright E2E)
+- Metrics & observability (OpenTelemetry, structured logging, dashboards)
+- API integration tests (endpoint-level testing with `WebApplicationFactory`)
+- Document preview (PDF, PPTX)
+- Video transcoding (HLS/DASH)
+
+---
 
 ## Contributing
 
 1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes and commit: `git commit -am 'Add feature'`
-3. Push: `git push origin feature/your-feature`
-4. Open a Pull Request
+2. Make your changes and ensure the build is clean: `dotnet build`
+3. Run the tests: `dotnet test`
+4. Push and open a Pull Request
 
-### Code Style
+### Code conventions
+
 - C# naming conventions (PascalCase for public members)
-- Follow existing patterns in endpoint files for new API routes
-- Use `IUserFeedbackService` for all user-facing error/success messages in UI
-- Add localization keys to `.resx` files for any new user-facing text
-
-## License
-
-MIT License — See LICENSE file for details.
+- Follow existing patterns in the `Endpoints/` files for new routes
+- Use `IUserFeedbackService` for all user-facing messages in the UI
+- Add localisation keys to `.resx` files for any new text
+- Keep `RoleHierarchy.cs` as the single source of truth for permission checks
 
 ---
 
-**Last Updated**: February 7, 2026  
-**Status**: MVP Complete ✅ — All core features implemented and operational
+## License
+
+MIT — see LICENSE for details.
+
+---
+
+*Last updated: February 9, 2026*
