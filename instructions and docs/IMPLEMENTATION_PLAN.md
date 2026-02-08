@@ -254,192 +254,10 @@ The following features have been identified as high-priority improvements and sh
 
 **Dependencies**: None
 
-#### 16. Create User Functionality ✅ COMPLETE
+#### 16. Create User Functionality ⏳ MOVED TO V2
 **Priority**: High  
-**Status**: Implemented on 2026-02-07  
-**Description**: Implement user creation functionality through the Admin interface, integrated with Keycloak.
-
-**Current Limitation**: Users must be manually created in Keycloak admin console. The application can only manage existing users' collection access.
-
-**Scope**:
-- [ ] **Keycloak Admin API Integration**
-  - Install `Keycloak.AuthServices.Sdk` or use HttpClient for Keycloak Admin REST API
-  - Configure Keycloak admin client credentials in appsettings.json
-  - Implement `IKeycloakUserService` for user management operations
-  - Methods: CreateUser, UpdateUser, ResetPassword, EnableUser, DisableUser
-  - Handle Keycloak API authentication (service account or admin user)
-
-- [ ] **Backend API Endpoint**
-  - `POST /api/admin/users` - Create new user
-  - Request DTO: `CreateUserDto`
-    ```csharp
-    public class CreateUserDto
-    {
-        public required string Username { get; set; }
-        public required string Email { get; set; }
-        public required string FirstName { get; set; }
-        public required string LastName { get; set; }
-        public required string Password { get; set; } // Or generate temporary password
-        public bool EmailVerified { get; set; } = false;
-        public bool RequirePasswordChange { get; set; } = true;
-        public List<string> InitialCollectionIds { get; set; } = new(); // Optional
-        public string InitialRole { get; set; } = "viewer"; // Default role for initial collections
-    }
-    ```
-  - Authorization: Admin role required
-  - Create user in Keycloak
-  - Optionally assign to collections via CollectionAcl
-  - Return user details or error
-
-- [ ] **UI Components**
-  - **CreateUserDialog.razor** component with form:
-    - Username (required, unique validation)
-    - Email (required, format validation)
-    - First Name (required)
-    - Last Name (required)
-    - Password options:
-      - Generate temporary password (recommended)
-      - Manual password entry (with strength indicator)
-    - "Require password change on first login" checkbox (default: checked)
-    - Initial collection access (optional):
-      - Multi-select collection picker
-      - Role selector per collection (or single role for all)
-  - Add "Create User" button to Admin page Users tab
-  - Success message with created username
-  - Error handling for duplicate username/email
-
-- [ ] **Validation**
-  - Username requirements:
-    - 3-50 characters
-    - Alphanumeric, underscore, hyphen allowed
-    - No spaces
-    - Unique across Keycloak realm
-  - Email: Valid email format, unique
-  - Password requirements (Keycloak policy):
-    - Minimum 8 characters
-    - At least one uppercase letter
-    - At least one number
-    - At least one special character
-  - Client-side validation with immediate feedback
-  - Server-side validation before Keycloak API call
-
-- [ ] **Password Handling**
-  - **Option 1: Generated Password** (Recommended)
-    - Generate secure random password (16 chars, mixed case, numbers, symbols)
-    - Display to admin once (copy to clipboard)
-    - Mark as temporary (user must change on first login)
-    - Optionally send via email (requires SMTP configuration)
-  
-  - **Option 2: Manual Password**
-    - Admin enters password
-    - Show password strength indicator
-    - Confirm password field
-    - Option to force change on first login
-
-- [ ] **Email Notification (Optional)**
-  - Send welcome email to new user
-  - Include:
-    - Application URL
-    - Username
-    - Temporary password (if generated)
-    - Instructions to log in and change password
-  - Requires SMTP configuration in appsettings.json
-  - Template-based email with AssetHub branding
-
-- [ ] **Keycloak Configuration**
-  - Create dedicated service account or admin user for API access
-  - Required Keycloak admin API permissions:
-    - `manage-users` (create, update users)
-    - `view-realm` (read realm settings)
-  - Store credentials securely (appsettings.json or Azure Key Vault)
-  - Configure token endpoint and admin API base URL
-
-- [ ] **User Feedback**
-  - Success toast: "User [username] created successfully"
-  - Display temporary password in dialog (if generated)
-  - Copy password to clipboard button
-  - Error messages for:
-    - Duplicate username/email
-    - Keycloak API errors
-    - Network/connection issues
-    - Validation failures
-
-- [ ] **Security Considerations**
-  - Admin-only access (check role in endpoint)
-  - Log user creation events (audit trail)
-  - Don't log passwords
-  - Secure password transmission (HTTPS only)
-  - Rate limiting for user creation endpoint
-  - CAPTCHA consideration for production
-
-- [ ] **Post-Creation Actions**
-  - Option to immediately assign to collections
-  - Redirect to user access management
-  - Refresh users list to show new user
-  - Option to create another user (stay in dialog)
-
-- [ ] **Testing Checklist**
-  - [ ] Create user with generated password
-  - [ ] Create user with manual password
-  - [ ] Verify user can log in with temporary password
-  - [ ] Verify password change is required on first login
-  - [ ] Duplicate username rejection
-  - [ ] Duplicate email rejection
-  - [ ] Invalid email format rejection
-  - [ ] Weak password rejection
-  - [ ] Admin authorization check (non-admin cannot create users)
-  - [ ] Collection assignment during creation
-  - [ ] Email notification delivery (if implemented)
-  - [ ] Keycloak API error handling
-
-**Keycloak Admin API Example**:
-```csharp
-public async Task<string> CreateUserAsync(CreateUserDto dto)
-{
-    var user = new
-    {
-        username = dto.Username,
-        email = dto.Email,
-        firstName = dto.FirstName,
-        lastName = dto.LastName,
-        enabled = true,
-        emailVerified = dto.EmailVerified,
-        credentials = new[]
-        {
-            new
-            {
-                type = "password",
-                value = dto.Password,
-                temporary = dto.RequirePasswordChange
-            }
-        }
-    };
-    
-    var response = await _httpClient.PostAsJsonAsync(
-        $"{_keycloakBaseUrl}/admin/realms/{_realm}/users", 
-        user);
-    
-    response.EnsureSuccessStatusCode();
-    
-    // Extract user ID from Location header
-    var location = response.Headers.Location?.ToString();
-    var userId = location?.Split('/').Last();
-    
-    return userId;
-}
-```
-
-**Alternative Approach**: 
-If Keycloak Admin API is too complex, consider:
-- User self-registration page (publicly accessible)
-- Admin approval workflow
-- Email verification required
-
-**Time Estimate**: 6-10 hours (Keycloak integration + UI + testing)
-
-**Dependencies**: 
-- Keycloak admin API access configured
-- SMTP server (optional, for email notifications)
+**Status**: Not started — moved to IMPLEMENTATION_PLAN_V2.md  
+**Description**: Implement user creation from the Admin UI via Keycloak Admin REST API. Currently, users must be manually created in the Keycloak admin console.
 
 #### 17. Caching Strategy ✅ COMPLETE
 **Priority**: Medium  
@@ -482,9 +300,9 @@ If Keycloak Admin API is too complex, consider:
   - `builder.Services.AddMemoryCache()` in Program.cs
   - `IMemoryCache` injected via primary constructors (no new interfaces needed)
 
-- [ ] **Distributed Cache** — Deferred (Redis for multi-instance deployments)
-- [ ] **Response Caching / Output Caching** — Deferred (Cache-Control headers for renditions)
-- [ ] **ETag / Conditional Requests** — Deferred
+- ~~Distributed Cache~~ — Moved to V2
+- ~~Response Caching / Output Caching~~ — Moved to V2
+- ~~ETag / Conditional Requests~~ — Moved to V2
 
 **Files Created**: `src/Dam.Application/CacheKeys.cs`  
 **Files Modified**: `Program.cs`, `CollectionAuthorizationService.cs`, `AssetCollectionRepository.cs`, `UserLookupService.cs`  
@@ -492,193 +310,50 @@ If Keycloak Admin API is too complex, consider:
 **Dependencies**: None  
 **Security**: Auth roles use request-scoped caching only (no cross-request persistence)
 
-#### 18. Metrics & Observability ⏳ PLANNED
-**Priority**: Medium  
-**Status**: Not started  
-**Description**: Select and integrate a metrics/observability tool to monitor application health, performance, and usage in production.
+#### 18. Metrics & Observability ⏳ MOVED TO V2
+**Status**: Not started — see IMPLEMENTATION_PLAN_V2.md #2
 
-**Scope**:
-- [ ] **Evaluate Tooling Options**
-  - **OpenTelemetry** (.NET native support) — vendor-neutral, exports to multiple backends
-  - **Prometheus + Grafana** — pull-based metrics, mature dashboarding
-  - **Application Insights** (Azure) — if Azure-hosted, zero-config .NET integration
-  - **Seq** — structured log aggregation (lightweight, self-hosted)
-  - **Elastic APM / ELK Stack** — full observability suite
-  - Decision criteria: self-hosted vs cloud, cost, complexity, team familiarity
+#### 19. Frontend Testing ⏳ MOVED TO V2
+**Status**: Not started — see IMPLEMENTATION_PLAN_V2.md #3
 
-- [ ] **Metrics to Capture**
-  - **HTTP**: Request rate, latency (p50/p95/p99), error rate per endpoint
-  - **Business**: Uploads/day, shares created, active users, assets processed
-  - **Infrastructure**: CPU/memory usage, DB connection pool, MinIO latency
-  - **Background Jobs**: Hangfire queue depth, processing time, failure rate
-  - **Cache**: Hit/miss ratio (ties into #17)
-
-- [ ] **Structured Logging**
-  - Audit current `ILogger` usage for consistency
-  - Add correlation IDs for request tracing
-  - Configure log levels per environment (Debug for dev, Warning+ for prod)
-  - Consider Serilog sinks for structured output (JSON, Seq, Elasticsearch)
-
-- [ ] **Health Checks**
-  - `AspNetCore.Diagnostics.HealthChecks` for readiness/liveness probes
-  - PostgreSQL connectivity check
-  - MinIO connectivity check
-  - Keycloak connectivity check
-  - Hangfire server status
-  - Expose `/health` and `/health/ready` endpoints
-
-- [ ] **Dashboarding**
-  - Set up Grafana dashboards (or equivalent) for key metrics
-  - Define alerting rules (error rate spike, job queue backlog, disk usage)
-
-**Time Estimate**: 8-12 hours  
-**Dependencies**: Tooling decision must be made first; Docker Compose updated for any new services (Prometheus, Grafana, Seq)
-
-#### 19. Frontend Testing ⏳ PLANNED
-**Priority**: Medium  
-**Status**: Not started  
-**Description**: Establish a frontend testing strategy for the Blazor Server UI to catch regressions and validate component behavior.
-
-**Scope**:
-- [ ] **Evaluate Testing Approaches**
-  - **bUnit** — Unit/component testing for Blazor (in-process, fast, mocks services)
-  - **Playwright** — E2E browser testing (real browser, full user flows)
-  - **Both** — bUnit for component logic, Playwright for critical user journeys
-  - Decision: bUnit as primary, Playwright for smoke tests
-
-- [ ] **bUnit Component Tests**
-  - Set up `Dam.Ui.Tests` project with bUnit + xUnit
-  - Mock `AssetHubApiClient`, `IUserFeedbackService`, `IStringLocalizer<T>`, `NavigationManager`
-  - Priority components to test:
-    - `AssetGrid.razor` — renders assets, pagination, empty state, delete confirmation
-    - `CollectionTree.razor` — tree rendering, selection, rename, delete
-    - `CreateShareDialog.razor` — form validation, password generation, email list
-    - `CreateCollectionDialog.razor` — form submission, validation
-    - `EditAssetDialog.razor` — pre-populated fields, tag management, save
-    - `LanguageSwitcher.razor` — culture change, cookie set
-    - `AssetUpload.razor` — file selection, progress tracking, error states
-  - Test localization: verify components render with both `en` and `sv` cultures
-
-- [ ] **Playwright E2E Tests**
-  - Set up `Dam.E2E.Tests` project with Playwright for .NET
-  - Critical user flows to cover:
-    - Login → navigate to collections → select collection → view assets
-    - Upload asset → verify thumbnail appears → view detail
-    - Create share link → open share URL → enter password → view content
-    - Admin: manage users → create user → assign collection access
-    - Language switch: toggle to Swedish → verify nav/buttons change → toggle back
-  - Configure test fixtures for seeded data (test collection, test assets)
-  - Run against Docker Compose environment
-
-- [ ] **CI Integration**
-  - bUnit tests run on every build (fast, no infrastructure needed)
-  - Playwright tests run on PR / nightly (requires running app + services)
-  - Fail build on test failures
-
-- [ ] **Visual Regression (Optional)**
-  - Playwright screenshot comparison for key pages
-  - Detect unintended layout/style changes
-
-**Time Estimate**: 12-20 hours (bUnit setup + core tests + Playwright setup + critical flows)  
-**Dependencies**: None for bUnit; Docker Compose environment for Playwright
-
-#### 20. Deployment Playbooks & Onboarding Guide ⏳ PLANNED
-**Priority**: High  
-**Status**: Not started  
-**Description**: Create step-by-step playbooks that allow any organisation to clone the repo from GitHub and stand up a fully working AssetHub instance — covering both infrastructure provisioning and application configuration.
-
-**Scope**:
-
-- [ ] **Infrastructure Playbook**
-  - **Docker Compose (Self-Hosted)**
-    - Production-ready `docker-compose.prod.yml` with all services (app, worker, PostgreSQL, MinIO, Keycloak, Hangfire)
-    - `.env.template` file with every required variable documented (descriptions, defaults, examples)
-    - Volume mount strategy for persistent data (DB, MinIO buckets, Keycloak H2/Postgres)
-    - Networking configuration (internal service mesh, exposed ports)
-    - TLS/SSL termination setup (reverse proxy with Nginx/Traefik, Let's Encrypt)
-    - Resource limits and restart policies per container
-  - **Kubernetes (Optional)**
-    - Helm chart or Kustomize manifests for k8s deployment
-    - ConfigMap/Secret templates for environment configuration
-    - Ingress configuration with TLS
-    - PersistentVolumeClaim definitions for stateful services
-  - **Cloud-Specific Guides** (optional appendices)
-    - AWS: ECS/Fargate or EC2 + RDS + S3 (instead of MinIO)
-    - Azure: App Service + Azure Database for PostgreSQL + Blob Storage
-    - Bare metal / VPS: systemd units or Docker Compose on a single server
-  - **Backup & Restore**
-    - PostgreSQL backup script (`pg_dump` schedule, retention policy)
-    - MinIO bucket replication or backup strategy
-    - Keycloak realm export/import for disaster recovery
-    - Documented restore procedure with verification steps
-
-- [ ] **Keycloak Setup Playbook**
-  - Realm creation script or importable `realm-export.json` with all required configuration
-  - Client registration: OIDC client for AssetHub with correct redirect URIs, scopes, mappers
-  - Role definitions (if using Keycloak realm roles)
-  - User federation options (LDAP/AD integration guide)
-  - SMTP configuration for Keycloak email verification/password reset
-  - Admin service account creation for the Create User API (#16)
-  - Identity provider federation (optional: Google, Azure AD, SAML)
-  - Checklist: verify token endpoint, userinfo endpoint, JWKS URI all reachable from app
-
-- [ ] **MinIO Setup Playbook**
-  - Bucket creation script (asset storage bucket, naming convention)
-  - Access policy configuration (application service account, read/write permissions)
-  - CORS configuration for direct browser uploads (if applicable)
-  - Lifecycle rules (e.g., auto-delete incomplete multipart uploads)
-  - Optional: migration guide from MinIO to AWS S3 / Azure Blob (S3-compatible API)
-
-- [ ] **Application Configuration Playbook**
-  - `appsettings.Production.json` template with all sections explained:
-    - `ConnectionStrings:DefaultConnection` — PostgreSQL
-    - `StorageConfig` — MinIO endpoint, bucket, access key, secret key
-    - `Authentication` — Keycloak authority, client ID, client secret, audience
-    - `HangfireConfig` — dashboard credentials, worker count
-    - `MediaProcessing` — ImageMagick/ffmpeg paths (or container paths)
-  - Environment variable override reference (`ASPNETCORE_*`, `ConnectionStrings__*`, etc.)
-  - CORS and allowed origins configuration
-  - Logging level configuration per environment
-  - Feature flags / toggles (if any)
-
-- [ ] **Database Setup Playbook**
-  - EF Core migrations: how to apply (`dotnet ef database update` or migration bundle)
-  - Initial seed data (default admin user, root collection — if applicable)
-  - Connection string format with SSL mode for production
-  - Performance tuning recommendations (connection pooling, `pg_trgm` extension for search)
-
-- [ ] **First-Run Quickstart**
-  - Single-page "5-minute setup" guide:
-    1. Clone repo
-    2. Copy `.env.template` → `.env`, fill in values
-    3. `docker compose -f docker-compose.prod.yml up -d`
-    4. Run database migrations
-    5. Import Keycloak realm (or run setup script)
-    6. Create first admin user in Keycloak
-    7. Open browser → login → create first collection → upload an asset
-  - Troubleshooting FAQ (common issues: Keycloak redirect mismatch, MinIO connection refused, migration failures)
-  - Health check verification: `curl /health` returns healthy for all dependencies
-
-- [ ] **Upgrade & Migration Guide**
-  - How to upgrade to a new version (pull, migrate, restart)
-  - Breaking change policy and changelog format
-  - Database migration safety (always backup before `ef database update`)
-  - Configuration diff tool or changelog for new settings between versions
-
-- [ ] **Security Hardening Checklist**
-  - Change all default passwords (Keycloak admin, MinIO root, Hangfire dashboard, PostgreSQL)
-  - Enable HTTPS everywhere (app, Keycloak, MinIO)
-  - Restrict Hangfire dashboard access (IP whitelist or auth)
-  - Review Keycloak client settings (confidential client, PKCE, token lifetimes)
-  - Set `ASPNETCORE_ENVIRONMENT=Production` (disables dev-only features)
-  - Firewall rules: only expose ports 443 (app) and 8443 (Keycloak) externally
-
-**Time Estimate**: 10-16 hours  
-**Dependencies**: Production Docker Compose (#17–#18 inform monitoring additions), stable configuration schema
+#### 20. Deployment Playbooks & Onboarding Guide ⏳ MOVED TO V2
+**Status**: Not started — see IMPLEMENTATION_PLAN_V2.md #4
 
 ---
 
 ## Session Notes
+
+### 2026-02-08 Session: Build Warnings Cleanup & V2 Plan Split
+
+**Focus**: Eliminate all build warnings; split implementation plan into V1 (completed) and V2 (remaining work)
+
+#### Build Warnings Fixed (23 total, 0 remaining)
+
+**C# Nullable Reference Warnings (7)**:
+- **CS8602** (4×): Removed unnecessary `?.` on `_asset.ContentType`, `_asset.AssetType`, `_asset.Status` in `AssetDetail.razor` (guaranteed non-null in else block)
+- **CS8601** (1×): `title ?? ""` null-coalesce in `AssetEndpoints.cs` audit dictionary
+- **CS8604** (2×): `asset.Title ?? "untitled"` in `CollectionEndpoints.cs` and `ShareEndpoints.cs` `GetSafeFileName` calls
+
+**CS0618 Deprecated API (1)**:
+- `Program.cs`: Migrated `config.UsePostgreSqlStorage(connectionString)` → `config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString))`
+
+**MUD0002 MudBlazor Analyzer Warnings (15)**:
+- `Title` → `title` (lowercase HTML attribute passthrough) on 11 `MudIconButton` instances across `AssetDetail.razor`, `ManageUserAccessDialog.razor`, `Assets.razor`, `Admin.razor`
+- `Size="Size.Small"` → `Margin="Margin.Dense"` on `MudTextField` and `MudSelect` in `Admin.razor` (MudBlazor v8 API)
+- `@onclick:stopPropagation` moved to parent `<MudCardActions>` in `Share.razor` (avoids RZ10010 duplicate OnClick parameter on MudButton)
+
+**Build result**: 0 errors, 0 warnings
+
+#### Implementation Plan Restructuring
+
+- Created **IMPLEMENTATION_PLAN_V2.md** with all remaining/future work
+- Replaced Features #16, #18, #19, #20 in V1 with short V2 pointers
+- Updated Phase Completion Summary (Phase 3A now ✅ COMPLETE, not ❌)
+- Updated Development Environment Status to reflect current reality
+- Consolidated "Immediate Next Steps" (all original items completed)
+- Moved Comprehensive Testing Plan details to V2
+
+---
 
 ### 2026-02-04 Session: Removal of Primary Collection Architecture
 
@@ -4313,349 +3988,24 @@ docker compose logs -f postgres
 
 ---
 
-## Immediate Next Steps (Priority Order)
+## Immediate Next Steps
 
-### ✅ COMPLETED: Keycloak Client Secret Migration (Phase 1C Follow-up)
+All original "Immediate Next Steps" have been completed:
+- ✅ Keycloak Client Secret Migration
+- ✅ Enable Asset & Share Endpoints
+- ✅ Phase 3A UI Development (full Blazor Server UI)
+- ✅ Phase 3B Sharing & Audit Logging
+- ✅ 25-issue Application Audit
 
-**Status**: Implemented. The assethub-app client is now configured as a confidential client with client secret required.
-
-**Completed Steps**:
-1. ✅ assethub-app configured as confidential client in Keycloak
-2. ✅ Client secret stored in media-realm.json: `VxBiV29QVchYHFzD5N62l43fTXbTMzSl`
-3. ✅ Program.cs requires ClientSecret (throws if not configured)
-4. ✅ Role hierarchy implemented (viewer → contributor → manager → admin)
-5. ✅ Authorization policies defined (RequireViewer, RequireContributor, RequireManager, RequireAdmin)
-4. In "Credentials" tab, copy the generated Client Secret
-5. Update docker-compose.yml: Add environment variable
-   ```yaml
-   Keycloak__ClientSecret: <generated-secret>
-   ```
-6. Update Program.cs OIDC configuration:
-   ```csharp
-   options.ClientSecret = builder.Configuration["Keycloak:ClientSecret"];
-   options.UsePkce = false; // No longer needed with confidential client
-   ```
-7. Rebuild and restart: `docker compose up --build`
-8. Test login to verify authentication still works
-9. Update CREDENTIALS.md with new configuration
-
-**Time Estimate**: 30-45 minutes
-
----
-
-### 🟡 HIGH: Enable Asset & Share Endpoints
-
-**Prerequisite**: Keycloak client secret implemented (above)
-
-**Steps**:
-1. Enable Asset endpoints:
-   - Uncomment line 191 in [Program.cs](Program.cs#L191): `app.MapAssetEndpoints();`
-2. Enable Share endpoints:
-   - Uncomment line 192 in [Program.cs](Program.cs#L192): `app.MapShareEndpoints();`
-3. Rebuild Docker image: `docker compose up --build`
-4. Test endpoints manually:
-   ```bash
-   # Get assets
-   curl -H "Authorization: Bearer $(gettoken)" http://localhost:7252/api/assets
-
-   # Upload asset
-   curl -X POST -F "file=@image.jpg" \
-     -H "Authorization: Bearer $(gettoken)" \
-     http://localhost:7252/api/assets/upload
-
-   # Create share
-   curl -X POST http://localhost:7252/api/shares \
-     -H "Content-Type: application/json" \
-     -H "Authorization: Bearer $(gettoken)" \
-     -d '{"assetId":"...","expiresInHours":24}'
-   ```
-5. Monitor Hangfire dashboard at http://localhost:7252/hangfire
-   - Watch thumbnail generation jobs process
-   - Verify no job failures
-
-**Time Estimate**: 1-2 hours (code is ready, just needs testing)
-
----
-
-### 🟡 MEDIUM: Worker Container Investigation
-
-**Issue**: Worker service exits with code 139 (segmentation fault or out-of-memory)
-
-**Impact**: Non-blocking - Hangfire jobs can be queued in database, but no background processing occurs. For MVP, Jobs can be processed manually or with alternative worker deployment.
-
-**Steps** (if time allows):
-1. Check worker logs: `docker logs assethub-worker`
-2. Reduce memory constraints or add heap size limits
-3. Verify ImageMagick and ffmpeg are properly installed in worker container
-4. Consider running Hangfire jobs directly in API container temporarily
-
-**Time Estimate**: 30 minutes - 1 hour
-
----
-
-### 🟢 LOW: Phase 3 UI Development
-
-**Status**: Deferred until Asset/Share endpoints fully tested
-
-**When Ready**:
-- Collections page (tree navigation, breadcrumbs)
-- Asset grid with search/filter
-- Upload UI with progress tracking
-- Share management UI
+Remaining work has been moved to **IMPLEMENTATION_PLAN_V2.md**.
 
 ---
 
 ## Comprehensive Testing Plan
 
-**Priority**: HIGH  
-**Status**: ⚠️ PENDING - Scheduled for dedicated testing session  
-**Last Updated**: 2026-02-04
+**Status**: Moved to IMPLEMENTATION_PLAN_V2.md — see #3 (Frontend Testing) and #5 (Backend Integration Testing).
 
-### Overview
-
-Following the major architectural refactoring (removal of primary collection concept), comprehensive testing is required to verify all functionality works correctly with the new many-to-many collection relationships.
-
-### Testing Scope
-
-#### 1. Unit Tests (Backend)
-
-**Repository Layer**
-- [ ] **AssetRepository**
-  - `GetByIdAsync` - Verify returns asset without Collection navigation
-  - `GetByCollectionAsync` - Verify queries via AssetCollections join table
-  - `CountByCollectionAsync` - Verify counts via join table
-  - `DeleteByCollectionAsync` - Verify deletes assets via join table lookup
-  - `SearchAsync` - Verify search works without Collection include
-
-- [ ] **AssetCollectionRepository**
-  - `GetCollectionsForAssetAsync` - Verify returns all linked collections
-  - `AddToCollectionAsync` - Verify creates join table entry
-  - `RemoveFromCollectionAsync` - Verify removes join table entry
-  - `BelongsToCollectionAsync` - Verify membership check via join table
-  - `GetCollectionIdsForAssetAsync` - Verify returns correct collection IDs
-
-**Authorization Helper**
-- [ ] **CanAccessAssetAsync**
-  - Verify returns true when user has viewer+ role in any asset collection
-  - Verify returns true for system admins regardless of collection membership
-  - Verify returns false when user has no access to any asset collection
-  - Verify returns false for orphaned assets (no collections)
-
-#### 2. Integration Tests (API Endpoints)
-
-**Asset Management**
-- [ ] **Upload Asset** (`POST /api/assets/upload`)
-  - Verify asset created without CollectionId field
-  - Verify AssetCollections entry created
-  - Verify contributor+ can upload
-  - Verify viewer cannot upload
-
-- [ ] **Get Asset** (`GET /api/assets/{id}`)
-  - Verify returns asset data without CollectionId/CollectionName
-  - Verify permission check via any collection membership
-  - Verify 403 when user has no access to any asset collection
-  - Verify 404 for non-existent asset
-
-- [ ] **Update Asset** (`PATCH /api/assets/{id}`)
-  - Verify contributor+ can edit metadata
-  - Verify permission checked via any collection
-  - Verify viewer cannot edit
-
-- [ ] **Delete Asset** (`DELETE /api/assets/{id}`)
-  - Verify manager+ can delete
-  - Verify permission checked via any collection
-  - Verify asset removed from all collections
-
-- [ ] **Get All Assets** (`GET /api/assets/all`)
-  - Verify returns assets from all accessible collections
-  - Verify user role calculated correctly (highest across all collections)
-  - Verify search/filter works correctly
-  - Verify pagination works
-
-**Collection Assignment**
-- [ ] **Get Asset Collections** (`GET /api/assets/{id}/collections`)
-  - Verify returns all collections asset belongs to
-  - Verify no "primary" indicator
-  - Verify permission check via any collection
-
-- [ ] **Add to Collection** (`POST /api/assets/{id}/collections/{collectionId}`)
-  - Verify contributor+ can add
-  - Verify creates join table entry
-  - Verify duplicate prevention
-  - Verify 403 for viewers
-
-- [ ] **Remove from Collection** (`DELETE /api/assets/{id}/collections/{collectionId}`)
-  - Verify contributor+ can remove
-  - Verify removes join table entry
-  - Verify asset can be removed from all collections
-  - Verify 403 for viewers
-
-**Rendition Endpoints**
-- [ ] **Download Original** (`GET /api/assets/{id}/original/download`)
-  - Verify permission via CanAccessAssetAsync
-  - Verify works for assets in multiple collections
-
-- [ ] **Preview Original** (`GET /api/assets/{id}/original/preview`)
-  - Verify permission check works
-  - Verify PDF preview works
-
-- [ ] **Get Thumbnail** (`GET /api/assets/{id}/thumb`)
-  - Verify permission check works
-  - Verify returns correct size
-
-- [ ] **Get Medium** (`GET /api/assets/{id}/medium`)
-  - Verify permission check works
-  - Verify returns correct size
-
-- [ ] **Get Poster** (`GET /api/assets/{id}/poster`)
-  - Verify permission check works
-  - Verify works for video assets
-
-**Share Endpoints**
-- [ ] **Create Share** (`POST /api/shares`)
-  - Verify requires asset belongs to at least one collection
-  - Verify uses join table for validation
-  - Verify contributor+ can create shares
-  - Verify shares work for multi-collection assets
-
-- [ ] **Download Shared Asset** (`GET /shares/{token}/download`)
-  - Verify validates asset-collection membership via join table
-  - Verify works for collection shares
-  - Verify works for asset shares
-
-- [ ] **Preview Shared Asset** (`GET /shares/{token}/preview`)
-  - Verify validates asset-collection membership via join table
-  - Verify works correctly
-
-#### 3. Edge Cases & Scenarios
-
-**Multi-Collection Assets**
-- [ ] Asset belongs to 2+ collections
-  - Verify user with different roles in each collection gets highest role
-  - Verify removing from one collection doesn't affect other memberships
-  - Verify deletion removes from all collections
-
-**Orphaned Assets**
-- [ ] Asset belongs to zero collections
-  - Verify cannot be accessed via normal endpoints
-  - Verify admin can still access
-  - Verify can be re-assigned to a collection
-
-**Permission Scenarios**
-- [ ] User has viewer in Collection A, contributor in Collection B
-  - Asset belongs to both collections
-  - Verify user gets contributor permissions
-
-- [ ] User has manager in Collection A only
-  - Asset belongs to Collection A and B
-  - Verify user can delete asset (has manager in any collection)
-
-**Collection Deletion**
-- [ ] Delete collection that has assets
-  - Verify cascade behavior on AssetCollections
-  - Verify assets remain if in other collections
-  - Verify orphaned assets handled correctly
-
-#### 4. UI Testing
-
-**AssetDetail Page**
-- [ ] Verify collections section displays correctly
-- [ ] Verify Add to Collection works
-- [ ] Verify Remove from Collection works with confirmation
-- [ ] Verify proper button visibility based on role
-
-**AllAssets Page**
-- [ ] Verify asset grid displays without collection names
-- [ ] Verify no "Go to collection" button
-- [ ] Verify role-based actions work correctly
-
-**Admin Page**
-- [ ] Verify share management works
-- [ ] Verify collection access management works
-- [ ] Verify user management works
-
-#### 5. Performance Testing
-
-- [ ] **Large Collections**: Test with 1000+ assets in a single collection
-- [ ] **Many Collections**: Test asset in 20+ collections
-- [ ] **Search Performance**: Verify search across all collections performs adequately
-- [ ] **Permission Checks**: Profile CanAccessAssetAsync with many collections
-
-#### 6. Database Integrity
-
-- [ ] Verify no orphaned records in AssetCollections table
-- [ ] Verify CollectionId column is fully removed from Assets table
-- [ ] Verify all foreign key constraints are correct
-- [ ] Run database consistency check
-
-### Test Execution Plan
-
-**Phase 1: Repository & Unit Tests (Priority 1)**
-- Focus on data access layer correctness
-- Ensure join table queries work properly
-- Estimated time: 3-4 hours
-
-**Phase 2: API Integration Tests (Priority 2)**
-- Test all endpoints with various permission scenarios
-- Verify authorization logic works correctly
-- Estimated time: 4-6 hours
-
-**Phase 3: UI & E2E Tests (Priority 3)**
-- Manual testing of UI workflows
-- Verify user experience is consistent
-- Estimated time: 2-3 hours
-
-**Phase 4: Performance & Edge Cases (Priority 4)**
-- Stress testing with large datasets
-- Verify edge case handling
-- Estimated time: 2-3 hours
-
-### Testing Framework Setup
-
-**Required Packages**:
-```xml
-<PackageReference Include="xUnit" Version="2.6.6" />
-<PackageReference Include="xUnit.runner.visualstudio" Version="2.5.6" />
-<PackageReference Include="Moq" Version="4.20.70" />
-<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
-<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
-```
-
-**Test Project Structure**:
-```
-AssetHub.Tests/
-  ├── Unit/
-  │   ├── Repositories/
-  │   │   ├── AssetRepositoryTests.cs
-  │   │   └── AssetCollectionRepositoryTests.cs
-  │   └── Helpers/
-  │       └── CanAccessAssetAsyncTests.cs
-  ├── Integration/
-  │   ├── AssetEndpointsTests.cs
-  │   ├── ShareEndpointsTests.cs
-  │   └── CollectionEndpointsTests.cs
-  └── TestFixtures/
-      ├── DatabaseFixture.cs
-      └── AuthenticationFixture.cs
-```
-
-### Success Criteria
-
-- [ ] All unit tests pass (100% of new repository methods)
-- [ ] All integration tests pass (all endpoints)
-- [ ] No 500 errors in manual testing
-- [ ] Performance requirements met (< 1s response time)
-- [ ] No regression in existing functionality
-- [ ] Code coverage > 80% for modified code
-
-### Notes for Future Testing Session
-
-1. **Start with Repository Tests**: These are the foundation - if these fail, everything else will fail
-2. **Use In-Memory Database**: For unit tests, use EF InMemory provider for speed
-3. **Real Database for Integration**: Use test container or dedicated test database
-4. **Mock Authentication**: Use test authentication handler to simulate different users/roles
-5. **Document Test Data**: Create seed data scripts for consistent test scenarios
-6. **Regression Testing**: Ensure existing functionality (collections, shares, admin) still works
+The original detailed test checklists (repository tests, API integration tests, edge cases, UI tests, performance tests) have been preserved in V2 for implementation.
 
 ---
 
@@ -4672,17 +4022,17 @@ AssetHub.Tests/
 
 ## Phase Completion Summary
 
-| Phase | Status | Blockers | Next Action |
-|-------|--------|----------|-------------|
-| Phase 1A: Docker & Database | ✅ COMPLETE | None | Monitor logs |
-| Phase 1B: Collections API | ✅ COMPLETE | None | In production use |
-| **Phase 1C: Authentication** | ✅ COMPLETE | None | Dual auth (Cookie + JWT Bearer) working |
-| Phase 2A: Upload & Processing | ✅ TESTED | None | Image thumbnails generating correctly |
-| Phase 2B: Video & Presigned URLs | ✅ CODE COMPLETE | None | Ready for video upload testing |
-| Phase 3A: UI - Collections & Grid | ❌ NOT STARTED | None | Design & build Blazor components |
-| Phase 3B: Sharing & Audit | ✅ COMPLETE | None | Full share workflow working |
-| Phase 3C: Testing | ❌ NOT STARTED | All features | Create unit/integration tests |
-| Phase 3D: Deployment & Docs | 🔄 PARTIAL | Prod config | Create prod Compose, README |
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1A: Docker & Database | ✅ COMPLETE | PostgreSQL, MinIO, Keycloak running |
+| Phase 1B: Collections API | ✅ COMPLETE | Full CRUD + tree hierarchy |
+| Phase 1C: Authentication | ✅ COMPLETE | Dual auth (Cookie + JWT Bearer), confidential client |
+| Phase 2A: Upload & Processing | ✅ COMPLETE | Presigned URLs, thumbnail generation |
+| Phase 2B: Video & Presigned URLs | ✅ COMPLETE | Large file support, poster extraction |
+| Phase 3A: UI - Collections & Grid | ✅ COMPLETE | Full Blazor Server UI with MudBlazor |
+| Phase 3B: Sharing & Audit | ✅ COMPLETE | Share workflow, audit logging, encrypted tokens |
+| Phase 3C: Testing | ⏳ V2 | See IMPLEMENTATION_PLAN_V2.md #3 & #5 |
+| Phase 3D: Deployment & Docs | ⏳ V2 | See IMPLEMENTATION_PLAN_V2.md #4 |
 
 ---
 
@@ -4716,26 +4066,27 @@ AssetHub.Tests/
 ## Development Environment Status
 
 **Working** ✅:
-- ASP.NET Core 9 API running on http://localhost:7252
-- Collections CRUD fully functional
-- Keycloak OIDC authentication (browser login working)
-- JWT Bearer authentication (API access working)
-- PostgreSQL database with EF migrations
-- MinIO object storage
-- Hangfire job scheduling (image processing tested)
-- Docker Compose multi-service orchestration
-- Asset upload + thumbnail generation
-- Share link creation
+- ASP.NET Core 9 API + Blazor Server UI on http://localhost:7252
+- Full collections CRUD with tree navigation & drag-and-drop
+- Asset upload (presigned URLs), thumbnail/medium/poster generation
+- Share link creation with encrypted tokens & password protection
+- Keycloak OIDC authentication (Cookie + JWT Bearer, confidential client)
+- PostgreSQL database with EF migrations, Data Protection key storage
+- MinIO object storage (dual client: internal + external)
+- Hangfire background jobs (PostgreSQL storage)
+- Audit logging (all asset/share/collection mutations)
+- Localization (English + Swedish)
+- Role-based access control (viewer → contributor → manager → admin)
 
-**Ready to Enable** 🟡:
-- Video processing service
-- Audit logging
+**Known Issues** ⚠️:
+- Worker container exits with code 139 (jobs run in API container as fallback)
+- Keycloak `/health/ready` returns 404 (minor, use admin console)
 
-**Deferred** ❌:
-- UI/Frontend (Blazor components)
-- Automated testing
-- Production deployment configuration
-- Full-text search (backend ready, UI integration needed)
+**Not Yet Started** → see IMPLEMENTATION_PLAN_V2.md:
+- Automated testing (unit, integration, E2E)
+- Production deployment playbooks
+- Create User via Keycloak Admin API
+- Metrics & observability
 
 **Test Credentials**:
 - App Login: http://localhost:7252 → testuser / testuser123
