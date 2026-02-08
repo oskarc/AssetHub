@@ -89,6 +89,10 @@
   <!-- Create User Dialog -->
   <data name="CreateNewUser" xml:space="preserve"><value>Create New User</value></data>
   <data name="EditSharePassword" xml:space="preserve"><value>Edit Share Password</value></data>
+  <data name="ShowShareInfo" xml:space="preserve"><value>Share Info</value></data>
+  <data name="SetPassword" xml:space="preserve"><value>Set Password</value></data>
+  <data name="ConfirmRegenerateShareUrl" xml:space="preserve"><value>This will generate a new share URL. The old URL will no longer work. Continue?</value></data>
+  <data name="ShareUrlGenerated" xml:space="preserve"><value>Share URL generated successfully</value></data>
 
   <!-- User Access Dialog -->
   <data name="UserAccessDetails" xml:space="preserve"><value>User Access Details</value></data>

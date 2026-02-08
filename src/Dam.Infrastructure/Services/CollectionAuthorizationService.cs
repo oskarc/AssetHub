@@ -65,7 +65,10 @@ public class CollectionAuthorizationService(
 
     public async Task<bool> CanCreateRootCollectionAsync(string userId)
     {
-        // For MVP: any authenticated user can create root collections
+        // Only managers and admins can create root collections.
+        // Contributors should only be added to existing collections.
+        // This is invoked after the caller has already verified the user has
+        // at least the "manager" Keycloak role (checked at the endpoint level).
         return !string.IsNullOrEmpty(userId);
     }
 

@@ -68,4 +68,13 @@
   <data name="NewPasswordHelper" xml:space="preserve"><value>Ange ett nytt lösenord för denna delning.</value></data>
   <data name="PasswordUpdateWarning" xml:space="preserve"><value>Uppdatering av lösenordet kräver att alla användare använder det nya lösenordet för att komma åt delningen.</value></data>
   <data name="UpdatePassword" xml:space="preserve"><value>Uppdatera lösenord</value></data>
+
+  <!-- Share Info Dialog -->
+  <data name="ShareDetails" xml:space="preserve"><value>Delningsdetaljer</value></data>
+  <data name="ShareDetailsDesc" xml:space="preserve"><value>Visa och hantera delningslänkens detaljer.</value></data>
+  <data name="ShareUrl" xml:space="preserve"><value>Dellänk</value></data>
+  <data name="ShareUrlNotAvailable" xml:space="preserve"><value>Dellänken är inte tillgänglig. Du kan generera en ny nedan.</value></data>
+  <data name="GenerateShareUrl" xml:space="preserve"><value>Generera dellänk</value></data>
+  <data name="SetOrChangePassword" xml:space="preserve"><value>Ange eller ändra lösenord</value></data>
+  <data name="ShareInfoCopyHint" xml:space="preserve"><value>Kopiera URL och lösenord innan du stänger denna dialog.</value></data>
 </root>

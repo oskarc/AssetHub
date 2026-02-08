@@ -144,3 +144,11 @@ public record CreateUserResponse
     public required string Email { get; init; }
     public required string Message { get; init; }
 }
+
+/// <summary>
+/// Response containing a decrypted share token (admin only).
+/// </summary>
+public record ShareTokenResponse
+{
+    public required string Token { get; init; }
+}

@@ -33,8 +33,8 @@
         var cookieValue = CookieRequestCultureProvider.MakeCookieValue(
             new RequestCulture(culture, culture));
 
-        await JS.InvokeVoidAsync("eval",
-            $"document.cookie = '{CookieRequestCultureProvider.DefaultCookieName}={cookieValue};path=/;max-age=31536000;samesite=lax'");
+        var jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
+        await jsModule.InvokeVoidAsync("setCookie", CookieRequestCultureProvider.DefaultCookieName, cookieValue, 31536000);
 
         // Force a full page reload so the server-side middleware picks up the new cookie
         Nav.NavigateTo(Nav.Uri, forceLoad: true);

@@ -68,4 +68,13 @@
   <data name="NewPasswordHelper" xml:space="preserve"><value>Enter a new password for this share.</value></data>
   <data name="PasswordUpdateWarning" xml:space="preserve"><value>Updating the password will require all users to use the new password to access the share.</value></data>
   <data name="UpdatePassword" xml:space="preserve"><value>Update Password</value></data>
+
+  <!-- Share Info Dialog -->
+  <data name="ShareDetails" xml:space="preserve"><value>Share Details</value></data>
+  <data name="ShareDetailsDesc" xml:space="preserve"><value>View and manage the share link details.</value></data>
+  <data name="ShareUrl" xml:space="preserve"><value>Share URL</value></data>
+  <data name="ShareUrlNotAvailable" xml:space="preserve"><value>The share URL is not available. You can generate a new one below.</value></data>
+  <data name="GenerateShareUrl" xml:space="preserve"><value>Generate Share URL</value></data>
+  <data name="SetOrChangePassword" xml:space="preserve"><value>Set or Change Password</value></data>
+  <data name="ShareInfoCopyHint" xml:space="preserve"><value>Copy the URL and password before closing this dialog.</value></data>
 </root>

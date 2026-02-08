@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Dam.Infrastructure.Migrations
 {
     [DbContext(typeof(AssetHubDbContext))]
-    partial class AssetHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260207234853_AddShareTokenEncrypted")]
+    partial class AddShareTokenEncrypted
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -80,7 +83,7 @@ namespace Dam.Infrastructure.Migrations
 
                     b.Property<string>("Tags")
                         .IsRequired()
-                        .HasColumnType("jsonb");
+                        .HasColumnType("text");
 
                     b.Property<string>("ThumbObjectKey")
                         .HasMaxLength(512)
@@ -319,25 +322,6 @@ namespace Dam.Infrastructure.Migrations
                         .HasDatabaseName("idx_shares_scope");
 
                     b.ToTable("Shares");
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("FriendlyName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Xml")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DataProtectionKeys");
                 });
 
             modelBuilder.Entity("Dam.Domain.Entities.AssetCollection", b =>

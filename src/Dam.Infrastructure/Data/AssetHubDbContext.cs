@@ -1,9 +1,11 @@
+using System.Text.Json;
 using Dam.Domain.Entities;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dam.Infrastructure.Data;
 
-public class AssetHubDbContext : DbContext
+public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
 {
     public AssetHubDbContext(DbContextOptions<AssetHubDbContext> options) : base(options)
     {
@@ -15,6 +17,7 @@ public class AssetHubDbContext : DbContext
     public DbSet<AssetCollection> AssetCollections { get; set; } = null!;
     public DbSet<Share> Shares { get; set; } = null!;
     public DbSet<AuditEvent> AuditEvents { get; set; } = null!;
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,8 +27,8 @@ public class AssetHubDbContext : DbContext
         modelBuilder.Entity<Collection>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.ParentId }).HasName("idx_collections_parent_id");
-            entity.HasIndex(e => new { e.Name }).HasName("idx_collections_name");
+            entity.HasIndex(e => new { e.ParentId }).HasDatabaseName("idx_collections_parent_id");
+            entity.HasIndex(e => new { e.Name }).HasDatabaseName("idx_collections_name");
 
             entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(1000);
@@ -40,8 +43,8 @@ public class AssetHubDbContext : DbContext
         modelBuilder.Entity<CollectionAcl>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.CollectionId }).HasName("idx_collection_acl_collection_id");
-            entity.HasIndex(e => new { e.PrincipalType, e.PrincipalId }).HasName("idx_collection_acl_principal");
+            entity.HasIndex(e => new { e.CollectionId }).HasDatabaseName("idx_collection_acl_collection_id");
+            entity.HasIndex(e => new { e.PrincipalType, e.PrincipalId }).HasDatabaseName("idx_collection_acl_principal");
 
             entity.Property(e => e.PrincipalType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.PrincipalId).HasMaxLength(255).IsRequired();
@@ -57,9 +60,9 @@ public class AssetHubDbContext : DbContext
         modelBuilder.Entity<Asset>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.AssetType }).HasName("idx_assets_type");
-            entity.HasIndex(e => new { e.Status }).HasName("idx_assets_status");
-            entity.HasIndex(e => new { e.CreatedAt }).HasName("idx_assets_created_at");
+            entity.HasIndex(e => new { e.AssetType }).HasDatabaseName("idx_assets_type");
+            entity.HasIndex(e => new { e.Status }).HasDatabaseName("idx_assets_status");
+            entity.HasIndex(e => new { e.CreatedAt }).HasDatabaseName("idx_assets_created_at");
 
             entity.Property(e => e.Title).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
@@ -72,8 +75,9 @@ public class AssetHubDbContext : DbContext
             entity.Property(e => e.PosterObjectKey).HasMaxLength(512);
 
             entity.Property(e => e.Tags).HasConversion(
-                v => string.Join(',', v),
-                v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+                v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+                .HasColumnType("jsonb");
 
             entity.Property(e => e.MetadataJson).HasColumnType("jsonb");
         });
@@ -82,8 +86,8 @@ public class AssetHubDbContext : DbContext
         modelBuilder.Entity<AssetCollection>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.AssetId, e.CollectionId }).IsUnique().HasName("idx_asset_collection_unique");
-            entity.HasIndex(e => e.CollectionId).HasName("idx_asset_collection_collection_id");
+            entity.HasIndex(e => new { e.AssetId, e.CollectionId }).IsUnique().HasDatabaseName("idx_asset_collection_unique");
+            entity.HasIndex(e => e.CollectionId).HasDatabaseName("idx_asset_collection_collection_id");
 
             entity.Property(e => e.AddedByUserId).HasMaxLength(255);
 
@@ -102,10 +106,11 @@ public class AssetHubDbContext : DbContext
         modelBuilder.Entity<Share>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.TokenHash).IsUnique().HasName("idx_shares_token_hash_unique");
-            entity.HasIndex(e => new { e.ScopeType, e.ScopeId }).HasName("idx_shares_scope");
+            entity.HasIndex(e => e.TokenHash).IsUnique().HasDatabaseName("idx_shares_token_hash_unique");
+            entity.HasIndex(e => new { e.ScopeType, e.ScopeId }).HasDatabaseName("idx_shares_scope");
 
             entity.Property(e => e.TokenHash).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.TokenEncrypted).HasMaxLength(2048);
             entity.Property(e => e.ScopeType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.PermissionsJson).HasColumnType("jsonb");
 
@@ -119,8 +124,8 @@ public class AssetHubDbContext : DbContext
         modelBuilder.Entity<AuditEvent>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.CreatedAt).HasName("idx_audit_created_at");
-            entity.HasIndex(e => new { e.EventType, e.CreatedAt }).HasName("idx_audit_event_type_created");
+            entity.HasIndex(e => e.CreatedAt).HasDatabaseName("idx_audit_created_at");
+            entity.HasIndex(e => new { e.EventType, e.CreatedAt }).HasDatabaseName("idx_audit_event_type_created");
 
             entity.Property(e => e.EventType).HasMaxLength(100).IsRequired();
             entity.Property(e => e.TargetType).HasMaxLength(100).IsRequired();

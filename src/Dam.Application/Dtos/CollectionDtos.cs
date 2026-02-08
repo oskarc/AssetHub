@@ -66,14 +66,14 @@ public record CollectionResponseDto
 public class SetCollectionAccessDto
 {
     /// <summary>
-    /// Principal type: "user" or "group".
+    /// Principal type: "user".
     /// </summary>
     [Required]
-    [RegularExpression("^(user|group)$", ErrorMessage = "PrincipalType must be 'user' or 'group'")]
+    [RegularExpression("^(user)$", ErrorMessage = "PrincipalType must be 'user'")]
     public required string PrincipalType { get; set; }
 
     /// <summary>
-    /// Principal ID (user ID or group ID from Keycloak).
+    /// Principal ID (user ID from Keycloak).
     /// </summary>
     [Required]
     [StringLength(255, MinimumLength = 1)]

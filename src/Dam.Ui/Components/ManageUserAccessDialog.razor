@@ -136,12 +136,12 @@
                                                            Size="Size.Small" 
                                                            Color="Color.Success"
                                                            OnClick="SaveRoleEdit"
-                                                           Title="@CommonLoc["Btn_Save"]" />
+                                                           title="@CommonLoc["Btn_Save"]" />
                                             <MudIconButton Icon="@Icons.Material.Filled.Cancel" 
                                                            Size="Size.Small" 
                                                            Color="Color.Default"
                                                            OnClick="CancelRoleEdit"
-                                                           Title="@CommonLoc["Btn_Cancel"]" />
+                                                           title="@CommonLoc["Btn_Cancel"]" />
                                         </MudStack>
                                     }
                                     else
@@ -152,13 +152,13 @@
                                                            Color="Color.Primary"
                                                            OnClick="@(() => StartRoleEdit(collection))"
                                                            Disabled="@(_revokingCollections.Count > 0)"
-                                                           Title="@AdminLoc["ChangeRole"]" />
+                                                           title="@AdminLoc["ChangeRole"]" />
                                             <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" 
                                                            Size="Size.Small" 
                                                            Color="Color.Error"
                                                            OnClick="@(() => RevokeAccess(collection))"
                                                            Disabled="@(_revokingCollections.Contains(collection.CollectionId))"
-                                                           Title="@AdminLoc["RevokeAccess"]" />
+                                                           title="@AdminLoc["RevokeAccess"]" />
                                         </MudStack>
                                     }
                                 </td>

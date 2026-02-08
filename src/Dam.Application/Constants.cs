@@ -19,7 +19,6 @@ public static class Constants
     public static class PrincipalTypes
     {
         public const string User = "user";
-        public const string Group = "group";
     }
 
     /// <summary>
@@ -29,6 +28,14 @@ public static class Constants
     {
         public const string Asset = "asset";
         public const string Collection = "collection";
+    }
+
+    /// <summary>
+    /// Data Protection purpose strings.
+    /// </summary>
+    public static class DataProtection
+    {
+        public const string ShareTokenProtector = "ShareTokenProtector";
     }
 
     /// <summary>

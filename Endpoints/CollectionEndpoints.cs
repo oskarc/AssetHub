@@ -117,7 +117,9 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         ClaimsPrincipal user,
+        HttpContext httpContext,
         CancellationToken ct)
     {
         var userId = user.GetRequiredUserId();
@@ -135,6 +137,10 @@ public static class CollectionEndpoints
         }
         else
         {
+            // Root collection creation requires at least manager role
+            if (!user.IsInRole(RoleHierarchy.Roles.Manager) && !user.IsInRole(RoleHierarchy.Roles.Admin))
+                return Results.Forbid();
+
             var canCreate = await authService.CanCreateRootCollectionAsync(userId);
             if (!canCreate)
                 return Results.Forbid();
@@ -156,6 +162,9 @@ public static class CollectionEndpoints
         // Grant creator admin access
         await aclRepo.SetAccessAsync(collection.Id, "user", userId, RoleHierarchy.Roles.Admin, ct);
 
+        await audit.LogAsync("collection.created", "collection", collection.Id, userId,
+            new() { ["name"] = collection.Name, ["parentId"] = (object?)collection.ParentId ?? "root" }, httpContext, ct);
+
         var responseDto = new CollectionResponseDto
         {
             Id = collection.Id,
@@ -176,11 +185,13 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         ClaimsPrincipal user,
+        HttpContext httpContext,
         CancellationToken ct)
     {
         dto.ParentId = id;
-        return await CreateCollection(dto, collectionRepo, aclRepo, authService, user, ct);
+        return await CreateCollection(dto, collectionRepo, aclRepo, authService, audit, user, httpContext, ct);
     }
 
     private static async Task<IResult> UpdateCollection(
@@ -188,7 +199,9 @@ public static class CollectionEndpoints
         UpdateCollectionDto dto,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         ClaimsPrincipal user,
+        HttpContext httpContext,
         CancellationToken ct)
     {
         var userId = user.GetRequiredUserId();
@@ -209,14 +222,18 @@ public static class CollectionEndpoints
 
         await collectionRepo.UpdateAsync(collection, ct);
 
-        return Results.Ok(new { message = "Collection updated" });
+        await audit.LogAsync("collection.updated", "collection", id, userId, httpContext: httpContext, ct: ct);
+
+        return Results.Ok(new MessageResponse("Collection updated"));
     }
 
     private static async Task<IResult> DeleteCollection(
         Guid id,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         ClaimsPrincipal user,
+        HttpContext httpContext,
         CancellationToken ct)
     {
         var userId = user.GetRequiredUserId();
@@ -231,6 +248,8 @@ public static class CollectionEndpoints
             return Results.NotFound();
 
         await collectionRepo.DeleteAsync(id, ct);
+
+        await audit.LogAsync("collection.deleted", "collection", id, userId, httpContext: httpContext, ct: ct);
 
         return Results.NoContent();
     }
@@ -295,7 +314,9 @@ public static class CollectionEndpoints
         SetCollectionAccessDto dto,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         ClaimsPrincipal user,
+        HttpContext httpContext,
         CancellationToken ct)
     {
         var userId = user.GetRequiredUserId();
@@ -319,6 +340,9 @@ public static class CollectionEndpoints
 
         var acl = await aclRepo.SetAccessAsync(collectionId, dto.PrincipalType, dto.PrincipalId, dto.Role, ct);
 
+        await audit.LogAsync("acl.set", "collection", collectionId, userId,
+            new() { ["principalType"] = dto.PrincipalType, ["principalId"] = dto.PrincipalId, ["role"] = dto.Role }, httpContext, ct);
+
         var responseDto = new CollectionAclResponseDto
         {
             Id = acl.Id,
@@ -337,7 +361,9 @@ public static class CollectionEndpoints
         string principalId,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         ClaimsPrincipal user,
+        HttpContext httpContext,
         CancellationToken ct)
     {
         var userId = user.GetRequiredUserId();
@@ -355,6 +381,9 @@ public static class CollectionEndpoints
 
         await aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
 
+        await audit.LogAsync("acl.revoked", "collection", collectionId, userId,
+            new() { ["principalType"] = principalType, ["principalId"] = principalId }, httpContext, ct);
+
         return Results.NoContent();
     }
 
@@ -365,6 +394,7 @@ public static class CollectionEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [Microsoft.AspNetCore.Mvc.FromServices] ILoggerFactory loggerFactory,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
@@ -391,6 +421,7 @@ public static class CollectionEndpoints
         httpContext.Response.ContentType = "application/zip";
         httpContext.Response.Headers.ContentDisposition = $"attachment; filename=\"{zipFileName}\"";
 
+        var errors = new List<string>();
         await using var responseStream = httpContext.Response.BodyWriter.AsStream();
         using var archive = new ZipArchive(responseStream, ZipArchiveMode.Create, leaveOpen: true);
         foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
@@ -398,8 +429,8 @@ public static class CollectionEndpoints
             ct.ThrowIfCancellationRequested();
             try
             {
-                var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
-                var fileName = FileHelpers.GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
+                await using var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
+                var fileName = FileHelpers.GetSafeFileName(asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
 
                 var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
                 await using var entryStream = entry.Open();
@@ -409,10 +440,23 @@ public static class CollectionEndpoints
             {
                 throw;
             }
-            catch
+            catch (Exception ex)
             {
-                // Skip assets that fail to download
+                loggerFactory.CreateLogger("CollectionEndpoints").LogWarning(ex,
+                    "Failed to include asset {AssetId} ({ObjectKey}) in ZIP download for collection {CollectionId}",
+                    asset.Id, asset.OriginalObjectKey, id);
+                errors.Add($"{asset.Title ?? asset.Id.ToString()} — {ex.Message}");
             }
+        }
+
+        if (errors.Count > 0)
+        {
+            var errEntry = archive.CreateEntry("_errors.txt", CompressionLevel.Fastest);
+            await using var errStream = errEntry.Open();
+            await using var writer = new StreamWriter(errStream);
+            await writer.WriteLineAsync("The following files could not be included:");
+            foreach (var err in errors)
+                await writer.WriteLineAsync($"  • {err}");
         }
 
         return Results.Empty;

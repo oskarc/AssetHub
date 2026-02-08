@@ -103,4 +103,14 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
             await dbContext.SaveChangesAsync(cancellationToken);
         }
     }
+
+    public async Task IncrementAccessAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await dbContext.Shares
+            .Where(s => s.Id == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.AccessCount, p => p.AccessCount + 1)
+                .SetProperty(p => p.LastAccessedAt, DateTime.UtcNow),
+                cancellationToken);
+    }
 }

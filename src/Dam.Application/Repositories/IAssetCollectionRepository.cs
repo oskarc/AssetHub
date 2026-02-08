@@ -42,4 +42,10 @@ public interface IAssetCollectionRepository
     /// Gets the IDs of all collections an asset is linked to (excluding primary collection).
     /// </summary>
     Task<List<Guid>> GetCollectionIdsForAssetAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Batch-loads collection IDs for multiple assets in a single query.
+    /// Returns a dictionary mapping each asset ID to its collection IDs.
+    /// </summary>
+    Task<Dictionary<Guid, List<Guid>>> GetCollectionIdsForAssetsAsync(IEnumerable<Guid> assetIds, CancellationToken ct = default);
 }

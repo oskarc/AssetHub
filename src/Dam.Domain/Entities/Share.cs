@@ -4,6 +4,11 @@ public class Share
 {
     public Guid Id { get; set; }
     public string TokenHash { get; set; } = string.Empty; // SHA256(token)
+    /// <summary>
+    /// Encrypted plaintext token stored so admins can retrieve the original share link when necessary.
+    /// This is protected using the ASP.NET Core Data Protection APIs and should only be readable by admins.
+    /// </summary>
+    public string? TokenEncrypted { get; set; }
     public string ScopeType { get; set; } = string.Empty; // "asset" or "collection"
     public Guid ScopeId { get; set; }
     public Dictionary<string, bool> PermissionsJson { get; set; } = new();

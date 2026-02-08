@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Dam.Infrastructure.Migrations
 {
     [DbContext(typeof(AssetHubDbContext))]
-    partial class AssetHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260208184427_AddDataProtectionKeys")]
+    partial class AddDataProtectionKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -80,7 +83,7 @@ namespace Dam.Infrastructure.Migrations
 
                     b.Property<string>("Tags")
                         .IsRequired()
-                        .HasColumnType("jsonb");
+                        .HasColumnType("text");
 
                     b.Property<string>("ThumbObjectKey")
                         .HasMaxLength(512)

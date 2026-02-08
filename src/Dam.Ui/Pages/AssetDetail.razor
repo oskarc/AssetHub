@@ -65,7 +65,7 @@ else
                             @CommonLoc["Text_BrowserNoVideo"]
                         </video>
                     }
-                    else if (AssetDisplayHelpers.IsPdfContentType(_asset?.ContentType))
+                    else if (AssetDisplayHelpers.IsPdfContentType(_asset.ContentType))
                     {
                         <iframe src="@GetInlinePreviewUrl()" 
                                 style="width: 100%; height: 600px; border: none;" 
@@ -75,7 +75,7 @@ else
                     else
                     {
                         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
-                            <MudIcon Icon="@AssetDisplayHelpers.GetAssetIcon(_asset?.AssetType)" Size="Size.Large" Color="Color.Primary" />
+                            <MudIcon Icon="@AssetDisplayHelpers.GetAssetIcon(_asset.AssetType)" Size="Size.Large" Color="Color.Primary" />
                             <MudText Typo="Typo.h6">@_asset.Title</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
                                 @CommonLoc["Text_PreviewNotAvailable"]
@@ -100,10 +100,10 @@ else
                         <MudStack>
                             <MudText Typo="Typo.h5">@_asset.Title</MudText>
                             <MudStack Row="true" Spacing="1">
-                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_asset?.AssetType)">
+                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_asset.AssetType)">
                                     @_asset.AssetType.ToUpperInvariant()
                                 </MudChip>
-                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetStatusColor(_asset?.Status)">
+                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetStatusColor(_asset.Status)">
                                     @_asset.Status.ToUpperInvariant()
                                 </MudChip>
                             </MudStack>
@@ -121,7 +121,7 @@ else
                                                    Size="Size.Small"
                                                    Color="Color.Primary"
                                                    OnClick="OpenAddToCollectionDialogAsync"
-                                                   Title="@AssetLoc["AddToCollection"]" />
+                                                   title="@AssetLoc["AddToCollection"]" />
                                 }
                             </MudStack>
                             
@@ -145,7 +145,7 @@ else
                                                                Size="Size.Small"
                                                                Color="Color.Error"
                                                                OnClick="@(() => RemoveFromCollectionAsync(collection))"
-                                                               Title="Remove from collection" />
+                                                               title="Remove from collection" />
                                             }
                                         </MudStack>
                                     }
@@ -439,7 +439,7 @@ else
         var createResult = await DialogService.ShowAsync<CreateShareDialog>(AssetLoc["CreateShareLink"], createParams);
         var result = await createResult.Result;
 
-        if (result != null && !result.Canceled && result.Data is ShareResponse share)
+        if (result != null && !result.Canceled && result.Data is ShareResponseDto share)
         {
             var successParams = new DialogParameters<ShareLinkDialog>
             {

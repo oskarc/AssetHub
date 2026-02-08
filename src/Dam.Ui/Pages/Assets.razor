@@ -29,12 +29,12 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Close" 
                                            Size="Size.Small"
                                            OnClick="DeselectCollection"
-                                           Title="@CommonLoc["Btn_Close"]" />
+                                           title="@CommonLoc["Btn_Close"]" />
                         }
                         <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder" 
                                        Size="Size.Small"
                                        OnClick="CreateCollectionAsync"
-                                       Title="@AssetLoc["CreateCollection"]" />
+                                       title="@AssetLoc["CreateCollection"]" />
                     </MudStack>
                 </MudStack>
                 
@@ -262,7 +262,7 @@
         var createResult = await DialogService.ShowAsync<CreateShareDialog>(AssetLoc["CreateShareLink"], createParams);
         var result = await createResult.Result;
 
-        if (result != null && !result.Canceled && result.Data is ShareResponse share)
+        if (result != null && !result.Canceled && result.Data is ShareResponseDto share)
         {
             var successParams = new DialogParameters<ShareLinkDialog>
             {
@@ -289,18 +289,8 @@
 
         var url = $"/api/collections/{_selectedCollectionId.Value}/download-all";
         
-        // Use JS to trigger download
-        await JS.InvokeVoidAsync("eval", $@"
-            (function() {{
-                var a = document.createElement('a');
-                a.href = '{url}';
-                a.download = '';
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }})();
-        ");
+        var jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
+        await jsModule.InvokeVoidAsync("downloadViaAnchor", url);
     }
 
     private async Task OnUploadComplete()

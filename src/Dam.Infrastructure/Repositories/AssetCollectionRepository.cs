@@ -27,14 +27,26 @@ public class AssetCollectionRepository : IAssetCollectionRepository
 
     public async Task<List<Collection>> GetCollectionsForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
-        // Get all collections from the join table only
-        var collections = await _context.AssetCollections
+        return await _context.AssetCollections
             .Where(ac => ac.AssetId == assetId)
             .Include(ac => ac.Collection)
             .Select(ac => ac.Collection)
             .ToListAsync(ct);
+    }
 
-        return collections;
+    public async Task<Dictionary<Guid, List<Guid>>> GetCollectionIdsForAssetsAsync(IEnumerable<Guid> assetIds, CancellationToken ct = default)
+    {
+        var ids = assetIds.ToList();
+        var mappings = await _context.AssetCollections
+            .Where(ac => ids.Contains(ac.AssetId))
+            .Select(ac => new { ac.AssetId, ac.CollectionId })
+            .ToListAsync(ct);
+
+        return mappings
+            .GroupBy(m => m.AssetId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(m => m.CollectionId).ToList());
     }
 
     public async Task<List<AssetCollection>> GetByAssetAsync(Guid assetId, CancellationToken ct = default)

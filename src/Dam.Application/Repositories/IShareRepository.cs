@@ -17,4 +17,10 @@ public interface IShareRepository
     Task CreateAsync(Share share, CancellationToken cancellationToken = default);
     Task UpdateAsync(Share share, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically increments the access count and updates LastAccessedAt using a single SQL UPDATE.
+    /// Avoids the read-modify-write race condition of fetching the entity first.
+    /// </summary>
+    Task IncrementAccessAsync(Guid id, CancellationToken cancellationToken = default);
 }

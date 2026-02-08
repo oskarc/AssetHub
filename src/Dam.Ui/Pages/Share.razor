@@ -384,7 +384,7 @@
                     {
                         <MudItem xs="12" sm="6" md="4" lg="3">
                         <MudCard Elevation="2" Class="cursor-pointer" Style="cursor: pointer;" @onclick="@(() => SelectAsset(asset))">
-                            <MudCardMedia Image="@(asset.ThumbnailUrl ?? AssetDisplayHelpers.GetPlaceholderForType(asset.AssetType))"
+                            <MudCardMedia Image="@GetCollectionThumbnailUrl(asset)"
                                           Height="160" />
                             <MudCardContent Class="pa-2">
                                 <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
@@ -392,19 +392,17 @@
                                     @asset.AssetType
                                 </MudChip>
                             </MudCardContent>
-                            <MudCardActions Class="pa-2 pt-0">
+                            <MudCardActions Class="pa-2 pt-0" @onclick:stopPropagation="true">
                                 <MudButton Variant="Variant.Text"
                                            Size="Size.Small"
                                            StartIcon="@Icons.Material.Filled.Download"
-                                           OnClick="@(() => DownloadAsset(asset.Id))"
-                                           OnClick:stopPropagation="true">
+                                           OnClick="@(() => DownloadAsset(asset.Id))">
                                     @CommonLoc["Btn_Download"]
                                 </MudButton>
                                 <MudButton Variant="Variant.Text"
                                            Size="Size.Small"
                                            StartIcon="@Icons.Material.Filled.Visibility"
-                                           OnClick="@(() => SelectAsset(asset))"
-                                           OnClick:stopPropagation="true">
+                                           OnClick="@(() => SelectAsset(asset))">
                                     @CommonLoc["Btn_View"]
                                 </MudButton>
                             </MudCardActions>
@@ -432,8 +430,11 @@
     private SharedCollectionDto? _sharedCollection;
     private SharedAssetDto? _selectedAsset;
 
+    private IJSObjectReference? _jsModule;
+
     protected override async Task OnInitializedAsync()
     {
+        _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
         await LoadSharedContent();
     }
 
@@ -595,6 +596,15 @@
         return $"{url}{separator}password={Uri.EscapeDataString(_password)}";
     }
 
+    /// <summary>Returns a thumbnail URL for the collection grid card, with password and medium fallback.</summary>
+    private string GetCollectionThumbnailUrl(SharedAssetDto asset)
+    {
+        var url = asset.ThumbnailUrl ?? asset.MediumUrl;
+        if (string.IsNullOrEmpty(url))
+            return AssetDisplayHelpers.GetPlaceholderForType(asset.AssetType);
+        return AppendPassword(url);
+    }
+
     private string GetDownloadUrl()
     {
         var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download";
@@ -616,17 +626,8 @@
         if (!string.IsNullOrEmpty(_password))
             url += $"?password={Uri.EscapeDataString(_password)}";
 
-        await JS.InvokeVoidAsync("eval", $@"
-            (function() {{
-                var a = document.createElement('a');
-                a.href = '{url}';
-                a.download = '';
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }})();
-        ");
+        if (_jsModule != null)
+            await _jsModule.InvokeVoidAsync("downloadViaAnchor", url);
     }
 
     private async Task DownloadAsset(Guid? assetId)
@@ -642,44 +643,7 @@
         if (queryParams.Count > 0)
             url += "?" + string.Join("&", queryParams);
 
-        // Create a temporary anchor and click it to trigger download without page flash
-        await JS.InvokeVoidAsync("eval", $@"
-            (function() {{
-                var a = document.createElement('a');
-                a.href = '{url}';
-                a.download = '';
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }})();
-        ");
-    }
-
-    // DTOs for JSON deserialization
-    private class PasswordRequiredResponse
-    {
-        public bool RequiresPassword { get; set; }
-    }
-
-    private class SharedAssetDto
-    {
-        public Guid Id { get; set; }
-        public string Title { get; set; } = "";
-        public string? Description { get; set; }
-        public string AssetType { get; set; } = "";
-        public string ContentType { get; set; } = "";
-        public long SizeBytes { get; set; }
-        public string? ThumbnailUrl { get; set; }
-        public string? MediumUrl { get; set; }
-        public Dictionary<string, object> MetadataJson { get; set; } = new();
-    }
-
-    private class SharedCollectionDto
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = "";
-        public string? Description { get; set; }
-        public List<SharedAssetDto> Assets { get; set; } = new();
+        if (_jsModule != null)
+            await _jsModule.InvokeVoidAsync("downloadViaAnchor", url);
     }
 }

@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
 @inject IStringLocalizer<CommonResource> CommonLoc
+@inject IJSRuntime JS
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -78,6 +79,7 @@
     private bool _drawerOpen = true;
     private bool _isDarkMode = true;
     private MudTheme? _theme = null;
+    private IJSObjectReference? _jsModule;
 
     protected override void OnInitialized()
     {
@@ -91,13 +93,32 @@
         };
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
+            var stored = await _jsModule.InvokeAsync<string?>("getLocalStorage", "darkMode");
+            if (stored != null)
+            {
+                _isDarkMode = stored == "true";
+                StateHasChanged();
+            }
+        }
+    }
+
     private void DrawerToggle() => _drawerOpen = !_drawerOpen;
 
-    private void DarkModeToggle() => _isDarkMode = !_isDarkMode;
+    private async Task DarkModeToggle()
+    {
+        _isDarkMode = !_isDarkMode;
+        if (_jsModule != null)
+            await _jsModule.InvokeVoidAsync("setLocalStorage", "darkMode", _isDarkMode.ToString().ToLowerInvariant());
+    }
 
     private void Login()
     {
-        // forceLoad = true så vi gör en full navigation och OIDC-middleware tar över
+        // forceLoad = true so we do a full navigation and the OIDC middleware takes over
         Nav.NavigateTo("/auth/login", forceLoad: true);
     }
 

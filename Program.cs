@@ -11,6 +11,7 @@ using Dam.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -53,6 +54,12 @@ builder.Services
 
 builder.Services.AddHttpContextAccessor();
 
+// Data Protection — persist keys to PostgreSQL so encrypted tokens survive
+// restarts, redeployments, and work across replicas without shared volumes.
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<AssetHubDbContext>()
+    .SetApplicationName("AssetHub");
+
 // Database with Npgsql dynamic JSON support for Dictionary<string, object> in jsonb columns
 var connectionString = builder.Configuration.GetConnectionString("Postgres");
 var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
@@ -68,7 +75,8 @@ if (string.IsNullOrWhiteSpace(hangfireConnectionString))
     hangfireConnectionString = builder.Configuration.GetConnectionString("Postgres") ?? "";
 builder.Services.AddHangfire(config =>
 {
-    config.UsePostgreSqlStorage(hangfireConnectionString);
+    config.UsePostgreSqlStorage(options =>
+        options.UseNpgsqlConnection(hangfireConnectionString));
 });
 builder.Services.AddHangfireServer();
 
@@ -103,6 +111,7 @@ builder.Services.AddScoped<IMediaProcessingService, MediaProcessingService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IUserProvisioningService, UserProvisioningService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 // Keycloak Admin API client for user management
 var keycloakTimeoutSeconds = builder.Configuration.GetValue("Keycloak:TimeoutSeconds", 30);
@@ -286,25 +295,25 @@ builder.Services.AddAuthentication(options =>
 
     options.ResponseType = OpenIdConnectResponseType.Code;
 
-    // Spara tokens om du vill kunna kalla APIs senare med access token
+    // Save tokens to be able to call APIs later with the access token
     options.SaveTokens = true;
     // SECURITY: Fetch claims from userinfo endpoint for server-side verification
     options.GetClaimsFromUserInfoEndpoint = true;
 
-    // Scopes (openid krävs)
+    // Scopes (openid is required)
     options.Scope.Clear();
     options.Scope.Add("openid");
     options.Scope.Add("profile");
     options.Scope.Add("email");
 
-    // Viktigt för att undvika konstig claim-mappning
+    // Important to avoid unexpected claim mapping
     options.MapInboundClaims = false;
 
     // Token validation / roles
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        NameClaimType = "preferred_username",  // Keycloak har ofta preferred_username
-        RoleClaimType = ClaimTypes.Role,       // vi mappar in ClaimTypes.Role nedan
+        NameClaimType = "preferred_username",  // Keycloak uses preferred_username
+        RoleClaimType = ClaimTypes.Role,       // we map ClaimTypes.Role below
         ValidIssuer = keycloakAuthority  // Single issuer since we use consistent keycloak:8080 URL
     };
 
@@ -353,24 +362,24 @@ builder.Services.AddAuthentication(options =>
         },
         OnTokenValidated = context =>
         {
-            // Keycloak roller finns typiskt i:
+            // Keycloak roles are typically found in:
             // 1) realm_access.roles
             // 2) resource_access["<clientId>"].roles
             //
-            // Vi plockar båda och lägger som ClaimTypes.Role så [Authorize(Roles="x")] funkar.
+            // We extract both and add them as ClaimTypes.Role so [Authorize(Roles="x")] works.
 
             if (context.Principal?.Identity is not ClaimsIdentity identity)
                 return Task.CompletedTask;
 
-            // Helper: lägg till roll om den inte redan finns
+            // Helper: add role if it doesn't already exist
             static void AddRoleIfMissing(ClaimsIdentity id, string role)
             {
                 if (!id.HasClaim(c => c.Type == ClaimTypes.Role && c.Value == role))
                     id.AddClaim(new Claim(ClaimTypes.Role, role));
             }
 
-            // 1) Realm roles: claim kan komma som JSON i "realm_access"
-            // Keycloak kan leverera detta via id_token eller userinfo.
+            // 1) Realm roles: claim may arrive as JSON in "realm_access"
+            // Keycloak can deliver this via id_token or userinfo.
             var realmAccess = identity.FindFirst("realm_access")?.Value;
             if (!string.IsNullOrWhiteSpace(realmAccess))
             {
@@ -378,7 +387,7 @@ builder.Services.AddAuthentication(options =>
                     AddRoleIfMissing(identity, role);
             }
 
-            // 2) Client roles: "resource_access" innehåller roller per client
+            // 2) Client roles: "resource_access" contains roles per client
             var resourceAccess = identity.FindFirst("resource_access")?.Value;
             if (!string.IsNullOrWhiteSpace(resourceAccess))
             {
@@ -675,13 +684,11 @@ app.MapRazorComponents<App>()
 app.MapHangfireDashboard();
 
 // ------------------
-// Minimal JSON helpers (ingen extra lib behövs)
+// Minimal JSON helpers (no extra library needed)
 // ------------------
 static IEnumerable<string> ExtractRolesFromKeycloakJson(string json)
 {
     // realm_access: {"roles":["media-admin","media-user", ...]}
-    // Vi kör extremt enkel parsing utan att ta in JSON-lib i exemplet.
-    // Robustare: använd System.Text.Json (se kommentar nedan).
     try
     {
         using var doc = System.Text.Json.JsonDocument.Parse(json);
@@ -694,7 +701,7 @@ static IEnumerable<string> ExtractRolesFromKeycloakJson(string json)
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .ToArray();
     }
-    catch
+    catch (System.Text.Json.JsonException)
     {
         return Array.Empty<string>();
     }
@@ -718,7 +725,7 @@ static IEnumerable<string> ExtractClientRolesFromKeycloakJson(string json, strin
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .ToArray();
     }
-    catch
+    catch (System.Text.Json.JsonException)
     {
         return Array.Empty<string>();
     }

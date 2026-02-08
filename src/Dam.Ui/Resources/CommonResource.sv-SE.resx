@@ -157,6 +157,7 @@
   <data name="Confirm_Remove" xml:space="preserve"><value>Bekräfta borttagning</value></data>
   <data name="Confirm_Revoke" xml:space="preserve"><value>Bekräfta återkallande</value></data>
   <data name="Confirm_RemoveAccess" xml:space="preserve"><value>Bekräfta borttagning av åtkomst</value></data>
+  <data name="Confirm_Generate" xml:space="preserve"><value>Bekräfta generering</value></data>
 
   <!-- Validation -->
   <data name="Validation_Required" xml:space="preserve"><value>{0} krävs</value></data>

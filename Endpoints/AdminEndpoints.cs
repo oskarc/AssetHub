@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Dam.Application;
 using Dam.Application.Dtos;
 using Dam.Application.Helpers;
@@ -40,7 +41,7 @@ public static class AdminEndpoints
                 Id = s.Id,
                 ScopeType = s.ScopeType,
                 ScopeId = s.ScopeId,
-                ScopeName = s.ScopeType == "asset" 
+                ScopeName = s.ScopeType == Constants.ScopeTypes.Asset 
                     ? s.Asset?.Title ?? "Unknown Asset"
                     : s.Collection?.Name ?? "Unknown Collection",
                 CreatedByUserId = s.CreatedByUserId,
@@ -60,12 +61,53 @@ public static class AdminEndpoints
         .WithSummary("Gets all shares with usage statistics (admin only)")
         .Produces<List<AdminShareDto>>();
 
+        // Get existing share token plaintext if available (admin only)
+        group.MapGet("/shares/{id:guid}/token", async (
+            Guid id,
+            [FromServices] IShareRepository shareRepo,
+            [FromServices] Microsoft.AspNetCore.DataProtection.IDataProtectionProvider dataProtection,
+            [FromServices] ILoggerFactory loggerFactory,
+            CancellationToken ct) =>
+        {
+            var share = await shareRepo.GetByIdAsync(id, ct);
+            if (share == null)
+                return Results.NotFound(ApiError.NotFound("Share not found"));
+
+            if (string.IsNullOrEmpty(share.TokenEncrypted))
+                return Results.NotFound(ApiError.NotFound("Share token not available — this share was created before token encryption was enabled"));
+
+            try
+            {
+                var protector = dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
+                var protectedBytes = Convert.FromBase64String(share.TokenEncrypted);
+                var token = System.Text.Encoding.UTF8.GetString(protector.Unprotect(protectedBytes));
+                return Results.Ok(new ShareTokenResponse { Token = token });
+            }
+            catch (System.Security.Cryptography.CryptographicException ex)
+            {
+                var logger = loggerFactory.CreateLogger("AssetHub.AdminEndpoints");
+                logger.LogError(ex, "Failed to decrypt share token for share {ShareId}. Data Protection keys may have been rotated.", id);
+                return Results.Json(ApiError.BadRequest("Unable to decrypt share token — encryption keys may have changed"), statusCode: 500);
+            }
+            catch (FormatException ex)
+            {
+                var logger = loggerFactory.CreateLogger("AssetHub.AdminEndpoints");
+                logger.LogError(ex, "Corrupted TokenEncrypted data for share {ShareId}", id);
+                return Results.Json(ApiError.BadRequest("Share token data is corrupted"), statusCode: 500);
+            }
+        })
+        .WithName("AdminGetShareToken")
+        .WithSummary("Retrieves the plaintext token for a share if available (admin only)")
+        .Produces<ShareTokenResponse>();
+
         /// <summary>
         /// Revokes a share by setting its RevokedAt timestamp.
         /// </summary>
         group.MapPost("/shares/{id:guid}/revoke", async (
             Guid id,
             [FromServices] IShareRepository shareRepo,
+            [FromServices] IAuditService audit,
+            HttpContext httpContext,
             CancellationToken ct) =>
         {
             var share = await shareRepo.GetByIdAsync(id, ct);
@@ -78,7 +120,11 @@ public static class AdminEndpoints
             share.RevokedAt = DateTime.UtcNow;
             await shareRepo.UpdateAsync(share, ct);
 
-            return Results.Ok(new { message = "Share revoked successfully", revokedAt = share.RevokedAt });
+            var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            await audit.LogAsync("share.revoked", "share", id, adminUserId,
+                new() { ["admin"] = true }, httpContext, ct);
+
+            return Results.Ok(new ShareRevokedResponse { Message = "Share revoked successfully", RevokedAt = share.RevokedAt });
         })
         .WithName("AdminRevokeShare")
         .WithSummary("Revokes a share (admin only)");
@@ -124,6 +170,8 @@ public static class AdminEndpoints
             [FromServices] ICollectionRepository collectionRepo,
             [FromServices] ICollectionAclRepository aclRepo,
             [FromServices] IUserLookupService userLookup,
+            [FromServices] IAuditService audit,
+            HttpContext httpContext,
             CancellationToken ct) =>
         {
             if (!await collectionRepo.ExistsAsync(collectionId, ct))
@@ -169,11 +217,16 @@ public static class AdminEndpoints
                 targetRole,
                 ct);
 
-            return Results.Ok(new { 
-                message = "Access updated", 
-                collectionId, 
-                principalId,
-                role = acl.Role 
+            var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            await audit.LogAsync("acl.set", "collection", collectionId, adminUserId,
+                new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = targetRole, ["admin"] = true }, httpContext, ct);
+
+            return Results.Ok(new AccessUpdatedResponse
+            { 
+                Message = "Access updated", 
+                CollectionId = collectionId, 
+                PrincipalId = principalId,
+                Role = acl.Role 
             });
         })
         .WithName("AdminSetCollectionAccess")
@@ -188,6 +241,8 @@ public static class AdminEndpoints
             [FromQuery] string? principalType,
             [FromServices] ICollectionRepository collectionRepo,
             [FromServices] ICollectionAclRepository aclRepo,
+            [FromServices] IAuditService audit,
+            HttpContext httpContext,
             CancellationToken ct) =>
         {
             if (!await collectionRepo.ExistsAsync(collectionId, ct))
@@ -195,7 +250,11 @@ public static class AdminEndpoints
 
             await aclRepo.RevokeAccessAsync(collectionId, principalType ?? "user", principalId, ct);
 
-            return Results.Ok(new { message = "Access revoked", collectionId, principalId });
+            var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            await audit.LogAsync("acl.revoked", "collection", collectionId, adminUserId,
+                new() { ["principalType"] = principalType ?? "user", ["principalId"] = principalId, ["admin"] = true }, httpContext, ct);
+
+            return Results.Ok(new AccessRevokedResponse { Message = "Access revoked", CollectionId = collectionId, PrincipalId = principalId });
         })
         .WithName("RemoveCollectionAccess")
         .WithSummary("Removes access for a user on a collection (admin only)");
@@ -265,14 +324,18 @@ public static class AdminEndpoints
                     HighestRole = RoleHierarchy.GetHighestRole(g.Select(a => a.Role))
                 });
             
-            var result = allUsers.Select(u => new KeycloakUserDto
+            var result = allUsers.Select(u =>
             {
-                Id = u.Id,
-                Username = u.Username,
-                Email = u.Email,
-                CreatedAt = u.CreatedAt,
-                CollectionCount = userAclGroups.TryGetValue(u.Id, out var acl) ? acl.CollectionCount : 0,
-                HighestRole = userAclGroups.TryGetValue(u.Id, out var acl2) ? acl2.HighestRole : null
+                var hasAccess = userAclGroups.TryGetValue(u.Id, out var acl);
+                return new KeycloakUserDto
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    Email = u.Email,
+                    CreatedAt = u.CreatedAt,
+                    CollectionCount = hasAccess ? acl!.CollectionCount : 0,
+                    HighestRole = hasAccess ? acl!.HighestRole : null
+                };
             }).ToList();
 
             return Results.Ok(result);
@@ -290,6 +353,7 @@ public static class AdminEndpoints
             [FromBody] CreateUserRequest request,
             [FromServices] IKeycloakUserService keycloakUserService,
             [FromServices] IUserProvisioningService provisioning,
+            [FromServices] IAuditService audit,
             [FromServices] IConfiguration configuration,
             HttpContext httpContext,
             ILogger<Program> logger,
@@ -338,6 +402,10 @@ public static class AdminEndpoints
                         baseUrl, adminUsername, ct);
                 }
 
+                var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await audit.LogAsync("user.created", "user", Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
+                    new() { ["username"] = username, ["email"] = email }, httpContext, ct);
+
                 return Results.Created($"/api/admin/users/{userId}", new CreateUserResponse
                 {
                     UserId = userId,
@@ -351,6 +419,10 @@ public static class AdminEndpoints
             catch (KeycloakApiException ex)
             {
                 logger.LogWarning(ex, "Keycloak API error creating user '{Username}'", username);
+
+                var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await audit.LogAsync("user.create_failed", "user", null, adminUserId,
+                    new() { ["username"] = username, ["error"] = ex.Message }, httpContext, ct);
                 return ex.StatusCode == 409
                     ? Results.Conflict(ApiError.BadRequest(ex.Message))
                     : Results.BadRequest(ApiError.BadRequest(ex.Message));

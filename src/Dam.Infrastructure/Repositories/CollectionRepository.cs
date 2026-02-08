@@ -48,7 +48,8 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
 
     public async Task<Collection> CreateAsync(Collection collection, CancellationToken ct = default)
     {
-        collection.Id = Guid.NewGuid();
+        if (collection.Id == Guid.Empty)
+            collection.Id = Guid.NewGuid();
         collection.CreatedAt = DateTime.UtcNow;
 
         dbContext.Collections.Add(collection);

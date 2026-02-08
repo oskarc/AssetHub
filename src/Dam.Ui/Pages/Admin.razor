@@ -103,13 +103,15 @@
                         @if (context.Status == "Active")
                         {
                             <MudStack Row="true" Spacing="1">
+                                <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"
+                                    OnClick="@(() => ShowShareInfo(context))" title="@AdminLoc["ShowShareInfo"]" />
                                 @if (context.HasPassword)
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.Key" Color="Color.Primary" Size="Size.Small"
-                                        OnClick="@(() => EditSharePassword(context))" Title="@AdminLoc["EditPassword"]" />
+                                        OnClick="@(() => EditSharePassword(context))" title="@AdminLoc["EditPassword"]" />
                                 }
                                 <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
-                                    OnClick="@(() => RevokeShare(context))" Title="@AdminLoc["RevokeShare"]" />
+                                    OnClick="@(() => RevokeShare(context))" title="@AdminLoc["RevokeShare"]" />
                             </MudStack>
                         }
                     </MudTd>
@@ -168,11 +170,11 @@
                             <MudGrid Class="mb-4">
                                 <MudItem xs="12" sm="5">
                                     <MudTextField @bind-Value="_newAclUserId" Label="@CommonLoc["Label_UserId"]" 
-                                        Variant="Variant.Outlined" Size="Size.Small" />
+                                        Variant="Variant.Outlined" Margin="Margin.Dense" />
                                 </MudItem>
                                 <MudItem xs="12" sm="4">
                                     <MudSelect @bind-Value="_newAclRole" Label="@CommonLoc["Label_Role"]" 
-                                        Variant="Variant.Outlined" Size="Size.Small">
+                                        Variant="Variant.Outlined" Margin="Margin.Dense">
                                         <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
                                         <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
                                         <MudSelectItem Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
@@ -599,6 +601,26 @@
         if (result != null && !result.Canceled)
         {
             await Task.WhenAll(LoadAllUsers(), LoadCollections());
+        }
+    }
+
+    private async Task ShowShareInfo(AdminShareDto share)
+    {
+        // For security we do not store plaintext tokens, so we cannot show an existing share URL unless recently generated.
+        // The dialog allows generating a new URL or setting/changing the password.
+        var parameters = new DialogParameters<ShareInfoDialog>
+        {
+            { x => x.Share, share },
+            { x => x.ShareUrl, string.Empty },
+            { x => x.SharePassword, string.Empty }
+        };
+
+        var dialog = await DialogService.ShowAsync<ShareInfoDialog>(AdminLoc["ShowShareInfo"], parameters);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            // Refresh shares list to reflect any changes (token regenerated or password set)
+            await LoadShares();
         }
     }
 }

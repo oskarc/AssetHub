@@ -1,0 +1,134 @@
+@using MudBlazor
+@using Dam.Application.Dtos
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<SharesResource> ShareLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject AssetHubApiClient Api
+@inject IDialogService DialogService
+@inject IUserFeedbackService Feedback
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Link" Class="mr-2" Color="Color.Primary" />
+            @ShareLoc["ShareDetails"]
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @ShareLoc["ShareDetailsDesc"]
+            </MudText>
+            <MudDivider />
+
+            @if (_isLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (!string.IsNullOrEmpty(ShareUrl))
+            {
+                <MudTextField @bind-Value="ShareUrl" Label="@ShareLoc["ShareUrl"]" ReadOnly="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy" OnAdornmentClick="CopyUrl" />
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    @ShareLoc["ShareUrlNotAvailable"]
+                </MudAlert>
+            }
+
+            @if (!string.IsNullOrEmpty(SharePassword))
+            {
+                <MudTextField @bind-Value="SharePassword" Label="@ShareLoc["SharePassword"]" ReadOnly="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy" OnAdornmentClick="CopyPassword" />
+            }
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Key" OnClick="OpenSetPassword">@ShareLoc["SetOrChangePassword"]</MudButton>
+            </MudStack>
+
+            <MudAlert Severity="Severity.Info" Dense="true" Style="margin-top:8px;">
+                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                @ShareLoc["ShareInfoCopyHint"]
+            </MudAlert>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAll" Disabled="@(string.IsNullOrEmpty(ShareUrl))">@CommonLoc["Btn_CopyAll"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public AdminShareDto Share { get; set; } = default!;
+    [Parameter]
+    public string ShareUrl { get; set; } = string.Empty;
+    [Parameter]
+    public string SharePassword { get; set; } = string.Empty;
+
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var token = await Api.GetShareTokenAsync(Share.Id);
+            if (!string.IsNullOrEmpty(token))
+            {
+                ShareUrl = $"{Navigation.BaseUri.TrimEnd('/')}/share/{Uri.EscapeDataString(token)}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "retrieve share token");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task CopyUrl()
+    {
+        if (string.IsNullOrEmpty(ShareUrl)) return;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
+    }
+
+    private async Task CopyPassword()
+    {
+        if (string.IsNullOrEmpty(SharePassword)) return;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", SharePassword);
+    }
+
+    private async Task CopyAll()
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(ShareUrl)) parts.Add(ShareUrl);
+        if (!string.IsNullOrEmpty(SharePassword)) parts.Add(SharePassword);
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", string.Join("\n", parts));
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task OpenSetPassword()
+    {
+        var parameters = new DialogParameters<SharePasswordDialog>
+        {
+            { x => x.Share, Share }
+        };
+
+        var dialog = await DialogService.ShowAsync<SharePasswordDialog>(AdminLoc["EditSharePassword"], parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string pwd } && !string.IsNullOrEmpty(pwd))
+        {
+            SharePassword = pwd;
+            Share = Share with { HasPassword = true };
+            StateHasChanged();
+        }
+    }
+}

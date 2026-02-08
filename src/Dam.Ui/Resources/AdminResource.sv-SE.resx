@@ -89,6 +89,10 @@
   <!-- Create User Dialog -->
   <data name="CreateNewUser" xml:space="preserve"><value>Skapa ny användare</value></data>
   <data name="EditSharePassword" xml:space="preserve"><value>Redigera delningslösenord</value></data>
+  <data name="ShowShareInfo" xml:space="preserve"><value>Delningsinformation</value></data>
+  <data name="SetPassword" xml:space="preserve"><value>Ange lösenord</value></data>
+  <data name="ConfirmRegenerateShareUrl" xml:space="preserve"><value>Detta genererar en ny dellänk. Den gamla länken slutar fungera. Fortsätta?</value></data>
+  <data name="ShareUrlGenerated" xml:space="preserve"><value>Dellänk genererad</value></data>
 
   <!-- User Access Dialog -->
   <data name="UserAccessDetails" xml:space="preserve"><value>Användaråtkomstdetaljer</value></data>

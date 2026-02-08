@@ -15,14 +15,11 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
 
     public async Task<List<Asset>> GetByCollectionAsync(Guid collectionId, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
-        // Get asset IDs from the join table only
-        var assetIds = await dbContext.AssetCollections
-            .Where(ac => ac.CollectionId == collectionId)
-            .Select(ac => ac.AssetId)
-            .ToListAsync(cancellationToken);
-
         return await dbContext.Assets
-            .Where(a => assetIds.Contains(a.Id))
+            .Where(a => dbContext.AssetCollections
+                .Where(ac => ac.CollectionId == collectionId)
+                .Select(ac => ac.AssetId)
+                .Contains(a.Id))
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip)
             .Take(take)
@@ -61,12 +58,9 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
 
     public async Task<int> CountByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
-        var assetIds = await dbContext.AssetCollections
+        return await dbContext.AssetCollections
             .Where(ac => ac.CollectionId == collectionId)
-            .Select(ac => ac.AssetId)
-            .ToListAsync(cancellationToken);
-        
-        return assetIds.Count;
+            .CountAsync(cancellationToken);
     }
 
     public async Task<int> CountByStatusAsync(string status, CancellationToken cancellationToken = default)
@@ -105,13 +99,11 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
 
     public async Task DeleteByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
-        var assetIds = await dbContext.AssetCollections
-            .Where(ac => ac.CollectionId == collectionId)
-            .Select(ac => ac.AssetId)
-            .ToListAsync(cancellationToken);
-        
         var assets = await dbContext.Assets
-            .Where(a => assetIds.Contains(a.Id))
+            .Where(a => dbContext.AssetCollections
+                .Where(ac => ac.CollectionId == collectionId)
+                .Select(ac => ac.AssetId)
+                .Contains(a.Id))
             .ToListAsync(cancellationToken);
         
         dbContext.Assets.RemoveRange(assets);
@@ -127,14 +119,12 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         int take = 50,
         CancellationToken cancellationToken = default)
     {
-        // Get asset IDs from the join table only
-        var assetIds = await dbContext.AssetCollections
+        var collectionAssetIds = dbContext.AssetCollections
             .Where(ac => ac.CollectionId == collectionId)
-            .Select(ac => ac.AssetId)
-            .ToListAsync(cancellationToken);
+            .Select(ac => ac.AssetId);
 
         var queryable = dbContext.Assets
-            .Where(a => assetIds.Contains(a.Id));
+            .Where(a => collectionAssetIds.Contains(a.Id));
 
         // Apply text search filter
         if (!string.IsNullOrWhiteSpace(query))
@@ -183,10 +173,20 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         string sortBy = "created_desc",
         int skip = 0,
         int take = 50,
+        List<Guid>? allowedCollectionIds = null,
         CancellationToken cancellationToken = default)
     {
         var queryable = dbContext.Assets
             .Where(a => a.Status == Asset.StatusReady);
+
+        // Filter to assets in allowed collections (ACL enforcement)
+        if (allowedCollectionIds != null)
+        {
+            var allowedAssetIds = dbContext.AssetCollections
+                .Where(ac => allowedCollectionIds.Contains(ac.CollectionId))
+                .Select(ac => ac.AssetId);
+            queryable = queryable.Where(a => allowedAssetIds.Contains(a.Id));
+        }
 
         // Apply text search filter
         if (!string.IsNullOrWhiteSpace(query))

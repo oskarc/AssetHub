@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using Dam.Application.Dtos;
 
 namespace Dam.Ui.Services;
@@ -252,7 +253,7 @@ public class AssetHubApiClient
     /// Step 1 of presigned upload: Creates an asset record and returns a presigned PUT URL.
     /// The browser then uploads the file directly to MinIO via JS interop.
     /// </summary>
-    public async Task<InitUploadResult> InitUploadAsync(
+    public async Task<InitUploadResponse> InitUploadAsync(
         Guid collectionId,
         string fileName,
         string contentType,
@@ -271,7 +272,7 @@ public class AssetHubApiClient
 
         var response = await _http.PostAsJsonAsync("/api/assets/init-upload", request, ct);
         await EnsureSuccessAsync(response, "Init upload");
-        return await ReadRequiredJsonAsync<InitUploadResult>(response, "Init upload");
+        return await ReadRequiredJsonAsync<InitUploadResponse>(response, "Init upload");
     }
 
     /// <summary>
@@ -305,7 +306,7 @@ public class AssetHubApiClient
     /// <param name="expiresAt">When the share expires (defaults to 7 days).</param>
     /// <param name="password">Optional password (if not provided, one will be generated).</param>
     /// <param name="notifyEmails">Optional list of email addresses to notify about the share.</param>
-    public async Task<ShareResponse> CreateShareAsync(
+    public async Task<ShareResponseDto> CreateShareAsync(
         Guid scopeId,
         string scopeType,
         DateTime? expiresAt = null,
@@ -324,7 +325,7 @@ public class AssetHubApiClient
 
         var response = await _http.PostAsJsonAsync("/api/shares", dto, ct);
         await EnsureSuccessAsync(response, "Create share");
-        return await ReadRequiredJsonAsync<ShareResponse>(response, "Create share");
+        return await ReadRequiredJsonAsync<ShareResponseDto>(response, "Create share");
     }
 
     /// <summary>
@@ -334,6 +335,20 @@ public class AssetHubApiClient
     {
         var response = await _http.PutAsJsonAsync($"/api/shares/{shareId}/password", new { Password = newPassword }, ct);
         await EnsureSuccessAsync(response, "Update share password");
+    }
+
+    /// <summary>
+    /// Retrieves the plaintext token for a share if available (admin-only).
+    /// Returns empty string when the share predates token encryption.
+    /// </summary>
+    public async Task<string> GetShareTokenAsync(Guid shareId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/admin/shares/{shareId}/token", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return string.Empty;
+        await EnsureSuccessAsync(response, "Get share token");
+        var dto = await response.Content.ReadFromJsonAsync<ShareTokenResponse>(cancellationToken: ct);
+        return dto?.Token ?? string.Empty;
     }
 
     /// <summary>
@@ -354,9 +369,10 @@ public class AssetHubApiClient
     public async Task<HttpResponseMessage> GetSharedContentAsync(string token, string? password = null, CancellationToken ct = default)
     {
         var url = $"/api/shares/{Uri.EscapeDataString(token)}";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         if (!string.IsNullOrEmpty(password))
-            url += $"?password={Uri.EscapeDataString(password)}";
-        return await _http.GetAsync(url, ct);
+            request.Headers.TryAddWithoutValidation("X-Share-Password", password);
+        return await _http.SendAsync(request, ct);
     }
 
     #endregion

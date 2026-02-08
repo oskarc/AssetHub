@@ -30,13 +30,15 @@ public interface IAssetRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Search all assets with optional filters.
+    /// Search all assets with optional filters, restricted to specific collections.
     /// </summary>
+    /// <param name="allowedCollectionIds">If non-null, only return assets in these collections. Pass null for unfiltered (admin).</param>
     Task<(List<Asset> Assets, int Total)> SearchAllAsync(
         string? query = null,
         string? assetType = null,
         string sortBy = "created_desc",
         int skip = 0,
         int take = 50,
+        List<Guid>? allowedCollectionIds = null,
         CancellationToken cancellationToken = default);
 }

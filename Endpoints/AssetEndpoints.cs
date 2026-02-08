@@ -73,6 +73,7 @@ public static class AssetEndpoints
         int take = 50)
     {
         var userId = httpContext.User.GetRequiredUserId();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         
         // Get all collections the user has access to
         var accessibleCollections = await collectionRepository.GetAccessibleCollectionsAsync(userId, ct);
@@ -85,40 +86,44 @@ public static class AssetEndpoints
         // If a specific collection is requested, filter to just that one (if accessible)
         if (collectionId.HasValue)
         {
-            if (!accessibleCollectionIds.Contains(collectionId.Value))
+            if (!isSystemAdmin && !accessibleCollectionIds.Contains(collectionId.Value))
                 return Results.Forbid();
             accessibleCollectionIds = new List<Guid> { collectionId.Value };
         }
 
-        var (assets, total) = await assetRepository.SearchAllAsync(query, type, sortBy, skip, take, ct);
+        // System admins see all assets; non-admins are restricted to their accessible collections
+        var filterCollectionIds = isSystemAdmin ? null : accessibleCollectionIds;
+        var (assets, total) = await assetRepository.SearchAllAsync(query, type, sortBy, skip, take, filterCollectionIds, ct);
+        
+        // Batch-load collection IDs for all returned assets (single query, no N+1)
+        var assetIds = assets.Select(a => a.Id).ToList();
+        var assetCollectionMap = await assetCollectionRepo.GetCollectionIdsForAssetsAsync(assetIds, ct);
         
         // For each asset, determine the user's highest role across all collections it belongs to
         var dtos = new List<AssetResponseDto>();
         foreach (var asset in assets)
         {
-            // Get the collections this asset belongs to
-            var assetCollIds = await assetCollectionRepo.GetCollectionsForAssetAsync(asset.Id, ct);
-            var assetCollectionIds = assetCollIds.Select(c => c.Id).ToList();
+            var role = isSystemAdmin ? RoleHierarchy.Roles.Admin : RoleHierarchy.Roles.Viewer;
             
-            // Find the highest role the user has across those collections
-            var role = RoleHierarchy.Roles.Viewer; // default
-            foreach (var collId in assetCollectionIds)
+            if (!isSystemAdmin && assetCollectionMap.TryGetValue(asset.Id, out var assetCollectionIds))
             {
-                if (collectionRoles.TryGetValue(collId, out var collRole))
+                foreach (var collId in assetCollectionIds)
                 {
-                    // If the current role is higher than what we have, use it
-                    if (RoleHierarchy.GetLevel(collRole) > RoleHierarchy.GetLevel(role))
+                    if (collectionRoles.TryGetValue(collId, out var collRole) &&
+                        RoleHierarchy.GetLevel(collRole) > RoleHierarchy.GetLevel(role))
+                    {
                         role = collRole;
+                    }
                 }
             }
             
             dtos.Add(AssetMapper.ToDto(asset, role));
         }
         
-        return Results.Ok(new
+        return Results.Ok(new AllAssetsListResponse
         {
-            total,
-            items = dtos
+            Total = total,
+            Items = dtos
         });
     }
 
@@ -185,11 +190,11 @@ public static class AssetEndpoints
 
         var (assets, total) = await assetRepository.SearchAsync(collectionId, query, type, sortBy, skip, take, ct);
         var dtos = assets.Select(a => AssetMapper.ToDto(a, userRole)).ToList();
-        return Results.Ok(new
+        return Results.Ok(new AssetListResponse
         {
-            collectionId,
-            total,
-            items = dtos
+            CollectionId = collectionId,
+            Total = total,
+            Items = dtos
         });
     }
 
@@ -202,6 +207,7 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
         [Microsoft.AspNetCore.Mvc.FromServices] IMediaProcessingService mediaProcessingService,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
@@ -255,15 +261,18 @@ public static class AssetEndpoints
         // Add asset to the collection via join table
         await assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
 
+        await audit.LogAsync("asset.created", "asset", assetId, userId,
+            new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = file.ContentType }, httpContext, ct);
+
         // Schedule processing job
         var jobId = await mediaProcessingService.ScheduleProcessingAsync(assetId, assetType, objectKey, ct);
 
-        return Results.Accepted($"/api/assets/{assetId}", new
+        return Results.Accepted($"/api/assets/{assetId}", new AssetUploadResult
         {
-            id = assetId,
-            status = Asset.StatusProcessing,
-            jobId,
-            message = "Asset uploaded. Processing in progress."
+            Id = assetId,
+            Status = Asset.StatusProcessing,
+            JobId = jobId,
+            Message = "Asset uploaded. Processing in progress."
         });
     }
 
@@ -273,6 +282,7 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -312,6 +322,9 @@ public static class AssetEndpoints
         asset.UpdatedAt = DateTime.UtcNow;
 
         await assetRepository.UpdateAsync(asset, ct);
+
+        await audit.LogAsync("asset.updated", "asset", id, userId, httpContext: httpContext, ct: ct);
+
         return Results.Ok(AssetMapper.ToDto(asset));
     }
 
@@ -321,6 +334,7 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
@@ -361,6 +375,9 @@ public static class AssetEndpoints
 
         // Delete from database
         await assetRepository.DeleteAsync(id, ct);
+
+        await audit.LogAsync("asset.deleted", "asset", id, userId,
+            new() { ["title"] = asset.Title }, httpContext, ct);
 
         return Results.NoContent();
     }
@@ -468,12 +485,12 @@ public static class AssetEndpoints
         if (result == null)
             return Results.BadRequest(ApiError.BadRequest("Asset is already linked to this collection or collection not found"));
 
-        return Results.Created($"/api/assets/{id}/collections/{collectionId}", new
+        return Results.Created($"/api/assets/{id}/collections/{collectionId}", new AssetAddedToCollectionResponse
         {
-            assetId = id,
-            collectionId,
-            addedAt = result.AddedAt,
-            message = "Asset added to collection"
+            AssetId = id,
+            CollectionId = collectionId,
+            AddedAt = result.AddedAt,
+            Message = "Asset added to collection"
         });
     }
 
@@ -626,13 +643,13 @@ public static class AssetEndpoints
         // Schedule media processing
         var jobId = await mediaProcessingService.ScheduleProcessingAsync(asset.Id, asset.AssetType, asset.OriginalObjectKey, ct);
 
-        return Results.Ok(new
+        return Results.Ok(new AssetUploadResult
         {
-            id = asset.Id,
-            status = Asset.StatusProcessing,
-            sizeBytes = stat.Size,
-            jobId,
-            message = "Upload confirmed. Processing in progress."
+            Id = asset.Id,
+            Status = Asset.StatusProcessing,
+            SizeBytes = stat.Size,
+            JobId = jobId,
+            Message = "Upload confirmed. Processing in progress."
         });
     }
 
@@ -650,21 +667,9 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetRequiredUserId();
-        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = StorageConfig.GetBucketName(configuration);
-
-        var asset = await assetRepository.GetByIdAsync(id, ct);
-        if (asset == null)
-            return Results.NotFound();
-
-        // Check authorization via any of the asset's collections
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
-            return Results.Forbid();
-
-        // Redirect to presigned URL — file goes directly from MinIO to browser, zero RAM usage
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.OriginalObjectKey, expirySeconds: 300, ct);
-        return Results.Redirect(presignedUrl);
+        var (asset, error) = await LoadAuthorizedAssetAsync(id, httpContext, assetRepository, assetCollectionRepo, authService, ct);
+        if (error != null) return error;
+        return await ServeRenditionAsync(asset!, "original", minioAdapter, configuration, ct);
     }
 
     /// <summary>
@@ -681,20 +686,9 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetRequiredUserId();
-        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = StorageConfig.GetBucketName(configuration);
-
-        var asset = await assetRepository.GetByIdAsync(id, ct);
-        if (asset == null)
-            return Results.NotFound();
-
-        // Check authorization
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
-            return Results.Forbid();
-
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.OriginalObjectKey, expirySeconds: 300, ct);
-        return Results.Redirect(presignedUrl);
+        var (asset, error) = await LoadAuthorizedAssetAsync(id, httpContext, assetRepository, assetCollectionRepo, authService, ct);
+        if (error != null) return error;
+        return await ServeRenditionAsync(asset!, "original", minioAdapter, configuration, ct);
     }
 
     private static async Task<IResult> GetThumbnail(
@@ -707,23 +701,9 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetRequiredUserId();
-        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = StorageConfig.GetBucketName(configuration);
-
-        var asset = await assetRepository.GetByIdAsync(id, ct);
-        if (asset == null)
-            return Results.NotFound();
-
-        // Check authorization
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
-            return Results.Forbid();
-
-        if (string.IsNullOrEmpty(asset.ThumbObjectKey))
-            return Results.NotFound("Thumbnail not available");
-
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.ThumbObjectKey, expirySeconds: 300, ct);
-        return Results.Redirect(presignedUrl);
+        var (asset, error) = await LoadAuthorizedAssetAsync(id, httpContext, assetRepository, assetCollectionRepo, authService, ct);
+        if (error != null) return error;
+        return await ServeRenditionAsync(asset!, "thumb", minioAdapter, configuration, ct);
     }
 
     private static async Task<IResult> GetMedium(
@@ -736,24 +716,9 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetRequiredUserId();
-        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = StorageConfig.GetBucketName(configuration);
-
-        var asset = await assetRepository.GetByIdAsync(id, ct);
-        if (asset == null)
-            return Results.NotFound();
-
-        // Check authorization
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
-            return Results.Forbid();
-
-        var objectKey = !string.IsNullOrEmpty(asset.MediumObjectKey)
-            ? asset.MediumObjectKey
-            : asset.OriginalObjectKey; // Fall back to original if medium not available
-
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, objectKey, expirySeconds: 300, ct);
-        return Results.Redirect(presignedUrl);
+        var (asset, error) = await LoadAuthorizedAssetAsync(id, httpContext, assetRepository, assetCollectionRepo, authService, ct);
+        if (error != null) return error;
+        return await ServeRenditionAsync(asset!, "medium", minioAdapter, configuration, ct);
     }
 
     private static async Task<IResult> GetPoster(
@@ -766,29 +731,69 @@ public static class AssetEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var userId = httpContext.User.GetRequiredUserId();
-        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
-        var bucketName = StorageConfig.GetBucketName(configuration);
-
-        var asset = await assetRepository.GetByIdAsync(id, ct);
-        if (asset == null)
-            return Results.NotFound();
-
-        // Check authorization
-        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
-            return Results.Forbid();
-
-        if (string.IsNullOrEmpty(asset.PosterObjectKey))
-            return Results.NotFound("Poster not available");
-
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, asset.PosterObjectKey, expirySeconds: 300, ct);
-        return Results.Redirect(presignedUrl);
+        var (asset, error) = await LoadAuthorizedAssetAsync(id, httpContext, assetRepository, assetCollectionRepo, authService, ct);
+        if (error != null) return error;
+        return await ServeRenditionAsync(asset!, "poster", minioAdapter, configuration, ct);
     }
 
     #endregion
 
     #region Helper Methods
     
+    /// <summary>
+    /// Loads an asset by ID and verifies the requesting user has access.
+    /// Returns either the authorized asset or an IResult error.
+    /// </summary>
+    private static async Task<(Asset? asset, IResult? error)> LoadAuthorizedAssetAsync(
+        Guid id,
+        HttpContext httpContext,
+        IAssetRepository assetRepository,
+        IAssetCollectionRepository assetCollectionRepo,
+        ICollectionAuthorizationService authService,
+        CancellationToken ct,
+        string requiredRole = RoleHierarchy.Roles.Viewer)
+    {
+        var asset = await assetRepository.GetByIdAsync(id, ct);
+        if (asset == null)
+            return (null, Results.NotFound());
+
+        var userId = httpContext.User.GetRequiredUserId();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
+
+        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct, requiredRole))
+            return (null, Results.Forbid());
+
+        return (asset, null);
+    }
+
+    /// <summary>
+    /// Resolves the appropriate object key for the requested rendition size and redirects via presigned URL.
+    /// </summary>
+    private static async Task<IResult> ServeRenditionAsync(
+        Asset asset,
+        string size,
+        IMinIOAdapter minioAdapter,
+        IConfiguration configuration,
+        CancellationToken ct)
+    {
+        var bucketName = StorageConfig.GetBucketName(configuration);
+
+        string? objectKey = size.ToLower() switch
+        {
+            "original" => asset.OriginalObjectKey,
+            "thumb" => asset.ThumbObjectKey,
+            "medium" => !string.IsNullOrEmpty(asset.MediumObjectKey) ? asset.MediumObjectKey : asset.OriginalObjectKey,
+            "poster" => asset.PosterObjectKey,
+            _ => asset.OriginalObjectKey
+        };
+
+        if (string.IsNullOrEmpty(objectKey))
+            return Results.NotFound($"{size} rendition not available");
+
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, objectKey, expirySeconds: 300, ct);
+        return Results.Redirect(presignedUrl);
+    }
+
     /// <summary>
     /// Check if a user can access an asset by checking all collections it belongs to.
     /// </summary>

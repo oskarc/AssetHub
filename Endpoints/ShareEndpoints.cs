@@ -13,60 +13,54 @@ using System.Security.Cryptography;
 
 namespace AssetHub.Endpoints;
 
-public class CreateShareDto
-{
-    public required Guid ScopeId { get; set; } // AssetId or CollectionId
-    public required string ScopeType { get; set; } // "asset" or "collection"
-    public DateTime? ExpiresAt { get; set; }
-    public string? Password { get; set; }
-    public Dictionary<string, bool>? PermissionsJson { get; set; }
-    /// <summary>
-    /// Optional list of email addresses to notify about this share.
-    /// </summary>
-    public List<string>? NotifyEmails { get; set; }
-}
-
-public class ShareResponseDto
-{
-    public required Guid Id { get; set; }
-    public required string ScopeType { get; set; }
-    public required Guid ScopeId { get; set; }
-    public required string Token { get; set; }
-    public required DateTime CreatedAt { get; set; }
-    public DateTime? ExpiresAt { get; set; }
-    public required Dictionary<string, bool> PermissionsJson { get; set; }
-    public required string ShareUrl { get; set; }
-    /// <summary>
-    /// The plaintext password (only returned once at creation time).
-    /// </summary>
-    public string? Password { get; set; }
-}
-
-public class SharedAssetDto
-{
-    public Guid Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string AssetType { get; set; } = string.Empty;
-    public string ContentType { get; set; } = string.Empty;
-    public long SizeBytes { get; set; }
-    public string? ThumbnailUrl { get; set; }
-    public string? MediumUrl { get; set; }
-    public Dictionary<string, object> MetadataJson { get; set; } = new();
-    public Dictionary<string, bool> Permissions { get; set; } = new();
-}
-
-public class SharedCollectionDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public List<SharedAssetDto> Assets { get; set; } = new();
-    public Dictionary<string, bool> Permissions { get; set; } = new();
-}
-
 public static class ShareEndpoints
 {
+    /// <summary>
+    /// Extracts the share password from X-Share-Password header first, then query string fallback.
+    /// Header is preferred to avoid passwords appearing in server logs and browser history.
+    /// Query string fallback is kept for HTML elements (img/video/iframe src) that can't set headers.
+    /// </summary>
+    private static string? GetSharePassword(HttpContext httpContext, string? queryPassword)
+    {
+        var headerPassword = httpContext.Request.Headers["X-Share-Password"].FirstOrDefault();
+        return headerPassword ?? queryPassword;
+    }
+
+    /// <summary>
+    /// Common validation for all public share endpoints: token lookup, access check, and password verification.
+    /// Returns either a valid Share entity or an IResult error to return immediately.
+    /// </summary>
+    private static async Task<(Share? share, IResult? error)> ValidateAndGetShareAsync(
+        string token,
+        string? password,
+        HttpContext httpContext,
+        IShareRepository shareRepository,
+        CancellationToken ct)
+    {
+        var effectivePassword = GetSharePassword(httpContext, password);
+        var tokenHash = ShareHelpers.ComputeTokenHash(token);
+
+        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
+        if (share == null)
+            return (null, Results.NotFound("Share link not found or invalid"));
+
+        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
+        if (accessError != null)
+            return (null, Results.BadRequest(accessError));
+
+        // Check password if required
+        if (!string.IsNullOrEmpty(share.PasswordHash))
+        {
+            if (string.IsNullOrEmpty(effectivePassword))
+                return (null, Results.Json(new PasswordRequiredResponse { RequiresPassword = true }, statusCode: 401));
+
+            if (!BCrypt.Net.BCrypt.Verify(effectivePassword, share.PasswordHash))
+                return (null, Results.Unauthorized());
+        }
+
+        return (share, null);
+    }
+
     public static void MapShareEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/shares")
@@ -103,19 +97,21 @@ public static class ShareEndpoints
         [FromServices] IShareRepository shareRepository,
         [FromServices] IEmailService emailService,
         [FromServices] IUserLookupService userLookupService,
+        [FromServices] IAuditService audit,
         HttpContext httpContext,
+        [FromServices] Microsoft.AspNetCore.DataProtection.IDataProtectionProvider dataProtection,
         CancellationToken ct)
     {
         var userId = httpContext.User.GetRequiredUserId();
 
         // Validate scope
-        if (dto.ScopeType != "asset" && dto.ScopeType != "collection")
+        if (dto.ScopeType != Constants.ScopeTypes.Asset && dto.ScopeType != Constants.ScopeTypes.Collection)
             return Results.BadRequest(ApiError.BadRequest("ScopeType must be 'asset' or 'collection'"));
 
         Guid collectionIdToCheck;
         string contentName;
 
-        if (dto.ScopeType == "asset")
+        if (dto.ScopeType == Constants.ScopeTypes.Asset)
         {
             var asset = await assetRepository.GetByIdAsync(dto.ScopeId, ct);
             if (asset == null)
@@ -154,12 +150,17 @@ public static class ShareEndpoints
             plainPassword = PasswordGenerator.Generate(12);
         }
 
+        var protector = dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
+        var protectedBytes = protector.Protect(System.Text.Encoding.UTF8.GetBytes(token));
+        var protectedToken = Convert.ToBase64String(protectedBytes);
+
         var share = new Share
         {
             Id = Guid.NewGuid(),
             ScopeId = dto.ScopeId,
             ScopeType = dto.ScopeType,
             TokenHash = tokenHash,
+            TokenEncrypted = protectedToken,
             ExpiresAt = dto.ExpiresAt?.ToUniversalTime() ?? DateTime.UtcNow.AddDays(7), // Default 7 days
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = httpContext.User.GetRequiredUserId(),
@@ -169,6 +170,9 @@ public static class ShareEndpoints
 
         // Save share to database
         await shareRepository.CreateAsync(share, ct);
+
+        await audit.LogAsync("share.created", "share", share.Id, userId,
+            new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, httpContext, ct);
 
         var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
         var shareUrl = $"{baseUrl}/share/{token}";
@@ -225,36 +229,20 @@ public static class ShareEndpoints
         [FromServices] ICollectionRepository collectionRepository,
         [FromServices] IMinIOAdapter minioAdapter,
         IConfiguration configuration,
-        CancellationToken ct)
+        HttpContext httpContext,
+        CancellationToken ct,
+        int skip = 0,
+        int take = 50)
     {
-        var tokenHash = ShareHelpers.ComputeTokenHash(token);
+        var (share, error) = await ValidateAndGetShareAsync(token, password, httpContext, shareRepository, ct);
+        if (error != null) return error;
 
-        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
-        if (share == null)
-            return Results.NotFound("Share link not found or invalid");
-
-        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
-        if (accessError != null)
-            return Results.BadRequest(accessError);
-
-        // Check password if required
-        if (!string.IsNullOrEmpty(share.PasswordHash))
-        {
-            if (string.IsNullOrEmpty(password))
-                return Results.Json(new { requiresPassword = true }, statusCode: 401);
-
-            if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
-                return Results.Unauthorized();
-        }
-
-        // Update access tracking
-        share.LastAccessedAt = DateTime.UtcNow;
-        share.AccessCount++;
-        await shareRepository.UpdateAsync(share, ct);
+        // Atomic access tracking — single UPDATE avoids race conditions
+        await shareRepository.IncrementAccessAsync(share!.Id, ct);
 
         var bucketName = StorageConfig.GetBucketName(configuration);
 
-        if (share.ScopeType == "asset")
+        if (share.ScopeType == Constants.ScopeTypes.Asset)
         {
             var asset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
             if (asset == null)
@@ -283,13 +271,14 @@ public static class ShareEndpoints
                 Permissions = share.PermissionsJson
             });
         }
-        else if (share.ScopeType == "collection")
+        else if (share.ScopeType == Constants.ScopeTypes.Collection)
         {
             var collection = await collectionRepository.GetByIdAsync(share.ScopeId, ct: ct);
             if (collection == null)
                 return Results.NotFound("Collection not found");
 
-            var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, 0, 100, ct);
+            var totalAssets = await assetRepository.CountByCollectionAsync(share.ScopeId, ct);
+            var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, skip, take, ct);
             var assetDtos = new List<SharedAssetDto>();
 
             foreach (var asset in assets)
@@ -323,6 +312,7 @@ public static class ShareEndpoints
                 Name = collection.Name,
                 Description = collection.Description,
                 Assets = assetDtos,
+                TotalAssets = totalAssets,
                 Permissions = share.PermissionsJson
             });
         }
@@ -339,40 +329,24 @@ public static class ShareEndpoints
         [FromServices] IAssetCollectionRepository assetCollectionRepo,
         [FromServices] IMinIOAdapter minioAdapter,
         IConfiguration configuration,
+        HttpContext httpContext,
         CancellationToken ct)
     {
-        var tokenHash = ShareHelpers.ComputeTokenHash(token);
-
-        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
-        if (share == null)
-            return Results.NotFound("Share link not found or invalid");
-
-        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
-        if (accessError != null)
-            return Results.BadRequest(accessError);
+        var (share, error) = await ValidateAndGetShareAsync(token, password, httpContext, shareRepository, ct);
+        if (error != null) return error;
 
         // Check if download permission is granted
-        if (!share.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
+        if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
             return Results.Forbid();
-
-        // Check password if required
-        if (!string.IsNullOrEmpty(share.PasswordHash))
-        {
-            if (string.IsNullOrEmpty(password))
-                return Results.Json(new { requiresPassword = true }, statusCode: 401);
-
-            if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
-                return Results.Unauthorized();
-        }
 
         var bucketName = StorageConfig.GetBucketName(configuration);
         Asset? targetAsset = null;
 
-        if (share.ScopeType == "asset")
+        if (share.ScopeType == Constants.ScopeTypes.Asset)
         {
             targetAsset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
         }
-        else if (share.ScopeType == "collection")
+        else if (share.ScopeType == Constants.ScopeTypes.Collection)
         {
             // For collection shares, assetId must be provided to specify which asset to download
             if (!assetId.HasValue)
@@ -395,10 +369,8 @@ public static class ShareEndpoints
         if (string.IsNullOrEmpty(targetAsset.OriginalObjectKey))
             return Results.BadRequest("Asset file not available");
 
-        // Update access tracking
-        share.LastAccessedAt = DateTime.UtcNow;
-        share.AccessCount++;
-        await shareRepository.UpdateAsync(share, ct);
+        // Atomic access tracking — single UPDATE avoids race conditions
+        await shareRepository.IncrementAccessAsync(share.Id, ct);
 
         // Redirect to presigned URL — file goes directly from MinIO to browser
         var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: 300, ct);
@@ -412,36 +384,20 @@ public static class ShareEndpoints
         [FromServices] IAssetRepository assetRepository,
         [FromServices] ICollectionRepository collectionRepository,
         [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] ILoggerFactory loggerFactory,
         IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
-        var tokenHash = ShareHelpers.ComputeTokenHash(token);
-
-        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
-        if (share == null)
-            return Results.NotFound("Share link not found or invalid");
-
-        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
-        if (accessError != null)
-            return Results.BadRequest(accessError);
+        var (share, error) = await ValidateAndGetShareAsync(token, password, httpContext, shareRepository, ct);
+        if (error != null) return error;
 
         // Check if download permission is granted
-        if (!share.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
+        if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
             return Results.Forbid();
 
-        // Check password if required
-        if (!string.IsNullOrEmpty(share.PasswordHash))
-        {
-            if (string.IsNullOrEmpty(password))
-                return Results.Json(new { requiresPassword = true }, statusCode: 401);
-
-            if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
-                return Results.Unauthorized();
-        }
-
         // Only works for collection shares
-        if (share.ScopeType != "collection")
+        if (share.ScopeType != Constants.ScopeTypes.Collection)
             return Results.BadRequest("Download all is only available for collection shares");
 
         var collection = await collectionRepository.GetByIdAsync(share.ScopeId, ct: ct);
@@ -454,10 +410,8 @@ public static class ShareEndpoints
 
         var bucketName = StorageConfig.GetBucketName(configuration);
 
-        // Update access tracking
-        share.LastAccessedAt = DateTime.UtcNow;
-        share.AccessCount++;
-        await shareRepository.UpdateAsync(share, ct);
+        // Atomic access tracking — single UPDATE avoids race conditions
+        await shareRepository.IncrementAccessAsync(share.Id, ct);
 
         // Stream ZIP directly to the HTTP response — never buffer entire collection in memory.
         // Each asset is fetched from MinIO and written to the ZIP entry one at a time.
@@ -465,6 +419,7 @@ public static class ShareEndpoints
         httpContext.Response.ContentType = "application/zip";
         httpContext.Response.Headers.ContentDisposition = $"attachment; filename=\"{zipFileName}\"";
 
+        var errors = new List<string>();
         await using var responseStream = httpContext.Response.BodyWriter.AsStream();
         using var archive = new ZipArchive(responseStream, ZipArchiveMode.Create, leaveOpen: true);
         foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
@@ -472,8 +427,8 @@ public static class ShareEndpoints
             ct.ThrowIfCancellationRequested();
             try
             {
-                var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
-                var fileName = FileHelpers.GetSafeFileName(asset.Title, asset.OriginalObjectKey!, asset.ContentType);
+                await using var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
+                var fileName = FileHelpers.GetSafeFileName(asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
 
                 var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
                 await using var entryStream = entry.Open();
@@ -483,10 +438,23 @@ public static class ShareEndpoints
             {
                 throw;
             }
-            catch
+            catch (Exception ex)
             {
-                // Skip assets that fail to download
+                loggerFactory.CreateLogger("ShareEndpoints").LogWarning(ex,
+                    "Failed to include asset {AssetId} ({ObjectKey}) in shared ZIP download for share {ShareId}",
+                    asset.Id, asset.OriginalObjectKey, share.Id);
+                errors.Add($"{asset.Title ?? asset.Id.ToString()} — {ex.Message}");
             }
+        }
+
+        if (errors.Count > 0)
+        {
+            var errEntry = archive.CreateEntry("_errors.txt", CompressionLevel.Fastest);
+            await using var errStream = errEntry.Open();
+            await using var writer = new StreamWriter(errStream);
+            await writer.WriteLineAsync("The following files could not be included:");
+            foreach (var err in errors)
+                await writer.WriteLineAsync($"  • {err}");
         }
 
         return Results.Empty;
@@ -502,37 +470,20 @@ public static class ShareEndpoints
         [FromServices] IAssetCollectionRepository assetCollectionRepo,
         [FromServices] IMinIOAdapter minioAdapter,
         IConfiguration configuration,
+        HttpContext httpContext,
         CancellationToken ct)
     {
-        // Compute token hash to lookup in database
-        var tokenHash = ShareHelpers.ComputeTokenHash(token);
-
-        var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
-        if (share == null)
-            return Results.NotFound("Share link not found or invalid");
-
-        var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
-        if (accessError != null)
-            return Results.BadRequest(accessError);
-
-        // Check password if required
-        if (!string.IsNullOrEmpty(share.PasswordHash))
-        {
-            if (string.IsNullOrEmpty(password))
-                return Results.Json(new { requiresPassword = true }, statusCode: 401);
-
-            if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
-                return Results.Unauthorized();
-        }
+        var (share, error) = await ValidateAndGetShareAsync(token, password, httpContext, shareRepository, ct);
+        if (error != null) return error;
 
         var bucketName = StorageConfig.GetBucketName(configuration);
         Asset? targetAsset = null;
 
-        if (share.ScopeType == "asset")
+        if (share!.ScopeType == Constants.ScopeTypes.Asset)
         {
             targetAsset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
         }
-        else if (share.ScopeType == "collection")
+        else if (share.ScopeType == Constants.ScopeTypes.Collection)
         {
             // For collection shares, assetId must be provided
             if (!assetId.HasValue)
@@ -589,6 +540,7 @@ public static class ShareEndpoints
     private static async Task<IResult> RevokeShare(
         Guid id,
         [FromServices] IShareRepository shareRepository,
+        [FromServices] IAuditService audit,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -604,6 +556,9 @@ public static class ShareEndpoints
         // Mark as revoked instead of deleting (for audit trail)
         share.RevokedAt = DateTime.UtcNow;
         await shareRepository.UpdateAsync(share, ct);
+
+        await audit.LogAsync("share.revoked", "share", id, userId,
+            new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId }, httpContext, ct);
 
         return Results.NoContent();
     }
@@ -634,14 +589,6 @@ public static class ShareEndpoints
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
         await shareRepository.UpdateAsync(share, ct);
 
-        return Results.Ok(new { message = "Password updated successfully" });
+        return Results.Ok(new MessageResponse("Password updated successfully"));
     }
-}
-
-/// <summary>
-/// DTO for updating a share's password.
-/// </summary>
-public class UpdateSharePasswordDto
-{
-    public required string Password { get; set; }
 }

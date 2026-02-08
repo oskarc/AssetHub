@@ -206,7 +206,7 @@ else
         var createResult = await DialogService.ShowAsync<CreateShareDialog>(AssetLoc["CreateShareLink"], createParams);
         var result = await createResult.Result;
 
-        if (result != null && !result.Canceled && result.Data is ShareResponse share)
+        if (result != null && !result.Canceled && result.Data is ShareResponseDto share)
         {
             var successParams = new DialogParameters<ShareLinkDialog>
             {

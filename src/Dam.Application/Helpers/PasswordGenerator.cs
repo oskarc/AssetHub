@@ -26,27 +26,23 @@ public static class PasswordGenerator
             throw new ArgumentOutOfRangeException(nameof(length), "Password length must be at least 8");
 
         var password = new char[length];
-        var bytes = new byte[length];
-        RandomNumberGenerator.Fill(bytes);
 
-        // Guarantee at least one of each category
-        password[0] = UpperCase[bytes[0] % UpperCase.Length];
-        password[1] = LowerCase[bytes[1] % LowerCase.Length];
-        password[2] = Digits[bytes[2] % Digits.Length];
-        password[3] = Special[bytes[3] % Special.Length];
+        // Guarantee at least one of each category — use rejection sampling to avoid modulo bias
+        password[0] = UpperCase[RandomNumberGenerator.GetInt32(UpperCase.Length)];
+        password[1] = LowerCase[RandomNumberGenerator.GetInt32(LowerCase.Length)];
+        password[2] = Digits[RandomNumberGenerator.GetInt32(Digits.Length)];
+        password[3] = Special[RandomNumberGenerator.GetInt32(Special.Length)];
 
         // Fill the rest randomly from all characters
         for (int i = 4; i < length; i++)
         {
-            password[i] = AllChars[bytes[i] % AllChars.Length];
+            password[i] = AllChars[RandomNumberGenerator.GetInt32(AllChars.Length)];
         }
 
         // Fisher-Yates shuffle for uniform distribution
-        var shuffleBytes = new byte[length];
-        RandomNumberGenerator.Fill(shuffleBytes);
         for (int i = length - 1; i > 0; i--)
         {
-            int j = shuffleBytes[i] % (i + 1);
+            int j = RandomNumberGenerator.GetInt32(i + 1);
             (password[i], password[j]) = (password[j], password[i]);
         }
 
