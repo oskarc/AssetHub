@@ -62,7 +62,7 @@ public static class AssetEndpoints
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext,
         CancellationToken ct,
         string? query = null,
@@ -75,25 +75,38 @@ public static class AssetEndpoints
         var userId = httpContext.User.GetRequiredUserId();
         var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
         
-        // Get all collections the user has access to
+        // System admins see all assets — skip collection access resolution entirely
+        if (isSystemAdmin)
+        {
+            var adminFilterIds = collectionId.HasValue ? new List<Guid> { collectionId.Value } : null;
+            var (adminAssets, adminTotal) = await assetRepository.SearchAllAsync(query, type, sortBy, skip, take, adminFilterIds, ct);
+            var adminDtos = adminAssets.Select(a => AssetMapper.ToDto(a, RoleHierarchy.Roles.Admin)).ToList();
+            return Results.Ok(new AllAssetsListResponse { Total = adminTotal, Items = adminDtos });
+        }
+
+        // Get all collections the user has access to (includes inherited access)
         var accessibleCollections = await collectionRepository.GetAccessibleCollectionsAsync(userId, ct);
         var accessibleCollectionIds = accessibleCollections.Select(c => c.Id).ToList();
         
-        // Get user's role for each collection from ACLs
-        var userAcls = await aclRepository.GetByUserAsync(userId, ct);
-        var collectionRoles = userAcls.ToDictionary(a => a.CollectionId, a => a.Role);
+        // Build role map using the authorization service (respects inheritance)
+        var collectionRoles = new Dictionary<Guid, string>();
+        foreach (var coll in accessibleCollections)
+        {
+            var role = await authService.GetUserRoleAsync(userId, coll.Id, ct);
+            if (role != null)
+                collectionRoles[coll.Id] = role;
+        }
 
         // If a specific collection is requested, filter to just that one (if accessible)
         if (collectionId.HasValue)
         {
-            if (!isSystemAdmin && !accessibleCollectionIds.Contains(collectionId.Value))
+            if (!accessibleCollectionIds.Contains(collectionId.Value))
                 return Results.Forbid();
             accessibleCollectionIds = new List<Guid> { collectionId.Value };
         }
 
-        // System admins see all assets; non-admins are restricted to their accessible collections
-        var filterCollectionIds = isSystemAdmin ? null : accessibleCollectionIds;
-        var (assets, total) = await assetRepository.SearchAllAsync(query, type, sortBy, skip, take, filterCollectionIds, ct);
+        // Non-admins are restricted to their accessible collections
+        var (assets, total) = await assetRepository.SearchAllAsync(query, type, sortBy, skip, take, accessibleCollectionIds, ct);
         
         // Batch-load collection IDs for all returned assets (single query, no N+1)
         var assetIds = assets.Select(a => a.Id).ToList();
@@ -103,9 +116,9 @@ public static class AssetEndpoints
         var dtos = new List<AssetResponseDto>();
         foreach (var asset in assets)
         {
-            var role = isSystemAdmin ? RoleHierarchy.Roles.Admin : RoleHierarchy.Roles.Viewer;
+            var role = RoleHierarchy.Roles.Viewer;
             
-            if (!isSystemAdmin && assetCollectionMap.TryGetValue(asset.Id, out var assetCollectionIds))
+            if (assetCollectionMap.TryGetValue(asset.Id, out var assetCollectionIds))
             {
                 foreach (var collId in assetCollectionIds)
                 {

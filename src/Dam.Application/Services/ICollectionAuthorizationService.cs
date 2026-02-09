@@ -30,6 +30,12 @@ public interface ICollectionAuthorizationService
     Task<bool> CanManageAclAsync(string userId, Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
+    /// Checks whether a user's effective role on a collection is inherited from a parent
+    /// (i.e., no direct ACL exists on the collection itself).
+    /// </summary>
+    Task<bool> IsRoleInheritedAsync(string userId, Guid collectionId, CancellationToken ct = default);
+
+    /// <summary>
     /// Checks if user can create collections at root level.
     /// Currently: all authenticated users can create root collections.
     /// </summary>

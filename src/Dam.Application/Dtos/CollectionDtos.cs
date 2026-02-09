@@ -54,6 +54,11 @@ public record CollectionResponseDto
     public string? Description { get; init; }
     public Guid? ParentId { get; init; }
     public string UserRole { get; init; } = "";
+    /// <summary>
+    /// True when the user's effective role is inherited from a parent collection
+    /// rather than being directly assigned on this collection.
+    /// </summary>
+    public bool IsRoleInherited { get; init; }
     public DateTime CreatedAt { get; init; }
     public string CreatedByUserId { get; init; } = "";
     public int ChildCount { get; init; }

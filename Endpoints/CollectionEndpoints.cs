@@ -60,21 +60,39 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> GetRootCollections(
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
         var userId = user.GetRequiredUserId();
 
         var collections = await collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
-        var dtos = collections.Select(c => new CollectionResponseDto
+
+        // Build a set of all accessible IDs so we can identify "entry-point" collections:
+        // those whose parent is either null (root) or not in the accessible set.
+        // This avoids flooding the flat sidebar with deeply nested children.
+        var accessibleIds = collections.Select(c => c.Id).ToHashSet();
+
+        var dtos = new List<CollectionResponseDto>();
+        foreach (var c in collections)
         {
-            Id = c.Id,
-            Name = c.Name,
-            Description = c.Description,
-            ParentId = c.ParentId,
-            CreatedAt = c.CreatedAt,
-            CreatedByUserId = c.CreatedByUserId
-        });
+            var isEntryPoint = c.ParentId == null || !accessibleIds.Contains(c.ParentId.Value);
+            if (!isEntryPoint) continue;
+
+            var userRole = await authService.GetUserRoleAsync(userId, c.Id, ct);
+            var isInherited = userRole != null && await authService.IsRoleInheritedAsync(userId, c.Id, ct);
+            dtos.Add(new CollectionResponseDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                ParentId = c.ParentId,
+                CreatedAt = c.CreatedAt,
+                CreatedByUserId = c.CreatedByUserId,
+                UserRole = userRole ?? "none",
+                IsRoleInherited = isInherited
+            });
+        }
 
         return Results.Ok(dtos);
     }
@@ -98,6 +116,7 @@ public static class CollectionEndpoints
             return Results.NotFound();
 
         var userRole = await authService.GetUserRoleAsync(userId, id, ct);
+        var isInherited = userRole != null && await authService.IsRoleInheritedAsync(userId, id, ct);
         var dto = new CollectionResponseDto
         {
             Id = collection.Id,
@@ -106,7 +125,8 @@ public static class CollectionEndpoints
             ParentId = collection.ParentId,
             CreatedAt = collection.CreatedAt,
             CreatedByUserId = collection.CreatedByUserId,
-            UserRole = userRole ?? "none"
+            UserRole = userRole ?? "none",
+            IsRoleInherited = isInherited
         };
 
         return Results.Ok(dto);
@@ -269,15 +289,23 @@ public static class CollectionEndpoints
             return Results.Forbid();
 
         var children = await collectionRepo.GetChildrenAsync(id, ct);
-        var dtos = children.Select(c => new CollectionResponseDto
+        var dtos = new List<CollectionResponseDto>();
+        foreach (var c in children)
         {
-            Id = c.Id,
-            Name = c.Name,
-            Description = c.Description,
-            ParentId = c.ParentId,
-            CreatedAt = c.CreatedAt,
-            CreatedByUserId = c.CreatedByUserId
-        });
+            var childRole = await authService.GetUserRoleAsync(userId, c.Id, ct);
+            var isInherited = childRole != null && await authService.IsRoleInheritedAsync(userId, c.Id, ct);
+            dtos.Add(new CollectionResponseDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                ParentId = c.ParentId,
+                CreatedAt = c.CreatedAt,
+                CreatedByUserId = c.CreatedByUserId,
+                UserRole = childRole ?? "none",
+                IsRoleInherited = isInherited
+            });
+        }
 
         return Results.Ok(dtos);
     }

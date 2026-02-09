@@ -342,11 +342,28 @@ Test project: `tests/Dam.Tests/` — added to solution, builds with 0 errors, 0 
 ## 6. Collection ACL Inheritance (Inherited Permissions)
 
 **Priority**: High  
-**Status**: ⬜ Not started  
+**Status**: ✅ Complete  
+**Completed**: 2026-02-09  
 **Estimate**: 4-6 hours  
 **Description**: Permissions on a top-level collection grant the same access to all child collections. Users who are granted a role on a parent collection should automatically hold that same role on all descendant collections, without needing explicit ACL entries on each child.
 
 **Dependencies**: None (self-contained change in authorization layer)
+
+### Implementation (2026-02-09)
+
+**Changes made:**
+
+1. **`CollectionAuthorizationService.GetUserRoleAsync`** — After direct ACL lookup returns null, walks up the `ParentId` chain until a role is found or root is reached. Leverages the existing request-scoped `_roleCache` to avoid redundant lookups, including caching parent roles discovered during the walk.
+
+2. **`ICollectionAuthorizationService.IsRoleInheritedAsync`** — New method that checks whether the user's effective role comes from a parent (no direct ACL on the collection itself). Used by endpoints to populate the `IsRoleInherited` flag on DTOs.
+
+3. **`CollectionRepository.GetAccessibleCollectionsAsync`** — Replaced simple direct-ACL LINQ query with a PostgreSQL recursive CTE that finds all collections with a direct ACL for the user PLUS all their descendant collections.
+
+4. **`CollectionResponseDto.IsRoleInherited`** — New boolean field indicating whether the user's role on a collection is inherited from a parent.
+
+5. **Endpoints updated** — `GetRootCollections`, `GetCollectionById`, and `GetChildren` now populate `UserRole` and `IsRoleInherited` on every response. `GetAllAssets` now uses the authorization service (with inheritance) instead of direct ACL lookup.
+
+6. **Tests** — 18 new tests in `CollectionAclInheritanceTests.cs` covering: parent→child inheritance, grandparent→grandchild, 5-level deep hierarchy, direct ACL overrides inherited, IsRoleInherited true/false, no ACL → null, revoke parent → child loses access, CanCreateSubCollection with inherited role, CanManageAcl with inherited role, multiple users with different inherited roles, GetAccessibleCollections includes descendants.
 
 ### Current Behavior
 
@@ -546,7 +563,7 @@ These items were identified during development but intentionally deferred:
 1. ~~**Deployment Playbooks** (#4)~~ — ✅ Complete (2026-02-08)
 2. ~~**Create User via Keycloak** (#1)~~ — ✅ Already implemented (pre-V2)
 3. ~~**Backend Integration Testing** (#5)~~ — ✅ Repository & edge case tests done (86 tests); API tests deferred
-4. **Collection ACL Inheritance** (#6) — Parent permissions propagate to children
+4. ~~**Collection ACL Inheritance** (#6)~~ — ✅ Complete (2026-02-09)
 5. **Manager Access Management UX** (#7) — Give managers a way to manage collection access (design decision needed)
 6. **Frontend Testing** (#3) — Catches UI regressions
 7. **Metrics & Observability** (#2) — Health checks done; structured logging + dashboarding remaining

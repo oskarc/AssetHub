@@ -38,10 +38,28 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
 
     public async Task<IEnumerable<Collection>> GetAccessibleCollectionsAsync(string userId, CancellationToken ct = default)
     {
+        // Use a recursive CTE to find all collections accessible via direct ACL
+        // or inherited from a parent collection's ACL.
+        var accessibleIds = await dbContext.Database
+            .SqlQueryRaw<Guid>(@"
+                WITH RECURSIVE accessible AS (
+                    -- Base case: collections where the user has a direct ACL
+                    SELECT c.""Id"", c.""ParentId""
+                    FROM ""Collections"" c
+                    INNER JOIN ""CollectionAcls"" a ON a.""CollectionId"" = c.""Id""
+                    WHERE a.""PrincipalId"" = {0} AND a.""PrincipalType"" = 'user'
+                    UNION
+                    -- Recursive case: children of accessible collections
+                    SELECT child.""Id"", child.""ParentId""
+                    FROM ""Collections"" child
+                    INNER JOIN accessible acc ON child.""ParentId"" = acc.""Id""
+                )
+                SELECT DISTINCT ""Id"" AS ""Value"" FROM accessible
+            ", userId)
+            .ToListAsync(ct);
+
         return await dbContext.Collections
-            .Where(c => c.Acls.Any(a =>
-                a.PrincipalType == "user" &&
-                a.PrincipalId == userId))
+            .Where(c => accessibleIds.Contains(c.Id))
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
     }
