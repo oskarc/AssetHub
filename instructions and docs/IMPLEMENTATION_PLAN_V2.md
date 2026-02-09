@@ -450,11 +450,28 @@ Currently filters by `c.Acls.Any(a => ... userId)` (direct only). Must also incl
 ## 7. Manager Access Management UX
 
 **Priority**: High  
-**Status**: ⬜ Not started  
+**Status**: ✅ Complete (2026-02-09)  
 **Estimate**: 4-8 hours  
-**Description**: Managers can manage access to their collections (`CanManageAccess` in `RoleHierarchy`), but the only UI for managing collection access is on the Admin page — which is restricted to the Admin role. This means managers have the *permission* but no *surface* to use it. This needs a design decision before implementation.
+**Description**: Managers can manage access to their collections (`CanManageAccess` in `RoleHierarchy`), but the only UI for managing collection access is on the Admin page — which is restricted to the Admin role. This means managers have the *permission* but no *surface* to use it.
 
-**Dependencies**: Should be considered alongside #6 (ACL Inheritance), as both affect how users interact with collection permissions.
+**Design Decision**: Option A — In-context access panel on the collection detail view.
+
+**Implementation Details**:
+- **Chosen approach**: ManageAccessDialog component opened from the Assets page action bar
+- **Backend enhancements**:
+  - Enhanced `GetCollectionAcls` endpoint to populate `PrincipalName` via `IUserLookupService`
+  - Added `SearchUsersForAcl` endpoint (`GET /api/collections/{id}/acl/users/search?q=...`) — returns users not already in ACL, filtered by query, limited to 50 results
+  - Both endpoints enforce `CanManageAclAsync` (manager+ check)
+- **API client**: Added `GetCollectionAclsAsync`, `SetCollectionAccessAsync`, `RevokeCollectionAccessAsync`, `SearchUsersForAclAsync` methods using manager-facing endpoints (`/api/collections/{id}/acl`)
+- **New DTO**: `UserSearchResultDto` (Id, Username, Email) for lightweight user search results
+- **New component**: `ManageAccessDialog.razor` — MudBlazor dialog with:
+  - Collection info header showing current user's role and inherited indicator
+  - User autocomplete search with debounce for granting access
+  - Role selector (viewer/contributor/manager — managers can't grant above their level)
+  - ACL table with edit/revoke actions, role escalation guard on both grant and revoke
+  - Visual distinction: role chips, "Higher role" label for entries the user can't edit
+- **Assets page**: "Manage Access" button appears when `CanManageAccess` (manager+), opens ManageAccessDialog
+- **Localization**: EN + SV keys added for all dialog strings
 
 ### The Problem
 
@@ -564,6 +581,6 @@ These items were identified during development but intentionally deferred:
 2. ~~**Create User via Keycloak** (#1)~~ — ✅ Already implemented (pre-V2)
 3. ~~**Backend Integration Testing** (#5)~~ — ✅ Repository & edge case tests done (86 tests); API tests deferred
 4. ~~**Collection ACL Inheritance** (#6)~~ — ✅ Complete (2026-02-09)
-5. **Manager Access Management UX** (#7) — Give managers a way to manage collection access (design decision needed)
+5. ~~**Manager Access Management UX** (#7)~~ — ✅ Complete (2026-02-09): Option A — in-context ManageAccessDialog
 6. **Frontend Testing** (#3) — Catches UI regressions
 7. **Metrics & Observability** (#2) — Health checks done; structured logging + dashboarding remaining

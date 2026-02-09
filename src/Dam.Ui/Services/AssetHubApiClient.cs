@@ -149,6 +149,50 @@ public class AssetHubApiClient
         await EnsureSuccessAsync(response, "Delete collection");
     }
 
+    /// <summary>
+    /// Gets the ACL entries for a collection (manager+).
+    /// </summary>
+    public async Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/collections/{collectionId}/acl", ct);
+        await EnsureSuccessAsync(response, "Get collection ACLs");
+        return await response.Content.ReadFromJsonAsync<List<CollectionAclResponseDto>>(ct) ?? new();
+    }
+
+    /// <summary>
+    /// Sets (adds or updates) a user's access on a collection (manager+).
+    /// </summary>
+    public async Task SetCollectionAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default)
+    {
+        var request = new { principalType, principalId, role };
+        var response = await _http.PostAsJsonAsync($"/api/collections/{collectionId}/acl", request, ct);
+        await EnsureSuccessAsync(response, "Set collection access");
+    }
+
+    /// <summary>
+    /// Revokes a user's access from a collection (manager+).
+    /// </summary>
+    public async Task RevokeCollectionAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
+    {
+        var url = $"/api/collections/{collectionId}/acl/{Uri.EscapeDataString(principalType)}/{Uri.EscapeDataString(principalId)}";
+        var response = await _http.DeleteAsync(url, ct);
+        await EnsureSuccessAsync(response, "Revoke collection access");
+    }
+
+    /// <summary>
+    /// Searches for users that can be added to a collection's ACL (manager+).
+    /// Excludes users who already have direct access.
+    /// </summary>
+    public async Task<List<UserSearchResultDto>> SearchUsersForAclAsync(Guid collectionId, string? query = null, CancellationToken ct = default)
+    {
+        var url = $"/api/collections/{collectionId}/acl/users/search";
+        if (!string.IsNullOrWhiteSpace(query))
+            url += $"?q={Uri.EscapeDataString(query)}";
+        var response = await _http.GetAsync(url, ct);
+        await EnsureSuccessAsync(response, "Search users");
+        return await response.Content.ReadFromJsonAsync<List<UserSearchResultDto>>(ct) ?? new();
+    }
+
     #endregion
 
     #region Assets

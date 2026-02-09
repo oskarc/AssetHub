@@ -75,4 +75,7 @@
   <data name="CollectionCreatedSuccess" xml:space="preserve"><value>Samling har skapats</value></data>
   <data name="AssetUpdatedSuccess" xml:space="preserve"><value>Tillgång har uppdaterats</value></data>
   <data name="AssetDeletedSuccess" xml:space="preserve"><value>Tillgång har tagits bort</value></data>
+
+  <!-- Manage Access -->
+  <data name="ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
 </root>

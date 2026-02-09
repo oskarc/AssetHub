@@ -43,4 +43,21 @@
   <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Are you sure you want to delete '{0}'?{1} This action cannot be undone.</value></data>
   <data name="AssetCountWarning" xml:space="preserve"><value> This collection contains {0} asset(s) that will also be deleted.</value></data>
   <data name="ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
+
+  <!-- Manage Access Dialog -->
+  <data name="ManageAccess" xml:space="preserve"><value>Manage Access</value></data>
+  <data name="YourRole" xml:space="preserve"><value>Your role</value></data>
+  <data name="InheritedRole" xml:space="preserve"><value>Inherited</value></data>
+  <data name="AddUserAccess" xml:space="preserve"><value>Grant User Access</value></data>
+  <data name="SearchUser" xml:space="preserve"><value>Search for user...</value></data>
+  <data name="CurrentAccess" xml:space="preserve"><value>Current Access</value></data>
+  <data name="NoAccessEntries" xml:space="preserve"><value>No direct access entries</value></data>
+  <data name="NoAccessEntriesDesc" xml:space="preserve"><value>No users have been explicitly granted access to this collection. Access may still be inherited from parent collections.</value></data>
+  <data name="User" xml:space="preserve"><value>User</value></data>
+  <data name="ChangeRole" xml:space="preserve"><value>Change Role</value></data>
+  <data name="RevokeAccess" xml:space="preserve"><value>Revoke Access</value></data>
+  <data name="InsufficientLevel" xml:space="preserve"><value>Higher role</value></data>
+  <data name="AccessGrantedSuccess" xml:space="preserve"><value>Granted {1} access to {0}</value></data>
+  <data name="RoleUpdatedSuccess" xml:space="preserve"><value>Role updated successfully</value></data>
+  <data name="AccessRevokedSuccess" xml:space="preserve"><value>Revoked access for {0}</value></data>
 </root>

@@ -72,6 +72,15 @@
                                 @AssetLoc["ShareCollection"]
                             </MudButton>
                         }
+                        @if (CanManageAccess)
+                        {
+                            <MudButton Variant="Variant.Outlined"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Security"
+                                       OnClick="ManageAccessAsync">
+                                @AssetLoc["ManageAccess"]
+                            </MudButton>
+                        }
                         <MudButton Variant="Variant.Outlined"
                                    Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Refresh"
@@ -179,6 +188,7 @@
     private string CurrentUserRole => _selectedCollection?.UserRole ?? "viewer";
     private bool CanUpload => RolePermissions.CanUpload(CurrentUserRole);
     private bool CanShare => RolePermissions.CanShare(CurrentUserRole);
+    private bool CanManageAccess => RolePermissions.CanManageAccess(CurrentUserRole);
 
     protected override async Task OnInitializedAsync()
     {
@@ -273,6 +283,28 @@
 
             await DialogService.ShowAsync<ShareLinkDialog>(AssetLoc["ShareLinkCreated"], successParams);
         }
+    }
+
+    private async Task ManageAccessAsync()
+    {
+        if (!_selectedCollectionId.HasValue || _selectedCollection == null) return;
+
+        var parameters = new DialogParameters<ManageAccessDialog>
+        {
+            { x => x.CollectionId, _selectedCollectionId.Value },
+            { x => x.CollectionName, _selectedCollection.Name },
+            { x => x.CurrentUserRole, _selectedCollection.UserRole ?? "viewer" },
+            { x => x.IsRoleInherited, _selectedCollection.IsRoleInherited }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        await DialogService.ShowAsync<ManageAccessDialog>(AssetLoc["ManageAccess"], parameters, options);
     }
 
     private async Task RefreshAsync()

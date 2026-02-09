@@ -43,4 +43,21 @@
   <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Är du säker på att du vill ta bort '{0}'?{1} Denna åtgärd kan inte ångras.</value></data>
   <data name="AssetCountWarning" xml:space="preserve"><value> Denna samling innehåller {0} tillgång(ar) som också kommer att tas bort.</value></data>
   <data name="ClearSelection" xml:space="preserve"><value>Rensa val</value></data>
+
+  <!-- Manage Access Dialog -->
+  <data name="ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
+  <data name="YourRole" xml:space="preserve"><value>Din roll</value></data>
+  <data name="InheritedRole" xml:space="preserve"><value>Ärvd</value></data>
+  <data name="AddUserAccess" xml:space="preserve"><value>Ge användaråtkomst</value></data>
+  <data name="SearchUser" xml:space="preserve"><value>Sök efter användare...</value></data>
+  <data name="CurrentAccess" xml:space="preserve"><value>Nuvarande åtkomst</value></data>
+  <data name="NoAccessEntries" xml:space="preserve"><value>Inga direkta åtkomstposter</value></data>
+  <data name="NoAccessEntriesDesc" xml:space="preserve"><value>Inga användare har uttryckligen beviljats åtkomst till denna samling. Åtkomst kan fortfarande ärvas från överordnade samlingar.</value></data>
+  <data name="User" xml:space="preserve"><value>Användare</value></data>
+  <data name="ChangeRole" xml:space="preserve"><value>Ändra roll</value></data>
+  <data name="RevokeAccess" xml:space="preserve"><value>Återkalla åtkomst</value></data>
+  <data name="InsufficientLevel" xml:space="preserve"><value>Högre roll</value></data>
+  <data name="AccessGrantedSuccess" xml:space="preserve"><value>Beviljat {1}-åtkomst till {0}</value></data>
+  <data name="RoleUpdatedSuccess" xml:space="preserve"><value>Roll uppdaterad</value></data>
+  <data name="AccessRevokedSuccess" xml:space="preserve"><value>Åtkomst återkallad för {0}</value></data>
 </root>

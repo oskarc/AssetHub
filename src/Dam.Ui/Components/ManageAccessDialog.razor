@@ -1,0 +1,356 @@
+@using Dam.Application.Helpers
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<CollectionsResource> CollLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@CollLoc["ManageAccess"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width: 500px;">
+            <!-- Collection Info Header -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.subtitle1"><strong>@CollectionName</strong></MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@CollLoc["YourRole"]: @CurrentUserRole</MudText>
+                    </MudStack>
+                    @if (IsRoleInherited)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined"
+                                 Icon="@Icons.Material.Filled.AccountTree">
+                            @CollLoc["InheritedRole"]
+                        </MudChip>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <!-- Add User Section -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">@CollLoc["AddUserAccess"]</MudText>
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
+                    <MudAutocomplete T="UserSearchResultDto"
+                                     @bind-Value="_selectedUser"
+                                     SearchFunc="SearchUsersAsync"
+                                     ToStringFunc="@(u => u?.Username ?? "")"
+                                     Label="@CollLoc["SearchUser"]"
+                                     Variant="Variant.Outlined"
+                                     Dense="true"
+                                     ResetValueOnEmptyText="true"
+                                     DebounceInterval="300"
+                                     MinCharacters="1"
+                                     MaxItems="20"
+                                     Style="flex: 1;">
+                        <ItemTemplate Context="user">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2">@user.Username</MudText>
+                                @if (!string.IsNullOrEmpty(user.Email))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@user.Email</MudText>
+                                }
+                            </MudStack>
+                        </ItemTemplate>
+                    </MudAutocomplete>
+                    <MudSelect T="string"
+                               @bind-Value="_selectedRole"
+                               Label="@CommonLoc["Label_Role"]"
+                               Variant="Variant.Outlined"
+                               Dense="true"
+                               Style="width: 160px;">
+                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                        @if (RoleHierarchy.GetLevel(CurrentUserRole) >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager))
+                        {
+                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.PersonAdd"
+                               OnClick="GrantAccessAsync"
+                               Disabled="@(_selectedUser == null || _isGranting)">
+                        @CommonLoc["Btn_Add"]
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Current Access List -->
+            <MudText Typo="Typo.subtitle2" Class="mt-2">
+                @CollLoc["CurrentAccess"] (@_aclEntries.Count)
+            </MudText>
+
+            @if (_isLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (_aclEntries.Count == 0)
+            {
+                <EmptyState Title="@CollLoc["NoAccessEntries"]"
+                            Description="@CollLoc["NoAccessEntriesDesc"]"
+                            Icon="@Icons.Material.Filled.LockOpen"
+                            Class="py-4" />
+            }
+            else
+            {
+                <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0"
+                                Style="border: 1px solid var(--mud-palette-lines-default);">
+                    <thead>
+                        <tr>
+                            <th>@CollLoc["User"]</th>
+                            <th>@CommonLoc["Label_Role"]</th>
+                            <th style="width: 180px;">@CommonLoc["Label_Actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in _aclEntries.OrderBy(e => e.PrincipalName ?? e.PrincipalId))
+                        {
+                            <tr>
+                                <td>
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body2">@(entry.PrincipalName ?? entry.PrincipalId)</MudText>
+                                        @if (entry.PrincipalName != null)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@entry.PrincipalId</MudText>
+                                        }
+                                    </MudStack>
+                                </td>
+                                <td>
+                                    @if (_editingEntryId == entry.Id)
+                                    {
+                                        <MudSelect T="string"
+                                                   @bind-Value="_editingRole"
+                                                   Variant="Variant.Outlined"
+                                                   Dense="true"
+                                                   Margin="Margin.Dense"
+                                                   Style="width: 150px;">
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                                            @if (RoleHierarchy.GetLevel(CurrentUserRole) >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager))
+                                            {
+                                                <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@AssetDisplayHelpers.GetRoleColor(entry.Role)"
+                                                 Variant="Variant.Outlined">
+                                            @entry.Role
+                                        </MudChip>
+                                    }
+                                </td>
+                                <td>
+                                    @if (_editingEntryId == entry.Id)
+                                    {
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Save"
+                                                           Size="Size.Small"
+                                                           Color="Color.Success"
+                                                           OnClick="SaveRoleEditAsync"
+                                                           title="@CommonLoc["Btn_Save"]" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Cancel"
+                                                           Size="Size.Small"
+                                                           Color="Color.Default"
+                                                           OnClick="CancelRoleEdit"
+                                                           title="@CommonLoc["Btn_Cancel"]" />
+                                        </MudStack>
+                                    }
+                                    else
+                                    {
+                                        <MudStack Row="true" Spacing="1">
+                                            @if (CanEditEntry(entry))
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                               Size="Size.Small"
+                                                               Color="Color.Primary"
+                                                               OnClick="@(() => StartRoleEdit(entry))"
+                                                               Disabled="@(_revokingIds.Count > 0)"
+                                                               title="@CollLoc["ChangeRole"]" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
+                                                               Size="Size.Small"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => RevokeAccessAsync(entry))"
+                                                               Disabled="@(_revokingIds.Contains(entry.Id))"
+                                                               title="@CollLoc["RevokeAccess"]" />
+                                            }
+                                            else
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                    @CollLoc["InsufficientLevel"]
+                                                </MudText>
+                                            }
+                                        </MudStack>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public Guid CollectionId { get; set; }
+    [Parameter] public string CollectionName { get; set; } = "";
+    [Parameter] public string CurrentUserRole { get; set; } = "";
+    [Parameter] public bool IsRoleInherited { get; set; }
+
+    private List<CollectionAclResponseDto> _aclEntries = new();
+    private bool _isLoading = true;
+    private bool _isGranting;
+
+    // Add user
+    private UserSearchResultDto? _selectedUser;
+    private string _selectedRole = RoleHierarchy.Roles.Viewer;
+
+    // Edit role
+    private Guid? _editingEntryId;
+    private string _editingRole = "";
+    private string _editingPrincipalId = "";
+
+    // Revoke tracking
+    private HashSet<Guid> _revokingIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAclsAsync();
+    }
+
+    private async Task LoadAclsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _aclEntries = await Api.GetCollectionAclsAsync(CollectionId);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load access list");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task<IEnumerable<UserSearchResultDto>> SearchUsersAsync(string? value, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Enumerable.Empty<UserSearchResultDto>();
+
+        try
+        {
+            return await Api.SearchUsersForAclAsync(CollectionId, value, ct);
+        }
+        catch
+        {
+            return Enumerable.Empty<UserSearchResultDto>();
+        }
+    }
+
+    private async Task GrantAccessAsync()
+    {
+        if (_selectedUser == null) return;
+
+        _isGranting = true;
+        StateHasChanged();
+
+        try
+        {
+            await Api.SetCollectionAccessAsync(CollectionId, "user", _selectedUser.Id, _selectedRole);
+            Feedback.ShowSuccess(string.Format(CollLoc["AccessGrantedSuccess"], _selectedUser.Username, _selectedRole));
+
+            _selectedUser = null;
+            _selectedRole = RoleHierarchy.Roles.Viewer;
+            await LoadAclsAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "grant access");
+        }
+        finally
+        {
+            _isGranting = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool CanEditEntry(CollectionAclResponseDto entry)
+    {
+        // Can only edit/revoke entries with roles at or below the current user's level
+        return RoleHierarchy.HasSufficientLevel(CurrentUserRole, entry.Role);
+    }
+
+    private void StartRoleEdit(CollectionAclResponseDto entry)
+    {
+        _editingEntryId = entry.Id;
+        _editingRole = entry.Role;
+        _editingPrincipalId = entry.PrincipalId;
+    }
+
+    private async Task SaveRoleEditAsync()
+    {
+        if (_editingEntryId == null) return;
+
+        try
+        {
+            await Api.SetCollectionAccessAsync(CollectionId, "user", _editingPrincipalId, _editingRole);
+            Feedback.ShowSuccess(CollLoc["RoleUpdatedSuccess"]);
+
+            _editingEntryId = null;
+            _editingRole = "";
+            _editingPrincipalId = "";
+            await LoadAclsAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "update role");
+        }
+    }
+
+    private void CancelRoleEdit()
+    {
+        _editingEntryId = null;
+        _editingRole = "";
+        _editingPrincipalId = "";
+    }
+
+    private async Task RevokeAccessAsync(CollectionAclResponseDto entry)
+    {
+        _revokingIds.Add(entry.Id);
+        StateHasChanged();
+
+        try
+        {
+            await Api.RevokeCollectionAccessAsync(CollectionId, entry.PrincipalType, entry.PrincipalId);
+            Feedback.ShowSuccess(string.Format(CollLoc["AccessRevokedSuccess"], entry.PrincipalName ?? entry.PrincipalId));
+            await LoadAclsAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "revoke access");
+        }
+        finally
+        {
+            _revokingIds.Remove(entry.Id);
+            StateHasChanged();
+        }
+    }
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

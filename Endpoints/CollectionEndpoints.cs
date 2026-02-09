@@ -56,6 +56,10 @@ public static class CollectionEndpoints
 
         aclGroup.MapDelete("{principalType}/{principalId}", RevokeCollectionAccess)
             .WithName("RevokeCollectionAccess");
+
+        // User search for ACL management (managers can search for users to grant access)
+        aclGroup.MapGet("/users/search", SearchUsersForAcl)
+            .WithName("SearchUsersForAcl");
     }
 
     private static async Task<IResult> GetRootCollections(
@@ -314,6 +318,7 @@ public static class CollectionEndpoints
         Guid collectionId,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IUserLookupService userLookup,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -325,11 +330,17 @@ public static class CollectionEndpoints
             return Results.Forbid();
 
         var acls = await aclRepo.GetByCollectionAsync(collectionId, ct);
+
+        // Resolve user names for all user principals
+        var userIds = acls.Where(a => a.PrincipalType == "user").Select(a => a.PrincipalId);
+        var nameMap = await userLookup.GetUserNamesAsync(userIds, ct);
+
         var dtos = acls.Select(a => new CollectionAclResponseDto
         {
             Id = a.Id,
             PrincipalType = a.PrincipalType,
             PrincipalId = a.PrincipalId,
+            PrincipalName = a.PrincipalType == "user" && nameMap.TryGetValue(a.PrincipalId, out var name) ? name : null,
             Role = a.Role,
             CreatedAt = a.CreatedAt
         });
@@ -413,6 +424,54 @@ public static class CollectionEndpoints
             new() { ["principalType"] = principalType, ["principalId"] = principalId }, httpContext, ct);
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Searches for users that can be added to a collection's ACL.
+    /// Requires manager+ access to the collection. Returns basic user info.
+    /// </summary>
+    private static async Task<IResult> SearchUsersForAcl(
+        Guid collectionId,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? q,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IUserLookupService userLookup,
+        ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var userId = user.GetRequiredUserId();
+
+        var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
+        if (!canManage)
+            return Results.Forbid();
+
+        var allUsers = await userLookup.GetAllUsersAsync(ct);
+
+        // Filter by query if provided
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var query = q.Trim();
+            allUsers = allUsers
+                .Where(u => u.Username.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || (u.Email?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+        }
+
+        // Exclude users who already have direct access
+        var existingAcls = await aclRepo.GetByCollectionAsync(collectionId, ct);
+        var existingUserIds = existingAcls
+            .Where(a => a.PrincipalType == "user")
+            .Select(a => a.PrincipalId)
+            .ToHashSet();
+
+        var result = allUsers
+            .Where(u => !existingUserIds.Contains(u.Id))
+            .Select(u => new UserSearchResultDto { Id = u.Id, Username = u.Username, Email = u.Email })
+            .OrderBy(u => u.Username)
+            .Take(50)
+            .ToList();
+
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> DownloadAllAssets(

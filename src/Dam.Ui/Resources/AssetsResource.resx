@@ -75,4 +75,7 @@
   <data name="CollectionCreatedSuccess" xml:space="preserve"><value>Collection created successfully</value></data>
   <data name="AssetUpdatedSuccess" xml:space="preserve"><value>Asset updated successfully</value></data>
   <data name="AssetDeletedSuccess" xml:space="preserve"><value>Asset deleted successfully</value></data>
+
+  <!-- Manage Access -->
+  <data name="ManageAccess" xml:space="preserve"><value>Manage Access</value></data>
 </root>
