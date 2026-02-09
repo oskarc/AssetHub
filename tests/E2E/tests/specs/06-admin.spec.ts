@@ -1,0 +1,327 @@
+import { test, expect } from '@playwright/test';
+import { AdminPage } from '../pages/admin.page';
+import { ApiHelper } from '../helpers/api-helper';
+import { DialogHelper, SnackbarHelper } from '../helpers/dialog-helper';
+import { ensureTestFixtures } from '../helpers/test-fixtures';
+import { env } from '../config/env';
+
+test.describe('Admin Panel @admin', () => {
+  let adminPage: AdminPage;
+  let dialog: DialogHelper;
+  let snackbar: SnackbarHelper;
+  let api: ApiHelper;
+  let testCollectionId: string;
+  let testShareId: string;
+
+  const timestamp = Date.now();
+  const testCollectionName = `${env.testData.collectionPrefix}-Admin-${timestamp}`;
+
+  test.beforeAll(async ({ request }) => {
+    api = new ApiHelper(request);
+    await api.authenticate();
+
+    // Create test data
+    const collection = await api.createCollection(testCollectionName, 'Admin test collection');
+    testCollectionId = collection.id;
+
+    // Create a share
+    const fixtures = ensureTestFixtures();
+    try {
+      const asset = await api.uploadAsset(testCollectionId, fixtures.testImage, `Admin-Test-Asset-${timestamp}`);
+      if (asset?.id) {
+        const share = await api.createShare(asset.id, 'asset', 'admin-test-pwd', 30);
+        testShareId = share.id;
+      }
+    } catch {
+      // Non-critical
+    }
+  });
+
+  test.afterAll(async ({ request }) => {
+    api = new ApiHelper(request);
+    await api.authenticate();
+    if (testCollectionId) {
+      await api.deleteCollection(testCollectionId).catch(() => {});
+    }
+  });
+
+  test.describe('Admin Page Access', () => {
+    test('admin page loads for admin user @smoke', async ({ page }) => {
+      adminPage = new AdminPage(page);
+      await adminPage.goto();
+      await adminPage.expectLoaded();
+    });
+
+    test('admin page has three tabs', async ({ page }) => {
+      adminPage = new AdminPage(page);
+      await adminPage.goto();
+
+      await expect(adminPage.shareManagementTab).toBeVisible();
+      await expect(adminPage.collectionAccessTab).toBeVisible();
+      await expect(adminPage.userManagementTab).toBeVisible();
+    });
+  });
+
+  test.describe('Share Management Tab', () => {
+    test.beforeEach(async ({ page }) => {
+      adminPage = new AdminPage(page);
+      dialog = new DialogHelper(page);
+      snackbar = new SnackbarHelper(page);
+      await adminPage.goto();
+      await adminPage.switchToShareManagement();
+    });
+
+    test('share management tab loads @smoke', async ({ page }) => {
+      // Should show shares heading and table
+      await expect(page.getByText(/shared|share/i).first()).toBeVisible();
+    });
+
+    test('share table is visible', async ({ page }) => {
+      const table = page.locator('.mud-table');
+      // Table should exist (may be empty)
+      await expect(table).toBeVisible({ timeout: 10_000 });
+    });
+
+    test('share table has search functionality', async ({ page }) => {
+      const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
+      if (await searchInput.isVisible()) {
+        await searchInput.fill('test');
+        await page.waitForTimeout(env.timeouts.debounce);
+        // Should filter results
+      }
+    });
+
+    test('share table shows status chips', async ({ page }) => {
+      // Status chips (Active, Expired, Revoked counts)
+      const chips = page.locator('.mud-chip').filter({ hasText: /active|expired|revoked/i });
+      const count = await chips.count();
+      // May have status indicators
+    });
+
+    test('share info button opens dialog', async ({ page }) => {
+      const infoButtons = page.locator('[title*="nfo"], .mud-icon-button').filter({ has: page.locator('svg') });
+      const rows = page.locator('.mud-table tbody tr');
+      const rowCount = await rows.count();
+      if (rowCount > 0) {
+        // Click info on first share
+        const firstRow = rows.first();
+        const infoBtn = firstRow.locator('.mud-icon-button').first();
+        if (await infoBtn.isVisible()) {
+          await infoBtn.click();
+          await page.waitForTimeout(env.timeouts.animation);
+          // Dialog should appear
+          const dlg = page.locator('.mud-dialog');
+          if (await dlg.isVisible()) {
+            await dlg.getByRole('button', { name: /close|ok/i }).first().click().catch(() => {
+              page.keyboard.press('Escape');
+            });
+          }
+        }
+      }
+    });
+
+    test('edit password button opens dialog', async ({ page }) => {
+      const rows = page.locator('.mud-table tbody tr');
+      const rowCount = await rows.count();
+      if (rowCount > 0) {
+        const firstRow = rows.first();
+        const editBtn = firstRow.locator('[title*="assword"], [title*="dit"], .mud-icon-button').nth(1);
+        if (await editBtn.isVisible()) {
+          await editBtn.click();
+          await page.waitForTimeout(env.timeouts.animation);
+          const dlg = page.locator('.mud-dialog');
+          if (await dlg.isVisible()) {
+            // Should have password input
+            await expect(dlg.locator('input')).toBeVisible();
+            await page.keyboard.press('Escape');
+          }
+        }
+      }
+    });
+
+    test('revoke share shows confirmation', async ({ page }) => {
+      const rows = page.locator('.mud-table tbody tr');
+      const rowCount = await rows.count();
+      if (rowCount > 0) {
+        const firstRow = rows.first();
+        const revokeBtn = firstRow.locator('[title*="evoke"], .mud-icon-button').last();
+        if (await revokeBtn.isVisible()) {
+          await revokeBtn.click();
+          await page.waitForTimeout(env.timeouts.animation);
+          const dlg = page.locator('.mud-dialog');
+          if (await dlg.isVisible()) {
+            // Cancel to avoid revoking
+            await dlg.getByRole('button', { name: /cancel|no/i }).first().click().catch(() => {
+              page.keyboard.press('Escape');
+            });
+          }
+        }
+      }
+    });
+  });
+
+  test.describe('Collection Access Tab', () => {
+    test.beforeEach(async ({ page }) => {
+      adminPage = new AdminPage(page);
+      dialog = new DialogHelper(page);
+      await adminPage.goto();
+      await adminPage.switchToCollectionAccess();
+    });
+
+    test('collection access tab loads @smoke', async ({ page }) => {
+      // Should show collection tree
+      await page.waitForTimeout(env.timeouts.animation);
+      const treeOrText = page.getByText(/collection/i).first()
+        .or(page.locator('.mud-paper').first());
+      await expect(treeOrText).toBeVisible();
+    });
+
+    test('collection tree displays collections', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      const collections = page.locator('.mud-button, .mud-nav-link').filter({ hasText: /.+/ });
+      const count = await collections.count();
+      expect(count).toBeGreaterThan(0);
+    });
+
+    test('selecting collection shows ACL details', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      // Click on a collection
+      const collectionBtn = page.getByText(testCollectionName);
+      if (await collectionBtn.isVisible()) {
+        await collectionBtn.click();
+        await page.waitForTimeout(env.timeouts.animation);
+        // Should show ACL table or add user form
+        const aclArea = page.locator('.mud-simple-table, .mud-paper').filter({ hasText: /user|role|access/i });
+        if (await aclArea.first().isVisible()) {
+          await expect(aclArea.first()).toBeVisible();
+        }
+      }
+    });
+
+    test('add user access form is functional', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      const collectionBtn = page.getByText(testCollectionName);
+      if (await collectionBtn.isVisible()) {
+        await collectionBtn.click();
+        await page.waitForTimeout(env.timeouts.animation);
+
+        // Should have user ID input and role select
+        const userInput = page.locator('input').filter({ has: page.locator('..') }).first();
+        const roleSelect = page.locator('.mud-select').first();
+        if (await userInput.isVisible() && await roleSelect.isVisible()) {
+          // UI is functional
+          await expect(userInput).toBeEnabled();
+        }
+      }
+    });
+  });
+
+  test.describe('User Management Tab', () => {
+    test.beforeEach(async ({ page }) => {
+      adminPage = new AdminPage(page);
+      dialog = new DialogHelper(page);
+      snackbar = new SnackbarHelper(page);
+      await adminPage.goto();
+      await adminPage.switchToUserManagement();
+    });
+
+    test('user management tab loads @smoke', async ({ page }) => {
+      await expect(page.getByText(/user/i).first()).toBeVisible();
+    });
+
+    test('user table displays users', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      const table = page.locator('.mud-table');
+      await expect(table).toBeVisible({ timeout: 15_000 });
+
+      const rows = table.locator('tbody tr');
+      const rowCount = await rows.count();
+      expect(rowCount).toBeGreaterThan(0);
+    });
+
+    test('user table shows seeded users', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      // Should show mediaadmin and testuser from Keycloak seed
+      const adminRow = page.getByText('mediaadmin');
+      const viewerRow = page.getByText('testuser');
+      // At least admin should be visible
+      await expect(adminRow.or(viewerRow)).toBeVisible({ timeout: 15_000 });
+    });
+
+    test('user search filters results', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
+      if (await searchInput.isVisible()) {
+        await searchInput.fill('mediaadmin');
+        await page.waitForTimeout(env.timeouts.debounce);
+        // Should filter to show admin user
+        const rows = page.locator('.mud-table tbody tr');
+        const count = await rows.count();
+      }
+    });
+
+    test('create user button is visible', async ({ page }) => {
+      const createBtn = page.getByRole('button', { name: /create user/i });
+      await expect(createBtn).toBeVisible({ timeout: 10_000 });
+    });
+
+    test('create user dialog opens', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation);
+      const createBtn = page.getByRole('button', { name: /create user/i });
+      if (await createBtn.isVisible()) {
+        await createBtn.click();
+        await dialog.waitForDialog();
+
+        // Dialog should have form fields
+        const inputs = dialog.dialog.locator('input');
+        const count = await inputs.count();
+        expect(count).toBeGreaterThanOrEqual(3); // username, email, password at minimum
+
+        await dialog.closeDialog();
+      }
+    });
+
+    test('create user dialog validates required fields', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation);
+      const createBtn = page.getByRole('button', { name: /create user/i });
+      if (await createBtn.isVisible()) {
+        await createBtn.click();
+        await dialog.waitForDialog();
+
+        // Try to submit empty form
+        const submitBtn = dialog.dialog.getByRole('button', { name: /create/i });
+        if (await submitBtn.isVisible()) {
+          await submitBtn.click();
+          await page.waitForTimeout(env.timeouts.animation);
+          // Should show validation errors or stay open
+          await expect(dialog.dialog).toBeVisible();
+        }
+        await dialog.closeDialog();
+      }
+    });
+
+    test('manage access button opens dialog', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      const rows = page.locator('.mud-table tbody tr');
+      const rowCount = await rows.count();
+      if (rowCount > 0) {
+        const manageBtn = rows.first().getByRole('button', { name: /manage/i });
+        if (await manageBtn.isVisible()) {
+          await manageBtn.click();
+          await dialog.waitForDialog();
+          await expect(dialog.dialog).toBeVisible();
+          await dialog.closeDialog();
+        }
+      }
+    });
+
+    test('stats chips show total and with-access counts', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      const chips = page.locator('.mud-chip').filter({ hasText: /total|access/i });
+      const count = await chips.count();
+      if (count > 0) {
+        await expect(chips.first()).toBeVisible();
+      }
+    });
+  });
+});

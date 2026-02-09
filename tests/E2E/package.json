@@ -1,0 +1,23 @@
+{
+  "name": "assethub-e2e",
+  "version": "1.0.0",
+  "description": "End-to-end Playwright tests for AssetHub",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "test:debug": "npx playwright test --debug",
+    "test:auth": "npx playwright test --grep @auth",
+    "test:collections": "npx playwright test --grep @collections",
+    "test:assets": "npx playwright test --grep @assets",
+    "test:shares": "npx playwright test --grep @shares",
+    "test:admin": "npx playwright test --grep @admin",
+    "test:smoke": "npx playwright test --grep @smoke",
+    "test:api": "npx playwright test --grep @api",
+    "report": "npx playwright show-report",
+    "setup": "npx playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

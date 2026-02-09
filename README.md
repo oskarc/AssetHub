@@ -380,14 +380,83 @@ See [IMPLEMENTATION_PLAN_V2.md](instructions%20and%20docs/IMPLEMENTATION_PLAN_V2
 - One-click production deployment with auto-migration
 - Health check endpoints (`/health`, `/health/ready`)
 - Full deployment documentation
+- **Playwright E2E test suite** (130+ tests across 13 spec files)
 
 ### What's next
 
-- Frontend testing (bUnit component tests, Playwright E2E)
+- Frontend unit testing (bUnit component tests)
 - Metrics & observability (OpenTelemetry, structured logging, dashboards)
 - API integration tests (endpoint-level testing with `WebApplicationFactory`)
 - Document preview (PDF, PPTX)
 - Video transcoding (HLS/DASH)
+
+---
+
+## Testing
+
+### Integration Tests
+
+```bash
+dotnet test
+```
+
+Runs 86 integration tests (repositories, ACL inheritance, edge cases) using Testcontainers with real PostgreSQL.
+
+### E2E Tests (Playwright)
+
+The `tests/E2E/` directory contains a comprehensive Playwright test suite covering every feature of the application.
+
+**Prerequisites:** Node.js 18+, the app running via `docker compose up`.
+
+```bash
+cd tests/E2E
+npm install
+npx playwright install chromium
+
+# Run all tests
+npm test
+
+# Run with visible browser
+npm run test:headed
+
+# Interactive UI mode
+npm run test:ui
+
+# Debug mode (step through)
+npm run test:debug
+
+# Open HTML report
+npm run report
+```
+
+**Run tests by category:**
+
+| Command | What it runs |
+|---------|--------------|
+| `npm run test:smoke` | Critical-path smoke tests |
+| `npm run test:auth` | Authentication & login flows |
+| `npm run test:collections` | Collection CRUD & tree navigation |
+| `npm run test:assets` | Asset upload, browse, detail, edit, delete |
+| `npm run test:shares` | Share creation, public access, revocation |
+| `npm run test:admin` | Admin panel (shares, ACLs, users) |
+| `npm run test:api` | API endpoint integration tests |
+
+**What's covered (13 spec files, 130+ tests):**
+
+- **Authentication** — Keycloak OIDC login/logout, invalid credentials, redirect guards
+- **Navigation** — AppBar, drawer, nav links, dark mode toggle, direct URL routing
+- **Collections** — Create, rename, delete, sub-collections, breadcrumbs, context menus
+- **Assets** — Upload (PNG, PDF), search, filter, sort, grid/list toggle, detail view, edit metadata, tags
+- **Shares** — Create asset/collection shares, password protection, public access, download, revocation
+- **Admin Panel** — Share management table, collection ACL tree, user management, create user form
+- **All Assets** — Cross-collection browser, search, filters, pagination, card actions
+- **API** — Health endpoints, full CRUD for collections/assets/shares, file serving, auth guards
+- **Access Control** — Grant/revoke roles, role upgrades, UI visibility per role, viewer restrictions
+- **Edge Cases** — 404 handling, invalid GUIDs, rapid navigation, browser back/forward, debounce
+- **Responsive** — Mobile & tablet viewports, keyboard accessibility, theme persistence
+- **Workflows** — Full end-to-end scenarios: create → upload → edit → share → admin → cleanup
+
+See [tests/E2E/README.md](tests/E2E/README.md) for full details, project structure, and environment variables.
 
 ---
 
@@ -396,7 +465,8 @@ See [IMPLEMENTATION_PLAN_V2.md](instructions%20and%20docs/IMPLEMENTATION_PLAN_V2
 1. Create a feature branch: `git checkout -b feature/your-feature`
 2. Make your changes and ensure the build is clean: `dotnet build`
 3. Run the tests: `dotnet test`
-4. Push and open a Pull Request
+4. Run E2E tests: `cd tests/E2E && npm test`
+5. Push and open a Pull Request
 
 ### Code conventions
 
