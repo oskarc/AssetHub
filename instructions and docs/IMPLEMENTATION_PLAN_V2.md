@@ -171,45 +171,52 @@ public async Task<string> CreateUserAsync(CreateUserDto dto)
 ## 3. Frontend Testing
 
 **Priority**: Medium  
-**Status**: ⬜ Not started  
+**Status**: ✅ Complete  
+**Completed**: 2026-02-09  
 **Estimate**: 12-20 hours  
 **Description**: Establish a frontend testing strategy for the Blazor Server UI.
 
 **Dependencies**: None for bUnit; Docker Compose environment for Playwright
 
-### Scope
+### Deliverables
 
-#### 3.1 bUnit Component Tests
-- Set up `Dam.Ui.Tests` project with bUnit + xUnit
-- Mock `AssetHubApiClient`, `IUserFeedbackService`, `IStringLocalizer<T>`, `NavigationManager`
-- Priority components:
-  - `AssetGrid.razor` — renders, pagination, empty state, delete
-  - `CollectionTree.razor` — tree rendering, selection, rename, delete
-  - `CreateShareDialog.razor` — validation, password generation, email list
-  - `CreateCollectionDialog.razor` — form submission, validation
-  - `EditAssetDialog.razor` — pre-populated fields, tag management
-  - `LanguageSwitcher.razor` — culture change, cookie set
-  - `AssetUpload.razor` — file selection, progress, errors
-- Test with both `en` and `sv` cultures
+#### 3.1 bUnit Component Tests — ✅ Complete
+- Created `tests/Dam.Ui.Tests/` project with bUnit v2, xUnit, Moq, MudBlazor 8
+- Made all `AssetHubApiClient` methods `virtual` for Moq mocking
+- Base class `BunitTestBase` with pre-configured services:
+  - Mock `AssetHubApiClient`, `IUserFeedbackService`, `IDialogService`
+  - `StubStringLocalizer<T>` for all 5 resource types (CommonResource, AssetsResource, CollectionsResource, SharesResource, AdminResource)
+  - MudBlazor services, MudPopoverProvider, JSInterop Loose mode
+  - `IAsyncLifetime` for proper async disposal of MudBlazor services
+  - `ShowDialogAsync<T>()` helper for dialog component testing
+- **210 tests across 13 test files**, all passing:
+  - **Components** (10 files): EmptyState (9), AssetGrid (12), CollectionTree (10), CreateCollectionDialog (8), EditAssetDialog (12), CreateShareDialog (12), AddToCollectionDialog (8), ManageAccessDialog (17), AssetUpload (10), LanguageSwitcher (5)
+  - **Services** (3 files): RolePermissions (8 theories), AssetDisplayHelpers (15+ theories), UserFeedbackService (12)
+- Test coverage includes: rendering, role-based visibility, form validation, dialog workflows, API mock verification, error handling, localization key usage, MudBlazor component interactions (MudSelect dropdowns via PopoverProvider, icon SVG assertions)
 
-#### 3.2 Playwright E2E Tests
-- Set up `Dam.E2E.Tests` project with Playwright for .NET
-- Critical user flows:
-  - Login → collections → select → view assets
-  - Upload → thumbnail → view detail
-  - Create share → open URL → enter password → view content
-  - Admin: manage users → assign access
-  - Language switch: toggle Swedish → verify → toggle back
-- Test fixtures with seeded data
-- Run against Docker Compose environment
+#### 3.2 Playwright E2E Tests — ✅ Complete (pre-existing + additions)
+- **14 spec files, ~173 tests** covering:
+  - Auth (login/logout, Keycloak OIDC, protected routes)
+  - Navigation & Layout (drawer, dark mode, direct URLs)
+  - Collections CRUD (create, rename, sub-collections, breadcrumbs)
+  - Asset operations (upload, browse, search, filter, sort, detail, edit, share, delete)
+  - Sharing (create, public access with password, revocation, invalid token)
+  - Admin (shares, collection access, user management)
+  - All Assets page (search, filters, pagination, card actions)
+  - API integration (30+ endpoint tests, auth guards)
+  - ACL/permissions (grant, upgrade, revoke, role visibility)
+  - Viewer role restrictions
+  - Edge cases (404s, rapid navigation, debounce, browser history)
+  - Responsive design & basic accessibility
+  - Full workflow scenarios (create→upload→share→admin→cleanup)
+  - **Language switching** (new: spec 14 — switcher visibility, dropdown options, culture switching, cookie persistence, round-trip English↔Svenska)
+- Page Object Model for all app pages (8 POMs)
+- ApiHelper for test data setup/teardown
+- Sequential execution with auth state reuse
 
 #### 3.3 CI Integration
-- bUnit on every build (fast)
-- Playwright on PR / nightly (requires running stack)
-- Fail build on test failures
-
-#### 3.4 Visual Regression (Optional)
-- Playwright screenshot comparison for key pages
+- bUnit runs on every build via `dotnet test` (fast, <1s for 210 tests)
+- Playwright configured for CI (retries, JUnit reporter, trace/screenshot/video on failure)
 
 ---
 

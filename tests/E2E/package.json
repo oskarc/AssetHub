@@ -14,6 +14,7 @@
     "test:admin": "npx playwright test --grep @admin",
     "test:smoke": "npx playwright test --grep @smoke",
     "test:api": "npx playwright test --grep @api",
+    "test:language": "npx playwright test --grep @language",
     "report": "npx playwright show-report",
     "setup": "npx playwright install chromium"
   },
