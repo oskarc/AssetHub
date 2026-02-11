@@ -12,6 +12,7 @@
 @inject NavigationManager Navigation
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject ISnackbar Snackbar
 
 <PageTitle>@AdminLoc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
@@ -266,6 +267,18 @@
                     <MudSpacer />
                     <MudChip T="string" Color="Color.Info" Size="Size.Small">@AdminLoc["Total"]: @_allUsers.Count</MudChip>
                     <MudChip T="string" Color="Color.Success" Size="Size.Small">@AdminLoc["WithAccess"]: @_allUsers.Count(u => u.CollectionCount > 0)</MudChip>
+                    <MudTooltip Text="@AdminLoc["SyncUsersTooltip"]">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Sync"
+                                   OnClick="SyncDeletedUsers" Class="ml-2"
+                                   Disabled="@_isSyncing">
+                            @if (_isSyncing)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                            }
+                            @AdminLoc["Btn_SyncUsers"]
+                        </MudButton>
+                    </MudTooltip>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.PersonAdd"
                                OnClick="OpenCreateUserDialog" Class="ml-2">
@@ -314,6 +327,12 @@
                                    OnClick="@(() => ManageUserAccess(context))">
                             @CommonLoc["Btn_ManageAccess"]
                         </MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Color="Color.Error" 
+                                       Size="Size.Small"
+                                       title="@AdminLoc["DeleteUser"]"
+                                       OnClick="@(() => DeleteUser(context))" 
+                                       Class="ml-1" />
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -342,6 +361,7 @@
     private List<KeycloakUserDto>? _allUsers;
     private bool _allUsersLoading = true;
     private string _userSearchString = "";
+    private bool _isSyncing = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -601,6 +621,72 @@
         if (result != null && !result.Canceled)
         {
             await Task.WhenAll(LoadAllUsers(), LoadCollections());
+        }
+    }
+
+    private async Task DeleteUser(KeycloakUserDto user)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            AdminLoc["DeleteUser"],
+            string.Format(AdminLoc["ConfirmDeleteUser"], user.Username),
+            yesText: CommonLoc["Btn_Delete"], cancelText: CommonLoc["Btn_Cancel"],
+            options: new DialogOptions { CloseOnEscapeKey = true });
+
+        if (confirmed != true)
+            return;
+
+        var (success, _) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteUserAsync(user.Id),
+            "delete user",
+            string.Format(AdminLoc["UserDeletedSuccess"], user.Username));
+
+        if (success)
+        {
+            await Task.WhenAll(LoadAllUsers(), LoadCollections());
+        }
+    }
+
+    private async Task SyncDeletedUsers()
+    {
+        try
+        {
+            _isSyncing = true;
+            StateHasChanged();
+
+            // First do a dry run to show what would happen
+            var preview = await Api.SyncDeletedUsersAsync(dryRun: true);
+
+            if (preview.DeletedUsers == 0)
+            {
+                Snackbar.Add(AdminLoc["SyncNoGhostUsers"], Severity.Success);
+                return;
+            }
+
+            // Ask for confirmation
+            var message = string.Format(AdminLoc["SyncConfirm"], preview.DeletedUsers, preview.AclsRemoved, preview.SharesRevoked);
+            var confirmed = await DialogService.ShowMessageBox(
+                AdminLoc["Btn_SyncUsers"],
+                message,
+                yesText: CommonLoc["Btn_Confirm"], cancelText: CommonLoc["Btn_Cancel"]);
+
+            if (confirmed != true)
+                return;
+
+            // Execute the actual sync
+            var result = await Api.SyncDeletedUsersAsync(dryRun: false);
+
+            Snackbar.Add(string.Format(AdminLoc["SyncCompleted"], result.DeletedUsers, result.AclsRemoved, result.SharesRevoked), Severity.Success);
+
+            await Task.WhenAll(LoadAllUsers(), LoadCollections());
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "sync users");
+        }
+        finally
+        {
+            _isSyncing = false;
+            StateHasChanged();
         }
     }
 

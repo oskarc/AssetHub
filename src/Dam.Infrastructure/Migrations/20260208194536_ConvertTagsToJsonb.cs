@@ -26,15 +26,12 @@ namespace Dam.Infrastructure.Migrations
                 UPDATE "Assets" SET "Tags" = '[]' WHERE "Tags" IS NULL;
                 """);
 
-            // Step 2: Alter column type to jsonb
-            migrationBuilder.AlterColumn<string>(
-                name: "Tags",
-                table: "Assets",
-                type: "jsonb",
-                nullable: false,
-                defaultValueSql: "'[]'",
-                oldClrType: typeof(string),
-                oldType: "text");
+            // Step 2: Alter column type to jsonb (USING clause required for text→jsonb cast)
+            migrationBuilder.Sql("""
+                ALTER TABLE "Assets" ALTER COLUMN "Tags" TYPE jsonb USING "Tags"::jsonb;
+                ALTER TABLE "Assets" ALTER COLUMN "Tags" SET DEFAULT '[]'::jsonb;
+                ALTER TABLE "Assets" ALTER COLUMN "Tags" SET NOT NULL;
+                """);
         }
 
         /// <inheritdoc />

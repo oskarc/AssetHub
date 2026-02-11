@@ -82,3 +82,5 @@ temp/
 # OS
 Thumbs.db
 .DS_Store
+
+certs/

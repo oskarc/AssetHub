@@ -75,6 +75,8 @@
   <data name="Btn_AccessContent" xml:space="preserve"><value>Access Content</value></data>
   <data name="Btn_ManageAccess" xml:space="preserve"><value>Manage Access</value></data>
   <data name="Btn_CreateUser" xml:space="preserve"><value>Create User</value></data>
+  <data name="Btn_ResetPassword" xml:space="preserve"><value>Reset Password</value></data>
+  <data name="Btn_Confirm" xml:space="preserve"><value>Confirm</value></data>
   <data name="Btn_Creating" xml:space="preserve"><value>Creating...</value></data>
   <data name="Btn_Generate" xml:space="preserve"><value>Generate</value></data>
   <data name="Btn_CopyPassword" xml:space="preserve"><value>Copy Password</value></data>

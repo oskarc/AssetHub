@@ -10,6 +10,7 @@ namespace Dam.Infrastructure.Services;
 /// <summary>
 /// Keycloak implementation of IUserLookupService.
 /// Queries Keycloak's user_entity table directly for user information.
+/// Uses the KeycloakDb connection string (separate database) with fallback to Postgres.
 /// Caches username lookups (rarely change) and all-users list (short TTL).
 /// </summary>
 public class UserLookupService(
@@ -17,8 +18,9 @@ public class UserLookupService(
     IMemoryCache cache,
     ILogger<UserLookupService> logger) : IUserLookupService
 {
-    private readonly string _connectionString = configuration.GetConnectionString("Postgres") 
-        ?? throw new InvalidOperationException("Postgres connection string is required");
+    private readonly string _connectionString = configuration.GetConnectionString("KeycloakDb") 
+        ?? configuration.GetConnectionString("Postgres") 
+        ?? throw new InvalidOperationException("KeycloakDb or Postgres connection string is required");
 
     public async Task<Dictionary<string, string>> GetUserNamesAsync(IEnumerable<string> userIds, CancellationToken ct = default)
     {
@@ -125,5 +127,28 @@ public class UserLookupService(
 
         cache.Set(cacheKey, result, CacheKeys.AllUsersTtl);
         return result;
+    }
+
+    public async Task<HashSet<string>> GetExistingUserIdsAsync(IEnumerable<string> userIds, CancellationToken ct = default)
+    {
+        var ids = userIds.Distinct().ToArray();
+        if (ids.Length == 0)
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(ct);
+
+        var sql = "SELECT id FROM user_entity WHERE id = ANY(@ids)";
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("ids", ids);
+
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            existing.Add(reader.GetString(0));
+        }
+
+        return existing;
     }
 }

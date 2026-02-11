@@ -25,7 +25,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Kestrel limits — allow the IFormFile upload fallback path to handle files
+// Kestrel limits â€” allow the IFormFile upload fallback path to handle files
 // up to MaxUploadSizeMb. The presigned upload path bypasses this entirely.
 var maxUploadMb = builder.Configuration.GetValue("App:MaxUploadSizeMb", 500);
 builder.WebHost.ConfigureKestrel(options =>
@@ -56,7 +56,7 @@ builder.Services
 
 builder.Services.AddHttpContextAccessor();
 
-// Data Protection — persist keys to PostgreSQL so encrypted tokens survive
+// Data Protection â€” persist keys to PostgreSQL so encrypted tokens survive
 // restarts, redeployments, and work across replicas without shared volumes.
 builder.Services.AddDataProtection()
     .PersistKeysToDbContext<AssetHubDbContext>()
@@ -71,7 +71,7 @@ var dataSource = dataSourceBuilder.Build();
 builder.Services.AddDbContext<AssetHubDbContext>(options =>
     options.UseNpgsql(dataSource));
 
-// Hangfire — prefer dedicated connection string, fall back to the main Postgres one
+// Hangfire â€” prefer dedicated connection string, fall back to the main Postgres one
 var hangfireConnectionString = builder.Configuration["Hangfire:ConnectionString"];
 if (string.IsNullOrWhiteSpace(hangfireConnectionString))
     hangfireConnectionString = builder.Configuration.GetConnectionString("Postgres") ?? "";
@@ -114,6 +114,7 @@ builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IUserProvisioningService, UserProvisioningService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IUserSyncService, UserSyncService>();
 
 // Keycloak Admin API client for user management
 var keycloakTimeoutSeconds = builder.Configuration.GetValue("Keycloak:TimeoutSeconds", 30);
@@ -151,7 +152,7 @@ builder.Services.AddHttpClient<Dam.Ui.Services.AssetHubApiClient>((sp, client) =
     }
     else
     {
-        // Fallback for when HttpContext is not available — use configured BaseUrl
+        // Fallback for when HttpContext is not available â€” use configured BaseUrl
         var baseUrl = builder.Configuration["App:BaseUrl"];
         if (string.IsNullOrWhiteSpace(baseUrl))
             throw new InvalidOperationException("App:BaseUrl is required when HttpContext is not available. Check appsettings for the current environment.");
@@ -170,7 +171,7 @@ builder.Services.AddHttpClient<Dam.Ui.Services.AssetHubApiClient>((sp, client) =
 })
 .AddHttpMessageHandler<Dam.Ui.Services.CookieForwardingHandler>();
 
-// MinIO client (internal — for server-side data operations)
+// MinIO client (internal â€” for server-side data operations)
 var minioConfig = builder.Configuration.GetSection("MinIO");
 var minioEndpoint = minioConfig["Endpoint"];
 if (string.IsNullOrWhiteSpace(minioEndpoint))
@@ -191,7 +192,7 @@ var minioClient = new Minio.MinioClient()
 
 builder.Services.AddSingleton<Minio.IMinioClient>(minioClient);
 
-// MinIO public client — for presigned URLs that browsers access directly.
+// MinIO public client â€” for presigned URLs that browsers access directly.
 // Falls back to the internal endpoint if PublicUrl is not configured.
 var publicEndpoint = minioConfig["PublicUrl"];
 var publicUseSsl = minioConfig.GetValue("PublicUseSSL", minioUseSsl);
@@ -211,9 +212,6 @@ else
 builder.Services.AddKeyedSingleton<Minio.IMinioClient>("public", publicMinioClient);
 
 // AuthN/AuthZ
-// Development-only diagnostics: capture Keycloak userinfo failures (401/403/etc) with response body.
-builder.Services.AddSingleton<IPostConfigureOptions<OpenIdConnectOptions>, AssetHub.OidcBackchannelLoggingPostConfigure>();
-
 // Keycloak configuration
 var keycloakConfig = builder.Configuration.GetSection("Keycloak");
 var keycloakAuthority = keycloakConfig["Authority"];
@@ -244,10 +242,16 @@ builder.Services.AddAuthentication(options =>
 {
     options.Authority = keycloakAuthority;
     options.RequireHttpsMetadata = requireHttpsMetadata;
+    if (builder.Environment.IsDevelopment())
+    {
+        options.BackchannelHttpHandler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+    }
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
-        // Only accept tokens issued from keycloak:8080 (Docker internal hostname)
         ValidIssuer = keycloakAuthority,
         ValidateAudience = true,
         ValidAudiences = new[] { "assethub-app", "account" }, // Keycloak audience mapper must be configured
@@ -281,6 +285,13 @@ builder.Services.AddAuthentication(options =>
 
     // RequireHttpsMetadata: true in production, false in development (set in appsettings)
     options.RequireHttpsMetadata = requireHttpsMetadata;
+    if (builder.Environment.IsDevelopment())
+    {
+        options.BackchannelHttpHandler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+    }
     
     options.CallbackPath = "/signin-oidc";
     options.SignedOutCallbackPath = "/signout-callback-oidc";
@@ -316,51 +327,28 @@ builder.Services.AddAuthentication(options =>
     {
         NameClaimType = "preferred_username",  // Keycloak uses preferred_username
         RoleClaimType = ClaimTypes.Role,       // we map ClaimTypes.Role below
-        ValidIssuer = keycloakAuthority  // Single issuer since we use consistent keycloak:8080 URL
+        ValidIssuer = keycloakAuthority
     };
 
-    // No URL rewriting needed - using single consistent URL via hosts file
     options.Events = new OpenIdConnectEvents
     {
         OnRemoteFailure = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogError(context.Failure, $"OIDC remote failure: {context.Failure?.Message}");
+            logger.LogError(context.Failure, "OIDC remote failure: {Message}", context.Failure?.Message);
 
-            // Avoid unhandled exception page in dev; bounce home with a lightweight signal.
             context.HandleResponse();
             context.Response.Redirect("/?authError=oidc_remote_failure");
             return Task.CompletedTask;
         },
-        OnTokenResponseReceived = context =>
+        OnAuthenticationFailed = context =>
         {
-            // Diagnostics: confirm token endpoint returned what we expect.
-            // Do NOT log tokens; just log presence/length.
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            var accessTokenLen = context.TokenEndpointResponse?.AccessToken?.Length ?? 0;
-            var idTokenLen = context.TokenEndpointResponse?.IdToken?.Length ?? 0;
-            var tokenType = context.TokenEndpointResponse?.TokenType;
+            logger.LogError("OIDC authentication failed: {Message}", context.Exception?.Message ?? "Unknown");
 
-            logger.LogInformation($"OIDC token response received. token_type={tokenType}, access_token_len={accessTokenLen}, id_token_len={idTokenLen}");
-
-            return Task.CompletedTask;
-        },
-        OnUserInformationReceived = async context =>
-        {
-            // SECURITY: This is called after successfully retrieving user info from the userinfo endpoint
-            // This ensures the backend has verified claims directly with the identity provider
-            await Task.CompletedTask;
-        },
-        OnAuthenticationFailed = async context =>
-        {
-            // Log authentication failures for debugging
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogError($"Authentication failed: {context.Exception?.Message ?? "Unknown error"}. Exception: {context.Exception?.InnerException?.Message ?? "No inner exception"}");
-
-            // Prevent a 500/developer exception page on auth errors; redirect to home.
             context.HandleResponse();
             context.Response.Redirect("/?authError=authentication_failed");
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         },
         OnTokenValidated = context =>
         {
@@ -431,7 +419,7 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole(RoleHierarchy.Roles.Admin));
 });
 
-// Health checks — verifies all external dependencies
+// Health checks â€” verifies all external dependencies
 builder.Services.AddHealthChecks()
     .AddNpgSql(
         connectionString ?? throw new InvalidOperationException("ConnectionStrings:Postgres required"),
@@ -462,7 +450,7 @@ var app = builder.Build();
         }
         else
         {
-            startupLogger.LogInformation("Database is up to date — no pending migrations.");
+            startupLogger.LogInformation("Database is up to date â€” no pending migrations.");
         }
 
         // Ensure pg_trgm extension for trigram search
@@ -574,7 +562,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Global exception handler for API endpoints — logs the real exception
+// Global exception handler for API endpoints â€” logs the real exception
 // and returns a sanitized ProblemDetails response (no stack traces / internal messages).
 app.Use(async (context, next) =>
 {
@@ -621,101 +609,6 @@ app.UseAntiforgery();
 // Simple build stamp endpoint to confirm which binary is running.
 app.MapGet("/__build", () => Results.Json(new { stamp = Dam.Application.BuildInfo.Stamp, environment = app.Environment.EnvironmentName }));
 
-// Development-only: verify Keycloak userinfo via direct API calls (token + userinfo).
-// Local-only guard prevents exposing this outside localhost.
-app.MapGet("/debug/ping", (HttpContext http) =>
-    {
-        if (!Dam.Application.DebugGuard.IsLocalDebugRequest(http))
-            return Results.NotFound();
-
-        var env = app.Environment.EnvironmentName;
-        var asm = typeof(Program).Assembly;
-        var version = asm.GetName().Version?.ToString() ?? "<unknown>";
-        return Results.Json(new { ok = true, environment = env, version, remoteIp = http.Connection.RemoteIpAddress?.ToString(), host = http.Request.Host.Value });
-    })
-    .AllowAnonymous();
-
-app.MapPost("/debug/keycloak/userinfo-probe", async (HttpContext http, IConfiguration config) =>
-    {
-        if (!Dam.Application.DebugGuard.IsLocalDebugRequest(http))
-            return Results.NotFound();
-
-        var authority = config["Keycloak:Authority"] ?? "";
-        var clientId = config["Keycloak:ClientId"] ?? "";
-        var clientSecret = config["Keycloak:ClientSecret"];
-
-        if (string.IsNullOrWhiteSpace(clientSecret))
-            return Results.BadRequest(new { error = "Missing Keycloak:ClientSecret" });
-
-        var payload = await http.Request.ReadFromJsonAsync<UserInfoProbeRequest>();
-        if (payload is null || string.IsNullOrWhiteSpace(payload.Username) || string.IsNullOrWhiteSpace(payload.Password))
-            return Results.BadRequest(new { error = "Provide JSON: { username, password, scope? }" });
-
-        using var httpClient = new System.Net.Http.HttpClient();
-        var tokenUrl = authority.TrimEnd('/') + "/protocol/openid-connect/token";
-        var userInfoUrl = authority.TrimEnd('/') + "/protocol/openid-connect/userinfo";
-
-        var form = new Dictionary<string, string>
-        {
-            ["grant_type"] = "password",
-            ["client_id"] = clientId,
-            ["client_secret"] = clientSecret,
-            ["username"] = payload.Username,
-            ["password"] = payload.Password,
-            ["scope"] = string.IsNullOrWhiteSpace(payload.Scope) ? "openid profile email" : payload.Scope
-        };
-
-        using var tokenResp = await httpClient.PostAsync(tokenUrl, new System.Net.Http.FormUrlEncodedContent(form));
-        var tokenBody = await tokenResp.Content.ReadAsStringAsync();
-
-        if (!tokenResp.IsSuccessStatusCode)
-        {
-            return Results.Json(new
-            {
-                token = new { status = (int)tokenResp.StatusCode, body = tokenBody },
-                userinfo = (object?)null
-            }, statusCode: (int)tokenResp.StatusCode);
-        }
-
-        string? accessToken = null;
-        try
-        {
-            using var doc = System.Text.Json.JsonDocument.Parse(tokenBody);
-            if (doc.RootElement.TryGetProperty("access_token", out var at))
-                accessToken = at.GetString();
-        }
-        catch
-        {
-            // ignore parse errors; handled below
-        }
-
-        if (string.IsNullOrWhiteSpace(accessToken))
-            return Results.Json(new { error = "Token response missing access_token", tokenBody });
-
-        using var userReq = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, userInfoUrl);
-        userReq.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-        using var userResp = await httpClient.SendAsync(userReq);
-        var userBody = await userResp.Content.ReadAsStringAsync();
-
-        return Results.Json(new
-        {
-            token = new
-            {
-                status = (int)tokenResp.StatusCode,
-                access_token_preview = accessToken.Length <= 16 ? accessToken : accessToken[..16] + "…",
-            },
-            userinfo = new
-            {
-                endpoint = userInfoUrl,
-                status = (int)userResp.StatusCode,
-                www_authenticate = userResp.Headers.WwwAuthenticate.Count > 0 ? string.Join(", ", userResp.Headers.WwwAuthenticate) : null,
-                body = userBody
-            }
-        });
-    })
-    .AllowAnonymous();
-
 // If the OIDC handler skips an unrecognized callback request, this provides a clearer response.
 app.MapMethods("/signin-oidc", new[] { "GET", "POST" }, () =>
         Results.BadRequest("OIDC callback hit without state/code. Start login via /auth/login."))
@@ -748,17 +641,23 @@ app.MapRazorComponents<App>()
 // Hangfire Dashboard
 app.MapHangfireDashboard();
 
-// Health check endpoints (unauthenticated — for load balancers & monitoring)
+// Register recurring jobs
+RecurringJob.AddOrUpdate<IUserSyncService>(
+    "sync-deleted-users",
+    service => service.SyncDeletedUsersAsync(false, CancellationToken.None),
+    Cron.Daily); // Runs once per day to clean up ghost users
+
+// Health check endpoints (unauthenticated â€” for load balancers & monitoring)
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    // Lightweight liveness probe — always returns 200 if the process is running
+    // Lightweight liveness probe â€” always returns 200 if the process is running
     Predicate = _ => false,
     ResponseWriter = WriteHealthResponse
 }).AllowAnonymous();
 
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    // Full readiness probe — verifies PostgreSQL, MinIO, and Keycloak
+    // Full readiness probe â€” verifies PostgreSQL, MinIO, and Keycloak
     Predicate = check => check.Tags.Contains("ready"),
     ResponseWriter = WriteHealthResponse
 }).AllowAnonymous();
@@ -888,8 +787,6 @@ internal sealed class KeycloakHealthCheck(IConfiguration config, IHttpClientFact
         }
     }
 }
-
-internal sealed record UserInfoProbeRequest(string Username, string Password, string? Scope);
 
 // Make the auto-generated Program class visible for WebApplicationFactory<Program> in integration tests
 public partial class Program { }

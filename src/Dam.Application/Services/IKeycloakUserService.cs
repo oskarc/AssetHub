@@ -27,6 +27,28 @@ public interface IKeycloakUserService
         string password,
         bool temporaryPassword = true,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Resets a Keycloak user's password.
+    /// </summary>
+    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="newPassword">The new password to set.</param>
+    /// <param name="temporary">If true, the user must change password on next login.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="KeycloakApiException">Thrown when password reset fails.</exception>
+    Task ResetPasswordAsync(
+        string userId,
+        string newPassword,
+        bool temporary = true,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a user from Keycloak.
+    /// </summary>
+    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="KeycloakApiException">Thrown when user deletion fails.</exception>
+    Task DeleteUserAsync(string userId, CancellationToken ct = default);
 }
 
 /// <summary>

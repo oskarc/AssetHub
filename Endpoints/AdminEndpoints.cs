@@ -438,5 +438,186 @@ public static class AdminEndpoints
         .Produces<CreateUserResponse>(StatusCodes.Status201Created)
         .Produces<ApiError>(StatusCodes.Status400BadRequest)
         .Produces<ApiError>(StatusCodes.Status409Conflict);
+
+        // ===== RESET USER PASSWORD =====
+
+        /// <summary>
+        /// Resets a user's password in Keycloak.
+        /// </summary>
+        group.MapPost("/users/{userId}/reset-password", async (
+            [FromRoute] string userId,
+            [FromBody] ResetPasswordRequest request,
+            [FromServices] IKeycloakUserService keycloakUserService,
+            [FromServices] IAuditService audit,
+            HttpContext httpContext,
+            ILogger<Program> logger,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return Results.BadRequest(ApiError.BadRequest("User ID is required"));
+
+            var passwordError = InputValidation.ValidatePassword(request.NewPassword);
+            if (passwordError != null)
+                return Results.BadRequest(ApiError.ValidationError("Validation failed",
+                    new Dictionary<string, string> { ["password"] = passwordError }));
+
+            try
+            {
+                await keycloakUserService.ResetPasswordAsync(userId, request.NewPassword, request.Temporary, ct);
+
+                logger.LogInformation("Admin reset password for user '{UserId}'", userId);
+
+                var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await audit.LogAsync("user.password_reset", "user",
+                    Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
+                    new() { ["targetUserId"] = userId, ["temporary"] = request.Temporary.ToString() },
+                    httpContext, ct);
+
+                return Results.Ok(new { Message = "Password reset successfully" });
+            }
+            catch (KeycloakApiException ex)
+            {
+                logger.LogWarning(ex, "Keycloak API error resetting password for user '{UserId}'", userId);
+                return ex.StatusCode == 404
+                    ? Results.NotFound(ApiError.BadRequest(ex.Message))
+                    : Results.BadRequest(ApiError.BadRequest(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unexpected error resetting password for user '{UserId}'", userId);
+                return Results.StatusCode(500);
+            }
+        })
+        .WithName("ResetUserPassword")
+        .WithSummary("Resets a user's password in Keycloak (admin only)")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ApiError>(StatusCodes.Status400BadRequest)
+        .Produces<ApiError>(StatusCodes.Status404NotFound);
+
+        // ===== USER SYNC (Ghost User Cleanup) =====
+
+        /// <summary>
+        /// Scans for users deleted in Keycloak and cleans up their orphaned ACLs and shares.
+        /// Use ?dryRun=true to preview without making changes.
+        /// </summary>
+        group.MapPost("/users/sync", async (
+            [FromQuery] bool dryRun,
+            [FromServices] IUserSyncService syncService,
+            [FromServices] IAuditService audit,
+            HttpContext httpContext,
+            ILogger<Program> logger,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var result = await syncService.SyncDeletedUsersAsync(dryRun, ct);
+
+                if (!dryRun && result.DeletedUsers > 0)
+                {
+                    var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    await audit.LogAsync("user.sync.completed", "system", null, adminUserId,
+                        new()
+                        {
+                            ["deletedUsers"] = result.DeletedUsers,
+                            ["aclsRemoved"] = result.AclsRemoved,
+                            ["sharesRevoked"] = result.SharesRevoked
+                        }, httpContext, ct);
+                }
+
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error during user sync");
+                return Results.StatusCode(500);
+            }
+        })
+        .WithName("SyncDeletedUsers")
+        .WithSummary("Scans for and cleans up users deleted from Keycloak (admin only)")
+        .Produces<UserSyncResult>();
+
+        /// <summary>
+        /// Deletes a user from Keycloak and cleans up their app data (ACLs, shares).
+        /// </summary>
+        group.MapDelete("/users/{userId}", async (
+            [FromRoute] string userId,
+            [FromServices] IKeycloakUserService keycloakUserService,
+            [FromServices] ICollectionAclRepository aclRepo,
+            [FromServices] IShareRepository shareRepo,
+            [FromServices] IUserLookupService userLookup,
+            [FromServices] IAuditService audit,
+            HttpContext httpContext,
+            ILogger<Program> logger,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return Results.BadRequest(ApiError.BadRequest("User ID is required"));
+
+            // Get username before deletion for audit
+            var username = await userLookup.GetUserNameAsync(userId, ct);
+            if (username == null)
+                return Results.NotFound(ApiError.NotFound($"User '{userId}' not found in Keycloak"));
+
+            // Prevent deleting yourself
+            var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.Equals(userId, adminUserId, StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(ApiError.BadRequest("You cannot delete your own account"));
+
+            try
+            {
+                // Delete from Keycloak
+                await keycloakUserService.DeleteUserAsync(userId, ct);
+
+                // Clean up app data
+                var userAcls = (await aclRepo.GetByUserAsync(userId, ct)).ToList();
+                foreach (var acl in userAcls)
+                {
+                    await aclRepo.RevokeAccessAsync(acl.CollectionId, acl.PrincipalType, acl.PrincipalId, ct);
+                }
+
+                var userShares = (await shareRepo.GetByUserAsync(userId, take: int.MaxValue, cancellationToken: ct)).Where(s => !s.RevokedAt.HasValue).ToList();
+                foreach (var share in userShares)
+                {
+                    share.RevokedAt = DateTime.UtcNow;
+                    await shareRepo.UpdateAsync(share, ct);
+                }
+
+                logger.LogInformation("Admin deleted user '{Username}' ({UserId}): removed {Acls} ACLs, revoked {Shares} shares",
+                    username, userId, userAcls.Count, userShares.Count);
+
+                await audit.LogAsync("user.deleted", "user",
+                    Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
+                    new()
+                    {
+                        ["username"] = username,
+                        ["aclsRemoved"] = userAcls.Count,
+                        ["sharesRevoked"] = userShares.Count
+                    }, httpContext, ct);
+
+                return Results.Ok(new DeleteUserResponse
+                {
+                    Message = $"User '{username}' deleted successfully",
+                    AclsRemoved = userAcls.Count,
+                    SharesRevoked = userShares.Count
+                });
+            }
+            catch (KeycloakApiException ex)
+            {
+                logger.LogWarning(ex, "Keycloak API error deleting user '{UserId}'", userId);
+                return ex.StatusCode == 404
+                    ? Results.NotFound(ApiError.NotFound(ex.Message))
+                    : Results.BadRequest(ApiError.BadRequest(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unexpected error deleting user '{UserId}'", userId);
+                return Results.StatusCode(500);
+            }
+        })
+        .WithName("DeleteUser")
+        .WithSummary("Deletes a user from Keycloak and cleans up app data (admin only)")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ApiError>(StatusCodes.Status400BadRequest)
+        .Produces<ApiError>(StatusCodes.Status404NotFound);
     }
 }

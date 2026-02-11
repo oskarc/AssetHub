@@ -31,6 +31,47 @@
                 </MudStack>
             </MudPaper>
 
+            <!-- Reset Password -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.LockReset" Size="Size.Small" Class="mr-1" />
+                    @AdminLoc["ResetPassword"]
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">@AdminLoc["ResetPasswordDesc"]</MudText>
+
+                @if (_passwordResetSuccess)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true" Class="mb-2">
+                        @AdminLoc["PasswordResetSuccess"]
+                    </MudAlert>
+                }
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudTextField @bind-Value="_newPassword" Label="@CommonLoc["Label_Password"]" 
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  InputType="@(_showResetPassword ? InputType.Text : InputType.Password)"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showResetPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="() => _showResetPassword = !_showResetPassword"
+                                  Style="flex: 1;" />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Casino"
+                               OnClick="GenerateResetPassword"
+                               Style="height: 40px; white-space: nowrap;">
+                        @CommonLoc["Btn_GenerateNew"]
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                               StartIcon="@(_resettingPassword ? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.LockReset)"
+                               OnClick="ResetPassword"
+                               Disabled="@(string.IsNullOrWhiteSpace(_newPassword) || _newPassword.Length < 8 || _resettingPassword)"
+                               Style="height: 40px; white-space: nowrap;">
+                        @CommonLoc["Btn_ResetPassword"]
+                    </MudButton>
+                </MudStack>
+                <MudCheckBox @bind-Value="_requirePasswordChange" Color="Color.Primary" Dense="true" Class="mt-1"
+                             Label="Require password change on next login" />
+            </MudPaper>
+
             <!-- Add New Collection Access -->
             <MudPaper Class="pa-3" Elevation="0" Outlined="true">
                 <MudText Typo="Typo.subtitle2" Class="mb-2">@AdminLoc["AddCollectionAccess"]</MudText>
@@ -198,6 +239,13 @@
     private Guid? _editingCollectionId;
     private string _editingRole = "";
 
+    // Reset Password State
+    private string _newPassword = "";
+    private bool _showResetPassword = false;
+    private bool _requirePasswordChange = true;
+    private bool _resettingPassword = false;
+    private bool _passwordResetSuccess = false;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadUserCollections();
@@ -337,4 +385,43 @@
     }
 
     private void Close() => MudDialog.Close(DialogResult.Ok(true));
+
+    private void GenerateResetPassword()
+    {
+        const string chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%";
+        var random = new Random();
+        _newPassword = new string(Enumerable.Range(0, 16).Select(_ => chars[random.Next(chars.Length)]).ToArray());
+        _showResetPassword = true;
+        _passwordResetSuccess = false;
+    }
+
+    private async Task ResetPassword()
+    {
+        if (string.IsNullOrWhiteSpace(_newPassword) || _newPassword.Length < 8) return;
+
+        _resettingPassword = true;
+        _passwordResetSuccess = false;
+        StateHasChanged();
+
+        try
+        {
+            var request = new ResetPasswordRequest
+            {
+                NewPassword = _newPassword,
+                Temporary = _requirePasswordChange
+            };
+            await Api.ResetPasswordAsync(UserId, request);
+            _passwordResetSuccess = true;
+            Feedback.ShowSuccess(AdminLoc["PasswordResetSuccess"]);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "reset password");
+        }
+        finally
+        {
+            _resettingPassword = false;
+            StateHasChanged();
+        }
+    }
 }

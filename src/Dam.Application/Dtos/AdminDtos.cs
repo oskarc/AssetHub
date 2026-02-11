@@ -146,9 +146,34 @@ public record CreateUserResponse
 }
 
 /// <summary>
+/// Request to reset a user's password (admin only).
+/// </summary>
+public record ResetPasswordRequest
+{
+    [Required]
+    [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+    public string NewPassword { get; init; } = "";
+
+    /// <summary>
+    /// If true, the user must change their password on next login.
+    /// </summary>
+    public bool Temporary { get; init; } = true;
+}
+
+/// <summary>
 /// Response containing a decrypted share token (admin only).
 /// </summary>
 public record ShareTokenResponse
 {
     public required string Token { get; init; }
+}
+
+/// <summary>
+/// Response from deleting a user.
+/// </summary>
+public record DeleteUserResponse
+{
+    public string Message { get; init; } = string.Empty;
+    public int AclsRemoved { get; init; }
+    public int SharesRevoked { get; init; }
 }

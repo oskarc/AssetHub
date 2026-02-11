@@ -99,4 +99,22 @@
   <data name="Highest" xml:space="preserve"><value>Highest:</value></data>
   <data name="CollectionAccessCount" xml:space="preserve"><value>Collection Access ({0})</value></data>
   <data name="NoCollectionAccessUserDesc" xml:space="preserve"><value>This user doesn't have access to any collections.</value></data>
+
+  <!-- Reset Password -->
+  <data name="ResetPassword" xml:space="preserve"><value>Reset Password</value></data>
+  <data name="ResetPasswordDesc" xml:space="preserve"><value>Set a new password for this user. They will be required to change it on next login.</value></data>
+  <data name="PasswordResetSuccess" xml:space="preserve"><value>Password reset successfully</value></data>
+  <data name="ConfirmResetPassword" xml:space="preserve"><value>Are you sure you want to reset the password for "{0}"?</value></data>
+
+  <!-- Delete User -->
+  <data name="DeleteUser" xml:space="preserve"><value>Delete User</value></data>
+  <data name="ConfirmDeleteUser" xml:space="preserve"><value>Are you sure you want to permanently delete user "{0}"? This will remove all their collection access and revoke their shares. This action cannot be undone.</value></data>
+  <data name="UserDeletedSuccess" xml:space="preserve"><value>User "{0}" has been deleted</value></data>
+
+  <!-- User Sync -->
+  <data name="Btn_SyncUsers" xml:space="preserve"><value>Sync Users</value></data>
+  <data name="SyncUsersTooltip" xml:space="preserve"><value>Check for users deleted in Keycloak and clean up their orphaned data</value></data>
+  <data name="SyncNoGhostUsers" xml:space="preserve"><value>All users are in sync — no orphaned data found</value></data>
+  <data name="SyncConfirm" xml:space="preserve"><value>Found {0} deleted user(s) with orphaned data: {1} ACL(s) and {2} share(s) will be removed. Proceed?</value></data>
+  <data name="SyncCompleted" xml:space="preserve"><value>Sync complete: cleaned up {0} deleted user(s), removed {1} ACL(s) and revoked {2} share(s)</value></data>
 </root>

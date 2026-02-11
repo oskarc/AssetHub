@@ -99,4 +99,22 @@
   <data name="Highest" xml:space="preserve"><value>Högsta:</value></data>
   <data name="CollectionAccessCount" xml:space="preserve"><value>Samlingsåtkomst ({0})</value></data>
   <data name="NoCollectionAccessUserDesc" xml:space="preserve"><value>Denna användare har inte åtkomst till några samlingar.</value></data>
+
+  <!-- Reset Password -->
+  <data name="ResetPassword" xml:space="preserve"><value>Återställ lösenord</value></data>
+  <data name="ResetPasswordDesc" xml:space="preserve"><value>Ange ett nytt lösenord för denna användare. De måste byta det vid nästa inloggning.</value></data>
+  <data name="PasswordResetSuccess" xml:space="preserve"><value>Lösenordet har återställts</value></data>
+  <data name="ConfirmResetPassword" xml:space="preserve"><value>Är du säker på att du vill återställa lösenordet för "{0}"?</value></data>
+
+  <!-- Delete User -->
+  <data name="DeleteUser" xml:space="preserve"><value>Ta bort användare</value></data>
+  <data name="ConfirmDeleteUser" xml:space="preserve"><value>Är du säker på att du permanent vill ta bort användaren "{0}"? All samlingsåtkomst och delade länkar kommer att tas bort. Denna åtgärd kan inte ångras.</value></data>
+  <data name="UserDeletedSuccess" xml:space="preserve"><value>Användaren "{0}" har tagits bort</value></data>
+
+  <!-- User Sync -->
+  <data name="Btn_SyncUsers" xml:space="preserve"><value>Synka användare</value></data>
+  <data name="SyncUsersTooltip" xml:space="preserve"><value>Kontrollera om användare tagits bort i Keycloak och rensa upp deras kvarvarande data</value></data>
+  <data name="SyncNoGhostUsers" xml:space="preserve"><value>Alla användare är synkade — inga kvarvarande data hittades</value></data>
+  <data name="SyncConfirm" xml:space="preserve"><value>Hittade {0} borttagen(a) användare med kvarvarande data: {1} åtkomstregler och {2} delningslänkar kommer att tas bort. Fortsätt?</value></data>
+  <data name="SyncCompleted" xml:space="preserve"><value>Synkronisering klar: rensade {0} borttagen(a) användare, tog bort {1} åtkomstregler och återkallade {2} delningslänkar</value></data>
 </root>

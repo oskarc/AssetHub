@@ -30,4 +30,10 @@ public interface IUserLookupService
     /// Gets all users from the identity provider.
     /// </summary>
     Task<List<(string Id, string Username, string? Email, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default);
+    
+    /// <summary>
+    /// Checks which of the given user IDs still exist in the identity provider.
+    /// Returns the set of IDs that exist.
+    /// </summary>
+    Task<HashSet<string>> GetExistingUserIdsAsync(IEnumerable<string> userIds, CancellationToken ct = default);
 }

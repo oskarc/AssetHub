@@ -72,6 +72,8 @@
   <data name="Btn_AccessContent" xml:space="preserve"><value>Visa innehåll</value></data>
   <data name="Btn_ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
   <data name="Btn_CreateUser" xml:space="preserve"><value>Skapa användare</value></data>
+  <data name="Btn_ResetPassword" xml:space="preserve"><value>Återställ lösenord</value></data>
+  <data name="Btn_Confirm" xml:space="preserve"><value>Bekräfta</value></data>
   <data name="Btn_Creating" xml:space="preserve"><value>Skapar...</value></data>
   <data name="Btn_Generate" xml:space="preserve"><value>Generera</value></data>
   <data name="Btn_CopyPassword" xml:space="preserve"><value>Kopiera lösenord</value></data>

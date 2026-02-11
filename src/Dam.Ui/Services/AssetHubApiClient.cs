@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Dam.Application.Dtos;
+using Dam.Application.Services;
 
 namespace Dam.Ui.Services;
 
@@ -539,6 +540,35 @@ public class AssetHubApiClient
         var response = await _http.PostAsJsonAsync("/api/admin/users", request, ct);
         await EnsureSuccessAsync(response, "Create user");
         return await ReadRequiredJsonAsync<CreateUserResponse>(response, "Create user");
+    }
+
+    /// <summary>
+    /// Resets a user's password in Keycloak (admin only).
+    /// </summary>
+    public virtual async Task ResetPasswordAsync(string userId, ResetPasswordRequest request, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync($"/api/admin/users/{userId}/reset-password", request, ct);
+        await EnsureSuccessAsync(response, "Reset password");
+    }
+
+    /// <summary>
+    /// Deletes a user from Keycloak and cleans up app data (admin only).
+    /// </summary>
+    public virtual async Task<DeleteUserResponse> DeleteUserAsync(string userId, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/admin/users/{userId}", ct);
+        await EnsureSuccessAsync(response, "Delete user");
+        return await ReadRequiredJsonAsync<DeleteUserResponse>(response, "Delete user");
+    }
+
+    /// <summary>
+    /// Syncs deleted users — detects and cleans up Keycloak users that no longer exist (admin only).
+    /// </summary>
+    public virtual async Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/admin/users/sync?dryRun={dryRun.ToString().ToLowerInvariant()}", null, ct);
+        await EnsureSuccessAsync(response, "Sync deleted users");
+        return await ReadRequiredJsonAsync<UserSyncResult>(response, "Sync deleted users");
     }
 
     #endregion
