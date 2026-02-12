@@ -24,6 +24,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
     # In production, do NOT expose the port externally. Only internal services
     # need to reach PostgreSQL. Uncomment the line below only for debugging.
     # ports:
@@ -73,9 +74,10 @@ services:
     container_name: assethub-keycloak
     restart: unless-stopped
     environment:
-      # Database — shares PostgreSQL but uses its own schema
+      # Database — separate 'keycloak' database on the shared PostgreSQL instance
+      # (created automatically by docker/init-keycloak-db.sh on first start)
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: ${POSTGRES_USER}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
 
@@ -93,6 +95,7 @@ services:
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
     volumes:
+      - keycloakdata:/opt/keycloak/data
       - ./keycloak/import:/opt/keycloak/data/import:ro
     command:
       - start
@@ -230,6 +233,7 @@ services:
 volumes:
   pgdata:
   miniodata:
+  keycloakdata:
 
 networks:
   internal:

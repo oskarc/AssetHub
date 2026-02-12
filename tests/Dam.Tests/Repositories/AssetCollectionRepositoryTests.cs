@@ -54,6 +54,78 @@ public class AssetCollectionRepositoryTests : IAsyncLifetime
         Assert.DoesNotContain(collections, c => c.Name == "Col3");
     }
 
+    // ── GetByAssetAsync ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetByAssetAsync_ReturnsJoinEntitiesWithCollection()
+    {
+        var col1 = TestData.CreateCollection(name: "Col1");
+        var col2 = TestData.CreateCollection(name: "Col2");
+        var asset = TestData.CreateAsset();
+
+        _db.Collections.AddRange(col1, col2);
+        _db.Assets.Add(asset);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, col1.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, col2.Id));
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByAssetAsync(asset.Id);
+
+        Assert.Equal(2, results.Count);
+        // Verify Collection navigation is included
+        Assert.All(results, ac => Assert.NotNull(ac.Collection));
+        Assert.Contains(results, ac => ac.Collection.Name == "Col1");
+        Assert.Contains(results, ac => ac.Collection.Name == "Col2");
+    }
+
+    [Fact]
+    public async Task GetByAssetAsync_ReturnsEmpty_WhenNoCollections()
+    {
+        var asset = TestData.CreateAsset();
+        _db.Assets.Add(asset);
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByAssetAsync(asset.Id);
+
+        Assert.Empty(results);
+    }
+
+    // ── GetByCollectionAsync ────────────────────────────────────────
+
+    [Fact]
+    public async Task GetByCollectionAsync_ReturnsJoinEntitiesWithAsset()
+    {
+        var collection = TestData.CreateCollection();
+        var asset1 = TestData.CreateAsset(title: "A1");
+        var asset2 = TestData.CreateAsset(title: "A2");
+
+        _db.Collections.Add(collection);
+        _db.Assets.AddRange(asset1, asset2);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset1.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset2.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByCollectionAsync(collection.Id);
+
+        Assert.Equal(2, results.Count);
+        // Verify Asset navigation is included
+        Assert.All(results, ac => Assert.NotNull(ac.Asset));
+        Assert.Contains(results, ac => ac.Asset.Title == "A1");
+        Assert.Contains(results, ac => ac.Asset.Title == "A2");
+    }
+
+    [Fact]
+    public async Task GetByCollectionAsync_ReturnsEmpty_WhenNoAssets()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByCollectionAsync(collection.Id);
+
+        Assert.Empty(results);
+    }
+
     // ── AddToCollectionAsync ────────────────────────────────────────
 
     [Fact]

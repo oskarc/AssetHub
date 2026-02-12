@@ -379,4 +379,205 @@ public class AssetRepositoryTests : IAsyncLifetime
         var ready = await _repo.GetByStatusAsync(Asset.StatusReady);
         Assert.Equal(2, ready.Count);
     }
+
+    // ── GetByUserAsync ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetByUserAsync_ReturnsAssetsForUser()
+    {
+        _db.Assets.Add(TestData.CreateAsset(title: "User1 Asset", createdByUserId: "user-1"));
+        _db.Assets.Add(TestData.CreateAsset(title: "User2 Asset", createdByUserId: "user-2"));
+        _db.Assets.Add(TestData.CreateAsset(title: "User1 Other", createdByUserId: "user-1"));
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByUserAsync("user-1");
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, a => Assert.Equal("user-1", a.CreatedByUserId));
+    }
+
+    [Fact]
+    public async Task GetByUserAsync_SupportsPagination()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            var asset = TestData.CreateAsset(createdByUserId: "paginated-user");
+            asset.CreatedAt = DateTime.UtcNow.AddMinutes(-i);
+            _db.Assets.Add(asset);
+        }
+        await _db.SaveChangesAsync();
+
+        var page = await _repo.GetByUserAsync("paginated-user", skip: 2, take: 3);
+
+        Assert.Equal(3, page.Count);
+    }
+
+    [Fact]
+    public async Task GetByUserAsync_ReturnsEmpty_ForUnknownUser()
+    {
+        _db.Assets.Add(TestData.CreateAsset(createdByUserId: "existing-user"));
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByUserAsync("nonexistent-user");
+
+        Assert.Empty(results);
+    }
+
+    // ── CountByStatusAsync ──────────────────────────────────────────
+
+    [Fact]
+    public async Task CountByStatusAsync_ReturnsCorrectCount()
+    {
+        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusReady));
+        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusReady));
+        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusProcessing));
+        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusFailed));
+        await _db.SaveChangesAsync();
+
+        var readyCount = await _repo.CountByStatusAsync(Asset.StatusReady);
+        var processingCount = await _repo.CountByStatusAsync(Asset.StatusProcessing);
+        var failedCount = await _repo.CountByStatusAsync(Asset.StatusFailed);
+
+        Assert.Equal(2, readyCount);
+        Assert.Equal(1, processingCount);
+        Assert.Equal(1, failedCount);
+    }
+
+    [Fact]
+    public async Task CountByStatusAsync_ReturnsZero_ForNoMatches()
+    {
+        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusReady));
+        await _db.SaveChangesAsync();
+
+        var count = await _repo.CountByStatusAsync(Asset.StatusFailed);
+
+        Assert.Equal(0, count);
+    }
+
+    // ── SearchAllAsync (expanded coverage) ──────────────────────────
+
+    [Fact]
+    public async Task SearchAllAsync_FiltersByTextQuery()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var match = TestData.CreateAsset(title: "Marketing Campaign", status: Asset.StatusReady);
+        var noMatch = TestData.CreateAsset(title: "Sales Report", status: Asset.StatusReady);
+        _db.Assets.AddRange(match, noMatch);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(match.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(noMatch.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, total) = await _repo.SearchAllAsync(
+            query: "marketing",
+            allowedCollectionIds: new List<Guid> { collection.Id });
+
+        Assert.Equal(1, total);
+        Assert.Equal("Marketing Campaign", results[0].Title);
+    }
+
+    [Fact]
+    public async Task SearchAllAsync_FiltersByAssetType()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var image = TestData.CreateAsset(title: "Photo", assetType: Asset.TypeImage, status: Asset.StatusReady);
+        var video = TestData.CreateAsset(title: "Clip", assetType: Asset.TypeVideo, status: Asset.StatusReady);
+        _db.Assets.AddRange(image, video);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(image.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(video.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, total) = await _repo.SearchAllAsync(
+            assetType: Asset.TypeVideo,
+            allowedCollectionIds: new List<Guid> { collection.Id });
+
+        Assert.Equal(1, total);
+        Assert.Equal("Clip", results[0].Title);
+    }
+
+    [Fact]
+    public async Task SearchAllAsync_SortsByTitleAscending()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var c = TestData.CreateAsset(title: "Charlie", status: Asset.StatusReady);
+        var a = TestData.CreateAsset(title: "Alpha", status: Asset.StatusReady);
+        var b = TestData.CreateAsset(title: "Beta", status: Asset.StatusReady);
+        _db.Assets.AddRange(c, a, b);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(c.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(a.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(b.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, _) = await _repo.SearchAllAsync(
+            sortBy: "title_asc",
+            allowedCollectionIds: new List<Guid> { collection.Id });
+
+        Assert.Equal("Alpha", results[0].Title);
+        Assert.Equal("Beta", results[1].Title);
+        Assert.Equal("Charlie", results[2].Title);
+    }
+
+    [Fact]
+    public async Task SearchAllAsync_NullAllowedCollectionIds_ReturnsAllReadyAssets()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var ready = TestData.CreateAsset(title: "Visible", status: Asset.StatusReady);
+        var notReady = TestData.CreateAsset(title: "Hidden", status: Asset.StatusProcessing);
+        _db.Assets.AddRange(ready, notReady);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(ready.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(notReady.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        // Null = admin (no collection filter), but still filters by Ready status
+        var (results, total) = await _repo.SearchAllAsync(allowedCollectionIds: null);
+
+        Assert.Equal(1, total);
+        Assert.Equal("Visible", results[0].Title);
+    }
+
+    [Fact]
+    public async Task SearchAllAsync_EmptyAllowedCollectionIds_ReturnsNothing()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        _db.Assets.Add(TestData.CreateAsset(title: "Asset", status: Asset.StatusReady));
+        await _db.SaveChangesAsync();
+
+        // Empty list (non-null) = user has access to zero collections
+        var (results, total) = await _repo.SearchAllAsync(
+            allowedCollectionIds: new List<Guid>());
+
+        Assert.Equal(0, total);
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task SearchAllAsync_SupportsPagination()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        for (int i = 0; i < 10; i++)
+        {
+            var asset = TestData.CreateAsset(title: $"Asset {i:D2}", status: Asset.StatusReady);
+            _db.Assets.Add(asset);
+            _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, collection.Id));
+        }
+        await _db.SaveChangesAsync();
+
+        var (results, total) = await _repo.SearchAllAsync(
+            skip: 3, take: 4,
+            allowedCollectionIds: new List<Guid> { collection.Id });
+
+        Assert.Equal(10, total);
+        Assert.Equal(4, results.Count);
+    }
 }

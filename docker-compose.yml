@@ -55,6 +55,7 @@ services:
       KC_HTTPS_KEY_STORE_TYPE: PKCS12
       KC_HTTP_ENABLED: 'true'
     volumes:
+      - keycloakdata:/opt/keycloak/data
       - ./keycloak/import:/opt/keycloak/data/import:ro
       - ./certs:/opt/keycloak/certs:ro
     ports:
@@ -146,6 +147,7 @@ services:
 volumes:
   pgdata:
   miniodata:
+  keycloakdata:
 
 networks:
   assethub-network:

@@ -2,6 +2,7 @@ using Dam.Infrastructure.Data;
 using Dam.Infrastructure.Repositories;
 using Dam.Tests.Fixtures;
 using Dam.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 
 namespace Dam.Tests.Repositories;
 
@@ -71,7 +72,12 @@ public class CollectionRepositoryTests : IAsyncLifetime
         _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
         await _db.SaveChangesAsync();
 
-        var result = await _repo.GetByIdAsync(collection.Id);
+        // Use a fresh context to avoid change-tracker populating the navigation
+        var dbName = _db.Database.GetDbConnection().Database!;
+        await using var freshDb = _fixture.CreateDbContextForExistingDb(dbName);
+        var freshRepo = new CollectionRepository(freshDb);
+
+        var result = await freshRepo.GetByIdAsync(collection.Id);
 
         Assert.NotNull(result);
         // Navigation not loaded — default empty collection

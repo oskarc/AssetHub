@@ -337,10 +337,10 @@ Test project: `tests/Dam.Tests/` — added to solution, builds with 0 errors, 0 
 - `MultiCollectionAccessTests` (10 tests): Asset in multiple collections (found-from-each, all-collection-ids), RemoveFromOneCollection (doesn't-affect-others, becomes-orphaned), CollectionDeletion (cascades-asset-collections-not-assets, asset-in-other-still-accessible), MixedRoles (different-roles-different-collections), OrphanedAsset (not-visible-in-search-all, still-accessible-by-id), ACL cascade on deletion, HierarchicalDeletion (cascades 3 levels deep)
 
 #### 5.5 Success Criteria
-- [x] All repository tests compile and are discoverable (86 tests)
+- [x] All repository tests compile and are discoverable (107 tests)
 - [x] Test isolation via per-class databases (Testcontainers)
 - [x] 0 build warnings in test project
-- [ ] All tests pass (requires Docker running — infrastructure dependency)
+- [x] All 107 tests pass (2026-02-12) — fixed `ManyServiceProvidersCreatedWarning` + change-tracker bleed
 - [ ] API integration tests (deferred)
 - [ ] Code coverage measurement
 
@@ -625,7 +625,7 @@ These items were identified during development but intentionally deferred:
 | Keycloak `/health/ready` returns 404 | Docker compose health check limited | Minor | Check via admin console |
 | Change language button doesn't work | Users cannot switch UI language | Open | — |
 | Reset password not implemented | Users cannot reset their own password | Open | Admin resets password via Keycloak console |
-| Keycloak data not persisted outside container | DB wipe on container recreation loses all users/config | Open | Add named volume for Keycloak PostgreSQL data |
+| Keycloak data not persisted outside container | DB wipe on container recreation loses all users/config | ✅ Fixed | Keycloak now uses separate `keycloak` DB + named `keycloakdata` volume in both dev & prod compose |
 
 ### Open Tasks
 
@@ -633,9 +633,66 @@ These items were identified during development but intentionally deferred:
 |---|------|----------|-------|
 | 1 | **Fix language switcher** | Medium | The change language button in the UI does not work. Investigate culture switching logic and cookie persistence. |
 | 2 | **Implement password reset** | Medium | Users need a self-service password reset flow. Options: Keycloak's built-in "forgot password" flow (requires SMTP), or a custom endpoint triggering Keycloak's reset-password action. |
-| 3 | **Run full test suite** | High | All backend tests (86 repository + edge case), 210 bUnit tests, and 173 Playwright E2E tests need to be executed and verified passing after recent auth changes. |
-| 4 | **Persist Keycloak data outside container** | High | Keycloak's database must use a Docker named volume (or external PostgreSQL) so data survives container recreation. Currently a DB wipe loses all realm config, users, and client settings. |
+| 3 | ~~**Run full test suite**~~ | ~~High~~ | ✅ Fixed (2026-02-12): 107 backend tests + 210 bUnit tests all pass. Fixed `ManyServiceProvidersCreatedWarning` in `PostgresFixture` and change-tracker bleed in `GetByIdAsync_DoesNotIncludeAcls_ByDefault`. E2E tests (173) require full Docker environment. |
+| 4 | ~~**Persist Keycloak data**~~ | ~~High~~ | ✅ Fixed (2026-02-12): Separate `keycloak` DB in prod compose, `keycloakdata` named volume in both compose files, `init-keycloak-db.sh` mounted in prod |
 | 5 | **Define user deletion policy** | Medium | When a user is removed: **collections should NOT be removed**, **shares should NOT be removed**. Audit what currently happens on user deletion and ensure orphaned resources are handled gracefully (e.g., show "deleted user" placeholder, transfer ownership, or retain as-is). |
+| 6 | **Smart asset deletion (multi-collection)** | High | `DeleteByCollectionAsync` currently destroys the asset entity regardless of other collection memberships. Implement proper multi-collection-aware deletion logic — see detailed spec below. |
+| 7 | **Backend test gaps** | Medium | Fill remaining shallow/missing backend test coverage — see detailed list below. |
+| 8 | **bUnit / UI test gaps** | Medium | Fill remaining UI component test gaps (submission flows, mutation chains) — see detailed list below. |
+
+### 10.6 Smart Asset Deletion (Multi-Collection Logic)
+
+When a user deletes an asset from a collection, the behaviour must account for the asset's presence in other collections and the user's authority across them.
+
+**Rules:**
+
+| Scenario | Behaviour |
+|----------|----------|
+| Asset exists in **only 1 collection** | Delete the asset outright (no prompt needed). |
+| Asset exists in **multiple collections** and the user has **contributor+ on ALL** of them | Prompt the user: *"Remove from this collection"* or *"Delete permanently"*. **Remove** → detach from this collection only. **Delete** → destroy the asset and all join records. |
+| Asset exists in a collection where the user **does NOT have contributor+** | The asset can only be **removed from the collections where the user has contributor+**. Even if the prompt says "Delete", the system silently removes the asset from the user's authorized collections only — the asset continues to exist in the unauthorized collection(s). The user is not informed that they lack authority to fully delete; from their perspective the operation succeeded. |
+
+**Implementation checklist:**
+- [ ] Backend: new endpoint or extended `DELETE` that checks collection memberships + user authority per collection
+- [ ] Backend: if removing from last authorized collection and unauthorized collections remain, asset survives
+- [ ] UI: detect multi-collection scenario and show Remove/Delete prompt
+- [ ] UI: single-collection scenario skips the prompt and deletes directly
+- [ ] Tests: asset in 1 collection → deleted
+- [ ] Tests: asset in 2 collections, user has access to both → prompt, remove vs delete
+- [ ] Tests: asset in 2 collections, user lacks access to one → only removed from authorized collection
+- [ ] Tests: verify asset still accessible from unauthorized collection after "delete"
+
+### 10.7 Backend Test Gaps
+
+Identified 2026-02-13. All items are additive — existing tests pass.
+
+| Area | Gap | Priority |
+|------|-----|----------|
+| `CollectionAuthorizationService` | `CanCreateRootCollectionAsync` — zero test coverage | P1 |
+| `CollectionAuthorizationService` | `CanManageAclAsync` / `CanCreateSubCollectionAsync` — no negative (unauthorized user) cases | P1 |
+| `CollectionAuthorizationService` | `CheckAccessAsync` — no test for direct ACL hit or non-existent collection | P1 |
+| `CollectionAuthorizationService` | `GetUserRoleAsync` — no multiple-users-on-same-chain test | P2 |
+| `AssetRepository` | `DeleteByCollectionAsync` — no test for shared-asset scenario (asset in multiple collections) | P0 (blocked by task #6 design) |
+| `AssetRepository` | `SearchAsync` — shallow: no sort-order, pagination, or combined-filter tests | P2 |
+| `AssetRepository` | `UpdateAsync` — no concurrent-update / conflict test | P2 |
+| `ShareRepository` | `SearchAllAsync` — no sort/pagination tests | P2 |
+| API integration tests | All endpoints untested at HTTP level (deferred from §5.3) | P2 |
+
+### 10.8 bUnit / UI Test Gaps
+
+Identified 2026-02-13. Pattern: components are well-tested for static rendering and role-based visibility, but weak on interactive mutation flows (submit → API → close).
+
+| Component | Gap | Priority |
+|-----------|-----|----------|
+| **EditAssetDialog** | No `SaveAsync` submission test — form is filled but never submitted | P1 |
+| **CreateShareDialog** | No `CreateShare` submission test — form filled, button never clicked | P1 |
+| **AssetUpload** | No actual file-upload pipeline test (InputFile → progress → completion) | P1 |
+| **ManageAccessDialog** | No grant / revoke / edit-role flow tests — only renders initial state | P1 |
+| **AddToCollectionDialog** | No submission test — collections are selected but confirm never clicked | P1 |
+| **AssetGrid** | No delete-chain or share-chain tests (button → confirm dialog → API call) | P1 |
+| **CollectionTree** | No drag-and-drop or context-menu interaction tests | P2 |
+| **LanguageSwitcher** | Tests only check rendering; no culture-switch-via-navigation test | P2 |
+| General | Several near-no-op tests use `Times.AtMostOnce()` (always passes) — should be `Times.Once()` or `Times.Never()` | P1 |
 
 ---
 
@@ -667,10 +724,13 @@ These items were identified during development but intentionally deferred:
 4. ~~**Collection ACL Inheritance** (#6)~~ — ✅ Complete (2026-02-09)
 5. ~~**Manager Access Management UX** (#7)~~ — ✅ Complete (2026-02-09): Option A — in-context ManageAccessDialog
 6. ~~**Auth & OIDC Hardening** (#8)~~ — ✅ Complete (2026-02-12): Same-site subdomain architecture
-7. **Persist Keycloak data** (#10.4) — Prevent data loss on container recreation
-8. **Run full test suite** (#10.3) — Verify all tests pass after auth changes
+7. ~~**Persist Keycloak data** (#10.4)~~ — ✅ Fixed (2026-02-12)
+8. ~~**Run full test suite** (#10.3)~~ — ✅ Complete (2026-02-12): 107 backend + 210 bUnit = 317 tests passing
 9. **Fix language switcher** (#10.1) — UI language switching broken
 10. **Implement password reset** (#10.2) — Self-service password reset flow
-11. **Define user deletion policy** (#10.5) — Preserve collections & shares on user removal
-12. **Frontend Testing** (#3) — Catches UI regressions
-13. **Metrics & Observability** (#2) — Health checks done; structured logging + dashboarding remaining
+11. **Smart asset deletion** (#10.6) — Multi-collection-aware delete/remove logic
+12. **Define user deletion policy** (#10.5) — Preserve collections & shares on user removal
+13. **Backend test gaps** (#10.7) — Fill missing/shallow backend test coverage
+14. **bUnit / UI test gaps** (#10.8) — Add submission-flow and mutation-chain tests
+15. **Frontend Testing** (#3) — Catches UI regressions
+16. **Metrics & Observability** (#2) — Health checks done; structured logging + dashboarding remaining

@@ -1,5 +1,6 @@
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -48,6 +49,7 @@ public class PostgresFixture : IAsyncLifetime
         var dataSource = dataSourceBuilder.Build();
         var options = new DbContextOptionsBuilder<AssetHubDbContext>()
             .UseNpgsql(dataSource)
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
 
         var db = new AssetHubDbContext(options);
@@ -65,6 +67,24 @@ public class PostgresFixture : IAsyncLifetime
     public string GetConnectionString(string dbName)
     {
         return new NpgsqlConnectionStringBuilder(ConnectionString) { Database = dbName }.ConnectionString;
+    }
+
+    /// <summary>
+    /// Creates a new DbContext for an already-existing database.
+    /// Useful when you need a fresh change tracker to avoid navigation property bleed.
+    /// </summary>
+    public AssetHubDbContext CreateDbContextForExistingDb(string dbName)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(ConnectionString) { Database = dbName };
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.ConnectionString);
+        dataSourceBuilder.EnableDynamicJson();
+        var dataSource = dataSourceBuilder.Build();
+        var options = new DbContextOptionsBuilder<AssetHubDbContext>()
+            .UseNpgsql(dataSource)
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        return new AssetHubDbContext(options);
     }
 }
 

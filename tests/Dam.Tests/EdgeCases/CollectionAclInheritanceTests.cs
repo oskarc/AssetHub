@@ -387,4 +387,50 @@ public class CollectionAclInheritanceTests : IAsyncLifetime
         // Assert
         Assert.Equal(5, accessible.Count);
     }
+
+    // ── Closest ancestor wins (not highest ancestor) ────────────────
+
+    [Fact]
+    public async Task GetUserRole_ClosestAncestorWins_NotHighestAncestor()
+    {
+        // Arrange: grandparent=admin, parent=viewer, child has no ACL.
+        // The walk-up should find parent (viewer) FIRST, not continue to grandparent (admin).
+        var grandparent = TestData.CreateCollection(name: "Grandparent");
+        var parent = TestData.CreateCollection(name: "Parent", parentId: grandparent.Id);
+        var child = TestData.CreateCollection(name: "Child", parentId: parent.Id);
+        await _collectionRepo.CreateAsync(grandparent);
+        await _collectionRepo.CreateAsync(parent);
+        await _collectionRepo.CreateAsync(child);
+        await _aclRepo.SetAccessAsync(grandparent.Id, "user", User1, "admin");
+        await _aclRepo.SetAccessAsync(parent.Id, "user", User1, "viewer");
+
+        // Act
+        var role = await _authService.GetUserRoleAsync(User1, child.Id);
+
+        // Assert — viewer from parent, not admin from grandparent
+        Assert.Equal("viewer", role);
+    }
+
+    [Fact]
+    public async Task GetUserRole_ClosestAncestorWins_MiddleLayerOverridesRoot()
+    {
+        // Arrange: 4-level hierarchy, root=viewer, L2=manager, L3 and L4 have no ACL.
+        // L4 should inherit manager from L2, not viewer from root.
+        var l1 = TestData.CreateCollection(name: "L1");
+        var l2 = TestData.CreateCollection(name: "L2", parentId: l1.Id);
+        var l3 = TestData.CreateCollection(name: "L3", parentId: l2.Id);
+        var l4 = TestData.CreateCollection(name: "L4", parentId: l3.Id);
+        await _collectionRepo.CreateAsync(l1);
+        await _collectionRepo.CreateAsync(l2);
+        await _collectionRepo.CreateAsync(l3);
+        await _collectionRepo.CreateAsync(l4);
+        await _aclRepo.SetAccessAsync(l1.Id, "user", User1, "viewer");
+        await _aclRepo.SetAccessAsync(l2.Id, "user", User1, "manager");
+
+        // Act
+        var role = await _authService.GetUserRoleAsync(User1, l4.Id);
+
+        // Assert — manager from L2 (closest), not viewer from L1
+        Assert.Equal("manager", role);
+    }
 }

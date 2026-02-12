@@ -82,12 +82,17 @@ public class CreateCollectionDialogTests : BunitTestBase
         nameInput.Change("New Collection");
         nameInput.Blur();
 
-        // Wait for validation
-        cut.WaitForState(() => !cut.Find("button:not([disabled])").TextContent.Contains("dummy"), TimeSpan.FromSeconds(2));
+        // Wait for form to become valid, then click the Create button
+        cut.WaitForState(() => cut.FindAll("button").Any(b =>
+            b.TextContent.Contains("Btn_Create") && !b.HasAttribute("disabled")),
+            TimeSpan.FromSeconds(2));
+
+        var createButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Create"));
+        await cut.InvokeAsync(() => createButton.Click());
 
         MockApi.Verify(a => a.CreateCollectionAsync(
-            It.Is<CreateCollectionDto>(dto => dto.Name != null),
-            It.IsAny<CancellationToken>()), Times.AtMostOnce());
+            It.Is<CreateCollectionDto>(dto => dto.Name == "New Collection"),
+            It.IsAny<CancellationToken>()), Times.Once());
     }
 
     [Fact]
@@ -105,10 +110,18 @@ public class CreateCollectionDialogTests : BunitTestBase
         nameInput.Change("Sub Collection");
         nameInput.Blur();
 
+        // Wait for form to become valid, then click the Create button
+        cut.WaitForState(() => cut.FindAll("button").Any(b =>
+            b.TextContent.Contains("Btn_Create") && !b.HasAttribute("disabled")),
+            TimeSpan.FromSeconds(2));
+
+        var createButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Create"));
+        await cut.InvokeAsync(() => createButton.Click());
+
         MockApi.Verify(a => a.CreateSubCollectionAsync(
             parentId,
-            It.IsAny<CreateCollectionDto>(),
-            It.IsAny<CancellationToken>()), Times.AtMostOnce());
+            It.Is<CreateCollectionDto>(dto => dto.Name == "Sub Collection"),
+            It.IsAny<CancellationToken>()), Times.Once());
     }
 
     [Fact]
