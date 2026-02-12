@@ -1,7 +1,7 @@
 # AssetHub Implementation Plan — V2 (Post-MVP)
 
 **Created**: 2026-02-08  
-**Last Updated**: 2026-02-09  
+**Last Updated**: 2026-02-12  
 **Context**: All MVP features, audit fixes, and code quality work are complete (see V1). This document tracks remaining and future work.
 
 ---
@@ -538,7 +538,70 @@ A new page (e.g., `/manage`) that shows only the collections the current user ma
 
 ---
 
-## 8. Deferred Items (Low Priority)
+## 8. Authentication & OIDC Hardening
+
+**Priority**: Critical  
+**Status**: ✅ Complete  
+**Completed**: 2026-02-12  
+**Estimate**: 4-6 hours  
+**Description**: Fixed OIDC login loop caused by SameSite=Strict cookies not surviving cross-site redirects after Keycloak DB wipe. Implemented same-site subdomain architecture as the architecturally correct solution. Cleaned up all debugging artifacts and dead code.
+
+### Problem
+
+After a Keycloak database wipe (fresh realm import), the login flow entered an infinite redirect loop. Root cause: the app cookie (`__Host.assethub.auth`) uses `SameSite=Strict`, which means browsers do **not** send it on cross-site navigation responses. When Keycloak (`localhost:8443`) redirected back to the app (`localhost:7252`), the browser treated this as a cross-site redirect and stripped the correlation cookie, causing OpenID Connect to fail with "Correlation failed."
+
+### Solution: Same-Site Subdomain Architecture
+
+Instead of weakening `SameSite` to `Lax` or adding bounce pages, the app and Keycloak now share the same registrable domain:
+
+| Environment | App URL | Keycloak URL |
+|-------------|---------|-------------|
+| Development | `https://assethub.local:7252` | `https://keycloak.assethub.local:8443` |
+| Production | `https://assethub.com` | `https://auth.assethub.com` |
+
+Because both are subdomains of the same registrable domain, `SameSite=Strict` cookies are sent on redirects between them.
+
+### Changes Made
+
+#### 8.1 Certificate & DNS
+- Generated self-signed cert (`certs/dev-cert.pfx`, password `devpass123`) with SANs: `assethub.local`, `keycloak.assethub.local`, `localhost`
+- Cert trusted in `CurrentUser\Root` store
+- Hosts file: `127.0.0.1 assethub.local keycloak.assethub.local`
+
+#### 8.2 Docker Compose
+- `KC_HOSTNAME: keycloak.assethub.local` for Keycloak
+- Docker network alias `keycloak.assethub.local` on Keycloak service (so the API container can resolve it internally)
+- API Authority → `https://keycloak.assethub.local:8443/realms/media`
+- API BaseUrl → `https://assethub.local:7252`
+- Removed deprecated `version: '3.8'`
+
+#### 8.3 App Configuration
+- `appsettings.Development.json`: Authority only (`https://keycloak.assethub.local:8443/realms/media`), no BrowserAuthority/ValidIssuer needed
+- Removed `BrowserAuthority` / `ValidIssuer` settings and all associated rewrite logic from `Program.cs` (`OnRedirectToIdentityProvider`, `OnRedirectToIdentityProviderForSignOut` handlers)
+- Removed PAR (Pushed Authorization Request) disable workaround
+- `ValidIssuer` now uses `keycloakAuthority` directly (single source of truth)
+
+#### 8.4 Keycloak Realm
+- `media-realm.json`: redirectUris → `https://assethub.local:7252/signin-oidc`, webOrigins → `https://assethub.local:7252`
+- Live Keycloak client updated via Admin API to match
+
+#### 8.5 Code Cleanup
+- Removed all `[OIDC-DIAG]` diagnostic logging (14 occurrences)
+- Removed `OidcBackchannelLoggingPostConfigure.cs` and its DI registration
+- Removed `/debug/ping` and `/debug/keycloak/userinfo-probe` endpoints
+- Removed `UserInfoProbeRequest` record
+- Deleted 6 deprecated files: `_iconcheck.csx`, `apply_nullable_migration.sql`, `fix_shares.sql`, `test-upload.txt`, `test-image.png`, `OidcBackchannelLoggingPostConfigure.cs`
+- OIDC events retained: `OnRemoteFailure`, `OnAuthenticationFailed` (functional error handlers), `OnTokenValidated` (role mapping)
+- Build: **0 warnings, 0 errors**
+
+### Production Notes
+- In production, use `auth.assethub.com` (or similar subdomain) for Keycloak with a proper TLS certificate
+- The same-site subdomain approach means `SameSite=Strict` works correctly without any workarounds
+- No `BrowserAuthority` / issuer rewriting needed when Keycloak is on a subdomain of the app domain
+
+---
+
+## 9. Deferred Items (Low Priority)
 
 These items were identified during development but intentionally deferred:
 
@@ -554,16 +617,29 @@ These items were identified during development but intentionally deferred:
 
 ---
 
-## 9. Known Issues
+## 10. Known Issues & Open Tasks
 
 | Issue | Impact | Status | Workaround |
 |-------|--------|--------|------------|
 | Worker crashes with exit code 139 | Background jobs not processing | Open | Run Hangfire in API container instead |
 | Keycloak `/health/ready` returns 404 | Docker compose health check limited | Minor | Check via admin console |
+| Change language button doesn't work | Users cannot switch UI language | Open | — |
+| Reset password not implemented | Users cannot reset their own password | Open | Admin resets password via Keycloak console |
+| Keycloak data not persisted outside container | DB wipe on container recreation loses all users/config | Open | Add named volume for Keycloak PostgreSQL data |
+
+### Open Tasks
+
+| # | Task | Priority | Notes |
+|---|------|----------|-------|
+| 1 | **Fix language switcher** | Medium | The change language button in the UI does not work. Investigate culture switching logic and cookie persistence. |
+| 2 | **Implement password reset** | Medium | Users need a self-service password reset flow. Options: Keycloak's built-in "forgot password" flow (requires SMTP), or a custom endpoint triggering Keycloak's reset-password action. |
+| 3 | **Run full test suite** | High | All backend tests (86 repository + edge case), 210 bUnit tests, and 173 Playwright E2E tests need to be executed and verified passing after recent auth changes. |
+| 4 | **Persist Keycloak data outside container** | High | Keycloak's database must use a Docker named volume (or external PostgreSQL) so data survives container recreation. Currently a DB wipe loses all realm config, users, and client settings. |
+| 5 | **Define user deletion policy** | Medium | When a user is removed: **collections should NOT be removed**, **shares should NOT be removed**. Audit what currently happens on user deletion and ensure orphaned resources are handled gracefully (e.g., show "deleted user" placeholder, transfer ownership, or retain as-is). |
 
 ---
 
-## 10. Phase Completion Summary (Updated 2026-02-09)
+## 11. Phase Completion Summary (Updated 2026-02-12)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
@@ -579,6 +655,7 @@ These items were identified during development but intentionally deferred:
 | Code Audit (25 issues) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
 | Post-Audit Review (5 fixes) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
 | Build Warnings Cleanup | ✅ COMPLETE | 0 errors, 0 warnings |
+| Auth & OIDC Hardening | ✅ COMPLETE | Same-site subdomain architecture, SameSite=Strict fix, code cleanup (2026-02-12) |
 
 ---
 
@@ -589,5 +666,11 @@ These items were identified during development but intentionally deferred:
 3. ~~**Backend Integration Testing** (#5)~~ — ✅ Repository & edge case tests done (86 tests); API tests deferred
 4. ~~**Collection ACL Inheritance** (#6)~~ — ✅ Complete (2026-02-09)
 5. ~~**Manager Access Management UX** (#7)~~ — ✅ Complete (2026-02-09): Option A — in-context ManageAccessDialog
-6. **Frontend Testing** (#3) — Catches UI regressions
-7. **Metrics & Observability** (#2) — Health checks done; structured logging + dashboarding remaining
+6. ~~**Auth & OIDC Hardening** (#8)~~ — ✅ Complete (2026-02-12): Same-site subdomain architecture
+7. **Persist Keycloak data** (#10.4) — Prevent data loss on container recreation
+8. **Run full test suite** (#10.3) — Verify all tests pass after auth changes
+9. **Fix language switcher** (#10.1) — UI language switching broken
+10. **Implement password reset** (#10.2) — Self-service password reset flow
+11. **Define user deletion policy** (#10.5) — Preserve collections & shares on user removal
+12. **Frontend Testing** (#3) — Catches UI regressions
+13. **Metrics & Observability** (#2) — Health checks done; structured logging + dashboarding remaining
