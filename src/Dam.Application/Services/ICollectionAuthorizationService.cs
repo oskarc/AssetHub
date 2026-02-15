@@ -46,4 +46,16 @@ public interface ICollectionAuthorizationService
     /// </summary>
     /// <param name="ct">Cancellation token</param>
     Task<bool> CanCreateSubCollectionAsync(string userId, Guid parentCollectionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Batch-resolves user roles for multiple collections in a single operation,
+    /// reducing N+1 database round-trips. Returns a dictionary of collectionId → role (or null).
+    /// </summary>
+    Task<Dictionary<Guid, string?>> GetUserRolesAsync(string userId, IEnumerable<Guid> collectionIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Filters a set of collection IDs to only those the user has the required role (or higher).
+    /// More efficient than calling CheckAccessAsync in a loop.
+    /// </summary>
+    Task<List<Guid>> FilterAccessibleAsync(string userId, IEnumerable<Guid> collectionIds, string requiredRole, CancellationToken ct = default);
 }

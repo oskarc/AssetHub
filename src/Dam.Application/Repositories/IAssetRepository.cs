@@ -15,7 +15,12 @@ public interface IAssetRepository
     Task CreateAsync(Asset asset, CancellationToken cancellationToken = default);
     Task UpdateAsync(Asset asset, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
-    Task DeleteByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Smart collection-scoped deletion. Assets exclusive to this collection are hard-deleted
+    /// and returned so the caller can clean up storage. Shared assets are only unlinked.
+    /// </summary>
+    Task<List<Asset>> DeleteByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Search assets within a collection with optional filters.

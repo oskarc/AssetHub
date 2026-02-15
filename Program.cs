@@ -20,10 +20,33 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Minio;
 using Microsoft.Extensions.Options;
+using Serilog;
+using Serilog.Events;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
+// ── Bootstrap Serilog (captures startup errors before DI is ready) ──────
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
+try
+{
+
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Serilog — structured logging ────────────────────────────────────────
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithEnvironmentName()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .Enrich.WithProperty("Application", "AssetHub"));
+
 
 // Kestrel limits â€” allow the IFormFile upload fallback path to handle files
 // up to MaxUploadSizeMb. The presigned upload path bypasses this entirely.
@@ -115,6 +138,10 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IUserProvisioningService, UserProvisioningService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IUserSyncService, UserSyncService>();
+builder.Services.AddScoped<IAssetDeletionService, AssetDeletionService>();
+builder.Services.AddScoped<IZipDownloadService, ZipDownloadService>();
+builder.Services.AddScoped<IShareService, ShareService>();
+builder.Services.AddScoped<IUserCleanupService, UserCleanupService>();
 
 // Keycloak Admin API client for user management
 var keycloakTimeoutSeconds = builder.Configuration.GetValue("Keycloak:TimeoutSeconds", 30);
@@ -332,6 +359,15 @@ builder.Services.AddAuthentication(options =>
 
     options.Events = new OpenIdConnectEvents
     {
+        OnRedirectToIdentityProvider = context =>
+        {
+            // Pass kc_action (e.g. UPDATE_PASSWORD) to Keycloak if set via AuthenticationProperties
+            if (context.Properties.Items.TryGetValue("kc_action", out var kcAction))
+            {
+                context.ProtocolMessage.SetParameter("kc_action", kcAction);
+            }
+            return Task.CompletedTask;
+        },
         OnRemoteFailure = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
@@ -600,6 +636,21 @@ app.Use(async (context, next) =>
 
 app.UseStaticFiles();
 
+// Serilog request logging — replaces default Microsoft request logging
+// with a single structured event per request (method, path, status, duration).
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value ?? "-");
+        diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.FirstOrDefault() ?? "-");
+        if (httpContext.User.Identity?.IsAuthenticated == true)
+        {
+            diagnosticContext.Set("UserId", httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "-");
+        }
+    };
+});
+
 app.UseRequestLocalization();
 
 app.UseAuthentication();
@@ -627,6 +678,13 @@ app.MapGet("/auth/logout", async (HttpContext http) =>
     await http.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme,
         new() { RedirectUri = "/" });
 });
+
+app.MapGet("/auth/change-password", async (HttpContext http) =>
+{
+    var properties = new AuthenticationProperties { RedirectUri = "/" };
+    properties.Items["kc_action"] = "UPDATE_PASSWORD";
+    await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, properties);
+}).RequireAuthorization();
 
 // API Endpoints
 app.MapCollectionEndpoints();
@@ -731,6 +789,16 @@ static IEnumerable<string> ExtractClientRolesFromKeycloakJson(string json, strin
 }
 
 app.Run();
+
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // ---------------------------------------------------------------------------
 // Custom Health Checks

@@ -227,4 +227,9 @@
   <data name="Language_English" xml:space="preserve"><value>English</value></data>
   <data name="Language_Swedish" xml:space="preserve"><value>Svenska</value></data>
   <data name="Language_Label" xml:space="preserve"><value>Språk</value></data>
+
+  <!-- Password / Account -->
+  <data name="Btn_ChangePassword" xml:space="preserve"><value>Byt lösenord</value></data>
+  <data name="Btn_ForgotPassword" xml:space="preserve"><value>Glömt ditt lösenord?</value></data>
+  <data name="Text_ForgotPasswordHint" xml:space="preserve"><value>Klicka på Logga in och använd sedan länken "Glömt lösenord?" på inloggningssidan.</value></data>
 </root>

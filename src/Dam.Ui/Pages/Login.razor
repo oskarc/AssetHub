@@ -42,6 +42,13 @@
             <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
                 @CommonLoc["Text_RedirectIdentityProvider"]
             </MudText>
+
+            <MudLink Typo="Typo.body2" Color="Color.Primary" OnClick="SignIn" Class="mt-2 cursor-pointer">
+                @CommonLoc["Btn_ForgotPassword"]
+            </MudLink>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                @CommonLoc["Text_ForgotPasswordHint"]
+            </MudText>
         </MudStack>
     </MudPaper>
 </MudContainer>

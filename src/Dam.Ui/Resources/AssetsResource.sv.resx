@@ -75,6 +75,16 @@
   <data name="CollectionCreatedSuccess" xml:space="preserve"><value>Samling har skapats</value></data>
   <data name="AssetUpdatedSuccess" xml:space="preserve"><value>Tillgång har uppdaterats</value></data>
   <data name="AssetDeletedSuccess" xml:space="preserve"><value>Tillgång har tagits bort</value></data>
+  <data name="AssetRemovedSuccess" xml:space="preserve"><value>Tillgång borttagen från samling</value></data>
+
+  <!-- Smart Delete Dialog -->
+  <data name="DeleteOrRemove" xml:space="preserve"><value>Ta bort eller avlänka?</value></data>
+  <data name="DeleteOrRemoveDesc" xml:space="preserve"><value>'{0}' tillhör {1} samlingar. Vad vill du göra?</value></data>
+  <data name="Btn_RemoveFromCollection" xml:space="preserve"><value>Ta bort från denna samling</value></data>
+  <data name="Btn_DeletePermanently" xml:space="preserve"><value>Ta bort permanent</value></data>
+  <data name="Text_RemoveHint" xml:space="preserve"><value>Tillgången kommer att finnas kvar i sina andra samlingar.</value></data>
+  <data name="Text_DeleteHint" xml:space="preserve"><value>Tillgången och alla dess filer tas bort permanent.</value></data>
+  <data name="Text_DeletePartialHint" xml:space="preserve"><value>Du har bara behörighet att ta bort denna tillgång från dina samlingar. Den kommer att finnas kvar i samlingar du inte hanterar.</value></data>
 
   <!-- Manage Access -->
   <data name="ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>

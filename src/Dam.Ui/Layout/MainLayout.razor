@@ -33,12 +33,14 @@
                     @DisplayName(auth.User)
                 </MudText>
 
-                <MudButton Variant="Variant.Outlined"
-                           Size="Size.Small"
-                           OnClick="@Logout"
-                           Class="mr-2">
-                    @CommonLoc["Btn_SignOut"]
-                </MudButton>
+                <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomCenter">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Lock" OnClick="@ChangePassword">
+                        @CommonLoc["Btn_ChangePassword"]
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="@Logout">
+                        @CommonLoc["Btn_SignOut"]
+                    </MudMenuItem>
+                </MudMenu>
             </Authorized>
 
             <NotAuthorized>
@@ -120,6 +122,11 @@
     {
         // forceLoad = true so we do a full navigation and the OIDC middleware takes over
         Nav.NavigateTo("/auth/login", forceLoad: true);
+    }
+
+    private void ChangePassword()
+    {
+        Nav.NavigateTo("/auth/change-password", forceLoad: true);
     }
 
     private void Logout()

@@ -90,135 +90,30 @@ public static class ShareEndpoints
 
     private static async Task<IResult> CreateShare(
         CreateShareDto dto,
-        [FromServices] IAssetRepository assetRepository,
-        [FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [FromServices] ICollectionRepository collectionRepository,
+        [FromServices] IShareService shareService,
         [FromServices] ICollectionAuthorizationService authService,
-        [FromServices] IShareRepository shareRepository,
-        [FromServices] IEmailService emailService,
-        [FromServices] IUserLookupService userLookupService,
-        [FromServices] IAuditService audit,
         HttpContext httpContext,
-        [FromServices] Microsoft.AspNetCore.DataProtection.IDataProtectionProvider dataProtection,
         CancellationToken ct)
     {
         var userId = httpContext.User.GetRequiredUserId();
 
-        // Validate scope
-        if (dto.ScopeType != Constants.ScopeTypes.Asset && dto.ScopeType != Constants.ScopeTypes.Collection)
-            return Results.BadRequest(ApiError.BadRequest("ScopeType must be 'asset' or 'collection'"));
-
-        Guid collectionIdToCheck;
-        string contentName;
-
-        if (dto.ScopeType == Constants.ScopeTypes.Asset)
+        // Validate scope and resolve authorization target
+        var validation = await shareService.ValidateScopeAsync(dto, ct);
+        if (!validation.IsValid)
         {
-            var asset = await assetRepository.GetByIdAsync(dto.ScopeId, ct);
-            if (asset == null)
-                return Results.NotFound(ApiError.NotFound("Asset not found"));
-            
-            // Get collections the asset belongs to
-            var assetCollections = await assetCollectionRepo.GetCollectionsForAssetAsync(dto.ScopeId, ct);
-            if (assetCollections.Count == 0)
-                return Results.BadRequest(ApiError.BadRequest("Cannot create share for orphan asset. Add asset to a collection first."));
-            
-            // Use the first collection for authorization (user must have access to at least one collection)
-            collectionIdToCheck = assetCollections[0].Id;
-            contentName = asset.Title;
-        }
-        else // collection
-        {
-            var collection = await collectionRepository.GetByIdAsync(dto.ScopeId, ct: ct);
-            if (collection == null)
-                return Results.NotFound(ApiError.NotFound("Collection not found"));
-            collectionIdToCheck = collection.Id;
-            contentName = collection.Name;
+            return validation.ErrorStatusCode == 404
+                ? Results.NotFound(ApiError.NotFound(validation.ErrorMessage!))
+                : Results.BadRequest(ApiError.BadRequest(validation.ErrorMessage!));
         }
 
         // Authorization: User must have contributor+ role to share
-        if (!await authService.CheckAccessAsync(userId, collectionIdToCheck, RoleHierarchy.Roles.Contributor, ct))
+        if (!await authService.CheckAccessAsync(userId, validation.CollectionIdToCheck!.Value, RoleHierarchy.Roles.Contributor, ct))
             return Results.Json(ApiError.Forbidden("You don't have permission to share this resource"), statusCode: 403);
 
-        // Generate secure token
-        var token = ShareHelpers.GenerateToken();
-        var tokenHash = ShareHelpers.ComputeTokenHash(token);
-
-        // Generate password if not provided (always require password)
-        var plainPassword = dto.Password;
-        if (string.IsNullOrWhiteSpace(plainPassword))
-        {
-            plainPassword = PasswordGenerator.Generate(12);
-        }
-
-        var protector = dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
-        var protectedBytes = protector.Protect(System.Text.Encoding.UTF8.GetBytes(token));
-        var protectedToken = Convert.ToBase64String(protectedBytes);
-
-        var share = new Share
-        {
-            Id = Guid.NewGuid(),
-            ScopeId = dto.ScopeId,
-            ScopeType = dto.ScopeType,
-            TokenHash = tokenHash,
-            TokenEncrypted = protectedToken,
-            ExpiresAt = dto.ExpiresAt?.ToUniversalTime() ?? DateTime.UtcNow.AddDays(7), // Default 7 days
-            CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = httpContext.User.GetRequiredUserId(),
-            PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword)
-        };
-
-        // Save share to database
-        await shareRepository.CreateAsync(share, ct);
-
-        await audit.LogAsync("share.created", "share", share.Id, userId,
-            new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, httpContext, ct);
-
         var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
-        var shareUrl = $"{baseUrl}/share/{token}";
+        var result = await shareService.CreateShareAsync(dto, userId, baseUrl, httpContext, ct);
 
-        // Send notification emails if recipients are provided
-        if (dto.NotifyEmails?.Any() == true)
-        {
-            try
-            {
-                // Get sender's display name
-                var userNames = await userLookupService.GetUserNamesAsync(new[] { userId }, default);
-                var senderName = userNames.TryGetValue(userId, out var name) ? name : null;
-
-                var emailTemplate = new ShareCreatedEmailTemplate(
-                    shareUrl: shareUrl,
-                    password: plainPassword,
-                    contentName: contentName,
-                    contentType: dto.ScopeType,
-                    senderName: senderName,
-                    expiresAt: share.ExpiresAt
-                );
-
-                await emailService.SendEmailAsync(dto.NotifyEmails, emailTemplate);
-            }
-            catch (Exception ex)
-            {
-                // Log the error but don't fail the share creation
-                // The share is already created successfully
-                var loggerFactory = httpContext.RequestServices.GetRequiredService<ILoggerFactory>();
-                var logger = loggerFactory.CreateLogger("AssetHub.ShareEndpoints");
-                logger.LogError(ex, $"Failed to send share notification emails for share {share.Id} to {string.Join(", ", dto.NotifyEmails)}");
-            }
-        }
-
-        return Results.Created($"/api/shares/{share.Id}", new ShareResponseDto
-        {
-            Id = share.Id,
-            ScopeType = share.ScopeType,
-            ScopeId = share.ScopeId,
-            Token = token, // Return unhashed token to user for this one-time display
-            CreatedAt = share.CreatedAt,
-            ExpiresAt = share.ExpiresAt,
-            PermissionsJson = share.PermissionsJson,
-            ShareUrl = shareUrl,
-            Password = plainPassword // Return password for one-time display
-        });
+        return Results.Created($"/api/shares/{result.Response.Id}", result.Response);
     }
 
     private static async Task<IResult> GetSharedAsset(
@@ -383,8 +278,7 @@ public static class ShareEndpoints
         [FromServices] IShareRepository shareRepository,
         [FromServices] IAssetRepository assetRepository,
         [FromServices] ICollectionRepository collectionRepository,
-        [FromServices] IMinIOAdapter minioAdapter,
-        [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] IZipDownloadService zipService,
         IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
@@ -392,11 +286,9 @@ public static class ShareEndpoints
         var (share, error) = await ValidateAndGetShareAsync(token, password, httpContext, shareRepository, ct);
         if (error != null) return error;
 
-        // Check if download permission is granted
         if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
             return Results.Forbid();
 
-        // Only works for collection shares
         if (share.ScopeType != Constants.ScopeTypes.Collection)
             return Results.BadRequest("Download all is only available for collection shares");
 
@@ -413,49 +305,8 @@ public static class ShareEndpoints
         // Atomic access tracking — single UPDATE avoids race conditions
         await shareRepository.IncrementAccessAsync(share.Id, ct);
 
-        // Stream ZIP directly to the HTTP response — never buffer entire collection in memory.
-        // Each asset is fetched from MinIO and written to the ZIP entry one at a time.
         var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        httpContext.Response.ContentType = "application/zip";
-        httpContext.Response.Headers.ContentDisposition = $"attachment; filename=\"{zipFileName}\"";
-
-        var errors = new List<string>();
-        await using var responseStream = httpContext.Response.BodyWriter.AsStream();
-        using var archive = new ZipArchive(responseStream, ZipArchiveMode.Create, leaveOpen: true);
-        foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
-        {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                await using var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
-                var fileName = FileHelpers.GetSafeFileName(asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
-
-                var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
-                await using var entryStream = entry.Open();
-                await assetStream.CopyToAsync(entryStream, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                loggerFactory.CreateLogger("ShareEndpoints").LogWarning(ex,
-                    "Failed to include asset {AssetId} ({ObjectKey}) in shared ZIP download for share {ShareId}",
-                    asset.Id, asset.OriginalObjectKey, share.Id);
-                errors.Add($"{asset.Title ?? asset.Id.ToString()} — {ex.Message}");
-            }
-        }
-
-        if (errors.Count > 0)
-        {
-            var errEntry = archive.CreateEntry("_errors.txt", CompressionLevel.Fastest);
-            await using var errStream = errEntry.Open();
-            await using var writer = new StreamWriter(errStream);
-            await writer.WriteLineAsync("The following files could not be included:");
-            foreach (var err in errors)
-                await writer.WriteLineAsync($"  • {err}");
-        }
+        await zipService.StreamAssetsAsZipAsync(assets, bucketName, zipFileName, httpContext, ct);
 
         return Results.Empty;
     }

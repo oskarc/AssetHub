@@ -220,4 +220,56 @@ public class ManageAccessDialogTests : BunitTestBase
 
         Assert.Contains(Icons.Material.Filled.Security, cut.Markup);
     }
+
+    // ── Revoke access submission flow ───────────────────────────────
+
+    [Fact]
+    public async Task RevokeAccess_Calls_Api_And_Shows_Success()
+    {
+        var entry = TestData.CreateAclEntry(principalId: "user-revoke", principalName: "revoke-me", role: "viewer");
+        var entries = new List<CollectionAclResponseDto> { entry };
+
+        MockApi.Setup(a => a.GetCollectionAclsAsync(_collectionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(entries);
+
+        MockApi.Setup(a => a.RevokeCollectionAccessAsync(
+                _collectionId, "user", "user-revoke", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var cut = await RenderDialogAsync(currentUserRole: "manager", aclEntries: entries);
+
+        // Find the revoke button (PersonRemove icon button)
+        var revokeBtn = cut.FindAll("button")
+            .FirstOrDefault(b => b.OuterHtml.Contains("PersonRemove") || b.GetAttribute("title")?.Contains("RevokeAccess") == true);
+        Assert.NotNull(revokeBtn);
+
+        await cut.InvokeAsync(() => revokeBtn!.Click());
+
+        MockApi.Verify(a => a.RevokeCollectionAccessAsync(
+            _collectionId, "user", "user-revoke", It.IsAny<CancellationToken>()), Times.Once());
+    }
+
+    [Fact]
+    public async Task RevokeAccess_Error_Calls_HandleError()
+    {
+        var entry = TestData.CreateAclEntry(principalId: "user-err", principalName: "error-user", role: "viewer");
+        var entries = new List<CollectionAclResponseDto> { entry };
+
+        MockApi.Setup(a => a.GetCollectionAclsAsync(_collectionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(entries);
+
+        MockApi.Setup(a => a.RevokeCollectionAccessAsync(
+                _collectionId, "user", "user-err", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("API Error"));
+
+        var cut = await RenderDialogAsync(currentUserRole: "manager", aclEntries: entries);
+
+        var revokeBtn = cut.FindAll("button")
+            .FirstOrDefault(b => b.OuterHtml.Contains("PersonRemove") || b.GetAttribute("title")?.Contains("RevokeAccess") == true);
+        Assert.NotNull(revokeBtn);
+
+        await cut.InvokeAsync(() => revokeBtn!.Click());
+
+        VerifyHandleErrorCalled();
+    }
 }

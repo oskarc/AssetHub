@@ -75,6 +75,16 @@
   <data name="CollectionCreatedSuccess" xml:space="preserve"><value>Collection created successfully</value></data>
   <data name="AssetUpdatedSuccess" xml:space="preserve"><value>Asset updated successfully</value></data>
   <data name="AssetDeletedSuccess" xml:space="preserve"><value>Asset deleted successfully</value></data>
+  <data name="AssetRemovedSuccess" xml:space="preserve"><value>Asset removed from collection</value></data>
+
+  <!-- Smart Delete Dialog -->
+  <data name="DeleteOrRemove" xml:space="preserve"><value>Delete or Remove?</value></data>
+  <data name="DeleteOrRemoveDesc" xml:space="preserve"><value>'{0}' belongs to {1} collections. What would you like to do?</value></data>
+  <data name="Btn_RemoveFromCollection" xml:space="preserve"><value>Remove from This Collection</value></data>
+  <data name="Btn_DeletePermanently" xml:space="preserve"><value>Delete Permanently</value></data>
+  <data name="Text_RemoveHint" xml:space="preserve"><value>The asset will remain in its other collections.</value></data>
+  <data name="Text_DeleteHint" xml:space="preserve"><value>The asset and all its files will be permanently deleted.</value></data>
+  <data name="Text_DeletePartialHint" xml:space="preserve"><value>You only have permission to remove this asset from your collections. It will remain in collections you do not manage.</value></data>
 
   <!-- Manage Access -->
   <data name="ManageAccess" xml:space="preserve"><value>Manage Access</value></data>

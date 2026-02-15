@@ -30,6 +30,7 @@ public static class AssetEndpoints
         group.MapGet("{id}/collections", GetAssetCollections).WithName("GetAssetCollections");
         group.MapPost("{id}/collections/{collectionId}", AddAssetToCollection).WithName("AddAssetToCollection");
         group.MapDelete("{id}/collections/{collectionId}", RemoveAssetFromCollection).WithName("RemoveAssetFromCollection");
+        group.MapGet("{id}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
 
         // Presigned upload flow (for large files — browser uploads directly to MinIO)
         group.MapPost("init-upload", InitUpload).WithName("InitUpload");
@@ -307,21 +308,9 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check authorization - require contributor on any of the asset's collections
-        if (!isSystemAdmin)
-        {
-            var assetCollections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
-            bool canEdit = false;
-            foreach (var collId in assetCollections)
-            {
-                if (await authService.CheckAccessAsync(userId, collId, RoleHierarchy.Roles.Contributor, ct))
-                {
-                    canEdit = true;
-                    break;
-                }
-            }
-            if (!canEdit)
-                return Results.Forbid();
-        }
+        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct,
+                requiredRole: RoleHierarchy.Roles.Contributor))
+            return Results.Forbid();
 
         // Only update fields that are provided
         if (dto.Title != null)
@@ -343,9 +332,11 @@ public static class AssetEndpoints
 
     private static async Task<IResult> DeleteAsset(
         Guid id,
+        [Microsoft.AspNetCore.Mvc.FromQuery] Guid? fromCollectionId,
+        [Microsoft.AspNetCore.Mvc.FromQuery] bool permanent,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetDeletionService deletionService,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
         [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
@@ -360,39 +351,93 @@ public static class AssetEndpoints
         if (asset == null)
             return Results.NotFound();
 
-        // Check authorization - require manager on any of the asset's collections
-        if (!isSystemAdmin)
+        var assetCollections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
+
+        // If fromCollectionId is set and permanent is false: "Remove from this collection" mode
+        if (fromCollectionId.HasValue && !permanent && assetCollections.Count > 1)
         {
-            var assetCollections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
-            bool canDelete = false;
-            foreach (var collId in assetCollections)
+            // Require contributor+ on the source collection
+            if (!isSystemAdmin)
             {
-                if (await authService.CheckAccessAsync(userId, collId, RoleHierarchy.Roles.Manager, ct))
-                {
-                    canDelete = true;
-                    break;
-                }
+                var canAccess = await authService.CheckAccessAsync(userId, fromCollectionId.Value, RoleHierarchy.Roles.Contributor, ct);
+                if (!canAccess)
+                    return Results.Forbid();
             }
-            if (!canDelete)
-                return Results.Forbid();
+
+            await assetCollectionRepo.RemoveFromCollectionAsync(id, fromCollectionId.Value, ct);
+
+            await audit.LogAsync("asset.removed_from_collection", "asset", id, userId,
+                new() { ["title"] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() }, httpContext, ct);
+
+            return Results.NoContent();
         }
 
-        // Delete from MinIO
-        await minioAdapter.DeleteAsync(bucketName, asset.OriginalObjectKey, ct);
-        if (asset.ThumbObjectKey != null)
-            await minioAdapter.DeleteAsync(bucketName, asset.ThumbObjectKey, ct);
-        if (asset.MediumObjectKey != null)
-            await minioAdapter.DeleteAsync(bucketName, asset.MediumObjectKey, ct);
-        if (asset.PosterObjectKey != null)
-            await minioAdapter.DeleteAsync(bucketName, asset.PosterObjectKey, ct);
+        // Permanent delete mode — check authorization on the asset's collections
+        if (!isSystemAdmin)
+        {
+            var authorizedCollectionIds = await authService.FilterAccessibleAsync(
+                userId, assetCollections, RoleHierarchy.Roles.Manager, ct);
 
-        // Delete from database
-        await assetRepository.DeleteAsync(id, ct);
+            if (authorizedCollectionIds.Count == 0)
+                return Results.Forbid();
+
+            var unauthorizedRemain = assetCollections.Except(authorizedCollectionIds).Any();
+
+            if (unauthorizedRemain)
+            {
+                // User can't fully delete — just remove from authorized collections
+                foreach (var collId in authorizedCollectionIds)
+                    await assetCollectionRepo.RemoveFromCollectionAsync(id, collId, ct);
+
+                await audit.LogAsync("asset.removed_from_collections", "asset", id, userId,
+                    new() { ["title"] = asset.Title, ["count"] = authorizedCollectionIds.Count.ToString() }, httpContext, ct);
+
+                return Results.NoContent();
+            }
+        }
+
+        // Full permanent delete — user has authority over all collections (or is admin)
+        await deletionService.PermanentDeleteAsync(asset, bucketName, ct);
 
         await audit.LogAsync("asset.deleted", "asset", id, userId,
             new() { ["title"] = asset.Title }, httpContext, ct);
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Returns context information needed by the UI to decide which deletion
+    /// options to present (remove from collection vs permanent delete).
+    /// </summary>
+    private static async Task<IResult> GetAssetDeletionContext(
+        Guid id,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var userId = httpContext.User.GetRequiredUserId();
+        var isSystemAdmin = httpContext.User.IsInRole(RoleHierarchy.Roles.Admin);
+
+        var asset = await assetRepository.GetByIdAsync(id, ct);
+        if (asset == null)
+            return Results.NotFound();
+
+        var collectionIds = await assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
+
+        bool canDeleteAll = isSystemAdmin;
+        if (!isSystemAdmin)
+        {
+            var accessible = await authService.FilterAccessibleAsync(userId, collectionIds, RoleHierarchy.Roles.Manager, ct);
+            canDeleteAll = accessible.Count == collectionIds.Count;
+        }
+
+        return Results.Ok(new AssetDeletionContextDto
+        {
+            CollectionCount = collectionIds.Count,
+            CanDeletePermanently = canDeleteAll
+        });
     }
 
     #region Multi-Collection Endpoints
@@ -416,22 +461,8 @@ public static class AssetEndpoints
             return Results.NotFound();
 
         // Check if user can access via any of the asset's collections (system admins bypass)
-        if (!isSystemAdmin)
-        {
-            var linkedCollections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
-            bool canAccess = false;
-            foreach (var linkedCollectionId in linkedCollections)
-            {
-                if (await authService.CheckAccessAsync(userId, linkedCollectionId, RoleHierarchy.Roles.Viewer, ct))
-                {
-                    canAccess = true;
-                    break;
-                }
-            }
-            
-            if (!canAccess)
-                return Results.Forbid();
-        }
+        if (!await CanAccessAssetAsync(id, userId, isSystemAdmin, assetCollectionRepo, authService, ct))
+            return Results.Forbid();
 
         var collections = await assetCollectionRepo.GetCollectionsForAssetAsync(id, ct);
 
@@ -508,14 +539,16 @@ public static class AssetEndpoints
     }
 
     /// <summary>
-    /// Remove an asset from a collection. If removing from primary collection, the asset becomes an orphan.
+    /// Remove an asset from a collection. If the asset becomes orphaned (0 collections), it is auto-deleted.
     /// </summary>
     private static async Task<IResult> RemoveAssetFromCollection(
         Guid id,
         Guid collectionId,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetDeletionService deletionService,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -526,19 +559,28 @@ public static class AssetEndpoints
         if (asset == null)
             return Results.NotFound(ApiError.NotFound("Asset not found"));
 
-        // Check if user can manage the asset (system admins bypass)
         if (!isSystemAdmin)
         {
-            // User needs contributor access to the collection they're removing from
             var canAccess = await authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
             if (!canAccess)
                 return Results.Json(ApiError.Forbidden("You don't have permission to manage this asset in this collection"), statusCode: 403);
         }
 
-        // Remove from the collection
-        var removed = await assetCollectionRepo.RemoveFromCollectionAsync(id, collectionId, ct);
+        var bucketName = StorageConfig.GetBucketName(configuration);
+        var (removed, permanentlyDeleted) = await deletionService.RemoveFromCollectionAsync(asset, collectionId, bucketName, ct);
         if (!removed)
             return Results.NotFound(ApiError.NotFound("Asset is not linked to this collection"));
+
+        if (permanentlyDeleted)
+        {
+            await audit.LogAsync("asset.deleted", "asset", id, userId,
+                new() { ["title"] = asset.Title, ["reason"] = "orphaned" }, httpContext, ct);
+        }
+        else
+        {
+            await audit.LogAsync("asset.removed_from_collection", "asset", id, userId,
+                new() { ["title"] = asset.Title, ["collectionId"] = collectionId.ToString() }, httpContext, ct);
+        }
 
         return Results.NoContent();
     }
@@ -809,6 +851,7 @@ public static class AssetEndpoints
 
     /// <summary>
     /// Check if a user can access an asset by checking all collections it belongs to.
+    /// Uses batch auth queries to avoid N+1 database round-trips.
     /// </summary>
     private static async Task<bool> CanAccessAssetAsync(
         Guid assetId,
@@ -821,15 +864,13 @@ public static class AssetEndpoints
     {
         if (isSystemAdmin)
             return true;
-            
+
         var collections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(assetId, ct);
-        foreach (var collectionId in collections)
-        {
-            if (await authService.CheckAccessAsync(userId, collectionId, requiredRole, ct))
-                return true;
-        }
-        return false;
+        var accessible = await authService.FilterAccessibleAsync(userId, collections, requiredRole, ct);
+        return accessible.Count > 0;
     }
+
+
 
     #endregion
 }

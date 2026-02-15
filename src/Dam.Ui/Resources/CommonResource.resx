@@ -230,4 +230,9 @@
   <data name="Language_English" xml:space="preserve"><value>English</value></data>
   <data name="Language_Swedish" xml:space="preserve"><value>Svenska</value></data>
   <data name="Language_Label" xml:space="preserve"><value>Language</value></data>
+
+  <!-- Password / Account -->
+  <data name="Btn_ChangePassword" xml:space="preserve"><value>Change Password</value></data>
+  <data name="Btn_ForgotPassword" xml:space="preserve"><value>Forgot your password?</value></data>
+  <data name="Text_ForgotPasswordHint" xml:space="preserve"><value>Click Sign In, then use the "Forgot password?" link on the login page.</value></data>
 </root>

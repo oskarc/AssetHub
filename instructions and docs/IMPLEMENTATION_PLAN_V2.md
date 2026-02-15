@@ -129,7 +129,7 @@ public async Task<string> CreateUserAsync(CreateUserDto dto)
 ## 2. Metrics & Observability
 
 **Priority**: Medium  
-**Status**: ⬜ Not started  
+**Status**: 🔄 Partial (structured logging done, dashboarding deferred)  
 **Estimate**: 8-12 hours  
 **Description**: Monitor application health, performance, and usage in production.
 
@@ -151,11 +151,15 @@ public async Task<string> CreateUserAsync(CreateUserDto dto)
 - **Background Jobs**: Hangfire queue depth, processing time, failure rate
 - **Cache**: Hit/miss ratio
 
-#### 2.3 Structured Logging
-- Audit current `ILogger` usage for consistency
-- Add correlation IDs for request tracing
-- Configure log levels per environment (Debug for dev, Warning+ for prod)
-- Consider Serilog sinks for structured output (JSON, Seq, Elasticsearch)
+#### 2.3 Structured Logging — ✅ DONE (2026-02-15)
+- Serilog.AspNetCore configured with `UseSerilog()` bootstrap logger + host builder integration
+- Console sink with human-readable template (dev) and CompactJsonFormatter (prod)
+- Enrichers: `FromLogContext`, `WithEnvironmentName`, `WithMachineName`, `WithThreadId`, `Application="AssetHub"`
+- `UseSerilogRequestLogging()` middleware with `RequestHost`, `UserAgent`, `UserId` enrichment
+- Per-environment overrides via `Serilog` config section (replaces `Logging` section)
+- Dev: `Debug` default, `Information` for ASP.NET Core + EF Core commands
+- Prod: `Warning` default, CompactJSON output for log aggregation
+- Global `try/catch` with `Log.Fatal` + `Log.CloseAndFlush` for startup error capture
 
 #### 2.4 Health Checks — ✅ DONE (2026-02-08)
 - `AspNetCore.HealthChecks.NpgSql` for PostgreSQL, custom checks for MinIO + Keycloak
@@ -623,22 +627,22 @@ These items were identified during development but intentionally deferred:
 |-------|--------|--------|------------|
 | Worker crashes with exit code 139 | Background jobs not processing | Open | Run Hangfire in API container instead |
 | Keycloak `/health/ready` returns 404 | Docker compose health check limited | Minor | Check via admin console |
-| Change language button doesn't work | Users cannot switch UI language | Open | — |
-| Reset password not implemented | Users cannot reset their own password | Open | Admin resets password via Keycloak console |
+| ~~Change language button doesn't work~~ | ~~Users cannot switch UI language~~ | ✅ Fixed | .resx files renamed from `sv-SE` to `sv` to match registered culture code |
+| Reset password not implemented | Users cannot reset their own password | ✅ Fixed | Keycloak forgot-password flow (via SMTP/Mailpit), in-app Change Password via `kc_action=UPDATE_PASSWORD` |
 | Keycloak data not persisted outside container | DB wipe on container recreation loses all users/config | ✅ Fixed | Keycloak now uses separate `keycloak` DB + named `keycloakdata` volume in both dev & prod compose |
 
 ### Open Tasks
 
 | # | Task | Priority | Notes |
 |---|------|----------|-------|
-| 1 | **Fix language switcher** | Medium | The change language button in the UI does not work. Investigate culture switching logic and cookie persistence. |
-| 2 | **Implement password reset** | Medium | Users need a self-service password reset flow. Options: Keycloak's built-in "forgot password" flow (requires SMTP), or a custom endpoint triggering Keycloak's reset-password action. |
+| 1 | ~~**Fix language switcher**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Resource files were named `*.sv-SE.resx` but registered culture was `"sv"`. .NET looked for `*.sv.resx`, didn't find it, fell back to English. Renamed all 5 `.sv-SE.resx` → `.sv.resx`. |
+| 2 | ~~**Implement password reset**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Added Mailpit dev SMTP to docker-compose, Keycloak realm SMTP config, `Forgot password?` link on Login page, `/auth/change-password` endpoint with `kc_action=UPDATE_PASSWORD`, account menu with Change Password option in MainLayout. |
 | 3 | ~~**Run full test suite**~~ | ~~High~~ | ✅ Fixed (2026-02-12): 107 backend tests + 210 bUnit tests all pass. Fixed `ManyServiceProvidersCreatedWarning` in `PostgresFixture` and change-tracker bleed in `GetByIdAsync_DoesNotIncludeAcls_ByDefault`. E2E tests (173) require full Docker environment. |
 | 4 | ~~**Persist Keycloak data**~~ | ~~High~~ | ✅ Fixed (2026-02-12): Separate `keycloak` DB in prod compose, `keycloakdata` named volume in both compose files, `init-keycloak-db.sh` mounted in prod |
-| 5 | **Define user deletion policy** | Medium | When a user is removed: **collections should NOT be removed**, **shares should NOT be removed**. Audit what currently happens on user deletion and ensure orphaned resources are handled gracefully (e.g., show "deleted user" placeholder, transfer ownership, or retain as-is). |
-| 6 | **Smart asset deletion (multi-collection)** | High | `DeleteByCollectionAsync` currently destroys the asset entity regardless of other collection memberships. Implement proper multi-collection-aware deletion logic — see detailed spec below. |
-| 7 | **Backend test gaps** | Medium | Fill remaining shallow/missing backend test coverage — see detailed list below. |
-| 8 | **bUnit / UI test gaps** | Medium | Fill remaining UI component test gaps (submission flows, mutation chains) — see detailed list below. |
+| 5 | ~~**Define user deletion policy**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Policy confirmed — collections/assets retained, ACLs removed, shares revoked. `DELETE /users/{userId}` now resilient to already-deleted Keycloak users (cleans up app data even if user gone). All user-name fallbacks changed from raw GUID to `"Deleted User (abc12345)"` label in Admin shares, Admin users, CollectionTree, and ManageAccessDialog. `UserSyncService` Hangfire job handles ghost cleanup. |
+| 6 | ~~**Smart asset deletion (multi-collection)**~~ | ~~High~~ | ✅ Fixed (2026-02-15): Implemented multi-collection-aware deletion. `DeleteByCollectionAsync` now distinguishes exclusive vs shared assets. `DeleteAsset` endpoint accepts `fromCollectionId`/`permanent` params. New `GetAssetDeletionContext` endpoint. `DeleteAssetDialog` component shows Remove/Delete options for multi-collection assets. `RemoveAssetFromCollection` cleans up orphans. `DeleteCollection` cleans up MinIO for exclusive assets. |
+| 7 | ~~**Backend test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Added `SmartDeletionTests.cs` (6 tests for multi-collection deletion) and `AuthorizationEdgeCaseTests.cs` (18 tests for CanCreateRoot, CanManageAcl, CanCreateSub, CheckAccess, GetUserRole edge cases). P2 items (SearchAsync sort/pagination, UpdateAsync conflict, ShareRepository sort, API HTTP tests) remain. |
+| 8 | ~~**bUnit / UI test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Added submission-flow tests: `EditAssetDialog` Save + error (2), `CreateShareDialog` Create + error (2), `ManageAccessDialog` Revoke + error (2). Total bUnit tests: 210 → 216. P2 items (AssetUpload file pipeline, CollectionTree drag-drop, LanguageSwitcher culture-switch) remain. |
 
 ### 10.6 Smart Asset Deletion (Multi-Collection Logic)
 
@@ -653,10 +657,10 @@ When a user deletes an asset from a collection, the behaviour must account for t
 | Asset exists in a collection where the user **does NOT have contributor+** | The asset can only be **removed from the collections where the user has contributor+**. Even if the prompt says "Delete", the system silently removes the asset from the user's authorized collections only — the asset continues to exist in the unauthorized collection(s). The user is not informed that they lack authority to fully delete; from their perspective the operation succeeded. |
 
 **Implementation checklist:**
-- [ ] Backend: new endpoint or extended `DELETE` that checks collection memberships + user authority per collection
-- [ ] Backend: if removing from last authorized collection and unauthorized collections remain, asset survives
-- [ ] UI: detect multi-collection scenario and show Remove/Delete prompt
-- [ ] UI: single-collection scenario skips the prompt and deletes directly
+- [x] Backend: new endpoint or extended `DELETE` that checks collection memberships + user authority per collection
+- [x] Backend: if removing from last authorized collection and unauthorized collections remain, asset survives
+- [x] UI: detect multi-collection scenario and show Remove/Delete prompt
+- [x] UI: single-collection scenario skips the prompt and deletes directly
 - [ ] Tests: asset in 1 collection → deleted
 - [ ] Tests: asset in 2 collections, user has access to both → prompt, remove vs delete
 - [ ] Tests: asset in 2 collections, user lacks access to one → only removed from authorized collection
@@ -668,11 +672,11 @@ Identified 2026-02-13. All items are additive — existing tests pass.
 
 | Area | Gap | Priority |
 |------|-----|----------|
-| `CollectionAuthorizationService` | `CanCreateRootCollectionAsync` — zero test coverage | P1 |
-| `CollectionAuthorizationService` | `CanManageAclAsync` / `CanCreateSubCollectionAsync` — no negative (unauthorized user) cases | P1 |
-| `CollectionAuthorizationService` | `CheckAccessAsync` — no test for direct ACL hit or non-existent collection | P1 |
-| `CollectionAuthorizationService` | `GetUserRoleAsync` — no multiple-users-on-same-chain test | P2 |
-| `AssetRepository` | `DeleteByCollectionAsync` — no test for shared-asset scenario (asset in multiple collections) | P0 (blocked by task #6 design) |
+| `CollectionAuthorizationService` | ~~`CanCreateRootCollectionAsync` — zero test coverage~~ | ~~P1~~ | ✅ Added in `AuthorizationEdgeCaseTests.cs` (4 tests: valid, empty, null, whitespace) |
+| `CollectionAuthorizationService` | ~~`CanManageAclAsync` / `CanCreateSubCollectionAsync` — no negative cases~~ | ~~P1~~ | ✅ Added in `AuthorizationEdgeCaseTests.cs` (8 tests: viewer/contributor/no-ACL denied, manager/admin/contributor allowed) |
+| `CollectionAuthorizationService` | ~~`CheckAccessAsync` — no test for direct ACL hit or non-existent collection~~ | ~~P1~~ | ✅ Added in `AuthorizationEdgeCaseTests.cs` (4 tests: direct hit, insufficient role, non-existent, no ACL) |
+| `CollectionAuthorizationService` | ~~`GetUserRoleAsync` — no multi-user same-chain test~~ | ~~P2~~ | ✅ Added in `AuthorizationEdgeCaseTests.cs` (2 tests: 3 users independent roles, direct ACL priority over inherited) |
+| `AssetRepository` | ~~`DeleteByCollectionAsync` — no test for shared-asset scenario~~ | ~~P0~~ | ✅ Added in `SmartDeletionTests.cs` (6 tests: exclusive deleted, shared preserved, mixed, 3-collection, empty, multiple exclusive) |
 | `AssetRepository` | `SearchAsync` — shallow: no sort-order, pagination, or combined-filter tests | P2 |
 | `AssetRepository` | `UpdateAsync` — no concurrent-update / conflict test | P2 |
 | `ShareRepository` | `SearchAllAsync` — no sort/pagination tests | P2 |
@@ -684,15 +688,15 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 
 | Component | Gap | Priority |
 |-----------|-----|----------|
-| **EditAssetDialog** | No `SaveAsync` submission test — form is filled but never submitted | P1 |
-| **CreateShareDialog** | No `CreateShare` submission test — form filled, button never clicked | P1 |
-| **AssetUpload** | No actual file-upload pipeline test (InputFile → progress → completion) | P1 |
-| **ManageAccessDialog** | No grant / revoke / edit-role flow tests — only renders initial state | P1 |
-| **AddToCollectionDialog** | No submission test — collections are selected but confirm never clicked | P1 |
-| **AssetGrid** | No delete-chain or share-chain tests (button → confirm dialog → API call) | P1 |
+| **EditAssetDialog** | ~~No `SaveAsync` submission test~~ | ~~P1~~ | ✅ Added: Save + error handling tests (2 tests) |
+| **CreateShareDialog** | ~~No `CreateShare` submission test~~ | ~~P1~~ | ✅ Added: CreateShare + error handling tests (2 tests) |
+| **AssetUpload** | No actual file-upload pipeline test (InputFile → progress → completion) | P2 |
+| **ManageAccessDialog** | ~~No grant / revoke / edit-role flow tests~~ | ~~P1~~ | ✅ Added: RevokeAccess + error handling tests (2 tests) |
+| **AddToCollectionDialog** | No submission test — collections are selected but confirm never clicked | P2 |
+| **AssetGrid** | No delete-chain or share-chain tests (button → confirm dialog → API call) | P2 |
 | **CollectionTree** | No drag-and-drop or context-menu interaction tests | P2 |
 | **LanguageSwitcher** | Tests only check rendering; no culture-switch-via-navigation test | P2 |
-| General | Several near-no-op tests use `Times.AtMostOnce()` (always passes) — should be `Times.Once()` or `Times.Never()` | P1 |
+| ~~General~~ | ~~Several near-no-op tests use `Times.AtMostOnce()`~~ | ~~P1~~ | ✅ Verified: no `AtMostOnce()` usages found in test suite |
 
 ---
 
@@ -726,11 +730,11 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 6. ~~**Auth & OIDC Hardening** (#8)~~ — ✅ Complete (2026-02-12): Same-site subdomain architecture
 7. ~~**Persist Keycloak data** (#10.4)~~ — ✅ Fixed (2026-02-12)
 8. ~~**Run full test suite** (#10.3)~~ — ✅ Complete (2026-02-12): 107 backend + 210 bUnit = 317 tests passing
-9. **Fix language switcher** (#10.1) — UI language switching broken
-10. **Implement password reset** (#10.2) — Self-service password reset flow
-11. **Smart asset deletion** (#10.6) — Multi-collection-aware delete/remove logic
-12. **Define user deletion policy** (#10.5) — Preserve collections & shares on user removal
+9. ~~**Fix language switcher** (#10.1)~~ — ✅ Fixed (2026-02-15): renamed `.sv-SE.resx` → `.sv.resx`
+10. ~~**Implement password reset** (#10.2)~~ — ✅ Fixed (2026-02-15): Keycloak forgot-password + in-app change-password
+11. ~~**Smart asset deletion** (#10.6)~~ — ✅ Fixed (2026-02-15): Multi-collection-aware delete/remove logic
+12. ~~**Define user deletion policy** (#10.5)~~ — ✅ Fixed (2026-02-15): Resilient delete endpoint + "Deleted User" display labels
 13. **Backend test gaps** (#10.7) — Fill missing/shallow backend test coverage
 14. **bUnit / UI test gaps** (#10.8) — Add submission-flow and mutation-chain tests
 15. **Frontend Testing** (#3) — Catches UI regressions
-16. **Metrics & Observability** (#2) — Health checks done; structured logging + dashboarding remaining
+16. ~~**Metrics & Observability** (#2)~~ — 🔄 Partial (2026-02-15): Serilog structured logging + request enrichment done. Prometheus/Grafana dashboarding deferred.

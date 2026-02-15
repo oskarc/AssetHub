@@ -97,17 +97,43 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         }
     }
 
-    public async Task DeleteByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
+    public async Task<List<Asset>> DeleteByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
-        var assets = await dbContext.Assets
-            .Where(a => dbContext.AssetCollections
-                .Where(ac => ac.CollectionId == collectionId)
-                .Select(ac => ac.AssetId)
-                .Contains(a.Id))
+        // Find all assets linked to this collection
+        var assetIds = await dbContext.AssetCollections
+            .Where(ac => ac.CollectionId == collectionId)
+            .Select(ac => ac.AssetId)
             .ToListAsync(cancellationToken);
-        
-        dbContext.Assets.RemoveRange(assets);
+
+        if (assetIds.Count == 0) return new List<Asset>();
+
+        // For each asset, determine whether it belongs to OTHER collections too
+        var sharedAssetIds = await dbContext.AssetCollections
+            .Where(ac => assetIds.Contains(ac.AssetId) && ac.CollectionId != collectionId)
+            .Select(ac => ac.AssetId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var exclusiveAssetIds = assetIds.Except(sharedAssetIds).ToList();
+
+        // Remove all links for this collection (covers both shared and exclusive)
+        var links = await dbContext.AssetCollections
+            .Where(ac => ac.CollectionId == collectionId)
+            .ToListAsync(cancellationToken);
+        dbContext.AssetCollections.RemoveRange(links);
+
+        // Hard-delete assets that were exclusive to this collection
+        var exclusiveAssets = new List<Asset>();
+        if (exclusiveAssetIds.Count > 0)
+        {
+            exclusiveAssets = await dbContext.Assets
+                .Where(a => exclusiveAssetIds.Contains(a.Id))
+                .ToListAsync(cancellationToken);
+            dbContext.Assets.RemoveRange(exclusiveAssets);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
+        return exclusiveAssets; // caller can clean up MinIO for these
     }
 
     public async Task<(List<Asset> Assets, int Total)> SearchAsync(

@@ -12,6 +12,7 @@ public class UserSyncService(
     ICollectionAclRepository aclRepo,
     IShareRepository shareRepo,
     IUserLookupService userLookup,
+    IUserCleanupService cleanupService,
     IAuditService audit,
     ILogger<UserSyncService> logger) : IUserSyncService
 {
@@ -85,23 +86,9 @@ public class UserSyncService(
                 continue;
             }
 
-            // Remove ACLs
-            foreach (var acl in userAcls)
-            {
-                await aclRepo.RevokeAccessAsync(acl.CollectionId, acl.PrincipalType, acl.PrincipalId, ct);
-                result.AclsRemoved++;
-            }
-
-            // Revoke active shares
-            foreach (var share in userShares)
-            {
-                share.RevokedAt = DateTime.UtcNow;
-                await shareRepo.UpdateAsync(share, ct);
-                result.SharesRevoked++;
-            }
-
-            logger.LogInformation("Cleaned up deleted user {UserId}: removed {AclCount} ACLs, revoked {ShareCount} shares",
-                userId, userAcls.Count, userShares.Count);
+            var (aclsRemoved, sharesRevoked) = await cleanupService.CleanupUserDataAsync(userId, ct);
+            result.AclsRemoved += aclsRemoved;
+            result.SharesRevoked += sharesRevoked;
 
             await audit.LogAsync("user.sync.cleanup", "user",
                 Guid.TryParse(userId, out var uid) ? uid : null, null,

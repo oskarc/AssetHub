@@ -331,12 +331,32 @@ public class AssetHubApiClient
     }
 
     /// <summary>
-    /// Deletes an asset.
+    /// Deletes an asset. When fromCollectionId is set and permanent is false,
+    /// the asset is only removed from that collection (if it belongs to multiple).
     /// </summary>
-    public virtual async Task DeleteAssetAsync(Guid id, CancellationToken ct = default)
+    public virtual async Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, bool permanent = true, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/assets/{id}", ct);
+        var url = $"/api/assets/{id}";
+        if (fromCollectionId.HasValue && !permanent)
+            url += $"?fromCollectionId={fromCollectionId.Value}&permanent=false";
+        else if (fromCollectionId.HasValue)
+            url += $"?fromCollectionId={fromCollectionId.Value}";
+        else if (!permanent)
+            url += "?permanent=false";
+
+        var response = await _http.DeleteAsync(url, ct);
         await EnsureSuccessAsync(response, "Delete asset");
+    }
+
+    /// <summary>
+    /// Returns deletion context for an asset: how many collections it belongs to
+    /// and whether the current user can permanently delete it.
+    /// </summary>
+    public virtual async Task<AssetDeletionContextDto> GetAssetDeletionContextAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/assets/{id}/deletion-context", ct);
+        await EnsureSuccessAsync(response, "Get asset deletion context");
+        return await ReadRequiredJsonAsync<AssetDeletionContextDto>(response, "Get asset deletion context");
     }
 
     #endregion

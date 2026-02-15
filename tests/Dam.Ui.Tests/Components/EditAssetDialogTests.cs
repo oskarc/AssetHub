@@ -155,4 +155,92 @@ public class EditAssetDialogTests : BunitTestBase
 
         Assert.Contains("NoTags", cut.Markup);
     }
+
+    // ── Save submission flow ────────────────────────────────────────
+
+    [Fact]
+    public async Task SaveAsync_Calls_UpdateAssetAsync_With_CurrentValues()
+    {
+        var updatedAsset = new AssetResponseDto
+        {
+            Id = _testAsset.Id,
+            Title = "Original Title",
+            Description = "Original Description",
+            AssetType = "image",
+            Status = "ready",
+            ContentType = "image/jpeg",
+            SizeBytes = 1024,
+            Tags = new List<string> { "tag1", "tag2", "tag3" },
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = "user-1",
+            UpdatedAt = DateTime.UtcNow,
+            MetadataJson = new Dictionary<string, object>()
+        };
+
+        MockApi.Setup(a => a.UpdateAssetAsync(
+                _testAsset.Id,
+                It.IsAny<UpdateAssetDto>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(updatedAsset);
+
+        var cut = await RenderDialogAsync();
+
+        // MudForm starts with _isValid=false. Trigger validation by interacting with the required title field.
+        var titleInput = cut.FindAll("input")
+            .First(i => i.GetAttribute("value") == "Original Title");
+        // Re-enter the value to trigger validation
+        await cut.InvokeAsync(() => titleInput.Change("Original Title"));
+        await cut.InvokeAsync(() => titleInput.Blur());
+
+        // Wait for MudForm to validate
+        cut.WaitForState(() =>
+        {
+            var saveBtn = cut.FindAll("button")
+                .FirstOrDefault(b => b.TextContent.Contains("Btn_SaveChanges"));
+            return saveBtn != null && !saveBtn.HasAttribute("disabled");
+        }, TimeSpan.FromSeconds(2));
+
+        // Click Save button (now enabled)
+        var saveButton = cut.FindAll("button")
+            .First(b => b.TextContent.Contains("Btn_SaveChanges"));
+        await cut.InvokeAsync(() => saveButton.Click());
+
+        MockApi.Verify(a => a.UpdateAssetAsync(
+            _testAsset.Id,
+            It.Is<UpdateAssetDto>(dto =>
+                dto.Title == "Original Title" &&
+                dto.Description == "Original Description"),
+            It.IsAny<CancellationToken>()), Times.Once());
+    }
+
+    [Fact]
+    public async Task SaveAsync_Error_Calls_HandleError()
+    {
+        MockApi.Setup(a => a.UpdateAssetAsync(
+                _testAsset.Id,
+                It.IsAny<UpdateAssetDto>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("API Error"));
+
+        var cut = await RenderDialogAsync();
+
+        // Trigger validation
+        var titleInput = cut.FindAll("input")
+            .First(i => i.GetAttribute("value") == "Original Title");
+        await cut.InvokeAsync(() => titleInput.Change("Original Title"));
+        await cut.InvokeAsync(() => titleInput.Blur());
+
+        cut.WaitForState(() =>
+        {
+            var btn = cut.FindAll("button")
+                .FirstOrDefault(b => b.TextContent.Contains("Btn_SaveChanges"));
+            return btn != null && !btn.HasAttribute("disabled");
+        }, TimeSpan.FromSeconds(2));
+
+        var saveBtn = cut.FindAll("button")
+            .First(b => b.TextContent.Contains("Btn_SaveChanges"));
+        await cut.InvokeAsync(() => saveBtn.Click());
+
+        VerifyHandleErrorCalled();
+    }
 }

@@ -2,7 +2,7 @@ namespace Dam.Ui.Resources;
 
 /// <summary>
 /// Marker classes used by IStringLocalizer&lt;T&gt; to resolve .resx resource files.
-/// Each class corresponds to a resource file pair (e.g., Common.resx / Common.sv-SE.resx).
+/// Each class corresponds to a resource file pair (e.g., CommonResource.resx / CommonResource.sv.resx).
 /// </summary>
 /// <remarks>
 /// Resource keys follow the pattern: Area_Context_Element (e.g., Nav_Home, Btn_Cancel, Empty_Title).

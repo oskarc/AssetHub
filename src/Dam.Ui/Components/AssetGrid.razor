@@ -222,19 +222,34 @@ else
 
     private async Task DeleteAsset(AssetResponseDto asset)
     {
-        var result = await DialogService.ShowMessageBox(
-            AssetLoc["ConfirmDelete"],
-            string.Format(AssetLoc["ConfirmDeleteAsset"], asset.Title),
-            yesText: CommonLoc["Btn_Delete"],
-            cancelText: CommonLoc["Btn_Cancel"]);
-
-        if (result == true)
+        var parameters = new DialogParameters<DeleteAssetDialog>
         {
-            var success = await Feedback.ExecuteWithFeedbackAsync(
-                () => Api.DeleteAssetAsync(asset.Id),
-                "delete asset",
-                AssetLoc["AssetDeletedSuccess"]);
-            
+            { x => x.AssetId, asset.Id },
+            { x => x.AssetTitle, asset.Title },
+            { x => x.FromCollectionId, CollectionId }
+        };
+
+        var dialog = await DialogService.ShowAsync<DeleteAssetDialog>(null, parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is string action)
+        {
+            bool success;
+            if (action == DeleteAssetDialog.ActionRemove && CollectionId.HasValue)
+            {
+                success = await Feedback.ExecuteWithFeedbackAsync(
+                    () => Api.DeleteAssetAsync(asset.Id, CollectionId, permanent: false),
+                    "remove asset from collection",
+                    AssetLoc["AssetRemovedSuccess"]);
+            }
+            else
+            {
+                success = await Feedback.ExecuteWithFeedbackAsync(
+                    () => Api.DeleteAssetAsync(asset.Id, permanent: true),
+                    "delete asset",
+                    AssetLoc["AssetDeletedSuccess"]);
+            }
+
             if (success)
             {
                 _assets.Remove(asset);

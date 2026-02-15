@@ -31,7 +31,7 @@ public static class CollectionTreeHelper
                 PrincipalId = a.PrincipalId,
                 PrincipalName = a.PrincipalType == "user" && userNames.TryGetValue(a.PrincipalId, out var name)
                     ? name
-                    : a.PrincipalId,
+                    : a.PrincipalType == "user" ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : a.PrincipalId,
                 Role = a.Role
             }).ToList(),
             Children = children.Select(c => BuildAccessTree(c, allCollections, userNames)).ToList()

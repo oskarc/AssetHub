@@ -142,4 +142,67 @@ public class CollectionAuthorizationService(
         // User must have contributor role or higher on parent collection
         return await CheckAccessAsync(userId, parentCollectionId, "contributor", ct);
     }
+
+    public async Task<Dictionary<Guid, string?>> GetUserRolesAsync(string userId, IEnumerable<Guid> collectionIds, CancellationToken ct = default)
+    {
+        var ids = collectionIds.ToList();
+        if (ids.Count == 0) return new();
+
+        // Pre-warm the cache by loading all direct ACLs for this user in one query
+        await PreloadUserAclsAsync(userId, ids, ct);
+
+        var result = new Dictionary<Guid, string?>(ids.Count);
+        foreach (var collectionId in ids)
+        {
+            result[collectionId] = await GetUserRoleAsync(userId, collectionId, ct);
+        }
+        return result;
+    }
+
+    public async Task<List<Guid>> FilterAccessibleAsync(string userId, IEnumerable<Guid> collectionIds, string requiredRole, CancellationToken ct = default)
+    {
+        var ids = collectionIds.ToList();
+        if (ids.Count == 0) return new();
+
+        // Pre-warm the cache by loading all direct ACLs for this user in one query
+        await PreloadUserAclsAsync(userId, ids, ct);
+
+        var accessible = new List<Guid>();
+        foreach (var collectionId in ids)
+        {
+            if (await CheckAccessAsync(userId, collectionId, requiredRole, ct))
+                accessible.Add(collectionId);
+        }
+        return accessible;
+    }
+
+    /// <summary>
+    /// Pre-loads all direct ACL entries for a user on the given collections into the request-scoped cache.
+    /// This converts N individual ACL queries into a single batch query.
+    /// </summary>
+    private async Task PreloadUserAclsAsync(string userId, List<Guid> collectionIds, CancellationToken ct)
+    {
+        // Only query for collections not already in cache
+        var uncachedIds = collectionIds
+            .Where(id => !_roleCache.ContainsKey($"{userId}:{id}"))
+            .ToList();
+
+        if (uncachedIds.Count == 0) return;
+
+        // Single query: get all direct ACLs for this user on these collections
+        var directAcls = await dbContext.CollectionAcls
+            .Where(a => uncachedIds.Contains(a.CollectionId) &&
+                        a.PrincipalType == "user" &&
+                        a.PrincipalId == userId)
+            .ToDictionaryAsync(a => a.CollectionId, a => a.Role, ct);
+
+        // Cache direct hits (but don't cache misses — they may have inherited roles from parents)
+        foreach (var (collId, role) in directAcls)
+        {
+            _roleCache[$"{userId}:{collId}"] = role;
+        }
+
+        logger.LogDebug("Pre-loaded {Count} direct ACLs for user {UserId} across {Total} collections",
+            directAcls.Count, userId, uncachedIds.Count);
+    }
 }

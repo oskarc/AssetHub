@@ -77,27 +77,10 @@ public static class CollectionEndpoints
         // This avoids flooding the flat sidebar with deeply nested children.
         var accessibleIds = collections.Select(c => c.Id).ToHashSet();
 
-        var dtos = new List<CollectionResponseDto>();
-        foreach (var c in collections)
-        {
-            var isEntryPoint = c.ParentId == null || !accessibleIds.Contains(c.ParentId.Value);
-            if (!isEntryPoint) continue;
+        var entryPoints = collections
+            .Where(c => c.ParentId == null || !accessibleIds.Contains(c.ParentId.Value));
 
-            var userRole = await authService.GetUserRoleAsync(userId, c.Id, ct);
-            var isInherited = userRole != null && await authService.IsRoleInheritedAsync(userId, c.Id, ct);
-            dtos.Add(new CollectionResponseDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                Description = c.Description,
-                ParentId = c.ParentId,
-                CreatedAt = c.CreatedAt,
-                CreatedByUserId = c.CreatedByUserId,
-                UserRole = userRole ?? "none",
-                IsRoleInherited = isInherited
-            });
-        }
-
+        var dtos = await CollectionMapper.ToDtoListAsync(entryPoints, userId, authService, ct);
         return Results.Ok(dtos);
     }
 
@@ -119,20 +102,7 @@ public static class CollectionEndpoints
         if (collection == null)
             return Results.NotFound();
 
-        var userRole = await authService.GetUserRoleAsync(userId, id, ct);
-        var isInherited = userRole != null && await authService.IsRoleInheritedAsync(userId, id, ct);
-        var dto = new CollectionResponseDto
-        {
-            Id = collection.Id,
-            Name = collection.Name,
-            Description = collection.Description,
-            ParentId = collection.ParentId,
-            CreatedAt = collection.CreatedAt,
-            CreatedByUserId = collection.CreatedByUserId,
-            UserRole = userRole ?? "none",
-            IsRoleInherited = isInherited
-        };
-
+        var dto = await CollectionMapper.ToDtoAsync(collection, userId, authService, ct);
         return Results.Ok(dto);
     }
 
@@ -254,15 +224,16 @@ public static class CollectionEndpoints
     private static async Task<IResult> DeleteCollection(
         Guid id,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
+        [Microsoft.AspNetCore.Mvc.FromServices] IAssetDeletionService deletionService,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
+        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
     {
         var userId = user.GetRequiredUserId();
 
-        // Check permission (must be admin)
         var canDelete = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Admin, ct);
         if (!canDelete)
             return Results.Forbid();
@@ -270,6 +241,9 @@ public static class CollectionEndpoints
         var exists = await collectionRepo.ExistsAsync(id, ct);
         if (!exists)
             return Results.NotFound();
+
+        var bucketName = StorageConfig.GetBucketName(configuration);
+        await deletionService.DeleteCollectionAssetsAsync(id, bucketName, ct);
 
         await collectionRepo.DeleteAsync(id, ct);
 
@@ -293,24 +267,7 @@ public static class CollectionEndpoints
             return Results.Forbid();
 
         var children = await collectionRepo.GetChildrenAsync(id, ct);
-        var dtos = new List<CollectionResponseDto>();
-        foreach (var c in children)
-        {
-            var childRole = await authService.GetUserRoleAsync(userId, c.Id, ct);
-            var isInherited = childRole != null && await authService.IsRoleInheritedAsync(userId, c.Id, ct);
-            dtos.Add(new CollectionResponseDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                Description = c.Description,
-                ParentId = c.ParentId,
-                CreatedAt = c.CreatedAt,
-                CreatedByUserId = c.CreatedByUserId,
-                UserRole = childRole ?? "none",
-                IsRoleInherited = isInherited
-            });
-        }
-
+        var dtos = await CollectionMapper.ToDtoListAsync(children, userId, authService, ct);
         return Results.Ok(dtos);
     }
 
@@ -340,7 +297,8 @@ public static class CollectionEndpoints
             Id = a.Id,
             PrincipalType = a.PrincipalType,
             PrincipalId = a.PrincipalId,
-            PrincipalName = a.PrincipalType == "user" && nameMap.TryGetValue(a.PrincipalId, out var name) ? name : null,
+            PrincipalName = a.PrincipalType == "user" && nameMap.TryGetValue(a.PrincipalId, out var name) ? name
+                : a.PrincipalType == "user" ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : null,
             Role = a.Role,
             CreatedAt = a.CreatedAt
         });
@@ -478,17 +436,15 @@ public static class CollectionEndpoints
         Guid id,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
         [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
+        [Microsoft.AspNetCore.Mvc.FromServices] IZipDownloadService zipService,
         [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
         [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
-        [Microsoft.AspNetCore.Mvc.FromServices] ILoggerFactory loggerFactory,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
     {
         var userId = user.GetRequiredUserId();
 
-        // Check viewer access
         var canView = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
         if (!canView)
             return Results.Forbid();
@@ -502,49 +458,9 @@ public static class CollectionEndpoints
             return Results.BadRequest("No assets in collection");
 
         var bucketName = StorageConfig.GetBucketName(configuration);
-
-        // Stream ZIP directly to the HTTP response — never buffer entire collection in memory.
         var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        httpContext.Response.ContentType = "application/zip";
-        httpContext.Response.Headers.ContentDisposition = $"attachment; filename=\"{zipFileName}\"";
 
-        var errors = new List<string>();
-        await using var responseStream = httpContext.Response.BodyWriter.AsStream();
-        using var archive = new ZipArchive(responseStream, ZipArchiveMode.Create, leaveOpen: true);
-        foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))
-        {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                await using var assetStream = await minioAdapter.DownloadAsync(bucketName, asset.OriginalObjectKey!, ct);
-                var fileName = FileHelpers.GetSafeFileName(asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
-
-                var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
-                await using var entryStream = entry.Open();
-                await assetStream.CopyToAsync(entryStream, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                loggerFactory.CreateLogger("CollectionEndpoints").LogWarning(ex,
-                    "Failed to include asset {AssetId} ({ObjectKey}) in ZIP download for collection {CollectionId}",
-                    asset.Id, asset.OriginalObjectKey, id);
-                errors.Add($"{asset.Title ?? asset.Id.ToString()} — {ex.Message}");
-            }
-        }
-
-        if (errors.Count > 0)
-        {
-            var errEntry = archive.CreateEntry("_errors.txt", CompressionLevel.Fastest);
-            await using var errStream = errEntry.Open();
-            await using var writer = new StreamWriter(errStream);
-            await writer.WriteLineAsync("The following files could not be included:");
-            foreach (var err in errors)
-                await writer.WriteLineAsync($"  • {err}");
-        }
+        await zipService.StreamAssetsAsZipAsync(assets, bucketName, zipFileName, httpContext, ct);
 
         return Results.Empty;
     }

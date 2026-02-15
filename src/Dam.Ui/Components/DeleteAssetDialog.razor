@@ -1,0 +1,148 @@
+@inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+
+<MudDialog>
+    <TitleContent>
+        @if (_context == null)
+        {
+            <MudText Typo="Typo.h6">@AssetLoc["ConfirmDelete"]</MudText>
+        }
+        else if (_context.CollectionCount > 1)
+        {
+            <MudText Typo="Typo.h6">@AssetLoc["DeleteOrRemove"]</MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.h6">@AssetLoc["ConfirmDelete"]</MudText>
+        }
+    </TitleContent>
+
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mx-auto d-block my-4" />
+        }
+        else if (_context != null && _context.CollectionCount > 1)
+        {
+            <MudText Typo="Typo.body1" Class="mb-4">
+                @string.Format(AssetLoc["DeleteOrRemoveDesc"], AssetTitle, _context.CollectionCount)
+            </MudText>
+
+            <MudStack Spacing="3">
+                <!-- Remove from this collection -->
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.LinkOff" Color="Color.Warning" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.subtitle1">@AssetLoc["Btn_RemoveFromCollection"]</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@AssetLoc["Text_RemoveHint"]</MudText>
+                        </MudStack>
+                        <MudSpacer />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="OnRemove">
+                            @CommonLoc["Btn_Remove"]
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Delete permanently -->
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.subtitle1">@AssetLoc["Btn_DeletePermanently"]</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @if (_context.CanDeletePermanently)
+                                {
+                                    @AssetLoc["Text_DeleteHint"]
+                                }
+                                else
+                                {
+                                    @AssetLoc["Text_DeletePartialHint"]
+                                }
+                            </MudText>
+                        </MudStack>
+                        <MudSpacer />
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="OnDeletePermanently">
+                            @CommonLoc["Btn_Delete"]
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudStack>
+        }
+        else
+        {
+            <!-- Single collection: simple confirmation -->
+            <MudText Typo="Typo.body1">
+                @string.Format(AssetLoc["ConfirmDeleteAsset"], AssetTitle)
+            </MudText>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        @if (!_loading && _context!.CollectionCount <= 1)
+        {
+            <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+            <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="OnDeletePermanently">
+                @CommonLoc["Btn_Delete"]
+            </MudButton>
+        }
+        else if (!_loading)
+        {
+            <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    public const string ActionRemove = "remove";
+    public const string ActionDelete = "delete";
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public Guid AssetId { get; set; }
+
+    [Parameter]
+    public string AssetTitle { get; set; } = "";
+
+    [Parameter]
+    public Guid? FromCollectionId { get; set; }
+
+    private AssetDeletionContextDto? _context;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _context = await Api.GetAssetDeletionContextAsync(AssetId);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load deletion context");
+            // On error, fall back to simple delete
+            _context = new AssetDeletionContextDto { CollectionCount = 1, CanDeletePermanently = true };
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    /// <summary>Remove from this collection only (asset stays in other collections).</summary>
+    private void OnRemove()
+    {
+        MudDialog.Close(DialogResult.Ok(ActionRemove));
+    }
+
+    /// <summary>Permanently delete the asset (or remove from all authorized collections).</summary>
+    private void OnDeletePermanently()
+    {
+        MudDialog.Close(DialogResult.Ok(ActionDelete));
+    }
+}

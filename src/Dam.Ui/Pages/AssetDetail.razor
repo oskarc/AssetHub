@@ -483,19 +483,23 @@ else
     {
         if (_asset == null) return;
 
-        var result = await DialogService.ShowMessageBox(
-            AssetLoc["DeleteAsset"],
-            string.Format(AssetLoc["ConfirmDeleteAsset"], _asset.Title),
-            yesText: CommonLoc["Btn_Delete"],
-            cancelText: CommonLoc["Btn_Cancel"]);
-
-        if (result == true)
+        var parameters = new DialogParameters<DeleteAssetDialog>
         {
+            { x => x.AssetId, _asset.Id },
+            { x => x.AssetTitle, _asset.Title }
+        };
+
+        var dialog = await DialogService.ShowAsync<DeleteAssetDialog>(null, parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is string)
+        {
+            // AssetDetail always does a permanent delete (no FromCollectionId context).
             var success = await Feedback.ExecuteWithFeedbackAsync(
-                () => Api.DeleteAssetAsync(_asset.Id),
+                () => Api.DeleteAssetAsync(_asset.Id, permanent: true),
                 "delete asset",
                 AssetLoc["AssetDeletedSuccess"]);
-            
+
             if (success)
             {
                 Nav.NavigateTo("/assets");

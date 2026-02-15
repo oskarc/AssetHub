@@ -4,6 +4,15 @@
   "displayName": "Media",
   "registrationAllowed": false,
   "resetPasswordAllowed": true,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "noreply@assethub.local",
+    "fromDisplayName": "AssetHub",
+    "ssl": "false",
+    "starttls": "false",
+    "auth": "false"
+  },
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "roles": {

@@ -136,4 +136,56 @@ public class CreateShareDialogTests : BunitTestBase
         // MudSelectItem contents now render inside MudPopoverProvider
         Assert.Contains("Expiry_7Days", PopoverProvider!.Markup);
     }
+
+    // ── Create Share submission flow ────────────────────────────────
+
+    [Fact]
+    public async Task CreateShare_Calls_CreateShareAsync()
+    {
+        var shareResponse = TestData.CreateShareResponse(scopeId: _scopeId);
+        MockApi.Setup(a => a.CreateShareAsync(
+                _scopeId,
+                "asset",
+                It.IsAny<DateTime?>(),
+                It.IsAny<string?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(shareResponse);
+
+        var cut = await RenderDialogAsync();
+
+        // Click the Create Share button
+        var createBtn = cut.FindAll("button")
+            .First(b => b.TextContent.Contains("CreateShare"));
+        await cut.InvokeAsync(() => createBtn.Click());
+
+        MockApi.Verify(a => a.CreateShareAsync(
+            _scopeId,
+            "asset",
+            It.IsAny<DateTime?>(),
+            It.IsAny<string?>(),
+            It.IsAny<List<string>?>(),
+            It.IsAny<CancellationToken>()), Times.Once());
+    }
+
+    [Fact]
+    public async Task CreateShare_Error_Calls_HandleError()
+    {
+        MockApi.Setup(a => a.CreateShareAsync(
+                _scopeId,
+                "asset",
+                It.IsAny<DateTime?>(),
+                It.IsAny<string?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("API Error"));
+
+        var cut = await RenderDialogAsync();
+
+        var createBtn = cut.FindAll("button")
+            .First(b => b.TextContent.Contains("CreateShare"));
+        await cut.InvokeAsync(() => createBtn.Click());
+
+        VerifyHandleErrorCalled();
+    }
 }
