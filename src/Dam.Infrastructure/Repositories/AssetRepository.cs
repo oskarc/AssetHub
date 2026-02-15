@@ -172,20 +172,8 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         // Get total count before pagination
         var total = await queryable.CountAsync(cancellationToken);
 
-        // Apply sorting
-        queryable = sortBy switch
-        {
-            "created_asc" => queryable.OrderBy(a => a.CreatedAt),
-            "created_desc" => queryable.OrderByDescending(a => a.CreatedAt),
-            "title_asc" => queryable.OrderBy(a => a.Title),
-            "title_desc" => queryable.OrderByDescending(a => a.Title),
-            "size_asc" => queryable.OrderBy(a => a.SizeBytes),
-            "size_desc" => queryable.OrderByDescending(a => a.SizeBytes),
-            _ => queryable.OrderByDescending(a => a.CreatedAt)
-        };
-
-        // Apply pagination
-        var assets = await queryable
+        // Apply sorting and pagination
+        var assets = await ApplySorting(queryable, sortBy)
             .Skip(skip)
             .Take(take)
             .ToListAsync(cancellationToken);
@@ -232,8 +220,20 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         // Get total count before pagination
         var total = await queryable.CountAsync(cancellationToken);
 
-        // Apply sorting
-        queryable = sortBy switch
+        // Apply sorting and pagination
+        var assets = await ApplySorting(queryable, sortBy)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        return (assets, total);
+    }
+
+    /// <summary>
+    /// Applies a sort expression to an asset query. Shared by SearchAsync and SearchAllAsync.
+    /// </summary>
+    private static IQueryable<Asset> ApplySorting(IQueryable<Asset> queryable, string sortBy) =>
+        sortBy switch
         {
             "created_asc" => queryable.OrderBy(a => a.CreatedAt),
             "created_desc" => queryable.OrderByDescending(a => a.CreatedAt),
@@ -243,13 +243,4 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
             "size_desc" => queryable.OrderByDescending(a => a.SizeBytes),
             _ => queryable.OrderByDescending(a => a.CreatedAt)
         };
-
-        // Apply pagination
-        var assets = await queryable
-            .Skip(skip)
-            .Take(take)
-            .ToListAsync(cancellationToken);
-
-        return (assets, total);
-    }
 }

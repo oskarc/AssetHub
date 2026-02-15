@@ -45,6 +45,9 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.CollectionId }).HasDatabaseName("idx_collection_acl_collection_id");
             entity.HasIndex(e => new { e.PrincipalType, e.PrincipalId }).HasDatabaseName("idx_collection_acl_principal");
+            entity.HasIndex(e => new { e.CollectionId, e.PrincipalType, e.PrincipalId })
+                .IsUnique()
+                .HasDatabaseName("idx_collection_acl_unique");
 
             entity.Property(e => e.PrincipalType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.PrincipalId).HasMaxLength(255).IsRequired();
@@ -63,6 +66,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasIndex(e => new { e.AssetType }).HasDatabaseName("idx_assets_type");
             entity.HasIndex(e => new { e.Status }).HasDatabaseName("idx_assets_status");
             entity.HasIndex(e => new { e.CreatedAt }).HasDatabaseName("idx_assets_created_at");
+            entity.HasIndex(e => e.CreatedByUserId).HasDatabaseName("idx_assets_created_by_user_id");
 
             entity.Property(e => e.Title).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
@@ -108,6 +112,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TokenHash).IsUnique().HasDatabaseName("idx_shares_token_hash_unique");
             entity.HasIndex(e => new { e.ScopeType, e.ScopeId }).HasDatabaseName("idx_shares_scope");
+            entity.HasIndex(e => e.ExpiresAt).HasDatabaseName("idx_shares_expires_at");
+            entity.HasIndex(e => e.CreatedByUserId).HasDatabaseName("idx_shares_created_by_user_id");
 
             entity.Property(e => e.TokenHash).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TokenEncrypted).HasMaxLength(2048);
@@ -126,6 +132,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.CreatedAt).HasDatabaseName("idx_audit_created_at");
             entity.HasIndex(e => new { e.EventType, e.CreatedAt }).HasDatabaseName("idx_audit_event_type_created");
+            entity.HasIndex(e => e.TargetId).HasDatabaseName("idx_audit_target_id");
 
             entity.Property(e => e.EventType).HasMaxLength(100).IsRequired();
             entity.Property(e => e.TargetType).HasMaxLength(100).IsRequired();

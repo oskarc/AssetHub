@@ -62,4 +62,22 @@ public static class Constants
         public const string Mp4 = "video/mp4";
         public const string Webm = "video/webm";
     }
+
+    /// <summary>
+    /// Application-wide numeric limits and default values.
+    /// </summary>
+    public static class Limits
+    {
+        /// <summary>Presigned download URL expiry in seconds (5 minutes).</summary>
+        public const int PresignedDownloadExpirySec = 300;
+
+        /// <summary>Presigned upload URL expiry in seconds (15 minutes).</summary>
+        public const int PresignedUploadExpirySec = 900;
+
+        /// <summary>Maximum assets that can be included in a zip download.</summary>
+        public const int MaxDownloadableAssets = 1000;
+
+        /// <summary>Default maximum upload size in MB.</summary>
+        public const int DefaultMaxUploadSizeMb = 500;
+    }
 }

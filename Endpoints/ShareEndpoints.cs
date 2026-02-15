@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using Dam.Application;
 using Dam.Application.Dtos;
 using Dam.Application.Helpers;
@@ -8,8 +7,6 @@ using Dam.Application.Services.Email.Templates;
 using Dam.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-using System.Security.Cryptography;
 
 namespace AssetHub.Endpoints;
 
@@ -42,7 +39,7 @@ public static class ShareEndpoints
 
         var share = await shareRepository.GetByTokenHashAsync(tokenHash, ct);
         if (share == null)
-            return (null, Results.NotFound("Share link not found or invalid"));
+            return (null, Results.NotFound(ApiError.NotFound("Share link not found or invalid")));
 
         var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
         if (accessError != null)
@@ -59,6 +56,70 @@ public static class ShareEndpoints
         }
 
         return (share, null);
+    }
+
+    private static SharedAssetDto BuildSharedAssetDto(
+        Asset asset, string token, Dictionary<string, bool> permissions, Guid? assetId = null)
+    {
+        var assetIdQuery = assetId.HasValue ? $"&assetId={assetId.Value}" : "";
+
+        string? thumbnailUrl = !string.IsNullOrEmpty(asset.ThumbObjectKey)
+            ? $"/api/shares/{token}/preview?size=thumb{assetIdQuery}"
+            : null;
+        string? mediumUrl = !string.IsNullOrEmpty(asset.MediumObjectKey)
+            ? $"/api/shares/{token}/preview?size=medium{assetIdQuery}"
+            : null;
+
+        return new SharedAssetDto
+        {
+            Id = asset.Id,
+            Title = asset.Title,
+            Description = asset.Description,
+            AssetType = asset.AssetType,
+            ContentType = asset.ContentType,
+            SizeBytes = asset.SizeBytes,
+            ThumbnailUrl = thumbnailUrl,
+            MediumUrl = mediumUrl,
+            MetadataJson = asset.MetadataJson,
+            Permissions = permissions
+        };
+    }
+
+    /// <summary>
+    /// Resolves the target asset for a share, handling both asset-scope and collection-scope shares.
+    /// Returns either the resolved Asset or an IResult error.
+    /// </summary>
+    private static async Task<(Asset? asset, IResult? error)> ResolveTargetAssetAsync(
+        Share share, Guid? assetId,
+        IAssetRepository assetRepository,
+        IAssetCollectionRepository assetCollectionRepo,
+        CancellationToken ct)
+    {
+        if (share.ScopeType == Constants.ScopeTypes.Asset)
+        {
+            var asset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
+            return asset != null
+                ? (asset, null)
+                : (null, Results.NotFound(ApiError.NotFound("Asset not found")));
+        }
+
+        if (share.ScopeType == Constants.ScopeTypes.Collection)
+        {
+            if (!assetId.HasValue)
+                return (null, Results.BadRequest(ApiError.BadRequest("assetId query parameter is required for collection shares")));
+
+            var asset = await assetRepository.GetByIdAsync(assetId.Value, ct);
+            if (asset == null)
+                return (null, Results.NotFound(ApiError.NotFound("Asset not found in this shared collection")));
+
+            var belongsToCollection = await assetCollectionRepo.BelongsToCollectionAsync(assetId.Value, share.ScopeId, ct);
+            if (!belongsToCollection)
+                return (null, Results.NotFound(ApiError.NotFound("Asset not found in this shared collection")));
+
+            return (asset, null);
+        }
+
+        return (null, Results.BadRequest(ApiError.BadRequest("Invalid share scope type")));
     }
 
     public static void MapShareEndpoints(this WebApplication app)
@@ -122,8 +183,6 @@ public static class ShareEndpoints
         [FromServices] IShareRepository shareRepository,
         [FromServices] IAssetRepository assetRepository,
         [FromServices] ICollectionRepository collectionRepository,
-        [FromServices] IMinIOAdapter minioAdapter,
-        IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct,
         int skip = 0,
@@ -135,71 +194,25 @@ public static class ShareEndpoints
         // Atomic access tracking — single UPDATE avoids race conditions
         await shareRepository.IncrementAccessAsync(share!.Id, ct);
 
-        var bucketName = StorageConfig.GetBucketName(configuration);
-
         if (share.ScopeType == Constants.ScopeTypes.Asset)
         {
             var asset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
             if (asset == null)
-                return Results.NotFound("Asset not found");
+                return Results.NotFound(ApiError.NotFound("Asset not found"));
 
-            // Use API URLs for thumbnails to hide MinIO backend
-            string? thumbnailUrl = null;
-            string? mediumUrl = null;
-
-            if (!string.IsNullOrEmpty(asset.ThumbObjectKey))
-                thumbnailUrl = $"/api/shares/{token}/preview?size=thumb";
-            if (!string.IsNullOrEmpty(asset.MediumObjectKey))
-                mediumUrl = $"/api/shares/{token}/preview?size=medium";
-
-            return Results.Ok(new SharedAssetDto
-            {
-                Id = asset.Id,
-                Title = asset.Title,
-                Description = asset.Description,
-                AssetType = asset.AssetType,
-                ContentType = asset.ContentType,
-                SizeBytes = asset.SizeBytes,
-                ThumbnailUrl = thumbnailUrl,
-                MediumUrl = mediumUrl,
-                MetadataJson = asset.MetadataJson,
-                Permissions = share.PermissionsJson
-            });
+            return Results.Ok(BuildSharedAssetDto(asset, token, share.PermissionsJson));
         }
         else if (share.ScopeType == Constants.ScopeTypes.Collection)
         {
             var collection = await collectionRepository.GetByIdAsync(share.ScopeId, ct: ct);
             if (collection == null)
-                return Results.NotFound("Collection not found");
+                return Results.NotFound(ApiError.NotFound("Collection not found"));
 
             var totalAssets = await assetRepository.CountByCollectionAsync(share.ScopeId, ct);
             var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, skip, take, ct);
-            var assetDtos = new List<SharedAssetDto>();
-
-            foreach (var asset in assets)
-            {
-                string? thumbnailUrl = null;
-                string? mediumUrl = null;
-
-                if (!string.IsNullOrEmpty(asset.ThumbObjectKey))
-                    thumbnailUrl = $"/api/shares/{token}/preview?size=thumb&assetId={asset.Id}";
-                if (!string.IsNullOrEmpty(asset.MediumObjectKey))
-                    mediumUrl = $"/api/shares/{token}/preview?size=medium&assetId={asset.Id}";
-
-                assetDtos.Add(new SharedAssetDto
-                {
-                    Id = asset.Id,
-                    Title = asset.Title,
-                    Description = asset.Description,
-                    AssetType = asset.AssetType,
-                    ContentType = asset.ContentType,
-                    SizeBytes = asset.SizeBytes,
-                    ThumbnailUrl = thumbnailUrl,
-                    MediumUrl = mediumUrl,
-                    MetadataJson = asset.MetadataJson,
-                    Permissions = share.PermissionsJson
-                });
-            }
+            var assetDtos = assets
+                .Select(a => BuildSharedAssetDto(a, token, share.PermissionsJson, a.Id))
+                .ToList();
 
             return Results.Ok(new SharedCollectionDto
             {
@@ -212,7 +225,7 @@ public static class ShareEndpoints
             });
         }
 
-        return Results.BadRequest("Invalid share scope type");
+        return Results.BadRequest(ApiError.BadRequest("Invalid share scope type"));
     }
 
     private static async Task<IResult> DownloadSharedAsset(
@@ -232,43 +245,21 @@ public static class ShareEndpoints
 
         // Check if download permission is granted
         if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
-            return Results.Forbid();
+            return Results.Json(ApiError.Forbidden("Download permission not granted"), statusCode: 403);
 
         var bucketName = StorageConfig.GetBucketName(configuration);
-        Asset? targetAsset = null;
 
-        if (share.ScopeType == Constants.ScopeTypes.Asset)
-        {
-            targetAsset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
-        }
-        else if (share.ScopeType == Constants.ScopeTypes.Collection)
-        {
-            // For collection shares, assetId must be provided to specify which asset to download
-            if (!assetId.HasValue)
-                return Results.BadRequest("assetId query parameter is required for collection share downloads");
+        var (targetAsset, resolveError) = await ResolveTargetAssetAsync(share, assetId, assetRepository, assetCollectionRepo, ct);
+        if (resolveError != null) return resolveError;
 
-            targetAsset = await assetRepository.GetByIdAsync(assetId.Value, ct);
-
-            // Verify the asset belongs to the shared collection using join table
-            if (targetAsset == null)
-                return Results.NotFound("Asset not found in this shared collection");
-            
-            var belongsToCollection = await assetCollectionRepo.BelongsToCollectionAsync(assetId.Value, share.ScopeId, ct);
-            if (!belongsToCollection)
-                return Results.NotFound("Asset not found in this shared collection");
-        }
-
-        if (targetAsset == null)
-            return Results.NotFound("Asset not found");
-
-        if (string.IsNullOrEmpty(targetAsset.OriginalObjectKey))
-            return Results.BadRequest("Asset file not available");
+        if (string.IsNullOrEmpty(targetAsset!.OriginalObjectKey))
+            return Results.BadRequest(ApiError.BadRequest("Asset file not available"));
 
         // Atomic access tracking — single UPDATE avoids race conditions
         await shareRepository.IncrementAccessAsync(share.Id, ct);
 
         // Redirect to presigned URL — file goes directly from MinIO to browser
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: 300, ct);
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: Constants.Limits.PresignedDownloadExpirySec, ct);
         return Results.Redirect(presignedUrl);
     }
 
@@ -287,18 +278,18 @@ public static class ShareEndpoints
         if (error != null) return error;
 
         if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
-            return Results.Forbid();
+            return Results.Json(ApiError.Forbidden("Download permission not granted"), statusCode: 403);
 
         if (share.ScopeType != Constants.ScopeTypes.Collection)
-            return Results.BadRequest("Download all is only available for collection shares");
+            return Results.BadRequest(ApiError.BadRequest("Download all is only available for collection shares"));
 
         var collection = await collectionRepository.GetByIdAsync(share.ScopeId, ct: ct);
         if (collection == null)
-            return Results.NotFound("Collection not found");
+            return Results.NotFound(ApiError.NotFound("Collection not found"));
 
-        var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, 0, 1000, ct);
+        var assets = await assetRepository.GetByCollectionAsync(share.ScopeId, 0, Constants.Limits.MaxDownloadableAssets, ct);
         if (!assets.Any())
-            return Results.BadRequest("No assets in collection");
+            return Results.BadRequest(ApiError.BadRequest("No assets in collection"));
 
         var bucketName = StorageConfig.GetBucketName(configuration);
 
@@ -328,36 +319,14 @@ public static class ShareEndpoints
         if (error != null) return error;
 
         var bucketName = StorageConfig.GetBucketName(configuration);
-        Asset? targetAsset = null;
 
-        if (share!.ScopeType == Constants.ScopeTypes.Asset)
-        {
-            targetAsset = await assetRepository.GetByIdAsync(share.ScopeId, ct);
-        }
-        else if (share.ScopeType == Constants.ScopeTypes.Collection)
-        {
-            // For collection shares, assetId must be provided
-            if (!assetId.HasValue)
-                return Results.BadRequest("assetId query parameter is required for collection share previews");
-
-            targetAsset = await assetRepository.GetByIdAsync(assetId.Value, ct);
-
-            // Verify the asset belongs to the shared collection using join table
-            if (targetAsset == null)
-                return Results.NotFound("Asset not found in this shared collection");
-            
-            var belongsToCollection = await assetCollectionRepo.BelongsToCollectionAsync(assetId.Value, share.ScopeId, ct);
-            if (!belongsToCollection)
-                return Results.NotFound("Asset not found in this shared collection");
-        }
-
-        if (targetAsset == null)
-            return Results.NotFound("Asset not found");
+        var (targetAsset, resolveError) = await ResolveTargetAssetAsync(share!, assetId, assetRepository, assetCollectionRepo, ct);
+        if (resolveError != null) return resolveError;
 
         // For PDF files, redirect to presigned URL for inline preview
-        if (string.Equals(targetAsset.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(targetAsset!.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
         {
-            var pdfUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: 300, ct);
+            var pdfUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: Constants.Limits.PresignedDownloadExpirySec, ct);
             return Results.Redirect(pdfUrl);
         }
 
@@ -368,7 +337,7 @@ public static class ShareEndpoints
             && (targetAsset.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
                 || targetAsset.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)))
         {
-            var mediaUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: 300, ct);
+            var mediaUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, targetAsset.OriginalObjectKey, expirySeconds: Constants.Limits.PresignedDownloadExpirySec, ct);
             return Results.Redirect(mediaUrl);
         }
 
@@ -381,10 +350,10 @@ public static class ShareEndpoints
         };
 
         if (string.IsNullOrEmpty(objectKey))
-            return Results.NotFound("Preview not available");
+            return Results.NotFound(ApiError.NotFound("Preview not available"));
 
         // Redirect to presigned URL — file goes directly from MinIO to browser
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, objectKey, expirySeconds: 300, ct);
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, objectKey, expirySeconds: Constants.Limits.PresignedDownloadExpirySec, ct);
         return Results.Redirect(presignedUrl);
     }
 
@@ -421,6 +390,7 @@ public static class ShareEndpoints
         Guid id,
         [FromBody] UpdateSharePasswordDto dto,
         [FromServices] IShareRepository shareRepository,
+        [FromServices] IAuditService audit,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -439,6 +409,9 @@ public static class ShareEndpoints
 
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
         await shareRepository.UpdateAsync(share, ct);
+
+        await audit.LogAsync("share.password_updated", "share", id, userId,
+            new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId }, httpContext, ct);
 
         return Results.Ok(new MessageResponse("Password updated successfully"));
     }

@@ -30,17 +30,17 @@ public class MediaProcessingService(
         
         if (assetType == "image")
         {
-            logger.LogInformation($"Scheduling image processing for asset {assetId}");
+            logger.LogInformation("Scheduling image processing for asset {AssetId}", assetId);
             jobId = backgroundJobClient.Enqueue(() => ProcessImageAsync(assetId, originalObjectKey, CancellationToken.None));
         }
         else if (assetType == "video")
         {
-            logger.LogInformation($"Scheduling video processing for asset {assetId}");
+            logger.LogInformation("Scheduling video processing for asset {AssetId}", assetId);
             jobId = backgroundJobClient.Enqueue(() => ProcessVideoAsync(assetId, originalObjectKey, CancellationToken.None));
         }
         else
         {
-            logger.LogInformation($"No processing required for asset {assetId} of type {assetType}");
+            logger.LogInformation("No processing required for asset {AssetId} of type {AssetType}", assetId, assetType);
             // For documents and other types, mark as ready immediately
             var asset = await assetRepository.GetByIdAsync(assetId, cancellationToken);
             if (asset != null)
@@ -62,12 +62,12 @@ public class MediaProcessingService(
         
         try
         {
-            logger.LogInformation($"Starting image processing for asset {assetId}");
+            logger.LogInformation("Starting image processing for asset {AssetId}", assetId);
             
             var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset == null)
             {
-                logger.LogWarning($"Asset {assetId} not found, skipping processing");
+                logger.LogWarning("Asset {AssetId} not found, skipping processing", assetId);
                 return;
             }
 
@@ -86,11 +86,11 @@ public class MediaProcessingService(
                 {
                     asset.MetadataJson[kvp.Key] = kvp.Value;
                 }
-                logger.LogDebug($"Extracted {metadata.Count} metadata fields for asset {assetId}");
+                logger.LogDebug("Extracted {MetadataCount} metadata fields for asset {AssetId}", metadata.Count, assetId);
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, $"Failed to extract metadata for asset {assetId}");
+                logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}", assetId);
                 asset.MetadataJson["metadataExtractionError"] = ex.Message;
             }
 
@@ -114,11 +114,11 @@ public class MediaProcessingService(
             asset.MarkReady(thumbKey, mediumKey);
             await assetRepository.UpdateAsync(asset, ct);
             
-            logger.LogInformation($"Successfully processed image asset {assetId}");
+            logger.LogInformation("Successfully processed image asset {AssetId}", assetId);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Image processing failed for asset {assetId}");
+            logger.LogError(ex, "Image processing failed for asset {AssetId}", assetId);
             
             var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset != null)
@@ -143,12 +143,12 @@ public class MediaProcessingService(
         
         try
         {
-            logger.LogInformation($"Starting video processing for asset {assetId}");
+            logger.LogInformation("Starting video processing for asset {AssetId}", assetId);
             
             var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset == null)
             {
-                logger.LogWarning($"Asset {assetId} not found, skipping processing");
+                logger.LogWarning("Asset {AssetId} not found, skipping processing", assetId);
                 return;
             }
 
@@ -171,11 +171,11 @@ public class MediaProcessingService(
             asset.MarkReady(posterKey: posterKey);
             await assetRepository.UpdateAsync(asset, ct);
             
-            logger.LogInformation($"Successfully processed video asset {assetId}");
+            logger.LogInformation("Successfully processed video asset {AssetId}", assetId);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Video processing failed for asset {assetId}");
+            logger.LogError(ex, "Video processing failed for asset {AssetId}", assetId);
             
             var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset != null)
@@ -217,9 +217,14 @@ public class MediaProcessingService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, $"Failed to cleanup temp file: {path}");
+            logger.LogWarning(ex, "Failed to cleanup temp file: {Path}", path);
         }
     }
+
+    /// <summary>
+    /// Maximum time to wait for an external process (ImageMagick / FFmpeg) before killing it.
+    /// </summary>
+    private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// Resize image using ImageMagick command-line tool.
@@ -227,25 +232,22 @@ public class MediaProcessingService(
     /// </summary>
     private async Task ResizeImageAsync(string inputPath, string outputPath, int maxWidth, int maxHeight, CancellationToken ct = default)
     {
-        var command = OperatingSystem.IsWindows()
-            ? new ProcessStartInfo("magick", $"\"{inputPath}\" -resize {maxWidth}x{maxHeight} -quality {_imageSettings.JpegQuality} \"{outputPath}\"")
-            : new ProcessStartInfo("convert", $"\"{inputPath}\" -resize {maxWidth}x{maxHeight} -quality {_imageSettings.JpegQuality} \"{outputPath}\"");
-
-        command.RedirectStandardOutput = true;
-        command.RedirectStandardError = true;
-        command.UseShellExecute = false;
-        command.CreateNoWindow = true;
-
-        using var process = Process.Start(command);
-        if (process != null)
+        var executable = OperatingSystem.IsWindows() ? "magick" : "convert";
+        var command = new ProcessStartInfo(executable)
         {
-            await process.WaitForExitAsync(ct);
-            if (process.ExitCode != 0)
-            {
-                var error = await process.StandardError.ReadToEndAsync(ct);
-                throw new InvalidOperationException($"ImageMagick error: {error}");
-            }
-        }
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        command.ArgumentList.Add(inputPath);
+        command.ArgumentList.Add("-resize");
+        command.ArgumentList.Add($"{maxWidth}x{maxHeight}");
+        command.ArgumentList.Add("-quality");
+        command.ArgumentList.Add(_imageSettings.JpegQuality.ToString());
+        command.ArgumentList.Add(outputPath);
+
+        await RunProcessAsync(executable, command, ct);
     }
 
     /// <summary>
@@ -253,24 +255,55 @@ public class MediaProcessingService(
     /// </summary>
     private async Task ExtractPosterAsync(string inputPath, string outputPath, int atSecond, CancellationToken ct = default)
     {
-        var command = new ProcessStartInfo("ffmpeg",
-            $"-ss {atSecond} -i \"{inputPath}\" -vframes 1 -vf \"scale={_imageSettings.PosterWidth}:-1\" -q:v {_imageSettings.PosterQuality} \"{outputPath}\" -y")
+        var command = new ProcessStartInfo("ffmpeg")
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        command.ArgumentList.Add("-ss");
+        command.ArgumentList.Add(atSecond.ToString());
+        command.ArgumentList.Add("-i");
+        command.ArgumentList.Add(inputPath);
+        command.ArgumentList.Add("-vframes");
+        command.ArgumentList.Add("1");
+        command.ArgumentList.Add("-vf");
+        command.ArgumentList.Add($"scale={_imageSettings.PosterWidth}:-1");
+        command.ArgumentList.Add("-q:v");
+        command.ArgumentList.Add(_imageSettings.PosterQuality.ToString());
+        command.ArgumentList.Add(outputPath);
+        command.ArgumentList.Add("-y");
 
-        using var process = Process.Start(command);
-        if (process != null)
+        await RunProcessAsync("ffmpeg", command, ct);
+    }
+
+    /// <summary>
+    /// Runs an external process with a timeout guard.
+    /// </summary>
+    private async Task RunProcessAsync(string toolName, ProcessStartInfo startInfo, CancellationToken ct)
+    {
+        using var process = Process.Start(startInfo);
+        if (process == null)
+            throw new InvalidOperationException($"{toolName} process failed to start");
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(ProcessTimeout);
+
+        try
         {
-            await process.WaitForExitAsync(ct);
-            if (process.ExitCode != 0)
-            {
-                var error = await process.StandardError.ReadToEndAsync(ct);
-                throw new InvalidOperationException($"FFmpeg error: {error}");
-            }
+            await process.WaitForExitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            process.Kill(entireProcessTree: true);
+            throw new TimeoutException($"{toolName} process exceeded the {ProcessTimeout.TotalMinutes:F0}-minute timeout and was killed");
+        }
+
+        if (process.ExitCode != 0)
+        {
+            var error = await process.StandardError.ReadToEndAsync(ct);
+            throw new InvalidOperationException($"{toolName} error (exit code {process.ExitCode}): {error}");
         }
     }
 
@@ -285,109 +318,118 @@ public class MediaProcessingService(
         {
             var directories = ImageMetadataReader.ReadMetadata(imagePath);
 
-            // Key EXIF fields we want to extract
-            var exifIfd0 = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-            var exifSubIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-            var iptc = directories.OfType<IptcDirectory>().FirstOrDefault();
-
-            // Artist / Photographer
-            var artist = exifIfd0?.GetString(ExifDirectoryBase.TagArtist);
-            if (!string.IsNullOrWhiteSpace(artist))
-                result["artist"] = artist;
-
-            // Copyright
-            var copyright = exifIfd0?.GetString(ExifDirectoryBase.TagCopyright);
-            if (!string.IsNullOrWhiteSpace(copyright))
-                result["copyright"] = copyright;
-
-            // Camera Make
-            var make = exifIfd0?.GetString(ExifDirectoryBase.TagMake);
-            if (!string.IsNullOrWhiteSpace(make))
-                result["cameraMake"] = make;
-
-            // Camera Model
-            var model = exifIfd0?.GetString(ExifDirectoryBase.TagModel);
-            if (!string.IsNullOrWhiteSpace(model))
-                result["cameraModel"] = model;
-
-            // Software used
-            var software = exifIfd0?.GetString(ExifDirectoryBase.TagSoftware);
-            if (!string.IsNullOrWhiteSpace(software))
-                result["software"] = software;
-
-            // Date/Time Original
-            if (exifSubIfd?.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out var dateTimeOriginal) == true)
-                result["dateTaken"] = dateTimeOriginal.ToString("yyyy-MM-dd HH:mm:ss");
-
-            // Exposure Time
-            if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagExposureTime, out var exposureTime) == true)
-                result["exposureTime"] = exposureTime.Denominator > 1 
-                    ? $"1/{(int)(exposureTime.Denominator / exposureTime.Numerator)}s" 
-                    : $"{exposureTime.ToDouble():F1}s";
-
-            // F-Number (Aperture)
-            if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagFNumber, out var fNumber) == true)
-                result["aperture"] = $"f/{fNumber.ToDouble():F1}";
-
-            // ISO
-            if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagIsoEquivalent, out var iso) == true)
-                result["iso"] = iso;
-
-            // Focal Length
-            if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagFocalLength, out var focalLength) == true)
-                result["focalLength"] = $"{focalLength.ToDouble():F0}mm";
-
-            // Image Dimensions
-            if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagExifImageWidth, out var width) == true)
-                result["imageWidth"] = width;
-            if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagExifImageHeight, out var height) == true)
-                result["imageHeight"] = height;
-
-            // Flash
-            if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagFlash, out var flash) == true)
-                result["flash"] = (flash & 1) == 1 ? "Fired" : "Did not fire";
-
-            // IPTC fields (often contain credits/captions)
-            if (iptc != null)
-            {
-                var byLine = iptc.GetString(IptcDirectory.TagByLine);
-                if (!string.IsNullOrWhiteSpace(byLine) && !result.ContainsKey("artist"))
-                    result["artist"] = byLine;
-
-                var credit = iptc.GetString(IptcDirectory.TagCredit);
-                if (!string.IsNullOrWhiteSpace(credit))
-                    result["credit"] = credit;
-
-                var caption = iptc.GetString(IptcDirectory.TagCaption);
-                if (!string.IsNullOrWhiteSpace(caption))
-                    result["caption"] = caption;
-
-                var source = iptc.GetString(IptcDirectory.TagSource);
-                if (!string.IsNullOrWhiteSpace(source))
-                    result["source"] = source;
-
-                var keywords = iptc.GetStringArray(IptcDirectory.TagKeywords);
-                if (keywords != null && keywords.Length > 0)
-                    result["keywords"] = string.Join(", ", keywords);
-            }
-
-            // GPS coordinates (if available)
-            var gps = directories.OfType<MetadataExtractor.Formats.Exif.GpsDirectory>().FirstOrDefault();
-            if (gps != null)
-            {
-                var location = gps.GetGeoLocation();
-                if (location != null)
-                {
-                    result["gpsLatitude"] = location.Latitude;
-                    result["gpsLongitude"] = location.Longitude;
-                }
-            }
+            ExtractExifData(directories, result);
+            ExtractIptcData(directories, result);
+            ExtractGpsData(directories, result);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            // Silently ignore metadata extraction errors - file may not have EXIF
+            // Metadata extraction is non-critical — file may not have EXIF data
+            logger.LogDebug(ex, "Metadata extraction returned no data for {ImagePath}", imagePath);
         }
 
         return result;
+    }
+
+    private static void ExtractExifData(IReadOnlyList<MetadataExtractor.Directory> directories, Dictionary<string, object> result)
+    {
+        var exifIfd0 = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
+        var exifSubIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+
+        // Artist / Photographer
+        var artist = exifIfd0?.GetString(ExifDirectoryBase.TagArtist);
+        if (!string.IsNullOrWhiteSpace(artist))
+            result["artist"] = artist;
+
+        // Copyright
+        var copyright = exifIfd0?.GetString(ExifDirectoryBase.TagCopyright);
+        if (!string.IsNullOrWhiteSpace(copyright))
+            result["copyright"] = copyright;
+
+        // Camera Make
+        var make = exifIfd0?.GetString(ExifDirectoryBase.TagMake);
+        if (!string.IsNullOrWhiteSpace(make))
+            result["cameraMake"] = make;
+
+        // Camera Model
+        var model = exifIfd0?.GetString(ExifDirectoryBase.TagModel);
+        if (!string.IsNullOrWhiteSpace(model))
+            result["cameraModel"] = model;
+
+        // Software used
+        var software = exifIfd0?.GetString(ExifDirectoryBase.TagSoftware);
+        if (!string.IsNullOrWhiteSpace(software))
+            result["software"] = software;
+
+        // Date/Time Original
+        if (exifSubIfd?.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out var dateTimeOriginal) == true)
+            result["dateTaken"] = dateTimeOriginal.ToString("yyyy-MM-dd HH:mm:ss");
+
+        // Exposure Time
+        if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagExposureTime, out var exposureTime) == true)
+            result["exposureTime"] = exposureTime.Denominator > 1 
+                ? $"1/{(int)(exposureTime.Denominator / exposureTime.Numerator)}s" 
+                : $"{exposureTime.ToDouble():F1}s";
+
+        // F-Number (Aperture)
+        if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagFNumber, out var fNumber) == true)
+            result["aperture"] = $"f/{fNumber.ToDouble():F1}";
+
+        // ISO
+        if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagIsoEquivalent, out var iso) == true)
+            result["iso"] = iso;
+
+        // Focal Length
+        if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagFocalLength, out var focalLength) == true)
+            result["focalLength"] = $"{focalLength.ToDouble():F0}mm";
+
+        // Image Dimensions
+        if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagExifImageWidth, out var width) == true)
+            result["imageWidth"] = width;
+        if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagExifImageHeight, out var height) == true)
+            result["imageHeight"] = height;
+
+        // Flash
+        if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagFlash, out var flash) == true)
+            result["flash"] = (flash & 1) == 1 ? "Fired" : "Did not fire";
+    }
+
+    private static void ExtractIptcData(IReadOnlyList<MetadataExtractor.Directory> directories, Dictionary<string, object> result)
+    {
+        var iptc = directories.OfType<IptcDirectory>().FirstOrDefault();
+        if (iptc == null) return;
+
+        var byLine = iptc.GetString(IptcDirectory.TagByLine);
+        if (!string.IsNullOrWhiteSpace(byLine) && !result.ContainsKey("artist"))
+            result["artist"] = byLine;
+
+        var credit = iptc.GetString(IptcDirectory.TagCredit);
+        if (!string.IsNullOrWhiteSpace(credit))
+            result["credit"] = credit;
+
+        var caption = iptc.GetString(IptcDirectory.TagCaption);
+        if (!string.IsNullOrWhiteSpace(caption))
+            result["caption"] = caption;
+
+        var source = iptc.GetString(IptcDirectory.TagSource);
+        if (!string.IsNullOrWhiteSpace(source))
+            result["source"] = source;
+
+        var keywords = iptc.GetStringArray(IptcDirectory.TagKeywords);
+        if (keywords != null && keywords.Length > 0)
+            result["keywords"] = string.Join(", ", keywords);
+    }
+
+    private static void ExtractGpsData(IReadOnlyList<MetadataExtractor.Directory> directories, Dictionary<string, object> result)
+    {
+        var gps = directories.OfType<MetadataExtractor.Formats.Exif.GpsDirectory>().FirstOrDefault();
+        if (gps == null) return;
+
+        var location = gps.GetGeoLocation();
+        if (location != null)
+        {
+            result["gpsLatitude"] = location.Latitude;
+            result["gpsLongitude"] = location.Longitude;
+        }
     }
 }

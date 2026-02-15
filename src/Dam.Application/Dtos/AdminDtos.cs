@@ -70,7 +70,7 @@ public record UserCollectionAccessDto
 {
     public Guid CollectionId { get; init; }
     public required string CollectionName { get; init; }
-    public required string Role { get; set; }
+    public required string Role { get; init; }
 }
 
 /// <summary>
@@ -173,7 +173,7 @@ public record ShareTokenResponse
 /// </summary>
 public record DeleteUserResponse
 {
-    public string Message { get; init; } = string.Empty;
+    public required string Message { get; init; }
     public int AclsRemoved { get; init; }
     public int SharesRevoked { get; init; }
 }

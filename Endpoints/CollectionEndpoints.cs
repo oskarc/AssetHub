@@ -7,6 +7,7 @@ using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AssetHub.Endpoints;
 
@@ -22,29 +23,29 @@ public static class CollectionEndpoints
         group.MapGet("", GetRootCollections)
             .WithName("GetRootCollections");
 
-        group.MapGet("{id}", GetCollectionById)
+        group.MapGet("{id:guid}", GetCollectionById)
             .WithName("GetCollectionById");
 
         group.MapPost("", CreateCollection)
             .WithName("CreateCollection");
 
-        group.MapPost("{id}/children", CreateSubCollection)
+        group.MapPost("{id:guid}/children", CreateSubCollection)
             .WithName("CreateSubCollection");
 
-        group.MapPatch("{id}", UpdateCollection)
+        group.MapPatch("{id:guid}", UpdateCollection)
             .WithName("UpdateCollection");
 
-        group.MapDelete("{id}", DeleteCollection)
+        group.MapDelete("{id:guid}", DeleteCollection)
             .WithName("DeleteCollection");
 
-        group.MapGet("{id}/children", GetChildren)
+        group.MapGet("{id:guid}/children", GetChildren)
             .WithName("GetChildren");
 
-        group.MapGet("{id}/download-all", DownloadAllAssets)
+        group.MapGet("{id:guid}/download-all", DownloadAllAssets)
             .WithName("DownloadAllAssets");
 
         // ACL Management
-        var aclGroup = app.MapGroup("/api/collections/{collectionId}/acl")
+        var aclGroup = app.MapGroup("/api/collections/{collectionId:guid}/acl")
             .WithName("CollectionACL")
             .RequireAuthorization();
 
@@ -63,8 +64,8 @@ public static class CollectionEndpoints
     }
 
     private static async Task<IResult> GetRootCollections(
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] ICollectionRepository collectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -86,8 +87,8 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> GetCollectionById(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] ICollectionRepository collectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -108,10 +109,10 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> CreateCollection(
         CreateCollectionDto dto,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
+        [FromServices] ICollectionRepository collectionRepo,
+        [FromServices] ICollectionAclRepository aclRepo,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
@@ -120,7 +121,7 @@ public static class CollectionEndpoints
 
         // Validate name
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 255)
-            return Results.BadRequest("Name must be 1-255 characters");
+            return Results.BadRequest(ApiError.BadRequest("Name must be 1-255 characters"));
 
         // Check permission
         if (dto.ParentId.HasValue)
@@ -176,10 +177,10 @@ public static class CollectionEndpoints
     private static async Task<IResult> CreateSubCollection(
         Guid id,
         CreateCollectionDto dto,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
+        [FromServices] ICollectionRepository collectionRepo,
+        [FromServices] ICollectionAclRepository aclRepo,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
@@ -191,9 +192,9 @@ public static class CollectionEndpoints
     private static async Task<IResult> UpdateCollection(
         Guid id,
         UpdateCollectionDto dto,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
+        [FromServices] ICollectionRepository collectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
@@ -223,11 +224,11 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> DeleteCollection(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetDeletionService deletionService,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] ICollectionRepository collectionRepo,
+        [FromServices] IAssetDeletionService deletionService,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
+        [FromServices] IConfiguration configuration,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
@@ -254,8 +255,8 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> GetChildren(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] ICollectionRepository collectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -273,9 +274,9 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> GetCollectionAcls(
         Guid collectionId,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IUserLookupService userLookup,
+        [FromServices] ICollectionAclRepository aclRepo,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IUserLookupService userLookup,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -309,9 +310,9 @@ public static class CollectionEndpoints
     private static async Task<IResult> SetCollectionAccess(
         Guid collectionId,
         SetCollectionAccessDto dto,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
+        [FromServices] ICollectionAclRepository aclRepo,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
@@ -325,10 +326,10 @@ public static class CollectionEndpoints
 
         // Validate
         if (string.IsNullOrWhiteSpace(dto.PrincipalType) || string.IsNullOrWhiteSpace(dto.PrincipalId) || string.IsNullOrWhiteSpace(dto.Role))
-            return Results.BadRequest("PrincipalType, PrincipalId, and Role are required");
+            return Results.BadRequest(ApiError.BadRequest("PrincipalType, PrincipalId, and Role are required"));
 
         if (!RoleHierarchy.AllRoles.Contains(dto.Role))
-            return Results.BadRequest("Invalid role");
+            return Results.BadRequest(ApiError.BadRequest("Invalid role"));
 
         // Role escalation guard: caller can only grant roles at or below their own level
         var callerRole = await authService.GetUserRoleAsync(userId, collectionId, ct);
@@ -356,9 +357,9 @@ public static class CollectionEndpoints
         Guid collectionId,
         string principalType,
         string principalId,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
+        [FromServices] ICollectionAclRepository aclRepo,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
@@ -390,10 +391,10 @@ public static class CollectionEndpoints
     /// </summary>
     private static async Task<IResult> SearchUsersForAcl(
         Guid collectionId,
-        [Microsoft.AspNetCore.Mvc.FromQuery] string? q,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAclRepository aclRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IUserLookupService userLookup,
+        [FromQuery] string? q,
+        [FromServices] ICollectionAclRepository aclRepo,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IUserLookupService userLookup,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -434,11 +435,11 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> DownloadAllAssets(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IZipDownloadService zipService,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] ICollectionRepository collectionRepo,
+        [FromServices] IAssetRepository assetRepo,
+        [FromServices] IZipDownloadService zipService,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IConfiguration configuration,
         ClaimsPrincipal user,
         HttpContext httpContext,
         CancellationToken ct)
@@ -451,11 +452,11 @@ public static class CollectionEndpoints
 
         var collection = await collectionRepo.GetByIdAsync(id, ct: ct);
         if (collection == null)
-            return Results.NotFound("Collection not found");
+            return Results.NotFound(ApiError.NotFound("Collection not found"));
 
-        var assets = await assetRepo.GetByCollectionAsync(id, 0, 1000, ct);
+        var assets = await assetRepo.GetByCollectionAsync(id, 0, Constants.Limits.MaxDownloadableAssets, ct);
         if (!assets.Any())
-            return Results.BadRequest("No assets in collection");
+            return Results.BadRequest(ApiError.BadRequest("No assets in collection"));
 
         var bucketName = StorageConfig.GetBucketName(configuration);
         var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";

@@ -28,7 +28,7 @@ public static class ServiceCollectionExtensions
         ConfigureWebHostBuilder webHost)
     {
         // ── Kestrel limits ──────────────────────────────────────────────────
-        var maxUploadMb = configuration.GetValue("App:MaxUploadSizeMb", 500);
+        var maxUploadMb = configuration.GetValue("App:MaxUploadSizeMb", Constants.Limits.DefaultMaxUploadSizeMb);
         webHost.ConfigureKestrel(options =>
         {
             options.Limits.MaxRequestBodySize = (long)maxUploadMb * 1024 * 1024;

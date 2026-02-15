@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Dam.Application;
 using Dam.Application.Dtos;
 using Dam.Application.Helpers;
@@ -6,6 +5,7 @@ using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AssetHub.Endpoints;
 
@@ -45,7 +45,7 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> GetAssets(
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetRepository assetRepository,
         CancellationToken ct,
         int skip = 0,
         int take = 50)
@@ -60,10 +60,10 @@ public static class AssetEndpoints
     /// Get all assets across all accessible collections with search and filter support.
     /// </summary>
     private static async Task<IResult> GetAllAssets(
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionRepository collectionRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] ICollectionRepository collectionRepository,
+        [FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext,
         CancellationToken ct,
         string? query = null,
@@ -143,9 +143,9 @@ public static class AssetEndpoints
 
     private static async Task<IResult> GetAsset(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -174,8 +174,8 @@ public static class AssetEndpoints
 
     private static async Task<IResult> GetAssetsByCollection(
         Guid collectionId,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext,
         CancellationToken ct,
         string? query = null,
@@ -214,15 +214,15 @@ public static class AssetEndpoints
 
     private static async Task<IResult> UploadAsset(
         IFormFile file,
-        [Microsoft.AspNetCore.Mvc.FromForm] Guid collectionId,
-        [Microsoft.AspNetCore.Mvc.FromForm] string title,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMediaProcessingService mediaProcessingService,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromForm] Guid collectionId,
+        [FromForm] string title,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] IMediaProcessingService mediaProcessingService,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -235,55 +235,36 @@ public static class AssetEndpoints
             return Results.Forbid();
 
         if (file == null || file.Length == 0)
-            return Results.BadRequest("File is required");
+            return Results.BadRequest(ApiError.BadRequest("File is required"));
 
         // Enforce MaxUploadSizeMb
-        var maxSizeMb = configuration.GetValue("App:MaxUploadSizeMb", 500);
-        var maxSizeBytes = (long)maxSizeMb * 1024 * 1024;
-        if (file.Length > maxSizeBytes)
-            return Results.BadRequest($"File size exceeds the maximum allowed size of {maxSizeMb} MB");
-
-        // Determine asset type from content type and file extension
-        var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
-        var assetType = AssetTypeHelper.DetermineAssetType(file.ContentType, extension);
+        var sizeError = ValidateFileSize(file.Length, configuration);
+        if (sizeError != null) return sizeError;
 
         // Create asset entity
-        var assetId = Guid.NewGuid();
-        var objectKey = $"originals/{assetId}-{Path.GetFileName(file.FileName)}";
-
-        var asset = new Asset
-        {
-            Id = assetId,
-            AssetType = assetType,
-            Status = Asset.StatusProcessing,
-            Title = title ?? Path.GetFileNameWithoutExtension(file.FileName),
-            ContentType = file.ContentType,
-            SizeBytes = file.Length,
-            OriginalObjectKey = objectKey,
-            CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = userId,
-            UpdatedAt = DateTime.UtcNow
-        };
+        var asset = CreateAssetEntity(file.FileName, file.ContentType, file.Length, userId, Asset.StatusProcessing);
+        if (!string.IsNullOrEmpty(title))
+            asset.Title = title;
 
         // Upload to MinIO
         using var stream = file.OpenReadStream();
-        await minioAdapter.UploadAsync(bucketName, objectKey, stream, file.ContentType, ct);
+        await minioAdapter.UploadAsync(bucketName, asset.OriginalObjectKey, stream, file.ContentType, ct);
 
         // Save asset to database
         await assetRepository.CreateAsync(asset, ct);
         
         // Add asset to the collection via join table
-        await assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
+        await assetCollectionRepo.AddToCollectionAsync(asset.Id, collectionId, userId, ct);
 
-        await audit.LogAsync("asset.created", "asset", assetId, userId,
+        await audit.LogAsync("asset.created", "asset", asset.Id, userId,
             new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = file.ContentType }, httpContext, ct);
 
         // Schedule processing job
-        var jobId = await mediaProcessingService.ScheduleProcessingAsync(assetId, assetType, objectKey, ct);
+        var jobId = await mediaProcessingService.ScheduleProcessingAsync(asset.Id, asset.AssetType, asset.OriginalObjectKey, ct);
 
-        return Results.Accepted($"/api/assets/{assetId}", new AssetUploadResult
+        return Results.Accepted($"/api/assets/{asset.Id}", new AssetUploadResult
         {
-            Id = assetId,
+            Id = asset.Id,
             Status = Asset.StatusProcessing,
             JobId = jobId,
             Message = "Asset uploaded. Processing in progress."
@@ -293,10 +274,10 @@ public static class AssetEndpoints
     private static async Task<IResult> UpdateAsset(
         Guid id,
         UpdateAssetDto dto,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -332,14 +313,14 @@ public static class AssetEndpoints
 
     private static async Task<IResult> DeleteAsset(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromQuery] Guid? fromCollectionId,
-        [Microsoft.AspNetCore.Mvc.FromQuery] bool permanent,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetDeletionService deletionService,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromQuery] Guid? fromCollectionId,
+        [FromQuery] bool permanent,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] IAssetDeletionService deletionService,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -411,9 +392,9 @@ public static class AssetEndpoints
     /// </summary>
     private static async Task<IResult> GetAssetDeletionContext(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -447,9 +428,9 @@ public static class AssetEndpoints
     /// </summary>
     private static async Task<IResult> GetAssetCollections(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -482,9 +463,9 @@ public static class AssetEndpoints
     private static async Task<IResult> AddAssetToCollection(
         Guid id,
         Guid collectionId,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] ICollectionAuthorizationService authService,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -544,11 +525,11 @@ public static class AssetEndpoints
     private static async Task<IResult> RemoveAssetFromCollection(
         Guid id,
         Guid collectionId,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetDeletionService deletionService,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAuditService audit,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetDeletionService deletionService,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IAuditService audit,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -597,11 +578,11 @@ public static class AssetEndpoints
     /// </summary>
     private static async Task<IResult> InitUpload(
         InitUploadRequest request,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -609,50 +590,31 @@ public static class AssetEndpoints
         var bucketName = StorageConfig.GetBucketName(configuration);
 
         // Enforce MaxUploadSizeMb
-        var maxSizeMb = configuration.GetValue("App:MaxUploadSizeMb", 500);
-        var maxSizeBytes = (long)maxSizeMb * 1024 * 1024;
-        if (request.FileSize > maxSizeBytes)
-            return Results.BadRequest($"File size exceeds the maximum allowed size of {maxSizeMb} MB");
+        var sizeError = ValidateFileSize(request.FileSize, configuration);
+        if (sizeError != null) return sizeError;
 
         // Check contribution permission
         var canContribute = await authService.CheckAccessAsync(userId, request.CollectionId, RoleHierarchy.Roles.Contributor, ct);
         if (!canContribute)
             return Results.Forbid();
 
-        // Determine asset type from content type and extension
-        var extension = Path.GetExtension(request.FileName)?.ToLowerInvariant();
-        var assetType = AssetTypeHelper.DetermineAssetType(request.ContentType, extension);
-
         // Create asset record in "uploading" status
-        var assetId = Guid.NewGuid();
-        var objectKey = $"originals/{assetId}-{Path.GetFileName(request.FileName)}";
-
-        var asset = new Asset
-        {
-            Id = assetId,
-            AssetType = assetType,
-            Status = Asset.StatusUploading,
-            Title = request.Title ?? Path.GetFileNameWithoutExtension(request.FileName),
-            ContentType = request.ContentType,
-            SizeBytes = request.FileSize,
-            OriginalObjectKey = objectKey,
-            CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = userId,
-            UpdatedAt = DateTime.UtcNow
-        };
+        var asset = CreateAssetEntity(request.FileName, request.ContentType, request.FileSize, userId, Asset.StatusUploading);
+        if (!string.IsNullOrEmpty(request.Title))
+            asset.Title = request.Title;
 
         await assetRepository.CreateAsync(asset, ct);
-        await assetCollectionRepo.AddToCollectionAsync(assetId, request.CollectionId, userId, ct);
+        await assetCollectionRepo.AddToCollectionAsync(asset.Id, request.CollectionId, userId, ct);
 
         // Generate presigned PUT URL (15 minute expiry for large uploads)
-        var presignedUrl = await minioAdapter.GetPresignedUploadUrlAsync(bucketName, objectKey, expirySeconds: 900, ct);
+        var presignedUrl = await minioAdapter.GetPresignedUploadUrlAsync(bucketName, asset.OriginalObjectKey, expirySeconds: Constants.Limits.PresignedUploadExpirySec, ct);
 
         return Results.Ok(new InitUploadResponse
         {
-            AssetId = assetId,
-            ObjectKey = objectKey,
+            AssetId = asset.Id,
+            ObjectKey = asset.OriginalObjectKey,
             UploadUrl = presignedUrl,
-            ExpiresInSeconds = 900
+            ExpiresInSeconds = Constants.Limits.PresignedUploadExpirySec
         });
     }
 
@@ -662,10 +624,10 @@ public static class AssetEndpoints
     /// </summary>
     private static async Task<IResult> ConfirmUpload(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMediaProcessingService mediaProcessingService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] IMediaProcessingService mediaProcessingService,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -682,12 +644,12 @@ public static class AssetEndpoints
 
         // Must be in "uploading" status
         if (asset.Status != Asset.StatusUploading)
-            return Results.BadRequest("Asset is not in uploading state");
+            return Results.BadRequest(ApiError.BadRequest("Asset is not in uploading state"));
 
         // Verify the object actually exists in MinIO and check size
         var stat = await minioAdapter.StatObjectAsync(bucketName, asset.OriginalObjectKey, ct);
         if (stat == null)
-            return Results.BadRequest("File not found in storage. Upload may have failed or expired.");
+            return Results.BadRequest(ApiError.BadRequest("File not found in storage. Upload may have failed or expired."));
 
         // Update asset with actual size from MinIO and set to processing
         asset.SizeBytes = stat.Size;
@@ -714,11 +676,11 @@ public static class AssetEndpoints
 
     private static async Task<IResult> DownloadOriginal(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -733,11 +695,11 @@ public static class AssetEndpoints
     /// </summary>
     private static async Task<IResult> PreviewOriginal(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -748,11 +710,11 @@ public static class AssetEndpoints
 
     private static async Task<IResult> GetThumbnail(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -763,11 +725,11 @@ public static class AssetEndpoints
 
     private static async Task<IResult> GetMedium(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -778,11 +740,11 @@ public static class AssetEndpoints
 
     private static async Task<IResult> GetPoster(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetRepository assetRepository,
-        [Microsoft.AspNetCore.Mvc.FromServices] IAssetCollectionRepository assetCollectionRepo,
-        [Microsoft.AspNetCore.Mvc.FromServices] IMinIOAdapter minioAdapter,
-        [Microsoft.AspNetCore.Mvc.FromServices] ICollectionAuthorizationService authService,
-        [Microsoft.AspNetCore.Mvc.FromServices] IConfiguration configuration,
+        [FromServices] IAssetRepository assetRepository,
+        [FromServices] IAssetCollectionRepository assetCollectionRepo,
+        [FromServices] IMinIOAdapter minioAdapter,
+        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IConfiguration configuration,
         HttpContext httpContext,
         CancellationToken ct)
     {
@@ -845,7 +807,7 @@ public static class AssetEndpoints
         if (string.IsNullOrEmpty(objectKey))
             return Results.NotFound($"{size} rendition not available");
 
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, objectKey, expirySeconds: 300, ct);
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(bucketName, objectKey, expirySeconds: Constants.Limits.PresignedDownloadExpirySec, ct);
         return Results.Redirect(presignedUrl);
     }
 
@@ -868,6 +830,47 @@ public static class AssetEndpoints
         var collections = await assetCollectionRepo.GetCollectionIdsForAssetAsync(assetId, ct);
         var accessible = await authService.FilterAccessibleAsync(userId, collections, requiredRole, ct);
         return accessible.Count > 0;
+    }
+
+
+
+    /// <summary>
+    /// Validates file size against the configured maximum upload size.
+    /// Returns an error result if the size exceeds the limit, null otherwise.
+    /// </summary>
+    private static IResult? ValidateFileSize(long fileSize, IConfiguration configuration)
+    {
+        var maxSizeMb = configuration.GetValue("App:MaxUploadSizeMb", Constants.Limits.DefaultMaxUploadSizeMb);
+        var maxSizeBytes = (long)maxSizeMb * 1024 * 1024;
+        return fileSize > maxSizeBytes
+            ? Results.BadRequest(ApiError.BadRequest($"File size exceeds the maximum allowed size of {maxSizeMb} MB"))
+            : null;
+    }
+
+    /// <summary>
+    /// Creates a new Asset entity with common properties pre-set.
+    /// </summary>
+    private static Asset CreateAssetEntity(
+        string fileName, string contentType, long sizeBytes, string userId, string status)
+    {
+        var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
+        var assetType = AssetTypeHelper.DetermineAssetType(contentType, extension);
+        var assetId = Guid.NewGuid();
+        var objectKey = $"originals/{assetId}-{Path.GetFileName(fileName)}";
+
+        return new Asset
+        {
+            Id = assetId,
+            AssetType = assetType,
+            Status = status,
+            Title = Path.GetFileNameWithoutExtension(fileName),
+            ContentType = contentType,
+            SizeBytes = sizeBytes,
+            OriginalObjectKey = objectKey,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = userId,
+            UpdatedAt = DateTime.UtcNow
+        };
     }
 
 

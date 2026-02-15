@@ -77,7 +77,7 @@ public class MinIOAdapter(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, $"Error checking if object exists: {bucketName}/{objectKey}");
+            logger.LogWarning(ex, "Error checking if object exists: {BucketName}/{ObjectKey}", bucketName, objectKey);
             throw;
         }
     }
@@ -144,7 +144,7 @@ public class MinIOAdapter(
 
         if (!exists)
         {
-            logger.LogInformation($"Creating bucket: {bucketName}");
+            logger.LogInformation("Creating bucket: {BucketName}", bucketName);
             var makeBucketArgs = new MakeBucketArgs()
                 .WithBucket(bucketName);
 

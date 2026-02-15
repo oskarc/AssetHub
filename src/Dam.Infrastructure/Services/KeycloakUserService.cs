@@ -5,6 +5,8 @@ using Dam.Application.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
+// ReSharper disable InconsistentNaming
+
 namespace Dam.Infrastructure.Services;
 
 /// <summary>
@@ -21,7 +23,8 @@ public class KeycloakUserService : IKeycloakUserService
     private readonly string _adminUsername;
     private readonly string _adminPassword;
 
-    // Token cache
+    // Token cache — guarded by _tokenLock for thread safety
+    private readonly SemaphoreSlim _tokenLock = new(1, 1);
     private string? _cachedToken;
     private DateTime _tokenExpiry = DateTime.MinValue;
 
@@ -174,7 +177,7 @@ public class KeycloakUserService : IKeycloakUserService
 
         using var response = await _httpClient.SendAsync(request, ct);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        if (response.StatusCode == HttpStatusCode.NotFound)
         {
             throw new KeycloakApiException("User not found in Keycloak", (int)response.StatusCode);
         }
@@ -205,7 +208,7 @@ public class KeycloakUserService : IKeycloakUserService
 
         using var response = await _httpClient.SendAsync(request, ct);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        if (response.StatusCode == HttpStatusCode.NotFound)
         {
             throw new KeycloakApiException("User not found in Keycloak", (int)response.StatusCode);
         }
@@ -230,41 +233,53 @@ public class KeycloakUserService : IKeycloakUserService
     /// </summary>
     private async Task<string> GetAdminTokenAsync(CancellationToken ct)
     {
-        // Return cached token if still valid (with 30s buffer)
+        // Fast path: return cached token if still valid (with 30s buffer)
         if (_cachedToken != null && DateTime.UtcNow < _tokenExpiry.AddSeconds(-30))
             return _cachedToken;
 
-        var tokenUrl = $"{_keycloakBaseUrl}/realms/master/protocol/openid-connect/token";
-
-        var formData = new Dictionary<string, string>
+        await _tokenLock.WaitAsync(ct);
+        try
         {
-            ["grant_type"] = "password",
-            ["client_id"] = "admin-cli",
-            ["username"] = _adminUsername,
-            ["password"] = _adminPassword
-        };
+            // Double-check after acquiring lock — another thread may have refreshed
+            if (_cachedToken != null && DateTime.UtcNow < _tokenExpiry.AddSeconds(-30))
+                return _cachedToken;
 
-        using var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(formData), ct);
-        
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorBody = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogError("Failed to obtain Keycloak admin token. Status: {Status}, Body: {Body}",
-                response.StatusCode, errorBody);
-            throw new KeycloakApiException(
-                "Failed to authenticate with Keycloak Admin API. Check admin credentials.",
-                (int)response.StatusCode);
+            var tokenUrl = $"{_keycloakBaseUrl}/realms/master/protocol/openid-connect/token";
+
+            var formData = new Dictionary<string, string>
+            {
+                ["grant_type"] = "password",
+                ["client_id"] = "admin-cli",
+                ["username"] = _adminUsername,
+                ["password"] = _adminPassword
+            };
+
+            using var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(formData), ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogError("Failed to obtain Keycloak admin token. Status: {Status}, Body: {Body}",
+                    response.StatusCode, errorBody);
+                throw new KeycloakApiException(
+                    "Failed to authenticate with Keycloak Admin API. Check admin credentials.",
+                    (int)response.StatusCode);
+            }
+
+            var tokenResponse = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+
+            _cachedToken = tokenResponse.GetProperty("access_token").GetString()!;
+            var expiresIn = tokenResponse.GetProperty("expires_in").GetInt32();
+            _tokenExpiry = DateTime.UtcNow.AddSeconds(expiresIn);
+
+            _logger.LogDebug("Obtained Keycloak admin token, expires in {ExpiresIn}s", expiresIn);
+
+            return _cachedToken;
         }
-
-        var tokenResponse = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-        
-        _cachedToken = tokenResponse.GetProperty("access_token").GetString()!;
-        var expiresIn = tokenResponse.GetProperty("expires_in").GetInt32();
-        _tokenExpiry = DateTime.UtcNow.AddSeconds(expiresIn);
-
-        _logger.LogDebug("Obtained Keycloak admin token, expires in {ExpiresIn}s", expiresIn);
-        
-        return _cachedToken;
+        finally
+        {
+            _tokenLock.Release();
+        }
     }
 
     /// <summary>
@@ -282,9 +297,9 @@ public class KeycloakUserService : IKeycloakUserService
             if (doc.RootElement.TryGetProperty("error", out var error))
                 return error.GetString();
         }
-        catch
+        catch (JsonException)
         {
-            // Not valid JSON
+            // Not valid JSON — return null to fall back to a generic message
         }
         return null;
     }

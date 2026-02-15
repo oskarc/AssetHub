@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Dam.Application;
 using Dam.Application.Dtos;
 using Dam.Application.Helpers;
@@ -146,13 +145,13 @@ public static class AdminEndpoints
         {
             var logger = loggerFactory.CreateLogger("AssetHub.AdminEndpoints");
             logger.LogError(ex, "Failed to decrypt share token for share {ShareId}. Data Protection keys may have been rotated.", id);
-            return Results.Json(ApiError.BadRequest("Unable to decrypt share token — encryption keys may have changed"), statusCode: 500);
+            return Results.Json(ApiError.ServerError("Unable to decrypt share token — encryption keys may have changed"), statusCode: 500);
         }
         catch (FormatException ex)
         {
             var logger = loggerFactory.CreateLogger("AssetHub.AdminEndpoints");
             logger.LogError(ex, "Corrupted TokenEncrypted data for share {ShareId}", id);
-            return Results.Json(ApiError.BadRequest("Share token data is corrupted"), statusCode: 500);
+            return Results.Json(ApiError.ServerError("Share token data is corrupted"), statusCode: 500);
         }
     }
 
@@ -173,11 +172,11 @@ public static class AdminEndpoints
         share.RevokedAt = DateTime.UtcNow;
         await shareRepo.UpdateAsync(share, ct);
 
-        var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var adminUserId = httpContext.User.GetRequiredUserId();
         await audit.LogAsync("share.revoked", "share", id, adminUserId,
             new() { ["admin"] = true }, httpContext, ct);
 
-        return Results.Ok(new ShareRevokedResponse { Message = "Share revoked successfully", RevokedAt = share.RevokedAt });
+        return Results.NoContent();
     }
 
     // ===== COLLECTION ACCESS MANAGEMENT =====
@@ -245,7 +244,7 @@ public static class AdminEndpoints
 
         var acl = await aclRepo.SetAccessAsync(collectionId, principalType, principalId, targetRole, ct);
 
-        var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var adminUserId = httpContext.User.GetRequiredUserId();
         await audit.LogAsync("acl.set", "collection", collectionId, adminUserId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = targetRole, ["admin"] = true }, httpContext, ct);
 
@@ -273,7 +272,7 @@ public static class AdminEndpoints
 
         await aclRepo.RevokeAccessAsync(collectionId, principalType ?? "user", principalId, ct);
 
-        var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var adminUserId = httpContext.User.GetRequiredUserId();
         await audit.LogAsync("acl.revoked", "collection", collectionId, adminUserId,
             new() { ["principalType"] = principalType ?? "user", ["principalId"] = principalId, ["admin"] = true }, httpContext, ct);
 
@@ -401,7 +400,7 @@ public static class AdminEndpoints
                     baseUrl, adminUsername, ct);
             }
 
-            var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var adminUserId = httpContext.User.GetRequiredUserId();
             await audit.LogAsync("user.created", "user", Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
                 new() { ["username"] = username, ["email"] = email }, httpContext, ct);
 
@@ -419,7 +418,7 @@ public static class AdminEndpoints
         {
             logger.LogWarning(ex, "Keycloak API error creating user '{Username}'", username);
 
-            var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var adminUserId = httpContext.User.GetRequiredUserId();
             await audit.LogAsync("user.create_failed", "user", null, adminUserId,
                 new() { ["username"] = username, ["error"] = ex.Message }, httpContext, ct);
             return ex.StatusCode == 409
@@ -429,7 +428,7 @@ public static class AdminEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Unexpected error creating user '{Username}'", username);
-            return Results.StatusCode(500);
+            return Results.Json(ApiError.ServerError("An unexpected error occurred"), statusCode: 500);
         }
     }
 
@@ -456,7 +455,7 @@ public static class AdminEndpoints
 
             logger.LogInformation("Admin reset password for user '{UserId}'", userId);
 
-            var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var adminUserId = httpContext.User.GetRequiredUserId();
             await audit.LogAsync("user.password_reset", "user",
                 Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
                 new() { ["targetUserId"] = userId, ["temporary"] = request.Temporary.ToString() },
@@ -474,7 +473,7 @@ public static class AdminEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Unexpected error resetting password for user '{UserId}'", userId);
-            return Results.StatusCode(500);
+            return Results.Json(ApiError.ServerError("An unexpected error occurred"), statusCode: 500);
         }
     }
 
@@ -492,7 +491,7 @@ public static class AdminEndpoints
 
             if (!dryRun && result.DeletedUsers > 0)
             {
-                var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var adminUserId = httpContext.User.GetRequiredUserId();
                 await audit.LogAsync("user.sync.completed", "system", null, adminUserId,
                     new()
                     {
@@ -507,7 +506,7 @@ public static class AdminEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Error during user sync");
-            return Results.StatusCode(500);
+            return Results.Json(ApiError.ServerError("An unexpected error occurred"), statusCode: 500);
         }
     }
 
@@ -524,7 +523,7 @@ public static class AdminEndpoints
         if (string.IsNullOrWhiteSpace(userId))
             return Results.BadRequest(ApiError.BadRequest("User ID is required"));
 
-        var adminUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var adminUserId = httpContext.User.GetRequiredUserId();
         if (string.Equals(userId, adminUserId, StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(ApiError.BadRequest("You cannot delete your own account"));
 
@@ -573,7 +572,7 @@ public static class AdminEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Unexpected error deleting user '{UserId}'", userId);
-            return Results.StatusCode(500);
+            return Results.Json(ApiError.ServerError("An unexpected error occurred"), statusCode: 500);
         }
     }
 }

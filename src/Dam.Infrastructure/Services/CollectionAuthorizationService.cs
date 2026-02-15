@@ -128,13 +128,13 @@ public class CollectionAuthorizationService(
         return await CheckAccessAsync(userId, collectionId, "manager", ct);
     }
 
-    public async Task<bool> CanCreateRootCollectionAsync(string userId)
+    public Task<bool> CanCreateRootCollectionAsync(string userId)
     {
         // Only managers and admins can create root collections.
         // Contributors should only be added to existing collections.
         // This is invoked after the caller has already verified the user has
         // at least the "manager" Keycloak role (checked at the endpoint level).
-        return !string.IsNullOrEmpty(userId);
+        return Task.FromResult(!string.IsNullOrEmpty(userId));
     }
 
     public async Task<bool> CanCreateSubCollectionAsync(string userId, Guid parentCollectionId, CancellationToken ct = default)
