@@ -3,6 +3,7 @@ using Dam.Infrastructure.Data;
 using Dam.Infrastructure.Repositories;
 using Dam.Tests.Fixtures;
 using Dam.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 
 namespace Dam.Tests.Repositories;
 
@@ -579,5 +580,234 @@ public class AssetRepositoryTests : IAsyncLifetime
 
         Assert.Equal(10, total);
         Assert.Equal(4, results.Count);
+    }
+
+    // ── SearchAsync (sort order variations) ──────────────────────────
+
+    [Fact]
+    public async Task SearchAsync_SortsByTitleDescending()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var a = TestData.CreateAsset(title: "Alpha");
+        var b = TestData.CreateAsset(title: "Beta");
+        var c = TestData.CreateAsset(title: "Charlie");
+        _db.Assets.AddRange(a, b, c);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(a.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(b.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(c.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: "title_desc");
+
+        Assert.Equal("Charlie", results[0].Title);
+        Assert.Equal("Beta", results[1].Title);
+        Assert.Equal("Alpha", results[2].Title);
+    }
+
+    [Fact]
+    public async Task SearchAsync_SortsBySizeAscending()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var small = TestData.CreateAsset(title: "Small", sizeBytes: 100);
+        var medium = TestData.CreateAsset(title: "Medium", sizeBytes: 5000);
+        var large = TestData.CreateAsset(title: "Large", sizeBytes: 1000000);
+        _db.Assets.AddRange(small, medium, large);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(small.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(medium.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(large.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: "size_asc");
+
+        Assert.Equal("Small", results[0].Title);
+        Assert.Equal("Medium", results[1].Title);
+        Assert.Equal("Large", results[2].Title);
+    }
+
+    [Fact]
+    public async Task SearchAsync_SortsBySizeDescending()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var small = TestData.CreateAsset(title: "Small", sizeBytes: 100);
+        var medium = TestData.CreateAsset(title: "Medium", sizeBytes: 5000);
+        var large = TestData.CreateAsset(title: "Large", sizeBytes: 1000000);
+        _db.Assets.AddRange(small, medium, large);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(small.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(medium.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(large.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: "size_desc");
+
+        Assert.Equal("Large", results[0].Title);
+        Assert.Equal("Medium", results[1].Title);
+        Assert.Equal("Small", results[2].Title);
+    }
+
+    [Fact]
+    public async Task SearchAsync_SortsByCreatedAscending()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var oldest = TestData.CreateAsset(title: "Oldest");
+        oldest.CreatedAt = DateTime.UtcNow.AddDays(-3);
+        var middle = TestData.CreateAsset(title: "Middle");
+        middle.CreatedAt = DateTime.UtcNow.AddDays(-2);
+        var newest = TestData.CreateAsset(title: "Newest");
+        newest.CreatedAt = DateTime.UtcNow.AddDays(-1);
+        _db.Assets.AddRange(oldest, middle, newest);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(oldest.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(middle.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(newest.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: "created_asc");
+
+        Assert.Equal("Oldest", results[0].Title);
+        Assert.Equal("Middle", results[1].Title);
+        Assert.Equal("Newest", results[2].Title);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DefaultSortIsCreatedDescending()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var old = TestData.CreateAsset(title: "Old");
+        old.CreatedAt = DateTime.UtcNow.AddDays(-5);
+        var recent = TestData.CreateAsset(title: "Recent");
+        recent.CreatedAt = DateTime.UtcNow.AddDays(-1);
+        _db.Assets.AddRange(old, recent);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(old.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(recent.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, _) = await _repo.SearchAsync(collection.Id);
+
+        Assert.Equal("Recent", results[0].Title);
+        Assert.Equal("Old", results[1].Title);
+    }
+
+    // ── SearchAsync (pagination) ────────────────────────────────────
+
+    [Fact]
+    public async Task SearchAsync_SupportsPagination_WithCorrectTotal()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        for (int i = 0; i < 15; i++)
+        {
+            var asset = TestData.CreateAsset(title: $"Asset {i:D2}");
+            _db.Assets.Add(asset);
+            _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, collection.Id));
+        }
+        await _db.SaveChangesAsync();
+
+        var (page1, total1) = await _repo.SearchAsync(collection.Id, skip: 0, take: 5);
+        var (page2, total2) = await _repo.SearchAsync(collection.Id, skip: 5, take: 5);
+        var (page3, total3) = await _repo.SearchAsync(collection.Id, skip: 10, take: 5);
+
+        Assert.Equal(15, total1);
+        Assert.Equal(15, total2);
+        Assert.Equal(15, total3);
+        Assert.Equal(5, page1.Count);
+        Assert.Equal(5, page2.Count);
+        Assert.Equal(5, page3.Count);
+        // Ensure no overlap between pages
+        Assert.Empty(page1.Select(a => a.Id).Intersect(page2.Select(a => a.Id)));
+        Assert.Empty(page2.Select(a => a.Id).Intersect(page3.Select(a => a.Id)));
+    }
+
+    // ── SearchAsync (combined filters) ──────────────────────────────
+
+    [Fact]
+    public async Task SearchAsync_CombinesQueryAndTypeFilter()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var matchBoth = TestData.CreateAsset(title: "Beach Sunset", assetType: Asset.TypeImage);
+        var matchQuery = TestData.CreateAsset(title: "Beach Video", assetType: Asset.TypeVideo);
+        var matchType = TestData.CreateAsset(title: "Mountain Photo", assetType: Asset.TypeImage);
+        var noMatch = TestData.CreateAsset(title: "City Tour", assetType: Asset.TypeVideo);
+        _db.Assets.AddRange(matchBoth, matchQuery, matchType, noMatch);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(matchBoth.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(matchQuery.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(matchType.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(noMatch.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, total) = await _repo.SearchAsync(collection.Id, query: "beach", assetType: Asset.TypeImage);
+
+        Assert.Equal(1, total);
+        Assert.Equal("Beach Sunset", results[0].Title);
+    }
+
+    [Fact]
+    public async Task SearchAsync_CombinesQueryTypeAndSort()
+    {
+        var collection = TestData.CreateCollection();
+        _db.Collections.Add(collection);
+
+        var a = TestData.CreateAsset(title: "A Beach", assetType: Asset.TypeImage, sizeBytes: 500);
+        var b = TestData.CreateAsset(title: "B Beach", assetType: Asset.TypeImage, sizeBytes: 100);
+        var c = TestData.CreateAsset(title: "C Beach", assetType: Asset.TypeImage, sizeBytes: 300);
+        var x = TestData.CreateAsset(title: "X Beach", assetType: Asset.TypeVideo, sizeBytes: 50);
+        _db.Assets.AddRange(a, b, c, x);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(a.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(b.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(c.Id, collection.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(x.Id, collection.Id));
+        await _db.SaveChangesAsync();
+
+        var (results, total) = await _repo.SearchAsync(
+            collection.Id, query: "beach", assetType: Asset.TypeImage, sortBy: "size_asc");
+
+        Assert.Equal(3, total);
+        Assert.Equal("B Beach", results[0].Title);
+        Assert.Equal("C Beach", results[1].Title);
+        Assert.Equal("A Beach", results[2].Title);
+    }
+
+    // ── UpdateAsync (concurrent modification) ───────────────────────
+
+    [Fact]
+    public async Task UpdateAsync_ConcurrentModification_LastWriteWins()
+    {
+        var asset = TestData.CreateAsset(title: "Original");
+        _db.Assets.Add(asset);
+        await _db.SaveChangesAsync();
+
+        var dbName = _db.Database.GetDbConnection().Database;
+
+        // Create second context + repo pointing to same DB
+        await using var db2 = _fixture.CreateDbContextForExistingDb(dbName!);
+        var repo2 = new AssetRepository(db2);
+
+        // Load the same entity in both contexts
+        var asset1 = await _repo.GetByIdAsync(asset.Id);
+        var asset2 = await repo2.GetByIdAsync(asset.Id);
+
+        // Modify in context 1
+        asset1!.Title = "Update from context 1";
+        await _repo.UpdateAsync(asset1);
+
+        // Modify in context 2 (without knowing about context 1's change)
+        asset2!.Title = "Update from context 2";
+        await repo2.UpdateAsync(asset2);
+
+        // Verify last write wins (no ConcurrencyToken configured)
+        _db.ChangeTracker.Clear();
+        var final = await _db.Assets.FindAsync(asset.Id);
+        Assert.Equal("Update from context 2", final!.Title);
     }
 }

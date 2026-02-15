@@ -254,4 +254,82 @@ public class ShareRepositoryTests : IAsyncLifetime
         Assert.NotNull(results[0].Collection);
         Assert.Equal("Shared Collection", results[0].Collection!.Name);
     }
+
+    // ── Sort order verification ─────────────────────────────────────
+
+    [Fact]
+    public async Task GetAllAsync_SortsByCreatedAtDescending()
+    {
+        var oldest = TestData.CreateShare();
+        oldest.CreatedAt = DateTime.UtcNow.AddDays(-3);
+        var middle = TestData.CreateShare();
+        middle.CreatedAt = DateTime.UtcNow.AddDays(-2);
+        var newest = TestData.CreateShare();
+        newest.CreatedAt = DateTime.UtcNow.AddDays(-1);
+
+        _db.Shares.AddRange(oldest, middle, newest);
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetAllAsync();
+
+        Assert.Equal(3, results.Count);
+        Assert.True(results[0].CreatedAt > results[1].CreatedAt);
+        Assert.True(results[1].CreatedAt > results[2].CreatedAt);
+        Assert.Equal(newest.Id, results[0].Id);
+        Assert.Equal(oldest.Id, results[2].Id);
+    }
+
+    [Fact]
+    public async Task GetByUserAsync_SortsByCreatedAtDescending()
+    {
+        var oldest = TestData.CreateShare(createdByUserId: "sort-user");
+        oldest.CreatedAt = DateTime.UtcNow.AddDays(-3);
+        var middle = TestData.CreateShare(createdByUserId: "sort-user");
+        middle.CreatedAt = DateTime.UtcNow.AddDays(-2);
+        var newest = TestData.CreateShare(createdByUserId: "sort-user");
+        newest.CreatedAt = DateTime.UtcNow.AddDays(-1);
+
+        _db.Shares.AddRange(oldest, middle, newest);
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByUserAsync("sort-user");
+
+        Assert.Equal(3, results.Count);
+        Assert.Equal(newest.Id, results[0].Id);
+        Assert.Equal(middle.Id, results[1].Id);
+        Assert.Equal(oldest.Id, results[2].Id);
+    }
+
+    [Fact]
+    public async Task GetByUserAsync_ReturnsEmpty_ForUnknownUser()
+    {
+        _db.Shares.Add(TestData.CreateShare(createdByUserId: "known-user"));
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByUserAsync("unknown-user");
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task GetByScopeAsync_SortsByCreatedAtDescending()
+    {
+        var scopeId = Guid.NewGuid();
+        var oldest = TestData.CreateShare(scopeType: "asset", scopeId: scopeId);
+        oldest.CreatedAt = DateTime.UtcNow.AddDays(-3);
+        var middle = TestData.CreateShare(scopeType: "asset", scopeId: scopeId);
+        middle.CreatedAt = DateTime.UtcNow.AddDays(-2);
+        var newest = TestData.CreateShare(scopeType: "asset", scopeId: scopeId);
+        newest.CreatedAt = DateTime.UtcNow.AddDays(-1);
+
+        _db.Shares.AddRange(oldest, middle, newest);
+        await _db.SaveChangesAsync();
+
+        var results = await _repo.GetByScopeAsync("asset", scopeId);
+
+        Assert.Equal(3, results.Count);
+        Assert.Equal(newest.Id, results[0].Id);
+        Assert.Equal(middle.Id, results[1].Id);
+        Assert.Equal(oldest.Id, results[2].Id);
+    }
 }

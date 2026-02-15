@@ -133,4 +133,61 @@ public class AddToCollectionDialogTests : BunitTestBase
             Assert.Contains(col.Name, PopoverProvider!.Markup);
         }
     }
+
+    [Fact]
+    public async Task Submit_Calls_Api_And_Shows_Success()
+    {
+        var collectionId = Guid.NewGuid();
+        var collections = new List<CollectionResponseDto>
+        {
+            TestData.CreateCollection(id: collectionId, name: "Target Collection")
+        };
+        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(collections);
+        MockApi.Setup(a => a.AddAssetToCollectionAsync(_assetId, collectionId, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var cut = await RenderDialogAsync();
+
+        // Open the MudSelect dropdown and select the collection
+        cut.Find("div.mud-select div.mud-input-control").MouseDown();
+        var items = PopoverProvider!.FindAll(".mud-list-item");
+        var targetItem = items.First(i => i.TextContent.Contains("Target Collection"));
+        targetItem.Click();
+
+        // Click the Add button
+        var addButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Add"));
+        addButton.Click();
+
+        // Verify API was called with correct IDs
+        MockApi.Verify(a => a.AddAssetToCollectionAsync(
+            _assetId, collectionId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Submit_Handles_Api_Error_On_Add()
+    {
+        var collectionId = Guid.NewGuid();
+        var collections = new List<CollectionResponseDto>
+        {
+            TestData.CreateCollection(id: collectionId, name: "Failing Collection")
+        };
+        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(collections);
+        MockApi.Setup(a => a.AddAssetToCollectionAsync(_assetId, collectionId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Server error"));
+
+        var cut = await RenderDialogAsync();
+
+        // Select a collection
+        cut.Find("div.mud-select div.mud-input-control").MouseDown();
+        var items = PopoverProvider!.FindAll(".mud-list-item");
+        items.First(i => i.TextContent.Contains("Failing Collection")).Click();
+
+        // Click Add
+        var addButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Add"));
+        addButton.Click();
+
+        VerifyHandleErrorCalled();
+    }
 }

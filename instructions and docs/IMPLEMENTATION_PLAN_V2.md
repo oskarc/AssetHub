@@ -641,8 +641,8 @@ These items were identified during development but intentionally deferred:
 | 4 | ~~**Persist Keycloak data**~~ | ~~High~~ | ✅ Fixed (2026-02-12): Separate `keycloak` DB in prod compose, `keycloakdata` named volume in both compose files, `init-keycloak-db.sh` mounted in prod |
 | 5 | ~~**Define user deletion policy**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Policy confirmed — collections/assets retained, ACLs removed, shares revoked. `DELETE /users/{userId}` now resilient to already-deleted Keycloak users (cleans up app data even if user gone). All user-name fallbacks changed from raw GUID to `"Deleted User (abc12345)"` label in Admin shares, Admin users, CollectionTree, and ManageAccessDialog. `UserSyncService` Hangfire job handles ghost cleanup. |
 | 6 | ~~**Smart asset deletion (multi-collection)**~~ | ~~High~~ | ✅ Fixed (2026-02-15): Implemented multi-collection-aware deletion. `DeleteByCollectionAsync` now distinguishes exclusive vs shared assets. `DeleteAsset` endpoint accepts `fromCollectionId`/`permanent` params. New `GetAssetDeletionContext` endpoint. `DeleteAssetDialog` component shows Remove/Delete options for multi-collection assets. `RemoveAssetFromCollection` cleans up orphans. `DeleteCollection` cleans up MinIO for exclusive assets. |
-| 7 | ~~**Backend test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Added `SmartDeletionTests.cs` (6 tests for multi-collection deletion) and `AuthorizationEdgeCaseTests.cs` (18 tests for CanCreateRoot, CanManageAcl, CanCreateSub, CheckAccess, GetUserRole edge cases). P2 items (SearchAsync sort/pagination, UpdateAsync conflict, ShareRepository sort, API HTTP tests) remain. |
-| 8 | ~~**bUnit / UI test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Added submission-flow tests: `EditAssetDialog` Save + error (2), `CreateShareDialog` Create + error (2), `ManageAccessDialog` Revoke + error (2). Total bUnit tests: 210 → 216. P2 items (AssetUpload file pipeline, CollectionTree drag-drop, LanguageSwitcher culture-switch) remain. |
+| 7 | ~~**Backend test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): P1 → Added `SmartDeletionTests.cs` (6), `AuthorizationEdgeCaseTests.cs` (18). P2 → Added SearchAsync sort/pagination/combined (8), UpdateAsync concurrent (1), ShareRepository sort (4). Total backend: 120 tests. API HTTP tests deferred. |
+| 8 | ~~**bUnit / UI test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): P1 → `EditAssetDialog` (2), `CreateShareDialog` (2), `ManageAccessDialog` (2). P2 → `AddToCollectionDialog` submit (2), `AssetGrid` share/delete chains (2), `LanguageSwitcher` culture-switch (1). Total bUnit: 221 tests. CollectionTree DnD and AssetUpload pipeline deferred (P3). |
 
 ### 10.6 Smart Asset Deletion (Multi-Collection Logic)
 
@@ -677,9 +677,9 @@ Identified 2026-02-13. All items are additive — existing tests pass.
 | `CollectionAuthorizationService` | ~~`CheckAccessAsync` — no test for direct ACL hit or non-existent collection~~ | ~~P1~~ | ✅ Added in `AuthorizationEdgeCaseTests.cs` (4 tests: direct hit, insufficient role, non-existent, no ACL) |
 | `CollectionAuthorizationService` | ~~`GetUserRoleAsync` — no multi-user same-chain test~~ | ~~P2~~ | ✅ Added in `AuthorizationEdgeCaseTests.cs` (2 tests: 3 users independent roles, direct ACL priority over inherited) |
 | `AssetRepository` | ~~`DeleteByCollectionAsync` — no test for shared-asset scenario~~ | ~~P0~~ | ✅ Added in `SmartDeletionTests.cs` (6 tests: exclusive deleted, shared preserved, mixed, 3-collection, empty, multiple exclusive) |
-| `AssetRepository` | `SearchAsync` — shallow: no sort-order, pagination, or combined-filter tests | P2 |
-| `AssetRepository` | `UpdateAsync` — no concurrent-update / conflict test | P2 |
-| `ShareRepository` | `SearchAllAsync` — no sort/pagination tests | P2 |
+| `AssetRepository` | ~~`SearchAsync` — shallow: no sort-order, pagination, or combined-filter tests~~ | ~~P2~~ | ✅ Added 8 tests: sort by title/size/created (asc+desc), default sort, pagination with total count, combined query+type filter, combined query+type+sort |
+| `AssetRepository` | ~~`UpdateAsync` — no concurrent-update / conflict test~~ | ~~P2~~ | ✅ Added 1 test: concurrent modification with two DbContexts verifying last-write-wins |
+| `ShareRepository` | ~~`SearchAllAsync` — no sort/pagination tests~~ | ~~P2~~ | ✅ Added 4 tests: GetAllAsync sort order, GetByUserAsync sort+empty, GetByScopeAsync sort order |
 | API integration tests | All endpoints untested at HTTP level (deferred from §5.3) | P2 |
 
 ### 10.8 bUnit / UI Test Gaps
@@ -692,10 +692,10 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 | **CreateShareDialog** | ~~No `CreateShare` submission test~~ | ~~P1~~ | ✅ Added: CreateShare + error handling tests (2 tests) |
 | **AssetUpload** | No actual file-upload pipeline test (InputFile → progress → completion) | P2 |
 | **ManageAccessDialog** | ~~No grant / revoke / edit-role flow tests~~ | ~~P1~~ | ✅ Added: RevokeAccess + error handling tests (2 tests) |
-| **AddToCollectionDialog** | No submission test — collections are selected but confirm never clicked | P2 |
-| **AssetGrid** | No delete-chain or share-chain tests (button → confirm dialog → API call) | P2 |
-| **CollectionTree** | No drag-and-drop or context-menu interaction tests | P2 |
-| **LanguageSwitcher** | Tests only check rendering; no culture-switch-via-navigation test | P2 |
+| **AddToCollectionDialog** | ~~No submission test — collections are selected but confirm never clicked~~ | ~~P2~~ | ✅ Added 2 tests: Submit_Calls_Api_And_Shows_Success, Submit_Handles_Api_Error_On_Add |
+| **AssetGrid** | ~~No delete-chain or share-chain tests (button → confirm dialog → API call)~~ | ~~P2~~ | ✅ Added 2 tests in AssetGridInteractionTests: Share_Button_Click_Opens_CreateShareDialog, Delete_Button_Click_Opens_DeleteAssetDialog |
+| **CollectionTree** | No drag-and-drop or context-menu interaction tests | P3 | Deferred — requires complex MudTreeView DnD simulation |
+| **LanguageSwitcher** | ~~Tests only check rendering; no culture-switch-via-navigation test~~ | ~~P2~~ | ✅ Added 1 test: Changing_Culture_Sets_Cookie_Via_JsInterop (module import + setCookie verification) |
 | ~~General~~ | ~~Several near-no-op tests use `Times.AtMostOnce()`~~ | ~~P1~~ | ✅ Verified: no `AtMostOnce()` usages found in test suite |
 
 ---
@@ -734,7 +734,7 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 10. ~~**Implement password reset** (#10.2)~~ — ✅ Fixed (2026-02-15): Keycloak forgot-password + in-app change-password
 11. ~~**Smart asset deletion** (#10.6)~~ — ✅ Fixed (2026-02-15): Multi-collection-aware delete/remove logic
 12. ~~**Define user deletion policy** (#10.5)~~ — ✅ Fixed (2026-02-15): Resilient delete endpoint + "Deleted User" display labels
-13. **Backend test gaps** (#10.7) — Fill missing/shallow backend test coverage
-14. **bUnit / UI test gaps** (#10.8) — Add submission-flow and mutation-chain tests
+13. ~~**Backend test gaps** (#10.7)~~ — ✅ Complete: Added 13 tests — SearchAsync sort/pagination/combined-filter (8), UpdateAsync concurrent modification (1), ShareRepository sort-order (4). Total backend: 107 → 120.
+14. ~~**bUnit / UI test gaps** (#10.8)~~ — ✅ Complete: Added 5 tests — AddToCollectionDialog submit+error (2), AssetGrid share/delete chains (2), LanguageSwitcher culture-switch via JS interop (1). Total bUnit: 216 → 221.
 15. **Frontend Testing** (#3) — Catches UI regressions
 16. ~~**Metrics & Observability** (#2)~~ — 🔄 Partial (2026-02-15): Serilog structured logging + request enrichment done. Prometheus/Grafana dashboarding deferred.
