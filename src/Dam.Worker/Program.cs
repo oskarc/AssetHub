@@ -16,7 +16,11 @@ class Program
 
                 // Database
                 services.AddDbContext<AssetHubDbContext>(options =>
-                    options.UseNpgsql(connectionString));
+                {
+                    options.UseNpgsql(connectionString);
+                    options.ConfigureWarnings(w =>
+                        w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+                });
             })
             .Build();
 

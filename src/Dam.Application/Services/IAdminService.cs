@@ -31,9 +31,8 @@ public interface IAdminService
     Task<ServiceResult<CreateUserResponse>> CreateUserAsync(
         CreateUserRequest request, string baseUrl, CancellationToken ct);
 
-    /// <summary>Reset a user's password in Keycloak.</summary>
-    Task<ServiceResult> ResetUserPasswordAsync(
-        string userId, ResetPasswordRequest request, CancellationToken ct);
+    /// <summary>Send a password reset email to a user via Keycloak.</summary>
+    Task<ServiceResult> SendPasswordResetEmailAsync(string userId, CancellationToken ct);
 
     /// <summary>Sync and clean up users deleted from Keycloak.</summary>
     Task<ServiceResult<UserSyncResult>> SyncDeletedUsersAsync(bool dryRun, CancellationToken ct);

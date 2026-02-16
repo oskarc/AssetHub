@@ -299,7 +299,7 @@ public class AssetHubApiClient
     /// The browser then uploads the file directly to MinIO via JS interop.
     /// </summary>
     public virtual async Task<InitUploadResponse> InitUploadAsync(
-        Guid collectionId,
+        Guid? collectionId,
         string fileName,
         string contentType,
         long fileSize,
@@ -563,12 +563,12 @@ public class AssetHubApiClient
     }
 
     /// <summary>
-    /// Resets a user's password in Keycloak (admin only).
+    /// Sends a password reset email to a user via Keycloak (admin only).
     /// </summary>
-    public virtual async Task ResetPasswordAsync(string userId, ResetPasswordRequest request, CancellationToken ct = default)
+    public virtual async Task SendPasswordResetEmailAsync(string userId, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync($"/api/admin/users/{userId}/reset-password", request, ct);
-        await EnsureSuccessAsync(response, "Reset password");
+        var response = await _http.PostAsync($"/api/admin/users/{userId}/reset-password", null, ct);
+        await EnsureSuccessAsync(response, "Send password reset email");
     }
 
     /// <summary>

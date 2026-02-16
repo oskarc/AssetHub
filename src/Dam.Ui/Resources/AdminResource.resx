@@ -102,8 +102,9 @@
 
   <!-- Reset Password -->
   <data name="ResetPassword" xml:space="preserve"><value>Reset Password</value></data>
-  <data name="ResetPasswordDesc" xml:space="preserve"><value>Set a new password for this user. They will be required to change it on next login.</value></data>
+  <data name="ResetPasswordDesc" xml:space="preserve"><value>Send the user an email with a link to set a new password.</value></data>
   <data name="PasswordResetSuccess" xml:space="preserve"><value>Password reset successfully</value></data>
+  <data name="PasswordResetEmailSent" xml:space="preserve"><value>Password reset email sent successfully.</value></data>
   <data name="ConfirmResetPassword" xml:space="preserve"><value>Are you sure you want to reset the password for "{0}"?</value></data>
 
   <!-- Delete User -->

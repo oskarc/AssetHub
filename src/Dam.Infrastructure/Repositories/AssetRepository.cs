@@ -188,10 +188,12 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         int skip = 0,
         int take = 50,
         List<Guid>? allowedCollectionIds = null,
+        bool includeAllStatuses = false,
         CancellationToken cancellationToken = default)
     {
-        var queryable = dbContext.Assets
-            .Where(a => a.Status == Asset.StatusReady);
+        var queryable = includeAllStatuses
+            ? dbContext.Assets.Where(a => a.Status != Asset.StatusUploading)
+            : dbContext.Assets.Where(a => a.Status == Asset.StatusReady);
 
         // Filter to assets in allowed collections (ACL enforcement)
         if (allowedCollectionIds != null)

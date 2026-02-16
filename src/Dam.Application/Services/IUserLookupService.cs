@@ -29,7 +29,7 @@ public interface IUserLookupService
     /// <summary>
     /// Gets all users from the identity provider.
     /// </summary>
-    Task<List<(string Id, string Username, string? Email, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default);
+    Task<List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default);
     
     /// <summary>
     /// Checks which of the given user IDs still exist in the identity provider.

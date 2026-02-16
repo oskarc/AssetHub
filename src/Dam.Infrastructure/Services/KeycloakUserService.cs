@@ -197,6 +197,47 @@ public class KeycloakUserService : IKeycloakUserService
     }
 
     /// <inheritdoc />
+    public async Task SendExecuteActionsEmailAsync(
+        string userId,
+        IEnumerable<string> actions,
+        int? lifespan = null,
+        CancellationToken ct = default)
+    {
+        var token = await GetAdminTokenAsync(ct);
+
+        var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users/{Uri.EscapeDataString(userId)}/execute-actions-email";
+        if (lifespan.HasValue)
+            url += $"?lifespan={lifespan.Value}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, url);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Content = JsonContent.Create(actions);
+
+        using var response = await _httpClient.SendAsync(request, ct);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new KeycloakApiException("User not found in Keycloak", (int)response.StatusCode);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError(
+                "Keycloak execute-actions-email failed for user '{UserId}'. Status: {Status}, Body: {Body}",
+                userId, response.StatusCode, errorBody);
+
+            var message = ExtractKeycloakErrorMessage(errorBody)
+                ?? $"Failed to send actions email (HTTP {(int)response.StatusCode})";
+            throw new KeycloakApiException(message, (int)response.StatusCode);
+        }
+
+        _logger.LogInformation(
+            "Sent execute-actions-email to Keycloak user '{UserId}' with actions: {Actions}",
+            userId, string.Join(", ", actions));
+    }
+
+    /// <inheritdoc />
     public async Task DeleteUserAsync(string userId, CancellationToken ct = default)
     {
         var token = await GetAdminTokenAsync(ct);

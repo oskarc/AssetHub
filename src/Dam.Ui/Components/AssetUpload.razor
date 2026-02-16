@@ -35,7 +35,7 @@
                    Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.AttachFile"
                    for="fileInput"
-                   Disabled="@(!CollectionId.HasValue || _isUploading)">
+                   Disabled="@(_isUploading)">
             @CommonLoc["Btn_BrowseFiles"]
         </MudButton>
         <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -114,12 +114,6 @@
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
     {
-        if (!CollectionId.HasValue)
-        {
-            Feedback.ShowWarning("Please select a collection first");
-            return;
-        }
-
         if (_jsModule == null || _inputFile?.Element == null)
         {
             Feedback.ShowError("Upload module not initialized");
@@ -153,7 +147,7 @@
             {
                 // Step 1: Init upload — get presigned PUT URL from API
                 var initResult = await Api.InitUploadAsync(
-                    CollectionId.Value,
+                    CollectionId,
                     file.Name,
                     upload.ContentType,
                     upload.Size,

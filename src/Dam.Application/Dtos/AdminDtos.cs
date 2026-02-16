@@ -81,6 +81,8 @@ public record KeycloakUserDto
     public required string Id { get; init; }
     public required string Username { get; init; }
     public string? Email { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
     public DateTime? CreatedAt { get; init; }
     public int CollectionCount { get; init; }
     public string? HighestRole { get; init; }
@@ -108,9 +110,11 @@ public record CreateUserRequest
     [StringLength(100, MinimumLength = 1, ErrorMessage = "Last name is required")]
     public string LastName { get; init; } = "";
 
-    [Required]
-    [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
-    public string Password { get; init; } = "";
+    /// <summary>
+    /// Optional password. If omitted, one is generated server-side.
+    /// Admin never sees the password — the user sets their own via email.
+    /// </summary>
+    public string? Password { get; init; }
 
     /// <summary>
     /// If true, the user must change their password on first login.
@@ -145,20 +149,9 @@ public record CreateUserResponse
     public required string Message { get; init; }
 }
 
-/// <summary>
-/// Request to reset a user's password (admin only).
-/// </summary>
-public record ResetPasswordRequest
-{
-    [Required]
-    [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
-    public string NewPassword { get; init; } = "";
-
-    /// <summary>
-    /// If true, the user must change their password on next login.
-    /// </summary>
-    public bool Temporary { get; init; } = true;
-}
+// ResetPasswordRequest removed — admin-initiated password resets are now
+// handled by sending a Keycloak "execute-actions-email" (UPDATE_PASSWORD)
+// so the admin never sees or types a user's password.
 
 /// <summary>
 /// Response containing a decrypted share token (admin only).

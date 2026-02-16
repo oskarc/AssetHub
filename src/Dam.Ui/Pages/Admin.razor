@@ -104,15 +104,21 @@
                         @if (context.Status == "Active")
                         {
                             <MudStack Row="true" Spacing="1">
-                                <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"
-                                    OnClick="@(() => ShowShareInfo(context))" title="@AdminLoc["ShowShareInfo"]" />
+                                <MudTooltip Text="@AdminLoc["ShowShareInfo"]">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"
+                                        OnClick="@(() => ShowShareInfo(context))" />
+                                </MudTooltip>
                                 @if (context.HasPassword)
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Filled.Key" Color="Color.Primary" Size="Size.Small"
-                                        OnClick="@(() => EditSharePassword(context))" title="@AdminLoc["EditPassword"]" />
+                                    <MudTooltip Text="@AdminLoc["EditPassword"]">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Key" Color="Color.Primary" Size="Size.Small"
+                                            OnClick="@(() => EditSharePassword(context))" />
+                                    </MudTooltip>
                                 }
-                                <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
-                                    OnClick="@(() => RevokeShare(context))" title="@AdminLoc["RevokeShare"]" />
+                                <MudTooltip Text="@AdminLoc["RevokeShare"]">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
+                                        OnClick="@(() => RevokeShare(context))" />
+                                </MudTooltip>
                             </MudStack>
                         }
                     </MudTd>
@@ -170,8 +176,27 @@
                             @* Add user form *@
                             <MudGrid Class="mb-4">
                                 <MudItem xs="12" sm="5">
-                                    <MudTextField @bind-Value="_newAclUserId" Label="@CommonLoc["Label_UserId"]" 
-                                        Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    <MudAutocomplete T="KeycloakUserDto"
+                                                     @bind-Value="_newAclUser"
+                                                     SearchFunc="SearchUsersForAcl"
+                                                     ToStringFunc="@(u => u?.Username ?? "")"
+                                                     Label="@AdminLoc["SearchUsersPlaceholder"]"
+                                                     Variant="Variant.Outlined"
+                                                     Margin="Margin.Dense"
+                                                     ResetValueOnEmptyText="true"
+                                                     DebounceInterval="200"
+                                                     MinCharacters="0"
+                                                     MaxItems="20">
+                                        <ItemTemplate Context="user">
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body2">@user.Username</MudText>
+                                                @if (!string.IsNullOrEmpty(user.Email))
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@user.Email</MudText>
+                                                }
+                                            </MudStack>
+                                        </ItemTemplate>
+                                    </MudAutocomplete>
                                 </MudItem>
                                 <MudItem xs="12" sm="4">
                                     <MudSelect @bind-Value="_newAclRole" Label="@CommonLoc["Label_Role"]" 
@@ -184,7 +209,7 @@
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                                        OnClick="AddCollectionAccess" Disabled="@(string.IsNullOrWhiteSpace(_newAclUserId))"
+                                        OnClick="AddCollectionAccess" Disabled="@(_newAclUser == null)"
                                         FullWidth="true" Class="mt-1">
                                         @CommonLoc["Btn_Add"]
                                     </MudButton>
@@ -240,9 +265,6 @@
     private RenderFragment UserManagementTab => __builder =>
     {
         <MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["UserManagement"]</MudText>
-        <MudAlert Severity="Severity.Info" Class="mb-4">
-            @AdminLoc["UserManagementDesc"]
-        </MudAlert>
         
         @if (_allUsersLoading)
         {
@@ -320,19 +342,20 @@
                         }
                     </MudTd>
                     <MudTd>
-                        <MudButton Size="Size.Small" 
-                                   Variant="Variant.Filled" 
-                                   Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.ManageAccounts"
-                                   OnClick="@(() => ManageUserAccess(context))">
-                            @CommonLoc["Btn_ManageAccess"]
-                        </MudButton>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                       Color="Color.Error" 
-                                       Size="Size.Small"
-                                       title="@AdminLoc["DeleteUser"]"
-                                       OnClick="@(() => DeleteUser(context))" 
-                                       Class="ml-1" />
+                        <MudStack Row="true" Spacing="1">
+                            <MudTooltip Text="@CommonLoc["Btn_ManageAccess"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.ManageAccounts"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="@(() => ManageUserAccess(context))" />
+                            </MudTooltip>
+                            <MudTooltip Text="@AdminLoc["DeleteUser"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Color="Color.Error" 
+                                               Size="Size.Small"
+                                               OnClick="@(() => DeleteUser(context))" />
+                            </MudTooltip>
+                        </MudStack>
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -354,7 +377,7 @@
     private List<CollectionAccessDto>? _collections;
     private bool _collectionsLoading = true;
     private CollectionAccessDto? _selectedCollection;
-    private string _newAclUserId = "";
+    private KeycloakUserDto? _newAclUser;
     private string _newAclRole = RoleHierarchy.Roles.Viewer;
 
     // All Keycloak Users State
@@ -492,20 +515,38 @@
     private void SelectCollection(CollectionAccessDto collection)
     {
         _selectedCollection = collection;
-        _newAclUserId = "";
+        _newAclUser = null;
         _newAclRole = RoleHierarchy.Roles.Viewer;
+    }
+
+    private Task<IEnumerable<KeycloakUserDto>> SearchUsersForAcl(string? value, CancellationToken ct)
+    {
+        var users = _allUsers ?? new List<KeycloakUserDto>();
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(users.AsEnumerable());
+
+        var filtered = users.Where(u =>
+            u.Username.Contains(value, StringComparison.OrdinalIgnoreCase)
+            || (u.Email?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (u.FirstName?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (u.LastName?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        return Task.FromResult(filtered);
     }
 
     private async Task AddCollectionAccess()
     {
-        if (_selectedCollection == null || string.IsNullOrWhiteSpace(_newAclUserId))
+        if (_selectedCollection == null || _newAclUser == null)
             return;
+
+        var userId = _newAclUser.Id;
+        var username = _newAclUser.Username;
 
         try
         {
-            await Api.AddCollectionAclAsync(_selectedCollection.Id, Constants.PrincipalTypes.User, _newAclUserId, _newAclRole);
-            Feedback.ShowSuccess(string.Format(CommonLoc["Success_AccessGranted"], _newAclUserId));
-            _newAclUserId = "";
+            await Api.AddCollectionAclAsync(_selectedCollection.Id, Constants.PrincipalTypes.User, userId, _newAclRole);
+            Feedback.ShowSuccess(string.Format(CommonLoc["Success_AccessGranted"], username));
+            _newAclUser = null;
             await LoadCollections();
             
             // Re-select the collection to refresh ACLs
@@ -516,7 +557,7 @@
             // Check if it's a "user not found" error and show a helpful message
             if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
             {
-                Feedback.ShowWarning(string.Format(CommonLoc["Warning_UserNotFound"], _newAclUserId));
+                Feedback.ShowWarning(string.Format(CommonLoc["Warning_UserNotFound"], username));
             }
             else
             {
@@ -585,7 +626,9 @@
         {
             { x => x.UserId, user.Id },
             { x => x.Username, user.Username },
-            { x => x.Email, user.Email }
+            { x => x.Email, user.Email },
+            { x => x.FirstName, user.FirstName },
+            { x => x.LastName, user.LastName }
         };
 
         var options = new DialogOptions

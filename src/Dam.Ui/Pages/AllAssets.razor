@@ -26,6 +26,13 @@
             </MudText>
         </MudStack>
         <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Upload"
+                       OnClick="@(() => _showUpload = !_showUpload)">
+                @CommonLoc["Btn_Upload"]
+            </MudButton>
             <MudButton Variant="Variant.Outlined"
                        Size="Size.Small"
                        StartIcon="@Icons.Material.Filled.Refresh"
@@ -34,6 +41,14 @@
             </MudButton>
         </MudStack>
     </MudStack>
+
+    <!-- Upload Area -->
+    @if (_showUpload)
+    {
+        <MudPaper Class="pa-3 mb-4" Elevation="1">
+            <AssetUpload OnUploadComplete="@OnUploadComplete" />
+        </MudPaper>
+    }
 
     <!-- Search and Filter -->
     <MudPaper Class="pa-3 mb-4" Elevation="0" Outlined="true">
@@ -135,55 +150,117 @@
     }
     else
     {
-        <MudGrid Spacing="3">
-            @foreach (var asset in _assets)
-            {
-                <MudItem xs="12" sm="6" md="4" lg="3" xl="2">
-                    <MudCard Class="asset-card" Elevation="2">
-                        <div @onclick="() => ViewAsset(asset.Id)" style="cursor: pointer;">
-                            <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType)" 
-                                          Height="160" 
-                                          Class="asset-thumbnail" />
-                            <MudCardContent Class="pa-2">
-                                <MudText Typo="Typo.body2" Class="text-truncate">
-                                    @asset.Title
-                                </MudText>
-                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                    <MudChip T="string" 
-                                             Size="Size.Small" 
-                                             Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
-                                             Variant="Variant.Outlined">
-                                        @asset.AssetType
-                                    </MudChip>
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
+        @if (_viewMode == "grid")
+        {
+            <MudGrid Spacing="3">
+                @foreach (var asset in _assets)
+                {
+                    <MudItem xs="12" sm="6" md="4" lg="3" xl="2">
+                        <MudCard Class="asset-card" Elevation="2">
+                            <div @onclick="() => ViewAsset(asset.Id)" style="cursor: pointer;">
+                                <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType)" 
+                                              Height="160" 
+                                              Class="asset-thumbnail" />
+                                <MudCardContent Class="pa-2">
+                                    <MudText Typo="Typo.body2" Class="text-truncate">
+                                        @asset.Title
                                     </MudText>
-                                </MudStack>
-                            </MudCardContent>
-                        </div>
-                        <MudCardActions Class="pa-2 pt-0">
-                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
-                                           Size="Size.Small" 
-                                           OnClick="@(() => ViewAsset(asset.Id))" />
-                            @if (CanShare(asset))
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Share" 
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudChip T="string" 
+                                                 Size="Size.Small" 
+                                                 Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
+                                                 Variant="Variant.Outlined">
+                                            @asset.AssetType
+                                        </MudChip>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
+                                        </MudText>
+                                    </MudStack>
+                                </MudCardContent>
+                            </div>
+                            <MudCardActions Class="pa-2 pt-0">
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
                                                Size="Size.Small" 
-                                               OnClick="@(async () => await ShareAsset(asset))" />
-                            }
-                            <MudSpacer />
-                            @if (CanDelete(asset))
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                               Size="Size.Small" 
-                                               Color="Color.Error"
-                                               OnClick="@(async () => await DeleteAsset(asset))" />
-                            }
-                        </MudCardActions>
-                    </MudCard>
-                </MudItem>
-            }
-        </MudGrid>
+                                               OnClick="@(() => ViewAsset(asset.Id))" />
+                                @if (CanShare(asset))
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Share" 
+                                                   Size="Size.Small" 
+                                                   OnClick="@(async () => await ShareAsset(asset))" />
+                                }
+                                <MudSpacer />
+                                @if (CanDelete(asset))
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Error"
+                                                   OnClick="@(async () => await DeleteAsset(asset))" />
+                                }
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+        else
+        {
+            <MudTable Items="@_assets" Hover="true" Dense="true" Elevation="2" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh></MudTh>
+                    <MudTh>@AssetLoc["Column_Title"]</MudTh>
+                    <MudTh>@CommonLoc["Label_Type"]</MudTh>
+                    <MudTh>@AssetLoc["Column_Size"]</MudTh>
+                    <MudTh>@AssetLoc["Column_Created"]</MudTh>
+                    <MudTh Style="text-align:right">@AssetLoc["Column_Actions"]</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="" Style="width:50px; padding:4px;">
+                        <MudAvatar Rounded="true" Size="Size.Medium" Style="cursor:pointer;" @onclick="() => ViewAsset(context.Id)">
+                            <MudImage Src="@AssetDisplayHelpers.GetThumbnailUrl(context.Id, context.ThumbObjectKey, context.AssetType)" 
+                                      Alt="@context.Title"
+                                      ObjectFit="ObjectFit.Cover"
+                                      Width="40" Height="40" />
+                        </MudAvatar>
+                    </MudTd>
+                    <MudTd DataLabel="@AssetLoc["Column_Title"]">
+                        <MudLink OnClick="@(() => ViewAsset(context.Id))" Underline="Underline.Hover">
+                            @context.Title
+                        </MudLink>
+                    </MudTd>
+                    <MudTd DataLabel="@CommonLoc["Label_Type"]">
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@AssetDisplayHelpers.GetAssetTypeColor(context.AssetType)"
+                                 Variant="Variant.Outlined">
+                            @context.AssetType
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="@AssetLoc["Column_Size"]">
+                        @AssetDisplayHelpers.FormatFileSize(context.SizeBytes)
+                    </MudTd>
+                    <MudTd DataLabel="@AssetLoc["Column_Created"]">
+                        @context.CreatedAt.ToString("yyyy-MM-dd")
+                    </MudTd>
+                    <MudTd DataLabel="@AssetLoc["Column_Actions"]" Style="text-align:right">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                       Size="Size.Small"
+                                       OnClick="@(() => ViewAsset(context.Id))" />
+                        @if (CanShare(context))
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Share"
+                                           Size="Size.Small"
+                                           OnClick="@(async () => await ShareAsset(context))" />
+                        }
+                        @if (CanDelete(context))
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(async () => await DeleteAsset(context))" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
 
         @if (_total > _assets.Count)
         {
@@ -214,6 +291,7 @@
     private Guid? _filterCollectionId;
     private string _sortBy = "created_desc";
     private string _viewMode = "grid";
+    private bool _showUpload = false;
     
     // Role-based UI visibility using centralized permissions
     private bool CanShare(AssetResponseDto asset) => RolePermissions.CanShare(asset.UserRole);
@@ -298,6 +376,12 @@
         _skip = 0;
         _assets.Clear();
         await LoadAssetsAsync();
+    }
+
+    private async Task OnUploadComplete()
+    {
+        _showUpload = false;
+        await RefreshAsync();
     }
 
     private async Task SearchAsync()

@@ -102,8 +102,9 @@
 
   <!-- Reset Password -->
   <data name="ResetPassword" xml:space="preserve"><value>Återställ lösenord</value></data>
-  <data name="ResetPasswordDesc" xml:space="preserve"><value>Ange ett nytt lösenord för denna användare. De måste byta det vid nästa inloggning.</value></data>
+  <data name="ResetPasswordDesc" xml:space="preserve"><value>Skicka användaren ett e-postmeddelande med en länk för att ange ett nytt lösenord.</value></data>
   <data name="PasswordResetSuccess" xml:space="preserve"><value>Lösenordet har återställts</value></data>
+  <data name="PasswordResetEmailSent" xml:space="preserve"><value>E-post för lösenordsåterställning har skickats.</value></data>
   <data name="ConfirmResetPassword" xml:space="preserve"><value>Är du säker på att du vill återställa lösenordet för "{0}"?</value></data>
 
   <!-- Delete User -->

@@ -88,4 +88,13 @@
 
   <!-- Manage Access -->
   <data name="ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
+
+  <!-- List View Columns -->
+  <data name="Column_Title" xml:space="preserve"><value>Titel</value></data>
+  <data name="Column_Size" xml:space="preserve"><value>Storlek</value></data>
+  <data name="Column_Created" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Column_Actions" xml:space="preserve"><value>Åtgärder</value></data>
+
+  <!-- Processing -->
+  <data name="ProcessingFailedMessage" xml:space="preserve"><value>Bearbetningen misslyckades för denna tillgång. Försök ladda upp igen eller kontakta en administratör.</value></data>
 </root>

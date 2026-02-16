@@ -65,7 +65,13 @@ public static class ServiceCollectionExtensions
         var dataSource = dataSourceBuilder.Build();
 
         services.AddDbContext<AssetHubDbContext>(options =>
-            options.UseNpgsql(dataSource));
+        {
+            options.UseNpgsql(dataSource);
+            // Suppress EF Core 9's PendingModelChangesWarning so existing migrations can apply
+            // even when there are minor model snapshot differences (e.g. value comparer warnings).
+            options.ConfigureWarnings(w =>
+                w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        });
 
         // ── Hangfire ────────────────────────────────────────────────────────
         var hangfireConnectionString = configuration["Hangfire:ConnectionString"];

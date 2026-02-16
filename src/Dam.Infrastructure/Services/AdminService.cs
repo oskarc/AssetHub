@@ -195,6 +195,8 @@ public class AdminService : IAdminService
                 Id = u.Id,
                 Username = u.Username,
                 Email = u.Email,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
                 CreatedAt = u.CreatedAt,
                 CollectionCount = hasAccess ? acl!.CollectionCount : 0,
                 HighestRole = hasAccess ? acl!.HighestRole : null
@@ -216,11 +218,15 @@ public class AdminService : IAdminService
             ("username", InputValidation.ValidateUsername(username)),
             ("email", InputValidation.ValidateEmail(email)),
             ("firstName", InputValidation.ValidateRequired(firstName, "First name")),
-            ("lastName", InputValidation.ValidateRequired(lastName, "Last name")),
-            ("password", InputValidation.ValidatePassword(request.Password))))
+            ("lastName", InputValidation.ValidateRequired(lastName, "Last name"))))
         {
             return ServiceError.Validation("Validation failed", errors);
         }
+
+        // Server-side password generation — admin never sees/types the password
+        var password = request.Password;
+        if (string.IsNullOrWhiteSpace(password))
+            password = Dam.Application.Helpers.PasswordGenerator.Generate(20);
 
         var collectionErrors = await _provisioning.ValidateCollectionsExistAsync(request.InitialCollectionIds, ct);
         if (collectionErrors.Count > 0)
@@ -230,22 +236,30 @@ public class AdminService : IAdminService
         {
             var userId = await _keycloakUserService.CreateUserAsync(
                 username, email, firstName, lastName,
-                request.Password, request.RequirePasswordChange, ct);
+                password, true /* always temporary */, ct);
 
             _logger.LogInformation("Admin created user '{Username}' (ID: {UserId})", username, userId);
 
             var role = RoleHierarchy.ResolveRole(request.InitialRole);
             await _provisioning.GrantCollectionAccessAsync(request.InitialCollectionIds, userId, role, username, ct);
 
-            if (request.SendWelcomeEmail && !string.IsNullOrWhiteSpace(email))
+            // Send password setup email via Keycloak (user sets their own password)
+            if (!string.IsNullOrWhiteSpace(email))
             {
-                var effectiveBaseUrl = baseUrl;
-                if (string.IsNullOrWhiteSpace(effectiveBaseUrl))
-                    effectiveBaseUrl = _configuration["App:BaseUrl"] ?? "";
-                var adminUsername = HttpCtx?.User?.Identity?.Name ?? "An administrator";
-                await _provisioning.SendWelcomeEmailAsync(
-                    email, username, request.Password, request.RequirePasswordChange,
-                    effectiveBaseUrl, adminUsername, ct);
+                try
+                {
+                    await _keycloakUserService.SendExecuteActionsEmailAsync(
+                        userId, new[] { "UPDATE_PASSWORD" }, lifespan: 86400, ct);
+                    _logger.LogInformation(
+                        "Sent password setup email to '{Email}' for new user '{Username}'",
+                        email, username);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to send password setup email to '{Email}' for new user '{Username}'",
+                        email, username);
+                }
             }
 
             var adminUserId = _currentUser.UserId;
@@ -284,39 +298,37 @@ public class AdminService : IAdminService
         }
     }
 
-    public async Task<ServiceResult> ResetUserPasswordAsync(
-        string userId, ResetPasswordRequest request, CancellationToken ct)
+    public async Task<ServiceResult> SendPasswordResetEmailAsync(
+        string userId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(userId))
             return ServiceError.BadRequest("User ID is required");
 
-        var passwordError = InputValidation.ValidatePassword(request.NewPassword);
-        if (passwordError != null)
-            return ServiceError.Validation("Validation failed", new Dictionary<string, string> { ["password"] = passwordError });
-
         try
         {
-            await _keycloakUserService.ResetPasswordAsync(userId, request.NewPassword, request.Temporary, ct);
-            _logger.LogInformation("Admin reset password for user '{UserId}'", userId);
+            await _keycloakUserService.SendExecuteActionsEmailAsync(
+                userId, new[] { "UPDATE_PASSWORD" }, lifespan: 86400, ct);
+
+            _logger.LogInformation("Admin sent password reset email for user '{UserId}'", userId);
 
             var adminUserId = _currentUser.UserId;
-            await _audit.LogAsync("user.password_reset", "user",
+            await _audit.LogAsync("user.password_reset_email", "user",
                 Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
-                new() { ["targetUserId"] = userId, ["temporary"] = request.Temporary.ToString() },
+                new() { ["targetUserId"] = userId },
                 HttpCtx, ct);
 
             return ServiceResult.Success;
         }
         catch (KeycloakApiException ex)
         {
-            _logger.LogWarning(ex, "Keycloak API error resetting password for user '{UserId}'", userId);
+            _logger.LogWarning(ex, "Keycloak API error sending password reset email for user '{UserId}'", userId);
             return ex.StatusCode == 404
                 ? ServiceError.NotFound(ex.Message)
                 : ServiceError.BadRequest(ex.Message);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error resetting password for user '{UserId}'", userId);
+            _logger.LogError(ex, "Unexpected error sending password reset email for user '{UserId}'", userId);
             return ServiceError.Server("An unexpected error occurred");
         }
     }

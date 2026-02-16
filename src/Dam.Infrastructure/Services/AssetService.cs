@@ -80,7 +80,7 @@ public class AssetService : IAssetService
         if (_currentUser.IsSystemAdmin)
         {
             var adminFilterIds = collectionId.HasValue ? new List<Guid> { collectionId.Value } : null;
-            var (adminAssets, adminTotal) = await _assetRepo.SearchAllAsync(query, type, sortBy, skip, take, adminFilterIds, ct);
+            var (adminAssets, adminTotal) = await _assetRepo.SearchAllAsync(query, type, sortBy, skip, take, adminFilterIds, includeAllStatuses: true, ct);
             var adminDtos = adminAssets.Select(a => AssetMapper.ToDto(a, RoleHierarchy.Roles.Admin)).ToList();
             return new AllAssetsListResponse { Total = adminTotal, Items = adminDtos };
         }
@@ -107,7 +107,7 @@ public class AssetService : IAssetService
         }
 
         // Non-admins are restricted to their accessible collections
-        var (assets, total) = await _assetRepo.SearchAllAsync(query, type, sortBy, skip, take, accessibleCollectionIds, ct);
+        var (assets, total) = await _assetRepo.SearchAllAsync(query, type, sortBy, skip, take, accessibleCollectionIds, includeAllStatuses: false, ct);
 
         // Batch-load collection IDs for all returned assets (single query, no N+1)
         var assetIds = assets.Select(a => a.Id).ToList();
@@ -337,16 +337,27 @@ public class AssetService : IAssetService
         var sizeError = ValidateFileSize(request.FileSize);
         if (sizeError != null) return sizeError;
 
-        var canContribute = await _authService.CheckAccessAsync(userId, request.CollectionId, RoleHierarchy.Roles.Contributor, ct);
-        if (!canContribute)
-            return ServiceError.Forbidden();
+        if (request.CollectionId.HasValue)
+        {
+            var canContribute = await _authService.CheckAccessAsync(userId, request.CollectionId.Value, RoleHierarchy.Roles.Contributor, ct);
+            if (!canContribute)
+                return ServiceError.Forbidden();
+        }
+        else
+        {
+            // Standalone upload (no collection) requires system admin
+            if (!_currentUser.IsSystemAdmin)
+                return ServiceError.Forbidden();
+        }
 
         var asset = CreateAssetEntity(request.FileName, request.ContentType, request.FileSize, userId, Asset.StatusUploading);
         if (!string.IsNullOrEmpty(request.Title))
             asset.Title = request.Title;
 
         await _assetRepo.CreateAsync(asset, ct);
-        await _assetCollectionRepo.AddToCollectionAsync(asset.Id, request.CollectionId, userId, ct);
+
+        if (request.CollectionId.HasValue)
+            await _assetCollectionRepo.AddToCollectionAsync(asset.Id, request.CollectionId.Value, userId, ct);
 
         var presignedUrl = await _minioAdapter.GetPresignedUploadUrlAsync(
             BucketName, asset.OriginalObjectKey, Constants.Limits.PresignedUploadExpirySec, ct);

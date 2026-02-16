@@ -9,8 +9,7 @@ namespace Dam.Application.Dtos;
 /// </summary>
 public class InitUploadRequest
 {
-    [Required]
-    public required Guid CollectionId { get; set; }
+    public Guid? CollectionId { get; set; }
 
     [Required]
     [StringLength(255, MinimumLength = 1)]

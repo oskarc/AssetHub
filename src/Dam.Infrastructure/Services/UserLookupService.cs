@@ -94,22 +94,22 @@ public class UserLookupService(
         return userId != null;
     }
     
-    public async Task<List<(string Id, string Username, string? Email, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default)
+    public async Task<List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default)
     {
         var cacheKey = CacheKeys.AllUsers();
 
-        if (cache.TryGetValue(cacheKey, out List<(string, string, string?, DateTime?)>? cached) && cached is not null)
+        if (cache.TryGetValue(cacheKey, out List<(string, string, string?, string?, string?, DateTime?)>? cached) && cached is not null)
         {
             logger.LogDebug("Cache hit: all users list ({Count} users)", cached.Count);
             return cached;
         }
 
-        var result = new List<(string, string, string?, DateTime?)>();
+        var result = new List<(string, string, string?, string?, string?, DateTime?)>();
         
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(ct);
 
-        var sql = "SELECT id, username, email, created_timestamp FROM user_entity ORDER BY username";
+        var sql = "SELECT id, username, email, first_name, last_name, created_timestamp FROM user_entity ORDER BY username";
         await using var cmd = new NpgsqlCommand(sql, connection);
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -118,8 +118,10 @@ public class UserLookupService(
             var id = reader.GetString(0);
             var username = reader.GetString(1);
             var email = reader.IsDBNull(2) ? null : reader.GetString(2);
-            var createdTimestamp = reader.IsDBNull(3) ? (DateTime?)null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(3)).UtcDateTime;
-            result.Add((id, username, email, createdTimestamp));
+            var firstName = reader.IsDBNull(3) ? null : reader.GetString(3);
+            var lastName = reader.IsDBNull(4) ? null : reader.GetString(4);
+            var createdTimestamp = reader.IsDBNull(5) ? (DateTime?)null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(5)).UtcDateTime;
+            result.Add((id, username, email, firstName, lastName, createdTimestamp));
             
             // Also populate the individual username cache
             cache.Set(CacheKeys.UserName(id), username, CacheKeys.UserNameTtl);

@@ -45,5 +45,6 @@ public interface IAssetRepository
         int skip = 0,
         int take = 50,
         List<Guid>? allowedCollectionIds = null,
+        bool includeAllStatuses = false,
         CancellationToken cancellationToken = default);
 }

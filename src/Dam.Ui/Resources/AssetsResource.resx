@@ -88,4 +88,13 @@
 
   <!-- Manage Access -->
   <data name="ManageAccess" xml:space="preserve"><value>Manage Access</value></data>
+
+  <!-- List View Columns -->
+  <data name="Column_Title" xml:space="preserve"><value>Title</value></data>
+  <data name="Column_Size" xml:space="preserve"><value>Size</value></data>
+  <data name="Column_Created" xml:space="preserve"><value>Created</value></data>
+  <data name="Column_Actions" xml:space="preserve"><value>Actions</value></data>
+
+  <!-- Processing -->
+  <data name="ProcessingFailedMessage" xml:space="preserve"><value>Processing failed for this asset. Please try uploading again or contact an administrator.</value></data>
 </root>

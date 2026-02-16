@@ -111,10 +111,10 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> ResetUserPassword(
-        [FromRoute] string userId, [FromBody] ResetPasswordRequest request,
+        [FromRoute] string userId,
         [FromServices] IAdminService svc, CancellationToken ct)
     {
-        var result = await svc.ResetUserPasswordAsync(userId, request, ct);
+        var result = await svc.SendPasswordResetEmailAsync(userId, ct);
         return result.ToHttpResult();
     }
 

@@ -119,12 +119,12 @@ public class MediaProcessingService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Image processing failed for asset {AssetId}", assetId);
+            logger.LogError(ex, "Image processing failed for asset {AssetId}: {Error}", assetId, ex.Message);
             
             var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset != null)
             {
-                asset.MarkFailed($"Image processing failed: {ex.Message}");
+                asset.MarkFailed("Image processing failed. Please try uploading again or contact an administrator.");
                 await assetRepository.UpdateAsync(asset, ct);
             }
         }
@@ -176,12 +176,12 @@ public class MediaProcessingService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Video processing failed for asset {AssetId}", assetId);
+            logger.LogError(ex, "Video processing failed for asset {AssetId}: {Error}", assetId, ex.Message);
             
             var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset != null)
             {
-                asset.MarkFailed($"Video processing failed: {ex.Message}");
+                asset.MarkFailed("Video processing failed. Please try uploading again or contact an administrator.");
                 await assetRepository.UpdateAsync(asset, ct);
             }
         }

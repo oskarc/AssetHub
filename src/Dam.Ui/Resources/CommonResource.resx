@@ -58,6 +58,8 @@
   <data name="Btn_Upload" xml:space="preserve"><value>Upload</value></data>
   <data name="Btn_Download" xml:space="preserve"><value>Download</value></data>
   <data name="Btn_DownloadOriginal" xml:space="preserve"><value>Download Original</value></data>
+  <data name="Btn_DownloadMedium" xml:space="preserve"><value>Download Medium</value></data>
+  <data name="Btn_DownloadThumbnail" xml:space="preserve"><value>Download Thumbnail</value></data>
   <data name="Btn_DownloadAll" xml:space="preserve"><value>Download All</value></data>
   <data name="Btn_DownloadToView" xml:space="preserve"><value>Download to View</value></data>
   <data name="Btn_Share" xml:space="preserve"><value>Share</value></data>
@@ -76,6 +78,7 @@
   <data name="Btn_ManageAccess" xml:space="preserve"><value>Manage Access</value></data>
   <data name="Btn_CreateUser" xml:space="preserve"><value>Create User</value></data>
   <data name="Btn_ResetPassword" xml:space="preserve"><value>Reset Password</value></data>
+  <data name="Text_Sending" xml:space="preserve"><value>Sending...</value></data>
   <data name="Btn_Confirm" xml:space="preserve"><value>Confirm</value></data>
   <data name="Btn_Creating" xml:space="preserve"><value>Creating...</value></data>
   <data name="Btn_Generate" xml:space="preserve"><value>Generate</value></data>

@@ -55,6 +55,8 @@
   <data name="Btn_Upload" xml:space="preserve"><value>Ladda upp</value></data>
   <data name="Btn_Download" xml:space="preserve"><value>Ladda ner</value></data>
   <data name="Btn_DownloadOriginal" xml:space="preserve"><value>Ladda ner original</value></data>
+  <data name="Btn_DownloadMedium" xml:space="preserve"><value>Ladda ner mellanstor</value></data>
+  <data name="Btn_DownloadThumbnail" xml:space="preserve"><value>Ladda ner miniatyr</value></data>
   <data name="Btn_DownloadAll" xml:space="preserve"><value>Ladda ner alla</value></data>
   <data name="Btn_DownloadToView" xml:space="preserve"><value>Ladda ner för att visa</value></data>
   <data name="Btn_Share" xml:space="preserve"><value>Dela</value></data>
@@ -73,6 +75,7 @@
   <data name="Btn_ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
   <data name="Btn_CreateUser" xml:space="preserve"><value>Skapa användare</value></data>
   <data name="Btn_ResetPassword" xml:space="preserve"><value>Återställ lösenord</value></data>
+  <data name="Text_Sending" xml:space="preserve"><value>Skickar...</value></data>
   <data name="Btn_Confirm" xml:space="preserve"><value>Bekräfta</value></data>
   <data name="Btn_Creating" xml:space="preserve"><value>Skapar...</value></data>
   <data name="Btn_Generate" xml:space="preserve"><value>Generera</value></data>

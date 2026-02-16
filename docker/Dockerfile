@@ -25,9 +25,11 @@ RUN dotnet publish "src/AssetHub/AssetHub.csproj" -c Release -o /app/publish /p:
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 
 # Install ImageMagick for image processing (thumbnails, resizing)
+# Install ffmpeg for video processing (poster frames)
 # Install curl for Docker health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
+    ffmpeg \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

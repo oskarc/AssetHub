@@ -220,6 +220,14 @@ else
                             </MudStack>
                         }
 
+                        @if (_asset.Status == "failed")
+                        {
+                            <MudDivider />
+                            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true">
+                                @AssetLoc["ProcessingFailedMessage"]
+                            </MudAlert>
+                        }
+
                         <!-- Advanced Metadata (Expandable) -->
                         <MudDivider />
                         <MudStack>
@@ -231,11 +239,11 @@ else
                                         <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">@CommonLoc["Text_AdvancedMetadata"]</MudText>
                                     </TitleContent>
                                     <ChildContent>
-                                        @if (_asset.MetadataJson.Any())
+                                        @if (_asset.MetadataJson.Where(k => k.Key != "error").Any())
                                         {
                                             <MudSimpleTable Dense="true" Hover="true" Elevation="0">
                                                 <tbody>
-                                                    @foreach (var kvp in _asset.MetadataJson.OrderBy(k => k.Key))
+                                                    @foreach (var kvp in _asset.MetadataJson.Where(k => k.Key != "error").OrderBy(k => k.Key))
                                                     {
                                                         <tr>
                                                             <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
@@ -268,6 +276,28 @@ else
                                        Target="_blank">
                                 @CommonLoc["Btn_DownloadOriginal"]
                             </MudButton>
+
+                            @if (!string.IsNullOrEmpty(_asset?.MediumObjectKey))
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                           StartIcon="@Icons.Material.Filled.Photo"
+                                           FullWidth="true"
+                                           Href="@($"/api/assets/{AssetId}/medium")"
+                                           Target="_blank">
+                                    @CommonLoc["Btn_DownloadMedium"]
+                                </MudButton>
+                            }
+
+                            @if (!string.IsNullOrEmpty(_asset?.ThumbObjectKey))
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                           StartIcon="@Icons.Material.Filled.PhotoSizeSelectSmall"
+                                           FullWidth="true"
+                                           Href="@($"/api/assets/{AssetId}/thumb")"
+                                           Target="_blank">
+                                    @CommonLoc["Btn_DownloadThumbnail"]
+                                </MudButton>
+                            }
 
                             <MudButton Variant="Variant.Outlined"
                                        StartIcon="@Icons.Material.Filled.Share"

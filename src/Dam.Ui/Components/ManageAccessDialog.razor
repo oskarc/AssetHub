@@ -150,16 +150,18 @@
                                     @if (_editingEntryId == entry.Id)
                                     {
                                         <MudStack Row="true" Spacing="1">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Save"
-                                                           Size="Size.Small"
-                                                           Color="Color.Success"
-                                                           OnClick="SaveRoleEditAsync"
-                                                           title="@CommonLoc["Btn_Save"]" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Cancel"
-                                                           Size="Size.Small"
-                                                           Color="Color.Default"
-                                                           OnClick="CancelRoleEdit"
-                                                           title="@CommonLoc["Btn_Cancel"]" />
+                                            <MudTooltip Text="@CommonLoc["Btn_Save"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Save"
+                                                               Size="Size.Small"
+                                                               Color="Color.Success"
+                                                               OnClick="SaveRoleEditAsync" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="@CommonLoc["Btn_Cancel"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Cancel"
+                                                               Size="Size.Small"
+                                                               Color="Color.Default"
+                                                               OnClick="CancelRoleEdit" />
+                                            </MudTooltip>
                                         </MudStack>
                                     }
                                     else
@@ -167,18 +169,20 @@
                                         <MudStack Row="true" Spacing="1">
                                             @if (CanEditEntry(entry))
                                             {
-                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                                               Size="Size.Small"
-                                                               Color="Color.Primary"
-                                                               OnClick="@(() => StartRoleEdit(entry))"
-                                                               Disabled="@(_revokingIds.Count > 0)"
-                                                               title="@CollLoc["ChangeRole"]" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
-                                                               Size="Size.Small"
-                                                               Color="Color.Error"
-                                                               OnClick="@(() => RevokeAccessAsync(entry))"
-                                                               Disabled="@(_revokingIds.Contains(entry.Id))"
-                                                               title="@CollLoc["RevokeAccess"]" />
+                                                <MudTooltip Text="@CollLoc["ChangeRole"]">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Primary"
+                                                                   OnClick="@(() => StartRoleEdit(entry))"
+                                                                   Disabled="@(_revokingIds.Count > 0)" />
+                                                </MudTooltip>
+                                                <MudTooltip Text="@CollLoc["RevokeAccess"]">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Error"
+                                                                   OnClick="@(() => RevokeAccessAsync(entry))"
+                                                                   Disabled="@(_revokingIds.Contains(entry.Id))" />
+                                                </MudTooltip>
                                             }
                                             else
                                             {

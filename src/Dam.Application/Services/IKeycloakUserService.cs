@@ -43,6 +43,21 @@ public interface IKeycloakUserService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Sends an email to the user with a link to execute the specified required actions
+    /// (e.g., UPDATE_PASSWORD). Uses Keycloak's execute-actions-email Admin API.
+    /// </summary>
+    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="actions">The required actions (e.g., "UPDATE_PASSWORD").</param>
+    /// <param name="lifespan">Optional link lifespan in seconds (default: Keycloak server default).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="KeycloakApiException">Thrown when the API call fails.</exception>
+    Task SendExecuteActionsEmailAsync(
+        string userId,
+        IEnumerable<string> actions,
+        int? lifespan = null,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Deletes a user from Keycloak.
     /// </summary>
     /// <param name="userId">The Keycloak user ID.</param>

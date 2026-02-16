@@ -9,13 +9,6 @@
 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
     <MudText><b>@CommonLoc["Label_Build"]:</b> @Dam.Application.BuildInfo.Stamp</MudText>
     <MudText><b>@CommonLoc["Label_Environment"]:</b> @Env.EnvironmentName</MudText>
-    <MudText>
-        <MudLink Href="/__build" Target="_blank">/__build</MudLink>
-        |
-        <MudLink Href="/debug/ping" Target="_blank">/debug/ping</MudLink>
-        |
-        <MudLink Href="/debug/keycloak" Target="_blank">/debug/keycloak</MudLink>
-    </MudText>
 </MudAlert>
 
 <MudText Typo="Typo.h3" GutterBottom="true">Hello, world!</MudText>
