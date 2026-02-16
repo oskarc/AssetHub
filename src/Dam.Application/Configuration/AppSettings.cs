@@ -1,4 +1,4 @@
-namespace Dam.Application.Services;
+namespace Dam.Application.Configuration;
 
 /// <summary>
 /// General application settings.

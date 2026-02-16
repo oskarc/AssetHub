@@ -1,5 +1,6 @@
 using Dam.Application;
 using Dam.Application.Repositories;
+using Dam.Application.Configuration;
 using Dam.Application.Services;
 using Hangfire;
 using Hangfire.Storage;

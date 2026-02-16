@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: postgres_dev_password
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
+      - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -56,8 +56,8 @@ services:
       KC_HTTP_ENABLED: 'true'
     volumes:
       - keycloakdata:/opt/keycloak/data
-      - ./keycloak/import:/opt/keycloak/data/import:ro
-      - ./certs:/opt/keycloak/certs:ro
+      - ../keycloak/import:/opt/keycloak/data/import:ro
+      - ../certs:/opt/keycloak/certs:ro
     ports:
       - "8080:8080"
       - "8443:8443"
@@ -80,8 +80,8 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: assethub-api
     environment:
       TZ: Europe/Stockholm
@@ -106,7 +106,7 @@ services:
       Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=assethub;User Id=postgres;Password=postgres_dev_password;"
       App__BaseUrl: "https://assethub.local:7252"
     volumes:
-      - ./certs:/app/certs:ro
+      - ../certs:/app/certs:ro
     ports:
       - "7252:7252"
     depends_on:
@@ -122,8 +122,8 @@ services:
 
   worker:
     build:
-      context: .
-      dockerfile: Dockerfile.Worker
+      context: ..
+      dockerfile: docker/Dockerfile.Worker
     container_name: assethub-worker
     environment:
       TZ: Europe/Stockholm

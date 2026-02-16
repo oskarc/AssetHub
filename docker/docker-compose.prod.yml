@@ -5,10 +5,10 @@
 #   1. Copy .env.template → .env and fill in all values.
 #   2. Read docs/DEPLOYMENT.md for the full setup guide.
 #
-# Start:   docker compose -f docker-compose.prod.yml up -d
-# Stop:    docker compose -f docker-compose.prod.yml down
-# Rebuild: docker compose -f docker-compose.prod.yml up -d --build
-# Logs:    docker compose -f docker-compose.prod.yml logs -f
+# Start:   docker compose -f docker/docker-compose.prod.yml up -d
+# Stop:    docker compose -f docker/docker-compose.prod.yml down
+# Rebuild: docker compose -f docker/docker-compose.prod.yml up -d --build
+# Logs:    docker compose -f docker/docker-compose.prod.yml logs -f
 # ============================================================================
 
 services:
@@ -24,7 +24,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
+      - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
     # In production, do NOT expose the port externally. Only internal services
     # need to reach PostgreSQL. Uncomment the line below only for debugging.
     # ports:
@@ -96,7 +96,7 @@ services:
       KC_HTTP_ENABLED: "true"
     volumes:
       - keycloakdata:/opt/keycloak/data
-      - ./keycloak/import:/opt/keycloak/data/import:ro
+      - ../keycloak/import:/opt/keycloak/data/import:ro
     command:
       - start
       - --import-realm
@@ -113,8 +113,8 @@ services:
   # ---------- AssetHub API + Blazor UI ----------------------------------------
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: assethub-api
     restart: unless-stopped
     environment:
@@ -196,8 +196,8 @@ services:
   # ---------- Hangfire Background Worker --------------------------------------
   worker:
     build:
-      context: .
-      dockerfile: Dockerfile.Worker
+      context: ..
+      dockerfile: docker/Dockerfile.Worker
     container_name: assethub-worker
     restart: unless-stopped
     environment:

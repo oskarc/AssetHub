@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\AssetHub.csproj" />
+    <ProjectReference Include="..\..\src\AssetHub\AssetHub.csproj" />
   </ItemGroup>
 
 </Project>

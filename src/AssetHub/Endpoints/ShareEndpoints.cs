@@ -76,27 +76,12 @@ public static class ShareEndpoints
 
     private static async Task<IResult> CreateShare(
         CreateShareDto dto,
-        [FromServices] IShareService shareService,
-        [FromServices] ICollectionAuthorizationService authService,
+        [FromServices] IShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
-        var userId = httpContext.User.GetRequiredUserId();
-
-        var validation = await shareService.ValidateScopeAsync(dto, ct);
-        if (!validation.IsValid)
-        {
-            return validation.ErrorStatusCode == 404
-                ? Results.NotFound(ApiError.NotFound(validation.ErrorMessage!))
-                : Results.BadRequest(ApiError.BadRequest(validation.ErrorMessage!));
-        }
-
-        if (!await authService.CheckAccessAsync(userId, validation.CollectionIdToCheck!.Value, RoleHierarchy.Roles.Contributor, ct))
-            return Results.Json(ApiError.Forbidden("You don't have permission to share this resource"), statusCode: 403);
-
         var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
-        var result = await shareService.CreateShareAsync(dto, userId, baseUrl, httpContext, ct);
-
-        return Results.Created($"/api/shares/{result.Response.Id}", result.Response);
+        var result = await svc.CreateShareAsync(dto, baseUrl, ct);
+        return result.ToHttpResult(v => Results.Created($"/api/shares/{v.Id}", v));
     }
 
     private static async Task<IResult> RevokeShare(

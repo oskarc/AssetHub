@@ -7,16 +7,6 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
-  <!-- Exclude src/ and tests/ from this project - they're compiled by the referenced projects -->
-  <ItemGroup>
-    <Compile Remove="src/**/*.cs" />
-    <Content Remove="src/**" />
-    <None Remove="src/**" />
-    <Compile Remove="tests/**/*.cs" />
-    <Content Remove="tests/**" />
-    <None Remove="tests/**" />
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.9" />
@@ -38,10 +28,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="src/Dam.Domain/Dam.Domain.csproj" />
-    <ProjectReference Include="src/Dam.Application/Dam.Application.csproj" />
-    <ProjectReference Include="src/Dam.Infrastructure/Dam.Infrastructure.csproj" />
-    <ProjectReference Include="src/Dam.Ui/Dam.Ui.csproj" />
+    <ProjectReference Include="../Dam.Domain/Dam.Domain.csproj" />
+    <ProjectReference Include="../Dam.Application/Dam.Application.csproj" />
+    <ProjectReference Include="../Dam.Infrastructure/Dam.Infrastructure.csproj" />
+    <ProjectReference Include="../Dam.Ui/Dam.Ui.csproj" />
   </ItemGroup>
 
 </Project>

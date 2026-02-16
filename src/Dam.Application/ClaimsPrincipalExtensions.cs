@@ -1,10 +1,10 @@
 using System.Security.Claims;
-using Dam.Application;
 
-namespace AssetHub.Endpoints;
+namespace Dam.Application;
 
 /// <summary>
 /// Extension methods for ClaimsPrincipal to provide consistent claim extraction.
+/// Lives in Dam.Application so it can be used across all layers (endpoints, services, UI).
 /// </summary>
 public static class ClaimsPrincipalExtensions
 {
@@ -12,8 +12,6 @@ public static class ClaimsPrincipalExtensions
     /// Gets the user ID from the claims principal.
     /// Checks both "sub" (standard OIDC) and ClaimTypes.NameIdentifier claims.
     /// </summary>
-    /// <param name="user">The claims principal representing the current user.</param>
-    /// <returns>The user ID, or null if not found.</returns>
     public static string? GetUserId(this ClaimsPrincipal user)
     {
         return user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -24,9 +22,6 @@ public static class ClaimsPrincipalExtensions
     /// Use this in endpoints that require authentication — if the ID is missing,
     /// the auth middleware has failed and we must not silently continue.
     /// </summary>
-    /// <param name="user">The claims principal representing the current user.</param>
-    /// <returns>The user ID.</returns>
-    /// <exception cref="UnauthorizedAccessException">Thrown when no user ID claim is present.</exception>
     public static string GetRequiredUserId(this ClaimsPrincipal user)
     {
         return user.GetUserId()
@@ -37,9 +32,6 @@ public static class ClaimsPrincipalExtensions
     /// Gets the user ID from the claims principal, or a fallback value if not found.
     /// Prefer <see cref="GetRequiredUserId"/> in authenticated endpoints.
     /// </summary>
-    /// <param name="user">The claims principal representing the current user.</param>
-    /// <param name="fallback">The fallback value to return if no user ID is found.</param>
-    /// <returns>The user ID, or the fallback value.</returns>
     [Obsolete("Use GetRequiredUserId() in authenticated endpoints. This overload masks missing claims.")]
     public static string GetUserIdOrDefault(this ClaimsPrincipal user, string fallback = "unknown")
     {
@@ -49,8 +41,6 @@ public static class ClaimsPrincipalExtensions
     /// <summary>
     /// Checks if the user has the global admin role (Keycloak realm role).
     /// </summary>
-    /// <param name="user">The claims principal representing the current user.</param>
-    /// <returns>True if the user has the admin role.</returns>
     public static bool IsGlobalAdmin(this ClaimsPrincipal user)
     {
         return user.IsInRole(RoleHierarchy.Roles.Admin);
@@ -61,8 +51,8 @@ public static class ClaimsPrincipalExtensions
     /// </summary>
     public static string? GetDisplayName(this ClaimsPrincipal user)
     {
-        return user.FindFirst("preferred_username")?.Value 
-            ?? user.FindFirst("name")?.Value 
+        return user.FindFirst("preferred_username")?.Value
+            ?? user.FindFirst("name")?.Value
             ?? user.FindFirst(ClaimTypes.Name)?.Value;
     }
 }

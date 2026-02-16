@@ -130,10 +130,12 @@ AssetHub/
 ├── docs/
 │   └── DEPLOYMENT.md                   # Production deployment guide
 ├── keycloak/import/                    # Realm auto-import
-├── docker-compose.yml                  # Development stack
-├── docker-compose.prod.yml             # Production stack
+├── docker/
+│   ├── docker-compose.yml              # Development stack
+│   ├── docker-compose.prod.yml         # Production stack
+│   ├── Dockerfile / Dockerfile.Worker  # Container build files
+│   └── init-keycloak-db.sh             # Keycloak DB init script
 ├── .env.template                       # Environment variable reference
-├── Dockerfile / Dockerfile.Worker
 └── appsettings.*.json
 ```
 
@@ -253,7 +255,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full guide. The short versi
 
 ```bash
 cp .env.template .env        # Fill in your passwords and domain
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker/docker-compose.prod.yml up -d
 curl http://localhost:7252/health/ready   # Wait for "Healthy"
 ```
 
@@ -300,7 +302,7 @@ Each test class gets its own isolated database — tests never interfere with ea
 ```bash
 dotnet restore
 dotnet build          # 0 errors, 0 warnings
-dotnet run --project AssetHub.csproj
+dotnet run --project src/AssetHub/AssetHub.csproj
 ```
 
 ### Useful commands

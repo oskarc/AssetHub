@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using Dam.Application.Configuration;
 using Dam.Application.Services;
 using Dam.Application.Services.Email;
 using Microsoft.Extensions.Logging;

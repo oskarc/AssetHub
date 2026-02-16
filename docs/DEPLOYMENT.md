@@ -39,7 +39,7 @@ git clone <repository-url> && cd AssetHub
 cp .env.template .env && nano .env
 
 # 3. Launch
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
 That's it. The application will:
@@ -52,7 +52,7 @@ That's it. The application will:
 Watch startup progress:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs -f api
+docker compose -f docker/docker-compose.prod.yml logs -f api
 ```
 
 Wait for the health check to pass:
@@ -138,7 +138,7 @@ After first start, the OIDC client is auto-created but you need to grab the secr
 2. **Clients** → `assethub-app` → **Credentials** tab → copy **Client Secret**
 3. Paste into `.env` as `KEYCLOAK_CLIENT_SECRET`
 4. Verify **Valid Redirect URIs** includes `https://assethub.example.com/signin-oidc`
-5. Restart: `docker compose -f docker-compose.prod.yml restart api`
+5. Restart: `docker compose -f docker/docker-compose.prod.yml restart api`
 
 ### 3.3 Create the Admin Service Account
 
@@ -249,7 +249,7 @@ After starting, run through this checklist:
 
 ```bash
 # 1. All containers running and healthy?
-docker compose -f docker-compose.prod.yml ps
+docker compose -f docker/docker-compose.prod.yml ps
 
 # 2. Readiness probe passes? (all integrations OK)
 curl -s https://assethub.example.com/health/ready | python3 -m json.tool
@@ -300,7 +300,7 @@ git pull origin main
 docker exec assethub-postgres pg_dump -U ${POSTGRES_USER} ${POSTGRES_DB} > pre-upgrade.sql
 
 # Rebuild — migrations run automatically on start
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker/docker-compose.prod.yml up -d --build
 
 # Confirm everything is healthy
 curl -s https://assethub.example.com/health/ready
@@ -311,7 +311,7 @@ curl -s https://assethub.example.com/health/ready
 ### Scale Workers
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --scale worker=3
+docker compose -f docker/docker-compose.prod.yml up -d --scale worker=3
 ```
 
 ### PostgreSQL Performance Tuning
@@ -352,7 +352,7 @@ Complete before going live:
 
 ```bash
 # Check all container status
-docker compose -f docker-compose.prod.yml ps
+docker compose -f docker/docker-compose.prod.yml ps
 
 # Check API health with details
 curl -s http://localhost:7252/health/ready | python3 -m json.tool

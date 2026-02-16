@@ -1,4 +1,4 @@
-namespace Dam.Application.Services;
+namespace Dam.Application.Configuration;
 
 /// <summary>
 /// Configuration settings for the email service.

@@ -2,37 +2,32 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy project files
-COPY ["AssetHub.csproj", "./"]
 COPY ["src/Dam.Domain/Dam.Domain.csproj", "src/Dam.Domain/"]
 COPY ["src/Dam.Application/Dam.Application.csproj", "src/Dam.Application/"]
 COPY ["src/Dam.Infrastructure/Dam.Infrastructure.csproj", "src/Dam.Infrastructure/"]
-COPY ["src/Dam.Ui/Dam.Ui.csproj", "src/Dam.Ui/"]
+COPY ["src/Dam.Worker/Dam.Worker.csproj", "src/Dam.Worker/"]
 
 # Restore dependencies
-RUN dotnet restore "AssetHub.csproj"
+RUN dotnet restore "src/Dam.Worker/Dam.Worker.csproj"
 
 # Copy source code
 COPY . .
 
 # Build
-RUN dotnet build "AssetHub.csproj" -c Release -o /app/build
+RUN dotnet build "src/Dam.Worker/Dam.Worker.csproj" -c Release -o /app/build
 
 # Publish
 FROM build AS publish
-RUN dotnet publish "AssetHub.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "src/Dam.Worker/Dam.Worker.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Runtime
+# Runtime with media tools
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
-
-# Install ImageMagick for image processing (thumbnails, resizing)
-# Install curl for Docker health checks
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     imagemagick \
-    curl \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-EXPOSE 7252
-ENTRYPOINT ["dotnet", "AssetHub.dll"]
+ENTRYPOINT ["dotnet", "Dam.Worker.dll"]
