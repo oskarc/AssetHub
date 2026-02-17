@@ -31,11 +31,13 @@ public static class AssetEndpoints
         group.MapPost("init-upload", InitUpload).WithName("InitUpload");
         group.MapPost("{id}/confirm-upload", ConfirmUpload).WithName("ConfirmUpload");
 
-        group.MapGet("{id}/download", GetRendition("original")).WithName("DownloadOriginal");
-        group.MapGet("{id}/preview", GetRendition("original")).WithName("PreviewOriginal");
-        group.MapGet("{id}/thumb", GetRendition("thumb")).WithName("GetThumbnail");
-        group.MapGet("{id}/medium", GetRendition("medium")).WithName("GetMedium");
-        group.MapGet("{id}/poster", GetRendition("poster")).WithName("GetPoster");
+        group.MapGet("{id}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
+        group.MapGet("{id}/preview", GetRendition("original", forceDownload: false)).WithName("PreviewOriginal");
+        group.MapGet("{id}/thumb", GetRendition("thumb", forceDownload: false)).WithName("GetThumbnail");
+        group.MapGet("{id}/thumb/download", GetRendition("thumb", forceDownload: true)).WithName("DownloadThumbnail");
+        group.MapGet("{id}/medium", GetRendition("medium", forceDownload: false)).WithName("GetMedium");
+        group.MapGet("{id}/medium/download", GetRendition("medium", forceDownload: true)).WithName("DownloadMedium");
+        group.MapGet("{id}/poster", GetRendition("poster", forceDownload: false)).WithName("GetPoster");
     }
 
     // ── Queries ──────────────────────────────────────────────────────────────
@@ -154,10 +156,10 @@ public static class AssetEndpoints
 
     // ── Renditions ───────────────────────────────────────────────────────────
 
-    private static Func<Guid, IAssetService, CancellationToken, Task<IResult>> GetRendition(string size) =>
+    private static Func<Guid, IAssetService, CancellationToken, Task<IResult>> GetRendition(string size, bool forceDownload = false) =>
         async (Guid id, [FromServices] IAssetService svc, CancellationToken ct) =>
         {
-            var result = await svc.GetRenditionUrlAsync(id, size, ct);
+            var result = await svc.GetRenditionUrlAsync(id, size, forceDownload, ct);
             return result.ToHttpResult(url => Results.Redirect(url));
         };
 }

@@ -71,6 +71,28 @@ public class UserLookupService(
         var map = await GetUserNamesAsync(new[] { userId }, ct);
         return map.TryGetValue(userId, out var username) ? username : null;
     }
+
+    public async Task<Dictionary<string, string>> GetUserEmailsAsync(IEnumerable<string> userIds, CancellationToken ct = default)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var ids = userIds.Distinct().ToArray();
+        if (ids.Length == 0) return result;
+
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(ct);
+
+        var sql = "SELECT id, email FROM user_entity WHERE id = ANY(@ids) AND email IS NOT NULL";
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("ids", ids);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            result[reader.GetString(0)] = reader.GetString(1);
+        }
+
+        return result;
+    }
     
     public async Task<string?> GetUserIdByUsernameAsync(string username, CancellationToken ct = default)
     {

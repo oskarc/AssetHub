@@ -510,7 +510,7 @@ public class AssetService : IAssetService
     // ── Renditions ───────────────────────────────────────────────────────────
 
     public async Task<ServiceResult<string>> GetRenditionUrlAsync(
-        Guid id, string size, CancellationToken ct)
+        Guid id, string size, bool forceDownload, CancellationToken ct)
     {
         var asset = await _assetRepo.GetByIdAsync(id, ct);
         if (asset == null)
@@ -531,8 +531,23 @@ public class AssetService : IAssetService
         if (string.IsNullOrEmpty(objectKey))
             return ServiceError.NotFound($"{size} rendition not available");
 
+        // Build a friendly download filename from the asset title
+        string? downloadFileName = null;
+        if (forceDownload)
+        {
+            var ext = Path.GetExtension(objectKey);
+            var prefix = size.ToLower() switch
+            {
+                "thumb" => "_thumb",
+                "medium" => "_medium",
+                "poster" => "_poster",
+                _ => ""
+            };
+            downloadFileName = $"{asset.Title}{prefix}{ext}";
+        }
+
         var presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, ct);
+            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, downloadFileName, ct);
 
         return presignedUrl;
     }

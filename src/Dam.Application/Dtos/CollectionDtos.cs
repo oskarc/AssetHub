@@ -101,6 +101,7 @@ public record CollectionAclResponseDto
     public string PrincipalType { get; init; } = "";
     public string PrincipalId { get; init; } = "";
     public string? PrincipalName { get; init; }
+    public string? PrincipalEmail { get; init; }
     public string Role { get; init; } = "";
     public DateTime CreatedAt { get; init; }
 }

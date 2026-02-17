@@ -114,9 +114,9 @@
                                 <td>
                                     <MudStack Spacing="0">
                                         <MudText Typo="Typo.body2">@(entry.PrincipalName ?? entry.PrincipalId)</MudText>
-                                        @if (entry.PrincipalName != null)
+                                        @if (!string.IsNullOrEmpty(entry.PrincipalEmail))
                                         {
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@entry.PrincipalId</MudText>
+                                            <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary);">@entry.PrincipalEmail</MudText>
                                         }
                                     </MudStack>
                                 </td>
@@ -186,7 +186,7 @@
                                             }
                                             else
                                             {
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary);">
                                                     @CollLoc["InsufficientLevel"]
                                                 </MudText>
                                             }

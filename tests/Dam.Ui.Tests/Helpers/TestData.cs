@@ -101,6 +101,7 @@ public static class TestData
         Guid? id = null,
         string principalId = "user-1",
         string? principalName = "testuser",
+        string? principalEmail = "testuser@test.com",
         string role = "viewer",
         string principalType = "user")
     {
@@ -110,6 +111,7 @@ public static class TestData
             PrincipalType = principalType,
             PrincipalId = principalId,
             PrincipalName = principalName,
+            PrincipalEmail = principalEmail,
             Role = role,
             CreatedAt = DateTime.UtcNow
         };

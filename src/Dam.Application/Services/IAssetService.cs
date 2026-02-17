@@ -73,5 +73,5 @@ public interface IAssetService
 
     /// <summary>Get a presigned download/preview URL for the requested rendition size.</summary>
     Task<ServiceResult<string>> GetRenditionUrlAsync(
-        Guid id, string size, CancellationToken ct);
+        Guid id, string size, bool forceDownload, CancellationToken ct);
 }

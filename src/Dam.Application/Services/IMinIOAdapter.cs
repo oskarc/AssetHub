@@ -31,8 +31,10 @@ public interface IMinIOAdapter
     /// <summary>
     /// Generate a presigned URL for downloading an object.
     /// Uses the public MinIO endpoint so browsers can access it directly.
+    /// When forceDownload is true, the URL will include response-content-disposition: attachment
+    /// to force the browser to download instead of displaying inline.
     /// </summary>
-    Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, CancellationToken cancellationToken = default);
+    Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, bool forceDownload = false, string? downloadFileName = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Generate a presigned URL for uploading (PUT) an object.

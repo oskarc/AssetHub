@@ -42,7 +42,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             .Returns(Task.CompletedTask);
         MockMinIO.Setup(m => m.ExistsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        MockMinIO.Setup(m => m.GetPresignedDownloadUrlAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        MockMinIO.Setup(m => m.GetPresignedDownloadUrlAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("https://test-presigned-url.example.com/file");
         MockMinIO.Setup(m => m.GetPresignedUploadUrlAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("https://test-presigned-url.example.com/upload");
@@ -55,6 +55,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         MockUserLookup.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) =>
                 ids.ToDictionary(id => id, id => $"user-{id[..8]}"));
+        MockUserLookup.Setup(m => m.GetUserEmailsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) =>
+                ids.ToDictionary(id => id, id => $"user-{id[..8]}@test.com"));
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

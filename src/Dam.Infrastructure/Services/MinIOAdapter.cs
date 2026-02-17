@@ -107,12 +107,22 @@ public class MinIOAdapter(
     /// Generate presigned download URL using the PUBLIC MinIO client,
     /// so the URL is accessible from browsers.
     /// </summary>
-    public async Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, CancellationToken cancellationToken = default)
+    public async Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, bool forceDownload = false, string? downloadFileName = null, CancellationToken cancellationToken = default)
     {
         var presignedGetObjectArgs = new PresignedGetObjectArgs()
             .WithBucket(bucketName)
             .WithObject(objectKey)
             .WithExpiry(expirySeconds);
+
+        if (forceDownload)
+        {
+            var fileName = downloadFileName ?? Path.GetFileName(objectKey);
+            var headers = new Dictionary<string, string>
+            {
+                ["response-content-disposition"] = $"attachment; filename=\"{fileName}\""
+            };
+            presignedGetObjectArgs.WithHeaders(headers);
+        }
 
         var url = await publicMinioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
         return url;

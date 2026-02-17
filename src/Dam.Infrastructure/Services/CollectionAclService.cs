@@ -59,6 +59,7 @@ public class CollectionAclService : ICollectionAclService
         var acls = await _aclRepo.GetByCollectionAsync(collectionId, ct);
         var userIds = acls.Where(a => a.PrincipalType == "user").Select(a => a.PrincipalId);
         var nameMap = await _userLookup.GetUserNamesAsync(userIds, ct);
+        var emailMap = await _userLookup.GetUserEmailsAsync(userIds, ct);
 
         var dtos = acls.Select(a => new CollectionAclResponseDto
         {
@@ -68,6 +69,7 @@ public class CollectionAclService : ICollectionAclService
             PrincipalName = a.PrincipalType == "user" && nameMap.TryGetValue(a.PrincipalId, out var name)
                 ? name
                 : a.PrincipalType == "user" ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : null,
+            PrincipalEmail = a.PrincipalType == "user" && emailMap.TryGetValue(a.PrincipalId, out var email) ? email : null,
             Role = a.Role,
             CreatedAt = a.CreatedAt
         });
@@ -102,11 +104,22 @@ public class CollectionAclService : ICollectionAclService
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = role },
             HttpCtx, ct);
 
+        string? principalName = null;
+        string? principalEmail = null;
+        if (principalType == "user")
+        {
+            principalName = await _userLookup.GetUserNameAsync(principalId, ct);
+            var emailMap = await _userLookup.GetUserEmailsAsync(new[] { principalId }, ct);
+            emailMap.TryGetValue(principalId, out principalEmail);
+        }
+
         return new CollectionAclResponseDto
         {
             Id = acl.Id,
             PrincipalType = acl.PrincipalType,
             PrincipalId = acl.PrincipalId,
+            PrincipalName = principalName,
+            PrincipalEmail = principalEmail,
             Role = acl.Role,
             CreatedAt = acl.CreatedAt
         };
@@ -255,9 +268,10 @@ public class CollectionAclService : ICollectionAclService
             .Distinct()
             .ToList();
         var userNames = await _userLookup.GetUserNamesAsync(allUserIds, ct);
+        var userEmails = await _userLookup.GetUserEmailsAsync(allUserIds, ct);
 
         var result = rootCollections
-            .Select(c => CollectionTreeHelper.BuildAccessTree(c, allCollections, userNames))
+            .Select(c => CollectionTreeHelper.BuildAccessTree(c, allCollections, userNames, userEmails))
             .ToList();
 
         return result;

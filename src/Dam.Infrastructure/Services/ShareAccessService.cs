@@ -126,7 +126,7 @@ public class ShareAccessService : IShareAccessService
 
         var presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
             BucketName, targetAsset.OriginalObjectKey,
-            Constants.Limits.PresignedDownloadExpirySec, ct);
+            Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, null, ct);
 
         return presignedUrl;
     }
@@ -354,7 +354,7 @@ public class ShareAccessService : IShareAccessService
     private async Task<ServiceResult<string>> GetPresignedUrl(string objectKey, CancellationToken ct)
     {
         var url = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, ct);
+            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, null, ct);
         return url;
     }
 }

@@ -15,6 +15,11 @@ public interface IUserLookupService
     /// Gets the username for a single user ID.
     /// </summary>
     Task<string?> GetUserNameAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets a mapping of user IDs to email addresses for the given user IDs.
+    /// </summary>
+    Task<Dictionary<string, string>> GetUserEmailsAsync(IEnumerable<string> userIds, CancellationToken ct = default);
     
     /// <summary>
     /// Gets the user ID for a given username. Returns null if user doesn't exist.

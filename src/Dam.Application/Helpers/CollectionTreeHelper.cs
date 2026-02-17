@@ -14,7 +14,8 @@ public static class CollectionTreeHelper
     public static CollectionAccessDto BuildAccessTree(
         Collection collection,
         List<Collection> allCollections,
-        Dictionary<string, string> userNames)
+        Dictionary<string, string> userNames,
+        Dictionary<string, string>? userEmails = null)
     {
         var children = allCollections.Where(c => c.ParentId == collection.Id).ToList();
 
@@ -32,9 +33,10 @@ public static class CollectionTreeHelper
                 PrincipalName = a.PrincipalType == "user" && userNames.TryGetValue(a.PrincipalId, out var name)
                     ? name
                     : a.PrincipalType == "user" ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : a.PrincipalId,
+                PrincipalEmail = a.PrincipalType == "user" && userEmails != null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
                 Role = a.Role
             }).ToList(),
-            Children = children.Select(c => BuildAccessTree(c, allCollections, userNames)).ToList()
+            Children = children.Select(c => BuildAccessTree(c, allCollections, userNames, userEmails)).ToList()
         };
     }
 
