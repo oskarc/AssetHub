@@ -18,6 +18,7 @@ public class CollectionService : ICollectionService
     private readonly ICollectionRepository _collectionRepo;
     private readonly ICollectionAclRepository _aclRepo;
     private readonly IAssetRepository _assetRepo;
+    private readonly IShareRepository _shareRepo;
     private readonly ICollectionAuthorizationService _authService;
     private readonly IAssetDeletionService _deletionService;
     private readonly IZipDownloadService _zipService;
@@ -31,6 +32,7 @@ public class CollectionService : ICollectionService
         ICollectionRepository collectionRepo,
         ICollectionAclRepository aclRepo,
         IAssetRepository assetRepo,
+        IShareRepository shareRepo,
         ICollectionAuthorizationService authService,
         IAssetDeletionService deletionService,
         IZipDownloadService zipService,
@@ -43,6 +45,7 @@ public class CollectionService : ICollectionService
         _collectionRepo = collectionRepo;
         _aclRepo = aclRepo;
         _assetRepo = assetRepo;
+        _shareRepo = shareRepo;
         _authService = authService;
         _deletionService = deletionService;
         _zipService = zipService;
@@ -190,6 +193,7 @@ public class CollectionService : ICollectionService
             return ServiceError.NotFound("Collection not found");
 
         await _deletionService.DeleteCollectionAssetsAsync(id, BucketName, ct);
+        await _shareRepo.DeleteByScopeAsync("collection", id, ct);
         await _collectionRepo.DeleteAsync(id, ct);
 
         await _audit.LogAsync("collection.deleted", "collection", id, userId, httpContext: HttpCtx, ct: ct);

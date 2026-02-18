@@ -9,10 +9,12 @@ namespace Dam.Infrastructure.Services;
 public class AssetDeletionService(
     IAssetRepository assetRepository,
     IAssetCollectionRepository assetCollectionRepo,
+    IShareRepository shareRepository,
     IMinIOAdapter minioAdapter) : IAssetDeletionService
 {
     public async Task PermanentDeleteAsync(Asset asset, string bucketName, CancellationToken ct = default)
     {
+        await shareRepository.DeleteByScopeAsync("asset", asset.Id, ct);
         await minioAdapter.DeleteAssetObjectsAsync(bucketName, asset, ct);
         await assetRepository.DeleteAsync(asset.Id, ct);
     }
@@ -38,6 +40,8 @@ public class AssetDeletionService(
         Guid collectionId, string bucketName, CancellationToken ct = default)
     {
         var deletedAssets = await assetRepository.DeleteByCollectionAsync(collectionId, ct);
+        foreach (var asset in deletedAssets)
+            await shareRepository.DeleteByScopeAsync("asset", asset.Id, ct);
         await minioAdapter.DeleteAssetObjectsBatchAsync(bucketName, deletedAssets, ct);
         return deletedAssets;
     }

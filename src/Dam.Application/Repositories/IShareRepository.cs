@@ -19,6 +19,11 @@ public interface IShareRepository
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Deletes all shares for a given scope (e.g. all shares for an asset or collection).
+    /// </summary>
+    Task DeleteByScopeAsync(string scopeType, Guid scopeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Atomically increments the access count and updates LastAccessedAt using a single SQL UPDATE.
     /// Avoids the read-modify-write race condition of fetching the entity first.
     /// </summary>

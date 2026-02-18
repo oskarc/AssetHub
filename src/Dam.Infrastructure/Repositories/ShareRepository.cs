@@ -104,6 +104,13 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
         }
     }
 
+    public async Task DeleteByScopeAsync(string scopeType, Guid scopeId, CancellationToken cancellationToken = default)
+    {
+        await dbContext.Shares
+            .Where(s => s.ScopeType == scopeType && s.ScopeId == scopeId)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
     public async Task IncrementAccessAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await dbContext.Shares
