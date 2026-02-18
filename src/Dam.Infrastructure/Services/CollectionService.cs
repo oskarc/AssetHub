@@ -93,6 +93,13 @@ public class CollectionService : ICollectionService
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 255)
             return ServiceError.BadRequest("Name must be 1-255 characters");
 
+        if (!dto.ParentId.HasValue)
+        {
+            var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, ct: ct);
+            if (nameExists)
+                return ServiceError.BadRequest($"A top-level collection named '{dto.Name}' already exists");
+        }
+
         if (dto.ParentId.HasValue)
         {
             var canCreate = await _authService.CanCreateSubCollectionAsync(userId, dto.ParentId.Value, ct);
@@ -152,7 +159,15 @@ public class CollectionService : ICollectionService
             return ServiceError.NotFound("Collection not found");
 
         if (!string.IsNullOrWhiteSpace(dto.Name))
+        {
+            if (collection.ParentId == null && !string.Equals(collection.Name, dto.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct);
+                if (nameExists)
+                    return ServiceError.BadRequest($"A top-level collection named '{dto.Name}' already exists");
+            }
             collection.Name = dto.Name;
+        }
         if (dto.Description != null)
             collection.Description = dto.Description;
 

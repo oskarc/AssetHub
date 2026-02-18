@@ -49,11 +49,23 @@ public class MinIOAdapter(
 
     public async Task DeleteAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
     {
-        var removeObjectArgs = new RemoveObjectArgs()
-            .WithBucket(bucketName)
-            .WithObject(objectKey);
+        try
+        {
+            var removeObjectArgs = new RemoveObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectKey);
 
-        await minioClient.RemoveObjectAsync(removeObjectArgs, cancellationToken);
+            await minioClient.RemoveObjectAsync(removeObjectArgs, cancellationToken);
+        }
+        catch (ObjectNotFoundException)
+        {
+            // Object already deleted – nothing to do.
+            logger.LogDebug("Object {BucketName}/{ObjectKey} not found during delete – ignoring", bucketName, objectKey);
+        }
+        catch (BucketNotFoundException)
+        {
+            logger.LogWarning("Bucket {BucketName} not found during delete of {ObjectKey} – ignoring", bucketName, objectKey);
+        }
     }
 
     public async Task<bool> ExistsAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)

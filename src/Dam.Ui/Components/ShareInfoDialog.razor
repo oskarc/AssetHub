@@ -23,6 +23,18 @@
             </MudText>
             <MudDivider />
 
+            @if (Share.ScopeType == "asset" && Share.CollectionNames.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2">@AdminLoc["Label_MemberOfCollections"]</MudText>
+                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                    @foreach (var name in Share.CollectionNames)
+                    {
+                        <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Folder" Variant="Variant.Outlined">@name</MudChip>
+                    }
+                </MudStack>
+                <MudDivider />
+            }
+
             @if (_isLoading)
             {
                 <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
@@ -47,7 +59,7 @@
                 <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Key" OnClick="OpenSetPassword">@ShareLoc["SetOrChangePassword"]</MudButton>
             </MudStack>
 
-            <MudAlert Severity="Severity.Info" Dense="true" Style="margin-top:8px;">
+            <MudAlert Severity="Severity.Info" Dense="true" Class="share-metadata-margin">
                 <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
                 @ShareLoc["ShareInfoCopyHint"]
             </MudAlert>

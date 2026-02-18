@@ -1,4 +1,5 @@
 @using Dam.Application.Dtos
+@using Dam.Application.Helpers
 @using Dam.Ui.Services
 
 @inject AssetHubApiClient Api
@@ -98,7 +99,7 @@
             // Filter out collections the asset already belongs to
             _availableCollections = allCollections
                 .Where(c => !ExistingCollectionIds.Contains(c.Id))
-                .OrderBy(c => c.Name)
+                .OrderBy(c => c.Name, new NaturalSortComparer())
                 .ToList();
         }
         catch (Exception ex)

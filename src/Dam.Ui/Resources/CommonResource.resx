@@ -96,6 +96,7 @@
   <data name="Label_Collection" xml:space="preserve"><value>Collection</value></data>
   <data name="Label_Collections" xml:space="preserve"><value>Collections</value></data>
   <data name="Label_Description" xml:space="preserve"><value>Description</value></data>
+  <data name="Label_Copyright" xml:space="preserve"><value>Copyright</value></data>
   <data name="Label_Size" xml:space="preserve"><value>Size</value></data>
   <data name="Label_Created" xml:space="preserve"><value>Created</value></data>
   <data name="Label_Updated" xml:space="preserve"><value>Updated</value></data>
@@ -136,6 +137,7 @@
   <data name="Text_Loading" xml:space="preserve"><value>Loading...</value></data>
   <data name="Text_Never" xml:space="preserve"><value>Never</value></data>
   <data name="Text_None" xml:space="preserve"><value>None</value></data>
+  <data name="Text_AllCollections" xml:space="preserve"><value>All (admin)</value></data>
   <data name="Text_NoAccess" xml:space="preserve"><value>No access</value></data>
   <data name="Text_SignedIn" xml:space="preserve"><value>Signed In</value></data>
   <data name="Text_NoTags" xml:space="preserve"><value>No tags</value></data>

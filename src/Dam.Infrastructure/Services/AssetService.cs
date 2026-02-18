@@ -261,6 +261,7 @@ public class AssetService : IAssetService
 
         if (dto.Title != null) asset.Title = dto.Title;
         if (dto.Description != null) asset.Description = dto.Description;
+        if (dto.Copyright != null) asset.Copyright = dto.Copyright;
         if (dto.Tags != null) asset.Tags = dto.Tags;
         if (dto.MetadataJson != null) asset.MetadataJson = dto.MetadataJson;
         asset.UpdatedAt = DateTime.UtcNow;
@@ -272,17 +273,15 @@ public class AssetService : IAssetService
     }
 
     public async Task<ServiceResult> DeleteAsync(
-        Guid id, Guid? fromCollectionId, bool permanent, CancellationToken ct)
+        Guid id, Guid? fromCollectionId, CancellationToken ct)
     {
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(id, ct);
         if (asset == null)
             return ServiceError.NotFound("Asset not found");
 
-        var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
-
-        // "Remove from this collection" mode
-        if (fromCollectionId.HasValue && !permanent && assetCollections.Count > 1)
+        // "Remove from this collection" mode — backend decides if it becomes a permanent delete
+        if (fromCollectionId.HasValue)
         {
             if (!_currentUser.IsSystemAdmin)
             {
@@ -291,14 +290,28 @@ public class AssetService : IAssetService
                     return ServiceError.Forbidden();
             }
 
-            await _assetCollectionRepo.RemoveFromCollectionAsync(id, fromCollectionId.Value, ct);
-            await _audit.LogAsync("asset.removed_from_collection", "asset", id, userId,
-                new() { ["title"] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() },
-                HttpContext, ct);
+            var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, BucketName, ct);
+            if (!removed)
+                return ServiceError.NotFound("Asset is not linked to this collection");
+
+            if (permanentlyDeleted)
+            {
+                await _audit.LogAsync("asset.deleted", "asset", id, userId,
+                    new() { ["title"] = asset.Title, ["reason"] = "last_collection" },
+                    HttpContext, ct);
+            }
+            else
+            {
+                await _audit.LogAsync("asset.removed_from_collection", "asset", id, userId,
+                    new() { ["title"] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() },
+                    HttpContext, ct);
+            }
             return ServiceResult.Success;
         }
 
-        // Permanent delete mode
+        // Full permanent delete (no specific collection context)
+        var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
+
         if (!_currentUser.IsSystemAdmin)
         {
             var authorizedCollectionIds = await _authService.FilterAccessibleAsync(
@@ -309,6 +322,7 @@ public class AssetService : IAssetService
             var unauthorizedRemain = assetCollections.Except(authorizedCollectionIds).Any();
             if (unauthorizedRemain)
             {
+                // User can only remove from the collections they manage
                 foreach (var collId in authorizedCollectionIds)
                     await _assetCollectionRepo.RemoveFromCollectionAsync(id, collId, ct);
 

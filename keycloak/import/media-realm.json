@@ -169,7 +169,8 @@
       "serviceAccountsEnabled": false,
       "defaultClientScopes": ["profile", "email", "roles"],
       "redirectUris": [
-        "https://assethub.local:7252/signin-oidc"
+        "https://assethub.local:7252/signin-oidc",
+        "https://assethub.local:7252/signout-callback-oidc"
       ],
       "webOrigins": [
         "https://assethub.local:7252"

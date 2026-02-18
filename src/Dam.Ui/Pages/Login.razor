@@ -8,13 +8,13 @@
 
 <PageTitle>@CommonLoc["Btn_SignIn"] - @CommonLoc["AppName"]</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 100vh;">
-    <MudPaper Class="pa-8" Elevation="4" Style="width: 100%; max-width: 400px;">
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center login-container">
+    <MudPaper Class="pa-8 login-card" Elevation="4">
         <MudStack Spacing="4" AlignItems="AlignItems.Center">
             <MudIcon Icon="@Icons.Material.Filled.Collections" 
                      Color="Color.Primary" 
                      Size="Size.Large" 
-                     Style="font-size: 4rem;" />
+                     Class="login-icon" />
             
             <MudText Typo="Typo.h4" Align="Align.Center">
                 @CommonLoc["AppName"]
@@ -24,7 +24,7 @@
                 @CommonLoc["AppSubtitle"]
             </MudText>
 
-            <MudDivider Class="my-4" FlexItem="true" Style="width: 100%;" />
+            <MudDivider Class="my-4 login-button" FlexItem="true" />
 
             <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">
                 @CommonLoc["Text_SignInDescription"]

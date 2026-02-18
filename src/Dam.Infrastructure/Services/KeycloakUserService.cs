@@ -344,4 +344,36 @@ public class KeycloakUserService : IKeycloakUserService
         }
         return null;
     }
+
+    /// <inheritdoc />
+    public async Task<HashSet<string>> GetRealmRoleMemberIdsAsync(string roleName, CancellationToken ct = default)
+    {
+        var token = await GetAdminTokenAsync(ct);
+        var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles/{Uri.EscapeDataString(roleName)}/users";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await _httpClient.SendAsync(request, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Failed to get realm role members for '{Role}'. Status: {Status}", roleName, response.StatusCode);
+            return new HashSet<string>();
+        }
+
+        var users = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (users.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var user in users.EnumerateArray())
+            {
+                if (user.TryGetProperty("id", out var idProp) && idProp.GetString() is { } id)
+                    ids.Add(id);
+            }
+        }
+
+        return ids;
+    }
 }

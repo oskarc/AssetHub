@@ -52,6 +52,7 @@
   <data name="RevokeShare" xml:space="preserve"><value>Revoke Share</value></data>
   <data name="ConfirmRevokeShare" xml:space="preserve"><value>Are you sure you want to revoke the share for "{0}"? This action cannot be undone.</value></data>
   <data name="ShareRevokedSuccess" xml:space="preserve"><value>Share revoked successfully</value></data>
+  <data name="Label_MemberOfCollections" xml:space="preserve"><value>Member of Collections</value></data>
 
   <!-- Collection Access -->
   <data name="CollectionAccessControl" xml:space="preserve"><value>Collection Access Control</value></data>
@@ -118,4 +119,7 @@
   <data name="SyncNoGhostUsers" xml:space="preserve"><value>All users are in sync — no orphaned data found</value></data>
   <data name="SyncConfirm" xml:space="preserve"><value>Found {0} deleted user(s) with orphaned data: {1} ACL(s) and {2} share(s) will be removed. Proceed?</value></data>
   <data name="SyncCompleted" xml:space="preserve"><value>Sync complete: cleaned up {0} deleted user(s), removed {1} ACL(s) and revoked {2} share(s)</value></data>
+
+  <!-- Admin Role -->
+  <data name="AdminImplicitAccess" xml:space="preserve"><value>System admins have implicit access to all collections via their role</value></data>
 </root>

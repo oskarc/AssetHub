@@ -7,6 +7,7 @@ public class AssetResponseDto
     public required string Status { get; set; }
     public required string Title { get; set; }
     public string? Description { get; set; }
+    public string? Copyright { get; set; }
     public List<string> Tags { get; set; } = new();
     public Dictionary<string, object> MetadataJson { get; set; } = new();
     public required string ContentType { get; set; }

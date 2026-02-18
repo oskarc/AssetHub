@@ -33,6 +33,8 @@
   <!-- Collection Dialog -->
   <data name="CreateCollection" xml:space="preserve"><value>Skapa samling</value></data>
   <data name="CollectionName" xml:space="preserve"><value>Samlingsnamn</value></data>
+  <data name="DescriptionOptional" xml:space="preserve"><value>Beskrivning (valfritt)</value></data>
+  <data name="Validation_NameRequired" xml:space="preserve"><value>Samlingsnamn krävs</value></data>
   <data name="SubCollectionHint" xml:space="preserve"><value>Denna skapas som en undersamling.</value></data>
 
   <!-- Collection Tree -->
@@ -42,6 +44,7 @@
   <data name="DeleteCollection" xml:space="preserve"><value>Ta bort samling</value></data>
   <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Är du säker på att du vill ta bort '{0}'?{1} Denna åtgärd kan inte ångras.</value></data>
   <data name="AssetCountWarning" xml:space="preserve"><value> Denna samling innehåller {0} tillgång(ar) som också kommer att tas bort.</value></data>
+  <data name="DeletedSuccess" xml:space="preserve"><value>Samling har tagits bort</value></data>
   <data name="ClearSelection" xml:space="preserve"><value>Rensa val</value></data>
 
   <!-- Manage Access Dialog -->

@@ -28,6 +28,11 @@
                           Lines="3"
                           Class="mb-3" />
 
+            <MudTextField @bind-Value="_copyright"
+                          Label="@AssetLoc["CopyrightOptional"]"
+                          Variant="Variant.Outlined"
+                          Class="mb-3" />
+
             <MudText Typo="Typo.subtitle2" Class="mb-2">@CommonLoc["Label_Tags"]</MudText>
             <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mb-2">
                 @foreach (var tag in _tags)
@@ -53,7 +58,7 @@
                               Margin="Margin.Dense"
                               OnKeyDown="OnTagKeyDown"
                               Immediate="true"
-                              Style="flex: 1;" />
+                              Class="dialog-flex-fill" />
                 <MudButton Variant="Variant.Outlined" 
                            OnClick="AddTag"
                            Disabled="@string.IsNullOrWhiteSpace(_newTag)"
@@ -88,6 +93,7 @@
     private MudForm? _form;
     private string _title = "";
     private string _description = "";
+    private string _copyright = "";
     private List<string> _tags = new();
     private string _newTag = "";
     private bool _isValid;
@@ -99,6 +105,7 @@
         {
             _title = Asset.Title;
             _description = Asset.Description ?? "";
+            _copyright = Asset.Copyright ?? "";
             _tags = Asset.Tags?.ToList() ?? new();
         }
     }
@@ -144,6 +151,7 @@
             {
                 Title = _title,
                 Description = string.IsNullOrWhiteSpace(_description) ? null : _description,
+                Copyright = string.IsNullOrWhiteSpace(_copyright) ? null : _copyright,
                 Tags = _tags
             };
 

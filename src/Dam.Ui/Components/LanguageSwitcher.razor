@@ -3,17 +3,30 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<MudSelect T="string"
-           Value="@_currentCulture"
-           ValueChanged="OnCultureChanged"
-           Variant="Variant.Text"
-           Dense="true"
-           Margin="Margin.Dense"
-           Class="language-switcher"
-           Style="max-width: 120px; color: inherit;">
-    <MudSelectItem Value="@("en")">English</MudSelectItem>
-    <MudSelectItem Value="@("sv")">Svenska</MudSelectItem>
-</MudSelect>
+<MudMenu Icon="@Icons.Material.Filled.Language"
+         Color="Color.Inherit"
+         Dense="true"
+         AnchorOrigin="Origin.BottomCenter"
+         TransformOrigin="Origin.TopCenter">
+    <MudMenuItem OnClick="@(() => SetCulture("en"))">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText>English</MudText>
+            @if (_currentCulture == "en")
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" />
+            }
+        </MudStack>
+    </MudMenuItem>
+    <MudMenuItem OnClick="@(() => SetCulture("sv"))">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText>Svenska</MudText>
+            @if (_currentCulture == "sv")
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" />
+            }
+        </MudStack>
+    </MudMenuItem>
+</MudMenu>
 
 @code {
     private string _currentCulture = "en";
@@ -23,20 +36,17 @@
         _currentCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
     }
 
-    private async Task OnCultureChanged(string culture)
+    private async Task SetCulture(string culture)
     {
         if (culture == _currentCulture) return;
-
         _currentCulture = culture;
 
-        // Set the culture cookie that RequestLocalization reads
         var cookieValue = CookieRequestCultureProvider.MakeCookieValue(
             new RequestCulture(culture, culture));
 
         var jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
         await jsModule.InvokeVoidAsync("setCookie", CookieRequestCultureProvider.DefaultCookieName, cookieValue, 31536000);
 
-        // Force a full page reload so the server-side middleware picks up the new cookie
         Nav.NavigateTo(Nav.Uri, forceLoad: true);
     }
 }

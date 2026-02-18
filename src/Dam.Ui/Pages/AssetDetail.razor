@@ -55,20 +55,19 @@ else
                         <MudImage Src="@GetPreviewUrl()" 
                                   Alt="@_asset.Title"
                                   ObjectFit="ObjectFit.Contain"
-                                  Style="width: 100%; max-height: 600px;"
-                                  Class="rounded" />
+                                  Class="media-preview-image rounded" />
                     }
                     else if (_asset.AssetType == "video")
                     {
-                        <video controls style="width: 100%; max-height: 600px;">
-                            <source src="@GetPreviewUrl()" type="@_asset.ContentType">
+                        <video controls poster="@GetPosterUrl()" class="media-preview-video">
+                            <source src="@GetVideoUrl()" type="@_asset.ContentType">
                             @CommonLoc["Text_BrowserNoVideo"]
                         </video>
                     }
                     else if (AssetDisplayHelpers.IsPdfContentType(_asset.ContentType))
                     {
                         <iframe src="@GetInlinePreviewUrl()" 
-                                style="width: 100%; height: 600px; border: none;" 
+                                class="media-preview-iframe" 
                                 title="@_asset.Title">
                         </iframe>
                     }
@@ -135,8 +134,8 @@ else
                                                      Size="Size.Small" 
                                                      Color="Color.Secondary"
                                                      Icon="@Icons.Material.Filled.Folder"
-                                                     OnClick="@(() => Nav.NavigateTo($"/assets?collection={collection.Id}"))"
-                                                     Style="cursor: pointer;">
+                                                     OnClick="@(() => Nav.NavigateTo($"/collections?collection={collection.Id}"))"
+                                                     Class="clickable">
                                                 @collection.Name
                                             </MudChip>
                                             @if (RolePermissions.CanManageCollections(_asset?.UserRole))
@@ -153,7 +152,7 @@ else
                             }
                             else
                             {
-                                <MudText Typo="Typo.body2" Style="opacity: 0.6; font-style: italic;">
+                                <MudText Typo="Typo.body2" Class="asset-detail-italic">
                                     Not assigned to any collection
                                 </MudText>
                             }
@@ -163,8 +162,20 @@ else
                         @if (!string.IsNullOrEmpty(_asset.Description))
                         {
                             <MudStack>
-                                <MudText Typo="Typo.subtitle2">Description</MudText>
+                                <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Description"]</MudText>
                                 <MudText Typo="Typo.body2">@_asset.Description</MudText>
+                            </MudStack>
+                        }
+
+                        <!-- Copyright -->
+                        @if (!string.IsNullOrEmpty(_asset.Copyright))
+                        {
+                            <MudStack>
+                                <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Copyright"]</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Copyright" Size="Size.Small" Color="Color.Secondary" />
+                                    <MudText Typo="Typo.body2">@_asset.Copyright</MudText>
+                                </MudStack>
                             </MudStack>
                         }
 
@@ -195,7 +206,7 @@ else
                                             <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_SHA256"]</MudText></td>
                                             <td>
                                                 <MudTooltip Text="@_asset.Sha256">
-                                                    <MudText Typo="Typo.body2" Style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
+                                                    <MudText Typo="Typo.body2" Class="asset-detail-truncate">
                                                         @_asset.Sha256[..16]...
                                                     </MudText>
                                                 </MudTooltip>
@@ -231,12 +242,11 @@ else
                         <!-- Advanced Metadata (Expandable) -->
                         <MudDivider />
                         <MudStack>
-                            <MudExpansionPanels Elevation="0" Style="margin: -16px; padding: 0;">
+                            <MudExpansionPanels Elevation="0" Class="share-panel-reset">
                                 <MudExpansionPanel MaxHeight="400"
-                                                   Style="background: transparent; padding: 0;"
-                                                   Class="pa-0 ma-0">
+                                                   Class="share-panel-header pa-0 ma-0">
                                     <TitleContent>
-                                        <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">@CommonLoc["Text_AdvancedMetadata"]</MudText>
+                                        <MudText Typo="Typo.subtitle2" Class="share-panel-icon">@CommonLoc["Text_AdvancedMetadata"]</MudText>
                                     </TitleContent>
                                     <ChildContent>
                                         @if (_asset.MetadataJson.Where(k => k.Key != "error").Any())
@@ -431,18 +441,28 @@ else
     {
         if (_asset == null) return "";
 
-        // Use medium rendition for images, poster for videos
+        // Use medium rendition for images
         if (_asset.AssetType == "image" && !string.IsNullOrEmpty(_asset.MediumObjectKey))
         {
             return $"/api/assets/{_asset.Id}/medium";
         }
-        else if (_asset.AssetType == "video" && !string.IsNullOrEmpty(_asset.PosterObjectKey))
-        {
-            return $"/api/assets/{_asset.Id}/poster";
-        }
 
         // Fallback to original
         return $"/api/assets/{_asset.Id}/download";
+    }
+
+    private string GetVideoUrl()
+    {
+        if (_asset == null) return "";
+        return $"/api/assets/{_asset.Id}/preview";
+    }
+
+    private string GetPosterUrl()
+    {
+        if (_asset == null) return "";
+        if (!string.IsNullOrEmpty(_asset.PosterObjectKey))
+            return $"/api/assets/{_asset.Id}/poster";
+        return "";
     }
 
     private string GetDownloadUrl()
@@ -524,15 +544,14 @@ else
 
         if (result != null && !result.Canceled && result.Data is string)
         {
-            // AssetDetail always does a permanent delete (no FromCollectionId context).
             var success = await Feedback.ExecuteWithFeedbackAsync(
-                () => Api.DeleteAssetAsync(_asset.Id, permanent: true),
+                () => Api.DeleteAssetAsync(_asset.Id),
                 "delete asset",
                 AssetLoc["AssetDeletedSuccess"]);
 
             if (success)
             {
-                Nav.NavigateTo("/assets");
+                Nav.NavigateTo("/collections");
             }
         }
     }
@@ -545,7 +564,7 @@ else
         }
         else
         {
-            Nav.NavigateTo("/assets");
+            Nav.NavigateTo("/collections");
         }
     }
 }

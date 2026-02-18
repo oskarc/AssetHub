@@ -64,6 +64,11 @@ public interface IKeycloakUserService
     /// <param name="ct">Cancellation token.</param>
     /// <exception cref="KeycloakApiException">Thrown when user deletion fails.</exception>
     Task DeleteUserAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the IDs of all users who have a specific realm role (e.g. "admin").
+    /// </summary>
+    Task<HashSet<string>> GetRealmRoleMemberIdsAsync(string roleName, CancellationToken ct = default);
 }
 
 /// <summary>

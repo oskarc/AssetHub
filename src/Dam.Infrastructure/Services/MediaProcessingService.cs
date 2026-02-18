@@ -140,7 +140,7 @@ public class MediaProcessingService(
     public async Task ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
         var tempOriginal = Path.GetTempFileName();
-        var posterPath = Path.GetTempFileName();
+        var posterPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         
         try
         {
@@ -243,7 +243,7 @@ public class MediaProcessingService(
         };
         command.ArgumentList.Add(inputPath);
         command.ArgumentList.Add("-resize");
-        command.ArgumentList.Add($"{maxWidth}x{maxHeight}");
+        command.ArgumentList.Add($"{maxWidth}x{maxHeight}>");
         command.ArgumentList.Add("-quality");
         command.ArgumentList.Add(_imageSettings.JpegQuality.ToString());
         command.ArgumentList.Add(outputPath);

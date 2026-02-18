@@ -21,6 +21,7 @@ public static class AssetMapper
             Status = asset.Status,
             Title = asset.Title,
             Description = asset.Description,
+            Copyright = asset.Copyright,
             Tags = asset.Tags,
             MetadataJson = asset.MetadataJson,
             ContentType = asset.ContentType,

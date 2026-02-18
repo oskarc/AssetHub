@@ -52,6 +52,7 @@
   <data name="RevokeShare" xml:space="preserve"><value>Återkalla delning</value></data>
   <data name="ConfirmRevokeShare" xml:space="preserve"><value>Är du säker på att du vill återkalla delningen för "{0}"? Denna åtgärd kan inte ångras.</value></data>
   <data name="ShareRevokedSuccess" xml:space="preserve"><value>Delning återkallad</value></data>
+  <data name="Label_MemberOfCollections" xml:space="preserve"><value>Ingår i samlingar</value></data>
 
   <!-- Collection Access -->
   <data name="CollectionAccessControl" xml:space="preserve"><value>Åtkomstkontroll för samlingar</value></data>
@@ -118,4 +119,7 @@
   <data name="SyncNoGhostUsers" xml:space="preserve"><value>Alla användare är synkade — inga kvarvarande data hittades</value></data>
   <data name="SyncConfirm" xml:space="preserve"><value>Hittade {0} borttagen(a) användare med kvarvarande data: {1} åtkomstregler och {2} delningslänkar kommer att tas bort. Fortsätt?</value></data>
   <data name="SyncCompleted" xml:space="preserve"><value>Synkronisering klar: rensade {0} borttagen(a) användare, tog bort {1} åtkomstregler och återkallade {2} delningslänkar</value></data>
+
+  <!-- Admin Role -->
+  <data name="AdminImplicitAccess" xml:space="preserve"><value>Systemadministratörer har implicit åtkomst till alla samlingar via sin roll</value></data>
 </root>

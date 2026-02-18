@@ -54,6 +54,7 @@
   <data name="RemoveFromCollection" xml:space="preserve"><value>Ta bort från samling</value></data>
   <data name="ConfirmRemoveFromCollection" xml:space="preserve"><value>Ta bort denna tillgång från '{0}'?</value></data>
   <data name="DescriptionOptional" xml:space="preserve"><value>Beskrivning (valfritt)</value></data>
+  <data name="CopyrightOptional" xml:space="preserve"><value>Upphovsrätt (valfritt)</value></data>
   <data name="SelectCollectionToAdd" xml:space="preserve"><value>Välj en samling att lägga till denna tillgång i:</value></data>
   <data name="NoAdditionalCollections" xml:space="preserve"><value>Inga ytterligare samlingar tillgängliga. Denna tillgång finns redan i alla samlingar du har åtkomst till.</value></data>
 

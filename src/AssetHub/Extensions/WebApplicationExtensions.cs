@@ -228,6 +228,27 @@ public static class WebApplicationExtensions
                     await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
                 }
             }
+            catch (Microsoft.AspNetCore.Http.BadHttpRequestException badEx) when (context.Request.Path.StartsWithSegments("/api"))
+            {
+                var logger = context.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("ApiExceptionHandler");
+                logger.LogWarning(badEx, "Bad request on {Method} {Path}",
+                    context.Request.Method, context.Request.Path);
+
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    context.Response.ContentType = "application/problem+json";
+                    await context.Response.WriteAsJsonAsync(new
+                    {
+                        type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                        title = "Bad request",
+                        status = 400,
+                        detail = "The request was invalid. Please try again."
+                    });
+                }
+            }
             catch (Exception ex) when (context.Request.Path.StartsWithSegments("/api"))
             {
                 var logger = context.RequestServices
@@ -245,7 +266,7 @@ public static class WebApplicationExtensions
                         type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
                         title = "An unexpected error occurred",
                         status = 500,
-                        detail = "Please try again or contact support."
+                        detail = "Something went wrong on the server. Please try again or contact support."
                     });
                 }
             }

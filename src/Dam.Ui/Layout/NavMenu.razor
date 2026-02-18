@@ -6,7 +6,7 @@
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@CommonLoc["Nav_Home"]</MudNavLink>
-            <MudNavLink Href="assets" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PhotoLibrary">@CommonLoc["Nav_Collections"]</MudNavLink>
+            <MudNavLink Href="collections" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PhotoLibrary">@CommonLoc["Nav_Collections"]</MudNavLink>
             
             <AuthorizeView Policy="RequireAdmin" Context="adminContext">
                 <Authorized>

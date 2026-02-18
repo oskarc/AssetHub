@@ -53,13 +53,28 @@ public class AssetHubApiClient
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(errorContent);
-            if (doc.RootElement.TryGetProperty("error", out var errorProp))
-            {
+            var root = doc.RootElement;
+
+            // Standard {"error": "..."} format
+            if (root.TryGetProperty("error", out var errorProp))
                 return errorProp.GetString() ?? errorContent;
-            }
-            if (doc.RootElement.TryGetProperty("message", out var messageProp))
-            {
+
+            // Standard {"message": "..."} format
+            if (root.TryGetProperty("message", out var messageProp))
                 return messageProp.GetString() ?? errorContent;
+
+            // RFC 7807 ProblemDetails format {"title": "...", "detail": "..."}
+            if (root.TryGetProperty("detail", out var detailProp))
+            {
+                var detail = detailProp.GetString();
+                if (!string.IsNullOrWhiteSpace(detail))
+                    return detail;
+            }
+            if (root.TryGetProperty("title", out var titleProp))
+            {
+                var title = titleProp.GetString();
+                if (!string.IsNullOrWhiteSpace(title))
+                    return title;
             }
         }
         catch
@@ -331,18 +346,15 @@ public class AssetHubApiClient
     }
 
     /// <summary>
-    /// Deletes an asset. When fromCollectionId is set and permanent is false,
-    /// the asset is only removed from that collection (if it belongs to multiple).
+    /// Deletes an asset. When fromCollectionId is set the asset is removed from that
+    /// collection (and auto-deleted by the backend when orphaned). Without fromCollectionId
+    /// a full permanent delete is performed.
     /// </summary>
-    public virtual async Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, bool permanent = true, CancellationToken ct = default)
+    public virtual async Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, CancellationToken ct = default)
     {
         var url = $"/api/assets/{id}";
-        if (fromCollectionId.HasValue && !permanent)
-            url += $"?fromCollectionId={fromCollectionId.Value}&permanent=false";
-        else if (fromCollectionId.HasValue)
+        if (fromCollectionId.HasValue)
             url += $"?fromCollectionId={fromCollectionId.Value}";
-        else if (!permanent)
-            url += "?permanent=false";
 
         var response = await _http.DeleteAsync(url, ct);
         await EnsureSuccessAsync(response, "Delete asset");

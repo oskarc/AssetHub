@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dam.Domain.Entities;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Dam.Infrastructure.Data;
 
@@ -70,6 +71,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
 
             entity.Property(e => e.Title).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.Copyright).HasMaxLength(500);
             entity.Property(e => e.AssetType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
             entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
@@ -81,7 +83,11 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.Tags).HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                 v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
-                .HasColumnType("jsonb");
+                .HasColumnType("jsonb")
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
 
             entity.Property(e => e.MetadataJson).HasColumnType("jsonb");
         });

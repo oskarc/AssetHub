@@ -311,6 +311,7 @@ public class ShareAccessService : IShareAccessService
             Id = asset.Id,
             Title = asset.Title,
             Description = asset.Description,
+            Copyright = asset.Copyright,
             AssetType = asset.AssetType,
             ContentType = asset.ContentType,
             SizeBytes = asset.SizeBytes,

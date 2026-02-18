@@ -153,7 +153,7 @@
                 <MudItem xs="12" md="5">
                     <MudPaper Elevation="2" Class="pa-4 admin-collection-tree">
                         <MudText Typo="Typo.subtitle1" Class="mb-2">@CommonLoc["Label_Collections"]</MudText>
-                        @foreach (var collection in _collections)
+                        @foreach (var collection in _collections.OrderBy(c => c.Name, new NaturalSortComparer()))
                         {
                             @RenderCollectionTree(collection, 0)
                         }
@@ -242,7 +242,7 @@
                                                         <MudText Typo="Typo.body2">@acl.PrincipalName</MudText>
                                                         @if (!string.IsNullOrEmpty(acl.PrincipalEmail))
                                                         {
-                                                            <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary);">@acl.PrincipalEmail</MudText>
+                                                            <MudText Typo="Typo.caption" Class="text-secondary">@acl.PrincipalEmail</MudText>
                                                         }
                                                     </MudStack>
                                                 </td>
@@ -252,8 +252,18 @@
                                                     </MudChip>
                                                 </td>
                                                 <td>
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" 
-                                                        Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
+                                                    @if (acl.IsSystemAdmin)
+                                                    {
+                                                        <MudTooltip Text="@AdminLoc["AdminImplicitAccess"]">
+                                                            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings"
+                                                                     Size="Size.Small" Color="Color.Default" />
+                                                        </MudTooltip>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" 
+                                                            Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
+                                                    }
                                                 </td>
                                             </tr>
                                         }
@@ -328,17 +338,30 @@
                     <MudTd>@(context.Email ?? "-")</MudTd>
                     <MudTd>@(context.CreatedAt?.ToLocalTime().ToString("g") ?? "-")</MudTd>
                     <MudTd>
-                        @if (context.CollectionCount > 0)
+                        @if (context.IsSystemAdmin)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled"
+                                     Icon="@Icons.Material.Filled.AdminPanelSettings">
+                                @CommonLoc["Text_AllCollections"]
+                            </MudChip>
+                        }
+                        else if (context.CollectionCount > 0)
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.CollectionCount</MudChip>
                         }
                         else
                         {
-                            <MudText Typo="Typo.body2" Style="opacity: 0.6;">@CommonLoc["Text_None"]</MudText>
+                            <MudText Typo="Typo.body2" Class="text-muted">@CommonLoc["Text_None"]</MudText>
                         }
                     </MudTd>
                     <MudTd>
-                        @if (!string.IsNullOrEmpty(context.HighestRole))
+                        @if (context.IsSystemAdmin)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(RoleHierarchy.Roles.Admin)" Variant="Variant.Filled">
+                                @RoleHierarchy.Roles.Admin
+                            </MudChip>
+                        }
+                        else if (!string.IsNullOrEmpty(context.HighestRole))
                         {
                             <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(context.HighestRole)">
                                 @context.HighestRole
@@ -346,7 +369,7 @@
                         }
                         else
                         {
-                            <MudText Typo="Typo.body2" Style="opacity: 0.6;">@CommonLoc["Text_NoAccess"]</MudText>
+                            <MudText Typo="Typo.body2" Class="text-muted">@CommonLoc["Text_NoAccess"]</MudText>
                         }
                     </MudTd>
                     <MudTd>
@@ -514,7 +537,7 @@
             <MudChip T="string" Size="Size.Small" Color="Color.Default">@collection.Acls.Count</MudChip>
         </MudButton>
         
-        @foreach (var child in collection.Children)
+        @foreach (var child in collection.Children.OrderBy(c => c.Name, new NaturalSortComparer()))
         {
             @RenderCollectionTree(child, depth + 1)
         }
@@ -636,7 +659,8 @@
             { x => x.Username, user.Username },
             { x => x.Email, user.Email },
             { x => x.FirstName, user.FirstName },
-            { x => x.LastName, user.LastName }
+            { x => x.LastName, user.LastName },
+            { x => x.IsSystemAdmin, user.IsSystemAdmin }
         };
 
         var options = new DialogOptions

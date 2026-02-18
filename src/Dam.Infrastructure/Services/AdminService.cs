@@ -72,6 +72,16 @@ public class AdminService : IAdminService
         var userIds = shares.Select(s => s.CreatedByUserId).Distinct().ToList();
         var userNames = await _userLookup.GetUserNamesAsync(userIds, ct);
 
+        // Load collection memberships for asset-type shares
+        var assetShares = shares.Where(s => s.ScopeType == Constants.ScopeTypes.Asset && s.Asset != null).ToList();
+        var assetCollectionMap = new Dictionary<Guid, List<string>>();
+        if (assetShares.Count > 0)
+        {
+            var assetIds = assetShares.Select(s => s.ScopeId).Distinct().ToList();
+            var assetCollections = await _collectionRepo.GetCollectionNamesForAssetsAsync(assetIds, ct);
+            assetCollectionMap = assetCollections;
+        }
+
         var result = shares.Select(s => new AdminShareDto
         {
             Id = s.Id,
@@ -88,7 +98,10 @@ public class AdminService : IAdminService
             LastAccessedAt = s.LastAccessedAt,
             AccessCount = s.AccessCount,
             HasPassword = !string.IsNullOrEmpty(s.PasswordHash),
-            Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt)
+            Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt),
+            CollectionNames = s.ScopeType == Constants.ScopeTypes.Asset && assetCollectionMap.TryGetValue(s.ScopeId, out var colNames)
+                ? colNames
+                : new List<string>()
         }).ToList();
 
         return result;
@@ -176,7 +189,18 @@ public class AdminService : IAdminService
     public async Task<ServiceResult<List<KeycloakUserDto>>> GetKeycloakUsersAsync(CancellationToken ct)
     {
         var allUsers = await _userLookup.GetAllUsersAsync(ct);
+
+        // Filter out Keycloak admin accounts and service accounts
+        var adminUsername = _configuration["Keycloak:AdminUsername"];
+        allUsers = allUsers
+            .Where(u => !string.Equals(u.Username, adminUsername, StringComparison.OrdinalIgnoreCase))
+            .Where(u => !u.Username.StartsWith("service-account-", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
         var allAcls = await _aclRepo.GetAllAsync(ct);
+
+        // Get users with the "admin" realm role
+        var adminUserIds = await _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
 
         var userAclGroups = allAcls
             .Where(a => a.PrincipalType == "user")
@@ -190,6 +214,7 @@ public class AdminService : IAdminService
         var result = allUsers.Select(u =>
         {
             var hasAccess = userAclGroups.TryGetValue(u.Id, out var acl);
+            var isAdmin = adminUserIds.Contains(u.Id);
             return new KeycloakUserDto
             {
                 Id = u.Id,
@@ -198,8 +223,9 @@ public class AdminService : IAdminService
                 FirstName = u.FirstName,
                 LastName = u.LastName,
                 CreatedAt = u.CreatedAt,
-                CollectionCount = hasAccess ? acl!.CollectionCount : 0,
-                HighestRole = hasAccess ? acl!.HighestRole : null
+                CollectionCount = isAdmin ? 0 : (hasAccess ? acl!.CollectionCount : 0),
+                HighestRole = isAdmin ? RoleHierarchy.Roles.Admin : (hasAccess ? acl!.HighestRole : null),
+                IsSystemAdmin = isAdmin
             };
         }).ToList();
 

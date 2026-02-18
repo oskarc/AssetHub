@@ -49,6 +49,16 @@ public interface ICollectionRepository
     Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
+    /// Checks if a top-level collection with the given name already exists (case-insensitive).
+    /// </summary>
+    Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets collection names for a set of asset IDs (via the AssetCollections join table).
+    /// </summary>
+    Task<Dictionary<Guid, List<string>>> GetCollectionNamesForAssetsAsync(List<Guid> assetIds, CancellationToken ct = default);
+
+    /// <summary>
     /// Gets all collections with their ACLs (admin use).
     /// </summary>
     Task<IEnumerable<Collection>> GetAllWithAclsAsync(CancellationToken ct = default);

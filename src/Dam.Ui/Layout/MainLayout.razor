@@ -3,6 +3,7 @@
 @inject NavigationManager Nav
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IJSRuntime JS
+@inject IHttpContextAccessor HttpContextAccessor
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -23,8 +24,6 @@
         <MudText Typo="Typo.h5" Class="ml-3">@CommonLoc["AppName"]</MudText>
 
         <MudSpacer />
-
-        <LanguageSwitcher />
 
         <!-- Auth: show user + login/logout -->
         <AuthorizeView>
@@ -52,6 +51,8 @@
                 </MudButton>
             </NotAuthorized>
         </AuthorizeView>
+
+        <LanguageSwitcher />
 
         <MudIconButton Icon="@(DarkLightModeButtonIcon)"
                        Color="Color.Inherit"
@@ -87,6 +88,14 @@
     {
         base.OnInitialized();
 
+        // Read dark mode preference from cookie so SSR renders the correct theme
+        // (avoids flash when page reloads, e.g. on language switch)
+        var cookies = HttpContextAccessor.HttpContext?.Request.Cookies;
+        if (cookies != null && cookies.TryGetValue("darkMode", out var dm))
+        {
+            _isDarkMode = !string.Equals(dm, "false", StringComparison.OrdinalIgnoreCase);
+        }
+
         _theme = new()
         {
             PaletteLight = _lightPalette,
@@ -104,6 +113,8 @@
             if (stored != null)
             {
                 _isDarkMode = stored == "true";
+                // Sync cookie with localStorage value so next SSR uses correct theme
+                await _jsModule.InvokeVoidAsync("setCookie", "darkMode", stored, 31536000);
                 StateHasChanged();
             }
         }
@@ -115,7 +126,11 @@
     {
         _isDarkMode = !_isDarkMode;
         if (_jsModule != null)
-            await _jsModule.InvokeVoidAsync("setLocalStorage", "darkMode", _isDarkMode.ToString().ToLowerInvariant());
+        {
+            var val = _isDarkMode.ToString().ToLowerInvariant();
+            await _jsModule.InvokeVoidAsync("setLocalStorage", "darkMode", val);
+            await _jsModule.InvokeVoidAsync("setCookie", "darkMode", val, 31536000);
+        }
     }
 
     private void Login()
@@ -149,6 +164,8 @@
     private readonly PaletteLight _lightPalette = new()
     {
         Black = "#110e2d",
+        Primary = "#5171a5",
+        Secondary = "#607d8b",
         AppbarText = "#424242",
         AppbarBackground = "rgba(255,255,255,0.8)",
         DrawerBackground = "#ffffff",
@@ -158,7 +175,8 @@
 
     private readonly PaletteDark _darkPalette = new()
     {
-        Primary = "#7e6fff",
+        Primary = "#6b8cae",
+        Secondary = "#78909c",
         Surface = "#1e1e2d",
         Background = "#1a1a27",
         BackgroundGray = "#151521",

@@ -33,6 +33,8 @@
   <!-- Collection Dialog -->
   <data name="CreateCollection" xml:space="preserve"><value>Create Collection</value></data>
   <data name="CollectionName" xml:space="preserve"><value>Collection Name</value></data>
+  <data name="DescriptionOptional" xml:space="preserve"><value>Description (optional)</value></data>
+  <data name="Validation_NameRequired" xml:space="preserve"><value>Collection name is required</value></data>
   <data name="SubCollectionHint" xml:space="preserve"><value>This will be created as a sub-collection.</value></data>
 
   <!-- Collection Tree -->
@@ -42,6 +44,7 @@
   <data name="DeleteCollection" xml:space="preserve"><value>Delete Collection</value></data>
   <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Are you sure you want to delete '{0}'?{1} This action cannot be undone.</value></data>
   <data name="AssetCountWarning" xml:space="preserve"><value> This collection contains {0} asset(s) that will also be deleted.</value></data>
+  <data name="DeletedSuccess" xml:space="preserve"><value>Collection deleted successfully</value></data>
   <data name="ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
 
   <!-- Manage Access Dialog -->

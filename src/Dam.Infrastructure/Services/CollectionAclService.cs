@@ -18,6 +18,7 @@ public class CollectionAclService : ICollectionAclService
     private readonly ICollectionAclRepository _aclRepo;
     private readonly ICollectionAuthorizationService _authService;
     private readonly IUserLookupService _userLookup;
+    private readonly IKeycloakUserService _keycloakUserService;
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -28,6 +29,7 @@ public class CollectionAclService : ICollectionAclService
         ICollectionAclRepository aclRepo,
         ICollectionAuthorizationService authService,
         IUserLookupService userLookup,
+        IKeycloakUserService keycloakUserService,
         IAuditService audit,
         CurrentUser currentUser,
         IHttpContextAccessor httpContextAccessor,
@@ -37,6 +39,7 @@ public class CollectionAclService : ICollectionAclService
         _aclRepo = aclRepo;
         _authService = authService;
         _userLookup = userLookup;
+        _keycloakUserService = keycloakUserService;
         _audit = audit;
         _currentUser = currentUser;
         _httpContextAccessor = httpContextAccessor;
@@ -60,6 +63,7 @@ public class CollectionAclService : ICollectionAclService
         var userIds = acls.Where(a => a.PrincipalType == "user").Select(a => a.PrincipalId);
         var nameMap = await _userLookup.GetUserNamesAsync(userIds, ct);
         var emailMap = await _userLookup.GetUserEmailsAsync(userIds, ct);
+        var adminIds = await _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
 
         var dtos = acls.Select(a => new CollectionAclResponseDto
         {
@@ -71,7 +75,8 @@ public class CollectionAclService : ICollectionAclService
                 : a.PrincipalType == "user" ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : null,
             PrincipalEmail = a.PrincipalType == "user" && emailMap.TryGetValue(a.PrincipalId, out var email) ? email : null,
             Role = a.Role,
-            CreatedAt = a.CreatedAt
+            CreatedAt = a.CreatedAt,
+            IsSystemAdmin = a.PrincipalType == "user" && adminIds.Contains(a.PrincipalId)
         });
 
         return new ServiceResult<IEnumerable<CollectionAclResponseDto>> { Value = dtos };
@@ -269,9 +274,10 @@ public class CollectionAclService : ICollectionAclService
             .ToList();
         var userNames = await _userLookup.GetUserNamesAsync(allUserIds, ct);
         var userEmails = await _userLookup.GetUserEmailsAsync(allUserIds, ct);
+        var adminIds = await _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
 
         var result = rootCollections
-            .Select(c => CollectionTreeHelper.BuildAccessTree(c, allCollections, userNames, userEmails))
+            .Select(c => CollectionTreeHelper.BuildAccessTree(c, allCollections, userNames, userEmails, adminIds))
             .ToList();
 
         return result;

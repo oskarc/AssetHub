@@ -79,6 +79,8 @@
             </MudPaper>
 
             <!-- Add New Collection Access -->
+            @if (!IsSystemAdmin)
+            {
             <MudPaper Class="pa-3" Elevation="0" Outlined="true">
                 <MudText Typo="Typo.subtitle2" Class="mb-2">@AdminLoc["AddCollectionAccess"]</MudText>
                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
@@ -88,7 +90,7 @@
                                Variant="Variant.Outlined" 
                                Dense="true"
                                Disabled="@(_availableCollections.Count == 0)"
-                               Style="flex: 1;">
+                               Class="dialog-flex-fill">
                         @foreach (var collection in _availableCollections)
                         {
                             <MudSelectItem T="Guid?" Value="@collection.Id">@collection.Name</MudSelectItem>
@@ -99,7 +101,7 @@
                                Label="@CommonLoc["Label_Role"]" 
                                Variant="Variant.Outlined" 
                                Dense="true"
-                               Style="width: 150px;">
+                               Class="dialog-role-select">
                         <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
                         <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
                         <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
@@ -119,28 +121,32 @@
                     </MudAlert>
                 }
             </MudPaper>
+            } @* end !IsSystemAdmin *@
+
+            @if (IsSystemAdmin)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    @AdminLoc["AdminImplicitAccess"]
+                </MudAlert>
+            }
 
             <!-- Current Collections List -->
-            @if (_userCollections.Count > 0)
+            @if (!IsSystemAdmin && _userCollections.Count > 0)
             {
-            <MudText Typo="Typo.subtitle2" Class="mt-2">
-                @AdminLoc["CurrentCollectionAccess"] (@_userCollections.Count)
-            </MudText>
-
-                <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Style="border: 1px solid var(--mud-palette-lines-default);">
+                <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Class="table-outlined">
                     <thead>
                         <tr>
                             <th>@CommonLoc["Label_Collection"]</th>
                             <th>@CommonLoc["Label_Role"]</th>
-                            <th style="width: 180px;">@CommonLoc["Label_Actions"]</th>
+                            <th class="dialog-actions-col">@CommonLoc["Label_Actions"]</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var collection in _userCollections.OrderBy(c => c.CollectionName))
+                        @foreach (var collection in _userCollections.OrderBy(c => c.CollectionName, new NaturalSortComparer()))
                         {
                             <tr>
                                 <td>
-                                    <MudLink Href="@($"/assets?collection={collection.CollectionId}")" 
+                                    <MudLink Href="@($"/collections?collection={collection.CollectionId}")" 
                                              Color="Color.Primary"
                                              Underline="Underline.Hover"
                                              Target="_blank">
@@ -155,7 +161,7 @@
                                                    Variant="Variant.Outlined" 
                                                    Dense="true"
                                                    Margin="Margin.Dense"
-                                                   Style="width: 150px;">
+                                                   Class="dialog-role-select">
                                             <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
                                             <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
                                             <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
@@ -232,6 +238,9 @@
 
     [Parameter]
     public string? LastName { get; set; }
+
+    [Parameter]
+    public bool IsSystemAdmin { get; set; }
 
     private List<UserCollectionAccessDto> _userCollections = new();
     private List<CollectionAccessDto> _allCollections = new();

@@ -157,7 +157,7 @@
                 {
                     <MudItem xs="12" sm="6" md="4" lg="3" xl="2">
                         <MudCard Class="asset-card" Elevation="2">
-                            <div @onclick="() => ViewAsset(asset.Id)" style="cursor: pointer;">
+                            <div @onclick="() => ViewAsset(asset.Id)" class="clickable">
                                 <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType)" 
                                               Height="160" 
                                               Class="asset-thumbnail" />
@@ -179,9 +179,6 @@
                                 </MudCardContent>
                             </div>
                             <MudCardActions Class="pa-2 pt-0">
-                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
-                                               Size="Size.Small" 
-                                               OnClick="@(() => ViewAsset(asset.Id))" />
                                 @if (CanShare(asset))
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.Share" 
@@ -211,11 +208,11 @@
                     <MudTh>@CommonLoc["Label_Type"]</MudTh>
                     <MudTh>@AssetLoc["Column_Size"]</MudTh>
                     <MudTh>@AssetLoc["Column_Created"]</MudTh>
-                    <MudTh Style="text-align:right">@AssetLoc["Column_Actions"]</MudTh>
+                    <MudTh Class="col-text-right">@AssetLoc["Column_Actions"]</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="" Style="width:50px; padding:4px;">
-                        <MudAvatar Rounded="true" Size="Size.Medium" Style="cursor:pointer;" @onclick="() => ViewAsset(context.Id)">
+                    <MudTd DataLabel="" Class="col-icon">
+                        <MudAvatar Rounded="true" Size="Size.Medium" Class="clickable" @onclick="() => ViewAsset(context.Id)">
                             <MudImage Src="@AssetDisplayHelpers.GetThumbnailUrl(context.Id, context.ThumbObjectKey, context.AssetType)" 
                                       Alt="@context.Title"
                                       ObjectFit="ObjectFit.Cover"
@@ -240,10 +237,7 @@
                     <MudTd DataLabel="@AssetLoc["Column_Created"]">
                         @context.CreatedAt.ToString("yyyy-MM-dd")
                     </MudTd>
-                    <MudTd DataLabel="@AssetLoc["Column_Actions"]" Style="text-align:right">
-                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                       Size="Size.Small"
-                                       OnClick="@(() => ViewAsset(context.Id))" />
+                    <MudTd DataLabel="@AssetLoc["Column_Actions"]" Class="col-text-right">
                         @if (CanShare(context))
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Share"
@@ -419,7 +413,7 @@
     {
         if (collectionId.HasValue)
         {
-            Nav.NavigateTo($"/assets?collection={collectionId.Value}");
+            Nav.NavigateTo($"/collections?collection={collectionId.Value}");
         }
     }
 

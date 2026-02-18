@@ -42,9 +42,10 @@ public interface IAssetService
     Task<ServiceResult<AssetResponseDto>> UpdateAsync(
         Guid id, UpdateAssetDto dto, CancellationToken ct);
 
-    /// <summary>Delete or unlink an asset (handles partial/full/permanent delete).</summary>
+    /// <summary>Delete or unlink an asset. When fromCollectionId is set the asset is removed
+    /// from that collection (and auto-deleted when orphaned). Otherwise a full permanent delete is performed.</summary>
     Task<ServiceResult> DeleteAsync(
-        Guid id, Guid? fromCollectionId, bool permanent, CancellationToken ct);
+        Guid id, Guid? fromCollectionId, CancellationToken ct);
 
     // ── Presigned Upload ─────────────────────────────────────────────────────
 

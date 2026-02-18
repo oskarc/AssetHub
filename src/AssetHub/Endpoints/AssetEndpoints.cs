@@ -105,10 +105,10 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> DeleteAsset(
-        Guid id, [FromQuery] Guid? fromCollectionId, [FromQuery] bool permanent,
+        Guid id, [FromQuery] Guid? fromCollectionId,
         [FromServices] IAssetService svc, CancellationToken ct)
     {
-        var result = await svc.DeleteAsync(id, fromCollectionId, permanent, ct);
+        var result = await svc.DeleteAsync(id, fromCollectionId, ct);
         return result.ToHttpResult();
     }
 

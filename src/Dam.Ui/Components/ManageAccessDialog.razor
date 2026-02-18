@@ -13,7 +13,7 @@
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Style="min-width: 500px;">
+        <MudStack Spacing="3" Class="dialog-min-width">
             <!-- Collection Info Header -->
             <MudPaper Class="pa-3" Elevation="0" Outlined="true">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -46,7 +46,7 @@
                                      DebounceInterval="300"
                                      MinCharacters="1"
                                      MaxItems="20"
-                                     Style="flex: 1;">
+                                     Class="dialog-flex-fill">
                         <ItemTemplate Context="user">
                             <MudStack Spacing="0">
                                 <MudText Typo="Typo.body2">@user.Username</MudText>
@@ -62,7 +62,7 @@
                                Label="@CommonLoc["Label_Role"]"
                                Variant="Variant.Outlined"
                                Dense="true"
-                               Style="width: 160px;">
+                               Class="dialog-role-select-wide">
                         <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
                         <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
                         @if (RoleHierarchy.GetLevel(CurrentUserRole) >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager))
@@ -99,16 +99,16 @@
             else
             {
                 <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0"
-                                Style="border: 1px solid var(--mud-palette-lines-default);">
+                                Class="table-outlined">
                     <thead>
                         <tr>
                             <th>@CollLoc["User"]</th>
                             <th>@CommonLoc["Label_Role"]</th>
-                            <th style="width: 180px;">@CommonLoc["Label_Actions"]</th>
+                            <th class="dialog-actions-col">@CommonLoc["Label_Actions"]</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var entry in _aclEntries.OrderBy(e => e.PrincipalName ?? e.PrincipalId))
+                        @foreach (var entry in _aclEntries.OrderBy(e => e.PrincipalName ?? e.PrincipalId, new NaturalSortComparer()))
                         {
                             <tr>
                                 <td>
@@ -116,7 +116,7 @@
                                         <MudText Typo="Typo.body2">@(entry.PrincipalName ?? entry.PrincipalId)</MudText>
                                         @if (!string.IsNullOrEmpty(entry.PrincipalEmail))
                                         {
-                                            <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary);">@entry.PrincipalEmail</MudText>
+                                            <MudText Typo="Typo.caption" Class="text-secondary">@entry.PrincipalEmail</MudText>
                                         }
                                     </MudStack>
                                 </td>
@@ -128,7 +128,7 @@
                                                    Variant="Variant.Outlined"
                                                    Dense="true"
                                                    Margin="Margin.Dense"
-                                                   Style="width: 150px;">
+                                                   Class="dialog-role-select">
                                             <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
                                             <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
                                             @if (RoleHierarchy.GetLevel(CurrentUserRole) >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager))
@@ -186,7 +186,7 @@
                                             }
                                             else
                                             {
-                                                <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary);">
+                                                <MudText Typo="Typo.caption" Class="text-secondary">
                                                     @CollLoc["InsufficientLevel"]
                                                 </MudText>
                                             }
@@ -296,6 +296,8 @@
 
     private bool CanEditEntry(CollectionAclResponseDto entry)
     {
+        // System admins have implicit access — cannot edit/revoke
+        if (entry.IsSystemAdmin) return false;
         // Can only edit/revoke entries with roles at or below the current user's level
         return RoleHierarchy.HasSufficientLevel(CurrentUserRole, entry.Role);
     }

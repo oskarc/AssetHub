@@ -54,6 +54,7 @@
   <data name="RemoveFromCollection" xml:space="preserve"><value>Remove from Collection</value></data>
   <data name="ConfirmRemoveFromCollection" xml:space="preserve"><value>Remove this asset from '{0}'?</value></data>
   <data name="DescriptionOptional" xml:space="preserve"><value>Description (optional)</value></data>
+  <data name="CopyrightOptional" xml:space="preserve"><value>Copyright (optional)</value></data>
   <data name="SelectCollectionToAdd" xml:space="preserve"><value>Select a collection to add this asset to:</value></data>
   <data name="NoAdditionalCollections" xml:space="preserve"><value>No additional collections available. This asset is already in all collections you have access to.</value></data>
 

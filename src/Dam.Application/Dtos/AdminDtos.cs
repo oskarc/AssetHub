@@ -20,6 +20,7 @@ public record AdminShareDto
     public int AccessCount { get; init; }
     public bool HasPassword { get; init; }
     public required string Status { get; init; }
+    public List<string> CollectionNames { get; init; } = new();
 }
 
 /// <summary>
@@ -86,6 +87,8 @@ public record KeycloakUserDto
     public DateTime? CreatedAt { get; init; }
     public int CollectionCount { get; init; }
     public string? HighestRole { get; init; }
+    /// <summary>True when the user has the global "admin" Keycloak realm role.</summary>
+    public bool IsSystemAdmin { get; init; }
 }
 
 /// <summary>

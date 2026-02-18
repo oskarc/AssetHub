@@ -82,12 +82,11 @@
                         <MudImage Src="@GetPreviewUrl()"
                                   Alt="@_sharedAsset.Title"
                                   ObjectFit="ObjectFit.Contain"
-                                  Style="width: 100%; max-height: 600px;"
-                                  Class="rounded" />
+                                  Class="media-preview-image rounded" />
                     }
                     else if (_sharedAsset.AssetType == "video")
                     {
-                        <video controls poster="@GetPosterUrl()" style="width: 100%; max-height: 600px;">
+                        <video controls poster="@GetPosterUrl()" class="media-preview-video">
                             <source src="@GetPreviewUrl()" type="@_sharedAsset.ContentType">
                             @CommonLoc["Text_BrowserNoVideo"]
                         </video>
@@ -95,7 +94,7 @@
                     else if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType))
                     {
                         <iframe src="@GetPreviewUrl()" 
-                                style="width: 100%; height: 600px; border: none;" 
+                                class="media-preview-iframe" 
                                 title="@_sharedAsset.Title">
                         </iframe>
                     }
@@ -126,7 +125,7 @@
                         <!-- Title and Type -->
                         <MudStack>
                             <MudText Typo="Typo.h5">@_sharedAsset.Title</MudText>
-                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_sharedAsset.AssetType)" Style="width: fit-content;">
+                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_sharedAsset.AssetType)" Class="share-chip-width">
                                 @_sharedAsset.AssetType.ToUpperInvariant()
                             </MudChip>
                         </MudStack>
@@ -139,6 +138,18 @@
                             <MudStack>
                                 <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Description"]</MudText>
                                 <MudText Typo="Typo.body2">@_sharedAsset.Description</MudText>
+                            </MudStack>
+                        }
+
+                        <!-- Copyright -->
+                        @if (!string.IsNullOrEmpty(_sharedAsset.Copyright))
+                        {
+                            <MudStack>
+                                <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Copyright"]</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Copyright" Size="Size.Small" Color="Color.Secondary" />
+                                    <MudText Typo="Typo.body2">@_sharedAsset.Copyright</MudText>
+                                </MudStack>
                             </MudStack>
                         }
 
@@ -162,12 +173,11 @@
                         <!-- Advanced Metadata -->
                         <MudDivider />
                         <MudStack>
-                            <MudExpansionPanels Elevation="0" Style="margin: -16px; padding: 0;">
+                            <MudExpansionPanels Elevation="0" Class="share-panel-reset">
                                 <MudExpansionPanel MaxHeight="400"
-                                                   Style="background: transparent; padding: 0;"
-                                                   Class="pa-0 ma-0">
+                                                   Class="share-panel-header pa-0 ma-0">
                                     <TitleContent>
-                                        <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">@CommonLoc["Text_AdvancedMetadata"]</MudText>
+                                        <MudText Typo="Typo.subtitle2" Class="share-panel-icon">@CommonLoc["Text_AdvancedMetadata"]</MudText>
                                     </TitleContent>
                                     <ChildContent>
                                         @if (_sharedAsset.MetadataJson.Any())
@@ -231,12 +241,11 @@
                             <MudImage Src="@GetAssetPreviewUrl(_selectedAsset.Id)"
                                       Alt="@_selectedAsset.Title"
                                       ObjectFit="ObjectFit.Contain"
-                                      Style="width: 100%; max-height: 600px;"
-                                      Class="rounded" />
+                                      Class="media-preview-image rounded" />
                         }
                         else if (_selectedAsset.AssetType == "video")
                         {
-                            <video controls poster="@GetAssetPosterUrl(_selectedAsset.Id)" style="width: 100%; max-height: 600px;">
+                            <video controls poster="@GetAssetPosterUrl(_selectedAsset.Id)" class="media-preview-video">
                                 <source src="@GetAssetPreviewUrl(_selectedAsset.Id)" type="@_selectedAsset.ContentType">
                                 @CommonLoc["Text_BrowserNoVideo"]
                             </video>
@@ -261,7 +270,7 @@
                             <!-- Title and Type -->
                             <MudStack>
                                 <MudText Typo="Typo.h5">@_selectedAsset.Title</MudText>
-                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_selectedAsset.AssetType)" Style="width: fit-content;">
+                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_selectedAsset.AssetType)" Class="share-chip-width">
                                     @_selectedAsset.AssetType.ToUpperInvariant()
                                 </MudChip>
                             </MudStack>
@@ -274,6 +283,18 @@
                                 <MudStack>
                                     <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Description"]</MudText>
                                     <MudText Typo="Typo.body2">@_selectedAsset.Description</MudText>
+                                </MudStack>
+                            }
+
+                            <!-- Copyright -->
+                            @if (!string.IsNullOrEmpty(_selectedAsset.Copyright))
+                            {
+                                <MudStack>
+                                    <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Copyright"]</MudText>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Copyright" Size="Size.Small" Color="Color.Secondary" />
+                                        <MudText Typo="Typo.body2">@_selectedAsset.Copyright</MudText>
+                                    </MudStack>
                                 </MudStack>
                             }
 
@@ -297,12 +318,11 @@
                             <!-- Advanced Metadata -->
                             <MudDivider />
                             <MudStack>
-                                <MudExpansionPanels Elevation="0" Style="margin: -16px; padding: 0;">
+                                <MudExpansionPanels Elevation="0" Class="share-panel-reset">
                                     <MudExpansionPanel MaxHeight="400"
-                                                       Style="background: transparent; padding: 0;"
-                                                       Class="pa-0 ma-0">
+                                                       Class="share-panel-header pa-0 ma-0">
                                         <TitleContent>
-                                            <MudText Typo="Typo.subtitle2" Style="margin-left: -8px;">@CommonLoc["Text_AdvancedMetadata"]</MudText>
+                                            <MudText Typo="Typo.subtitle2" Class="share-panel-icon">@CommonLoc["Text_AdvancedMetadata"]</MudText>
                                         </TitleContent>
                                         <ChildContent>
                                             @if (_selectedAsset.MetadataJson.Any())
@@ -383,7 +403,7 @@
                     @foreach (var asset in _sharedCollection.Assets)
                     {
                         <MudItem xs="12" sm="6" md="4" lg="3">
-                        <MudCard Elevation="2" Class="cursor-pointer" Style="cursor: pointer;" @onclick="@(() => SelectAsset(asset))">
+                        <MudCard Elevation="2" Class="clickable" @onclick="@(() => SelectAsset(asset))">
                             <MudCardMedia Image="@GetCollectionThumbnailUrl(asset)"
                                           Height="160" />
                             <MudCardContent Class="pa-2">

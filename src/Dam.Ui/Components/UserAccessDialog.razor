@@ -1,5 +1,6 @@
 @using MudBlazor
 @using Dam.Application.Dtos
+@using Dam.Application.Helpers
 @using Dam.Ui.Services
 
 @inject NavigationManager Nav
@@ -44,20 +45,20 @@
             }
             else
             {
-                <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Style="border: 1px solid var(--mud-palette-lines-default);">
+                <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Class="table-outlined">
                     <thead>
                         <tr>
                             <th>@CommonLoc["Label_Collection"]</th>
                             <th>@CommonLoc["Label_Role"]</th>
-                            <th style="width: 120px;">@CommonLoc["Label_Actions"]</th>
+                            <th class="dialog-actions-col-sm">@CommonLoc["Label_Actions"]</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var collection in User.Collections.OrderBy(c => c.CollectionName))
+                        @foreach (var collection in User.Collections.OrderBy(c => c.CollectionName, new NaturalSortComparer()))
                         {
                             <tr>
                                 <td>
-                                    <MudLink Href="@($"/assets?collection={collection.CollectionId}")" 
+                                    <MudLink Href="@($"/collections?collection={collection.CollectionId}")" 
                                              Color="Color.Primary"
                                              Underline="Underline.Hover">
                                         @collection.CollectionName

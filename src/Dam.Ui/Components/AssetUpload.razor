@@ -9,12 +9,13 @@
 
 @implements IAsyncDisposable
 
-<MudPaper Class="@_uploadAreaClass"
-          Elevation="0"
-          Outlined="true"
-          @ondragenter="@(() => _isDragOver = true)"
-          @ondragleave="@(() => _isDragOver = false)"
-          @ondrop="@(() => _isDragOver = false)">
+<div class="@_uploadAreaClass"
+     @ondragenter="OnDragEnter"
+     @ondragenter:preventDefault
+     @ondragleave="OnDragLeave"
+     @ondragover:preventDefault
+     @ondrop="OnDrop"
+     @ondrop:preventDefault>
 
     <InputFile @ref="_inputFile"
                id="fileInput"
@@ -42,7 +43,7 @@
             @CommonLoc["Text_SupportedFormats"]
         </MudText>
     </MudStack>
-</MudPaper>
+</div>
 
 @if (_uploads.Any())
 {
@@ -55,7 +56,7 @@
                     <MudIcon Icon="@AssetDisplayHelpers.GetContentTypeIcon(upload.ContentType)" 
                              Size="Size.Small" 
                              Color="@GetStatusColor(upload.Status)" />
-                    <MudText Typo="Typo.body2" Class="flex-grow-1 text-truncate" Style="max-width: 200px;">
+                    <MudText Typo="Typo.body2" Class="flex-grow-1 text-truncate upload-chip-max">
                         @upload.FileName
                     </MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -66,7 +67,7 @@
                         <MudProgressLinear Value="@upload.ProgressPercent" 
                                            Min="0" Max="100" 
                                            Color="Color.Primary"
-                                           Style="width: 80px;" />
+                                           Class="upload-progress" />
                         <MudText Typo="Typo.caption">@upload.ProgressPercent%</MudText>
                     }
                     else if (upload.Status == UploadStatus.Processing)
@@ -102,7 +103,30 @@
     private bool _isUploading = false;
     private bool _isDragOver = false;
 
+    private int _dragCounter = 0;
     private string _uploadAreaClass => $"pa-4 upload-area {(_isDragOver ? "drag-over" : "")}";
+
+    private void OnDragEnter()
+    {
+        _dragCounter++;
+        _isDragOver = true;
+    }
+
+    private void OnDragLeave()
+    {
+        _dragCounter--;
+        if (_dragCounter <= 0)
+        {
+            _dragCounter = 0;
+            _isDragOver = false;
+        }
+    }
+
+    private void OnDrop()
+    {
+        _dragCounter = 0;
+        _isDragOver = false;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -15,7 +15,8 @@ public static class CollectionTreeHelper
         Collection collection,
         List<Collection> allCollections,
         Dictionary<string, string> userNames,
-        Dictionary<string, string>? userEmails = null)
+        Dictionary<string, string>? userEmails = null,
+        HashSet<string>? adminUserIds = null)
     {
         var children = allCollections.Where(c => c.ParentId == collection.Id).ToList();
 
@@ -34,9 +35,10 @@ public static class CollectionTreeHelper
                     ? name
                     : a.PrincipalType == "user" ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : a.PrincipalId,
                 PrincipalEmail = a.PrincipalType == "user" && userEmails != null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
-                Role = a.Role
+                Role = a.Role,
+                IsSystemAdmin = a.PrincipalType == "user" && adminUserIds != null && adminUserIds.Contains(a.PrincipalId)
             }).ToList(),
-            Children = children.Select(c => BuildAccessTree(c, allCollections, userNames, userEmails)).ToList()
+            Children = children.Select(c => BuildAccessTree(c, allCollections, userNames, userEmails, adminUserIds)).ToList()
         };
     }
 

@@ -104,6 +104,8 @@ public record CollectionAclResponseDto
     public string? PrincipalEmail { get; init; }
     public string Role { get; init; } = "";
     public DateTime CreatedAt { get; init; }
+    /// <summary>True when the principal has the global "admin" realm role (implicit access to all collections).</summary>
+    public bool IsSystemAdmin { get; init; }
 }
 
 /// <summary>

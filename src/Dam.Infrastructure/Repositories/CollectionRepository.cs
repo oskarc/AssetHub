@@ -98,6 +98,30 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
         return await dbContext.Collections.AnyAsync(c => c.Id == id, ct);
     }
 
+    public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
+    {
+        return await dbContext.Collections
+            .Where(c => c.ParentId == null)
+            .Where(c => c.Name.ToLower() == name.ToLower())
+            .Where(c => excludeId == null || c.Id != excludeId.Value)
+            .AnyAsync(ct);
+    }
+
+    public async Task<Dictionary<Guid, List<string>>> GetCollectionNamesForAssetsAsync(List<Guid> assetIds, CancellationToken ct = default)
+    {
+        if (assetIds.Count == 0)
+            return new Dictionary<Guid, List<string>>();
+
+        return await dbContext.AssetCollections
+            .Where(ac => assetIds.Contains(ac.AssetId))
+            .Include(ac => ac.Collection)
+            .GroupBy(ac => ac.AssetId)
+            .ToDictionaryAsync(
+                g => g.Key,
+                g => g.Select(ac => ac.Collection.Name).OrderBy(n => n).ToList(),
+                ct);
+    }
+
     public async Task<IEnumerable<Collection>> GetAllWithAclsAsync(CancellationToken ct = default)
     {
         return await dbContext.Collections

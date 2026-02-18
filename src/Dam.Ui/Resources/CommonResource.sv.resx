@@ -93,6 +93,7 @@
   <data name="Label_Collection" xml:space="preserve"><value>Samling</value></data>
   <data name="Label_Collections" xml:space="preserve"><value>Samlingar</value></data>
   <data name="Label_Description" xml:space="preserve"><value>Beskrivning</value></data>
+  <data name="Label_Copyright" xml:space="preserve"><value>Upphovsrätt</value></data>
   <data name="Label_Size" xml:space="preserve"><value>Storlek</value></data>
   <data name="Label_Created" xml:space="preserve"><value>Skapad</value></data>
   <data name="Label_Updated" xml:space="preserve"><value>Uppdaterad</value></data>
@@ -133,6 +134,7 @@
   <data name="Text_Loading" xml:space="preserve"><value>Laddar...</value></data>
   <data name="Text_Never" xml:space="preserve"><value>Aldrig</value></data>
   <data name="Text_None" xml:space="preserve"><value>Inget</value></data>
+  <data name="Text_AllCollections" xml:space="preserve"><value>Alla (admin)</value></data>
   <data name="Text_NoAccess" xml:space="preserve"><value>Ingen åtkomst</value></data>
   <data name="Text_SignedIn" xml:space="preserve"><value>Inloggad</value></data>
   <data name="Text_NoTags" xml:space="preserve"><value>Inga taggar</value></data>

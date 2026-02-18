@@ -18,6 +18,7 @@ public class Asset
     public string Status { get; set; } = StatusProcessing; // processing|ready|failed
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Copyright { get; set; }
     public List<string> Tags { get; set; } = new();
     public Dictionary<string, object> MetadataJson { get; set; } = new();
 
