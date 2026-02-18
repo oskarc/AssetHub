@@ -1,7 +1,10 @@
 using Dam.Infrastructure.Data;
+using Dam.Infrastructure.DependencyInjection;
+using Dam.Worker.Jobs;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Dam.Worker;
 
@@ -12,19 +15,22 @@ class Program
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureServices((hostContext, services) =>
             {
-                var connectionString = hostContext.Configuration["ConnectionStrings:Postgres"];
+                // Shared infrastructure: DB, Hangfire storage, MinIO, Repos, core services
+                services.AddSharedInfrastructure(hostContext.Configuration);
 
-                // Database
-                services.AddDbContext<AssetHubDbContext>(options =>
+                // Hangfire server (Worker processes jobs with custom queue/worker config)
+                services.AddHangfireServer(options =>
                 {
-                    options.UseNpgsql(connectionString);
-                    options.ConfigureWarnings(w =>
-                        w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+                    options.Queues = new[] { "default", "media-processing" };
+                    options.WorkerCount = Environment.ProcessorCount * 2;
                 });
+
+                // Worker-specific services
+                services.AddScoped<StaleUploadCleanupJob>();
             })
             .Build();
 
-        // Initialize database on startup
+        // ── Initialize database ────────────────────────────────────────────
         using (var scope = host.Services.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<AssetHubDbContext>();
@@ -32,8 +38,15 @@ class Program
             Console.WriteLine("Database migration complete");
         }
 
-        // Simply exit after migration
-        Console.WriteLine("Worker service started successfully");
-        await Task.Delay(Timeout.Infinite);
+        // ── Register recurring Hangfire jobs ───────────────────────────────
+        var recurringJobs = host.Services.GetRequiredService<IRecurringJobManager>();
+        recurringJobs.AddOrUpdate<StaleUploadCleanupJob>(
+            "stale-upload-cleanup",
+            job => job.ExecuteAsync(),
+            Cron.Daily(3, 0), // Run daily at 3:00 AM UTC
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        Console.WriteLine("Worker service started — Hangfire server processing jobs");
+        await host.RunAsync();
     }
 }

@@ -11,7 +11,6 @@ public static class ShareEndpoints
     public static void MapShareEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/shares")
-            .DisableAntiforgery()
             .WithTags("Shares");
 
         // Public endpoints (no auth required)
@@ -23,8 +22,8 @@ public static class ShareEndpoints
         // Protected endpoints
         var authGroup = group.RequireAuthorization();
         authGroup.MapPost("", CreateShare).WithName("CreateShare");
-        authGroup.MapDelete("{id}", RevokeShare).WithName("RevokeShare");
-        authGroup.MapPut("{id}/password", UpdateSharePassword).WithName("UpdateSharePassword");
+        authGroup.MapDelete("{id:guid}", RevokeShare).WithName("RevokeShare");
+        authGroup.MapPut("{id:guid}/password", UpdateSharePassword).WithName("UpdateSharePassword");
     }
 
     // ── Public endpoints ─────────────────────────────────────────────────────
@@ -56,7 +55,12 @@ public static class ShareEndpoints
         HttpContext httpContext, CancellationToken ct)
     {
         var effectivePassword = GetSharePassword(httpContext, password);
-        var result = await svc.StreamDownloadAllAsync(token, effectivePassword, httpContext, ct);
+        var streamContext = new ZipStreamContext
+        {
+            OutputStream = httpContext.Response.BodyWriter.AsStream(),
+            SetHeader = (name, value) => httpContext.Response.Headers.Append(name, value)
+        };
+        var result = await svc.StreamDownloadAllAsync(token, effectivePassword, streamContext, ct);
         if (!result.IsSuccess)
             return HandleShareResult(result);
         return Results.Empty;

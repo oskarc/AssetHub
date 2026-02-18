@@ -1,5 +1,4 @@
 using Dam.Application.Dtos;
-using Microsoft.AspNetCore.Http;
 
 namespace Dam.Application.Services;
 
@@ -23,13 +22,17 @@ public interface IShareService
     /// and logs an audit event. Call only after authorization is confirmed.
     /// </summary>
     Task<ShareCreationResult> CreateShareAsync(
-        CreateShareDto dto, string userId, string baseUrl, HttpContext httpContext, CancellationToken ct = default);
+        CreateShareDto dto, string userId, string baseUrl, CancellationToken ct = default);
 }
 
 public class ShareScopeValidation
 {
     public bool IsValid { get; set; }
-    public Guid? CollectionIdToCheck { get; set; }
+    /// <summary>
+    /// For asset scope: all collection IDs the asset belongs to (user needs access to ANY).
+    /// For collection scope: the single collection ID.
+    /// </summary>
+    public List<Guid> CollectionIdsToCheck { get; set; } = new();
     public string? ContentName { get; set; }
     public string? ErrorMessage { get; set; }
     public int? ErrorStatusCode { get; set; }

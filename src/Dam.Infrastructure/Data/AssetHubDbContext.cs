@@ -68,6 +68,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasIndex(e => new { e.Status }).HasDatabaseName("idx_assets_status");
             entity.HasIndex(e => new { e.CreatedAt }).HasDatabaseName("idx_assets_created_at");
             entity.HasIndex(e => e.CreatedByUserId).HasDatabaseName("idx_assets_created_by_user_id");
+            entity.HasIndex(e => e.OriginalObjectKey).HasDatabaseName("idx_assets_original_object_key");
 
             entity.Property(e => e.Title).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
@@ -89,7 +90,15 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
 
-            entity.Property(e => e.MetadataJson).HasColumnType("jsonb");
+            entity.Property(e => e.MetadataJson)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasColumnType("jsonb")
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
         });
 
         // AssetCollection (many-to-many join table)
@@ -124,7 +133,15 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.TokenHash).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TokenEncrypted).HasMaxLength(2048);
             entity.Property(e => e.ScopeType).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.PermissionsJson).HasColumnType("jsonb");
+            entity.Property(e => e.PermissionsJson)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, bool>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, bool>())
+                .HasColumnType("jsonb")
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, bool>>(
+                    (c1, c2) => c1 != null && c2 != null && c1.Count == c2.Count && !c1.Except(c2).Any(),
+                    c => c.Aggregate(0, (a, kv) => HashCode.Combine(a, kv.Key.GetHashCode(), kv.Value.GetHashCode())),
+                    c => new Dictionary<string, bool>(c)));
 
             // Note: Asset and Collection relationships are polymorphic via ScopeType/ScopeId
             // FK constraints are enforced at application level, not DB level
@@ -142,7 +159,15 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
 
             entity.Property(e => e.EventType).HasMaxLength(100).IsRequired();
             entity.Property(e => e.TargetType).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.DetailsJson).HasColumnType("jsonb");
+            entity.Property(e => e.DetailsJson)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasColumnType("jsonb")
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
         });
     }
 }

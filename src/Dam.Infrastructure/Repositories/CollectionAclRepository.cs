@@ -4,6 +4,7 @@ using Dam.Application.Repositories;
 using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionAclRepository
 {
@@ -34,30 +35,49 @@ public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionA
 
     public async Task<CollectionAcl> SetAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default)
     {
-        var existing = await GetByPrincipalAsync(collectionId, principalType, principalId, ct);
+        // Use a retry loop to handle the read-then-write race condition
+        // when concurrent requests try to set access for the same principal.
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var existing = await GetByPrincipalAsync(collectionId, principalType, principalId, ct);
 
-        if (existing != null)
-        {
-            existing.Role = role;
-            dbContext.CollectionAcls.Update(existing);
-        }
-        else
-        {
-            var acl = new CollectionAcl
+            if (existing != null)
             {
-                Id = Guid.NewGuid(),
-                CollectionId = collectionId,
-                PrincipalType = principalType,
-                PrincipalId = principalId,
-                Role = role,
-                CreatedAt = DateTime.UtcNow
-            };
-            dbContext.CollectionAcls.Add(acl);
-            existing = acl;
+                existing.Role = role;
+                dbContext.CollectionAcls.Update(existing);
+            }
+            else
+            {
+                var acl = new CollectionAcl
+                {
+                    Id = Guid.NewGuid(),
+                    CollectionId = collectionId,
+                    PrincipalType = principalType,
+                    PrincipalId = principalId,
+                    Role = role,
+                    CreatedAt = DateTime.UtcNow
+                };
+                dbContext.CollectionAcls.Add(acl);
+                existing = acl;
+            }
+
+            try
+            {
+                await dbContext.SaveChangesAsync(ct);
+                return existing;
+            }
+            catch (DbUpdateException ex) when (
+                attempt < 2 &&
+                ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // Unique constraint violation — another request inserted first.
+                // Detach tracked entities and retry to update instead.
+                foreach (var entry in dbContext.ChangeTracker.Entries().ToList())
+                    entry.State = EntityState.Detached;
+            }
         }
 
-        await dbContext.SaveChangesAsync(ct);
-        return existing;
+        throw new InvalidOperationException("Failed to set collection access after retries");
     }
 
     public async Task RevokeAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)

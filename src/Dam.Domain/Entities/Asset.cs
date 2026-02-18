@@ -1,17 +1,35 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Dam.Domain.Entities;
 
 public class Asset
 {
-    // Asset status constants
+    // Asset status constants (backed by AssetStatus enum)
     public const string StatusUploading = "uploading";
     public const string StatusProcessing = "processing";
     public const string StatusReady = "ready";
     public const string StatusFailed = "failed";
 
-    // Asset type constants
+    // Asset type constants (backed by AssetType enum)
     public const string TypeImage = "image";
     public const string TypeVideo = "video";
     public const string TypeDocument = "document";
+
+    /// <summary>Typed status accessor. Prefer this over the string property for new code.</summary>
+    [NotMapped]
+    public AssetStatus StatusEnum
+    {
+        get => Status.ToAssetStatus();
+        set => Status = value.ToDbString();
+    }
+
+    /// <summary>Typed asset type accessor. Prefer this over the string property for new code.</summary>
+    [NotMapped]
+    public AssetType AssetTypeEnum
+    {
+        get => AssetType.ToAssetType();
+        set => AssetType = value.ToDbString();
+    }
 
     public Guid Id { get; set; }
     public string AssetType { get; set; } = string.Empty; // image|video|document

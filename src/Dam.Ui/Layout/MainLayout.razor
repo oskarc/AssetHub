@@ -4,6 +4,7 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IJSRuntime JS
 @inject IHttpContextAccessor HttpContextAccessor
+@implements IAsyncDisposable
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -208,4 +209,12 @@
         true => Icons.Material.Rounded.AutoMode,
         false => Icons.Material.Outlined.DarkMode,
     };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule != null)
+        {
+            await _jsModule.DisposeAsync();
+        }
+    }
 }

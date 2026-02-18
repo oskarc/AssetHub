@@ -97,7 +97,7 @@ public class UserSyncService(
                     ["deletedUserId"] = userId,
                     ["aclsRemoved"] = userAcls.Count.ToString(),
                     ["sharesRevoked"] = userShares.Count.ToString()
-                }, httpContext: null, ct);
+                }, ct);
         }
 
         logger.LogInformation("User sync completed: {Deleted} deleted users, {Acls} ACLs removed, {Shares} shares revoked",

@@ -39,7 +39,7 @@ public static class CollectionMapper
 
     /// <summary>
     /// Maps a batch of collection entities to response DTOs.
-    /// Uses batch role resolution to avoid N+1 database queries.
+    /// Uses batch role resolution and batch inheritance check to avoid N+1 database queries.
     /// </summary>
     public static async Task<List<CollectionResponseDto>> ToDtoListAsync(
         IEnumerable<Collection> collections,
@@ -50,15 +50,20 @@ public static class CollectionMapper
         var collectionList = collections.ToList();
         if (collectionList.Count == 0) return new();
 
+        var collectionIds = collectionList.Select(c => c.Id).ToList();
+
         // Batch-resolve roles for all collections in one operation
-        var roles = await authService.GetUserRolesAsync(userId, collectionList.Select(c => c.Id), ct);
+        var roles = await authService.GetUserRolesAsync(userId, collectionIds, ct);
+
+        // Batch-check inheritance for all collections with a role (single query)
+        var collectionsWithRoles = roles.Where(kv => kv.Value != null).Select(kv => kv.Key);
+        var inherited = await authService.AreRolesInheritedAsync(userId, collectionsWithRoles, ct);
 
         var results = new List<CollectionResponseDto>(collectionList.Count);
         foreach (var c in collectionList)
         {
             var role = roles.GetValueOrDefault(c.Id);
-            var isInherited = role != null
-                && await authService.IsRoleInheritedAsync(userId, c.Id, ct);
+            var isInherited = role != null && inherited.GetValueOrDefault(c.Id, false);
 
             results.Add(new CollectionResponseDto
             {

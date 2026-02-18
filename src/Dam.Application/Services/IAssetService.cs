@@ -1,5 +1,4 @@
 using Dam.Application.Dtos;
-using Microsoft.AspNetCore.Http;
 
 namespace Dam.Application.Services;
 

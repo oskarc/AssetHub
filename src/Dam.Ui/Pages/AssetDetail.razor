@@ -207,7 +207,7 @@ else
                                             <td>
                                                 <MudTooltip Text="@_asset.Sha256">
                                                     <MudText Typo="Typo.body2" Class="asset-detail-truncate">
-                                                        @_asset.Sha256[..16]...
+                                                        @_asset.Sha256[..Math.Min(16, _asset.Sha256.Length)]...
                                                     </MudText>
                                                 </MudTooltip>
                                             </td>
@@ -309,20 +309,28 @@ else
                                 </MudButton>
                             }
 
+                            @if (RolePermissions.CanShare(_asset?.UserRole))
+                            {
                             <MudButton Variant="Variant.Outlined"
                                        StartIcon="@Icons.Material.Filled.Share"
                                        FullWidth="true"
                                        OnClick="ShareAssetAsync">
                                 @CommonLoc["Btn_Share"]
                             </MudButton>
+                            }
 
+                            @if (RolePermissions.CanEdit(_asset?.UserRole))
+                            {
                             <MudButton Variant="Variant.Outlined"
                                        StartIcon="@Icons.Material.Filled.Edit"
                                        FullWidth="true"
                                        OnClick="EditAssetAsync">
                                 @AssetLoc["EditDetails"]
                             </MudButton>
+                            }
 
+                            @if (RolePermissions.CanDelete(_asset?.UserRole))
+                            {
                             <MudButton Variant="Variant.Outlined"
                                        Color="Color.Error"
                                        StartIcon="@Icons.Material.Filled.Delete"
@@ -330,6 +338,7 @@ else
                                        OnClick="DeleteAssetAsync">
                                 @CommonLoc["Btn_Delete"]
                             </MudButton>
+                            }
                         </MudStack>
                     </MudStack>
                 </MudPaper>

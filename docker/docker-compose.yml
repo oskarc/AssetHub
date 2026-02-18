@@ -1,18 +1,23 @@
+# Default env file for local development. Override with:
+#   docker compose --env-file .env.prod up
+env_file:
+  - .env.dev
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: assethub-postgres
     environment:
-      POSTGRES_DB: assethub
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_dev_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,8 +28,8 @@ services:
     image: minio/minio:latest
     container_name: assethub-minio
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin_dev_password
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - miniodata:/minio
     ports:
@@ -45,13 +50,13 @@ services:
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: postgres
-      KC_DB_PASSWORD: postgres_dev_password
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin123
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HOSTNAME: keycloak.assethub.local
       KC_HTTPS_KEY_STORE_FILE: /opt/keycloak/certs/dev-cert.pfx
-      KC_HTTPS_KEY_STORE_PASSWORD: devpass123
+      KC_HTTPS_KEY_STORE_PASSWORD: ${KC_HTTPS_KEY_STORE_PASSWORD}
       KC_HTTPS_KEY_STORE_TYPE: PKCS12
       KC_HTTP_ENABLED: 'true'
     volumes:
@@ -88,22 +93,22 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: https://+:7252
       ASPNETCORE_Kestrel__Certificates__Default__Path: /app/certs/dev-cert.pfx
-      ASPNETCORE_Kestrel__Certificates__Default__Password: devpass123
-      ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=assethub;User Id=postgres;Password=postgres_dev_password;"
-      ConnectionStrings__KeycloakDb: "Server=postgres;Port=5432;Database=keycloak;User Id=postgres;Password=postgres_dev_password;"
+      ASPNETCORE_Kestrel__Certificates__Default__Password: ${ASPNETCORE_Kestrel__Certificates__Default__Password}
+      ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      ConnectionStrings__KeycloakDb: "Server=postgres;Port=5432;Database=keycloak;User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       Keycloak__Authority: "https://keycloak.assethub.local:8443/realms/media"
-      Keycloak__ClientId: "assethub-app"
-      Keycloak__ClientSecret: "VxBiV29QVchYHFzD5N62l43fTXbTMzSl"
-      Keycloak__AdminUsername: "admin"
-      Keycloak__AdminPassword: "admin123"
+      Keycloak__ClientId: "${KEYCLOAK_CLIENT_ID}"
+      Keycloak__ClientSecret: "${KEYCLOAK_CLIENT_SECRET}"
+      Keycloak__AdminUsername: "${KEYCLOAK_ADMIN_API_USERNAME}"
+      Keycloak__AdminPassword: "${KEYCLOAK_ADMIN_API_PASSWORD}"
       MinIO__Endpoint: "minio:9000"
-      MinIO__AccessKey: "minioadmin"
-      MinIO__SecretKey: "minioadmin_dev_password"
-      MinIO__BucketName: "assethub-dev"
+      MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
+      MinIO__SecretKey: "${MINIO_SECRET_KEY}"
+      MinIO__BucketName: "${MINIO_BUCKET_NAME}"
       MinIO__UseSSL: "false"
       MinIO__PublicUrl: "localhost:9000"
       MinIO__PublicUseSSL: "false"
-      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=assethub;User Id=postgres;Password=postgres_dev_password;"
+      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       App__BaseUrl: "https://assethub.local:7252"
     volumes:
       - ../certs:/app/certs:ro
@@ -128,13 +133,13 @@ services:
     environment:
       TZ: Europe/Stockholm
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=assethub;User Id=postgres;Password=postgres_dev_password;"
+      ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       MinIO__Endpoint: "minio:9000"
-      MinIO__AccessKey: "minioadmin"
-      MinIO__SecretKey: "minioadmin_dev_password"
-      MinIO__BucketName: "assethub-dev"
+      MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
+      MinIO__SecretKey: "${MINIO_SECRET_KEY}"
+      MinIO__BucketName: "${MINIO_BUCKET_NAME}"
       MinIO__UseSSL: "false"
-      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=assethub;User Id=postgres;Password=postgres_dev_password;"
+      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
     depends_on:
       postgres:
         condition: service_healthy

@@ -2,7 +2,6 @@ using System.IO.Compression;
 using Dam.Application.Helpers;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Dam.Infrastructure.Services;
@@ -16,14 +15,15 @@ public class ZipDownloadService(
         IEnumerable<Asset> assets,
         string bucketName,
         string zipFileName,
-        HttpContext httpContext,
+        ZipStreamContext streamContext,
         CancellationToken ct = default)
     {
-        httpContext.Response.ContentType = "application/zip";
-        httpContext.Response.Headers.ContentDisposition = $"attachment; filename=\"{zipFileName}\"";
+        streamContext.SetHeader("Content-Type", "application/zip");
+        streamContext.SetHeader("Content-Disposition", $"attachment; filename=\"{zipFileName}\"");
 
         var errors = new List<string>();
-        await using var responseStream = httpContext.Response.BodyWriter.AsStream();
+        // Do NOT dispose the output stream — it is owned by the HTTP response pipeline.
+        var responseStream = streamContext.OutputStream;
         using var archive = new ZipArchive(responseStream, ZipArchiveMode.Create, leaveOpen: true);
 
         foreach (var asset in assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)))

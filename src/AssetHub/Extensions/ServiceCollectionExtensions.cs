@@ -1,17 +1,13 @@
 using AssetHub.HealthChecks;
 using Dam.Application;
 using Dam.Application.Configuration;
-using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Infrastructure.Data;
-using Dam.Infrastructure.Repositories;
+using Dam.Infrastructure.DependencyInjection;
 using Dam.Infrastructure.Services;
 using Hangfire;
-using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Minio;
 using MudBlazor.Services;
 
 namespace AssetHub.Extensions;
@@ -58,31 +54,10 @@ public static class ServiceCollectionExtensions
             .PersistKeysToDbContext<AssetHubDbContext>()
             .SetApplicationName("AssetHub");
 
-        // ── Database ────────────────────────────────────────────────────────
-        var connectionString = configuration.GetConnectionString("Postgres");
-        var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
-        dataSourceBuilder.EnableDynamicJson();
-        var dataSource = dataSourceBuilder.Build();
+        // ── Shared infrastructure: DB, Hangfire storage, MinIO, Repos, core services
+        services.AddSharedInfrastructure(configuration);
 
-        services.AddDbContext<AssetHubDbContext>(options =>
-        {
-            options.UseNpgsql(dataSource);
-            // Suppress EF Core 9's PendingModelChangesWarning so existing migrations can apply
-            // even when there are minor model snapshot differences (e.g. value comparer warnings).
-            options.ConfigureWarnings(w =>
-                w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-        });
-
-        // ── Hangfire ────────────────────────────────────────────────────────
-        var hangfireConnectionString = configuration["Hangfire:ConnectionString"];
-        if (string.IsNullOrWhiteSpace(hangfireConnectionString))
-            hangfireConnectionString = configuration.GetConnectionString("Postgres") ?? "";
-
-        services.AddHangfire(config =>
-        {
-            config.UsePostgreSqlStorage(options =>
-                options.UseNpgsqlConnection(hangfireConnectionString));
-        });
+        // ── Hangfire server (API host processes jobs with default options) ───
         services.AddHangfireServer();
 
         // ── MudBlazor ───────────────────────────────────────────────────────
@@ -91,34 +66,18 @@ public static class ServiceCollectionExtensions
         // ── Caching ─────────────────────────────────────────────────────────
         services.AddMemoryCache();
 
-        // ── Options ─────────────────────────────────────────────────────────
-        services.Configure<MinIOSettings>(configuration.GetSection(MinIOSettings.SectionName));
+        // ── Options (API-specific — shared options are in AddSharedInfrastructure) ─
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
         services.Configure<KeycloakSettings>(configuration.GetSection(KeycloakSettings.SectionName));
         services.Configure<AppSettings>(configuration.GetSection(AppSettings.SectionName));
-        services.Configure<ImageProcessingSettings>(configuration.GetSection(ImageProcessingSettings.SectionName));
 
-        // ── Application & Domain Services ───────────────────────────────────
+        // ── Application & Domain Services (API-only) ────────────────────────
         services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizationService>();
-        services.AddScoped<ICollectionRepository, CollectionRepository>();
-        services.AddScoped<ICollectionAclRepository, CollectionAclRepository>();
-        services.AddScoped<IAssetRepository, AssetRepository>();
-        services.AddScoped<IAssetCollectionRepository, AssetCollectionRepository>();
-        services.AddScoped<IShareRepository, ShareRepository>();
-        services.AddScoped<IMinIOAdapter>(sp =>
-        {
-            var internalClient = sp.GetRequiredService<Minio.IMinioClient>();
-            var publicClient = sp.GetRequiredKeyedService<Minio.IMinioClient>("public");
-            var adapterLogger = sp.GetRequiredService<ILogger<MinIOAdapter>>();
-            return new MinIOAdapter(internalClient, publicClient, adapterLogger);
-        });
-        services.AddScoped<IMediaProcessingService, MediaProcessingService>();
         services.AddScoped<IUserLookupService, UserLookupService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IUserSyncService, UserSyncService>();
-        services.AddScoped<IAssetDeletionService, AssetDeletionService>();
         services.AddScoped<IZipDownloadService, ZipDownloadService>();
         services.AddScoped<IShareService, ShareService>();
         services.AddScoped<IUserCleanupService, UserCleanupService>();
@@ -160,6 +119,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Dam.Ui.Services.IUserFeedbackService, Dam.Ui.Services.UserFeedbackService>();
         services.AddTransient<Dam.Ui.Services.CookieForwardingHandler>();
 
+        var connectionString = configuration.GetConnectionString("Postgres");
+
         services.AddHttpClient<Dam.Ui.Services.AssetHubApiClient>((sp, client) =>
         {
             var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
@@ -190,9 +151,6 @@ public static class ServiceCollectionExtensions
         })
         .AddHttpMessageHandler<Dam.Ui.Services.CookieForwardingHandler>();
 
-        // ── MinIO clients ───────────────────────────────────────────────────
-        AddMinIOClients(services, configuration);
-
         // ── Health checks ───────────────────────────────────────────────────
         services.AddHealthChecks()
             .AddNpgSql(
@@ -203,43 +161,5 @@ public static class ServiceCollectionExtensions
             .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", "ready"]);
 
         return services;
-    }
-
-    private static void AddMinIOClients(IServiceCollection services, IConfiguration configuration)
-    {
-        var minioConfig = configuration.GetSection("MinIO");
-        var minioEndpoint = minioConfig["Endpoint"]
-            ?? throw new InvalidOperationException("MinIO:Endpoint is required.");
-        var minioAccessKey = minioConfig["AccessKey"]
-            ?? throw new InvalidOperationException("MinIO:AccessKey is required.");
-        var minioSecretKey = minioConfig["SecretKey"]
-            ?? throw new InvalidOperationException("MinIO:SecretKey is required.");
-        var minioUseSsl = minioConfig.GetValue("UseSSL", true);
-
-        var minioClient = new Minio.MinioClient()
-            .WithEndpoint(minioEndpoint)
-            .WithCredentials(minioAccessKey, minioSecretKey)
-            .WithSSL(minioUseSsl)
-            .Build();
-
-        services.AddSingleton<Minio.IMinioClient>(minioClient);
-
-        // Public client for presigned URLs that browsers access directly
-        var publicEndpoint = minioConfig["PublicUrl"];
-        var publicUseSsl = minioConfig.GetValue("PublicUseSSL", minioUseSsl);
-        Minio.IMinioClient publicMinioClient;
-        if (!string.IsNullOrWhiteSpace(publicEndpoint) && publicEndpoint != minioEndpoint)
-        {
-            publicMinioClient = new Minio.MinioClient()
-                .WithEndpoint(publicEndpoint)
-                .WithCredentials(minioAccessKey, minioSecretKey)
-                .WithSSL(publicUseSsl)
-                .Build();
-        }
-        else
-        {
-            publicMinioClient = minioClient;
-        }
-        services.AddKeyedSingleton<Minio.IMinioClient>("public", publicMinioClient);
     }
 }

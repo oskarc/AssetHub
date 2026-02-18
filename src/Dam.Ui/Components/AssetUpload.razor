@@ -183,12 +183,20 @@
                 var callbackHelper = new UploadCallbackHelper(upload, () => InvokeAsync(StateHasChanged));
                 var dotNetRef = DotNetObjectReference.Create(callbackHelper);
 
-                var success = await _jsModule.InvokeAsync<bool>(
-                    "uploadFile",
-                    initResult.UploadUrl,
-                    _inputFile.Element,
-                    i,
-                    dotNetRef);
+                bool success;
+                try
+                {
+                    success = await _jsModule.InvokeAsync<bool>(
+                        "uploadFile",
+                        initResult.UploadUrl,
+                        _inputFile.Element,
+                        i,
+                        dotNetRef);
+                }
+                finally
+                {
+                    dotNetRef.Dispose();
+                }
 
                 if (!success)
                 {

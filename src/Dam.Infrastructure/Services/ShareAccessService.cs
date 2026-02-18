@@ -132,7 +132,7 @@ public class ShareAccessService : IShareAccessService
     }
 
     public async Task<ServiceResult> StreamDownloadAllAsync(
-        string token, string? password, HttpContext httpContext, CancellationToken ct)
+        string token, string? password, ZipStreamContext streamContext, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
         if (error != null) return error;
@@ -155,7 +155,7 @@ public class ShareAccessService : IShareAccessService
         await _shareRepo.IncrementAccessAsync(share.Id, ct);
 
         var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        await _zipService.StreamAssetsAsZipAsync(assets, BucketName, zipFileName, httpContext, ct);
+        await _zipService.StreamAssetsAsZipAsync(assets, BucketName, zipFileName, streamContext, ct);
 
         return ServiceResult.Success;
     }
@@ -214,14 +214,20 @@ public class ShareAccessService : IShareAccessService
                 : ServiceError.BadRequest(validation.ErrorMessage!);
         }
 
-        if (!await _authService.CheckAccessAsync(userId, validation.CollectionIdToCheck!.Value, RoleHierarchy.Roles.Contributor, ct))
+        // User must have Contributor access to at least one of the asset's collections
+        var hasAccess = false;
+        foreach (var collectionId in validation.CollectionIdsToCheck)
+        {
+            if (await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct))
+            {
+                hasAccess = true;
+                break;
+            }
+        }
+        if (!hasAccess)
             return ServiceError.Forbidden("You don't have permission to share this resource");
 
-        var httpContext = HttpCtx;
-        if (httpContext == null)
-            return ServiceError.Server("HttpContext is unavailable");
-
-        var result = await _shareService.CreateShareAsync(dto, userId, baseUrl, httpContext, ct);
+        var result = await _shareService.CreateShareAsync(dto, userId, baseUrl, ct);
         return result.Response;
     }
 
@@ -240,7 +246,7 @@ public class ShareAccessService : IShareAccessService
 
         await _audit.LogAsync("share.revoked", "share", shareId, userId,
             new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId },
-            HttpCtx, ct);
+            ct);
 
         return ServiceResult.Success;
     }
@@ -265,7 +271,7 @@ public class ShareAccessService : IShareAccessService
 
         await _audit.LogAsync("share.password_updated", "share", shareId, userId,
             new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId },
-            HttpCtx, ct);
+            ct);
 
         return new MessageResponse("Password updated successfully");
     }
@@ -355,7 +361,7 @@ public class ShareAccessService : IShareAccessService
     private async Task<ServiceResult<string>> GetPresignedUrl(string objectKey, CancellationToken ct)
     {
         var url = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, null, ct);
+            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload: false, null, ct);
         return url;
     }
 }

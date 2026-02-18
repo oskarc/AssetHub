@@ -181,15 +181,25 @@ else
     private const int _take = 24;
     private bool _isLoading = true;
     private Guid? _loadedCollectionId;
+    private string? _loadedFilterType;
+    private string _loadedSortBy = "";
+    private string _loadedSearchQuery = "";
 
     protected override async Task OnParametersSetAsync()
     {
         if (CollectionId.HasValue)
         {
-            // Only reload if the collection has changed
-            if (_loadedCollectionId != CollectionId.Value)
+            var collectionChanged = _loadedCollectionId != CollectionId.Value;
+            var filterChanged = _loadedFilterType != FilterType
+                             || _loadedSortBy != SortBy
+                             || _loadedSearchQuery != (SearchQuery ?? "");
+
+            if (collectionChanged || filterChanged)
             {
                 _loadedCollectionId = CollectionId.Value;
+                _loadedFilterType = FilterType;
+                _loadedSortBy = SortBy;
+                _loadedSearchQuery = SearchQuery ?? "";
                 _skip = 0;
                 _assets.Clear();
                 await LoadAssetsAsync();

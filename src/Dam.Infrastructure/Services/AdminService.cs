@@ -149,7 +149,7 @@ public class AdminService : IAdminService
 
         var adminUserId = _currentUser.UserId;
         await _audit.LogAsync("share.revoked", "share", shareId, adminUserId,
-            new() { ["admin"] = true }, HttpCtx, ct);
+            new() { ["admin"] = true }, ct);
 
         return ServiceResult.Success;
     }
@@ -292,7 +292,7 @@ public class AdminService : IAdminService
             await _audit.LogAsync("user.created", "user",
                 Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
                 new() { ["username"] = username, ["email"] = email },
-                HttpCtx, ct);
+                ct);
 
             return new CreateUserResponse
             {
@@ -311,7 +311,7 @@ public class AdminService : IAdminService
             var adminUserId = _currentUser.UserId;
             await _audit.LogAsync("user.create_failed", "user", null, adminUserId,
                 new() { ["username"] = username, ["error"] = ex.Message },
-                HttpCtx, ct);
+                ct);
 
             return ex.StatusCode == 409
                 ? ServiceError.Conflict(ex.Message)
@@ -341,7 +341,7 @@ public class AdminService : IAdminService
             await _audit.LogAsync("user.password_reset_email", "user",
                 Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
                 new() { ["targetUserId"] = userId },
-                HttpCtx, ct);
+                ct);
 
             return ServiceResult.Success;
         }
@@ -374,7 +374,7 @@ public class AdminService : IAdminService
                         ["deletedUsers"] = result.DeletedUsers,
                         ["aclsRemoved"] = result.AclsRemoved,
                         ["sharesRevoked"] = result.SharesRevoked
-                    }, HttpCtx, ct);
+                    }, ct);
             }
 
             return result;
@@ -421,7 +421,7 @@ public class AdminService : IAdminService
                     ["username"] = username,
                     ["aclsRemoved"] = aclsRemoved,
                     ["sharesRevoked"] = sharesRevoked
-                }, HttpCtx, ct);
+                }, ct);
 
             return new DeleteUserResponse
             {

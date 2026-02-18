@@ -2,13 +2,17 @@ using Dam.Application.Services;
 using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace Dam.Infrastructure.Services;
 
 /// <summary>
-/// Persists audit events to the database.
+/// Persists audit events to the database using a dedicated DbContext
+/// to avoid flushing uncommitted changes from sibling operations.
 /// </summary>
-public class AuditService(AssetHubDbContext dbContext) : IAuditService
+public class AuditService(
+    IDbContextFactory<AssetHubDbContext> dbContextFactory,
+    IHttpContextAccessor httpContextAccessor) : IAuditService
 {
     public async Task LogAsync(
         string eventType,
@@ -16,9 +20,10 @@ public class AuditService(AssetHubDbContext dbContext) : IAuditService
         Guid? targetId,
         string? actorUserId,
         Dictionary<string, object>? details = null,
-        HttpContext? httpContext = null,
         CancellationToken ct = default)
     {
+        var httpContext = httpContextAccessor.HttpContext;
+
         var auditEvent = new AuditEvent
         {
             Id = Guid.NewGuid(),
@@ -32,6 +37,7 @@ public class AuditService(AssetHubDbContext dbContext) : IAuditService
             CreatedAt = DateTime.UtcNow
         };
 
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(ct);
         dbContext.AuditEvents.Add(auditEvent);
         await dbContext.SaveChangesAsync(ct);
     }

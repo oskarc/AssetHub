@@ -89,14 +89,10 @@ public class AssetService : IAssetService
         var accessibleCollections = await _collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
         var accessibleCollectionIds = accessibleCollections.Select(c => c.Id).ToList();
 
-        // Build role map using the authorization service (respects inheritance)
-        var collectionRoles = new Dictionary<Guid, string>();
-        foreach (var coll in accessibleCollections)
-        {
-            var role = await _authService.GetUserRoleAsync(userId, coll.Id, ct);
-            if (role != null)
-                collectionRoles[coll.Id] = role;
-        }
+        // Batch-resolve roles for all accessible collections (single query, no N+1)
+        var collectionRoles = (await _authService.GetUserRolesAsync(userId, accessibleCollectionIds, ct))
+            .Where(kv => kv.Value != null)
+            .ToDictionary(kv => kv.Key, kv => kv.Value!);
 
         // If a specific collection is requested, filter to just that one (if accessible)
         if (collectionId.HasValue)
@@ -236,7 +232,7 @@ public class AssetService : IAssetService
 
         await _audit.LogAsync("asset.created", "asset", asset.Id, userId,
             new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
-            HttpContext, ct);
+            ct);
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType, asset.OriginalObjectKey, ct);
 
@@ -267,7 +263,7 @@ public class AssetService : IAssetService
         asset.UpdatedAt = DateTime.UtcNow;
 
         await _assetRepo.UpdateAsync(asset, ct);
-        await _audit.LogAsync("asset.updated", "asset", id, _currentUser.UserId, httpContext: HttpContext, ct: ct);
+        await _audit.LogAsync("asset.updated", "asset", id, _currentUser.UserId, ct: ct);
 
         return AssetMapper.ToDto(asset);
     }
@@ -298,13 +294,13 @@ public class AssetService : IAssetService
             {
                 await _audit.LogAsync("asset.deleted", "asset", id, userId,
                     new() { ["title"] = asset.Title, ["reason"] = "last_collection" },
-                    HttpContext, ct);
+                    ct);
             }
             else
             {
                 await _audit.LogAsync("asset.removed_from_collection", "asset", id, userId,
                     new() { ["title"] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() },
-                    HttpContext, ct);
+                    ct);
             }
             return ServiceResult.Success;
         }
@@ -328,7 +324,7 @@ public class AssetService : IAssetService
 
                 await _audit.LogAsync("asset.removed_from_collections", "asset", id, userId,
                     new() { ["title"] = asset.Title, ["count"] = authorizedCollectionIds.Count.ToString() },
-                    HttpContext, ct);
+                    ct);
                 return ServiceResult.Success;
             }
         }
@@ -336,7 +332,7 @@ public class AssetService : IAssetService
         // Full permanent delete
         await _deletionService.PermanentDeleteAsync(asset, BucketName, ct);
         await _audit.LogAsync("asset.deleted", "asset", id, userId,
-            new() { ["title"] = asset.Title }, HttpContext, ct);
+            new() { ["title"] = asset.Title }, ct);
 
         return ServiceResult.Success;
     }
@@ -510,12 +506,12 @@ public class AssetService : IAssetService
         if (permanentlyDeleted)
         {
             await _audit.LogAsync("asset.deleted", "asset", assetId, userId,
-                new() { ["title"] = asset.Title, ["reason"] = "orphaned" }, HttpContext, ct);
+                new() { ["title"] = asset.Title, ["reason"] = "orphaned" }, ct);
         }
         else
         {
             await _audit.LogAsync("asset.removed_from_collection", "asset", assetId, userId,
-                new() { ["title"] = asset.Title, ["collectionId"] = collectionId.ToString() }, HttpContext, ct);
+                new() { ["title"] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
         }
 
         return ServiceResult.Success;

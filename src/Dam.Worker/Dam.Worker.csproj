@@ -15,10 +15,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.*" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.*" />
-    <PackageReference Include="Hangfire.Core" Version="1.8.*" />
-    <PackageReference Include="Hangfire.PostgreSql" Version="1.20.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.*" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.*" />
   </ItemGroup>
 
 </Project>

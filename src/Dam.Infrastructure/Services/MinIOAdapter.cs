@@ -31,20 +31,41 @@ public class MinIOAdapter(
 
     public async Task<Stream> DownloadAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
     {
-        var memoryStream = new MemoryStream();
-        
-        var getObjectArgs = new GetObjectArgs()
-            .WithBucket(bucketName)
-            .WithObject(objectKey)
-            .WithCallbackStream(async (stream) =>
-            {
-                await stream.CopyToAsync(memoryStream, cancellationToken);
-            });
+        // Use a pipe to stream data without buffering the entire file in memory.
+        // GetObjectAsync blocks until its callback completes, so the download
+        // must run on a background task; otherwise the pipe writer will stall
+        // once its buffer fills because no reader is consuming yet (deadlock).
+        var pipe = new System.IO.Pipelines.Pipe();
 
-        await minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
-        memoryStream.Position = 0;
-        
-        return memoryStream;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var getObjectArgs = new GetObjectArgs()
+                    .WithBucket(bucketName)
+                    .WithObject(objectKey)
+                    .WithCallbackStream(async (stream) =>
+                    {
+                        try
+                        {
+                            await stream.CopyToAsync(pipe.Writer.AsStream(), cancellationToken);
+                            await pipe.Writer.CompleteAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            await pipe.Writer.CompleteAsync(ex);
+                        }
+                    });
+
+                await minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await pipe.Writer.CompleteAsync(ex);
+            }
+        }, cancellationToken);
+
+        return pipe.Reader.AsStream();
     }
 
     public async Task DeleteAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)

@@ -21,7 +21,7 @@ public interface IShareAccessService
 
     /// <summary>Stream all shared collection assets as a ZIP download.</summary>
     Task<ServiceResult> StreamDownloadAllAsync(
-        string token, string? password, Microsoft.AspNetCore.Http.HttpContext httpContext,
+        string token, string? password, ZipStreamContext streamContext,
         CancellationToken ct);
 
     /// <summary>Get a presigned preview URL for a shared asset.</summary>

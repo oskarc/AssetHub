@@ -107,7 +107,7 @@ public class CollectionAclService : ICollectionAclService
 
         await _audit.LogAsync("acl.set", "collection", collectionId, userId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = role },
-            HttpCtx, ct);
+            ct);
 
         string? principalName = null;
         string? principalEmail = null;
@@ -149,7 +149,7 @@ public class CollectionAclService : ICollectionAclService
 
         await _audit.LogAsync("acl.revoked", "collection", collectionId, userId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId },
-            HttpCtx, ct);
+            ct);
 
         return ServiceResult.Success;
     }
@@ -230,7 +230,7 @@ public class CollectionAclService : ICollectionAclService
         var adminUserId = _currentUser.UserId;
         await _audit.LogAsync("acl.set", "collection", collectionId, adminUserId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = targetRole, ["admin"] = true },
-            HttpCtx, ct);
+            ct);
 
         return new AccessUpdatedResponse
         {
@@ -252,7 +252,7 @@ public class CollectionAclService : ICollectionAclService
         var adminUserId = _currentUser.UserId;
         await _audit.LogAsync("acl.revoked", "collection", collectionId, adminUserId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["admin"] = true },
-            HttpCtx, ct);
+            ct);
 
         return new AccessRevokedResponse
         {

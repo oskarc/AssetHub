@@ -134,7 +134,7 @@ public class CollectionService : ICollectionService
 
         await _audit.LogAsync("collection.created", "collection", collection.Id, userId,
             new() { ["name"] = collection.Name, ["parentId"] = (object?)collection.ParentId ?? "root" },
-            HttpCtx, ct);
+            ct);
 
         return new CollectionResponseDto
         {
@@ -175,7 +175,7 @@ public class CollectionService : ICollectionService
             collection.Description = dto.Description;
 
         await _collectionRepo.UpdateAsync(collection, ct);
-        await _audit.LogAsync("collection.updated", "collection", id, userId, httpContext: HttpCtx, ct: ct);
+        await _audit.LogAsync("collection.updated", "collection", id, userId, ct: ct);
 
         return new MessageResponse("Collection updated");
     }
@@ -196,7 +196,7 @@ public class CollectionService : ICollectionService
         await _shareRepo.DeleteByScopeAsync("collection", id, ct);
         await _collectionRepo.DeleteAsync(id, ct);
 
-        await _audit.LogAsync("collection.deleted", "collection", id, userId, httpContext: HttpCtx, ct: ct);
+        await _audit.LogAsync("collection.deleted", "collection", id, userId, ct: ct);
 
         return ServiceResult.Success;
     }
@@ -216,7 +216,7 @@ public class CollectionService : ICollectionService
     }
 
     public async Task<ServiceResult> DownloadAllAssetsAsync(
-        Guid id, HttpContext httpContext, CancellationToken ct)
+        Guid id, ZipStreamContext streamContext, CancellationToken ct)
     {
         var userId = _currentUser.UserId;
 
@@ -233,7 +233,7 @@ public class CollectionService : ICollectionService
             return ServiceError.BadRequest("No assets in collection");
 
         var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        await _zipService.StreamAssetsAsZipAsync(assets, BucketName, zipFileName, httpContext, ct);
+        await _zipService.StreamAssetsAsZipAsync(assets, BucketName, zipFileName, streamContext, ct);
 
         return ServiceResult.Success;
     }

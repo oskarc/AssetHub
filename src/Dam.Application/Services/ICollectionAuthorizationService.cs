@@ -58,4 +58,11 @@ public interface ICollectionAuthorizationService
     /// More efficient than calling CheckAccessAsync in a loop.
     /// </summary>
     Task<List<Guid>> FilterAccessibleAsync(string userId, IEnumerable<Guid> collectionIds, string requiredRole, CancellationToken ct = default);
+
+    /// <summary>
+    /// Batch-checks whether the user's effective role on each collection is inherited from a parent.
+    /// Returns a dictionary of collectionId → isInherited. More efficient than calling
+    /// IsRoleInheritedAsync in a loop.
+    /// </summary>
+    Task<Dictionary<Guid, bool>> AreRolesInheritedAsync(string userId, IEnumerable<Guid> collectionIds, CancellationToken ct = default);
 }

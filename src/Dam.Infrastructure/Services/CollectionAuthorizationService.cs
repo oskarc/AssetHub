@@ -134,7 +134,7 @@ public class CollectionAuthorizationService(
         // Contributors should only be added to existing collections.
         // This is invoked after the caller has already verified the user has
         // at least the "manager" Keycloak role (checked at the endpoint level).
-        return Task.FromResult(!string.IsNullOrEmpty(userId));
+        return Task.FromResult(!string.IsNullOrWhiteSpace(userId));
     }
 
     public async Task<bool> CanCreateSubCollectionAsync(string userId, Guid parentCollectionId, CancellationToken ct = default)
@@ -174,6 +174,22 @@ public class CollectionAuthorizationService(
                 accessible.Add(collectionId);
         }
         return accessible;
+    }
+
+    public async Task<Dictionary<Guid, bool>> AreRolesInheritedAsync(string userId, IEnumerable<Guid> collectionIds, CancellationToken ct = default)
+    {
+        var ids = collectionIds.ToList();
+        if (ids.Count == 0) return new();
+
+        // Single query: check which collections have a direct ACL for this user
+        var directAclCollectionIds = await dbContext.CollectionAcls
+            .Where(a => ids.Contains(a.CollectionId) &&
+                        a.PrincipalType == "user" &&
+                        a.PrincipalId == userId)
+            .Select(a => a.CollectionId)
+            .ToHashSetAsync(ct);
+
+        return ids.ToDictionary(id => id, id => !directAclCollectionIds.Contains(id));
     }
 
     /// <summary>

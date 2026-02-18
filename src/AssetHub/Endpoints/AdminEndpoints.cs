@@ -119,8 +119,9 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> SyncDeletedUsers(
-        [FromQuery] bool dryRun,
-        [FromServices] IAdminService svc, CancellationToken ct)
+        [FromServices] IAdminService svc,
+        CancellationToken ct,
+        [FromQuery] bool dryRun = true)
     {
         var result = await svc.SyncDeletedUsersAsync(dryRun, ct);
         return result.ToHttpResult();

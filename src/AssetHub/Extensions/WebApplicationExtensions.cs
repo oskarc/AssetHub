@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Minio;
+using Hangfire.Dashboard;
 using Serilog;
 
 namespace AssetHub.Extensions;
@@ -104,7 +105,14 @@ public static class WebApplicationExtensions
         // Auth routes
         app.MapGet("/auth/login", async (HttpContext http, string? returnUrl) =>
         {
-            var redirectUri = string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl;
+            // Prevent open redirect: only allow local (relative) return URLs
+            var redirectUri = "/";
+            if (!string.IsNullOrWhiteSpace(returnUrl)
+                && Uri.TryCreate(returnUrl, UriKind.Relative, out _)
+                && !returnUrl.StartsWith("//"))
+            {
+                redirectUri = returnUrl;
+            }
             await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
                 new() { RedirectUri = redirectUri });
         });
@@ -133,8 +141,11 @@ public static class WebApplicationExtensions
         app.MapRazorComponents<App>()
            .AddInteractiveServerRenderMode();
 
-        // Hangfire Dashboard
-        app.MapHangfireDashboard();
+        // Hangfire Dashboard (admin-only)
+        app.MapHangfireDashboard("/hangfire", new DashboardOptions
+        {
+            Authorization = new[] { new HangfireAdminAuthorizationFilter() }
+        });
 
         // Recurring jobs
         RecurringJob.AddOrUpdate<IUserSyncService>(
@@ -305,5 +316,19 @@ public static class WebApplicationExtensions
             })
         };
         return context.Response.WriteAsJsonAsync(result);
+    }
+
+    /// <summary>
+    /// Hangfire dashboard authorization filter: requires authenticated admin user.
+    /// </summary>
+    private sealed class HangfireAdminAuthorizationFilter : IDashboardAuthorizationFilter
+    {
+        public bool Authorize(DashboardContext context)
+        {
+            var httpContext = context.GetHttpContext();
+            var user = httpContext.User;
+            return user.Identity?.IsAuthenticated == true
+                   && user.IsInRole("admin");
+        }
     }
 }

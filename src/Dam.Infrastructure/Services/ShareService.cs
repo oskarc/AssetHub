@@ -6,7 +6,6 @@ using Dam.Application.Services;
 using Dam.Application.Services.Email.Templates;
 using Dam.Domain.Entities;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Dam.Infrastructure.Services;
@@ -42,7 +41,7 @@ public class ShareService(
             return new ShareScopeValidation
             {
                 IsValid = true,
-                CollectionIdToCheck = assetCollections[0].Id,
+                CollectionIdsToCheck = assetCollections.Select(c => c.Id).ToList(),
                 ContentName = asset.Title
             };
         }
@@ -55,13 +54,13 @@ public class ShareService(
         return new ShareScopeValidation
         {
             IsValid = true,
-            CollectionIdToCheck = collection.Id,
+            CollectionIdsToCheck = new List<Guid> { collection.Id },
             ContentName = collection.Name
         };
     }
 
     public async Task<ShareCreationResult> CreateShareAsync(
-        CreateShareDto dto, string userId, string baseUrl, HttpContext httpContext, CancellationToken ct = default)
+        CreateShareDto dto, string userId, string baseUrl, CancellationToken ct = default)
     {
         var validation = await ValidateScopeAsync(dto, ct);
 
@@ -95,7 +94,7 @@ public class ShareService(
         await shareRepository.CreateAsync(share, ct);
 
         await audit.LogAsync("share.created", "share", share.Id, userId,
-            new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, httpContext, ct);
+            new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, ct);
 
         var shareUrl = $"{baseUrl}/share/{token}";
         var emailFailed = false;

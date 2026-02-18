@@ -12,32 +12,31 @@ public static class AssetEndpoints
     {
         var group = app.MapGroup("/api/assets")
             .RequireAuthorization()
-            .DisableAntiforgery()
             .WithTags("Assets");
 
         group.MapGet("", GetAssets).RequireAuthorization("RequireAdmin").WithName("GetAssets");
         group.MapGet("all", GetAllAssets).RequireAuthorization("RequireAdmin").WithName("GetAllAssets");
-        group.MapGet("{id}", GetAsset).WithName("GetAsset");
-        group.MapPost("", UploadAsset).WithName("UploadAsset");
-        group.MapPatch("{id}", UpdateAsset).WithName("UpdateAsset");
-        group.MapDelete("{id}", DeleteAsset).WithName("DeleteAsset");
-        group.MapGet("collection/{collectionId}", GetAssetsByCollection).WithName("GetAssetsByCollection");
+        group.MapGet("{id:guid}", GetAsset).WithName("GetAsset");
+        group.MapPost("", UploadAsset).DisableAntiforgery().WithName("UploadAsset");
+        group.MapPatch("{id:guid}", UpdateAsset).WithName("UpdateAsset");
+        group.MapDelete("{id:guid}", DeleteAsset).WithName("DeleteAsset");
+        group.MapGet("collection/{collectionId:guid}", GetAssetsByCollection).WithName("GetAssetsByCollection");
 
-        group.MapGet("{id}/collections", GetAssetCollections).WithName("GetAssetCollections");
-        group.MapPost("{id}/collections/{collectionId}", AddAssetToCollection).WithName("AddAssetToCollection");
-        group.MapDelete("{id}/collections/{collectionId}", RemoveAssetFromCollection).WithName("RemoveAssetFromCollection");
-        group.MapGet("{id}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
+        group.MapGet("{id:guid}/collections", GetAssetCollections).WithName("GetAssetCollections");
+        group.MapPost("{id:guid}/collections/{collectionId:guid}", AddAssetToCollection).WithName("AddAssetToCollection");
+        group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).WithName("RemoveAssetFromCollection");
+        group.MapGet("{id:guid}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
 
         group.MapPost("init-upload", InitUpload).WithName("InitUpload");
-        group.MapPost("{id}/confirm-upload", ConfirmUpload).WithName("ConfirmUpload");
+        group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).WithName("ConfirmUpload");
 
-        group.MapGet("{id}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
-        group.MapGet("{id}/preview", GetRendition("original", forceDownload: false)).WithName("PreviewOriginal");
-        group.MapGet("{id}/thumb", GetRendition("thumb", forceDownload: false)).WithName("GetThumbnail");
-        group.MapGet("{id}/thumb/download", GetRendition("thumb", forceDownload: true)).WithName("DownloadThumbnail");
-        group.MapGet("{id}/medium", GetRendition("medium", forceDownload: false)).WithName("GetMedium");
-        group.MapGet("{id}/medium/download", GetRendition("medium", forceDownload: true)).WithName("DownloadMedium");
-        group.MapGet("{id}/poster", GetRendition("poster", forceDownload: false)).WithName("GetPoster");
+        group.MapGet("{id:guid}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
+        group.MapGet("{id:guid}/preview", GetRendition("original", forceDownload: false)).WithName("PreviewOriginal");
+        group.MapGet("{id:guid}/thumb", GetRendition("thumb", forceDownload: false)).WithName("GetThumbnail");
+        group.MapGet("{id:guid}/thumb/download", GetRendition("thumb", forceDownload: true)).WithName("DownloadThumbnail");
+        group.MapGet("{id:guid}/medium", GetRendition("medium", forceDownload: false)).WithName("GetMedium");
+        group.MapGet("{id:guid}/medium/download", GetRendition("medium", forceDownload: true)).WithName("DownloadMedium");
+        group.MapGet("{id:guid}/poster", GetRendition("poster", forceDownload: false)).WithName("GetPoster");
     }
 
     // ── Queries ──────────────────────────────────────────────────────────────

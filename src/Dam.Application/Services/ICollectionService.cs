@@ -27,5 +27,5 @@ public interface ICollectionService
     Task<ServiceResult<List<CollectionResponseDto>>> GetChildrenAsync(Guid parentId, CancellationToken ct);
 
     /// <summary>Stream all assets in a collection as a ZIP download.</summary>
-    Task<ServiceResult> DownloadAllAssetsAsync(Guid id, Microsoft.AspNetCore.Http.HttpContext httpContext, CancellationToken ct);
+    Task<ServiceResult> DownloadAllAssetsAsync(Guid id, ZipStreamContext streamContext, CancellationToken ct);
 }
