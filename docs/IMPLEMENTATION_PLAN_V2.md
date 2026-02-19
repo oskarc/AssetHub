@@ -700,7 +700,7 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 
 ---
 
-## 11. Phase Completion Summary (Updated 2026-02-12)
+## 11. Phase Completion Summary (Updated 2026-02-19)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
@@ -717,6 +717,7 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 | Post-Audit Review (5 fixes) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
 | Build Warnings Cleanup | ✅ COMPLETE | 0 errors, 0 warnings |
 | Auth & OIDC Hardening | ✅ COMPLETE | Same-site subdomain architecture, SameSite=Strict fix, code cleanup (2026-02-12) |
+| Production Hardening (2026-02-19) | ✅ COMPLETE | Signed access tokens, pg_trgm migration, Hangfire constants, bug fixes. See `CHANGELOG_2026-02-19.md` |
 
 ---
 
@@ -729,7 +730,7 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 5. ~~**Manager Access Management UX** (#7)~~ — ✅ Complete (2026-02-09): Option A — in-context ManageAccessDialog
 6. ~~**Auth & OIDC Hardening** (#8)~~ — ✅ Complete (2026-02-12): Same-site subdomain architecture
 7. ~~**Persist Keycloak data** (#10.4)~~ — ✅ Fixed (2026-02-12)
-8. ~~**Run full test suite** (#10.3)~~ — ✅ Complete (2026-02-12): 107 backend + 210 bUnit = 317 tests passing
+8. ~~**Run full test suite** (#10.3)~~ — ✅ Complete (2026-02-12): 107 backend + 210 bUnit = 317 tests passing. Updated 2026-02-19: 161 total tests passing (backend + bUnit)
 9. ~~**Fix language switcher** (#10.1)~~ — ✅ Fixed (2026-02-15): renamed `.sv-SE.resx` → `.sv.resx`
 10. ~~**Implement password reset** (#10.2)~~ — ✅ Fixed (2026-02-15): Keycloak forgot-password + in-app change-password
 11. ~~**Smart asset deletion** (#10.6)~~ — ✅ Fixed (2026-02-15): Multi-collection-aware delete/remove logic
@@ -738,3 +739,4 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 14. ~~**bUnit / UI test gaps** (#10.8)~~ — ✅ Complete: Added 5 tests — AddToCollectionDialog submit+error (2), AssetGrid share/delete chains (2), LanguageSwitcher culture-switch via JS interop (1). Total bUnit: 216 → 221.
 15. **Frontend Testing** (#3) — Catches UI regressions
 16. ~~**Metrics & Observability** (#2)~~ — 🔄 Partial (2026-02-15): Serilog structured logging + request enrichment done. Prometheus/Grafana dashboarding deferred.
+17. ~~**Production Hardening** (2026-02-19)~~ — ✅ Complete: Signed access tokens for share security, pg_trgm EF migration, Hangfire worker constants, UserLookupService log bug fix, MemoryCache constant extraction. See `CHANGELOG_2026-02-19.md`.

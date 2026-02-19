@@ -79,7 +79,7 @@ The application provisions everything on startup — no manual steps required:
 | Task | Detail |
 |------|--------|
 | **Database migrations** | EF Core migrations run automatically on startup. No `dotnet ef database update` needed. |
-| **pg_trgm extension** | Created automatically for trigram full-text search. |
+| **pg_trgm extension** | Created via EF migration (`AddPgTrgmExtension`) for trigram full-text search. |
 | **MinIO bucket** | Created if it doesn't exist. No `mc mb` command needed. |
 | **Keycloak realm** | Imported from `keycloak/import/media-realm.json` on first boot via `--import-realm`. |
 | **Data Protection keys** | Persisted to PostgreSQL automatically. No key management required. |

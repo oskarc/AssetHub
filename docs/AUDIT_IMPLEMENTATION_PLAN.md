@@ -88,6 +88,14 @@
 - Update preview/download URL generation to not include password in URLs
 - For `<img>`, `<video>`, `<iframe>` src attributes that can't set headers: use a token/session approach after initial auth
 
+**Phase 2 (2026-02-19) — Signed access tokens:**
+- Implemented DataProtection-signed access tokens as the token/session approach for HTML element URLs
+- `POST /api/shares/{token}/access-token` endpoint (rate-limited with SharePassword policy)
+- 30-minute token lifetime with embedded share token hash + expiry, signed via ASP.NET DataProtection
+- `Share.razor` fetches access token after password auth, uses `?accessToken=` for all `<img>`, `<video>`, `<a>` URLs
+- `ValidateAndGetShareAsync` validates access tokens without BCrypt cost (signature + expiry check only)
+- See `docs/CHANGELOG_2026-02-19.md` for full details
+
 ---
 
 ## #7 ✅ MEDIUM — Duplicate DTO definitions (Share page vs Endpoints)

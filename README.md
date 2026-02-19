@@ -47,7 +47,7 @@ docker compose up --build
 ```
 
 On first boot the app will automatically:
-- Run database migrations and enable `pg_trgm` for search
+- Run database migrations (including `pg_trgm` extension for search)
 - Create the MinIO storage bucket
 - Import the Keycloak realm with test users
 
@@ -222,6 +222,7 @@ POST   /api/shares                                # Create share link
 DELETE /api/shares/{id}                           # Revoke share
 PUT    /api/shares/{id}/password                  # Update password
 GET    /api/shares/{token}                        # View shared content (public)
+POST   /api/shares/{token}/access-token           # Get signed access token (public)
 GET    /api/shares/{token}/download               # Download via share (public)
 GET    /api/shares/{token}/download-all           # Zip download (public)
 GET    /api/shares/{token}/preview                # Preview shared asset (public)
