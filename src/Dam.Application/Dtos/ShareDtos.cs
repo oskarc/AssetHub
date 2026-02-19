@@ -87,3 +87,14 @@ public class PasswordRequiredResponse
 {
     public bool RequiresPassword { get; set; }
 }
+
+/// <summary>
+/// Response returned when a share access token is successfully created.
+/// The access token is a short-lived, cryptographically signed credential
+/// that replaces the password in query strings (for img/video/a elements).
+/// </summary>
+public class ShareAccessTokenResponse
+{
+    public required string AccessToken { get; set; }
+    public required int ExpiresInSeconds { get; set; }
+}

@@ -143,7 +143,11 @@ public class AssetCollectionRepository : IAssetCollectionRepository
             .Select(ac => ac.CollectionId)
             .ToListAsync(ct);
 
-        _cache.Set(cacheKey, result, CacheKeys.AssetCollectionIdsTtl);
+        _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = CacheKeys.AssetCollectionIdsTtl,
+            Size = 1
+        });
         return result;
     }
 }

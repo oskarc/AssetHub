@@ -26,6 +26,6 @@ public interface ICollectionService
     /// <summary>Get child collections of a parent.</summary>
     Task<ServiceResult<List<CollectionResponseDto>>> GetChildrenAsync(Guid parentId, CancellationToken ct);
 
-    /// <summary>Stream all assets in a collection as a ZIP download.</summary>
-    Task<ServiceResult> DownloadAllAssetsAsync(Guid id, ZipStreamContext streamContext, CancellationToken ct);
+    /// <summary>Enqueue a background ZIP build for all assets in a collection.</summary>
+    Task<ServiceResult<ZipDownloadEnqueuedResponse>> DownloadAllAssetsAsync(Guid id, CancellationToken ct);
 }

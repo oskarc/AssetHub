@@ -63,8 +63,17 @@
                         <MudButton Variant="Variant.Outlined"
                                    Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Download"
-                                   OnClick="DownloadAllAsync">
-                            @CommonLoc["Btn_DownloadAll"]
+                                   OnClick="DownloadAllAsync"
+                                   Disabled="_isDownloading">
+                            @if (_isDownloading)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                @_downloadStatusText
+                            }
+                            else
+                            {
+                                @CommonLoc["Btn_DownloadAll"]
+                            }
                         </MudButton>
                         @if (CanShare)
                         {
@@ -319,15 +328,58 @@
         }
     }
 
+    private bool _isDownloading;
+    private string _downloadStatusText = "";
+
     private async Task DownloadAllAsync()
     {
-        if (!_selectedCollectionId.HasValue) return;
+        if (!_selectedCollectionId.HasValue || _isDownloading) return;
 
-        var url = $"/api/collections/{_selectedCollectionId.Value}/download-all";
-        
-        var jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
-        await jsModule.InvokeVoidAsync("downloadViaAnchor", url);
+        _isDownloading = true;
+        _downloadStatusText = CommonLoc["Msg_PreparingDownload"];
+        StateHasChanged();
+
+        try
+        {
+            var url = $"/api/collections/{_selectedCollectionId.Value}/download-all";
+            var dotNetRef = DotNetObjectReference.Create(this);
+
+            var jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
+            var resultJson = await jsModule.InvokeAsync<string>("enqueueAndPollZipDownload", url, null, dotNetRef);
+
+            var result = System.Text.Json.JsonSerializer.Deserialize<ZipDownloadResult>(resultJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (result?.Success != true)
+            {
+                Feedback.ShowError(result?.Error ?? CommonLoc["Msg_DownloadFailed"]);
+            }
+        }
+        catch (Exception)
+        {
+            Feedback.ShowError(CommonLoc["Msg_DownloadFailed"]);
+        }
+        finally
+        {
+            _isDownloading = false;
+            _downloadStatusText = "";
+            StateHasChanged();
+        }
     }
+
+    [JSInvokable]
+    public void UpdateZipProgress(string status, string fileName)
+    {
+        _downloadStatusText = status switch
+        {
+            "pending" => CommonLoc["Msg_DownloadQueued"],
+            "building" => CommonLoc["Msg_BuildingZip"],
+            _ => CommonLoc["Msg_PreparingDownload"]
+        };
+        InvokeAsync(StateHasChanged);
+    }
+
+    private record ZipDownloadResult(bool Success, string? Error);
 
     private async Task OnUploadComplete()
     {

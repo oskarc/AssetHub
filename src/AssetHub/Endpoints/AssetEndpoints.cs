@@ -1,4 +1,5 @@
 using AssetHub.Extensions;
+using Dam.Application;
 using Dam.Application.Dtos;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
@@ -45,6 +46,7 @@ public static class AssetEndpoints
         [FromServices] IAssetService svc, CancellationToken ct,
         int skip = 0, int take = 50)
     {
+        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
         var result = await svc.GetAssetsByStatusAsync(Asset.StatusReady, skip, take, ct);
         return result.ToHttpResult();
     }
@@ -54,6 +56,7 @@ public static class AssetEndpoints
         string? query = null, string? type = null, Guid? collectionId = null,
         string sortBy = "created_desc", int skip = 0, int take = 50)
     {
+        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
         var result = await svc.GetAllAssetsAsync(query, type, collectionId, sortBy, skip, take, ct);
         return result.ToHttpResult();
     }
@@ -70,6 +73,7 @@ public static class AssetEndpoints
         string? query = null, string? type = null,
         string sortBy = "created_desc", int skip = 0, int take = 50)
     {
+        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
         var result = await svc.GetAssetsByCollectionAsync(collectionId, query, type, sortBy, skip, take, ct);
         return result.ToHttpResult();
     }

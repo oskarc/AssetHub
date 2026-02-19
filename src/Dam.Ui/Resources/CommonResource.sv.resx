@@ -233,6 +233,12 @@
   <data name="Language_Swedish" xml:space="preserve"><value>Svenska</value></data>
   <data name="Language_Label" xml:space="preserve"><value>Språk</value></data>
 
+  <!-- Download Progress -->
+  <data name="Msg_PreparingDownload" xml:space="preserve"><value>Förbereder...</value></data>
+  <data name="Msg_DownloadQueued" xml:space="preserve"><value>Köad...</value></data>
+  <data name="Msg_BuildingZip" xml:space="preserve"><value>Bygger ZIP...</value></data>
+  <data name="Msg_DownloadFailed" xml:space="preserve"><value>Nedladdning misslyckades. Försök igen.</value></data>
+
   <!-- Password / Account -->
   <data name="Btn_ChangePassword" xml:space="preserve"><value>Byt lösenord</value></data>
   <data name="Btn_ForgotPassword" xml:space="preserve"><value>Glömt ditt lösenord?</value></data>

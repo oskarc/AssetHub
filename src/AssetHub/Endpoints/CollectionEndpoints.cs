@@ -25,7 +25,6 @@ public static class CollectionEndpoints
         // ACL Management
         var aclGroup = app.MapGroup("/api/collections/{collectionId:guid}/acl")
             .WithTags("CollectionACL")
-            .DisableAntiforgery()
             .RequireAuthorization();
 
         aclGroup.MapGet("", GetCollectionAcls).WithName("GetCollectionAcls");
@@ -91,17 +90,10 @@ public static class CollectionEndpoints
 
     private static async Task<IResult> DownloadAllAssets(
         Guid id, [FromServices] ICollectionService svc,
-        HttpContext httpContext, CancellationToken ct)
+        CancellationToken ct)
     {
-        var streamContext = new ZipStreamContext
-        {
-            OutputStream = httpContext.Response.BodyWriter.AsStream(),
-            SetHeader = (name, value) => httpContext.Response.Headers.Append(name, value)
-        };
-        var result = await svc.DownloadAllAssetsAsync(id, streamContext, ct);
-        if (!result.IsSuccess)
-            return result.ToHttpResult();
-        return Results.Empty;
+        var result = await svc.DownloadAllAssetsAsync(id, ct);
+        return result.ToHttpResult(v => Results.Accepted(v.StatusUrl, v));
     }
 
     // ── ACL Management ───────────────────────────────────────────────────────

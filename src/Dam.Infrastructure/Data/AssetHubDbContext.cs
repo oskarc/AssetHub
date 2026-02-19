@@ -18,6 +18,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AssetCollection> AssetCollections { get; set; } = null!;
     public DbSet<Share> Shares { get; set; } = null!;
     public DbSet<AuditEvent> AuditEvents { get; set; } = null!;
+    public DbSet<ZipDownload> ZipDownloads { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -168,6 +169,24 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
                     c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
                     c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+        });
+
+        // ZipDownload
+        modelBuilder.Entity<ZipDownload>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Status).HasDatabaseName("idx_zip_downloads_status");
+            entity.HasIndex(e => e.ExpiresAt).HasDatabaseName("idx_zip_downloads_expires_at");
+            entity.HasIndex(e => e.RequestedByUserId).HasDatabaseName("idx_zip_downloads_user_id");
+
+            entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.HangfireJobId).HasMaxLength(255);
+            entity.Property(e => e.ZipObjectKey).HasMaxLength(512);
+            entity.Property(e => e.ZipFileName).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.ScopeType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.RequestedByUserId).HasMaxLength(255);
+            entity.Property(e => e.ShareTokenHash).HasMaxLength(255);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
         });
     }
 }

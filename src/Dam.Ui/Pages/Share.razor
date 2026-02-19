@@ -379,8 +379,17 @@
                     <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Download"
-                               OnClick="DownloadAllAssets">
-                        @CommonLoc["Btn_DownloadAll"]
+                               OnClick="DownloadAllAssets"
+                               Disabled="_isDownloading">
+                        @if (_isDownloading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            @_downloadStatusText
+                        }
+                        else
+                        {
+                            @CommonLoc["Btn_DownloadAll"]
+                        }
                     </MudButton>
                 </MudStack>
                 @if (!string.IsNullOrEmpty(_sharedCollection.Description))
@@ -442,7 +451,10 @@
     private bool _isLoading = true;
     private bool _requiresPassword = false;
     private bool _isSubmitting = false;
+    private bool _isDownloading = false;
+    private string _downloadStatusText = "";
     private string _password = "";
+    private string? _accessToken;
     private string? _error;
     private string? _errorMessage;
 
@@ -518,6 +530,16 @@
                     new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 _requiresPassword = false;
             }
+
+            // If password was provided, obtain a short-lived access token for
+            // subsequent HTML element URLs (img src, video src, a href) so the
+            // actual password never appears in query strings.
+            if (!string.IsNullOrEmpty(password))
+            {
+                var tokenResponse = await Api.GetShareAccessTokenAsync(Token, password);
+                if (tokenResponse != null)
+                    _accessToken = tokenResponse.AccessToken;
+            }
         }
         catch (Exception ex)
         {
@@ -572,15 +594,15 @@
             || _sharedAsset.AssetType == "audio")
         {
             var url = $"/api/shares/{escapedToken}/preview";
-            if (!string.IsNullOrEmpty(_password))
-                url += $"?password={Uri.EscapeDataString(_password)}";
+            if (!string.IsNullOrEmpty(_accessToken))
+                url += $"?accessToken={Uri.EscapeDataString(_accessToken)}";
             return url;
         }
 
         // For images / other types, use the rendition URL (medium → thumb → download)
         var previewUrl = _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl
                          ?? $"/api/shares/{escapedToken}/download";
-        return AppendPassword(previewUrl);
+        return AppendAccessToken(previewUrl);
     }
 
     /// <summary>Returns a poster/thumbnail URL for the single shared-asset video element.</summary>
@@ -588,14 +610,14 @@
     {
         if (_sharedAsset == null) return "";
         var url = _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl ?? "";
-        return string.IsNullOrEmpty(url) ? url : AppendPassword(url);
+        return string.IsNullOrEmpty(url) ? url : AppendAccessToken(url);
     }
 
     private string GetAssetPreviewUrl(Guid assetId)
     {
         var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}";
-        if (!string.IsNullOrEmpty(_password))
-            url += $"&password={Uri.EscapeDataString(_password)}";
+        if (!string.IsNullOrEmpty(_accessToken))
+            url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
     }
 
@@ -603,34 +625,34 @@
     private string GetAssetPosterUrl(Guid assetId)
     {
         var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}&size=medium";
-        if (!string.IsNullOrEmpty(_password))
-            url += $"&password={Uri.EscapeDataString(_password)}";
+        if (!string.IsNullOrEmpty(_accessToken))
+            url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
     }
 
-    /// <summary>Appends the share password as a query parameter when present.</summary>
-    private string AppendPassword(string url)
+    /// <summary>Appends the share access token as a query parameter when present.</summary>
+    private string AppendAccessToken(string url)
     {
-        if (string.IsNullOrEmpty(_password)) return url;
+        if (string.IsNullOrEmpty(_accessToken)) return url;
         var separator = url.Contains('?') ? '&' : '?';
-        return $"{url}{separator}password={Uri.EscapeDataString(_password)}";
+        return $"{url}{separator}accessToken={Uri.EscapeDataString(_accessToken)}";
     }
 
-    /// <summary>Returns a thumbnail URL for the collection grid card, with password and medium fallback.</summary>
+    /// <summary>Returns a thumbnail URL for the collection grid card, with access token and medium fallback.</summary>
     private string GetCollectionThumbnailUrl(SharedAssetDto asset)
     {
         var url = asset.ThumbnailUrl ?? asset.MediumUrl;
         if (string.IsNullOrEmpty(url))
             return AssetDisplayHelpers.GetPlaceholderForType(asset.AssetType);
-        return AppendPassword(url);
+        return AppendAccessToken(url);
     }
 
     private string GetDownloadUrl()
     {
         var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download";
-        if (!string.IsNullOrEmpty(_password))
+        if (!string.IsNullOrEmpty(_accessToken))
         {
-            url += $"?password={Uri.EscapeDataString(_password)}";
+            url += $"?accessToken={Uri.EscapeDataString(_accessToken)}";
         }
         return url;
     }
@@ -642,13 +664,61 @@
 
     private async Task DownloadAllAssets()
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download-all";
-        if (!string.IsNullOrEmpty(_password))
-            url += $"?password={Uri.EscapeDataString(_password)}";
+        if (_isDownloading) return;
 
-        if (_jsModule != null)
-            await _jsModule.InvokeVoidAsync("downloadViaAnchor", url);
+        _isDownloading = true;
+        _downloadStatusText = "Preparing...";
+        StateHasChanged();
+
+        try
+        {
+            var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download-all";
+            if (!string.IsNullOrEmpty(_accessToken))
+                url += $"?accessToken={Uri.EscapeDataString(_accessToken)}";
+
+            // The status polling endpoint needs X-Share-Token header
+            var headers = new Dictionary<string, string> { { "X-Share-Token", Token } };
+            var dotNetRef = DotNetObjectReference.Create(this);
+
+            if (_jsModule != null)
+            {
+                var resultJson = await _jsModule.InvokeAsync<string>(
+                    "enqueueAndPollZipDownload", url, headers, dotNetRef);
+
+                var result = System.Text.Json.JsonSerializer.Deserialize<ZipDownloadResult>(resultJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (result?.Success != true)
+                {
+                    _errorMessage = result?.Error ?? "Download failed";
+                }
+            }
+        }
+        catch
+        {
+            _errorMessage = "Download failed";
+        }
+        finally
+        {
+            _isDownloading = false;
+            _downloadStatusText = "";
+            StateHasChanged();
+        }
     }
+
+    [JSInvokable]
+    public void UpdateZipProgress(string status, string fileName)
+    {
+        _downloadStatusText = status switch
+        {
+            "pending" => "Queued...",
+            "building" => "Building ZIP...",
+            _ => "Preparing..."
+        };
+        InvokeAsync(StateHasChanged);
+    }
+
+    private record ZipDownloadResult(bool Success, string? Error);
 
     private async Task DownloadAsset(Guid? assetId)
     {
@@ -657,8 +727,8 @@
         
         if (assetId.HasValue)
             queryParams.Add($"assetId={assetId.Value}");
-        if (!string.IsNullOrEmpty(_password))
-            queryParams.Add($"password={Uri.EscapeDataString(_password)}");
+        if (!string.IsNullOrEmpty(_accessToken))
+            queryParams.Add($"accessToken={Uri.EscapeDataString(_accessToken)}");
         
         if (queryParams.Count > 0)
             url += "?" + string.Join("&", queryParams);

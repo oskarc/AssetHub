@@ -222,6 +222,9 @@ public class AssetService : IAssetService
         var sizeError = ValidateFileSize(fileSize);
         if (sizeError != null) return sizeError;
 
+        if (!Constants.AllowedUploadTypes.IsAllowed(contentType))
+            return ServiceError.BadRequest($"Content type '{contentType}' is not allowed. Only images, videos, audio, documents, and other safe file types are permitted.");
+
         var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, Asset.StatusProcessing);
         if (!string.IsNullOrEmpty(title))
             asset.Title = title;
@@ -346,6 +349,9 @@ public class AssetService : IAssetService
 
         var sizeError = ValidateFileSize(request.FileSize);
         if (sizeError != null) return sizeError;
+
+        if (!Constants.AllowedUploadTypes.IsAllowed(request.ContentType))
+            return ServiceError.BadRequest($"Content type '{request.ContentType}' is not allowed. Only images, videos, audio, documents, and other safe file types are permitted.");
 
         if (request.CollectionId.HasValue)
         {

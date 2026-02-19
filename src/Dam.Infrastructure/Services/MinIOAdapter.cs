@@ -39,6 +39,7 @@ public class MinIOAdapter(
 
         _ = Task.Run(async () =>
         {
+            Exception? completionException = null;
             try
             {
                 var getObjectArgs = new GetObjectArgs()
@@ -48,12 +49,11 @@ public class MinIOAdapter(
                     {
                         try
                         {
-                            await stream.CopyToAsync(pipe.Writer.AsStream(), cancellationToken);
-                            await pipe.Writer.CompleteAsync();
+                            await stream.CopyToAsync(pipe.Writer.AsStream(), 81920, cancellationToken);
                         }
                         catch (Exception ex)
                         {
-                            await pipe.Writer.CompleteAsync(ex);
+                            completionException = ex;
                         }
                     });
 
@@ -61,9 +61,13 @@ public class MinIOAdapter(
             }
             catch (Exception ex)
             {
-                await pipe.Writer.CompleteAsync(ex);
+                completionException ??= ex;
             }
-        }, cancellationToken);
+            finally
+            {
+                await pipe.Writer.CompleteAsync(completionException);
+            }
+        }, CancellationToken.None); // Use None: the inner code already checks cancellationToken
 
         return pipe.Reader.AsStream();
     }

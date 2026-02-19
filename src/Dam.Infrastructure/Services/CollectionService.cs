@@ -21,7 +21,7 @@ public class CollectionService : ICollectionService
     private readonly IShareRepository _shareRepo;
     private readonly ICollectionAuthorizationService _authService;
     private readonly IAssetDeletionService _deletionService;
-    private readonly IZipDownloadService _zipService;
+    private readonly IZipBuildService _zipBuildService;
     private readonly IAuditService _audit;
     private readonly IConfiguration _configuration;
     private readonly CurrentUser _currentUser;
@@ -35,7 +35,7 @@ public class CollectionService : ICollectionService
         IShareRepository shareRepo,
         ICollectionAuthorizationService authService,
         IAssetDeletionService deletionService,
-        IZipDownloadService zipService,
+        IZipBuildService zipBuildService,
         IAuditService audit,
         IConfiguration configuration,
         CurrentUser currentUser,
@@ -48,7 +48,7 @@ public class CollectionService : ICollectionService
         _shareRepo = shareRepo;
         _authService = authService;
         _deletionService = deletionService;
-        _zipService = zipService;
+        _zipBuildService = zipBuildService;
         _audit = audit;
         _configuration = configuration;
         _currentUser = currentUser;
@@ -215,8 +215,8 @@ public class CollectionService : ICollectionService
         return dtos;
     }
 
-    public async Task<ServiceResult> DownloadAllAssetsAsync(
-        Guid id, ZipStreamContext streamContext, CancellationToken ct)
+    public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> DownloadAllAssetsAsync(
+        Guid id, CancellationToken ct)
     {
         var userId = _currentUser.UserId;
 
@@ -224,17 +224,10 @@ public class CollectionService : ICollectionService
         if (!canView)
             return ServiceError.Forbidden();
 
-        var collection = await _collectionRepo.GetByIdAsync(id, ct: ct);
-        if (collection == null)
+        var exists = await _collectionRepo.ExistsAsync(id, ct);
+        if (!exists)
             return ServiceError.NotFound("Collection not found");
 
-        var assets = await _assetRepo.GetByCollectionAsync(id, 0, Constants.Limits.MaxDownloadableAssets, ct);
-        if (!assets.Any())
-            return ServiceError.BadRequest("No assets in collection");
-
-        var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        await _zipService.StreamAssetsAsZipAsync(assets, BucketName, zipFileName, streamContext, ct);
-
-        return ServiceResult.Success;
+        return await _zipBuildService.EnqueueCollectionZipAsync(id, userId, ct);
     }
 }

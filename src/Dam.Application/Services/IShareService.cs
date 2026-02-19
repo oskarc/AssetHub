@@ -40,6 +40,10 @@ public class ShareScopeValidation
 
 public class ShareCreationResult
 {
-    public required ShareResponseDto Response { get; set; }
+    public ShareResponseDto? Response { get; set; }
     public bool EmailFailed { get; set; }
+    public string? ErrorMessage { get; set; }
+    public bool IsError => ErrorMessage != null;
+
+    public static ShareCreationResult Error(string message) => new() { ErrorMessage = message };
 }

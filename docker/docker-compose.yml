@@ -1,7 +1,5 @@
 # Default env file for local development. Override with:
 #   docker compose --env-file .env.prod up
-env_file:
-  - .env.dev
 
 services:
   postgres:
@@ -15,7 +13,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -33,8 +31,8 @@ services:
     volumes:
       - miniodata:/minio
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     command: server /minio --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -64,8 +62,8 @@ services:
       - ../keycloak/import:/opt/keycloak/data/import:ro
       - ../certs:/opt/keycloak/certs:ro
     ports:
-      - "8080:8080"
-      - "8443:8443"
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8443:8443"
     command:
       - start-dev
       - --import-realm
@@ -113,7 +111,7 @@ services:
     volumes:
       - ../certs:/app/certs:ro
     ports:
-      - "7252:7252"
+      - "127.0.0.1:7252:7252"
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,8 +151,8 @@ services:
     image: axllent/mailpit:latest
     container_name: assethub-mailpit
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
     networks:
       - assethub-network
     restart: unless-stopped

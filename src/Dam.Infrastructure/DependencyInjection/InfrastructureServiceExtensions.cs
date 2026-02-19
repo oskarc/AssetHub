@@ -38,6 +38,18 @@ public static class InfrastructureServiceExtensions
         // ── Database ────────────────────────────────────────────────────────
         var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.EnableDynamicJson();
+
+        // Enforce connection pool limits to prevent pool exhaustion under load.
+        // These can be overridden via the connection string itself.
+        var connStringBuilder = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+        if (connStringBuilder.MaxPoolSize == 100) // 100 = Npgsql default, meaning no explicit override
+        {
+            connStringBuilder.MaxPoolSize = 50;
+            connStringBuilder.Timeout = 15; // seconds to wait for a connection from the pool
+            dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 50;
+            dataSourceBuilder.ConnectionStringBuilder.Timeout = 15;
+        }
+
         var dataSource = dataSourceBuilder.Build();
         services.AddSingleton(dataSource);
 

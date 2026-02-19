@@ -7,8 +7,10 @@ using Dam.Infrastructure.DependencyInjection;
 using Dam.Infrastructure.Services;
 using Hangfire;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MudBlazor.Services;
+using System.Threading.RateLimiting;
 
 namespace AssetHub.Extensions;
 
@@ -29,6 +31,8 @@ public static class ServiceCollectionExtensions
         webHost.ConfigureKestrel(options =>
         {
             options.Limits.MaxRequestBodySize = (long)maxUploadMb * 1024 * 1024;
+            options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(30);
+            options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
         });
 
         // ── Localization (Swedish & English) ────────────────────────────────
@@ -57,14 +61,52 @@ public static class ServiceCollectionExtensions
         // ── Shared infrastructure: DB, Hangfire storage, MinIO, Repos, core services
         services.AddSharedInfrastructure(configuration);
 
-        // ── Hangfire server (API host processes jobs with default options) ───
-        services.AddHangfireServer();
+        // ── Hangfire server (API host processes jobs with constrained workers) ───
+        services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = Math.Max(Constants.Limits.ApiMinHangfireWorkers, Math.Min(Environment.ProcessorCount, Constants.Limits.ApiMaxHangfireWorkers));
+        });
+
+        // ── Rate Limiting ───────────────────────────────────────────────────
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            // Policy for anonymous share endpoints (brute-force protection)
+            options.AddPolicy("ShareAnonymous", context =>
+                RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 30,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    }));
+
+            // Stricter policy for share password attempts
+            options.AddPolicy("SharePassword", context =>
+                RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(5),
+                        SegmentsPerWindow = 5,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    }));
+        });
 
         // ── MudBlazor ───────────────────────────────────────────────────────
         services.AddMudServices();
 
         // ── Caching ─────────────────────────────────────────────────────────
-        services.AddMemoryCache();
+        services.AddMemoryCache(options =>
+        {
+            options.SizeLimit = Constants.Limits.MemoryCacheSizeLimit;
+        });
 
         // ── Options (API-specific — shared options are in AddSharedInfrastructure) ─
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
@@ -78,7 +120,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IUserSyncService, UserSyncService>();
-        services.AddScoped<IZipDownloadService, ZipDownloadService>();
+        services.AddScoped<IZipBuildService, ZipBuildService>();
         services.AddScoped<IShareService, ShareService>();
         services.AddScoped<IUserCleanupService, UserCleanupService>();
 

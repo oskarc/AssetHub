@@ -19,15 +19,22 @@ public interface IShareAccessService
     Task<ServiceResult<string>> GetDownloadUrlAsync(
         string token, string? password, Guid? assetId, CancellationToken ct);
 
-    /// <summary>Stream all shared collection assets as a ZIP download.</summary>
-    Task<ServiceResult> StreamDownloadAllAsync(
-        string token, string? password, ZipStreamContext streamContext,
-        CancellationToken ct);
+    /// <summary>Enqueue a ZIP build for all shared collection assets.</summary>
+    Task<ServiceResult<ZipDownloadEnqueuedResponse>> EnqueueDownloadAllAsync(
+        string token, string? password, CancellationToken ct);
 
     /// <summary>Get a presigned preview URL for a shared asset.</summary>
     Task<ServiceResult<string>> GetPreviewUrlAsync(
         string token, string? password, string? size, Guid? assetId,
         CancellationToken ct);
+
+    /// <summary>
+    /// Creates a short-lived access token that can be used in place of the password
+    /// for query-string-based access (img/video/a elements). The caller must supply
+    /// a valid password; the returned token is cryptographically signed and time-limited.
+    /// </summary>
+    Task<ServiceResult<ShareAccessTokenResponse>> CreateAccessTokenAsync(
+        string token, string? password, CancellationToken ct);
 
     // ── Protected (authenticated) operations ─────────────────────────────────
 

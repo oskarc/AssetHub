@@ -236,6 +236,12 @@
   <data name="Language_Swedish" xml:space="preserve"><value>Svenska</value></data>
   <data name="Language_Label" xml:space="preserve"><value>Language</value></data>
 
+  <!-- Download Progress -->
+  <data name="Msg_PreparingDownload" xml:space="preserve"><value>Preparing...</value></data>
+  <data name="Msg_DownloadQueued" xml:space="preserve"><value>Queued...</value></data>
+  <data name="Msg_BuildingZip" xml:space="preserve"><value>Building ZIP...</value></data>
+  <data name="Msg_DownloadFailed" xml:space="preserve"><value>Download failed. Please try again.</value></data>
+
   <!-- Password / Account -->
   <data name="Btn_ChangePassword" xml:space="preserve"><value>Change Password</value></data>
   <data name="Btn_ForgotPassword" xml:space="preserve"><value>Forgot your password?</value></data>

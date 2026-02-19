@@ -62,7 +62,20 @@ public class ShareService(
     public async Task<ShareCreationResult> CreateShareAsync(
         CreateShareDto dto, string userId, string baseUrl, CancellationToken ct = default)
     {
+        // Re-validate scope to get the content name for email notifications
         var validation = await ValidateScopeAsync(dto, ct);
+        if (!validation.IsValid)
+            return ShareCreationResult.Error(validation.ErrorMessage!);
+
+        // Validate expiry: must be in the future and at most 90 days out
+        if (dto.ExpiresAt.HasValue)
+        {
+            var expiryUtc = dto.ExpiresAt.Value.ToUniversalTime();
+            if (expiryUtc <= DateTime.UtcNow)
+                return ShareCreationResult.Error("Expiry date must be in the future");
+            if (expiryUtc > DateTime.UtcNow.AddDays(Constants.Limits.MaxShareExpiryDays))
+                return ShareCreationResult.Error($"Expiry date cannot be more than {Constants.Limits.MaxShareExpiryDays} days in the future");
+        }
 
         // Generate secure token
         var token = ShareHelpers.GenerateToken();

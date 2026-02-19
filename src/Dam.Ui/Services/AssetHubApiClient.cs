@@ -452,6 +452,22 @@ public class AssetHubApiClient
         return await _http.SendAsync(request, ct);
     }
 
+    /// <summary>
+    /// Requests a short-lived access token for a password-protected share.
+    /// The access token can be used in query strings (img src, a href) without
+    /// exposing the actual password.
+    /// </summary>
+    public virtual async Task<ShareAccessTokenResponse?> GetShareAccessTokenAsync(
+        string token, string password, CancellationToken ct = default)
+    {
+        var url = $"/api/shares/{Uri.EscapeDataString(token)}/access-token";
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.TryAddWithoutValidation("X-Share-Password", password);
+        var response = await _http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode) return null;
+        return await response.Content.ReadFromJsonAsync<ShareAccessTokenResponse>(ct);
+    }
+
     #endregion
 
     #region Presigned URLs

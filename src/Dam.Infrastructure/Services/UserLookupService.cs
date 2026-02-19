@@ -59,10 +59,14 @@ public class UserLookupService(
             var id = reader.GetString(0);
             var username = reader.GetString(1);
             result[id] = username;
-            cache.Set(CacheKeys.UserName(id), username, CacheKeys.UserNameTtl);
+            cache.Set(CacheKeys.UserName(id), username, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = CacheKeys.UserNameTtl,
+                Size = 1
+            });
         }
 
-        logger.LogDebug("Username lookup: {CacheHits} from cache, {DbFetches} from DB", result.Count - idsToFetch.Count + (result.Count - idsToFetch.Count), idsToFetch.Count);
+        logger.LogDebug("Username lookup: {CacheHits} from cache, {DbFetches} from DB", result.Count - idsToFetch.Count, idsToFetch.Count);
         return result;
     }
 
@@ -146,10 +150,18 @@ public class UserLookupService(
             result.Add((id, username, email, firstName, lastName, createdTimestamp));
             
             // Also populate the individual username cache
-            cache.Set(CacheKeys.UserName(id), username, CacheKeys.UserNameTtl);
+            cache.Set(CacheKeys.UserName(id), username, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = CacheKeys.UserNameTtl,
+                Size = 1
+            });
         }
 
-        cache.Set(cacheKey, result, CacheKeys.AllUsersTtl);
+        cache.Set(cacheKey, result, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = CacheKeys.AllUsersTtl,
+            Size = 1
+        });
         return result;
     }
 

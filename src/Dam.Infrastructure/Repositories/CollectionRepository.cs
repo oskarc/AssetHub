@@ -1,9 +1,9 @@
-namespace Dam.Infrastructure.Repositories;
-
 using Dam.Application.Repositories;
 using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+
+namespace Dam.Infrastructure.Repositories;
 
 public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepository
 {
@@ -86,10 +86,12 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var collection = await GetByIdAsync(id, includeChildren: true, ct: ct);
+        // Leverage the DB's ON DELETE CASCADE for the parent-child relationship.
+        // Only load the root entity — PostgreSQL cascades to all descendants.
+        var collection = await dbContext.Collections.FindAsync([id], ct);
         if (collection == null) return;
 
-        await DeleteRecursiveAsync(collection, ct);
+        dbContext.Collections.Remove(collection);
         await dbContext.SaveChangesAsync(ct);
     }
 
@@ -112,14 +114,17 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
         if (assetIds.Count == 0)
             return new Dictionary<Guid, List<string>>();
 
-        return await dbContext.AssetCollections
+        // Use projection to avoid loading full Collection entities
+        var rows = await dbContext.AssetCollections
             .Where(ac => assetIds.Contains(ac.AssetId))
-            .Include(ac => ac.Collection)
-            .GroupBy(ac => ac.AssetId)
-            .ToDictionaryAsync(
+            .Select(ac => new { ac.AssetId, CollectionName = ac.Collection.Name })
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => r.AssetId)
+            .ToDictionary(
                 g => g.Key,
-                g => g.Select(ac => ac.Collection.Name).OrderBy(n => n).ToList(),
-                ct);
+                g => g.Select(r => r.CollectionName).OrderBy(n => n).ToList());
     }
 
     public async Task<IEnumerable<Collection>> GetAllWithAclsAsync(CancellationToken ct = default)
@@ -130,17 +135,4 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
             .ToListAsync(ct);
     }
 
-    private async Task DeleteRecursiveAsync(Collection collection, CancellationToken ct = default)
-    {
-        var children = await dbContext.Collections
-            .Where(c => c.ParentId == collection.Id)
-            .ToListAsync(ct);
-
-        foreach (var child in children)
-        {
-            await DeleteRecursiveAsync(child, ct);
-        }
-
-        dbContext.Collections.Remove(collection);
-    }
 }

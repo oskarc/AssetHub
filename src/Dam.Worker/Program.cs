@@ -22,7 +22,7 @@ class Program
                 services.AddHangfireServer(options =>
                 {
                     options.Queues = new[] { "default", "media-processing" };
-                    options.WorkerCount = Environment.ProcessorCount * 2;
+                    options.WorkerCount = Math.Max(Dam.Application.Constants.Limits.WorkerMinHangfireWorkers, Math.Min(Environment.ProcessorCount, Dam.Application.Constants.Limits.WorkerMaxHangfireWorkers));
                 });
 
                 // Worker-specific services

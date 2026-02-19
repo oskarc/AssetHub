@@ -13,11 +13,17 @@ public static class ShareEndpoints
         var group = app.MapGroup("/api/shares")
             .WithTags("Shares");
 
-        // Public endpoints (no auth required)
-        group.MapGet("{token}", GetSharedAsset).WithName("GetSharedAsset").AllowAnonymous();
-        group.MapGet("{token}/download", DownloadSharedAsset).WithName("DownloadSharedAsset").AllowAnonymous();
-        group.MapGet("{token}/download-all", DownloadAllSharedAssets).WithName("DownloadAllSharedAssets").AllowAnonymous();
-        group.MapGet("{token}/preview", PreviewSharedAsset).WithName("PreviewSharedAsset").AllowAnonymous();
+        // Public endpoints (no auth required, rate-limited)
+        group.MapGet("{token}", GetSharedAsset).WithName("GetSharedAsset")
+            .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
+        group.MapPost("{token}/access-token", CreateAccessToken).WithName("CreateAccessToken")
+            .AllowAnonymous().RequireRateLimiting("SharePassword");
+        group.MapGet("{token}/download", DownloadSharedAsset).WithName("DownloadSharedAsset")
+            .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
+        group.MapGet("{token}/download-all", DownloadAllSharedAssets).WithName("DownloadAllSharedAssets")
+            .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
+        group.MapGet("{token}/preview", PreviewSharedAsset).WithName("PreviewSharedAsset")
+            .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
 
         // Protected endpoints
         var authGroup = group.RequireAuthorization();
@@ -29,50 +35,56 @@ public static class ShareEndpoints
     // ── Public endpoints ─────────────────────────────────────────────────────
 
     private static async Task<IResult> GetSharedAsset(
-        string token, string? password,
+        string token,
         [FromServices] IShareAccessService svc,
         HttpContext httpContext, CancellationToken ct,
         int skip = 0, int take = 50)
     {
-        var effectivePassword = GetSharePassword(httpContext, password);
+        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
+        var effectivePassword = GetSharePassword(httpContext);
         var result = await svc.GetSharedContentAsync(token, effectivePassword, skip, take, ct);
         return HandleShareResult(result);
     }
 
-    private static async Task<IResult> DownloadSharedAsset(
-        string token, string? password, Guid? assetId,
+    private static async Task<IResult> CreateAccessToken(
+        string token,
         [FromServices] IShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
-        var effectivePassword = GetSharePassword(httpContext, password);
-        var result = await svc.GetDownloadUrlAsync(token, effectivePassword, assetId, ct);
+        var password = GetSharePassword(httpContext);
+        var result = await svc.CreateAccessTokenAsync(token, password, ct);
+        return HandleShareResult(result);
+    }
+
+    private static async Task<IResult> DownloadSharedAsset(
+        string token, Guid? assetId, string? accessToken,
+        [FromServices] IShareAccessService svc,
+        HttpContext httpContext, CancellationToken ct)
+    {
+        var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
+        var result = await svc.GetDownloadUrlAsync(token, effectiveCredential, assetId, ct);
         return HandleShareResult(result, url => Results.Redirect(url));
     }
 
     private static async Task<IResult> DownloadAllSharedAssets(
-        string token, string? password,
+        string token, string? accessToken,
         [FromServices] IShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
-        var effectivePassword = GetSharePassword(httpContext, password);
-        var streamContext = new ZipStreamContext
-        {
-            OutputStream = httpContext.Response.BodyWriter.AsStream(),
-            SetHeader = (name, value) => httpContext.Response.Headers.Append(name, value)
-        };
-        var result = await svc.StreamDownloadAllAsync(token, effectivePassword, streamContext, ct);
+        var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
+        var result = await svc.EnqueueDownloadAllAsync(token, effectiveCredential, ct);
         if (!result.IsSuccess)
             return HandleShareResult(result);
-        return Results.Empty;
+        return Results.Accepted(result.Value!.StatusUrl, result.Value);
     }
 
     private static async Task<IResult> PreviewSharedAsset(
-        string token, string? password, string? size, Guid? assetId,
+        string token, string? accessToken, string? size, Guid? assetId,
         [FromServices] IShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
-        var effectivePassword = GetSharePassword(httpContext, password);
-        var result = await svc.GetPreviewUrlAsync(token, effectivePassword, size, assetId, ct);
+        var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
+        var result = await svc.GetPreviewUrlAsync(token, effectiveCredential, size, assetId, ct);
         return HandleShareResult(result, url => Results.Redirect(url));
     }
 
@@ -106,13 +118,14 @@ public static class ShareEndpoints
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Extracts share password from X-Share-Password header first, then query string fallback.
-    /// Header is preferred to avoid passwords in server logs and browser history.
+    /// Extracts share password from X-Share-Password header.
+    /// Passwords are only accepted via header to avoid leakage in logs,
+    /// browser history, and referrer headers. For HTML element attributes
+    /// (img src, video src, a href) use short-lived access tokens instead.
     /// </summary>
-    private static string? GetSharePassword(HttpContext httpContext, string? queryPassword)
+    private static string? GetSharePassword(HttpContext httpContext)
     {
-        var headerPassword = httpContext.Request.Headers["X-Share-Password"].FirstOrDefault();
-        return headerPassword ?? queryPassword;
+        return httpContext.Request.Headers["X-Share-Password"].FirstOrDefault();
     }
 
     /// <summary>

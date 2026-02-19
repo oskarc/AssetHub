@@ -4,6 +4,7 @@ using Dam.Application.Helpers;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
 using Dam.Domain.Entities;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -22,9 +23,10 @@ public class ShareAccessService : IShareAccessService
     private readonly ICollectionAuthorizationService _authService;
     private readonly IShareService _shareService;
     private readonly IMinIOAdapter _minioAdapter;
-    private readonly IZipDownloadService _zipService;
+    private readonly IZipBuildService _zipBuildService;
     private readonly IAuditService _audit;
     private readonly IConfiguration _configuration;
+    private readonly IDataProtectionProvider _dataProtection;
     private readonly CurrentUser? _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<ShareAccessService> _logger;
@@ -37,9 +39,10 @@ public class ShareAccessService : IShareAccessService
         ICollectionAuthorizationService authService,
         IShareService shareService,
         IMinIOAdapter minioAdapter,
-        IZipDownloadService zipService,
+        IZipBuildService zipBuildService,
         IAuditService audit,
         IConfiguration configuration,
+        IDataProtectionProvider dataProtection,
         IHttpContextAccessor httpContextAccessor,
         ILogger<ShareAccessService> logger,
         CurrentUser? currentUser = null)
@@ -51,9 +54,10 @@ public class ShareAccessService : IShareAccessService
         _authService = authService;
         _shareService = shareService;
         _minioAdapter = minioAdapter;
-        _zipService = zipService;
+        _zipBuildService = zipBuildService;
         _audit = audit;
         _configuration = configuration;
+        _dataProtection = dataProtection;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
         _currentUser = currentUser;
@@ -131,11 +135,11 @@ public class ShareAccessService : IShareAccessService
         return presignedUrl;
     }
 
-    public async Task<ServiceResult> StreamDownloadAllAsync(
-        string token, string? password, ZipStreamContext streamContext, CancellationToken ct)
+    public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> EnqueueDownloadAllAsync(
+        string token, string? password, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
-        if (error != null) return error;
+        if (error != null) return error!;
 
         if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
             return ServiceError.Forbidden("Download permission not granted");
@@ -147,17 +151,10 @@ public class ShareAccessService : IShareAccessService
         if (collection == null)
             return ServiceError.NotFound("Collection not found");
 
-        var assets = await _assetRepo.GetByCollectionAsync(
-            share.ScopeId, 0, Constants.Limits.MaxDownloadableAssets, ct);
-        if (!assets.Any())
-            return ServiceError.BadRequest("No assets in collection");
-
         await _shareRepo.IncrementAccessAsync(share.Id, ct);
 
-        var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        await _zipService.StreamAssetsAsZipAsync(assets, BucketName, zipFileName, streamContext, ct);
-
-        return ServiceResult.Success;
+        return await _zipBuildService.EnqueueShareZipAsync(
+            share.ScopeId, share.TokenHash, collection.Name, ct);
     }
 
     public async Task<ServiceResult<string>> GetPreviewUrlAsync(
@@ -197,6 +194,33 @@ public class ShareAccessService : IShareAccessService
         return await GetPresignedUrl(objectKey, ct);
     }
 
+    /// <summary>
+    /// Creates a short-lived access token after validating the share password.
+    /// The token is a data-protected payload containing the share token hash
+    /// and an expiry timestamp — suitable for use in query strings without
+    /// exposing the actual password.
+    /// </summary>
+    public async Task<ServiceResult<ShareAccessTokenResponse>> CreateAccessTokenAsync(
+        string token, string? password, CancellationToken ct)
+    {
+        var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
+        if (error != null) return error;
+
+        var lifetimeMinutes = Constants.Limits.ShareAccessTokenLifetimeMinutes;
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(lifetimeMinutes).ToUnixTimeSeconds();
+
+        var protector = _dataProtection.CreateProtector(
+            Constants.DataProtection.ShareAccessTokenProtector);
+        var payload = $"share-access:{share!.TokenHash}:{expiresAt}";
+        var accessToken = protector.Protect(payload);
+
+        return new ShareAccessTokenResponse
+        {
+            AccessToken = accessToken,
+            ExpiresInSeconds = lifetimeMinutes * 60
+        };
+    }
+
     // ── Protected operations ─────────────────────────────────────────────────
 
     public async Task<ServiceResult<ShareResponseDto>> CreateShareAsync(
@@ -228,7 +252,9 @@ public class ShareAccessService : IShareAccessService
             return ServiceError.Forbidden("You don't have permission to share this resource");
 
         var result = await _shareService.CreateShareAsync(dto, userId, baseUrl, ct);
-        return result.Response;
+        if (result.IsError)
+            return ServiceError.BadRequest(result.ErrorMessage!);
+        return result.Response!;
     }
 
     public async Task<ServiceResult> RevokeShareAsync(Guid shareId, CancellationToken ct)
@@ -292,6 +318,10 @@ public class ShareAccessService : IShareAccessService
 
         if (!string.IsNullOrEmpty(share.PasswordHash))
         {
+            // Check if the credential is a valid access token (pre-authorized)
+            if (!string.IsNullOrEmpty(password) && IsValidAccessToken(tokenHash, password))
+                return (share, null);
+
             if (string.IsNullOrEmpty(password))
                 return (null, new ServiceError(401, "PASSWORD_REQUIRED", "Password required"));
 
@@ -300,6 +330,38 @@ public class ShareAccessService : IShareAccessService
         }
 
         return (share, null);
+    }
+
+    /// <summary>
+    /// Checks whether the given value is a valid, non-expired access token
+    /// for the specified share (identified by its token hash).
+    /// </summary>
+    private bool IsValidAccessToken(string expectedTokenHash, string possibleAccessToken)
+    {
+        try
+        {
+            var protector = _dataProtection.CreateProtector(
+                Constants.DataProtection.ShareAccessTokenProtector);
+            var payload = protector.Unprotect(possibleAccessToken);
+            var parts = payload.Split(':');
+
+            // Expected format: "share-access:{tokenHash}:{expiryUnixSeconds}"
+            if (parts.Length != 3 || parts[0] != "share-access")
+                return false;
+
+            if (parts[1] != expectedTokenHash)
+                return false;
+
+            if (!long.TryParse(parts[2], out var expirySeconds))
+                return false;
+
+            return DateTimeOffset.UtcNow.ToUnixTimeSeconds() < expirySeconds;
+        }
+        catch
+        {
+            // Decryption failed → not an access token, just a regular password
+            return false;
+        }
     }
 
     private static SharedAssetDto BuildSharedAssetDto(

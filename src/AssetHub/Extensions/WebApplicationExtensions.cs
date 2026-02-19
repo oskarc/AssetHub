@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Minio;
@@ -48,10 +49,45 @@ public static class WebApplicationExtensions
     /// </summary>
     public static void UseAssetHubMiddleware(this WebApplication app)
     {
+        // Process X-Forwarded-* headers from reverse proxy (must be first)
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
+
         if (!app.Environment.IsDevelopment())
         {
             app.UseHttpsRedirection();
+            app.UseHsts();
         }
+
+        // Security headers
+        app.Use(async (context, next) =>
+        {
+            var headers = context.Response.Headers;
+            headers["X-Content-Type-Options"] = "nosniff";
+            headers["X-Frame-Options"] = "DENY";
+            headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+            headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+            headers["X-XSS-Protection"] = "1; mode=block";
+
+            if (!app.Environment.IsDevelopment())
+            {
+                // CSP for Blazor Server: allow self + inline styles (MudBlazor) + wss for SignalR
+                headers["Content-Security-Policy"] =
+                    "default-src 'self'; " +
+                    "script-src 'self' 'unsafe-inline'; " +
+                    "style-src 'self' 'unsafe-inline'; " +
+                    "img-src 'self' data: blob:; " +
+                    "font-src 'self'; " +
+                    "connect-src 'self' wss:; " +
+                    "frame-ancestors 'none'; " +
+                    "base-uri 'self'; " +
+                    "form-action 'self';";
+            }
+
+            await next();
+        });
 
         if (app.Environment.IsDevelopment())
         {
@@ -77,6 +113,7 @@ public static class WebApplicationExtensions
         });
 
         app.UseRequestLocalization();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseAntiforgery();
@@ -89,13 +126,12 @@ public static class WebApplicationExtensions
     /// </summary>
     public static void MapAssetHubEndpoints(this WebApplication app)
     {
-        // Build stamp
+        // Build stamp (authenticated, redacts environment name)
         app.MapGet("/__build", () =>
             Results.Json(new
             {
-                stamp = Dam.Application.BuildInfo.Stamp,
-                environment = app.Environment.EnvironmentName
-            }));
+                stamp = Dam.Application.BuildInfo.Stamp
+            })).RequireAuthorization();
 
         // OIDC callback fallback
         app.MapMethods("/signin-oidc", new[] { "GET", "POST" }, () =>
@@ -136,6 +172,7 @@ public static class WebApplicationExtensions
         app.MapAssetEndpoints();
         app.MapShareEndpoints();
         app.MapAdminEndpoints();
+        app.MapZipDownloadEndpoints();
 
         // Blazor
         app.MapRazorComponents<App>()
@@ -152,6 +189,11 @@ public static class WebApplicationExtensions
             "sync-deleted-users",
             service => service.SyncDeletedUsersAsync(false, CancellationToken.None),
             Cron.Daily);
+
+        RecurringJob.AddOrUpdate<IZipBuildService>(
+            "cleanup-expired-zip-downloads",
+            service => service.CleanupExpiredAsync(CancellationToken.None),
+            Cron.Hourly);
 
         // Health checks
         MapHealthCheckEndpoints(app);
@@ -176,7 +218,6 @@ public static class WebApplicationExtensions
             {
                 logger.LogInformation("Database is up to date — no pending migrations.");
             }
-            await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
         }
         catch (Exception ex)
         {
@@ -311,8 +352,8 @@ public static class WebApplicationExtensions
                 name = e.Key,
                 status = e.Value.Status.ToString(),
                 duration = e.Value.Duration.TotalMilliseconds + "ms",
-                description = e.Value.Description,
-                error = e.Value.Exception?.Message
+                description = e.Value.Description
+                // Note: exception details intentionally omitted to avoid information disclosure
             })
         };
         return context.Response.WriteAsJsonAsync(result);
