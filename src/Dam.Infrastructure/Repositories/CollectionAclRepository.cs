@@ -19,17 +19,18 @@ public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionA
 
     public async Task<CollectionAcl?> GetByPrincipalAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
+        var pt = Enum.Parse<PrincipalType>(principalType, true);
         return await dbContext.CollectionAcls
             .FirstOrDefaultAsync(a =>
                 a.CollectionId == collectionId &&
-                a.PrincipalType == principalType &&
+                a.PrincipalType == pt &&
                 a.PrincipalId == principalId, ct);
     }
     
     public async Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId, CancellationToken ct = default)
     {
         return await dbContext.CollectionAcls
-            .Where(a => a.PrincipalType == "user" && a.PrincipalId == userId)
+            .Where(a => a.PrincipalType == PrincipalType.User && a.PrincipalId == userId)
             .ToListAsync(ct);
     }
 
@@ -43,7 +44,7 @@ public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionA
 
             if (existing != null)
             {
-                existing.Role = role;
+                existing.Role = Enum.Parse<AclRole>(role, true);
                 dbContext.CollectionAcls.Update(existing);
             }
             else
@@ -52,9 +53,9 @@ public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionA
                 {
                     Id = Guid.NewGuid(),
                     CollectionId = collectionId,
-                    PrincipalType = principalType,
+                    PrincipalType = Enum.Parse<PrincipalType>(principalType, true),
                     PrincipalId = principalId,
-                    Role = role,
+                    Role = Enum.Parse<AclRole>(role, true),
                     CreatedAt = DateTime.UtcNow
                 };
                 dbContext.CollectionAcls.Add(acl);

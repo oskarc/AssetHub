@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Dam.Application.Configuration;
 
 /// <summary>
@@ -12,6 +14,7 @@ public class AppSettings
     /// The base URL of the application (e.g. "https://assethub.example.com").
     /// Used for generating share links and email URLs.
     /// </summary>
+    [Required]
     public string BaseUrl { get; set; } = "";
 
     /// <summary>

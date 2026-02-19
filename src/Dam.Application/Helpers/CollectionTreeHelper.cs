@@ -29,14 +29,14 @@ public static class CollectionTreeHelper
             Acls = collection.Acls.Select(a => new CollectionAclResponseDto
             {
                 Id = a.Id,
-                PrincipalType = a.PrincipalType,
+                PrincipalType = a.PrincipalType.ToDbString(),
                 PrincipalId = a.PrincipalId,
-                PrincipalName = a.PrincipalType == "user" && userNames.TryGetValue(a.PrincipalId, out var name)
+                PrincipalName = a.PrincipalType == PrincipalType.User && userNames.TryGetValue(a.PrincipalId, out var name)
                     ? name
-                    : a.PrincipalType == "user" ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : a.PrincipalId,
-                PrincipalEmail = a.PrincipalType == "user" && userEmails != null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
-                Role = a.Role,
-                IsSystemAdmin = a.PrincipalType == "user" && adminUserIds != null && adminUserIds.Contains(a.PrincipalId)
+                    : a.PrincipalType == PrincipalType.User ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : a.PrincipalId,
+                PrincipalEmail = a.PrincipalType == PrincipalType.User && userEmails != null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
+                Role = a.Role.ToDbString(),
+                IsSystemAdmin = a.PrincipalType == PrincipalType.User && adminUserIds != null && adminUserIds.Contains(a.PrincipalId)
             }).ToList(),
             Children = children.Select(c => BuildAccessTree(c, allCollections, userNames, userEmails, adminUserIds)).ToList()
         };

@@ -1,3 +1,4 @@
+using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Dam.Infrastructure.Repositories;
 using Dam.Tests.Fixtures;
@@ -77,14 +78,14 @@ public class ShareRepositoryTests : IAsyncLifetime
     public async Task GetByScopeAsync_ReturnsSharesForScope()
     {
         var assetId = Guid.NewGuid();
-        var share1 = TestData.CreateShare(scopeType: "asset", scopeId: assetId);
-        var share2 = TestData.CreateShare(scopeType: "asset", scopeId: assetId);
-        var otherShare = TestData.CreateShare(scopeType: "asset", scopeId: Guid.NewGuid());
+        var share1 = TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: assetId);
+        var share2 = TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: assetId);
+        var otherShare = TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: Guid.NewGuid());
 
         _db.Shares.AddRange(share1, share2, otherShare);
         await _db.SaveChangesAsync();
 
-        var results = await _repo.GetByScopeAsync("asset", assetId);
+        var results = await _repo.GetByScopeAsync(ShareScopeType.Asset.ToDbString(), assetId);
 
         Assert.Equal(2, results.Count);
         Assert.All(results, s => Assert.Equal(assetId, s.ScopeId));
@@ -228,7 +229,7 @@ public class ShareRepositoryTests : IAsyncLifetime
     {
         var asset = TestData.CreateAsset(title: "Shared Asset");
         _db.Assets.Add(asset);
-        var share = TestData.CreateShare(scopeType: "asset", scopeId: asset.Id);
+        var share = TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: asset.Id);
         _db.Shares.Add(share);
         await _db.SaveChangesAsync();
 
@@ -244,7 +245,7 @@ public class ShareRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection(name: "Shared Collection");
         _db.Collections.Add(collection);
-        var share = TestData.CreateShare(scopeType: "collection", scopeId: collection.Id);
+        var share = TestData.CreateShare(scopeType: ShareScopeType.Collection, scopeId: collection.Id);
         _db.Shares.Add(share);
         await _db.SaveChangesAsync();
 
@@ -315,17 +316,17 @@ public class ShareRepositoryTests : IAsyncLifetime
     public async Task GetByScopeAsync_SortsByCreatedAtDescending()
     {
         var scopeId = Guid.NewGuid();
-        var oldest = TestData.CreateShare(scopeType: "asset", scopeId: scopeId);
+        var oldest = TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: scopeId);
         oldest.CreatedAt = DateTime.UtcNow.AddDays(-3);
-        var middle = TestData.CreateShare(scopeType: "asset", scopeId: scopeId);
+        var middle = TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: scopeId);
         middle.CreatedAt = DateTime.UtcNow.AddDays(-2);
-        var newest = TestData.CreateShare(scopeType: "asset", scopeId: scopeId);
+        var newest = TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: scopeId);
         newest.CreatedAt = DateTime.UtcNow.AddDays(-1);
 
         _db.Shares.AddRange(oldest, middle, newest);
         await _db.SaveChangesAsync();
 
-        var results = await _repo.GetByScopeAsync("asset", scopeId);
+        var results = await _repo.GetByScopeAsync(ShareScopeType.Asset.ToDbString(), scopeId);
 
         Assert.Equal(3, results.Count);
         Assert.Equal(newest.Id, results[0].Id);

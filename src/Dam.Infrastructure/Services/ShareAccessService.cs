@@ -76,7 +76,7 @@ public class ShareAccessService : IShareAccessService
 
         await _shareRepo.IncrementAccessAsync(share!.Id, ct);
 
-        if (share.ScopeType == Constants.ScopeTypes.Asset)
+        if (share.ScopeType == ShareScopeType.Asset)
         {
             var asset = await _assetRepo.GetByIdAsync(share.ScopeId, ct);
             if (asset == null)
@@ -85,7 +85,7 @@ public class ShareAccessService : IShareAccessService
             return (object)BuildSharedAssetDto(asset, token, share.PermissionsJson);
         }
 
-        if (share.ScopeType == Constants.ScopeTypes.Collection)
+        if (share.ScopeType == ShareScopeType.Collection)
         {
             var collection = await _collectionRepo.GetByIdAsync(share.ScopeId, ct: ct);
             if (collection == null)
@@ -144,7 +144,7 @@ public class ShareAccessService : IShareAccessService
         if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
             return ServiceError.Forbidden("Download permission not granted");
 
-        if (share.ScopeType != Constants.ScopeTypes.Collection)
+        if (share.ScopeType != ShareScopeType.Collection)
             return ServiceError.BadRequest("Download all is only available for collection shares");
 
         var collection = await _collectionRepo.GetByIdAsync(share.ScopeId, ct: ct);
@@ -380,7 +380,7 @@ public class ShareAccessService : IShareAccessService
             Title = asset.Title,
             Description = asset.Description,
             Copyright = asset.Copyright,
-            AssetType = asset.AssetType,
+            AssetType = asset.AssetType.ToDbString(),
             ContentType = asset.ContentType,
             SizeBytes = asset.SizeBytes,
             ThumbnailUrl = thumbnailUrl,
@@ -393,7 +393,7 @@ public class ShareAccessService : IShareAccessService
     private async Task<(Asset? asset, ServiceError? error)> ResolveTargetAssetAsync(
         Share share, Guid? assetId, CancellationToken ct)
     {
-        if (share.ScopeType == Constants.ScopeTypes.Asset)
+        if (share.ScopeType == ShareScopeType.Asset)
         {
             var asset = await _assetRepo.GetByIdAsync(share.ScopeId, ct);
             return asset != null
@@ -401,7 +401,7 @@ public class ShareAccessService : IShareAccessService
                 : (null, ServiceError.NotFound("Asset not found"));
         }
 
-        if (share.ScopeType == Constants.ScopeTypes.Collection)
+        if (share.ScopeType == ShareScopeType.Collection)
         {
             if (!assetId.HasValue)
                 return (null, ServiceError.BadRequest("assetId query parameter is required for collection shares"));

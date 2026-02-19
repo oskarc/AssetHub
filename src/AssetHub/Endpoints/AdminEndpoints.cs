@@ -20,7 +20,7 @@ public static class AdminEndpoints
         // ===== SHARE MANAGEMENT =====
         group.MapGet("/shares", GetAllShares).WithName("GetAllShares");
         group.MapGet("/shares/{id:guid}/token", GetShareToken).WithName("AdminGetShareToken");
-        group.MapPost("/shares/{id:guid}/revoke", RevokeShare).WithName("AdminRevokeShare");
+        group.MapDelete("/shares/{id:guid}", RevokeShare).WithName("AdminRevokeShare");
 
         // ===== COLLECTION ACCESS MANAGEMENT =====
         group.MapGet("/collections/access", GetCollectionAccess).WithName("GetCollectionAccess");

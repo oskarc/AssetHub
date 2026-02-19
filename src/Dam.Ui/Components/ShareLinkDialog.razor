@@ -100,11 +100,11 @@
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
-            Feedback.ShowSuccess("Link copied to clipboard!");
+            Feedback.ShowSuccess(CommonLoc["Success_LinkCopied"].Value);
         }
         catch
         {
-            Feedback.ShowWarning("Failed to copy to clipboard. Please copy manually.");
+            Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }
     }
 
@@ -113,11 +113,11 @@
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", Password);
-            Feedback.ShowSuccess("Password copied to clipboard!");
+            Feedback.ShowSuccess(CommonLoc["Success_PasswordCopied"].Value);
         }
         catch
         {
-            Feedback.ShowWarning("Failed to copy to clipboard. Please copy manually.");
+            Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }
     }
 
@@ -127,11 +127,11 @@
         {
             var text = $"Share Link: {ShareUrl}\nPassword: {Password}";
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
-            Feedback.ShowSuccess("Link and password copied to clipboard!");
+            Feedback.ShowSuccess(CommonLoc["Success_LinkAndPasswordCopied"].Value);
         }
         catch
         {
-            Feedback.ShowWarning("Failed to copy to clipboard. Please copy manually.");
+            Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }
     }
 }

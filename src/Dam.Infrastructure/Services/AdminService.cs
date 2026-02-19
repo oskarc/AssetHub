@@ -3,6 +3,7 @@ using Dam.Application.Dtos;
 using Dam.Application.Helpers;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
+using Dam.Domain.Entities;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -73,7 +74,7 @@ public class AdminService : IAdminService
         var userNames = await _userLookup.GetUserNamesAsync(userIds, ct);
 
         // Load collection memberships for asset-type shares
-        var assetShares = shares.Where(s => s.ScopeType == Constants.ScopeTypes.Asset && s.Asset != null).ToList();
+        var assetShares = shares.Where(s => s.ScopeType == ShareScopeType.Asset && s.Asset != null).ToList();
         var assetCollectionMap = new Dictionary<Guid, List<string>>();
         if (assetShares.Count > 0)
         {
@@ -85,9 +86,9 @@ public class AdminService : IAdminService
         var result = shares.Select(s => new AdminShareDto
         {
             Id = s.Id,
-            ScopeType = s.ScopeType,
+            ScopeType = s.ScopeType.ToDbString(),
             ScopeId = s.ScopeId,
-            ScopeName = s.ScopeType == Constants.ScopeTypes.Asset
+            ScopeName = s.ScopeType == ShareScopeType.Asset
                 ? s.Asset?.Title ?? "Unknown Asset"
                 : s.Collection?.Name ?? "Unknown Collection",
             CreatedByUserId = s.CreatedByUserId,
@@ -99,7 +100,7 @@ public class AdminService : IAdminService
             AccessCount = s.AccessCount,
             HasPassword = !string.IsNullOrEmpty(s.PasswordHash),
             Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt),
-            CollectionNames = s.ScopeType == Constants.ScopeTypes.Asset && assetCollectionMap.TryGetValue(s.ScopeId, out var colNames)
+            CollectionNames = s.ScopeType == ShareScopeType.Asset && assetCollectionMap.TryGetValue(s.ScopeId, out var colNames)
                 ? colNames
                 : new List<string>()
         }).ToList();
@@ -161,23 +162,23 @@ public class AdminService : IAdminService
         var allAcls = await _aclRepo.GetAllAsync(ct);
         var allCollections = (await _collectionRepo.GetAllWithAclsAsync(ct)).ToDictionary(c => c.Id);
 
-        var userIds = allAcls.Where(a => a.PrincipalType == "user").Select(a => a.PrincipalId).Distinct().ToList();
+        var userIds = allAcls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId).Distinct().ToList();
         var userNames = await _userLookup.GetUserNamesAsync(userIds, ct);
 
         var userAccess = allAcls
-            .Where(a => a.PrincipalType == "user")
+            .Where(a => a.PrincipalType == PrincipalType.User)
             .GroupBy(a => a.PrincipalId)
             .Select(g => new UserAccessSummaryDto
             {
                 UserId = g.Key,
                 UserName = userNames.TryGetValue(g.Key, out var name) ? name : $"Deleted User ({g.Key[..Math.Min(8, g.Key.Length)]})",
                 CollectionCount = g.Count(),
-                HighestRole = RoleHierarchy.GetHighestRole(g.Select(a => a.Role)),
+                HighestRole = RoleHierarchy.GetHighestRole(g.Select(a => a.Role.ToDbString())),
                 Collections = g.Select(a => new UserCollectionAccessDto
                 {
                     CollectionId = a.CollectionId,
                     CollectionName = allCollections.TryGetValue(a.CollectionId, out var col) ? col.Name : "Unknown",
-                    Role = a.Role
+                    Role = a.Role.ToDbString()
                 }).ToList()
             })
             .OrderBy(u => u.UserName)
@@ -203,12 +204,12 @@ public class AdminService : IAdminService
         var adminUserIds = await _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
 
         var userAclGroups = allAcls
-            .Where(a => a.PrincipalType == "user")
+            .Where(a => a.PrincipalType == PrincipalType.User)
             .GroupBy(a => a.PrincipalId)
             .ToDictionary(g => g.Key, g => new
             {
                 CollectionCount = g.Count(),
-                HighestRole = RoleHierarchy.GetHighestRole(g.Select(a => a.Role))
+                HighestRole = RoleHierarchy.GetHighestRole(g.Select(a => a.Role.ToDbString()))
             });
 
         var result = allUsers.Select(u =>

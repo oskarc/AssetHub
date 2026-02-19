@@ -116,7 +116,8 @@ public static class WebApplicationExtensions
         app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
-        app.UseAntiforgery();
+        // Antiforgery removed — Blazor Server uses SignalR (not HTML forms),
+        // and UseAntiforgery() breaks JWT Bearer clients on POST/PUT/DELETE.
     }
 
     // ── Endpoint mapping ────────────────────────────────────────────────────
@@ -141,14 +142,8 @@ public static class WebApplicationExtensions
         // Auth routes
         app.MapGet("/auth/login", async (HttpContext http, string? returnUrl) =>
         {
-            // Prevent open redirect: only allow local (relative) return URLs
-            var redirectUri = "/";
-            if (!string.IsNullOrWhiteSpace(returnUrl)
-                && Uri.TryCreate(returnUrl, UriKind.Relative, out _)
-                && !returnUrl.StartsWith("//"))
-            {
-                redirectUri = returnUrl;
-            }
+            // Prevent open redirect: only allow known internal routes
+            var redirectUri = Dam.Application.Helpers.UrlSafetyHelper.SafeReturnUrl(returnUrl);
             await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
                 new() { RedirectUri = redirectUri });
         });
@@ -168,6 +163,7 @@ public static class WebApplicationExtensions
         }).RequireAuthorization();
 
         // API endpoints
+        app.MapDashboardEndpoints();
         app.MapCollectionEndpoints();
         app.MapAssetEndpoints();
         app.MapShareEndpoints();

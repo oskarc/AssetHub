@@ -17,8 +17,8 @@ public static class AssetMapper
         return new AssetResponseDto
         {
             Id = asset.Id,
-            AssetType = asset.AssetType,
-            Status = asset.Status,
+            AssetType = asset.AssetType.ToDbString(),
+            Status = asset.Status.ToDbString(),
             Title = asset.Title,
             Description = asset.Description,
             Copyright = asset.Copyright,

@@ -8,28 +8,28 @@ namespace Dam.Application.Helpers;
 public static class AssetTypeHelper
 {
     /// <summary>
-    /// Determines the asset type ("image", "video", "document") from the content type and file extension.
+    /// Determines the asset type from the content type and file extension.
     /// </summary>
-    public static string DetermineAssetType(string? contentType, string? extension)
+    public static AssetType DetermineAssetType(string? contentType, string? extension)
     {
         // Check content type first
         if (!string.IsNullOrEmpty(contentType))
         {
             if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-                return Asset.TypeImage;
+                return AssetType.Image;
             if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
-                return Asset.TypeVideo;
+                return AssetType.Video;
             if (contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
-                return Asset.TypeDocument;
+                return AssetType.Document;
         }
 
         // Fall back to file extension
         return extension switch
         {
-            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" or ".tiff" or ".tif" or ".ico" => Asset.TypeImage,
-            ".mp4" or ".avi" or ".mov" or ".wmv" or ".mkv" or ".webm" or ".flv" or ".m4v" => Asset.TypeVideo,
-            ".pdf" or ".doc" or ".docx" or ".xls" or ".xlsx" or ".ppt" or ".pptx" or ".txt" or ".rtf" => Asset.TypeDocument,
-            _ => Asset.TypeDocument
+            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" or ".tiff" or ".tif" or ".ico" => AssetType.Image,
+            ".mp4" or ".avi" or ".mov" or ".wmv" or ".mkv" or ".webm" or ".flv" or ".m4v" => AssetType.Video,
+            ".pdf" or ".doc" or ".docx" or ".xls" or ".xlsx" or ".ppt" or ".pptx" or ".txt" or ".rtf" => AssetType.Document,
+            _ => AssetType.Document
         };
     }
 }

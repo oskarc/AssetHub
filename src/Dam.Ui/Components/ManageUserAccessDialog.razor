@@ -310,7 +310,7 @@
         try
         {
             await Api.AddCollectionAclAsync(_selectedCollectionId.Value, Constants.PrincipalTypes.User, UserId, _selectedRole);
-            Feedback.ShowSuccess("Collection access added");
+            Feedback.ShowSuccess(CommonLoc["Success_CollectionAccessAdded"].Value);
 
             // Reload user collections to confirm the change persisted
             await LoadUserCollections();
@@ -348,7 +348,7 @@
             // Reload user collections to confirm the change persisted
             await LoadUserCollections();
             
-            Feedback.ShowSuccess("Role updated");
+            Feedback.ShowSuccess(CommonLoc["Success_RoleUpdated"].Value);
             
             _editingCollectionId = null;
             _editingRole = "";
@@ -373,7 +373,7 @@
         try
         {
             await Api.RemoveCollectionAclAsync(collection.CollectionId, UserId, Constants.PrincipalTypes.User);
-            Feedback.ShowSuccess($"Revoked access to '{collection.CollectionName}'");
+            Feedback.ShowSuccess(string.Format(CommonLoc["Success_RevokedAccessTo"].Value, collection.CollectionName));
             
             // Reload user collections to confirm the change persisted
             await LoadUserCollections();

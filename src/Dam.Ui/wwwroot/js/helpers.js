@@ -25,7 +25,7 @@ export async function enqueueAndPollZipDownload(enqueueUrl, headers, dotNetRef) 
     try {
         // Step 1: Enqueue
         const enqueueResp = await fetch(enqueueUrl, {
-            method: 'GET',
+            method: 'POST',
             credentials: 'same-origin',
             headers: headers || {}
         });

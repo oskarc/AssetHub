@@ -51,9 +51,13 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .IsUnique()
                 .HasDatabaseName("idx_collection_acl_unique");
 
-            entity.Property(e => e.PrincipalType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.PrincipalType)
+                .HasConversion(v => v.ToDbString(), v => v.ToPrincipalType())
+                .HasMaxLength(50).IsRequired();
             entity.Property(e => e.PrincipalId).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.Role).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Role)
+                .HasConversion(v => v.ToDbString(), v => v.ToAclRole())
+                .HasMaxLength(50).IsRequired();
 
             entity.HasOne(e => e.Collection)
                 .WithMany(e => e.Acls)
@@ -74,8 +78,12 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.Title).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
             entity.Property(e => e.Copyright).HasMaxLength(500);
-            entity.Property(e => e.AssetType).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.AssetType)
+                .HasConversion(v => v.ToDbString(), v => v.ToAssetType())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Status)
+                .HasConversion(v => v.ToDbString(), v => v.ToAssetStatus())
+                .HasMaxLength(50).IsRequired();
             entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
             entity.Property(e => e.OriginalObjectKey).HasMaxLength(512).IsRequired();
             entity.Property(e => e.ThumbObjectKey).HasMaxLength(512);
@@ -133,7 +141,9 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
 
             entity.Property(e => e.TokenHash).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TokenEncrypted).HasMaxLength(2048);
-            entity.Property(e => e.ScopeType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ScopeType)
+                .HasConversion(v => v.ToDbString(), v => v.ToShareScopeType())
+                .HasMaxLength(50).IsRequired();
             entity.Property(e => e.PermissionsJson)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
@@ -179,11 +189,15 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasIndex(e => e.ExpiresAt).HasDatabaseName("idx_zip_downloads_expires_at");
             entity.HasIndex(e => e.RequestedByUserId).HasDatabaseName("idx_zip_downloads_user_id");
 
-            entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Status)
+                .HasConversion(v => v.ToDbString(), v => v.ToZipDownloadStatus())
+                .HasMaxLength(50).IsRequired();
             entity.Property(e => e.HangfireJobId).HasMaxLength(255);
             entity.Property(e => e.ZipObjectKey).HasMaxLength(512);
             entity.Property(e => e.ZipFileName).HasMaxLength(500).IsRequired();
-            entity.Property(e => e.ScopeType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ScopeType)
+                .HasConversion(v => v.ToDbString(), v => v.ToShareScopeType())
+                .HasMaxLength(50).IsRequired();
             entity.Property(e => e.RequestedByUserId).HasMaxLength(255);
             entity.Property(e => e.ShareTokenHash).HasMaxLength(255);
             entity.Property(e => e.ErrorMessage).HasMaxLength(2000);

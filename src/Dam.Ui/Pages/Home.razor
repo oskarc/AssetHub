@@ -1,68 +1,333 @@
 @page "/"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
-@inject IHostEnvironment Env
-@inject IStringLocalizer<CommonResource> CommonLoc
+@using Dam.Application
+@using Dam.Application.Dtos
+@using Dam.Ui.Services
+@using Microsoft.AspNetCore.Authorization
 
-<PageTitle>@CommonLoc["Nav_Home"] - @CommonLoc["AppName"]</PageTitle>
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IStringLocalizer<Dam.Ui.Resources.CommonResource> Loc
+@inject AuthenticationStateProvider AuthState
 
-<MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
-    <MudText><b>@CommonLoc["Label_Build"]:</b> @Dam.Application.BuildInfo.Stamp</MudText>
-    <MudText><b>@CommonLoc["Label_Environment"]:</b> @Env.EnvironmentName</MudText>
-</MudAlert>
+<PageTitle>@Loc["Dashboard_Title"] - @Loc["AppName"]</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">Hello, world!</MudText>
-<MudText Class="mb-8">Welcome to your new app, powered by MudBlazor and the .NET 9 Template!</MudText>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_dashboard is not null)
+    {
+        @* ── Welcome header ─────────────────────────────────────────── *@
+        <MudText Typo="Typo.h4" Class="mb-4">
+            @string.Format(Loc["Dashboard_Welcome"].Value, _displayName)
+        </MudText>
 
-<MudAlert Severity="Severity.Normal" ContentAlignment="HorizontalAlignment.Start">
-    You can find documentation and examples on our website here:
-    <MudLink Href="https://mudblazor.com" Target="_blank" Typo="Typo.body2" Color="Color.Primary">
-        <b>www.mudblazor.com</b>
-    </MudLink>
-</MudAlert>
+        @* ── Admin: Platform stats cards ────────────────────────────── *@
+        @if (_dashboard.Stats is not null)
+        {
+            <MudText Typo="Typo.h6" Class="mb-2">@Loc["Dashboard_PlatformStats"]</MudText>
+            <MudGrid Class="mb-6">
+                <MudItem xs="6" sm="4" md="2">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Photo" Color="Color.Primary" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalAssets</MudText>
+                        <MudText Typo="Typo.caption">@Loc["Dashboard_TotalAssets"]</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="6" sm="4" md="2">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Secondary" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" Class="mt-2">@AssetDisplayHelpers.FormatFileSize(_dashboard.Stats.TotalStorageBytes)</MudText>
+                        <MudText Typo="Typo.caption">@Loc["Dashboard_StorageUsed"]</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="6" sm="4" md="2">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                        <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Color="Color.Tertiary" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalCollections</MudText>
+                        <MudText Typo="Typo.caption">@Loc["Dashboard_TotalCollections"]</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="6" sm="4" md="2">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalUsers</MudText>
+                        <MudText Typo="Typo.caption">@Loc["Dashboard_TotalUsers"]</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="6" sm="4" md="2">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Warning" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.ActiveShares / @_dashboard.Stats.TotalShares</MudText>
+                        <MudText Typo="Typo.caption">@Loc["Dashboard_SharesActive"]</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
 
-<br />
-<MudText Typo="Typo.h5" GutterBottom="true">Interactivity in this Template</MudText>
-<br />
-<MudText Typo="Typo.body2">
-    When you opt for the "Global" Interactivity Location, <br />
-    the render modes are defined in App.razor and consequently apply to all child components.<br />
-    In this case, providers are globally set in the MainLayout.<br />
-    <br />
-    On the other hand, if you choose the "Per page/component" Interactivity Location,<br />
-    it is necessary to include the <br />
-    <br />
-    &lt;MudPopoverProvider /&gt; <br />
-    &lt;MudDialogProvider /&gt; <br />
-    &lt;MudSnackbarProvider /&gt; <br />
-    <br />
-    components on every interactive page.<br />
-    <br />
-    If a render mode is not specified for a page, it defaults to Server-Side Rendering (SSR),<br />
-    similar to this page. While MudBlazor allows pages to be rendered in SSR,<br />
-    please note that interactive features, such as buttons and dropdown menus, will not be functional.
-</MudText>
+        <MudGrid>
+            @* ── Recent Assets ──────────────────────────────────────── *@
+            <MudItem xs="12" md="@(_showShares || _showActivity ? 8 : 12)">
+                <MudPaper Elevation="1" Class="pa-4 mb-4">
+                    <div class="d-flex justify-space-between align-center mb-3">
+                        <MudText Typo="Typo.h6">@Loc["Dashboard_RecentAssets"]</MudText>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                   Href="/collections"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            @Loc["Dashboard_ViewAll"]
+                        </MudButton>
+                    </div>
 
-<br />
-<MudText Typo="Typo.h5" GutterBottom="true">What's New in Blazor with the Release of .NET 9</MudText>
-<br />
+                    @if (_dashboard.RecentAssets.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                            @Loc["Dashboard_NoRecentAssets"]
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudGrid>
+                            @foreach (var asset in _dashboard.RecentAssets)
+                            {
+                                <MudItem xs="6" sm="4" md="3" lg="2">
+                                    <MudCard Class="cursor-pointer" @onclick="() => NavigateToAsset(asset.Id)">
+                                        <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType)"
+                                                       Height="120" />
+                                        <MudCardContent Class="pa-2">
+                                            <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
+                                            <MudChip T="string" Size="Size.Small"
+                                                     Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)">
+                                                @asset.AssetType
+                                            </MudChip>
+                                        </MudCardContent>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                </MudPaper>
 
-<MudText Typo="Typo.h6" GutterBottom="true">Prerendering</MudText>
-<MudText Typo="Typo.body2" GutterBottom="true">
-    If you're exploring the features of .NET 9 Blazor,<br /> you might be pleasantly surprised to learn that each page is prerendered on the server,<br /> regardless of the selected render mode.<br /><br />
-    This means that you'll need to inject all necessary services on the server,<br /> even when opting for the wasm (WebAssembly) render mode.<br /><br />
-    This prerendering functionality is crucial to ensuring that WebAssembly mode feels fast and responsive,<br /> especially when it comes to initial page load times.<br /><br />
-    For more information on how to detect prerendering and leverage the RenderContext, you can refer to the following link:
-    <MudLink Href="https://github.com/dotnet/aspnetcore/issues/51468#issuecomment-1783568121" Target="_blank" Typo="Typo.body2" Color="Color.Primary">
-        More details
-    </MudLink>
-</MudText>
+                @* ── Quick access to collections ────────────────────── *@
+                <MudPaper Elevation="1" Class="pa-4">
+                    <div class="d-flex justify-space-between align-center mb-3">
+                        <MudText Typo="Typo.h6">@Loc["Dashboard_QuickAccess"]</MudText>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                   Href="/collections"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            @Loc["Dashboard_ViewAll"]
+                        </MudButton>
+                    </div>
 
-<br />
-<MudText Typo="Typo.h6" GutterBottom="true">InteractiveAuto</MudText>
-<MudText Typo="Typo.body2">
-    A discussion on how to achieve this can be found here:
-    <MudLink Href="https://github.com/dotnet/aspnetcore/issues/51468#issue-1950424116" Target="_blank" Typo="Typo.body2" Color="Color.Primary">
-        More details
-    </MudLink>
-</MudText>
+                    @if (_dashboard.Collections.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                            @Loc["Dashboard_NoCollections"]
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudGrid>
+                            @foreach (var collection in _dashboard.Collections)
+                            {
+                                <MudItem xs="6" sm="4" md="3">
+                                    <MudCard Class="cursor-pointer" @onclick="() => NavigateToCollection(collection.Id)">
+                                        <MudCardContent>
+                                            <div class="d-flex align-center gap-2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" />
+                                                <MudText Typo="Typo.subtitle1" Class="text-truncate">@collection.Name</MudText>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(collection.Description))
+                                            {
+                                                <MudText Typo="Typo.caption" Class="mt-1 text-truncate" Style="opacity: 0.7;">
+                                                    @collection.Description
+                                                </MudText>
+                                            }
+                                            <div class="d-flex align-center gap-2 mt-2">
+                                                <MudChip T="string" Size="Size.Small"
+                                                         Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
+                                                    @collection.UserRole
+                                                </MudChip>
+                                            </div>
+                                        </MudCardContent>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            @* ── Sidebar: Shares + Activity (manager+ only) ─────────── *@
+            @if (_showShares || _showActivity)
+            {
+                <MudItem xs="12" md="4">
+                    @* Active shares *@
+                    @if (_showShares)
+                    {
+                        <MudPaper Elevation="1" Class="pa-4 mb-4">
+                            <MudText Typo="Typo.h6" Class="mb-3">@Loc["Dashboard_ActiveShares"]</MudText>
+
+                            @if (_dashboard.RecentShares.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                    @Loc["Dashboard_NoShares"]
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudList T="DashboardShareDto" Dense="true">
+                                    @foreach (var share in _dashboard.RecentShares)
+                                    {
+                                        <MudListItem T="DashboardShareDto" Icon="@Icons.Material.Filled.Link">
+                                            <div class="d-flex justify-space-between align-center" style="width: 100%;">
+                                                <div>
+                                                    <MudText Typo="Typo.body2">@(share.ScopeName ?? share.ScopeId.ToString()[..8])</MudText>
+                                                    <MudText Typo="Typo.caption">
+                                                        @share.ScopeType &middot;
+                                                        @string.Format(Loc["Dashboard_Accesses"].Value, share.AccessCount)
+                                                        @if (share.HasPassword)
+                                                        {
+                                                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="ml-1"
+                                                                     Title="@Loc["Dashboard_PasswordProtected"].Value" />
+                                                        }
+                                                    </MudText>
+                                                </div>
+                                                <MudChip T="string" Size="Size.Small"
+                                                         Color="@GetShareStatusColor(share.Status)">
+                                                    @GetShareStatusLabel(share.Status)
+                                                </MudChip>
+                                            </div>
+                                        </MudListItem>
+                                    }
+                                </MudList>
+                            }
+                        </MudPaper>
+                    }
+
+                    @* Recent activity *@
+                    @if (_showActivity)
+                    {
+                        <MudPaper Elevation="1" Class="pa-4">
+                            <MudText Typo="Typo.h6" Class="mb-3">@Loc["Dashboard_RecentActivity"]</MudText>
+
+                            @if (_dashboard.RecentActivity.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                    @Loc["Dashboard_NoActivity"]
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudTimeline TimelinePosition="TimelinePosition.Start" Dense="true">
+                                    @foreach (var evt in _dashboard.RecentActivity.Take(10))
+                                    {
+                                        <MudTimelineItem Color="@GetAuditEventColor(evt.EventType)" Size="Size.Small">
+                                            <MudText Typo="Typo.body2">@FormatEventType(evt.EventType)</MudText>
+                                            <MudText Typo="Typo.caption">
+                                                @evt.TargetType
+                                                @if (evt.TargetId.HasValue)
+                                                {
+                                                    @:&middot; @evt.TargetId.Value.ToString()[..8]
+                                                }
+                                            </MudText>
+                                            <MudText Typo="Typo.caption" Style="opacity: 0.6;">
+                                                @FormatTimeAgo(evt.CreatedAt)
+                                            </MudText>
+                                        </MudTimelineItem>
+                                    }
+                                </MudTimeline>
+                            }
+                        </MudPaper>
+                    }
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private DashboardDto? _dashboard;
+    private string _displayName = "";
+    private bool _loading = true;
+
+    private bool _showShares => _dashboard?.RecentShares.Count > 0
+        || RoleHierarchy.GetLevel(_dashboard?.UserRole ?? "") >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager);
+    private bool _showActivity => _dashboard?.RecentActivity.Count > 0
+        || RoleHierarchy.GetLevel(_dashboard?.UserRole ?? "") >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _displayName = user.FindFirst("preferred_username")?.Value
+                     ?? user.FindFirst("name")?.Value
+                     ?? user.Identity?.Name
+                     ?? "";
+
+        _dashboard = await Api.GetDashboardAsync();
+        _loading = false;
+    }
+
+    private void NavigateToAsset(Guid assetId)
+    {
+        Nav.NavigateTo($"/assets/{assetId}");
+    }
+
+    private void NavigateToCollection(Guid collectionId)
+    {
+        Nav.NavigateTo($"/collections?collectionId={collectionId}");
+    }
+
+    private Color GetShareStatusColor(string status) => status switch
+    {
+        "active" => Color.Success,
+        "expired" => Color.Warning,
+        "revoked" => Color.Error,
+        _ => Color.Default
+    };
+
+    private string GetShareStatusLabel(string status) => status switch
+    {
+        "active" => Loc["Dashboard_ShareActive"].Value,
+        "expired" => Loc["Dashboard_ShareExpired"].Value,
+        "revoked" => Loc["Dashboard_ShareRevoked"].Value,
+        _ => status
+    };
+
+    private Color GetAuditEventColor(string eventType)
+    {
+        if (eventType.Contains("delete", StringComparison.OrdinalIgnoreCase)
+            || eventType.Contains("revoke", StringComparison.OrdinalIgnoreCase))
+            return Color.Error;
+        if (eventType.Contains("create", StringComparison.OrdinalIgnoreCase)
+            || eventType.Contains("upload", StringComparison.OrdinalIgnoreCase))
+            return Color.Success;
+        if (eventType.Contains("update", StringComparison.OrdinalIgnoreCase)
+            || eventType.Contains("share", StringComparison.OrdinalIgnoreCase))
+            return Color.Info;
+        return Color.Default;
+    }
+
+    private static string FormatEventType(string eventType)
+    {
+        // Convert "asset.created" or "AssetCreated" to "Asset Created"
+        return string.Join(' ', eventType
+            .Replace('.', ' ')
+            .Replace('_', ' ')
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(w => char.ToUpper(w[0]) + w[1..]));
+    }
+
+    private static string FormatTimeAgo(DateTime utcTime)
+    {
+        var diff = DateTime.UtcNow - utcTime;
+        if (diff.TotalMinutes < 1) return "just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+        return utcTime.ToString("yyyy-MM-dd");
+    }
+}

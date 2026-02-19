@@ -94,7 +94,7 @@ public class ShareService(
         {
             Id = Guid.NewGuid(),
             ScopeId = dto.ScopeId,
-            ScopeType = dto.ScopeType,
+            ScopeType = dto.ScopeType.ToShareScopeType(),
             TokenHash = tokenHash,
             TokenEncrypted = protectedToken,
             ExpiresAt = dto.ExpiresAt?.ToUniversalTime() ?? DateTime.UtcNow.AddDays(7),
@@ -142,7 +142,7 @@ public class ShareService(
             Response = new ShareResponseDto
             {
                 Id = share.Id,
-                ScopeType = share.ScopeType,
+                ScopeType = share.ScopeType.ToDbString(),
                 ScopeId = share.ScopeId,
                 Token = token,
                 CreatedAt = share.CreatedAt,

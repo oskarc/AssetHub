@@ -1,5 +1,6 @@
 @page "/share/{Token}"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@implements IAsyncDisposable
 
 @using Dam.Ui.Services
 @using Dam.Ui.Components
@@ -373,7 +374,7 @@
                     <MudStack>
                         <MudText Typo="Typo.h5">@_sharedCollection.Name</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            @_sharedCollection.Assets.Count assets
+                            @string.Format(CommonLoc["Text_CountAssets"].Value, _sharedCollection.Assets.Count)
                         </MudText>
                     </MudStack>
                     <MudButton Variant="Variant.Filled"
@@ -463,6 +464,7 @@
     private SharedAssetDto? _selectedAsset;
 
     private IJSObjectReference? _jsModule;
+    private DotNetObjectReference<Share>? _dotNetRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -489,7 +491,7 @@
                     _isLoading = false;
                     return;
                 }
-                _error = ShareLoc["InvalidPassword"];
+                _error = ShareLoc["InvalidPassword"].Value;
                 _isLoading = false;
                 return;
             }
@@ -499,13 +501,13 @@
                 var error = await response.Content.ReadAsStringAsync();
                 _errorMessage = response.StatusCode switch
                 {
-                    System.Net.HttpStatusCode.NotFound => ShareLoc["InvalidOrRemoved"],
+                    System.Net.HttpStatusCode.NotFound => ShareLoc["InvalidOrRemoved"].Value,
                     System.Net.HttpStatusCode.BadRequest => error.Contains("expired") 
-                        ? ShareLoc["LinkExpired"] 
+                        ? ShareLoc["LinkExpired"].Value 
                         : error.Contains("revoked") 
-                            ? ShareLoc["LinkRevoked"]
-                            : ShareLoc["UnableToAccess"],
-                    _ => ShareLoc["ErrorLoading"]
+                            ? ShareLoc["LinkRevoked"].Value
+                            : ShareLoc["UnableToAccess"].Value,
+                    _ => ShareLoc["ErrorLoading"].Value
                 };
                 _isLoading = false;
                 return;
@@ -543,7 +545,7 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = ShareLoc["FailedToLoad"];
+            _errorMessage = ShareLoc["FailedToLoad"].Value;
             Logger.LogError(ex, "Error loading shared content for token {Token}", Token);
         }
         finally
@@ -556,7 +558,7 @@
     {
         if (string.IsNullOrEmpty(_password))
         {
-            _error = CommonLoc["Validation_EnterPassword"];
+            _error = CommonLoc["Validation_EnterPassword"].Value;
             return;
         }
 
@@ -667,7 +669,7 @@
         if (_isDownloading) return;
 
         _isDownloading = true;
-        _downloadStatusText = "Preparing...";
+        _downloadStatusText = CommonLoc["Msg_PreparingDownload"].Value;
         StateHasChanged();
 
         try
@@ -678,25 +680,26 @@
 
             // The status polling endpoint needs X-Share-Token header
             var headers = new Dictionary<string, string> { { "X-Share-Token", Token } };
-            var dotNetRef = DotNetObjectReference.Create(this);
+            _dotNetRef?.Dispose();
+            _dotNetRef = DotNetObjectReference.Create(this);
 
             if (_jsModule != null)
             {
                 var resultJson = await _jsModule.InvokeAsync<string>(
-                    "enqueueAndPollZipDownload", url, headers, dotNetRef);
+                    "enqueueAndPollZipDownload", url, headers, _dotNetRef);
 
                 var result = System.Text.Json.JsonSerializer.Deserialize<ZipDownloadResult>(resultJson,
                     new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 if (result?.Success != true)
                 {
-                    _errorMessage = result?.Error ?? "Download failed";
+                    _errorMessage = result?.Error ?? CommonLoc["Msg_DownloadFailed"].Value;
                 }
             }
         }
         catch
         {
-            _errorMessage = "Download failed";
+            _errorMessage = CommonLoc["Msg_DownloadFailed"].Value;
         }
         finally
         {
@@ -711,9 +714,9 @@
     {
         _downloadStatusText = status switch
         {
-            "pending" => "Queued...",
-            "building" => "Building ZIP...",
-            _ => "Preparing..."
+            "pending" => CommonLoc["Msg_DownloadQueued"].Value,
+            "building" => CommonLoc["Msg_BuildingZip"].Value,
+            _ => CommonLoc["Msg_PreparingDownload"].Value
         };
         InvokeAsync(StateHasChanged);
     }
@@ -735,5 +738,14 @@
 
         if (_jsModule != null)
             await _jsModule.InvokeVoidAsync("downloadViaAnchor", url);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _dotNetRef?.Dispose();
+        if (_jsModule is not null)
+        {
+            try { await _jsModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+        }
     }
 }

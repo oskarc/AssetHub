@@ -3,6 +3,7 @@ using Dam.Application.Dtos;
 using Dam.Application.Helpers;
 using Dam.Application.Repositories;
 using Dam.Application.Services;
+using Dam.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -60,7 +61,7 @@ public class CollectionAclService : ICollectionAclService
             return ServiceError.Forbidden();
 
         var acls = await _aclRepo.GetByCollectionAsync(collectionId, ct);
-        var userIds = acls.Where(a => a.PrincipalType == "user").Select(a => a.PrincipalId);
+        var userIds = acls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId);
         var nameMap = await _userLookup.GetUserNamesAsync(userIds, ct);
         var emailMap = await _userLookup.GetUserEmailsAsync(userIds, ct);
         var adminIds = await _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
@@ -68,15 +69,15 @@ public class CollectionAclService : ICollectionAclService
         var dtos = acls.Select(a => new CollectionAclResponseDto
         {
             Id = a.Id,
-            PrincipalType = a.PrincipalType,
+            PrincipalType = a.PrincipalType.ToDbString(),
             PrincipalId = a.PrincipalId,
-            PrincipalName = a.PrincipalType == "user" && nameMap.TryGetValue(a.PrincipalId, out var name)
+            PrincipalName = a.PrincipalType == PrincipalType.User && nameMap.TryGetValue(a.PrincipalId, out var name)
                 ? name
-                : a.PrincipalType == "user" ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : null,
-            PrincipalEmail = a.PrincipalType == "user" && emailMap.TryGetValue(a.PrincipalId, out var email) ? email : null,
-            Role = a.Role,
+                : a.PrincipalType == PrincipalType.User ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : null,
+            PrincipalEmail = a.PrincipalType == PrincipalType.User && emailMap.TryGetValue(a.PrincipalId, out var email) ? email : null,
+            Role = a.Role.ToDbString(),
             CreatedAt = a.CreatedAt,
-            IsSystemAdmin = a.PrincipalType == "user" && adminIds.Contains(a.PrincipalId)
+            IsSystemAdmin = a.PrincipalType == PrincipalType.User && adminIds.Contains(a.PrincipalId)
         });
 
         return new ServiceResult<IEnumerable<CollectionAclResponseDto>> { Value = dtos };
@@ -121,11 +122,11 @@ public class CollectionAclService : ICollectionAclService
         return new CollectionAclResponseDto
         {
             Id = acl.Id,
-            PrincipalType = acl.PrincipalType,
+            PrincipalType = acl.PrincipalType.ToDbString(),
             PrincipalId = acl.PrincipalId,
             PrincipalName = principalName,
             PrincipalEmail = principalEmail,
-            Role = acl.Role,
+            Role = acl.Role.ToDbString(),
             CreatedAt = acl.CreatedAt
         };
     }
@@ -142,8 +143,8 @@ public class CollectionAclService : ICollectionAclService
         // Role escalation guard
         var callerRole = await _authService.GetUserRoleAsync(userId, collectionId, ct);
         var targetAcl = await _aclRepo.GetByPrincipalAsync(collectionId, principalType, principalId, ct);
-        if (targetAcl != null && !RoleHierarchy.CanRevokeRole(callerRole, targetAcl.Role))
-            return ServiceError.BadRequest($"You cannot revoke a '{targetAcl.Role}' role because it exceeds your own access level");
+        if (targetAcl != null && !RoleHierarchy.CanRevokeRole(callerRole, targetAcl.Role.ToDbString()))
+            return ServiceError.BadRequest($"You cannot revoke a '{targetAcl.Role.ToDbString()}' role because it exceeds your own access level");
 
         await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
 
@@ -176,7 +177,7 @@ public class CollectionAclService : ICollectionAclService
 
         var existingAcls = await _aclRepo.GetByCollectionAsync(collectionId, ct);
         var existingUserIds = existingAcls
-            .Where(a => a.PrincipalType == "user")
+            .Where(a => a.PrincipalType == PrincipalType.User)
             .Select(a => a.PrincipalId)
             .ToHashSet();
 
@@ -237,7 +238,7 @@ public class CollectionAclService : ICollectionAclService
             Message = "Access updated",
             CollectionId = collectionId,
             PrincipalId = principalId,
-            Role = acl.Role
+            Role = acl.Role.ToDbString()
         };
     }
 
@@ -269,7 +270,7 @@ public class CollectionAclService : ICollectionAclService
         var rootCollections = allCollections.Where(c => c.ParentId == null).ToList();
 
         var allUserIds = allCollections
-            .SelectMany(c => c.Acls.Where(a => a.PrincipalType == "user").Select(a => a.PrincipalId))
+            .SelectMany(c => c.Acls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId))
             .Distinct()
             .ToList();
         var userNames = await _userLookup.GetUserNamesAsync(allUserIds, ct);

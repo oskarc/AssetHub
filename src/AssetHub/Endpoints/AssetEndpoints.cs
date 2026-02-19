@@ -47,7 +47,7 @@ public static class AssetEndpoints
         int skip = 0, int take = 50)
     {
         take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
-        var result = await svc.GetAssetsByStatusAsync(Asset.StatusReady, skip, take, ct);
+        var result = await svc.GetAssetsByStatusAsync(AssetStatus.Ready.ToDbString(), skip, take, ct);
         return result.ToHttpResult();
     }
 

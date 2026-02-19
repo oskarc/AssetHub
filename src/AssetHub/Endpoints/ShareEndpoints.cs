@@ -20,7 +20,7 @@ public static class ShareEndpoints
             .AllowAnonymous().RequireRateLimiting("SharePassword");
         group.MapGet("{token}/download", DownloadSharedAsset).WithName("DownloadSharedAsset")
             .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
-        group.MapGet("{token}/download-all", DownloadAllSharedAssets).WithName("DownloadAllSharedAssets")
+        group.MapPost("{token}/download-all", DownloadAllSharedAssets).WithName("DownloadAllSharedAssets")
             .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
         group.MapGet("{token}/preview", PreviewSharedAsset).WithName("PreviewSharedAsset")
             .AllowAnonymous().RequireRateLimiting("ShareAnonymous");

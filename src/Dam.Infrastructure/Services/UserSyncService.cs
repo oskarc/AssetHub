@@ -1,5 +1,6 @@
 using Dam.Application.Repositories;
 using Dam.Application.Services;
+using Dam.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Dam.Infrastructure.Services;
@@ -22,7 +23,7 @@ public class UserSyncService(
 
         // 1. Collect all distinct user IDs referenced in ACLs and shares
         var allAcls = (await aclRepo.GetAllAsync(ct))
-            .Where(a => a.PrincipalType == "user")
+            .Where(a => a.PrincipalType == PrincipalType.User)
             .ToList();
 
         var allShares = await shareRepo.GetAllAsync(cancellationToken: ct);

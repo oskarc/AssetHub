@@ -1,11 +1,13 @@
+using Dam.Application;
 using Dam.Application.Repositories;
 using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Dam.Infrastructure.Repositories;
 
-public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
+public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : IAssetRepository
 {
     public async Task<Asset?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -28,8 +30,9 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
 
     public async Task<List<Asset>> GetByTypeAsync(string assetType, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
+        var type = Enum.Parse<AssetType>(assetType, true);
         return await dbContext.Assets
-            .Where(a => a.AssetType == assetType)
+            .Where(a => a.AssetType == type)
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip)
             .Take(take)
@@ -38,8 +41,9 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
 
     public async Task<List<Asset>> GetByStatusAsync(string status, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
+        var statusEnum = Enum.Parse<AssetStatus>(status, true);
         return await dbContext.Assets
-            .Where(a => a.Status == status)
+            .Where(a => a.Status == statusEnum)
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip)
             .Take(take)
@@ -65,8 +69,9 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
 
     public async Task<int> CountByStatusAsync(string status, CancellationToken cancellationToken = default)
     {
+        var statusEnum = Enum.Parse<AssetStatus>(status, true);
         return await dbContext.Assets
-            .CountAsync(a => a.Status == status, cancellationToken);
+            .CountAsync(a => a.Status == statusEnum, cancellationToken);
     }
 
     public async Task<Asset?> GetByOriginalKeyAsync(string objectKey, CancellationToken cancellationToken = default)
@@ -133,6 +138,13 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Invalidate cached collection IDs for all affected assets
+        foreach (var assetId in assetIds)
+        {
+            CacheKeys.InvalidateAssetCollectionIds(cache, assetId);
+        }
+
         return exclusiveAssets; // caller can clean up MinIO for these
     }
 
@@ -166,7 +178,8 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         // Apply asset type filter
         if (!string.IsNullOrWhiteSpace(assetType))
         {
-            queryable = queryable.Where(a => a.AssetType == assetType);
+            var type = Enum.Parse<AssetType>(assetType, true);
+            queryable = queryable.Where(a => a.AssetType == type);
         }
 
         // Get total count before pagination
@@ -192,8 +205,8 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         CancellationToken cancellationToken = default)
     {
         var queryable = includeAllStatuses
-            ? dbContext.Assets.Where(a => a.Status != Asset.StatusUploading)
-            : dbContext.Assets.Where(a => a.Status == Asset.StatusReady);
+            ? dbContext.Assets.Where(a => a.Status != AssetStatus.Uploading)
+            : dbContext.Assets.Where(a => a.Status == AssetStatus.Ready);
 
         // Filter to assets in allowed collections (ACL enforcement)
         if (allowedCollectionIds != null)
@@ -216,7 +229,8 @@ public class AssetRepository(AssetHubDbContext dbContext) : IAssetRepository
         // Apply asset type filter
         if (!string.IsNullOrWhiteSpace(assetType))
         {
-            queryable = queryable.Where(a => a.AssetType == assetType);
+            var type = Enum.Parse<AssetType>(assetType, true);
+            queryable = queryable.Where(a => a.AssetType == type);
         }
 
         // Get total count before pagination

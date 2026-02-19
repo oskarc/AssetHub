@@ -1,5 +1,6 @@
 using Dam.Application.Repositories;
 using Dam.Application.Services;
+using Dam.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Dam.Infrastructure.Services;
@@ -16,7 +17,7 @@ public class UserCleanupService(
         var userAcls = (await aclRepo.GetByUserAsync(userId, ct)).ToList();
         foreach (var acl in userAcls)
         {
-            await aclRepo.RevokeAccessAsync(acl.CollectionId, acl.PrincipalType, acl.PrincipalId, ct);
+            await aclRepo.RevokeAccessAsync(acl.CollectionId, acl.PrincipalType.ToDbString(), acl.PrincipalId, ct);
         }
 
         var userShares = (await shareRepo.GetByUserAsync(userId, take: int.MaxValue, cancellationToken: ct))

@@ -2,6 +2,7 @@ namespace Dam.Infrastructure.Services;
 
 using Dam.Application;
 using Dam.Application.Services;
+using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -49,10 +50,10 @@ public class CollectionAuthorizationService(
         var acl = await dbContext.CollectionAcls
             .FirstOrDefaultAsync(a =>
                 a.CollectionId == collectionId &&
-                a.PrincipalType == "user" &&
+                a.PrincipalType == PrincipalType.User &&
                 a.PrincipalId == userId, ct);
 
-        var role = acl?.Role;
+        var role = acl?.Role.ToDbString();
 
         // If no direct ACL, walk up the parent chain to find inherited access.
         // Max depth guard prevents infinite loops from corrupted circular ParentId chains.
@@ -82,12 +83,12 @@ public class CollectionAuthorizationService(
                 var parentAcl = await dbContext.CollectionAcls
                     .FirstOrDefaultAsync(a =>
                         a.CollectionId == parentId.Value &&
-                        a.PrincipalType == "user" &&
+                        a.PrincipalType == PrincipalType.User &&
                         a.PrincipalId == userId, ct);
 
                 if (parentAcl != null)
                 {
-                    role = parentAcl.Role;
+                    role = parentAcl.Role.ToDbString();
                     // Cache the parent's role too
                     _roleCache[parentCacheKey] = role;
                 }
@@ -116,7 +117,7 @@ public class CollectionAuthorizationService(
         var hasDirectAcl = await dbContext.CollectionAcls
             .AnyAsync(a =>
                 a.CollectionId == collectionId &&
-                a.PrincipalType == "user" &&
+                a.PrincipalType == PrincipalType.User &&
                 a.PrincipalId == userId, ct);
 
         return !hasDirectAcl;
@@ -184,7 +185,7 @@ public class CollectionAuthorizationService(
         // Single query: check which collections have a direct ACL for this user
         var directAclCollectionIds = await dbContext.CollectionAcls
             .Where(a => ids.Contains(a.CollectionId) &&
-                        a.PrincipalType == "user" &&
+                        a.PrincipalType == PrincipalType.User &&
                         a.PrincipalId == userId)
             .Select(a => a.CollectionId)
             .ToHashSetAsync(ct);
@@ -208,9 +209,9 @@ public class CollectionAuthorizationService(
         // Single query: get all direct ACLs for this user on these collections
         var directAcls = await dbContext.CollectionAcls
             .Where(a => uncachedIds.Contains(a.CollectionId) &&
-                        a.PrincipalType == "user" &&
+                        a.PrincipalType == PrincipalType.User &&
                         a.PrincipalId == userId)
-            .ToDictionaryAsync(a => a.CollectionId, a => a.Role, ct);
+            .ToDictionaryAsync(a => a.CollectionId, a => a.Role.ToDbString(), ct);
 
         // Cache direct hits (but don't cache misses — they may have inherited roles from parents)
         foreach (var (collId, role) in directAcls)

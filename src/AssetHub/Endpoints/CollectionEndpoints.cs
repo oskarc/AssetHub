@@ -20,7 +20,7 @@ public static class CollectionEndpoints
         group.MapPatch("{id:guid}", UpdateCollection).WithName("UpdateCollection");
         group.MapDelete("{id:guid}", DeleteCollection).WithName("DeleteCollection");
         group.MapGet("{id:guid}/children", GetChildren).WithName("GetChildren");
-        group.MapGet("{id:guid}/download-all", DownloadAllAssets).WithName("DownloadAllAssets");
+        group.MapPost("{id:guid}/download-all", DownloadAllAssets).WithName("DownloadAllAssets");
 
         // ACL Management
         var aclGroup = app.MapGroup("/api/collections/{collectionId:guid}/acl")

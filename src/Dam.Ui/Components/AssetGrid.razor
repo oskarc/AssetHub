@@ -12,7 +12,7 @@
 {
     <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
         <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Loading assets...</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">@AssetLoc["LoadingAssets"]</MudText>
     </MudStack>
 }
 else if (_assets.Count == 0)
@@ -133,7 +133,7 @@ else
     {
         <MudStack Row="true" Justify="Justify.Center" Class="mt-4">
             <MudButton Variant="Variant.Outlined" OnClick="LoadMoreAsync">
-                @CommonLoc["Btn_LoadMore"] (@(_total - _assets.Count) remaining)
+                @CommonLoc["Btn_LoadMore"] @string.Format(CommonLoc["Text_Remaining"].Value, _total - _assets.Count)
             </MudButton>
         </MudStack>
     }

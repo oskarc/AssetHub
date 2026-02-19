@@ -246,4 +246,47 @@
   <data name="Btn_ChangePassword" xml:space="preserve"><value>Change Password</value></data>
   <data name="Btn_ForgotPassword" xml:space="preserve"><value>Forgot your password?</value></data>
   <data name="Text_ForgotPasswordHint" xml:space="preserve"><value>Click Sign In, then use the "Forgot password?" link on the login page.</value></data>
+
+  <!-- Error / Not Found Pages -->
+  <data name="Error_NotAuthorized" xml:space="preserve"><value>You are not authorized to access this page.</value></data>
+  <data name="Error_PageNotFound" xml:space="preserve"><value>Page not found</value></data>
+  <data name="Error_PageNotFoundDesc" xml:space="preserve"><value>The page you're looking for doesn't exist or has been moved.</value></data>
+  <data name="Error_PageTitle" xml:space="preserve"><value>Error</value></data>
+  <data name="Error_Heading" xml:space="preserve"><value>Error.</value></data>
+  <data name="Error_Description" xml:space="preserve"><value>An error occurred while processing your request.</value></data>
+  <data name="Error_RequestId" xml:space="preserve"><value>Request ID:</value></data>
+  <data name="Error_DevelopmentMode" xml:space="preserve"><value>Development Mode</value></data>
+  <data name="Error_DevelopmentInfo" xml:space="preserve"><value>Swapping to the Development environment will display more detailed information about the error that occurred.</value></data>
+  <data name="Error_DevelopmentWarning" xml:space="preserve"><value>The Development environment shouldn't be enabled for deployed applications. It can result in displaying sensitive information from exceptions to end users. For local debugging, enable the Development environment by setting the ASPNETCORE_ENVIRONMENT environment variable to Development and restarting the app.</value></data>
+
+  <!-- Misc -->
+  <data name="Text_ThisCollection" xml:space="preserve"><value>this collection</value></data>
+  <data name="Msg_RenameComingSoon" xml:space="preserve"><value>Rename functionality coming soon</value></data>
+  <data name="Text_NothingHereYet" xml:space="preserve"><value>Nothing here yet</value></data>
+  <data name="User_PasswordEmailSent" xml:space="preserve"><value>A password setup email has been sent to {0}. The user will set their own password via the link in the email.</value></data>
+  <data name="Btn_GoHome" xml:space="preserve"><value>Go Home</value></data>
+
+  <!-- Dashboard -->
+  <data name="Dashboard_Title" xml:space="preserve"><value>Dashboard</value></data>
+  <data name="Dashboard_Welcome" xml:space="preserve"><value>Welcome, {0}</value></data>
+  <data name="Dashboard_RecentAssets" xml:space="preserve"><value>Recent Assets</value></data>
+  <data name="Dashboard_QuickAccess" xml:space="preserve"><value>Quick Access</value></data>
+  <data name="Dashboard_ActiveShares" xml:space="preserve"><value>Active Shares</value></data>
+  <data name="Dashboard_RecentActivity" xml:space="preserve"><value>Recent Activity</value></data>
+  <data name="Dashboard_PlatformStats" xml:space="preserve"><value>Platform Overview</value></data>
+  <data name="Dashboard_TotalAssets" xml:space="preserve"><value>Total Assets</value></data>
+  <data name="Dashboard_StorageUsed" xml:space="preserve"><value>Storage Used</value></data>
+  <data name="Dashboard_TotalCollections" xml:space="preserve"><value>Collections</value></data>
+  <data name="Dashboard_TotalUsers" xml:space="preserve"><value>Users</value></data>
+  <data name="Dashboard_SharesActive" xml:space="preserve"><value>Active / Total Shares</value></data>
+  <data name="Dashboard_NoRecentAssets" xml:space="preserve"><value>No recent assets</value></data>
+  <data name="Dashboard_NoCollections" xml:space="preserve"><value>No collections available</value></data>
+  <data name="Dashboard_NoShares" xml:space="preserve"><value>No active shares</value></data>
+  <data name="Dashboard_NoActivity" xml:space="preserve"><value>No recent activity</value></data>
+  <data name="Dashboard_ViewAll" xml:space="preserve"><value>View All</value></data>
+  <data name="Dashboard_Accesses" xml:space="preserve"><value>{0} accesses</value></data>
+  <data name="Dashboard_ShareExpired" xml:space="preserve"><value>Expired</value></data>
+  <data name="Dashboard_ShareRevoked" xml:space="preserve"><value>Revoked</value></data>
+  <data name="Dashboard_ShareActive" xml:space="preserve"><value>Active</value></data>
+  <data name="Dashboard_PasswordProtected" xml:space="preserve"><value>Password protected</value></data>
 </root>

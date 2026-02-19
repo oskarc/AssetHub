@@ -34,7 +34,7 @@ public class StaleUploadCleanupJob(
         logger.LogInformation("Starting stale upload cleanup (threshold: {Threshold})", StaleThreshold);
 
         var staleAssets = await assetRepo.GetByStatusAsync(
-            Asset.StatusUploading, skip: 0, take: 500, CancellationToken.None);
+            AssetStatus.Uploading.ToDbString(), skip: 0, take: 500, CancellationToken.None);
 
         var cleaned = 0;
         foreach (var asset in staleAssets.Where(a => a.CreatedAt < cutoff))

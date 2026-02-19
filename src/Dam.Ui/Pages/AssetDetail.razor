@@ -2,6 +2,7 @@
 @attribute [Authorize]
 
 @using Dam.Application.Dtos
+@using Dam.Application.Helpers
 @using Dam.Ui.Components
 @using Dam.Ui.Services
 @using Microsoft.AspNetCore.Authorization
@@ -144,7 +145,7 @@ else
                                                                Size="Size.Small"
                                                                Color="Color.Error"
                                                                OnClick="@(() => RemoveFromCollectionAsync(collection))"
-                                                               title="Remove from collection" />
+                                                               title="@AssetLoc["RemoveFromCollection"]" />
                                             }
                                         </MudStack>
                                     }
@@ -153,7 +154,7 @@ else
                             else
                             {
                                 <MudText Typo="Typo.body2" Class="asset-detail-italic">
-                                    Not assigned to any collection
+                                    @CommonLoc["Text_NotAssignedToCollection"]
                                 </MudText>
                             }
                         </MudStack>
@@ -417,13 +418,13 @@ else
         {
             await LoadAssetCollectionsAsync();
             StateHasChanged();
-            Feedback.ShowSuccess("Asset added to collection");
+            Feedback.ShowSuccess(CommonLoc["Success_AddedToCollection"].Value);
         }
     }
 
     private async Task RemoveFromCollectionAsync(AssetCollectionDto collection)
     {
-        var message = string.Format(AssetLoc["ConfirmRemoveFromCollection"], collection.Name);
+        var message = string.Format(AssetLoc["ConfirmRemoveFromCollection"].Value, collection.Name);
 
         var confirm = await DialogService.ShowMessageBox(
             AssetLoc["RemoveFromCollection"],
@@ -438,7 +439,7 @@ else
             await Api.RemoveAssetFromCollectionAsync(AssetId, collection.Id);
             // Reload both asset and collections since CollectionId may have changed
             await LoadAssetAsync();
-            Feedback.ShowSuccess($"Removed from {collection.Name}");
+            Feedback.ShowSuccess(string.Format(CommonLoc["Success_RemovedFromCollection"].Value, collection.Name));
         }
         catch (Exception ex)
         {
@@ -533,7 +534,7 @@ else
         if (result != null && !result.Canceled && result.Data is AssetResponseDto updatedAsset)
         {
             _asset = updatedAsset;
-            Feedback.ShowSuccess(AssetLoc["AssetUpdatedSuccess"]);
+            Feedback.ShowSuccess(AssetLoc["AssetUpdatedSuccess"].Value);
             StateHasChanged();
         }
     }
@@ -567,13 +568,7 @@ else
 
     private void NavigateBackToAssets()
     {
-        if (!string.IsNullOrEmpty(ReturnUrl))
-        {
-            Nav.NavigateTo(ReturnUrl);
-        }
-        else
-        {
-            Nav.NavigateTo("/collections");
-        }
+        var safeUrl = UrlSafetyHelper.SafeReturnUrl(ReturnUrl, "/collections");
+        Nav.NavigateTo(safeUrl);
     }
 }

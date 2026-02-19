@@ -30,7 +30,7 @@ public class MultiCollectionAccessTests : IAsyncLifetime
         _db = await _fixture.CreateDbContextAsync();
         var cache = new MemoryCache(new MemoryCacheOptions());
         var logger = NullLogger<AssetCollectionRepository>.Instance;
-        _assetRepo = new AssetRepository(_db);
+        _assetRepo = new AssetRepository(_db, cache);
         _acRepo = new AssetCollectionRepository(_db, cache, logger);
         _collectionRepo = new CollectionRepository(_db);
         _aclRepo = new CollectionAclRepository(_db);
@@ -188,8 +188,8 @@ public class MultiCollectionAccessTests : IAsyncLifetime
         _db.Collections.AddRange(col1, col2);
 
         // User has viewer in col1, contributor in col2
-        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(col2.Id, "user1", "contributor"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col2.Id, "user1", AclRole.Contributor));
         await _db.SaveChangesAsync();
 
         // Verify both ACLs exist
@@ -198,8 +198,8 @@ public class MultiCollectionAccessTests : IAsyncLifetime
 
         // The highest role can be computed by the application's RoleHierarchy
         var roles = userAcls.Select(a => a.Role).ToList();
-        Assert.Contains("viewer", roles);
-        Assert.Contains("contributor", roles);
+        Assert.Contains(AclRole.Viewer, roles);
+        Assert.Contains(AclRole.Contributor, roles);
     }
 
     // ── Orphaned assets (0 collections) ─────────────────────────────
@@ -211,12 +211,12 @@ public class MultiCollectionAccessTests : IAsyncLifetime
         _db.Collections.Add(collection);
 
         // This asset is in a collection
-        var inCollection = TestData.CreateAsset(title: "Visible", status: Asset.StatusReady);
+        var inCollection = TestData.CreateAsset(title: "Visible", status: AssetStatus.Ready);
         _db.Assets.Add(inCollection);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(inCollection.Id, collection.Id));
 
         // This asset is orphaned (no collection link)
-        var orphaned = TestData.CreateAsset(title: "Orphan", status: Asset.StatusReady);
+        var orphaned = TestData.CreateAsset(title: "Orphan", status: AssetStatus.Ready);
         _db.Assets.Add(orphaned);
         await _db.SaveChangesAsync();
 
@@ -248,8 +248,8 @@ public class MultiCollectionAccessTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user2", "admin"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user2", AclRole.Admin));
         await _db.SaveChangesAsync();
 
         await _collectionRepo.DeleteAsync(collection.Id);

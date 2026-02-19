@@ -144,7 +144,7 @@ export class ApiHelper {
   }
 
   async revokeShare(id: string) {
-    const res = await this.request.post(`${env.baseUrl}/api/admin/shares/${id}/revoke`, {
+    const res = await this.request.delete(`${env.baseUrl}/api/admin/shares/${id}`, {
       headers: this.authHeaders(),
     });
     return res;

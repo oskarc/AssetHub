@@ -13,8 +13,8 @@ public static class TestData
     public static Asset CreateAsset(
         Guid? id = null,
         string title = "Test Asset",
-        string assetType = Asset.TypeImage,
-        string status = Asset.StatusReady,
+        AssetType assetType = AssetType.Image,
+        AssetStatus status = AssetStatus.Ready,
         string? description = null,
         List<string>? tags = null,
         long sizeBytes = 1024,
@@ -33,8 +33,8 @@ public static class TestData
             ContentType = contentType,
             SizeBytes = sizeBytes,
             OriginalObjectKey = $"originals/{Guid.NewGuid()}.jpg",
-            ThumbObjectKey = status == Asset.StatusReady ? $"thumbs/{Guid.NewGuid()}.jpg" : null,
-            MediumObjectKey = status == Asset.StatusReady ? $"medium/{Guid.NewGuid()}.jpg" : null,
+            ThumbObjectKey = status == AssetStatus.Ready ? $"thumbs/{Guid.NewGuid()}.jpg" : null,
+            MediumObjectKey = status == AssetStatus.Ready ? $"medium/{Guid.NewGuid()}.jpg" : null,
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = createdByUserId ?? DefaultUserId,
             UpdatedAt = DateTime.UtcNow
@@ -62,8 +62,8 @@ public static class TestData
     public static CollectionAcl CreateAcl(
         Guid collectionId,
         string principalId,
-        string role = "viewer",
-        string principalType = "user")
+        AclRole role = AclRole.Viewer,
+        PrincipalType principalType = PrincipalType.User)
     {
         return new CollectionAcl
         {
@@ -93,7 +93,7 @@ public static class TestData
 
     public static Share CreateShare(
         Guid? id = null,
-        string scopeType = "asset",
+        ShareScopeType scopeType = ShareScopeType.Asset,
         Guid? scopeId = null,
         string? tokenHash = null,
         DateTime? expiresAt = null,

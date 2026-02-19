@@ -110,8 +110,16 @@ public static class ServiceCollectionExtensions
 
         // ── Options (API-specific — shared options are in AddSharedInfrastructure) ─
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
-        services.Configure<KeycloakSettings>(configuration.GetSection(KeycloakSettings.SectionName));
-        services.Configure<AppSettings>(configuration.GetSection(AppSettings.SectionName));
+
+        services.AddOptions<KeycloakSettings>()
+            .Bind(configuration.GetSection(KeycloakSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<AppSettings>()
+            .Bind(configuration.GetSection(AppSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         // ── Application & Domain Services (API-only) ────────────────────────
         services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizationService>();
@@ -139,6 +147,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICollectionAclService, CollectionAclService>();
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<IShareAccessService, ShareAccessService>();
+        services.AddScoped<IDashboardService, DashboardService>();
 
         // ── Keycloak Admin API HttpClient ───────────────────────────────────
         var keycloakTimeoutSeconds = configuration.GetValue("Keycloak:TimeoutSeconds", 30);

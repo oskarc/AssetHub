@@ -1,39 +1,10 @@
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace Dam.Domain.Entities;
 
 public class Asset
 {
-    // Asset status constants (backed by AssetStatus enum)
-    public const string StatusUploading = "uploading";
-    public const string StatusProcessing = "processing";
-    public const string StatusReady = "ready";
-    public const string StatusFailed = "failed";
-
-    // Asset type constants (backed by AssetType enum)
-    public const string TypeImage = "image";
-    public const string TypeVideo = "video";
-    public const string TypeDocument = "document";
-
-    /// <summary>Typed status accessor. Prefer this over the string property for new code.</summary>
-    [NotMapped]
-    public AssetStatus StatusEnum
-    {
-        get => Status.ToAssetStatus();
-        set => Status = value.ToDbString();
-    }
-
-    /// <summary>Typed asset type accessor. Prefer this over the string property for new code.</summary>
-    [NotMapped]
-    public AssetType AssetTypeEnum
-    {
-        get => AssetType.ToAssetType();
-        set => AssetType = value.ToDbString();
-    }
-
     public Guid Id { get; set; }
-    public string AssetType { get; set; } = string.Empty; // image|video|document
-    public string Status { get; set; } = StatusProcessing; // processing|ready|failed
+    public AssetType AssetType { get; set; }
+    public AssetStatus Status { get; set; } = AssetStatus.Processing;
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Copyright { get; set; }
@@ -63,7 +34,7 @@ public class Asset
     /// </summary>
     public void MarkReady(string? thumbKey = null, string? mediumKey = null, string? posterKey = null)
     {
-        Status = StatusReady;
+        Status = AssetStatus.Ready;
         UpdatedAt = DateTime.UtcNow;
         if (thumbKey != null) ThumbObjectKey = thumbKey;
         if (mediumKey != null) MediumObjectKey = mediumKey;
@@ -75,7 +46,7 @@ public class Asset
     /// </summary>
     public void MarkFailed(string errorMessage)
     {
-        Status = StatusFailed;
+        Status = AssetStatus.Failed;
         UpdatedAt = DateTime.UtcNow;
         MetadataJson["error"] = errorMessage;
     }
@@ -87,28 +58,11 @@ public class Asset
     {
         return (AssetType, ContentType) switch
         {
-            (TypeImage, var ct) => ct.StartsWith("image/"),
-            (TypeVideo, var ct) => ct.StartsWith("video/"),
-            (TypeDocument, var ct) => ct.StartsWith("application/pdf") || ct.StartsWith("application/vnd."),
+            (AssetType.Image, var ct) => ct.StartsWith("image/"),
+            (AssetType.Video, var ct) => ct.StartsWith("video/"),
+            (AssetType.Document, var ct) => ct.StartsWith("application/pdf") || ct.StartsWith("application/vnd."),
             _ => false
         };
     }
 
-    /// <summary>
-    /// Get human-readable file size string (e.g., "2.5 MB").
-    /// </summary>
-    public string GetHumanReadableSize()
-    {
-        const long kb = 1024;
-        const long mb = kb * 1024;
-        const long gb = mb * 1024;
-
-        return SizeBytes switch
-        {
-            < kb => $"{SizeBytes} B",
-            < mb => $"{SizeBytes / (double)kb:F2} KB",
-            < gb => $"{SizeBytes / (double)mb:F2} MB",
-            _ => $"{SizeBytes / (double)gb:F2} GB"
-        };
-    }
 }

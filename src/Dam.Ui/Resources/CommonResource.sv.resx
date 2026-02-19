@@ -243,4 +243,47 @@
   <data name="Btn_ChangePassword" xml:space="preserve"><value>Byt lösenord</value></data>
   <data name="Btn_ForgotPassword" xml:space="preserve"><value>Glömt ditt lösenord?</value></data>
   <data name="Text_ForgotPasswordHint" xml:space="preserve"><value>Klicka på Logga in och använd sedan länken "Glömt lösenord?" på inloggningssidan.</value></data>
+
+  <!-- Error / Not Found Pages -->
+  <data name="Error_NotAuthorized" xml:space="preserve"><value>Du har inte behörighet att komma åt den här sidan.</value></data>
+  <data name="Error_PageNotFound" xml:space="preserve"><value>Sidan hittades inte</value></data>
+  <data name="Error_PageNotFoundDesc" xml:space="preserve"><value>Sidan du söker finns inte eller har flyttats.</value></data>
+  <data name="Error_PageTitle" xml:space="preserve"><value>Fel</value></data>
+  <data name="Error_Heading" xml:space="preserve"><value>Fel.</value></data>
+  <data name="Error_Description" xml:space="preserve"><value>Ett fel inträffade vid bearbetningen av din begäran.</value></data>
+  <data name="Error_RequestId" xml:space="preserve"><value>Begäran-ID:</value></data>
+  <data name="Error_DevelopmentMode" xml:space="preserve"><value>Utvecklingsläge</value></data>
+  <data name="Error_DevelopmentInfo" xml:space="preserve"><value>Att byta till utvecklingsmiljö visar mer detaljerad information om felet som inträffade.</value></data>
+  <data name="Error_DevelopmentWarning" xml:space="preserve"><value>Utvecklingsmiljön bör inte vara aktiverad för driftsatta applikationer. Det kan leda till att känslig information från undantag visas för slutanvändare. För lokal felsökning, aktivera utvecklingsmiljön genom att ställa in miljövariabeln ASPNETCORE_ENVIRONMENT till Development och starta om appen.</value></data>
+
+  <!-- Misc -->
+  <data name="Text_ThisCollection" xml:space="preserve"><value>denna samling</value></data>
+  <data name="Msg_RenameComingSoon" xml:space="preserve"><value>Namnbytesfunktion kommer snart</value></data>
+  <data name="Text_NothingHereYet" xml:space="preserve"><value>Inget här ännu</value></data>
+  <data name="User_PasswordEmailSent" xml:space="preserve"><value>Ett e-postmeddelande för lösenordsinställning har skickats till {0}. Användaren anger sitt eget lösenord via länken i e-postmeddelandet.</value></data>
+  <data name="Btn_GoHome" xml:space="preserve"><value>Gå till startsidan</value></data>
+
+  <!-- Dashboard -->
+  <data name="Dashboard_Title" xml:space="preserve"><value>Instrumentpanel</value></data>
+  <data name="Dashboard_Welcome" xml:space="preserve"><value>Välkommen, {0}</value></data>
+  <data name="Dashboard_RecentAssets" xml:space="preserve"><value>Senaste tillgångar</value></data>
+  <data name="Dashboard_QuickAccess" xml:space="preserve"><value>Snabbåtkomst</value></data>
+  <data name="Dashboard_ActiveShares" xml:space="preserve"><value>Aktiva delningar</value></data>
+  <data name="Dashboard_RecentActivity" xml:space="preserve"><value>Senaste aktivitet</value></data>
+  <data name="Dashboard_PlatformStats" xml:space="preserve"><value>Plattformsöversikt</value></data>
+  <data name="Dashboard_TotalAssets" xml:space="preserve"><value>Totalt antal tillgångar</value></data>
+  <data name="Dashboard_StorageUsed" xml:space="preserve"><value>Lagringsutrymme</value></data>
+  <data name="Dashboard_TotalCollections" xml:space="preserve"><value>Samlingar</value></data>
+  <data name="Dashboard_TotalUsers" xml:space="preserve"><value>Användare</value></data>
+  <data name="Dashboard_SharesActive" xml:space="preserve"><value>Aktiva / Totala delningar</value></data>
+  <data name="Dashboard_NoRecentAssets" xml:space="preserve"><value>Inga senaste tillgångar</value></data>
+  <data name="Dashboard_NoCollections" xml:space="preserve"><value>Inga samlingar tillgängliga</value></data>
+  <data name="Dashboard_NoShares" xml:space="preserve"><value>Inga aktiva delningar</value></data>
+  <data name="Dashboard_NoActivity" xml:space="preserve"><value>Ingen senaste aktivitet</value></data>
+  <data name="Dashboard_ViewAll" xml:space="preserve"><value>Visa alla</value></data>
+  <data name="Dashboard_Accesses" xml:space="preserve"><value>{0} åtkomster</value></data>
+  <data name="Dashboard_ShareExpired" xml:space="preserve"><value>Utgången</value></data>
+  <data name="Dashboard_ShareRevoked" xml:space="preserve"><value>Återkallad</value></data>
+  <data name="Dashboard_ShareActive" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="Dashboard_PasswordProtected" xml:space="preserve"><value>Lösenordsskyddad</value></data>
 </root>

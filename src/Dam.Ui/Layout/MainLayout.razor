@@ -150,7 +150,7 @@
         Nav.NavigateTo("/auth/logout", forceLoad: true);
     }
 
-    private static string DisplayName(System.Security.Claims.ClaimsPrincipal user)
+    private string DisplayName(System.Security.Claims.ClaimsPrincipal user)
     {
         var name = user.Identity?.Name;
 
@@ -159,7 +159,7 @@
 
         return user.FindFirst("preferred_username")?.Value
             ?? user.FindFirst("email")?.Value
-            ?? "Signed In";
+            ?? CommonLoc["Text_SignedIn"].Value;
     }
 
     private readonly PaletteLight _lightPalette = new()

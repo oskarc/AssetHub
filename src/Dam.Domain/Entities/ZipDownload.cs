@@ -7,15 +7,10 @@ namespace Dam.Domain.Entities;
 /// </summary>
 public class ZipDownload
 {
-    public const string StatusPending = "pending";
-    public const string StatusBuilding = "building";
-    public const string StatusCompleted = "completed";
-    public const string StatusFailed = "failed";
-
     public Guid Id { get; set; }
 
-    /// <summary>Current build status: pending, building, completed, failed.</summary>
-    public string Status { get; set; } = StatusPending;
+    /// <summary>Current build status.</summary>
+    public ZipDownloadStatus Status { get; set; } = ZipDownloadStatus.Pending;
 
     /// <summary>Hangfire background job ID.</summary>
     public string? HangfireJobId { get; set; }
@@ -26,8 +21,8 @@ public class ZipDownload
     /// <summary>User-friendly filename for the download.</summary>
     public string ZipFileName { get; set; } = "";
 
-    /// <summary>Scope: "collection" or "share".</summary>
-    public string ScopeType { get; set; } = "";
+    /// <summary>Scope: asset or collection.</summary>
+    public ShareScopeType ScopeType { get; set; }
 
     /// <summary>The collection ID being downloaded.</summary>
     public Guid ScopeId { get; set; }

@@ -225,7 +225,7 @@ public class AssetService : IAssetService
         if (!Constants.AllowedUploadTypes.IsAllowed(contentType))
             return ServiceError.BadRequest($"Content type '{contentType}' is not allowed. Only images, videos, audio, documents, and other safe file types are permitted.");
 
-        var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, Asset.StatusProcessing);
+        var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, AssetStatus.Processing);
         if (!string.IsNullOrEmpty(title))
             asset.Title = title;
 
@@ -237,12 +237,12 @@ public class AssetService : IAssetService
             new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
             ct);
 
-        var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType, asset.OriginalObjectKey, ct);
+        var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
 
         return new AssetUploadResult
         {
             Id = asset.Id,
-            Status = Asset.StatusProcessing,
+            Status = AssetStatus.Processing.ToDbString(),
             JobId = jobId,
             Message = "Asset uploaded. Processing in progress."
         };
@@ -366,7 +366,7 @@ public class AssetService : IAssetService
                 return ServiceError.Forbidden();
         }
 
-        var asset = CreateAssetEntity(request.FileName, request.ContentType, request.FileSize, userId, Asset.StatusUploading);
+        var asset = CreateAssetEntity(request.FileName, request.ContentType, request.FileSize, userId, AssetStatus.Uploading);
         if (!string.IsNullOrEmpty(request.Title))
             asset.Title = request.Title;
 
@@ -397,7 +397,7 @@ public class AssetService : IAssetService
         if (asset.CreatedByUserId != userId)
             return ServiceError.Forbidden();
 
-        if (asset.Status != Asset.StatusUploading)
+        if (asset.Status != AssetStatus.Uploading)
             return ServiceError.BadRequest("Asset is not in uploading state");
 
         var stat = await _minioAdapter.StatObjectAsync(BucketName, asset.OriginalObjectKey, ct);
@@ -405,16 +405,16 @@ public class AssetService : IAssetService
             return ServiceError.BadRequest("File not found in storage. Upload may have failed or expired.");
 
         asset.SizeBytes = stat.Size;
-        asset.Status = Asset.StatusProcessing;
+        asset.Status = AssetStatus.Processing;
         asset.UpdatedAt = DateTime.UtcNow;
         await _assetRepo.UpdateAsync(asset, ct);
 
-        var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType, asset.OriginalObjectKey, ct);
+        var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
 
         return new AssetUploadResult
         {
             Id = asset.Id,
-            Status = Asset.StatusProcessing,
+            Status = AssetStatus.Processing.ToDbString(),
             SizeBytes = stat.Size,
             JobId = jobId,
             Message = "Upload confirmed. Processing in progress."
@@ -591,7 +591,7 @@ public class AssetService : IAssetService
     }
 
     private static Asset CreateAssetEntity(
-        string fileName, string contentType, long sizeBytes, string userId, string status)
+        string fileName, string contentType, long sizeBytes, string userId, AssetStatus status)
     {
         var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
         var assetType = AssetTypeHelper.DetermineAssetType(contentType, extension);

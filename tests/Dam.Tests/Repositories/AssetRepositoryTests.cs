@@ -4,6 +4,7 @@ using Dam.Infrastructure.Repositories;
 using Dam.Tests.Fixtures;
 using Dam.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Dam.Tests.Repositories;
 
@@ -19,7 +20,7 @@ public class AssetRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new AssetRepository(_db);
+        _repo = new AssetRepository(_db, new MemoryCache(new MemoryCacheOptions()));
     }
 
     public async Task DisposeAsync()
@@ -262,14 +263,14 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        var image = TestData.CreateAsset(title: "Photo", assetType: Asset.TypeImage);
-        var video = TestData.CreateAsset(title: "Clip", assetType: Asset.TypeVideo);
+        var image = TestData.CreateAsset(title: "Photo", assetType: AssetType.Image);
+        var video = TestData.CreateAsset(title: "Clip", assetType: AssetType.Video);
         _db.Assets.AddRange(image, video);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(image.Id, collection.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(video.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, total) = await _repo.SearchAsync(collection.Id, assetType: Asset.TypeImage);
+        var (results, total) = await _repo.SearchAsync(collection.Id, assetType: AssetType.Image.ToDbString());
 
         Assert.Equal(1, total);
         Assert.Equal("Photo", results[0].Title);
@@ -306,8 +307,8 @@ public class AssetRepositoryTests : IAsyncLifetime
         var forbidden = TestData.CreateCollection(name: "Forbidden");
         _db.Collections.AddRange(allowed, forbidden);
 
-        var visible = TestData.CreateAsset(title: "Visible", status: Asset.StatusReady);
-        var hidden = TestData.CreateAsset(title: "Hidden", status: Asset.StatusReady);
+        var visible = TestData.CreateAsset(title: "Visible", status: AssetStatus.Ready);
+        var hidden = TestData.CreateAsset(title: "Hidden", status: AssetStatus.Ready);
         _db.Assets.AddRange(visible, hidden);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(visible.Id, allowed.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(hidden.Id, forbidden.Id));
@@ -326,8 +327,8 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        var ready = TestData.CreateAsset(title: "Ready", status: Asset.StatusReady);
-        var processing = TestData.CreateAsset(title: "Processing", status: Asset.StatusProcessing);
+        var ready = TestData.CreateAsset(title: "Ready", status: AssetStatus.Ready);
+        var processing = TestData.CreateAsset(title: "Processing", status: AssetStatus.Processing);
         _db.Assets.AddRange(ready, processing);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(ready.Id, collection.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(processing.Id, collection.Id));
@@ -360,24 +361,24 @@ public class AssetRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task GetByTypeAsync_FiltersCorrectly()
     {
-        _db.Assets.Add(TestData.CreateAsset(assetType: Asset.TypeImage));
-        _db.Assets.Add(TestData.CreateAsset(assetType: Asset.TypeVideo));
-        _db.Assets.Add(TestData.CreateAsset(assetType: Asset.TypeImage));
+        _db.Assets.Add(TestData.CreateAsset(assetType: AssetType.Image));
+        _db.Assets.Add(TestData.CreateAsset(assetType: AssetType.Video));
+        _db.Assets.Add(TestData.CreateAsset(assetType: AssetType.Image));
         await _db.SaveChangesAsync();
 
-        var images = await _repo.GetByTypeAsync(Asset.TypeImage);
+        var images = await _repo.GetByTypeAsync(AssetType.Image.ToDbString());
         Assert.Equal(2, images.Count);
     }
 
     [Fact]
     public async Task GetByStatusAsync_FiltersCorrectly()
     {
-        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusReady));
-        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusProcessing));
-        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusReady));
+        _db.Assets.Add(TestData.CreateAsset(status: AssetStatus.Ready));
+        _db.Assets.Add(TestData.CreateAsset(status: AssetStatus.Processing));
+        _db.Assets.Add(TestData.CreateAsset(status: AssetStatus.Ready));
         await _db.SaveChangesAsync();
 
-        var ready = await _repo.GetByStatusAsync(Asset.StatusReady);
+        var ready = await _repo.GetByStatusAsync(AssetStatus.Ready.ToDbString());
         Assert.Equal(2, ready.Count);
     }
 
@@ -429,15 +430,15 @@ public class AssetRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task CountByStatusAsync_ReturnsCorrectCount()
     {
-        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusReady));
-        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusReady));
-        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusProcessing));
-        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusFailed));
+        _db.Assets.Add(TestData.CreateAsset(status: AssetStatus.Ready));
+        _db.Assets.Add(TestData.CreateAsset(status: AssetStatus.Ready));
+        _db.Assets.Add(TestData.CreateAsset(status: AssetStatus.Processing));
+        _db.Assets.Add(TestData.CreateAsset(status: AssetStatus.Failed));
         await _db.SaveChangesAsync();
 
-        var readyCount = await _repo.CountByStatusAsync(Asset.StatusReady);
-        var processingCount = await _repo.CountByStatusAsync(Asset.StatusProcessing);
-        var failedCount = await _repo.CountByStatusAsync(Asset.StatusFailed);
+        var readyCount = await _repo.CountByStatusAsync(AssetStatus.Ready.ToDbString());
+        var processingCount = await _repo.CountByStatusAsync(AssetStatus.Processing.ToDbString());
+        var failedCount = await _repo.CountByStatusAsync(AssetStatus.Failed.ToDbString());
 
         Assert.Equal(2, readyCount);
         Assert.Equal(1, processingCount);
@@ -447,10 +448,10 @@ public class AssetRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task CountByStatusAsync_ReturnsZero_ForNoMatches()
     {
-        _db.Assets.Add(TestData.CreateAsset(status: Asset.StatusReady));
+        _db.Assets.Add(TestData.CreateAsset(status: AssetStatus.Ready));
         await _db.SaveChangesAsync();
 
-        var count = await _repo.CountByStatusAsync(Asset.StatusFailed);
+        var count = await _repo.CountByStatusAsync(AssetStatus.Failed.ToDbString());
 
         Assert.Equal(0, count);
     }
@@ -463,8 +464,8 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        var match = TestData.CreateAsset(title: "Marketing Campaign", status: Asset.StatusReady);
-        var noMatch = TestData.CreateAsset(title: "Sales Report", status: Asset.StatusReady);
+        var match = TestData.CreateAsset(title: "Marketing Campaign", status: AssetStatus.Ready);
+        var noMatch = TestData.CreateAsset(title: "Sales Report", status: AssetStatus.Ready);
         _db.Assets.AddRange(match, noMatch);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(match.Id, collection.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(noMatch.Id, collection.Id));
@@ -484,15 +485,15 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        var image = TestData.CreateAsset(title: "Photo", assetType: Asset.TypeImage, status: Asset.StatusReady);
-        var video = TestData.CreateAsset(title: "Clip", assetType: Asset.TypeVideo, status: Asset.StatusReady);
+        var image = TestData.CreateAsset(title: "Photo", assetType: AssetType.Image, status: AssetStatus.Ready);
+        var video = TestData.CreateAsset(title: "Clip", assetType: AssetType.Video, status: AssetStatus.Ready);
         _db.Assets.AddRange(image, video);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(image.Id, collection.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(video.Id, collection.Id));
         await _db.SaveChangesAsync();
 
         var (results, total) = await _repo.SearchAllAsync(
-            assetType: Asset.TypeVideo,
+            assetType: AssetType.Video.ToDbString(),
             allowedCollectionIds: new List<Guid> { collection.Id });
 
         Assert.Equal(1, total);
@@ -505,9 +506,9 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        var c = TestData.CreateAsset(title: "Charlie", status: Asset.StatusReady);
-        var a = TestData.CreateAsset(title: "Alpha", status: Asset.StatusReady);
-        var b = TestData.CreateAsset(title: "Beta", status: Asset.StatusReady);
+        var c = TestData.CreateAsset(title: "Charlie", status: AssetStatus.Ready);
+        var a = TestData.CreateAsset(title: "Alpha", status: AssetStatus.Ready);
+        var b = TestData.CreateAsset(title: "Beta", status: AssetStatus.Ready);
         _db.Assets.AddRange(c, a, b);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(c.Id, collection.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(a.Id, collection.Id));
@@ -529,8 +530,8 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        var ready = TestData.CreateAsset(title: "Visible", status: Asset.StatusReady);
-        var notReady = TestData.CreateAsset(title: "Hidden", status: Asset.StatusProcessing);
+        var ready = TestData.CreateAsset(title: "Visible", status: AssetStatus.Ready);
+        var notReady = TestData.CreateAsset(title: "Hidden", status: AssetStatus.Processing);
         _db.Assets.AddRange(ready, notReady);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(ready.Id, collection.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(notReady.Id, collection.Id));
@@ -549,7 +550,7 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        _db.Assets.Add(TestData.CreateAsset(title: "Asset", status: Asset.StatusReady));
+        _db.Assets.Add(TestData.CreateAsset(title: "Asset", status: AssetStatus.Ready));
         await _db.SaveChangesAsync();
 
         // Empty list (non-null) = user has access to zero collections
@@ -568,7 +569,7 @@ public class AssetRepositoryTests : IAsyncLifetime
 
         for (int i = 0; i < 10; i++)
         {
-            var asset = TestData.CreateAsset(title: $"Asset {i:D2}", status: Asset.StatusReady);
+            var asset = TestData.CreateAsset(title: $"Asset {i:D2}", status: AssetStatus.Ready);
             _db.Assets.Add(asset);
             _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, collection.Id));
         }
@@ -735,10 +736,10 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        var matchBoth = TestData.CreateAsset(title: "Beach Sunset", assetType: Asset.TypeImage);
-        var matchQuery = TestData.CreateAsset(title: "Beach Video", assetType: Asset.TypeVideo);
-        var matchType = TestData.CreateAsset(title: "Mountain Photo", assetType: Asset.TypeImage);
-        var noMatch = TestData.CreateAsset(title: "City Tour", assetType: Asset.TypeVideo);
+        var matchBoth = TestData.CreateAsset(title: "Beach Sunset", assetType: AssetType.Image);
+        var matchQuery = TestData.CreateAsset(title: "Beach Video", assetType: AssetType.Video);
+        var matchType = TestData.CreateAsset(title: "Mountain Photo", assetType: AssetType.Image);
+        var noMatch = TestData.CreateAsset(title: "City Tour", assetType: AssetType.Video);
         _db.Assets.AddRange(matchBoth, matchQuery, matchType, noMatch);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(matchBoth.Id, collection.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(matchQuery.Id, collection.Id));
@@ -746,7 +747,7 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(noMatch.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, total) = await _repo.SearchAsync(collection.Id, query: "beach", assetType: Asset.TypeImage);
+        var (results, total) = await _repo.SearchAsync(collection.Id, query: "beach", assetType: AssetType.Image.ToDbString());
 
         Assert.Equal(1, total);
         Assert.Equal("Beach Sunset", results[0].Title);
@@ -758,10 +759,10 @@ public class AssetRepositoryTests : IAsyncLifetime
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
 
-        var a = TestData.CreateAsset(title: "A Beach", assetType: Asset.TypeImage, sizeBytes: 500);
-        var b = TestData.CreateAsset(title: "B Beach", assetType: Asset.TypeImage, sizeBytes: 100);
-        var c = TestData.CreateAsset(title: "C Beach", assetType: Asset.TypeImage, sizeBytes: 300);
-        var x = TestData.CreateAsset(title: "X Beach", assetType: Asset.TypeVideo, sizeBytes: 50);
+        var a = TestData.CreateAsset(title: "A Beach", assetType: AssetType.Image, sizeBytes: 500);
+        var b = TestData.CreateAsset(title: "B Beach", assetType: AssetType.Image, sizeBytes: 100);
+        var c = TestData.CreateAsset(title: "C Beach", assetType: AssetType.Image, sizeBytes: 300);
+        var x = TestData.CreateAsset(title: "X Beach", assetType: AssetType.Video, sizeBytes: 50);
         _db.Assets.AddRange(a, b, c, x);
         _db.AssetCollections.Add(TestData.CreateAssetCollection(a.Id, collection.Id));
         _db.AssetCollections.Add(TestData.CreateAssetCollection(b.Id, collection.Id));
@@ -770,7 +771,7 @@ public class AssetRepositoryTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         var (results, total) = await _repo.SearchAsync(
-            collection.Id, query: "beach", assetType: Asset.TypeImage, sortBy: "size_asc");
+            collection.Id, query: "beach", assetType: AssetType.Image.ToDbString(), sortBy: "size_asc");
 
         Assert.Equal(3, total);
         Assert.Equal("B Beach", results[0].Title);
@@ -791,7 +792,7 @@ public class AssetRepositoryTests : IAsyncLifetime
 
         // Create second context + repo pointing to same DB
         await using var db2 = _fixture.CreateDbContextForExistingDb(dbName!);
-        var repo2 = new AssetRepository(db2);
+        var repo2 = new AssetRepository(db2, new MemoryCache(new MemoryCacheOptions()));
 
         // Load the same entity in both contexts
         var asset1 = await _repo.GetByIdAsync(asset.Id);

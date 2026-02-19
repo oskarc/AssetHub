@@ -1,3 +1,4 @@
+using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Dam.Infrastructure.Repositories;
 using Dam.Tests.Fixtures;
@@ -54,8 +55,8 @@ public class CollectionRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user2", "contributor"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user2", AclRole.Contributor));
         await _db.SaveChangesAsync();
 
         var result = await _repo.GetByIdAsync(collection.Id, includeAcls: true);
@@ -69,7 +70,7 @@ public class CollectionRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
         await _db.SaveChangesAsync();
 
         // Use a fresh context to avoid change-tracker populating the navigation
@@ -171,8 +172,8 @@ public class CollectionRepositoryTests : IAsyncLifetime
         var notAccessible = TestData.CreateCollection(name: "Not Accessible");
         _db.Collections.AddRange(accessible, notAccessible);
 
-        _db.CollectionAcls.Add(TestData.CreateAcl(accessible.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(notAccessible.Id, "user2", "viewer"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(accessible.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(notAccessible.Id, "user2", AclRole.Viewer));
         await _db.SaveChangesAsync();
 
         var result = (await _repo.GetAccessibleCollectionsAsync("user1")).ToList();
@@ -264,7 +265,7 @@ public class CollectionRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
         await _db.SaveChangesAsync();
 
         await _repo.DeleteAsync(collection.Id);
@@ -299,7 +300,7 @@ public class CollectionRepositoryTests : IAsyncLifetime
         var col1 = TestData.CreateCollection(name: "C1");
         var col2 = TestData.CreateCollection(name: "C2");
         _db.Collections.AddRange(col1, col2);
-        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", "admin"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", AclRole.Admin));
         await _db.SaveChangesAsync();
 
         var all = (await _repo.GetAllWithAclsAsync()).ToList();

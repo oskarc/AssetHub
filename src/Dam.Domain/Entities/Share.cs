@@ -9,7 +9,7 @@ public class Share
     /// This is protected using the ASP.NET Core Data Protection APIs and should only be readable by admins.
     /// </summary>
     public string? TokenEncrypted { get; set; }
-    public string ScopeType { get; set; } = string.Empty; // "asset" or "collection"
+    public ShareScopeType ScopeType { get; set; }
     public Guid ScopeId { get; set; }
     public Dictionary<string, bool> PermissionsJson { get; set; } = new();
     public DateTime ExpiresAt { get; set; }

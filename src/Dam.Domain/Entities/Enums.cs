@@ -51,6 +51,17 @@ public enum PrincipalType
 }
 
 /// <summary>
+/// Status of a ZIP download build.
+/// </summary>
+public enum ZipDownloadStatus
+{
+    Pending,
+    Building,
+    Completed,
+    Failed
+}
+
+/// <summary>
 /// Extension methods for enum ↔ string conversion.
 /// These map between the new enums and existing lowercase string values
 /// stored in the database, maintaining backward compatibility.
@@ -143,5 +154,25 @@ public static class DomainEnumExtensions
     {
         "user" => PrincipalType.User,
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown principal type: {value}")
+    };
+
+    // ── ZipDownloadStatus ───────────────────────────────────────────────
+
+    public static string ToDbString(this ZipDownloadStatus status) => status switch
+    {
+        ZipDownloadStatus.Pending => "pending",
+        ZipDownloadStatus.Building => "building",
+        ZipDownloadStatus.Completed => "completed",
+        ZipDownloadStatus.Failed => "failed",
+        _ => throw new ArgumentOutOfRangeException(nameof(status))
+    };
+
+    public static ZipDownloadStatus ToZipDownloadStatus(this string value) => value switch
+    {
+        "pending" => ZipDownloadStatus.Pending,
+        "building" => ZipDownloadStatus.Building,
+        "completed" => ZipDownloadStatus.Completed,
+        "failed" => ZipDownloadStatus.Failed,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown zip download status: {value}")
     };
 }

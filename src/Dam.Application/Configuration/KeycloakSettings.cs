@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Dam.Application.Configuration;
 
 /// <summary>
@@ -11,26 +13,31 @@ public class KeycloakSettings
     /// <summary>
     /// The Keycloak realm authority URL (e.g. "https://keycloak.example.com/realms/media").
     /// </summary>
+    [Required]
     public string Authority { get; set; } = "";
 
     /// <summary>
     /// The OIDC client ID registered in Keycloak.
     /// </summary>
+    [Required]
     public string ClientId { get; set; } = "";
 
     /// <summary>
     /// The OIDC client secret.
     /// </summary>
+    [Required]
     public string ClientSecret { get; set; } = "";
 
     /// <summary>
     /// Admin username for Keycloak Admin REST API.
     /// </summary>
+    [Required]
     public string AdminUsername { get; set; } = "";
 
     /// <summary>
     /// Admin password for Keycloak Admin REST API.
     /// </summary>
+    [Required]
     public string AdminPassword { get; set; } = "";
 
     /// <summary>

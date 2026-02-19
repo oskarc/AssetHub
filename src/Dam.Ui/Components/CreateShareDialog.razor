@@ -18,7 +18,7 @@
     <DialogContent>
         <MudStack Spacing="3">
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @string.Format(ShareLoc["CreateShareDesc"], ContentName)
+                @string.Format(ShareLoc["CreateShareDesc"].Value, ContentName)
             </MudText>
 
             <MudDivider />
@@ -89,7 +89,7 @@
                     }
                 </MudStack>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    @string.Format(ShareLoc["EmailsWillReceive"], _emails.Count)
+                    @string.Format(ShareLoc["EmailsWillReceive"].Value, _emails.Count)
                 </MudText>
             }
         </MudStack>
@@ -130,7 +130,7 @@
     /// Display name of the content being shared.
     /// </summary>
     [Parameter]
-    public string ContentName { get; set; } = "this content";
+    public string ContentName { get; set; } = "";
 
     private string _password = "";
     private bool _showPassword = true;
@@ -142,6 +142,8 @@
 
     protected override void OnInitialized()
     {
+        if (string.IsNullOrEmpty(ContentName))
+            ContentName = CommonLoc["Text_ThisCollection"].Value;
         _password = PasswordGenerator.Generate(12);
     }
 
@@ -172,13 +174,13 @@
         // Basic email validation
         if (!new EmailAddressAttribute().IsValid(email))
         {
-            _emailError = "Please enter a valid email address.";
+            _emailError = CommonLoc["Validation_InvalidEmail"].Value;
             return;
         }
 
         if (_emails.Contains(email))
         {
-            _emailError = "This email has already been added.";
+            _emailError = CommonLoc["Validation_DuplicateEmail"].Value;
             return;
         }
 
@@ -197,7 +199,7 @@
     {
         if (string.IsNullOrWhiteSpace(_password))
         {
-            Feedback.ShowError("Password is required.");
+            Feedback.ShowError(CommonLoc["Validation_PasswordRequired"].Value);
             return;
         }
 

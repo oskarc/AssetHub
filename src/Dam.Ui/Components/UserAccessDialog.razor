@@ -110,7 +110,7 @@
         try
         {
             await Api.RemoveCollectionAclAsync(collection.CollectionId, User.UserId, "user");
-            Feedback.ShowSuccess($"Revoked access to '{collection.CollectionName}'");
+            Feedback.ShowSuccess(string.Format(CommonLoc["Success_RevokedAccessTo"].Value, collection.CollectionName));
             
             // Remove from local list
             User.Collections.Remove(collection);

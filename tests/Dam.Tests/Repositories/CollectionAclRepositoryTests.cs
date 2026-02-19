@@ -1,3 +1,4 @@
+using Dam.Domain.Entities;
 using Dam.Infrastructure.Data;
 using Dam.Infrastructure.Repositories;
 using Dam.Tests.Fixtures;
@@ -33,8 +34,8 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user2", "contributor"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user2", AclRole.Contributor));
         await _db.SaveChangesAsync();
 
         var acls = (await _repo.GetByCollectionAsync(collection.Id)).ToList();
@@ -48,8 +49,8 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
         var col1 = TestData.CreateCollection(name: "C1");
         var col2 = TestData.CreateCollection(name: "C2");
         _db.Collections.AddRange(col1, col2);
-        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(col2.Id, "user2", "viewer"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col2.Id, "user2", AclRole.Viewer));
         await _db.SaveChangesAsync();
 
         var acls = (await _repo.GetByCollectionAsync(col1.Id)).ToList();
@@ -65,13 +66,13 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "manager"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Manager));
         await _db.SaveChangesAsync();
 
         var acl = await _repo.GetByPrincipalAsync(collection.Id, "user", "user1");
 
         Assert.NotNull(acl);
-        Assert.Equal("manager", acl.Role);
+        Assert.Equal(AclRole.Manager, acl.Role);
     }
 
     [Fact]
@@ -97,7 +98,7 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
         var acl = await _repo.SetAccessAsync(collection.Id, "user", "user1", "contributor");
 
         Assert.NotNull(acl);
-        Assert.Equal("contributor", acl.Role);
+        Assert.Equal(AclRole.Contributor, acl.Role);
         Assert.Equal(collection.Id, acl.CollectionId);
     }
 
@@ -106,12 +107,12 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
         await _db.SaveChangesAsync();
 
         var updated = await _repo.SetAccessAsync(collection.Id, "user", "user1", "manager");
 
-        Assert.Equal("manager", updated.Role);
+        Assert.Equal(AclRole.Manager, updated.Role);
 
         // Should still only be one ACL for this user+collection
         var allAcls = (await _repo.GetByCollectionAsync(collection.Id)).ToList();
@@ -125,7 +126,7 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
         await _db.SaveChangesAsync();
 
         await _repo.RevokeAccessAsync(collection.Id, "user", "user1");
@@ -152,9 +153,9 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
     {
         var collection = TestData.CreateCollection();
         _db.Collections.Add(collection);
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user2", "contributor"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user3", "admin"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user2", AclRole.Contributor));
+        _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user3", AclRole.Admin));
         await _db.SaveChangesAsync();
 
         await _repo.RevokeAllAccessAsync(collection.Id);
@@ -171,9 +172,9 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
         var col1 = TestData.CreateCollection(name: "C1");
         var col2 = TestData.CreateCollection(name: "C2");
         _db.Collections.AddRange(col1, col2);
-        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(col2.Id, "user1", "contributor"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user2", "admin"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col2.Id, "user1", AclRole.Contributor));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user2", AclRole.Admin));
         await _db.SaveChangesAsync();
 
         var acls = (await _repo.GetByUserAsync("user1")).ToList();
@@ -190,8 +191,8 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
         var col1 = TestData.CreateCollection(name: "C1");
         var col2 = TestData.CreateCollection(name: "C2");
         _db.Collections.AddRange(col1, col2);
-        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", "viewer"));
-        _db.CollectionAcls.Add(TestData.CreateAcl(col2.Id, "user2", "admin"));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col1.Id, "user1", AclRole.Viewer));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col2.Id, "user2", AclRole.Admin));
         await _db.SaveChangesAsync();
 
         var all = (await _repo.GetAllAsync()).ToList();

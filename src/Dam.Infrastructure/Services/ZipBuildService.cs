@@ -55,7 +55,7 @@ public class ZipBuildService : IZipBuildService
         // Throttle: limit concurrent builds per user
         var activeCount = await db.ZipDownloads
             .CountAsync(z => z.RequestedByUserId == userId
-                && (z.Status == ZipDownload.StatusPending || z.Status == ZipDownload.StatusBuilding), ct);
+                && (z.Status == ZipDownloadStatus.Pending || z.Status == ZipDownloadStatus.Building), ct);
 
         if (activeCount >= Constants.Limits.MaxConcurrentZipBuilds)
             return ServiceError.BadRequest(
@@ -94,7 +94,7 @@ public class ZipBuildService : IZipBuildService
         // Throttle: limit concurrent builds per share token
         var activeCount = await db.ZipDownloads
             .CountAsync(z => z.ShareTokenHash == shareTokenHash
-                && (z.Status == ZipDownload.StatusPending || z.Status == ZipDownload.StatusBuilding), ct);
+                && (z.Status == ZipDownloadStatus.Pending || z.Status == ZipDownloadStatus.Building), ct);
 
         if (activeCount >= Constants.Limits.MaxConcurrentZipBuilds)
             return ServiceError.BadRequest(
@@ -141,14 +141,14 @@ public class ZipBuildService : IZipBuildService
         var response = new ZipDownloadStatusResponse
         {
             JobId = zip.Id,
-            Status = zip.Status,
+            Status = zip.Status.ToDbString(),
             FileName = zip.ZipFileName,
             AssetCount = zip.AssetCount,
             SizeBytes = zip.SizeBytes,
             Error = zip.ErrorMessage
         };
 
-        if (zip.Status == ZipDownload.StatusCompleted && !string.IsNullOrEmpty(zip.ZipObjectKey))
+        if (zip.Status == ZipDownloadStatus.Completed && !string.IsNullOrEmpty(zip.ZipObjectKey))
         {
             // Check if still within expiry
             if (zip.ExpiresAt < DateTime.UtcNow)
@@ -185,7 +185,7 @@ public class ZipBuildService : IZipBuildService
             return;
         }
 
-        zip.Status = ZipDownload.StatusBuilding;
+        zip.Status = ZipDownloadStatus.Building;
         await db.SaveChangesAsync(ct);
 
         try
@@ -198,7 +198,7 @@ public class ZipBuildService : IZipBuildService
 
             if (assetList.Count == 0)
             {
-                zip.Status = ZipDownload.StatusFailed;
+                zip.Status = ZipDownloadStatus.Failed;
                 zip.ErrorMessage = "No assets found in collection";
                 zip.CompletedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
@@ -262,7 +262,7 @@ public class ZipBuildService : IZipBuildService
 
                 zip.ZipObjectKey = objectKey;
                 zip.SizeBytes = fileInfo.Length;
-                zip.Status = ZipDownload.StatusCompleted;
+                zip.Status = ZipDownloadStatus.Completed;
                 zip.CompletedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
 
@@ -285,7 +285,7 @@ public class ZipBuildService : IZipBuildService
         }
         catch (OperationCanceledException)
         {
-            zip.Status = ZipDownload.StatusFailed;
+            zip.Status = ZipDownloadStatus.Failed;
             zip.ErrorMessage = "Build was cancelled";
             zip.CompletedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(CancellationToken.None);
@@ -294,7 +294,7 @@ public class ZipBuildService : IZipBuildService
         catch (Exception ex)
         {
             _logger.LogError(ex, "ZIP build {ZipDownloadId} failed", zipDownloadId);
-            zip.Status = ZipDownload.StatusFailed;
+            zip.Status = ZipDownloadStatus.Failed;
             zip.ErrorMessage = "An error occurred while building the ZIP file";
             zip.CompletedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(CancellationToken.None);
@@ -339,8 +339,8 @@ public class ZipBuildService : IZipBuildService
         return new ZipDownload
         {
             Id = Guid.NewGuid(),
-            Status = ZipDownload.StatusPending,
-            ScopeType = scopeType,
+            Status = ZipDownloadStatus.Pending,
+            ScopeType = scopeType.ToShareScopeType(),
             ScopeId = scopeId,
             ZipFileName = zipFileName,
             RequestedByUserId = userId,

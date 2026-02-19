@@ -21,8 +21,9 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
 
     public async Task<List<Share>> GetByScopeAsync(string scopeType, Guid scopeId, CancellationToken cancellationToken = default)
     {
+        var scope = Enum.Parse<ShareScopeType>(scopeType, true);
         return await dbContext.Shares
-            .Where(s => s.ScopeType == scopeType && s.ScopeId == scopeId)
+            .Where(s => s.ScopeType == scope && s.ScopeId == scopeId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -47,8 +48,8 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
         // so we need to manually load them
         if (includeAsset || includeCollection)
         {
-            var assetShares = shares.Where(s => s.ScopeType == "asset").ToList();
-            var collectionShares = shares.Where(s => s.ScopeType == "collection").ToList();
+            var assetShares = shares.Where(s => s.ScopeType == ShareScopeType.Asset).ToList();
+            var collectionShares = shares.Where(s => s.ScopeType == ShareScopeType.Collection).ToList();
 
             if (includeAsset && assetShares.Count > 0)
             {
@@ -106,8 +107,9 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
 
     public async Task DeleteByScopeAsync(string scopeType, Guid scopeId, CancellationToken cancellationToken = default)
     {
+        var scope = Enum.Parse<ShareScopeType>(scopeType, true);
         await dbContext.Shares
-            .Where(s => s.ScopeType == scopeType && s.ScopeId == scopeId)
+            .Where(s => s.ScopeType == scope && s.ScopeId == scopeId)
             .ExecuteDeleteAsync(cancellationToken);
     }
 

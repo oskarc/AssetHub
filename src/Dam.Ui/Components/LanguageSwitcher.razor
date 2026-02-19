@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Localization
+@implements IAsyncDisposable
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -30,6 +31,7 @@
 
 @code {
     private string _currentCulture = "en";
+    private IJSObjectReference? _jsModule;
 
     protected override void OnInitialized()
     {
@@ -44,9 +46,17 @@
         var cookieValue = CookieRequestCultureProvider.MakeCookieValue(
             new RequestCulture(culture, culture));
 
-        var jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
-        await jsModule.InvokeVoidAsync("setCookie", CookieRequestCultureProvider.DefaultCookieName, cookieValue, 31536000);
+        _jsModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Dam.Ui/js/helpers.js");
+        await _jsModule.InvokeVoidAsync("setCookie", CookieRequestCultureProvider.DefaultCookieName, cookieValue, 31536000);
 
         Nav.NavigateTo(Nav.Uri, forceLoad: true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule is not null)
+        {
+            try { await _jsModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+        }
     }
 }

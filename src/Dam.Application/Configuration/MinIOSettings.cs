@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Dam.Application.Configuration;
 
 /// <summary>
@@ -11,21 +13,25 @@ public class MinIOSettings
     /// <summary>
     /// MinIO server endpoint (e.g. "minio.internal:9000").
     /// </summary>
+    [Required]
     public string Endpoint { get; set; } = "";
 
     /// <summary>
     /// MinIO access key (username).
     /// </summary>
+    [Required]
     public string AccessKey { get; set; } = "";
 
     /// <summary>
     /// MinIO secret key (password).
     /// </summary>
+    [Required]
     public string SecretKey { get; set; } = "";
 
     /// <summary>
     /// Name of the MinIO bucket to use for asset storage.
     /// </summary>
+    [Required]
     public string BucketName { get; set; } = "";
 
     /// <summary>

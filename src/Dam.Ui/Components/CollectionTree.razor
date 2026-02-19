@@ -91,27 +91,27 @@ else
     private async Task EditCollection(CollectionResponseDto collection)
     {
         // TODO: Implement rename dialog
-        Feedback.ShowInfo("Rename functionality coming soon");
+        Feedback.ShowInfo(CommonLoc["Msg_RenameComingSoon"].Value);
     }
 
     private async Task DeleteCollection(CollectionResponseDto collection)
     {
         var assetWarning = collection.AssetCount > 0 
-            ? $" This collection contains {collection.AssetCount} asset(s) that will also be deleted." 
+            ? string.Format(CollectionLoc["AssetCountWarning"].Value, collection.AssetCount) 
             : "";
 
         var result = await DialogService.ShowMessageBox(
-            CollectionLoc["DeleteCollection"],
-            string.Format(CollectionLoc["ConfirmDeleteCollection"], collection.Name, assetWarning),
-            yesText: CommonLoc["Btn_Delete"],
-            cancelText: CommonLoc["Btn_Cancel"]);
+            CollectionLoc["DeleteCollection"].Value,
+            string.Format(CollectionLoc["ConfirmDeleteCollection"].Value, collection.Name, assetWarning),
+            yesText: CommonLoc["Btn_Delete"].Value,
+            cancelText: CommonLoc["Btn_Cancel"].Value);
 
         if (result == true)
         {
             var success = await Feedback.ExecuteWithFeedbackAsync(
                 () => Api.DeleteCollectionAsync(collection.Id),
                 "delete collection",
-                CollectionLoc["DeletedSuccess"]);
+                CollectionLoc["DeletedSuccess"].Value);
             
             if (success)
             {

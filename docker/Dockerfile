@@ -1,6 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
+# Copy Directory.Build.props first (affects restore/build behavior)
+COPY ["Directory.Build.props", "."]
+
 # Copy project files
 COPY ["src/AssetHub/AssetHub.csproj", "src/AssetHub/"]
 COPY ["src/Dam.Domain/Dam.Domain.csproj", "src/Dam.Domain/"]
@@ -35,6 +38,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+# Run as non-root user (app user is created by the aspnet base image)
+USER app
 
 EXPOSE 7252
 ENTRYPOINT ["dotnet", "AssetHub.dll"]

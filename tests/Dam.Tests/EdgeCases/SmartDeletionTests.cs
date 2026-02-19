@@ -4,6 +4,7 @@ using Dam.Infrastructure.Repositories;
 using Dam.Tests.Fixtures;
 using Dam.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Dam.Tests.EdgeCases;
 
@@ -22,7 +23,7 @@ public class SmartDeletionTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _assetRepo = new AssetRepository(_db);
+        _assetRepo = new AssetRepository(_db, new MemoryCache(new MemoryCacheOptions()));
     }
 
     public async Task DisposeAsync()

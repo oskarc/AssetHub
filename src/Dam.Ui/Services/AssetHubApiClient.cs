@@ -96,6 +96,20 @@ public class AssetHubApiClient
 
     #endregion
 
+    #region Dashboard
+
+    /// <summary>
+    /// Gets aggregated dashboard data scoped to the current user's role.
+    /// </summary>
+    public async Task<DashboardDto?> GetDashboardAsync()
+    {
+        var response = await _http.GetAsync("/api/dashboard");
+        if (!response.IsSuccessStatusCode) return null;
+        return await response.Content.ReadFromJsonAsync<DashboardDto>();
+    }
+
+    #endregion
+
     #region Collections
 
     /// <summary>
@@ -506,7 +520,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task RevokeShareAdminAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/admin/shares/{id}/revoke", null, ct);
+        var response = await _http.DeleteAsync($"/api/admin/shares/{id}", ct);
         await EnsureSuccessAsync(response, "Revoke share");
     }
 

@@ -8,9 +8,9 @@ public class CollectionAcl
 {
     public Guid Id { get; set; }
     public Guid CollectionId { get; set; }
-    public string PrincipalType { get; set; } = string.Empty; // "user"
+    public PrincipalType PrincipalType { get; set; } = PrincipalType.User;
     public string PrincipalId { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty; // viewer|contributor|manager|admin
+    public AclRole Role { get; set; } = AclRole.Viewer;
     public DateTime CreatedAt { get; set; }
 
     // Navigation

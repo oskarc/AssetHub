@@ -82,7 +82,11 @@ public static class InfrastructureServiceExtensions
         // The API host uses default options; the Worker host configures queues/worker count.
 
         // ── Options ─────────────────────────────────────────────────────────
-        services.Configure<MinIOSettings>(configuration.GetSection(MinIOSettings.SectionName));
+        services.AddOptions<MinIOSettings>()
+            .Bind(configuration.GetSection(MinIOSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.Configure<ImageProcessingSettings>(configuration.GetSection(ImageProcessingSettings.SectionName));
 
         // ── MinIO clients ───────────────────────────────────────────────────

@@ -22,18 +22,18 @@
             @* Success state *@
             <MudStack Spacing="3">
                 <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
-                    User "@_createdUser.Username" created successfully!
+                    @string.Format(CommonLoc["User_CreatedSuccess"].Value, _createdUser.Username)
                 </MudAlert>
 
                 <MudPaper Class="pa-4" Elevation="0" Outlined="true">
                     <MudStack Spacing="2">
-                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Account Details</MudText>
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">@CommonLoc["User_AccountDetails"]</MudText>
                         <MudGrid>
-                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">Username</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">@CommonLoc["Label_Username"]</MudText></MudItem>
                             <MudItem xs="8"><MudText Typo="Typo.body2">@_createdUser.Username</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">Email</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">@CommonLoc["Label_Email"]</MudText></MudItem>
                             <MudItem xs="8"><MudText Typo="Typo.body2">@_createdUser.Email</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">User ID</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">@CommonLoc["Label_UserId"]</MudText></MudItem>
                             <MudItem xs="8"><MudText Typo="Typo.caption" Class="word-break-all">@_createdUser.UserId</MudText></MudItem>
                         </MudGrid>
                     </MudStack>
@@ -46,8 +46,7 @@
 
                 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
                     <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Class="mr-1" />
-                    A password setup email has been sent to <strong>@_createdUser.Email</strong>.
-                    The user will set their own password via the link in the email.
+                    @((MarkupString)string.Format(CommonLoc["User_PasswordEmailSent"].Value, _createdUser.Email))
                 </MudAlert>
             </MudStack>
         }
@@ -57,16 +56,16 @@
             <MudForm @ref="_form" @bind-IsValid="_formIsValid">
                 <MudStack Spacing="3">
                     @* Basic Info *@
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">Account Information</MudText>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">@CommonLoc["User_AccountInfo"]</MudText>
 
                     <MudTextField @bind-Value="_model.Username" Label="@CommonLoc["Label_Username"]" Required="true"
-                                  RequiredError="Username is required"
+                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_Username"].Value)"
                                   Validation="@(new Func<string, string?>(ValidateUsername))"
                                   Variant="Variant.Outlined" Immediate="true"
-                                  HelperText="3-50 characters, letters/numbers/underscores/hyphens" />
+                                  HelperText="@CommonLoc["User_UsernameHelper"].Value" />
 
                     <MudTextField @bind-Value="_model.Email" Label="@CommonLoc["Label_Email"]" Required="true"
-                                  RequiredError="Email is required"
+                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_Email"].Value)"
                                   Validation="@(new Func<string, string?>(ValidateEmail))"
                                   Variant="Variant.Outlined" Immediate="true"
                                   InputType="InputType.Email" />
@@ -74,12 +73,12 @@
                     <MudGrid>
                         <MudItem xs="6">
                             <MudTextField @bind-Value="_model.FirstName" Label="@CommonLoc["Label_FirstName"]" Required="true"
-                                          RequiredError="First name is required"
+                                          RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_FirstName"].Value)"
                                           Variant="Variant.Outlined" />
                         </MudItem>
                         <MudItem xs="6">
                             <MudTextField @bind-Value="_model.LastName" Label="@CommonLoc["Label_LastName"]" Required="true"
-                                          RequiredError="Last name is required"
+                                          RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_LastName"].Value)"
                                           Variant="Variant.Outlined" />
                         </MudItem>
                     </MudGrid>
@@ -92,7 +91,7 @@
                             @AdminLoc["AddCollectionAccess"]
                         </MudText>
 
-                        <MudSelect @bind-Value="_model.InitialRole" Label="Role for selected collections"
+                        <MudSelect @bind-Value="_model.InitialRole" Label="@CommonLoc["User_RoleForCollections"].Value"
                                    Variant="Variant.Outlined">
                             <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
                             <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
@@ -101,9 +100,9 @@
                         </MudSelect>
 
                         <MudSelect T="Guid" MultiSelection="true" @bind-SelectedValues="_selectedCollectionIds"
-                                   Label="Collections" Variant="Variant.Outlined"
-                                   MultiSelectionTextFunc="@(ids => $"{ids.Count()} collection(s) selected")"
-                                   HelperText="Select collections to grant access to the new user">
+                                   Label="@CommonLoc["Label_Collections"].Value" Variant="Variant.Outlined"
+                                   MultiSelectionTextFunc="@(ids => string.Format(CommonLoc["User_CollectionsSelected"].Value, ids.Count()))"
+                                   HelperText="@CommonLoc["User_SelectCollections"].Value">
                             @foreach (var col in _flatCollections)
                             {
                                 <MudSelectItem T="Guid" Value="@col.Id">
@@ -135,7 +134,7 @@
                 @if (_submitting)
                 {
                     <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                    <text>Creating...</text>
+                    <text>@CommonLoc["Btn_Creating"]</text>
                 }
                 else
                 {
@@ -210,7 +209,7 @@
         catch (Exception ex)
         {
             Feedback.HandleError(ex, "create user");
-            _errorMessage = "An unexpected error occurred. Please try again.";
+            _errorMessage = CommonLoc["Error_UnexpectedError"].Value;
         }
         finally
         {
