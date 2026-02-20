@@ -141,4 +141,201 @@ public class AdminEndpointTests : IAsyncLifetime
         var response = await client.GetAsync("/api/admin/users");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  NEGATIVE / ANTI-TESTS
+    // ═══════════════════════════════════════════════════════════════
+
+    // ── Viewer blocked from ALL admin endpoints ─────────────────────
+
+    [Fact]
+    public async Task Viewer_CannotGetShareToken_Returns403()
+    {
+        var client = ViewerClient();
+        var response = await client.GetAsync($"/api/admin/shares/{Guid.NewGuid()}/token");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Viewer_CannotRevokeShare_Returns403()
+    {
+        var client = ViewerClient();
+        var response = await client.DeleteAsync($"/api/admin/shares/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Viewer_CannotCreateUser_Returns403()
+    {
+        var client = ViewerClient();
+        var request = new CreateUserRequest
+        {
+            Username = "forbidden-user",
+            Email = "forbidden@test.com",
+            FirstName = "Forbidden",
+            LastName = "User"
+        };
+        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Viewer_CannotDeleteUser_Returns403()
+    {
+        var client = ViewerClient();
+        var response = await client.DeleteAsync("/api/admin/users/some-user-id");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Viewer_CannotResetPassword_Returns403()
+    {
+        var client = ViewerClient();
+        var response = await client.PostAsync("/api/admin/users/some-user-id/reset-password", null);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Viewer_CannotSyncUsers_Returns403()
+    {
+        var client = ViewerClient();
+        var response = await client.PostAsync("/api/admin/users/sync?dryRun=true", null);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Viewer_CannotSetCollectionAccess_Returns403()
+    {
+        var client = ViewerClient();
+        var request = new SetCollectionAccessRequest { PrincipalId = "user-001", Role = RoleHierarchy.Roles.Viewer };
+        var response = await client.PostAsJsonAsync($"/api/admin/collections/{Guid.NewGuid()}/acl", request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Viewer_CannotRemoveCollectionAccess_Returns403()
+    {
+        var client = ViewerClient();
+        var response = await client.DeleteAsync($"/api/admin/collections/{Guid.NewGuid()}/acl/user-001");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Viewer_CannotGetKeycloakUsers_Returns403()
+    {
+        var client = ViewerClient();
+        var response = await client.GetAsync("/api/admin/keycloak-users");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // ── Admin share management — negative ───────────────────────────
+
+    [Fact]
+    public async Task GetShareToken_NonExistentShare_Returns404()
+    {
+        var client = AdminClient();
+        var response = await client.GetAsync($"/api/admin/shares/{Guid.NewGuid()}/token");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // ── Admin user management — negative ────────────────────────────
+
+    [Fact]
+    public async Task CreateUser_InvalidUsername_Returns400()
+    {
+        var client = AdminClient();
+
+        // Setup Keycloak mock to simulate user creation
+        _factory.MockKeycloak
+            .Setup(x => x.CreateUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("new-user-id");
+
+        var request = new CreateUserRequest
+        {
+            Username = "a",        // Too short (min 3)
+            Email = "test@test.com",
+            FirstName = "Test",
+            LastName = "User"
+        };
+        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateUser_InvalidEmail_Returns400()
+    {
+        var client = AdminClient();
+        var request = new CreateUserRequest
+        {
+            Username = "validuser",
+            Email = "not-an-email",
+            FirstName = "Test",
+            LastName = "User"
+        };
+        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateUser_MissingFirstName_Returns400()
+    {
+        var client = AdminClient();
+        var request = new CreateUserRequest
+        {
+            Username = "validuser2",
+            Email = "valid@test.com",
+            FirstName = "",         // Empty → required
+            LastName = "User"
+        };
+        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateUser_UsernameWithSpecialChars_Returns400()
+    {
+        var client = AdminClient();
+        var request = new CreateUserRequest
+        {
+            Username = "user name!@#",  // Invalid characters
+            Email = "valid@test.com",
+            FirstName = "Test",
+            LastName = "User"
+        };
+        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteUser_NonExistentUser_Returns404Or500()
+    {
+        var client = AdminClient();
+        _factory.MockKeycloak
+            .Setup(x => x.DeleteUserAsync("non-existent-uid", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new AssetHub.Application.Services.KeycloakApiException("User not found", 404));
+
+        var response = await client.DeleteAsync("/api/admin/users/non-existent-uid");
+
+        // Depends on how the service handles the exception
+        Assert.True(
+            response.StatusCode == HttpStatusCode.NotFound ||
+            response.StatusCode == HttpStatusCode.InternalServerError,
+            $"Expected 404 or 500 but got {response.StatusCode}");
+    }
+
+    [Fact]
+    public async Task ResetPassword_NonExistentUser_Returns404Or500()
+    {
+        var client = AdminClient();
+        _factory.MockKeycloak
+            .Setup(x => x.SendExecuteActionsEmailAsync("non-existent-uid", It.IsAny<IEnumerable<string>>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new AssetHub.Application.Services.KeycloakApiException("User not found", 404));
+
+        var response = await client.PostAsync("/api/admin/users/non-existent-uid/reset-password", null);
+
+        Assert.True(
+            response.StatusCode == HttpStatusCode.NotFound ||
+            response.StatusCode == HttpStatusCode.InternalServerError,
+            $"Expected 404 or 500 but got {response.StatusCode}");
+    }
 }

@@ -1,0 +1,90 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AssetHub.Domain -> D:\projects\AssetHub\src\AssetHub.Domain\bin\Debug\net9.0\AssetHub.Domain.dll
+  AssetHub.Application -> D:\projects\AssetHub\src\AssetHub.Application\bin\Debug\net9.0\AssetHub.Application.dll
+  AssetHub.Infrastructure -> D:\projects\AssetHub\src\AssetHub.Infrastructure\bin\Debug\net9.0\AssetHub.Infrastructure.dll
+  AssetHub.Ui -> D:\projects\AssetHub\src\AssetHub.Ui\bin\Debug\net9.0\AssetHub.Ui.dll
+  AssetHub.Api -> D:\projects\AssetHub\src\AssetHub.Api\bin\Debug\net9.0\AssetHub.Api.dll
+  AssetHub.Tests -> D:\projects\AssetHub\tests\AssetHub.Tests\bin\Debug\net9.0\AssetHub.Tests.dll
+Test run for D:\projects\AssetHub\tests\AssetHub.Tests\bin\Debug\net9.0\AssetHub.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+dotnet : [xUnit.net 00:00:12.88]     AssetHub.Tests.Endpoints.AssetEndpointTest
+s.GetAssetsByCollection_NonExistentCollection_Returns403Or404 [FAIL]
+At line:1 char:1
++ dotnet test tests/AssetHub.Tests/AssetHub.Tests.csproj 2>&1 *>&1 | Ou ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([xUnit.net 00:0...403Or404 [FAIL] 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  Failed AssetHub.Tests.Endpoints.AssetEndpointTests.GetAssetsByCollection_NonExistentCollection_Returns403Or404 [91 ms]
+  Error Message:
+   Expected 403 or 404 but got OK
+  Stack Trace:
+     at AssetHub.Tests.Endpoints.AssetEndpointTests.GetAssetsByCollection_NonExistentCollection_Returns403Or404() in D:\projects\AssetHub\tests\AssetHub.Tests\Endpoints\AssetEndpointTests.cs:line 342
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:13.59]     AssetHub.Tests.Endpoints.AssetEndpointTests.GetDele
+tionContext_ViewerNoAccess_Returns403 [FAIL]
+  Failed AssetHub.Tests.Endpoints.AssetEndpointTests.GetDeletionContext_ViewerNoAccess_Returns403 [40 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: Forbidden
+Actual:   OK
+  Stack Trace:
+     at AssetHub.Tests.Endpoints.AssetEndpointTests.GetDeletionContext_ViewerNoAccess_Returns403() in D:\projects\AssetHub\tests\AssetHub.Tests\Endpoints\AssetEndpointTests.cs:line 446
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:13.80]     AssetHub.Tests.Endpoints.AssetEndpointTests.AddAsse
+tToCollection_NonExistentCollection_Returns403Or404 [FAIL]
+  Failed AssetHub.Tests.Endpoints.AssetEndpointTests.AddAssetToCollection_NonExistentCollection_Returns403Or404 [22 ms]
+  Error Message:
+   Expected 403 or 404 but got BadRequest
+  Stack Trace:
+     at AssetHub.Tests.Endpoints.AssetEndpointTests.AddAssetToCollection_NonExistentCollection_Returns403Or404() in D:\projects\AssetHub\tests\AssetHub.Tests\Endpoints\AssetEndpointTests.cs:line 399
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:18.20]     AssetHub.Tests.Endpoints.ShareEndpointTests.CreateS
+hare_Unauthenticated_Returns401 [FAIL]
+[xUnit.net 00:00:18.25]     AssetHub.Tests.Endpoints.ShareEndpointTests.UpdateS
+harePassword_Unauthenticated_Returns401 [FAIL]
+[xUnit.net 00:00:18.33]     AssetHub.Tests.Endpoints.ShareEndpointTests.GetShar
+edAsset_EmptyToken_Returns404 [FAIL]
+  Failed AssetHub.Tests.Endpoints.ShareEndpointTests.CreateShare_Unauthenticated_Returns401 [10 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: Unauthorized
+Actual:   NotFound
+  Stack Trace:
+     at AssetHub.Tests.Endpoints.ShareEndpointTests.CreateShare_Unauthenticated_Returns401() in D:\projects\AssetHub\tests\AssetHub.Tests\Endpoints\ShareEndpointTests.cs:line 184
+--- End of stack trace from previous location ---
+  Failed AssetHub.Tests.Endpoints.ShareEndpointTests.UpdateSharePassword_Unauthenticated_Returns401 [11 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: Unauthorized
+Actual:   NotFound
+  Stack Trace:
+     at AssetHub.Tests.Endpoints.ShareEndpointTests.UpdateSharePassword_Unauthenticated_Returns401() in D:\projects\AssetHub\tests\AssetHub.Tests\Endpoints\ShareEndpointTests.cs:line 316
+--- End of stack trace from previous location ---
+  Failed AssetHub.Tests.Endpoints.ShareEndpointTests.GetSharedAsset_EmptyToken_Returns404 [4 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: NotFound
+Actual:   MethodNotAllowed
+  Stack Trace:
+     at AssetHub.Tests.Endpoints.ShareEndpointTests.GetSharedAsset_EmptyToken_Returns404() in D:\projects\AssetHub\tests\AssetHub.Tests\Endpoints\ShareEndpointTests.cs:line 94
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:18.46]     AssetHub.Tests.Endpoints.ShareEndpointTests.RevokeS
+hare_Unauthenticated_Returns401 [FAIL]
+  Failed AssetHub.Tests.Endpoints.ShareEndpointTests.RevokeShare_Unauthenticated_Returns401 [9 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: Unauthorized
+Actual:   NotFound
+  Stack Trace:
+     at AssetHub.Tests.Endpoints.ShareEndpointTests.RevokeShare_Unauthenticated_Returns401() in D:\projects\AssetHub\tests\AssetHub.Tests\Endpoints\ShareEndpointTests.cs:line 286
+--- End of stack trace from previous location ---
+The active test run was aborted. Reason: Test host process crashed
+
+Failed!  - Failed:     7, Passed:   191, Skipped:     0, Total:   198, Duration: 41 s - AssetHub.Tests.dll (net9.0)
+Test Run Aborted.

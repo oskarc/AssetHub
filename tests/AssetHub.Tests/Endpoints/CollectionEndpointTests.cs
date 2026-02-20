@@ -226,4 +226,223 @@ public class CollectionEndpointTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  NEGATIVE / ANTI-TESTS
+    // ═══════════════════════════════════════════════════════════════
+
+    // ── CreateCollection — negative ─────────────────────────────────
+
+    [Fact]
+    public async Task CreateCollection_EmptyName_Returns400()
+    {
+        var client = AdminClient();
+        var dto = new CreateCollectionDto { Name = "" };
+        var response = await client.PostAsJsonAsync("/api/collections", dto);
+
+        Assert.True(
+            response.StatusCode == HttpStatusCode.BadRequest ||
+            response.StatusCode == HttpStatusCode.InternalServerError,
+            $"Expected 400 or 500 for empty name but got {response.StatusCode}");
+    }
+
+    // ── GetCollectionById — negative ────────────────────────────────
+
+    [Fact]
+    public async Task GetCollectionById_ViewerNoAccess_Returns403()
+    {
+        // Admin creates collection, viewer has no ACL
+        var adminClient = AdminClient();
+        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
+            new CreateCollectionDto { Name = $"ViewerGet-{Guid.NewGuid():N}" });
+        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        var viewerClient = ViewerClient();
+        var response = await viewerClient.GetAsync($"/api/collections/{col!.Id}");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // ── CreateSubCollection — negative ──────────────────────────────
+
+    [Fact]
+    public async Task CreateSubCollection_NonExistentParent_Returns403()
+    {
+        var client = AdminClient();
+        var response = await client.PostAsJsonAsync($"/api/collections/{Guid.NewGuid()}/children",
+            new CreateCollectionDto { Name = $"Orphan-{Guid.NewGuid():N}" });
+
+        // No ACL for non-existent collection → 403
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateSubCollection_ViewerNoAccess_Returns403()
+    {
+        var adminClient = AdminClient();
+        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
+            new CreateCollectionDto { Name = $"ViewerSub-{Guid.NewGuid():N}" });
+        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        // Grant viewer read-only access
+        await adminClient.PostAsJsonAsync($"/api/collections/{col!.Id}/acl",
+            new SetCollectionAccessDto { PrincipalType = Constants.PrincipalTypes.User, PrincipalId = TestAuthHandler.DefaultUserId, Role = RoleHierarchy.Roles.Viewer });
+
+        var viewerClient = ViewerClient();
+        var response = await viewerClient.PostAsJsonAsync($"/api/collections/{col.Id}/children",
+            new CreateCollectionDto { Name = $"Child-{Guid.NewGuid():N}" });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // ── UpdateCollection — negative ─────────────────────────────────
+
+    [Fact]
+    public async Task UpdateCollection_NonExistentCollection_Returns403()
+    {
+        var client = AdminClient();
+        var patchContent = JsonContent.Create(new { Name = "Updated" });
+        var response = await client.PatchAsync($"/api/collections/{Guid.NewGuid()}", patchContent);
+
+        // No ACL for non-existent collection → 403
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateCollection_ViewerNoAccess_Returns403()
+    {
+        var adminClient = AdminClient();
+        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
+            new CreateCollectionDto { Name = $"ViewerUpdate-{Guid.NewGuid():N}" });
+        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        // Grant viewer read-only access
+        await adminClient.PostAsJsonAsync($"/api/collections/{col!.Id}/acl",
+            new SetCollectionAccessDto { PrincipalType = Constants.PrincipalTypes.User, PrincipalId = TestAuthHandler.DefaultUserId, Role = RoleHierarchy.Roles.Viewer });
+
+        var viewerClient = ViewerClient();
+        var patchContent = JsonContent.Create(new { Name = "Viewer tried this" });
+        var response = await viewerClient.PatchAsync($"/api/collections/{col.Id}", patchContent);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // ── DeleteCollection — negative ─────────────────────────────────
+
+    [Fact]
+    public async Task DeleteCollection_NonExistentCollection_Returns403()
+    {
+        var client = AdminClient();
+        var response = await client.DeleteAsync($"/api/collections/{Guid.NewGuid()}");
+        // No ACL → 403
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // ── GetChildren — negative ──────────────────────────────────────
+
+    [Fact]
+    public async Task GetChildren_NonExistentCollection_Returns403()
+    {
+        var client = AdminClient();
+        var response = await client.GetAsync($"/api/collections/{Guid.NewGuid()}/children");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetChildren_ViewerNoAccess_Returns403()
+    {
+        var adminClient = AdminClient();
+        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
+            new CreateCollectionDto { Name = $"Children-{Guid.NewGuid():N}" });
+        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        var viewerClient = ViewerClient();
+        var response = await viewerClient.GetAsync($"/api/collections/{col!.Id}/children");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // ── ACL Management — negative ───────────────────────────────────
+
+    [Fact]
+    public async Task GetCollectionAcls_NonExistentCollection_Returns403()
+    {
+        var client = AdminClient();
+        var response = await client.GetAsync($"/api/collections/{Guid.NewGuid()}/acl");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetCollectionAcls_ViewerNoAccess_Returns403()
+    {
+        var adminClient = AdminClient();
+        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
+            new CreateCollectionDto { Name = $"AclView-{Guid.NewGuid():N}" });
+        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        var viewerClient = ViewerClient();
+        var response = await viewerClient.GetAsync($"/api/collections/{col!.Id}/acl");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetCollectionAccess_ViewerCantGrant_Returns403()
+    {
+        var adminClient = AdminClient();
+        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
+            new CreateCollectionDto { Name = $"AclGrant-{Guid.NewGuid():N}" });
+        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        // Grant viewer read-only access
+        await adminClient.PostAsJsonAsync($"/api/collections/{col!.Id}/acl",
+            new SetCollectionAccessDto { PrincipalType = Constants.PrincipalTypes.User, PrincipalId = TestAuthHandler.DefaultUserId, Role = RoleHierarchy.Roles.Viewer });
+
+        var viewerClient = ViewerClient();
+        var aclDto = new SetCollectionAccessDto
+        {
+            PrincipalType = Constants.PrincipalTypes.User,
+            PrincipalId = "another-user-001",
+            Role = RoleHierarchy.Roles.Viewer
+        };
+        var response = await viewerClient.PostAsJsonAsync($"/api/collections/{col.Id}/acl", aclDto);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetCollectionAccess_NonExistentCollection_Returns403()
+    {
+        var client = AdminClient();
+        var aclDto = new SetCollectionAccessDto
+        {
+            PrincipalType = Constants.PrincipalTypes.User,
+            PrincipalId = "user-001",
+            Role = RoleHierarchy.Roles.Viewer
+        };
+        var response = await client.PostAsJsonAsync($"/api/collections/{Guid.NewGuid()}/acl", aclDto);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RevokeCollectionAccess_NonExistentCollection_Returns403()
+    {
+        var client = AdminClient();
+        var response = await client.DeleteAsync($"/api/collections/{Guid.NewGuid()}/acl/user/someone");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RevokeCollectionAccess_ViewerCantRevoke_Returns403()
+    {
+        var adminClient = AdminClient();
+        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
+            new CreateCollectionDto { Name = $"AclRevokeViewer-{Guid.NewGuid():N}" });
+        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        // Grant two users access
+        await adminClient.PostAsJsonAsync($"/api/collections/{col!.Id}/acl",
+            new SetCollectionAccessDto { PrincipalType = Constants.PrincipalTypes.User, PrincipalId = TestAuthHandler.DefaultUserId, Role = RoleHierarchy.Roles.Viewer });
+        await adminClient.PostAsJsonAsync($"/api/collections/{col.Id}/acl",
+            new SetCollectionAccessDto { PrincipalType = Constants.PrincipalTypes.User, PrincipalId = "another-user", Role = RoleHierarchy.Roles.Viewer });
+
+        // Viewer tries to revoke
+        var viewerClient = ViewerClient();
+        var response = await viewerClient.DeleteAsync($"/api/collections/{col.Id}/acl/user/another-user");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }
