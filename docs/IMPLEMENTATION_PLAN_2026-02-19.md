@@ -153,6 +153,33 @@ Updated: 2026-02-20 — Phases 1–5 completed, Phase 5.4 (Dashboard) completed,
 
 ---
 
+## Project Rename ⬜ NOT STARTED
+
+Align all project names with the **AssetHub** product name. The legacy `Dam.*` prefix is a holdover from early development.
+
+| Current Name | New Name |
+|---|---|
+| `AssetHub` (API host) | `AssetHub.Api` |
+| `Dam.Application` | `AssetHub.Application` |
+| `Dam.Domain` | `AssetHub.Domain` |
+| `Dam.Infrastructure` | `AssetHub.Infrastructure` |
+| `Dam.Ui` | `AssetHub.Ui` |
+| `Dam.Worker` | `AssetHub.Worker` |
+| `Dam.Tests` | `AssetHub.Tests` |
+| `Dam.Ui.Tests` | `AssetHub.Ui.Tests` |
+
+**Scope:**
+- Rename `.csproj` files and folder names
+- Update `<ProjectReference>` paths in all `.csproj` files
+- Update `AssetHub.sln` entries
+- Rename root namespaces (`<RootNamespace>`) and default namespaces
+- Find-and-replace `using Dam.` → `using AssetHub.` across all `.cs` / `.razor` files
+- Update `Dockerfile` / `Dockerfile.Worker` build paths
+- Update `docker-compose*.yml` service build contexts
+- Update any `launchSettings.json`, `appsettings*.json` references
+
+---
+
 ## Deferred Items Summary
 
 | Item | Reason |

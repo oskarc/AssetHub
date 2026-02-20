@@ -5,24 +5,24 @@ WORKDIR /src
 COPY ["Directory.Build.props", "."]
 
 # Copy project files
-COPY ["src/AssetHub/AssetHub.csproj", "src/AssetHub/"]
-COPY ["src/Dam.Domain/Dam.Domain.csproj", "src/Dam.Domain/"]
-COPY ["src/Dam.Application/Dam.Application.csproj", "src/Dam.Application/"]
-COPY ["src/Dam.Infrastructure/Dam.Infrastructure.csproj", "src/Dam.Infrastructure/"]
-COPY ["src/Dam.Ui/Dam.Ui.csproj", "src/Dam.Ui/"]
+COPY ["src/AssetHub.Api/AssetHub.Api.csproj", "src/AssetHub.Api/"]
+COPY ["src/AssetHub.Domain/AssetHub.Domain.csproj", "src/AssetHub.Domain/"]
+COPY ["src/AssetHub.Application/AssetHub.Application.csproj", "src/AssetHub.Application/"]
+COPY ["src/AssetHub.Infrastructure/AssetHub.Infrastructure.csproj", "src/AssetHub.Infrastructure/"]
+COPY ["src/AssetHub.Ui/AssetHub.Ui.csproj", "src/AssetHub.Ui/"]
 
 # Restore dependencies
-RUN dotnet restore "src/AssetHub/AssetHub.csproj"
+RUN dotnet restore "src/AssetHub.Api/AssetHub.Api.csproj"
 
 # Copy source code
 COPY . .
 
 # Build
-RUN dotnet build "src/AssetHub/AssetHub.csproj" -c Release -o /app/build
+RUN dotnet build "src/AssetHub.Api/AssetHub.Api.csproj" -c Release -o /app/build
 
 # Publish
 FROM build AS publish
-RUN dotnet publish "src/AssetHub/AssetHub.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "src/AssetHub.Api/AssetHub.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
@@ -43,4 +43,4 @@ COPY --from=publish /app/publish .
 USER app
 
 EXPOSE 7252
-ENTRYPOINT ["dotnet", "AssetHub.dll"]
+ENTRYPOINT ["dotnet", "AssetHub.Api.dll"]

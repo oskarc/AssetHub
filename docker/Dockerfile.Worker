@@ -5,23 +5,23 @@ WORKDIR /src
 COPY ["Directory.Build.props", "."]
 
 # Copy project files
-COPY ["src/Dam.Domain/Dam.Domain.csproj", "src/Dam.Domain/"]
-COPY ["src/Dam.Application/Dam.Application.csproj", "src/Dam.Application/"]
-COPY ["src/Dam.Infrastructure/Dam.Infrastructure.csproj", "src/Dam.Infrastructure/"]
-COPY ["src/Dam.Worker/Dam.Worker.csproj", "src/Dam.Worker/"]
+COPY ["src/AssetHub.Domain/AssetHub.Domain.csproj", "src/AssetHub.Domain/"]
+COPY ["src/AssetHub.Application/AssetHub.Application.csproj", "src/AssetHub.Application/"]
+COPY ["src/AssetHub.Infrastructure/AssetHub.Infrastructure.csproj", "src/AssetHub.Infrastructure/"]
+COPY ["src/AssetHub.Worker/AssetHub.Worker.csproj", "src/AssetHub.Worker/"]
 
 # Restore dependencies
-RUN dotnet restore "src/Dam.Worker/Dam.Worker.csproj"
+RUN dotnet restore "src/AssetHub.Worker/AssetHub.Worker.csproj"
 
 # Copy source code
 COPY . .
 
 # Build
-RUN dotnet build "src/Dam.Worker/Dam.Worker.csproj" -c Release -o /app/build
+RUN dotnet build "src/AssetHub.Worker/AssetHub.Worker.csproj" -c Release -o /app/build
 
 # Publish
 FROM build AS publish
-RUN dotnet publish "src/Dam.Worker/Dam.Worker.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "src/AssetHub.Worker/AssetHub.Worker.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime with media tools
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
@@ -36,4 +36,4 @@ COPY --from=publish /app/publish .
 # Run as non-root user (app user is created by the aspnet base image)
 USER app
 
-ENTRYPOINT ["dotnet", "Dam.Worker.dll"]
+ENTRYPOINT ["dotnet", "AssetHub.Worker.dll"]

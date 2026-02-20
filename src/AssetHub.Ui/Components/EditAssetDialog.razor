@@ -1,0 +1,170 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AssetsResource> AssetLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
+            @AssetLoc["EditAssetDetails"]
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudTextField @bind-Value="_title"
+                          Label="@CommonLoc["Label_Title"]"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="@AssetLoc["Validation_TitleRequired"]"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_description"
+                          Label="@AssetLoc["DescriptionOptional"]"
+                          Variant="Variant.Outlined"
+                          Lines="3"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_copyright"
+                          Label="@AssetLoc["CopyrightOptional"]"
+                          Variant="Variant.Outlined"
+                          Class="mb-3" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@CommonLoc["Label_Tags"]</MudText>
+            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mb-2">
+                @foreach (var tag in _tags)
+                {
+                    <MudChip T="string" 
+                             Size="Size.Small" 
+                             Variant="Variant.Outlined" 
+                             Color="Color.Primary"
+                             OnClose="@(() => RemoveTag(tag))">
+                        @tag
+                    </MudChip>
+                }
+                @if (_tags.Count == 0)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@AssetLoc["NoTags"]</MudText>
+                }
+            </MudStack>
+            
+            <MudStack Row="true" Spacing="2">
+                <MudTextField @bind-Value="_newTag"
+                              Label="@CommonLoc["Label_AddTag"]"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              OnKeyDown="OnTagKeyDown"
+                              Immediate="true"
+                              Class="dialog-flex-fill" />
+                <MudButton Variant="Variant.Outlined" 
+                           OnClick="AddTag"
+                           Disabled="@string.IsNullOrWhiteSpace(_newTag)"
+                           Class="mt-1">
+                    @CommonLoc["Btn_Add"]
+                </MudButton>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton OnClick="SaveAsync" 
+                   Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @CommonLoc["Btn_SaveChanges"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public AssetResponseDto Asset { get; set; } = default!;
+
+    private MudForm? _form;
+    private string _title = "";
+    private string _description = "";
+    private string _copyright = "";
+    private List<string> _tags = new();
+    private string _newTag = "";
+    private bool _isValid;
+    private bool _isSaving;
+
+    protected override void OnInitialized()
+    {
+        if (Asset != null)
+        {
+            _title = Asset.Title;
+            _description = Asset.Description ?? "";
+            _copyright = Asset.Copyright ?? "";
+            _tags = Asset.Tags?.ToList() ?? new();
+        }
+    }
+
+    private void AddTag()
+    {
+        var tag = _newTag.Trim();
+        if (!string.IsNullOrWhiteSpace(tag) && !_tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+        {
+            _tags.Add(tag);
+            _newTag = "";
+        }
+    }
+
+    private void RemoveTag(string tag)
+    {
+        _tags.Remove(tag);
+    }
+
+    private void OnTagKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddTag();
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task SaveAsync()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_isValid) return;
+        }
+
+        try
+        {
+            _isSaving = true;
+
+            var dto = new UpdateAssetDto
+            {
+                Title = _title,
+                Description = string.IsNullOrWhiteSpace(_description) ? null : _description,
+                Copyright = string.IsNullOrWhiteSpace(_copyright) ? null : _copyright,
+                Tags = _tags
+            };
+
+            var updatedAsset = await Api.UpdateAssetAsync(Asset.Id, dto);
+            MudDialog.Close(DialogResult.Ok(updatedAsset));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "update asset");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

@@ -1,0 +1,50 @@
+using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class RemoveAssetCollectionId : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "FK_Assets_Collections_CollectionId",
+                table: "Assets");
+
+            migrationBuilder.DropIndex(
+                name: "idx_assets_collection_id",
+                table: "Assets");
+
+            migrationBuilder.DropColumn(
+                name: "CollectionId",
+                table: "Assets");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<Guid>(
+                name: "CollectionId",
+                table: "Assets",
+                type: "uuid",
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "idx_assets_collection_id",
+                table: "Assets",
+                column: "CollectionId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Assets_Collections_CollectionId",
+                table: "Assets",
+                column: "CollectionId",
+                principalTable: "Collections",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.SetNull);
+        }
+    }
+}

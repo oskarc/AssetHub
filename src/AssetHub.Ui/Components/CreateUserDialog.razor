@@ -1,0 +1,236 @@
+@using MudBlazor
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Application.Helpers
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@AdminLoc["CreateNewUser"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (_createdUser != null)
+        {
+            @* Success state *@
+            <MudStack Spacing="3">
+                <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
+                    @string.Format(CommonLoc["User_CreatedSuccess"].Value, _createdUser.Username)
+                </MudAlert>
+
+                <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">@CommonLoc["User_AccountDetails"]</MudText>
+                        <MudGrid>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">@CommonLoc["Label_Username"]</MudText></MudItem>
+                            <MudItem xs="8"><MudText Typo="Typo.body2">@_createdUser.Username</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">@CommonLoc["Label_Email"]</MudText></MudItem>
+                            <MudItem xs="8"><MudText Typo="Typo.body2">@_createdUser.Email</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.body2" Class="font-semibold">@CommonLoc["Label_UserId"]</MudText></MudItem>
+                            <MudItem xs="8"><MudText Typo="Typo.caption" Class="word-break-all">@_createdUser.UserId</MudText></MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudPaper>
+
+                @if (!string.IsNullOrEmpty(_createdUser.Message))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_createdUser.Message</MudText>
+                }
+
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Class="mr-1" />
+                    @((MarkupString)string.Format(CommonLoc["User_PasswordEmailSent"].Value, _createdUser.Email))
+                </MudAlert>
+            </MudStack>
+        }
+        else
+        {
+            @* Form state *@
+            <MudForm @ref="_form" @bind-IsValid="_formIsValid">
+                <MudStack Spacing="3">
+                    @* Basic Info *@
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">@CommonLoc["User_AccountInfo"]</MudText>
+
+                    <MudTextField @bind-Value="_model.Username" Label="@CommonLoc["Label_Username"]" Required="true"
+                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_Username"].Value)"
+                                  Validation="@(new Func<string, string?>(ValidateUsername))"
+                                  Variant="Variant.Outlined" Immediate="true"
+                                  HelperText="@CommonLoc["User_UsernameHelper"].Value" />
+
+                    <MudTextField @bind-Value="_model.Email" Label="@CommonLoc["Label_Email"]" Required="true"
+                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_Email"].Value)"
+                                  Validation="@(new Func<string, string?>(ValidateEmail))"
+                                  Variant="Variant.Outlined" Immediate="true"
+                                  InputType="InputType.Email" />
+
+                    <MudGrid>
+                        <MudItem xs="6">
+                            <MudTextField @bind-Value="_model.FirstName" Label="@CommonLoc["Label_FirstName"]" Required="true"
+                                          RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_FirstName"].Value)"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudTextField @bind-Value="_model.LastName" Label="@CommonLoc["Label_LastName"]" Required="true"
+                                          RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_LastName"].Value)"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+
+                    @* Optional: Initial Collection Access *@
+                    @if (_collections != null && _collections.Any())
+                    {
+                        <MudDivider Class="my-1" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">
+                            @AdminLoc["AddCollectionAccess"]
+                        </MudText>
+
+                        <MudSelect @bind-Value="_model.InitialRole" Label="@CommonLoc["User_RoleForCollections"].Value"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                            <MudSelectItem Value="@RoleHierarchy.Roles.Admin">@CommonLoc["Role_Admin"]</MudSelectItem>
+                        </MudSelect>
+
+                        <MudSelect T="Guid" MultiSelection="true" @bind-SelectedValues="_selectedCollectionIds"
+                                   Label="@CommonLoc["Label_Collections"].Value" Variant="Variant.Outlined"
+                                   MultiSelectionTextFunc="@(ids => string.Format(CommonLoc["User_CollectionsSelected"].Value, ids.Count()))"
+                                   HelperText="@CommonLoc["User_SelectCollections"].Value">
+                            @foreach (var col in _flatCollections)
+                            {
+                                <MudSelectItem T="Guid" Value="@col.Id">
+                                    @(new string('\u00A0', col.Depth * 4))@(col.Depth > 0 ? "└ " : "")@col.Name
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true">@_errorMessage</MudAlert>
+                    }
+                </MudStack>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_createdUser != null)
+        {
+            <MudButton OnClick="Close" Color="Color.Primary" Variant="Variant.Filled">@CommonLoc["Btn_Close"]</MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+            <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
+                       Disabled="@(!_formIsValid || _submitting)"
+                       StartIcon="@(_submitting ? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.PersonAdd)">
+                @if (_submitting)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <text>@CommonLoc["Btn_Creating"]</text>
+                }
+                else
+                {
+                    <text>@CommonLoc["Btn_CreateUser"]</text>
+                }
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm _form = null!;
+    private bool _formIsValid;
+    private bool _submitting;
+    private string? _errorMessage;
+    private CreateUserResponse? _createdUser;
+
+    private CreateUserFormModel _model = new()
+    {
+        InitialRole = RoleHierarchy.Roles.Viewer
+    };
+
+    // Collections for the multi-select
+    private List<CollectionAccessDto>? _collections;
+    private List<FlatCollection> _flatCollections = [];
+    private IEnumerable<Guid> _selectedCollectionIds = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _collections = await Api.GetCollectionAccessAsync();
+            _flatCollections = CollectionTreeHelper.Flatten(_collections);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+        }
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid)
+            return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new CreateUserRequest
+            {
+                Username = _model.Username.Trim(),
+                Email = _model.Email.Trim(),
+                FirstName = _model.FirstName.Trim(),
+                LastName = _model.LastName.Trim(),
+                InitialCollectionIds = _selectedCollectionIds.ToList(),
+                InitialRole = _model.InitialRole
+            };
+
+            _createdUser = await Api.CreateUserAsync(request);
+            Feedback.ShowSuccess($"User \"{_model.Username}\" created successfully");
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "create user");
+            _errorMessage = CommonLoc["Error_UnexpectedError"].Value;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(_createdUser));
+
+    // Validation methods — delegate to shared InputValidation helpers
+    private static string? ValidateUsername(string value) => InputValidation.ValidateUsername(value);
+    private static string? ValidateEmail(string value) => InputValidation.ValidateEmail(value);
+
+    private class CreateUserFormModel
+    {
+        public string Username { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string InitialRole { get; set; } = "viewer";
+    }
+}

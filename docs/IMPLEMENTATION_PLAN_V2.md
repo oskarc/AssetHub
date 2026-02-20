@@ -185,7 +185,7 @@ public async Task<string> CreateUserAsync(CreateUserDto dto)
 ### Deliverables
 
 #### 3.1 bUnit Component Tests — ✅ Complete
-- Created `tests/Dam.Ui.Tests/` project with bUnit v2, xUnit, Moq, MudBlazor 8
+- Created `tests/AssetHub.Ui.Tests/` project with bUnit v2, xUnit, Moq, MudBlazor 8
 - Made all `AssetHubApiClient` methods `virtual` for Moq mocking
 - Base class `BunitTestBase` with pre-configured services:
   - Mock `AssetHubApiClient`, `IUserFeedbackService`, `IDialogService`
@@ -303,25 +303,25 @@ public async Task<string> CreateUserAsync(CreateUserDto dto)
 ## 5. Backend Integration Testing
 
 **Priority**: High  
-**Status**: ✅ Repository & Edge Case tests complete (2026-02-09). API integration tests deferred.  
-**Estimate**: 8-12 hours (repository tests done ~6h; API tests remaining ~4h)  
+**Status**: ✅ Complete — Repository, Edge Case & API integration tests (2026-02-20).  
+**Estimate**: 8-12 hours (repository tests done ~6h; API tests ~4h)  
 **Description**: Comprehensive backend test suite for all repositories, endpoints, and edge cases.
 
 ### Implementation (2026-02-09)
 
-Test project: `tests/Dam.Tests/` — added to solution, builds with 0 errors, 0 warnings.
+Test project: `tests/AssetHub.Tests/` — added to solution, builds with 0 errors, 0 warnings.
 
 **Stack**: xUnit 2.9.3, Moq 4.20, Testcontainers.PostgreSql 4.x (real PostgreSQL 16-alpine in Docker), Microsoft.AspNetCore.Mvc.Testing 9.0.
 
-**Architecture**: Shared PostgreSQL container via `PostgresFixture` (xUnit Collection Fixture). Each test class gets an isolated database via `CreateDbContextAsync()` which creates a unique DB, runs `EnsureCreatedAsync()`, and creates `pg_trgm` extension. `CustomWebApplicationFactory` ready for future API integration tests with mocked external services and `TestAuthHandler` for fake auth.
+**Architecture**: Shared PostgreSQL container via `PostgresFixture` (xUnit Collection Fixture). Each test class gets an isolated database via `CreateDbContextAsync()` which creates a unique DB, runs `EnsureCreatedAsync()`, and creates `pg_trgm` extension. `CustomWebApplicationFactory` for API integration tests with mocked external services (MinIO, Keycloak, Email, Media) and `TestAuthHandler` for fake auth. `[Collection("Api")]` shares a single factory instance across all endpoint test classes.
 
 #### 5.1 Test Project Setup — ✅ Done
-- `tests/Dam.Tests/Dam.Tests.csproj` with all packages
-- `tests/Dam.Tests/GlobalUsings.cs` (global using Xunit)
-- `tests/Dam.Tests/Fixtures/PostgresFixture.cs` — shared container + DB factory
-- `tests/Dam.Tests/Fixtures/CustomWebApplicationFactory.cs` — WebApplicationFactory for API tests
-- `tests/Dam.Tests/Fixtures/TestAuthHandler.cs` — fake auth handler + claims providers
-- `tests/Dam.Tests/Helpers/TestData.cs` — entity factory methods
+- `tests/AssetHub.Tests/AssetHub.Tests.csproj` with all packages
+- `tests/AssetHub.Tests/GlobalUsings.cs` (global using Xunit)
+- `tests/AssetHub.Tests/Fixtures/PostgresFixture.cs` — shared container + DB factory
+- `tests/AssetHub.Tests/Fixtures/CustomWebApplicationFactory.cs` — WebApplicationFactory for API tests
+- `tests/AssetHub.Tests/Fixtures/TestAuthHandler.cs` — fake auth handler + claims providers
+- `tests/AssetHub.Tests/Helpers/TestData.cs` — entity factory methods
 
 #### 5.2 Repository Tests — ✅ Done (76 tests)
 - **AssetRepositoryTests** (21 tests): GetById, GetByCollection (JOIN + pagination), CountByCollection, Create, Update, Delete, DeleteByCollection, Search (title, description, case-insensitive, filter by type, sort), SearchAll (ACL filtering, excludes non-ready), GetByOriginalKey, GetByType, GetByStatus
@@ -330,11 +330,11 @@ Test project: `tests/Dam.Tests/` — added to solution, builds with 0 errors, 0 
 - **CollectionAclRepositoryTests** (11 tests): GetByCollection, GetByPrincipal, SetAccess (creates/updates), RevokeAccess (removes/no-op), RevokeAllAccess, GetByUser, GetAll
 - **ShareRepositoryTests** (15 tests): GetById, GetByTokenHash, GetByScope, Create, Update, Delete, IncrementAccess (single/multiple), GetByUser (filtered/paginated), GetAll (includes asset/collection navigation)
 
-#### 5.3 API Integration Tests — ⬜ Not started
-- Asset CRUD (upload, get, update, delete, get all)
-- Collection assignment (get, add, remove)
-- Rendition endpoints (download, preview, thumb, medium, poster)
-- Share endpoints (create, download shared, preview shared)
+#### 5.3 API Integration Tests — ✅ Complete (42 tests)
+- **AssetEndpointTests** (15): GetAssets/GetAllAssets admin-only (200/403), GetAsset (200/404/403), GetAssetsByCollection, UpdateAsset, DeleteAsset (204/404), GetThumbnail/DownloadOriginal redirect (302), InitUpload, GetAssetCollections, AddAssetToCollection, GetDeletionContext
+- **CollectionEndpointTests** (13): CreateCollection admin, GetRootCollections, GetCollectionById (200/403), CreateSubCollection, UpdateCollection, DeleteCollection (204/403), GetChildren, SetCollectionAccess, GetCollectionAcls, RevokeCollectionAccess
+- **AdminEndpointTests** (10): ViewerForbidden (Shares/Users/CollectionAccess), GetAllShares, RevokeShare 404, GetCollectionAccessTree, AdminSetCollectionAccess (200/404), AdminRemoveCollectionAccess, GetUsers
+- **DashboardEndpointTests** (3): Authenticated 200, Admin includes stats, Viewer no stats
 - Permission scenarios across all endpoints
 
 #### 5.4 Edge Cases — ✅ Done (10 tests)
@@ -345,7 +345,7 @@ Test project: `tests/Dam.Tests/` — added to solution, builds with 0 errors, 0 
 - [x] Test isolation via per-class databases (Testcontainers)
 - [x] 0 build warnings in test project
 - [x] All 107 tests pass (2026-02-12) — fixed `ManyServiceProvidersCreatedWarning` + change-tracker bleed
-- [ ] API integration tests (deferred)
+- [x] API integration tests (42 endpoint tests, 2026-02-20)
 - [ ] Code coverage measurement
 
 ---
@@ -641,7 +641,7 @@ These items were identified during development but intentionally deferred:
 | 4 | ~~**Persist Keycloak data**~~ | ~~High~~ | ✅ Fixed (2026-02-12): Separate `keycloak` DB in prod compose, `keycloakdata` named volume in both compose files, `init-keycloak-db.sh` mounted in prod |
 | 5 | ~~**Define user deletion policy**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): Policy confirmed — collections/assets retained, ACLs removed, shares revoked. `DELETE /users/{userId}` now resilient to already-deleted Keycloak users (cleans up app data even if user gone). All user-name fallbacks changed from raw GUID to `"Deleted User (abc12345)"` label in Admin shares, Admin users, CollectionTree, and ManageAccessDialog. `UserSyncService` Hangfire job handles ghost cleanup. |
 | 6 | ~~**Smart asset deletion (multi-collection)**~~ | ~~High~~ | ✅ Fixed (2026-02-15): Implemented multi-collection-aware deletion. `DeleteByCollectionAsync` now distinguishes exclusive vs shared assets. `DeleteAsset` endpoint accepts `fromCollectionId`/`permanent` params. New `GetAssetDeletionContext` endpoint. `DeleteAssetDialog` component shows Remove/Delete options for multi-collection assets. `RemoveAssetFromCollection` cleans up orphans. `DeleteCollection` cleans up MinIO for exclusive assets. |
-| 7 | ~~**Backend test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): P1 → Added `SmartDeletionTests.cs` (6), `AuthorizationEdgeCaseTests.cs` (18). P2 → Added SearchAsync sort/pagination/combined (8), UpdateAsync concurrent (1), ShareRepository sort (4). Total backend: 120 tests. API HTTP tests deferred. |
+| 7 | ~~**Backend test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): P1 → Added `SmartDeletionTests.cs` (6), `AuthorizationEdgeCaseTests.cs` (18). P2 → Added SearchAsync sort/pagination/combined (8), UpdateAsync concurrent (1), ShareRepository sort (4). Total backend: 120 tests. API HTTP tests complete (2026-02-20). |
 | 8 | ~~**bUnit / UI test gaps**~~ | ~~Medium~~ | ✅ Fixed (2026-02-15): P1 → `EditAssetDialog` (2), `CreateShareDialog` (2), `ManageAccessDialog` (2). P2 → `AddToCollectionDialog` submit (2), `AssetGrid` share/delete chains (2), `LanguageSwitcher` culture-switch (1). Total bUnit: 221 tests. CollectionTree DnD and AssetUpload pipeline deferred (P3). |
 
 ### 10.6 Smart Asset Deletion (Multi-Collection Logic)
@@ -661,10 +661,10 @@ When a user deletes an asset from a collection, the behaviour must account for t
 - [x] Backend: if removing from last authorized collection and unauthorized collections remain, asset survives
 - [x] UI: detect multi-collection scenario and show Remove/Delete prompt
 - [x] UI: single-collection scenario skips the prompt and deletes directly
-- [ ] Tests: asset in 1 collection → deleted
-- [ ] Tests: asset in 2 collections, user has access to both → prompt, remove vs delete
-- [ ] Tests: asset in 2 collections, user lacks access to one → only removed from authorized collection
-- [ ] Tests: verify asset still accessible from unauthorized collection after "delete"
+- [x] Tests: asset in 1 collection → deleted
+- [x] Tests: asset in 2 collections, user has access to both → prompt, remove vs delete
+- [x] Tests: asset in 2 collections, user lacks access to one → only removed from authorized collection
+- [x] Tests: verify asset still accessible from unauthorized collection after "delete"
 
 ### 10.7 Backend Test Gaps
 
@@ -680,7 +680,7 @@ Identified 2026-02-13. All items are additive — existing tests pass.
 | `AssetRepository` | ~~`SearchAsync` — shallow: no sort-order, pagination, or combined-filter tests~~ | ~~P2~~ | ✅ Added 8 tests: sort by title/size/created (asc+desc), default sort, pagination with total count, combined query+type filter, combined query+type+sort |
 | `AssetRepository` | ~~`UpdateAsync` — no concurrent-update / conflict test~~ | ~~P2~~ | ✅ Added 1 test: concurrent modification with two DbContexts verifying last-write-wins |
 | `ShareRepository` | ~~`SearchAllAsync` — no sort/pagination tests~~ | ~~P2~~ | ✅ Added 4 tests: GetAllAsync sort order, GetByUserAsync sort+empty, GetByScopeAsync sort order |
-| API integration tests | All endpoints untested at HTTP level (deferred from §5.3) | P2 |
+| API integration tests | ✅ Complete (2026-02-20) — 42 endpoint tests at HTTP level | P2 |
 
 ### 10.8 bUnit / UI Test Gaps
 
@@ -711,7 +711,7 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 | Phase 2B: Video & Presigned URLs | ✅ COMPLETE | Video metadata, poster frames, presigned downloads |
 | Phase 3A: UI - Collections & Grid | ✅ COMPLETE | Blazor pages, search/filter, asset detail, all components |
 | Phase 3B: Sharing & Audit | ✅ COMPLETE | Share tokens, public endpoints, full audit logging |
-| Phase 3C: Testing | ✅ COMPLETE | 86 repository + edge case tests (2026-02-09); API integration & frontend tests deferred |
+| Phase 3C: Testing | ✅ COMPLETE | 86 repository + edge case tests (2026-02-09); API integration tests complete (2026-02-20, 42 tests); frontend tests deferred |
 | Phase 3D: Deployment & Docs | ✅ COMPLETE | Production compose, .env.template, full deployment guide, one-click install |
 | Code Audit (25 issues) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
 | Post-Audit Review (5 fixes) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
@@ -725,12 +725,12 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 
 1. ~~**Deployment Playbooks** (#4)~~ — ✅ Complete (2026-02-08)
 2. ~~**Create User via Keycloak** (#1)~~ — ✅ Already implemented (pre-V2)
-3. ~~**Backend Integration Testing** (#5)~~ — ✅ Repository & edge case tests done (86 tests); API tests deferred
+3. ~~**Backend Integration Testing** (#5)~~ — ✅ Complete — Repository, edge case & API integration tests (261 backend tests)
 4. ~~**Collection ACL Inheritance** (#6)~~ — ✅ Complete (2026-02-09)
 5. ~~**Manager Access Management UX** (#7)~~ — ✅ Complete (2026-02-09): Option A — in-context ManageAccessDialog
 6. ~~**Auth & OIDC Hardening** (#8)~~ — ✅ Complete (2026-02-12): Same-site subdomain architecture
 7. ~~**Persist Keycloak data** (#10.4)~~ — ✅ Fixed (2026-02-12)
-8. ~~**Run full test suite** (#10.3)~~ — ✅ Complete (2026-02-12): 107 backend + 210 bUnit = 317 tests passing. Updated 2026-02-19: 161 total tests passing (backend + bUnit)
+8. ~~**Run full test suite** (#10.3)~~ — ✅ Complete (2026-02-12): 107 backend + 210 bUnit = 317 tests passing. Updated 2026-02-20: 261 backend tests passing
 9. ~~**Fix language switcher** (#10.1)~~ — ✅ Fixed (2026-02-15): renamed `.sv-SE.resx` → `.sv.resx`
 10. ~~**Implement password reset** (#10.2)~~ — ✅ Fixed (2026-02-15): Keycloak forgot-password + in-app change-password
 11. ~~**Smart asset deletion** (#10.6)~~ — ✅ Fixed (2026-02-15): Multi-collection-aware delete/remove logic

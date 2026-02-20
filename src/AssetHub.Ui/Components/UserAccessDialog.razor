@@ -1,0 +1,135 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Application.Helpers
+@using AssetHub.Ui.Services
+
+@inject NavigationManager Nav
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@AdminLoc["UserAccessDetails"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <!-- User Info Header -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.subtitle1">@User.UserName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@User.UserId</MudText>
+                    </MudStack>
+                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(User.HighestRole)">
+                        @AdminLoc["Highest"]: @User.HighestRole
+                    </MudChip>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Collections List -->
+            <MudText Typo="Typo.subtitle2" Class="mt-2">
+                @AdminLoc["CollectionAccessCount"] (@User.CollectionCount)
+            </MudText>
+
+            @if (User.Collections.Count == 0)
+            {
+                <EmptyState Title="@AdminLoc["NoCollectionAccess"]"
+                            Description="@AdminLoc["NoCollectionAccessUserDesc"]"
+                            Icon="@Icons.Material.Filled.FolderOff"
+                            Class="py-4" />
+            }
+            else
+            {
+                <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Class="table-outlined">
+                    <thead>
+                        <tr>
+                            <th>@CommonLoc["Label_Collection"]</th>
+                            <th>@CommonLoc["Label_Role"]</th>
+                            <th class="dialog-actions-col-sm">@CommonLoc["Label_Actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var collection in User.Collections.OrderBy(c => c.CollectionName, new NaturalSortComparer()))
+                        {
+                            <tr>
+                                <td>
+                                    <MudLink Href="@($"/collections?collection={collection.CollectionId}")" 
+                                             Color="Color.Primary"
+                                             Underline="Underline.Hover">
+                                        @collection.CollectionName
+                                    </MudLink>
+                                </td>
+                                <td>
+                                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(collection.Role)" Variant="Variant.Outlined">
+                                        @collection.Role
+                                    </MudChip>
+                                </td>
+                                <td>
+                                    <MudButton Size="Size.Small" 
+                                               Variant="Variant.Text" 
+                                               Color="Color.Error"
+                                               StartIcon="@Icons.Material.Filled.RemoveCircle"
+                                               OnClick="@(() => RevokeAccess(collection))"
+                                               Disabled="@_isRevoking">
+                                        @AdminLoc["RevokeAccess"]
+                                    </MudButton>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public UserAccessSummaryDto User { get; set; } = default!;
+
+    private bool _isRevoking = false;
+
+    private void Close() => MudDialog.Close();
+
+    private async Task RevokeAccess(UserCollectionAccessDto collection)
+    {
+        _isRevoking = true;
+        StateHasChanged();
+
+        try
+        {
+            await Api.RemoveCollectionAclAsync(collection.CollectionId, User.UserId, "user");
+            Feedback.ShowSuccess(string.Format(CommonLoc["Success_RevokedAccessTo"].Value, collection.CollectionName));
+            
+            // Remove from local list
+            User.Collections.Remove(collection);
+            
+            // If no more collections, close the dialog
+            if (User.Collections.Count == 0)
+            {
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "revoke access");
+        }
+        finally
+        {
+            _isRevoking = false;
+            StateHasChanged();
+        }
+    }
+
+}

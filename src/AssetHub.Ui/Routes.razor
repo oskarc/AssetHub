@@ -1,0 +1,41 @@
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<Router AppAssembly="typeof(AssetHub.Ui.App).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    <RedirectToLogin />
+                }
+                else
+                {
+                    <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center error-page-height">
+                        <MudAlert Severity="Severity.Warning">
+                            @CommonLoc["Error_NotAuthorized"]
+                        </MudAlert>
+                    </MudContainer>
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center error-page-height">
+                <MudStack AlignItems="AlignItems.Center" Spacing="4">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Secondary" />
+                    <MudText Typo="Typo.h5">@CommonLoc["Error_PageNotFound"]</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">
+                        @CommonLoc["Error_PageNotFoundDesc"]
+                    </MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">
+                        @CommonLoc["Btn_GoHome"]
+                    </MudButton>
+                </MudStack>
+            </MudContainer>
+        </LayoutView>
+    </NotFound>
+</Router>

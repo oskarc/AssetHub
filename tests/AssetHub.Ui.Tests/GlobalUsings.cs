@@ -1,0 +1,12 @@
+global using Xunit;
+global using Bunit;
+global using Moq;
+global using AssetHub.Application;
+global using AssetHub.Application.Dtos;
+global using AssetHub.Ui.Components;
+global using AssetHub.Ui.Services;
+global using AssetHub.Ui.Resources;
+global using MudBlazor;
+global using MudBlazor.Services;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Localization;

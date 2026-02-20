@@ -1,27 +1,27 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub", "src\AssetHub\AssetHub.csproj", "{7440D1AD-AA6A-E89C-4D58-E40E2964DB03}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub.Api", "src\AssetHub.Api\AssetHub.Api.csproj", "{7440D1AD-AA6A-E89C-4D58-E40E2964DB03}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dam.Tests", "tests\Dam.Tests\Dam.Tests.csproj", "{25A0C801-18AA-4B41-BCC3-47697CEBAF7E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub.Tests", "tests\AssetHub.Tests\AssetHub.Tests.csproj", "{25A0C801-18AA-4B41-BCC3-47697CEBAF7E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dam.Ui.Tests", "tests\Dam.Ui.Tests\Dam.Ui.Tests.csproj", "{D909237C-D7B5-4FD0-8574-6C0495A64758}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub.Ui.Tests", "tests\AssetHub.Ui.Tests\AssetHub.Ui.Tests.csproj", "{D909237C-D7B5-4FD0-8574-6C0495A64758}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dam.Ui", "src\Dam.Ui\Dam.Ui.csproj", "{8B363905-5385-450E-8B3F-F84F7C0EE550}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub.Ui", "src\AssetHub.Ui\AssetHub.Ui.csproj", "{8B363905-5385-450E-8B3F-F84F7C0EE550}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dam.Application", "src\Dam.Application\Dam.Application.csproj", "{6C57A079-1243-4FFC-9B9B-279CCE947EC2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub.Application", "src\AssetHub.Application\AssetHub.Application.csproj", "{6C57A079-1243-4FFC-9B9B-279CCE947EC2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dam.Domain", "src\Dam.Domain\Dam.Domain.csproj", "{768DDFEC-0841-4E70-9E04-F54C747D6E81}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub.Domain", "src\AssetHub.Domain\AssetHub.Domain.csproj", "{768DDFEC-0841-4E70-9E04-F54C747D6E81}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dam.Infrastructure", "src\Dam.Infrastructure\Dam.Infrastructure.csproj", "{6F0F8F33-19D9-4CCA-B17B-E586C8381CDA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub.Infrastructure", "src\AssetHub.Infrastructure\AssetHub.Infrastructure.csproj", "{6F0F8F33-19D9-4CCA-B17B-E586C8381CDA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dam.Worker", "src\Dam.Worker\Dam.Worker.csproj", "{77D75F31-9AB6-4C8C-84E2-38C6B6A91016}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetHub.Worker", "src\AssetHub.Worker\AssetHub.Worker.csproj", "{77D75F31-9AB6-4C8C-84E2-38C6B6A91016}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
