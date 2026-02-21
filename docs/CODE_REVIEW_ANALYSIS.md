@@ -102,16 +102,16 @@ Keycloak OIDC auth, PostgreSQL, MinIO object storage, and Hangfire background pr
 29. GetHumanReadableSize() is presentation logic in domain entity
 30. Missing router `<NotFound>` handler — unknown routes show blank page
 
-## Test Coverage Summary
+## Test Coverage Summary (Updated 2026-02-21)
 
 | Layer              | Coverage | Quality    |
 |--------------------|----------|------------|
 | Repositories       | Excellent| Real DB via Testcontainers, thorough edge cases |
-| Services (18 impl) | **None** | Critical gap — entire orchestration layer untested |
-| HTTP Endpoints     | **None** | WebApplicationFactory built but never used |
+| Services (18 impl) | **49 tests** | ✅ CollectionService, CollectionAclService, DashboardService, AssetDeletionService |
+| HTTP Endpoints     | **81 tests** | ✅ All 5 endpoint files, 73 negative/anti-tests |
 | UI Components      | 61%      | Good bUnit tests with MudBlazor patterns |
 | UI Pages           | **None** | No bUnit page tests |
-| E2E                | Good     | 14 specs, but silent-pass anti-pattern in many |
+| E2E                | Good     | 14 specs, silent-pass anti-patterns fixed |
 
 ## What's Done Well
 

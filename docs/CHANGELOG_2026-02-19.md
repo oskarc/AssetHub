@@ -3,7 +3,7 @@
 **Date**: 2026-02-19
 **Focus**: Security hardening (signed access tokens), code quality (constant extraction, bug fixes), and infrastructure cleanup (pg_trgm migration).
 **Build**: 0 warnings, 0 errors
-**Tests**: 161 backend + bUnit tests passing
+**Tests**: 161 backend + bUnit tests passing (see `CHANGELOG_2026-02-21.md` for updated totals: 334 backend + 221 bUnit)
 
 ---
 

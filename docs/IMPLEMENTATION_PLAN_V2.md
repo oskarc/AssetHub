@@ -303,9 +303,9 @@ public async Task<string> CreateUserAsync(CreateUserDto dto)
 ## 5. Backend Integration Testing
 
 **Priority**: High  
-**Status**: ✅ Complete — Repository, Edge Case & API integration tests (2026-02-20).  
-**Estimate**: 8-12 hours (repository tests done ~6h; API tests ~4h)  
-**Description**: Comprehensive backend test suite for all repositories, endpoints, and edge cases.
+**Status**: ✅ Complete — Repository, Edge Case, API integration & negative tests (2026-02-21).  
+**Estimate**: 8-12 hours (repository tests done ~6h; API tests ~4h; negative tests ~3h)  
+**Description**: Comprehensive backend test suite for all repositories, endpoints, edge cases, and negative/anti-test coverage.
 
 ### Implementation (2026-02-09)
 
@@ -330,12 +330,14 @@ Test project: `tests/AssetHub.Tests/` — added to solution, builds with 0 error
 - **CollectionAclRepositoryTests** (11 tests): GetByCollection, GetByPrincipal, SetAccess (creates/updates), RevokeAccess (removes/no-op), RevokeAllAccess, GetByUser, GetAll
 - **ShareRepositoryTests** (15 tests): GetById, GetByTokenHash, GetByScope, Create, Update, Delete, IncrementAccess (single/multiple), GetByUser (filtered/paginated), GetAll (includes asset/collection navigation)
 
-#### 5.3 API Integration Tests — ✅ Complete (42 tests)
-- **AssetEndpointTests** (15): GetAssets/GetAllAssets admin-only (200/403), GetAsset (200/404/403), GetAssetsByCollection, UpdateAsset, DeleteAsset (204/404), GetThumbnail/DownloadOriginal redirect (302), InitUpload, GetAssetCollections, AddAssetToCollection, GetDeletionContext
-- **CollectionEndpointTests** (13): CreateCollection admin, GetRootCollections, GetCollectionById (200/403), CreateSubCollection, UpdateCollection, DeleteCollection (204/403), GetChildren, SetCollectionAccess, GetCollectionAcls, RevokeCollectionAccess
-- **AdminEndpointTests** (10): ViewerForbidden (Shares/Users/CollectionAccess), GetAllShares, RevokeShare 404, GetCollectionAccessTree, AdminSetCollectionAccess (200/404), AdminRemoveCollectionAccess, GetUsers
+#### 5.3 API Integration Tests — ✅ Complete (81 tests)
+- **AssetEndpointTests** (39 = 15 positive + 24 negative): GetAssets/GetAllAssets admin-only (200/403), GetAsset (200/404/403), GetAssetsByCollection, UpdateAsset, DeleteAsset (204/404), GetThumbnail/DownloadOriginal redirect (302), InitUpload, GetAssetCollections, AddAssetToCollection, GetDeletionContext + viewer forbidden on all mutating endpoints, non-existent resource handling
+- **CollectionEndpointTests** (28 = 12 positive + 16 negative): CreateCollection admin, GetRootCollections, GetCollectionById (200/403), CreateSubCollection, UpdateCollection, DeleteCollection (204/403), GetChildren, SetCollectionAccess, GetCollectionAcls, RevokeCollectionAccess + empty name validation, viewer restrictions, non-existent collections
+- **AdminEndpointTests** (26 = 10 positive + 16 negative): Share/user/ACL management, viewer forbidden on all admin routes, validation (username length/special chars, email format, missing first name), Keycloak error propagation, non-existent share/user operations
+- **ShareEndpointTests** (17 = 2 positive + 15 negative): Anonymous public share endpoints, authenticated share CRUD, non-existent tokens/shares, viewer blocked from create/revoke/password update, invalid scope type, wrong scope ID, owner-only enforcement
 - **DashboardEndpointTests** (3): Authenticated 200, Admin includes stats, Viewer no stats
 - Permission scenarios across all endpoints
+- **73 negative/anti-tests** ensuring proper error handling, authorization, and validation
 
 #### 5.4 Edge Cases — ✅ Done (10 tests)
 - `MultiCollectionAccessTests` (10 tests): Asset in multiple collections (found-from-each, all-collection-ids), RemoveFromOneCollection (doesn't-affect-others, becomes-orphaned), CollectionDeletion (cascades-asset-collections-not-assets, asset-in-other-still-accessible), MixedRoles (different-roles-different-collections), OrphanedAsset (not-visible-in-search-all, still-accessible-by-id), ACL cascade on deletion, HierarchicalDeletion (cascades 3 levels deep)
@@ -345,7 +347,8 @@ Test project: `tests/AssetHub.Tests/` — added to solution, builds with 0 error
 - [x] Test isolation via per-class databases (Testcontainers)
 - [x] 0 build warnings in test project
 - [x] All 107 tests pass (2026-02-12) — fixed `ManyServiceProvidersCreatedWarning` + change-tracker bleed
-- [x] API integration tests (42 endpoint tests, 2026-02-20)
+- [x] API integration tests (81 endpoint tests including 73 negative/anti-tests, 2026-02-21)
+- [x] Negative test coverage audit — 147 total negative tests (~44% of 334 tests)
 - [ ] Code coverage measurement
 
 ---
@@ -680,7 +683,7 @@ Identified 2026-02-13. All items are additive — existing tests pass.
 | `AssetRepository` | ~~`SearchAsync` — shallow: no sort-order, pagination, or combined-filter tests~~ | ~~P2~~ | ✅ Added 8 tests: sort by title/size/created (asc+desc), default sort, pagination with total count, combined query+type filter, combined query+type+sort |
 | `AssetRepository` | ~~`UpdateAsync` — no concurrent-update / conflict test~~ | ~~P2~~ | ✅ Added 1 test: concurrent modification with two DbContexts verifying last-write-wins |
 | `ShareRepository` | ~~`SearchAllAsync` — no sort/pagination tests~~ | ~~P2~~ | ✅ Added 4 tests: GetAllAsync sort order, GetByUserAsync sort+empty, GetByScopeAsync sort order |
-| API integration tests | ✅ Complete (2026-02-20) — 42 endpoint tests at HTTP level | P2 |
+| API integration tests | ✅ Complete (2026-02-21) — 81 endpoint tests (including 73 negative/anti-tests) at HTTP level | P2 |
 
 ### 10.8 bUnit / UI Test Gaps
 
@@ -711,7 +714,7 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 | Phase 2B: Video & Presigned URLs | ✅ COMPLETE | Video metadata, poster frames, presigned downloads |
 | Phase 3A: UI - Collections & Grid | ✅ COMPLETE | Blazor pages, search/filter, asset detail, all components |
 | Phase 3B: Sharing & Audit | ✅ COMPLETE | Share tokens, public endpoints, full audit logging |
-| Phase 3C: Testing | ✅ COMPLETE | 86 repository + edge case tests (2026-02-09); API integration tests complete (2026-02-20, 42 tests); frontend tests deferred |
+| Phase 3C: Testing | ✅ COMPLETE | 86 repository + edge case tests (2026-02-09); API integration tests complete (2026-02-21, 81 tests); negative test audit (73 anti-tests); service-layer tests (49); total: 334 backend tests |
 | Phase 3D: Deployment & Docs | ✅ COMPLETE | Production compose, .env.template, full deployment guide, one-click install |
 | Code Audit (25 issues) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
 | Post-Audit Review (5 fixes) | ✅ COMPLETE | See AUDIT_IMPLEMENTATION_PLAN.md |
@@ -725,12 +728,12 @@ Identified 2026-02-13. Pattern: components are well-tested for static rendering 
 
 1. ~~**Deployment Playbooks** (#4)~~ — ✅ Complete (2026-02-08)
 2. ~~**Create User via Keycloak** (#1)~~ — ✅ Already implemented (pre-V2)
-3. ~~**Backend Integration Testing** (#5)~~ — ✅ Complete — Repository, edge case & API integration tests (261 backend tests)
+3. ~~**Backend Integration Testing** (#5)~~ — ✅ Complete — Repository, edge case, API integration & negative tests (334 backend tests)
 4. ~~**Collection ACL Inheritance** (#6)~~ — ✅ Complete (2026-02-09)
 5. ~~**Manager Access Management UX** (#7)~~ — ✅ Complete (2026-02-09): Option A — in-context ManageAccessDialog
 6. ~~**Auth & OIDC Hardening** (#8)~~ — ✅ Complete (2026-02-12): Same-site subdomain architecture
 7. ~~**Persist Keycloak data** (#10.4)~~ — ✅ Fixed (2026-02-12)
-8. ~~**Run full test suite** (#10.3)~~ — ✅ Complete (2026-02-12): 107 backend + 210 bUnit = 317 tests passing. Updated 2026-02-20: 261 backend tests passing
+8. ~~**Run full test suite** (#10.3)~~ — ✅ Complete (2026-02-12): 107 backend + 210 bUnit = 317 tests passing. Updated 2026-02-21: 334 backend + 221 bUnit = 555 tests passing
 9. ~~**Fix language switcher** (#10.1)~~ — ✅ Fixed (2026-02-15): renamed `.sv-SE.resx` → `.sv.resx`
 10. ~~**Implement password reset** (#10.2)~~ — ✅ Fixed (2026-02-15): Keycloak forgot-password + in-app change-password
 11. ~~**Smart asset deletion** (#10.6)~~ — ✅ Fixed (2026-02-15): Multi-collection-aware delete/remove logic

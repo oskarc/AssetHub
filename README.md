@@ -379,17 +379,17 @@ See [IMPLEMENTATION_PLAN_V2.md](instructions%20and%20docs/IMPLEMENTATION_PLAN_V2
 - Complete Blazor Server UI (13+ components, two languages)
 - Admin dashboard (shares, access, user management)
 - User creation via Keycloak Admin API
-- 86 integration tests with real PostgreSQL
+- 334 backend integration tests with real PostgreSQL (repositories, services, endpoints, edge cases)
+- 221 bUnit frontend component tests
 - One-click production deployment with auto-migration
 - Health check endpoints (`/health`, `/health/ready`)
 - Full deployment documentation
 - **Playwright E2E test suite** (130+ tests across 13 spec files)
+- Comprehensive negative test coverage (73 anti-tests verifying auth, validation, and error paths)
 
 ### What's next
 
-- Frontend unit testing (bUnit component tests)
-- Metrics & observability (OpenTelemetry, structured logging, dashboards)
-- API integration tests (endpoint-level testing with `WebApplicationFactory`)
+- Metrics & observability (Prometheus/Grafana dashboards — structured logging already done)
 - Document preview (PDF, PPTX)
 - Video transcoding (HLS/DASH)
 
@@ -403,7 +403,7 @@ See [IMPLEMENTATION_PLAN_V2.md](instructions%20and%20docs/IMPLEMENTATION_PLAN_V2
 dotnet test
 ```
 
-Runs 86 integration tests (repositories, ACL inheritance, edge cases) using Testcontainers with real PostgreSQL.
+Runs 334 backend integration tests (repositories, services, API endpoints, edge cases, negative/anti-tests) using Testcontainers with real PostgreSQL.
 
 ### E2E Tests (Playwright)
 
@@ -487,4 +487,4 @@ MIT — see LICENSE for details.
 
 ---
 
-*Last updated: February 9, 2026*
+*Last updated: February 21, 2026*
