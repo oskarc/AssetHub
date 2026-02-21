@@ -9,6 +9,7 @@ namespace AssetHub.Infrastructure.Services;
 public class UserCleanupService(
     ICollectionAclRepository aclRepo,
     IShareRepository shareRepo,
+    IAuditService audit,
     ILogger<UserCleanupService> logger) : IUserCleanupService
 {
     public async Task<(int AclsRemoved, int SharesRevoked)> CleanupUserDataAsync(
@@ -31,6 +32,9 @@ public class UserCleanupService(
 
         logger.LogInformation("Cleaned up user {UserId}: removed {AclCount} ACLs, revoked {ShareCount} shares",
             userId, userAcls.Count, userShares.Count);
+
+        await audit.LogAsync("user.cleanup", "user", null, userId,
+            new() { ["aclsRemoved"] = userAcls.Count, ["sharesRevoked"] = userShares.Count }, ct);
 
         return (userAcls.Count, userShares.Count);
     }

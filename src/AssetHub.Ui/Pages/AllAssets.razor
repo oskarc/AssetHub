@@ -86,9 +86,9 @@
                            Margin="Margin.Dense"
                            ValueChanged="@OnFilterChanged">
                     <MudSelectItem Value="@((string?)null)">@CommonLoc["Filter_AllTypes"]</MudSelectItem>
-                    <MudSelectItem Value="@("image")">@CommonLoc["Filter_Images"]</MudSelectItem>
-                    <MudSelectItem Value="@("video")">@CommonLoc["Filter_Videos"]</MudSelectItem>
-                    <MudSelectItem Value="@("document")">@CommonLoc["Filter_Documents"]</MudSelectItem>
+                    <MudSelectItem Value="@(Constants.AssetTypeFilters.Image)">@CommonLoc["Filter_Images"]</MudSelectItem>
+                    <MudSelectItem Value="@(Constants.AssetTypeFilters.Video)">@CommonLoc["Filter_Videos"]</MudSelectItem>
+                    <MudSelectItem Value="@(Constants.AssetTypeFilters.Document)">@CommonLoc["Filter_Documents"]</MudSelectItem>
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="6" md="2">
@@ -98,20 +98,20 @@
                            Variant="Variant.Outlined"
                            Margin="Margin.Dense"
                            ValueChanged="@OnSortChanged">
-                    <MudSelectItem Value="@("created_desc")">@CommonLoc["Sort_NewestFirst"]</MudSelectItem>
-                    <MudSelectItem Value="@("created_asc")">@CommonLoc["Sort_OldestFirst"]</MudSelectItem>
-                    <MudSelectItem Value="@("title_asc")">@CommonLoc["Sort_TitleAZ"]</MudSelectItem>
-                    <MudSelectItem Value="@("size_desc")">@CommonLoc["Sort_LargestFirst"]</MudSelectItem>
+                    <MudSelectItem Value="@(Constants.SortBy.CreatedDesc)">@CommonLoc["Sort_NewestFirst"]</MudSelectItem>
+                    <MudSelectItem Value="@(Constants.SortBy.CreatedAsc)">@CommonLoc["Sort_OldestFirst"]</MudSelectItem>
+                    <MudSelectItem Value="@(Constants.SortBy.TitleAsc)">@CommonLoc["Sort_TitleAZ"]</MudSelectItem>
+                    <MudSelectItem Value="@(Constants.SortBy.SizeDesc)">@CommonLoc["Sort_LargestFirst"]</MudSelectItem>
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="6" md="2">
                 <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
                     <MudIconButton Icon="@Icons.Material.Filled.GridView" 
-                                   Color="@(_viewMode == "grid" ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => _viewMode = "grid")" />
+                                   Color="@(_viewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
+                                   OnClick="@(() => _viewMode = Constants.ViewModes.Grid)" />
                     <MudIconButton Icon="@Icons.Material.Filled.ViewList"
-                                   Color="@(_viewMode == "list" ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => _viewMode = "list")" />
+                                   Color="@(_viewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
+                                   OnClick="@(() => _viewMode = Constants.ViewModes.List)" />
                 </MudButtonGroup>
             </MudItem>
         </MudGrid>
@@ -150,7 +150,7 @@
     }
     else
     {
-        @if (_viewMode == "grid")
+        @if (_viewMode == Constants.ViewModes.Grid)
         {
             <MudGrid Spacing="3">
                 @foreach (var asset in _assets)
@@ -283,8 +283,8 @@
     private string _searchQuery = "";
     private string? _filterType;
     private Guid? _filterCollectionId;
-    private string _sortBy = "created_desc";
-    private string _viewMode = "grid";
+    private string _sortBy = Constants.SortBy.CreatedDesc;
+    private string _viewMode = Constants.ViewModes.Grid;
     private bool _showUpload = false;
     
     // Role-based UI visibility using centralized permissions

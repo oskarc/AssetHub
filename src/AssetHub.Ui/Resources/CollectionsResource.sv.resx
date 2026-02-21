@@ -32,7 +32,10 @@
 
   <!-- Collection Dialog -->
   <data name="CreateCollection" xml:space="preserve"><value>Skapa samling</value></data>
+  <data name="EditCollection" xml:space="preserve"><value>Redigera samling</value></data>
+  <data name="UpdatedSuccess" xml:space="preserve"><value>Samlingen har uppdaterats</value></data>
   <data name="CollectionName" xml:space="preserve"><value>Samlingsnamn</value></data>
+  <data name="Description" xml:space="preserve"><value>Beskrivning</value></data>
   <data name="DescriptionOptional" xml:space="preserve"><value>Beskrivning (valfritt)</value></data>
   <data name="Validation_NameRequired" xml:space="preserve"><value>Samlingsnamn krävs</value></data>
   <data name="SubCollectionHint" xml:space="preserve"><value>Denna skapas som en undersamling.</value></data>
@@ -46,6 +49,12 @@
   <data name="AssetCountWarning" xml:space="preserve"><value> Denna samling innehåller {0} tillgång(ar) som också kommer att tas bort.</value></data>
   <data name="DeletedSuccess" xml:space="preserve"><value>Samling har tagits bort</value></data>
   <data name="ClearSelection" xml:space="preserve"><value>Rensa val</value></data>
+
+  <!-- Role Descriptions -->
+  <data name="RoleDesc_Viewer" xml:space="preserve"><value>Du kan visa och ladda ner tillgångar</value></data>
+  <data name="RoleDesc_Contributor" xml:space="preserve"><value>Du kan visa, ladda ner, ladda upp och redigera tillgångar</value></data>
+  <data name="RoleDesc_Manager" xml:space="preserve"><value>Du kan hantera tillgångar, åtkomst och ta bort innehåll</value></data>
+  <data name="RoleDesc_Admin" xml:space="preserve"><value>Du har full kontroll över denna samling</value></data>
 
   <!-- Manage Access Dialog -->
   <data name="ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>

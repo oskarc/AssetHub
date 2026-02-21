@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AssetHub.Api.Endpoints;
 
 /// <summary>
-/// Admin-only endpoints for managing shares, collection access, and viewing users.
+/// Admin-only endpoints for managing shares, collection access, users, and audit logs.
 /// All endpoints require the 'admin' role.
 /// </summary>
 public static class AdminEndpoints
@@ -34,6 +34,9 @@ public static class AdminEndpoints
         group.MapPost("/users/{userId}/reset-password", ResetUserPassword).WithName("ResetUserPassword");
         group.MapPost("/users/sync", SyncDeletedUsers).WithName("SyncDeletedUsers");
         group.MapDelete("/users/{userId}", DeleteUser).WithName("DeleteUser");
+
+        // ===== AUDIT LOG =====
+        group.MapGet("/audit", GetAuditEvents).WithName("GetAuditEvents");
     }
 
     // ── Share Management ─────────────────────────────────────────────────────
@@ -132,6 +135,17 @@ public static class AdminEndpoints
         [FromServices] IAdminService svc, CancellationToken ct)
     {
         var result = await svc.DeleteUserAsync(userId, ct);
+        return result.ToHttpResult();
+    }
+
+    // ── Audit Log ─────────────────────────────────────────────────────────────
+
+    private static async Task<IResult> GetAuditEvents(
+        [FromServices] IAdminService svc,
+        CancellationToken ct,
+        [FromQuery] int take = 200)
+    {
+        var result = await svc.GetAuditEventsAsync(take, ct);
         return result.ToHttpResult();
     }
 }

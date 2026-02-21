@@ -51,14 +51,14 @@ else
             <!-- Preview Area -->
             <MudItem xs="12" md="8">
                 <MudPaper Class="pa-4" Elevation="1">
-                    @if (_asset.AssetType == "image")
+                    @if (_asset.AssetType == Constants.AssetTypeFilters.Image)
                     {
                         <MudImage Src="@GetPreviewUrl()" 
                                   Alt="@_asset.Title"
                                   ObjectFit="ObjectFit.Contain"
                                   Class="media-preview-image rounded" />
                     }
-                    else if (_asset.AssetType == "video")
+                    else if (_asset.AssetType == Constants.AssetTypeFilters.Video)
                     {
                         <video controls poster="@GetPosterUrl()" class="media-preview-video">
                             <source src="@GetVideoUrl()" type="@_asset.ContentType">
@@ -391,7 +391,7 @@ else
         }
         catch
         {
-            // Silently fail - collections will show fallback to primary collection
+            // Silently fail - collections list will be empty
             _assetCollections = new();
         }
     }
@@ -452,7 +452,7 @@ else
         if (_asset == null) return "";
 
         // Use medium rendition for images
-        if (_asset.AssetType == "image" && !string.IsNullOrEmpty(_asset.MediumObjectKey))
+        if (_asset.AssetType == Constants.AssetTypeFilters.Image && !string.IsNullOrEmpty(_asset.MediumObjectKey))
         {
             return $"/api/assets/{_asset.Id}/medium";
         }

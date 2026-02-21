@@ -266,7 +266,9 @@ public class AssetService : IAssetService
         asset.UpdatedAt = DateTime.UtcNow;
 
         await _assetRepo.UpdateAsync(asset, ct);
-        await _audit.LogAsync("asset.updated", "asset", id, _currentUser.UserId, ct: ct);
+        await _audit.LogAsync("asset.updated", "asset", id, _currentUser.UserId,
+            new() { ["title"] = asset.Title, ["description"] = asset.Description ?? "", ["tags"] = string.Join(", ", asset.Tags ?? []) },
+            ct);
 
         return AssetMapper.ToDto(asset);
     }
@@ -375,6 +377,10 @@ public class AssetService : IAssetService
         if (request.CollectionId.HasValue)
             await _assetCollectionRepo.AddToCollectionAsync(asset.Id, request.CollectionId.Value, userId, ct);
 
+        await _audit.LogAsync("asset.upload_initiated", "asset", asset.Id, userId,
+            new() { ["title"] = request.Title ?? "", ["fileName"] = request.FileName, ["contentType"] = request.ContentType, ["fileSize"] = request.FileSize, ["collectionId"] = request.CollectionId?.ToString() ?? "" },
+            ct);
+
         var presignedUrl = await _minioAdapter.GetPresignedUploadUrlAsync(
             BucketName, asset.OriginalObjectKey, Constants.Limits.PresignedUploadExpirySec, ct);
 
@@ -408,6 +414,9 @@ public class AssetService : IAssetService
         asset.Status = AssetStatus.Processing;
         asset.UpdatedAt = DateTime.UtcNow;
         await _assetRepo.UpdateAsync(asset, ct);
+
+        await _audit.LogAsync("asset.upload_confirmed", "asset", asset.Id, userId,
+            new() { ["title"] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
 
@@ -480,6 +489,9 @@ public class AssetService : IAssetService
         var result = await _assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
         if (result == null)
             return ServiceError.BadRequest("Asset is already linked to this collection or collection not found");
+
+        await _audit.LogAsync("asset.added_to_collection", "asset", assetId, userId,
+            new() { ["title"] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
 
         return new AssetAddedToCollectionResponse
         {
@@ -564,6 +576,13 @@ public class AssetService : IAssetService
 
         var presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
             BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, downloadFileName, ct);
+
+        if (forceDownload)
+        {
+            await _audit.LogAsync("asset.downloaded", "asset", id, _currentUser.UserId,
+                new() { ["title"] = asset.Title, ["size"] = size },
+                ct);
+        }
 
         return presignedUrl;
     }

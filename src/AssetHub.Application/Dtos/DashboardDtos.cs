@@ -62,6 +62,7 @@ public class AuditEventDto
     public string TargetType { get; set; } = string.Empty;
     public Guid? TargetId { get; set; }
     public string? ActorUserId { get; set; }
+    public string? ActorUserName { get; set; }
     public DateTime CreatedAt { get; set; }
     public Dictionary<string, object>? Details { get; set; }
 }

@@ -5,7 +5,6 @@ namespace AssetHub.Application.Services;
 /// <summary>
 /// Unified service for collection ACL management — used by both regular
 /// collection endpoints (manager self-service) and admin endpoints.
-/// Eliminates the duplicated ACL logic that previously lived in two endpoint files.
 /// </summary>
 public interface ICollectionAclService
 {

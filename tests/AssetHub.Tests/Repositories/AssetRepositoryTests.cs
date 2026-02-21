@@ -1,3 +1,4 @@
+using AssetHub.Application;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
@@ -291,7 +292,7 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(c.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: "title_asc");
+        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: Constants.SortBy.TitleAsc);
 
         Assert.Equal("Alpha", results[0].Title);
         Assert.Equal("Beta", results[1].Title);
@@ -516,7 +517,7 @@ public class AssetRepositoryTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         var (results, _) = await _repo.SearchAllAsync(
-            sortBy: "title_asc",
+            sortBy: Constants.SortBy.TitleAsc,
             allowedCollectionIds: new List<Guid> { collection.Id });
 
         Assert.Equal("Alpha", results[0].Title);
@@ -644,7 +645,7 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(large.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: "size_desc");
+        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: Constants.SortBy.SizeDesc);
 
         Assert.Equal("Large", results[0].Title);
         Assert.Equal("Medium", results[1].Title);
@@ -669,7 +670,7 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(newest.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: "created_asc");
+        var (results, _) = await _repo.SearchAsync(collection.Id, sortBy: Constants.SortBy.CreatedAsc);
 
         Assert.Equal("Oldest", results[0].Title);
         Assert.Equal("Middle", results[1].Title);

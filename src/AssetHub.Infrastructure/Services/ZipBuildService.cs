@@ -24,6 +24,7 @@ public class ZipBuildService : IZipBuildService
     private readonly ICollectionRepository _collectionRepo;
     private readonly IMinIOAdapter _minioAdapter;
     private readonly IBackgroundJobClient _jobClient;
+    private readonly IAuditService _audit;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ZipBuildService> _logger;
 
@@ -33,6 +34,7 @@ public class ZipBuildService : IZipBuildService
         ICollectionRepository collectionRepo,
         IMinIOAdapter minioAdapter,
         IBackgroundJobClient jobClient,
+        IAuditService audit,
         IConfiguration configuration,
         ILogger<ZipBuildService> logger)
     {
@@ -41,6 +43,7 @@ public class ZipBuildService : IZipBuildService
         _collectionRepo = collectionRepo;
         _minioAdapter = minioAdapter;
         _jobClient = jobClient;
+        _audit = audit;
         _configuration = configuration;
         _logger = logger;
     }
@@ -265,6 +268,11 @@ public class ZipBuildService : IZipBuildService
                 zip.Status = ZipDownloadStatus.Completed;
                 zip.CompletedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
+
+                await _audit.LogAsync("collection.downloaded", "collection", zip.ScopeId,
+                    zip.RequestedByUserId,
+                    new() { ["assetCount"] = zip.AssetCount, ["sizeBytes"] = zip.SizeBytes },
+                    ct);
 
                 _logger.LogInformation(
                     "ZIP build {ZipDownloadId} completed: {AssetCount} assets, {SizeBytes} bytes",

@@ -26,7 +26,7 @@ public static class WebApplicationExtensions
     // ── Startup tasks ───────────────────────────────────────────────────────
 
     /// <summary>
-    /// Runs database migration and ensures the MinIO bucket exists.
+    /// Runs database migration, ensures the MinIO bucket exists, and logs the build stamp.
     /// </summary>
     public static async Task RunStartupTasksAsync(this WebApplication app)
     {
@@ -73,7 +73,7 @@ public static class WebApplicationExtensions
 
             if (!app.Environment.IsDevelopment())
             {
-                // CSP for Blazor Server: allow self + inline styles (MudBlazor) + wss for SignalR
+                // CSP for Blazor Server: allow self + inline scripts/styles (Blazor, MudBlazor) + wss for SignalR
                 headers["Content-Security-Policy"] =
                     "default-src 'self'; " +
                     "script-src 'self' 'unsafe-inline'; " +
@@ -116,8 +116,12 @@ public static class WebApplicationExtensions
         app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
-        // Antiforgery removed — Blazor Server uses SignalR (not HTML forms),
-        // and UseAntiforgery() breaks JWT Bearer clients on POST/PUT/DELETE.
+
+        // Required for Blazor Server interactive rendering. Does NOT blanket-enforce
+        // on Minimal API endpoints that use [FromBody] JSON — only on endpoints using
+        // [FromForm] or Razor Component form handling. API endpoints designed for
+        // external (JWT Bearer) or anonymous consumers explicitly call .DisableAntiforgery().
+        app.UseAntiforgery();
     }
 
     // ── Endpoint mapping ────────────────────────────────────────────────────
@@ -127,7 +131,7 @@ public static class WebApplicationExtensions
     /// </summary>
     public static void MapAssetHubEndpoints(this WebApplication app)
     {
-        // Build stamp (authenticated, redacts environment name)
+        // Build stamp (authenticated, excludes environment name from response)
         app.MapGet("/__build", () =>
             Results.Json(new
             {

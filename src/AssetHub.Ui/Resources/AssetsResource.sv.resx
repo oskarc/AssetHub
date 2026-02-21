@@ -34,6 +34,8 @@
   <data name="PageTitle" xml:space="preserve"><value>Tillgångar</value></data>
   <data name="SelectCollection" xml:space="preserve"><value>Välj en samling</value></data>
   <data name="SelectCollectionDesc" xml:space="preserve"><value>Välj en samling från sidofältet för att visa och hantera dina tillgångar, eller skapa en ny samling för att komma igång.</value></data>
+  <data name="SearchCollectionsPlaceholder" xml:space="preserve"><value>Sök samlingar...</value></data>
+  <data name="NoCollectionsFound" xml:space="preserve"><value>Inga samlingar hittades. Försök justera din sökning eller skapa en ny samling.</value></data>
   <data name="SearchPlaceholder" xml:space="preserve"><value>Sök tillgångar...</value></data>
   <data name="ShareCollection" xml:space="preserve"><value>Dela samling</value></data>
   <data name="LoadingAssets" xml:space="preserve"><value>Laddar tillgångar...</value></data>

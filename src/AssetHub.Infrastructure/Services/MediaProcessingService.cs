@@ -29,12 +29,12 @@ public class MediaProcessingService(
     {
         string jobId;
         
-        if (assetType == "image")
+        if (assetType == Constants.AssetTypeFilters.Image)
         {
             logger.LogInformation("Scheduling image processing for asset {AssetId}", assetId);
             jobId = backgroundJobClient.Enqueue(() => ProcessImageAsync(assetId, originalObjectKey, CancellationToken.None));
         }
-        else if (assetType == "video")
+        else if (assetType == Constants.AssetTypeFilters.Video)
         {
             logger.LogInformation("Scheduling video processing for asset {AssetId}", assetId);
             jobId = backgroundJobClient.Enqueue(() => ProcessVideoAsync(assetId, originalObjectKey, CancellationToken.None));
@@ -200,7 +200,9 @@ public class MediaProcessingService(
             return (true, "completed", null);
         }
 
-        // Hangfire job tracking would be implemented here
+        // Actual Hangfire job status tracking is not yet implemented.
+        // The asset's status (Ready / Failed) is updated by the job itself;
+        // callers should poll the asset record instead.
         return (false, "processing", null);
     }
 

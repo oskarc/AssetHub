@@ -34,6 +34,8 @@
   <data name="PageTitle" xml:space="preserve"><value>Assets</value></data>
   <data name="SelectCollection" xml:space="preserve"><value>Select a collection</value></data>
   <data name="SelectCollectionDesc" xml:space="preserve"><value>Choose a collection from the sidebar to view and manage your assets, or create a new collection to get started.</value></data>
+  <data name="SearchCollectionsPlaceholder" xml:space="preserve"><value>Search collections...</value></data>
+  <data name="NoCollectionsFound" xml:space="preserve"><value>No collections found. Try adjusting your search or create a new collection.</value></data>
   <data name="SearchPlaceholder" xml:space="preserve"><value>Search assets...</value></data>
   <data name="ShareCollection" xml:space="preserve"><value>Share Collection</value></data>
   <data name="LoadingAssets" xml:space="preserve"><value>Loading assets...</value></data>

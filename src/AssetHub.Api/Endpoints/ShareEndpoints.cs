@@ -13,15 +13,18 @@ public static class ShareEndpoints
         var group = app.MapGroup("/api/shares")
             .WithTags("Shares");
 
-        // Public endpoints (no auth required, rate-limited)
+        // Public endpoints (no auth required, rate-limited).
+        // POST endpoints use .DisableAntiforgery() because they are called by
+        // non-browser clients and share link consumers that cannot provide
+        // antiforgery tokens. GET endpoints are exempt from antiforgery by default.
         group.MapGet("{token}", GetSharedAsset).WithName("GetSharedAsset")
             .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
         group.MapPost("{token}/access-token", CreateAccessToken).WithName("CreateAccessToken")
-            .AllowAnonymous().RequireRateLimiting("SharePassword");
+            .AllowAnonymous().RequireRateLimiting("SharePassword").DisableAntiforgery();
         group.MapGet("{token}/download", DownloadSharedAsset).WithName("DownloadSharedAsset")
             .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
         group.MapPost("{token}/download-all", DownloadAllSharedAssets).WithName("DownloadAllSharedAssets")
-            .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
+            .AllowAnonymous().RequireRateLimiting("ShareAnonymous").DisableAntiforgery();
         group.MapGet("{token}/preview", PreviewSharedAsset).WithName("PreviewSharedAsset")
             .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
 

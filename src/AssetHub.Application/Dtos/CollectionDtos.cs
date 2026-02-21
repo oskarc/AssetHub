@@ -61,6 +61,8 @@ public record CollectionResponseDto
     public bool IsRoleInherited { get; init; }
     public DateTime CreatedAt { get; init; }
     public string CreatedByUserId { get; init; } = "";
+    /// <summary>Most recent update time (latest asset update, or collection creation time).</summary>
+    public DateTime UpdatedAt { get; init; }
     public int ChildCount { get; init; }
     public int AssetCount { get; init; }
 }

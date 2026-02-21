@@ -7,7 +7,6 @@ namespace AssetHub.Application.Helpers;
 /// <summary>
 /// Centralised mapping from <see cref="Collection"/> entities to
 /// <see cref="CollectionResponseDto"/>, including per-user role resolution.
-/// Eliminates duplicated mapping code across endpoint handlers.
 /// </summary>
 public static class CollectionMapper
 {

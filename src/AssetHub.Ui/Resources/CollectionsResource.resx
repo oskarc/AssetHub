@@ -32,7 +32,10 @@
 
   <!-- Collection Dialog -->
   <data name="CreateCollection" xml:space="preserve"><value>Create Collection</value></data>
+  <data name="EditCollection" xml:space="preserve"><value>Edit Collection</value></data>
+  <data name="UpdatedSuccess" xml:space="preserve"><value>Collection updated successfully</value></data>
   <data name="CollectionName" xml:space="preserve"><value>Collection Name</value></data>
+  <data name="Description" xml:space="preserve"><value>Description</value></data>
   <data name="DescriptionOptional" xml:space="preserve"><value>Description (optional)</value></data>
   <data name="Validation_NameRequired" xml:space="preserve"><value>Collection name is required</value></data>
   <data name="SubCollectionHint" xml:space="preserve"><value>This will be created as a sub-collection.</value></data>
@@ -46,6 +49,12 @@
   <data name="AssetCountWarning" xml:space="preserve"><value> This collection contains {0} asset(s) that will also be deleted.</value></data>
   <data name="DeletedSuccess" xml:space="preserve"><value>Collection deleted successfully</value></data>
   <data name="ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
+
+  <!-- Role Descriptions -->
+  <data name="RoleDesc_Viewer" xml:space="preserve"><value>You can view and download assets</value></data>
+  <data name="RoleDesc_Contributor" xml:space="preserve"><value>You can view, download, upload, and edit assets</value></data>
+  <data name="RoleDesc_Manager" xml:space="preserve"><value>You can manage assets, access, and delete content</value></data>
+  <data name="RoleDesc_Admin" xml:space="preserve"><value>You have full control over this collection</value></data>
 
   <!-- Manage Access Dialog -->
   <data name="ManageAccess" xml:space="preserve"><value>Manage Access</value></data>

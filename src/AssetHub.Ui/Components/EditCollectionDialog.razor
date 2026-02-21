@@ -1,0 +1,105 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<CollectionsResource> CollectionLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
+            @CollectionLoc["EditCollection"]
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudTextField @bind-Value="_name"
+                          Label="@CollectionLoc["CollectionName"]"
+                          Required="true"
+                          RequiredError="@CollectionLoc["Validation_NameRequired"]"
+                          Immediate="true"
+                          Variant="Variant.Outlined"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_description"
+                          Label="@CollectionLoc["DescriptionOptional"]"
+                          Lines="3"
+                          Variant="Variant.Outlined" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="SaveAsync"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @CommonLoc["Btn_Save"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid CollectionId { get; set; }
+
+    [Parameter]
+    public string InitialName { get; set; } = "";
+
+    [Parameter]
+    public string? InitialDescription { get; set; }
+
+    private MudForm? _form;
+    private string _name = "";
+    private string _description = "";
+    private bool _isValid;
+    private bool _isSaving;
+
+    protected override void OnParametersSet()
+    {
+        _name = InitialName;
+        _description = InitialDescription ?? "";
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task SaveAsync()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_isValid) return;
+        }
+
+        try
+        {
+            _isSaving = true;
+
+            var dto = new UpdateCollectionDto
+            {
+                Name = _name,
+                Description = string.IsNullOrWhiteSpace(_description) ? null : _description
+            };
+
+            await Api.UpdateCollectionAsync(CollectionId, dto);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "update collection");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

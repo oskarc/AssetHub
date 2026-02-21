@@ -175,7 +175,9 @@ public class CollectionService : ICollectionService
             collection.Description = dto.Description;
 
         await _collectionRepo.UpdateAsync(collection, ct);
-        await _audit.LogAsync("collection.updated", "collection", id, userId, ct: ct);
+        await _audit.LogAsync("collection.updated", "collection", id, userId,
+            new() { ["name"] = collection.Name, ["description"] = collection.Description ?? "" },
+            ct);
 
         return new MessageResponse("Collection updated");
     }
@@ -188,15 +190,18 @@ public class CollectionService : ICollectionService
         if (!canDelete)
             return ServiceError.Forbidden();
 
-        var exists = await _collectionRepo.ExistsAsync(id, ct);
-        if (!exists)
+        var collection = await _collectionRepo.GetByIdAsync(id, ct: ct);
+        if (collection == null)
             return ServiceError.NotFound("Collection not found");
 
+        var collectionName = collection.Name;
         await _deletionService.DeleteCollectionAssetsAsync(id, BucketName, ct);
         await _shareRepo.DeleteByScopeAsync("collection", id, ct);
         await _collectionRepo.DeleteAsync(id, ct);
 
-        await _audit.LogAsync("collection.deleted", "collection", id, userId, ct: ct);
+        await _audit.LogAsync("collection.deleted", "collection", id, userId,
+            new() { ["name"] = collectionName },
+            ct);
 
         return ServiceResult.Success;
     }
@@ -227,6 +232,8 @@ public class CollectionService : ICollectionService
         var exists = await _collectionRepo.ExistsAsync(id, ct);
         if (!exists)
             return ServiceError.NotFound("Collection not found");
+
+        await _audit.LogAsync("collection.download_requested", "collection", id, userId, ct: ct);
 
         return await _zipBuildService.EnqueueCollectionZipAsync(id, userId, ct);
     }

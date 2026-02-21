@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
@@ -6,6 +7,7 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace AssetHub.Tests.Services;
 
@@ -30,7 +32,8 @@ public class DashboardServiceTests : IAsyncLifetime
         _db = await _fixture.CreateDbContextAsync();
     }
 
-    private DashboardService CreateService(string userId, bool isAdmin = false)
+    private DashboardService CreateService(string userId, bool isAdmin = false,
+        Dictionary<string, string>? userNames = null)
     {
         var currentUser = new CurrentUser(userId, isAdmin);
         var collectionRepo = new CollectionRepository(_db);
@@ -38,10 +41,13 @@ public class DashboardServiceTests : IAsyncLifetime
             new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
         var shareRepo = new ShareRepository(_db);
         var authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
+        var userLookupMock = new Mock<IUserLookupService>();
+        userLookupMock.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userNames ?? new Dictionary<string, string>());
 
         return new DashboardService(
             _db, collectionRepo, authService, assetRepo, shareRepo,
-            currentUser, NullLogger<DashboardService>.Instance);
+            userLookupMock.Object, currentUser, NullLogger<DashboardService>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -193,5 +199,74 @@ public class DashboardServiceTests : IAsyncLifetime
         var assetTitles = result.Value!.RecentAssets.Select(a => a.Title).ToList();
         Assert.Contains("Visible", assetTitles);
         Assert.DoesNotContain("NotVisible", assetTitles);
+    }
+
+    // ── Username resolution ─────────────────────────────────────────
+
+    [Fact]
+    public async Task GetDashboard_ResolvesCreatorAndActorUserNames()
+    {
+        var col = TestData.CreateCollection(name: "UserNameCol");
+        var asset = TestData.CreateAsset(title: "NamedAsset", status: AssetStatus.Ready,
+            createdByUserId: AdminUser);
+        _db.Collections.Add(col);
+        _db.Assets.Add(asset);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, col.Id));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col.Id, AdminUser, AclRole.Admin));
+        _db.AuditEvents.Add(TestData.CreateAuditEvent(
+            "asset.created", Constants.ScopeTypes.Asset, asset.Id, AdminUser));
+        await _db.SaveChangesAsync();
+
+        var nameMap = new Dictionary<string, string>
+        {
+            [AdminUser] = "Admin Display Name"
+        };
+        var svc = CreateService(AdminUser, isAdmin: true, userNames: nameMap);
+        var result = await svc.GetDashboardAsync();
+
+        Assert.True(result.IsSuccess);
+        var dashboard = result.Value!;
+
+        // Asset creator username resolved
+        var recentAsset = dashboard.RecentAssets.First(a => a.Title == "NamedAsset");
+        Assert.Equal("Admin Display Name", recentAsset.CreatedByUserName);
+
+        // Activity actor username resolved
+        var activity = dashboard.RecentActivity.First();
+        Assert.Equal("Admin Display Name", activity.ActorUserName);
+    }
+
+    [Fact]
+    public async Task GetDashboard_PartialUserLookup_HandlesUnresolvedUsers()
+    {
+        var col = TestData.CreateCollection(name: "PartialCol");
+        var asset = TestData.CreateAsset(title: "PartialAsset", status: AssetStatus.Ready,
+            createdByUserId: ManagerUser);
+        _db.Collections.Add(col);
+        _db.Assets.Add(asset);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, col.Id));
+        _db.CollectionAcls.Add(TestData.CreateAcl(col.Id, AdminUser, AclRole.Admin));
+        _db.AuditEvents.Add(TestData.CreateAuditEvent(
+            "asset.created", Constants.ScopeTypes.Asset, asset.Id, ManagerUser));
+        await _db.SaveChangesAsync();
+
+        // Lookup returns no match for ManagerUser — simulates partial resolution
+        var nameMap = new Dictionary<string, string>
+        {
+            [AdminUser] = "Admin Display Name"
+        };
+        var svc = CreateService(AdminUser, isAdmin: true, userNames: nameMap);
+        var result = await svc.GetDashboardAsync();
+
+        Assert.True(result.IsSuccess);
+        var dashboard = result.Value!;
+
+        // Asset creator username not resolved — should be null
+        var recentAsset = dashboard.RecentAssets.First(a => a.Title == "PartialAsset");
+        Assert.Null(recentAsset.CreatedByUserName);
+
+        // Activity actor username not resolved — should be null
+        var activity = dashboard.RecentActivity.First();
+        Assert.Null(activity.ActorUserName);
     }
 }

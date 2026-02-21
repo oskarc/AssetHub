@@ -35,6 +35,19 @@
   <data name="Tab_ShareManagement" xml:space="preserve"><value>Share Management</value></data>
   <data name="Tab_CollectionAccess" xml:space="preserve"><value>Collection Access</value></data>
   <data name="Tab_UserManagement" xml:space="preserve"><value>User Management</value></data>
+  <data name="Tab_AuditLog" xml:space="preserve"><value>Audit Log</value></data>
+
+  <!-- Audit Log -->
+  <data name="AllAuditEvents" xml:space="preserve"><value>All Audit Events</value></data>
+  <data name="NoAuditEventsYet" xml:space="preserve"><value>No audit events yet</value></data>
+  <data name="NoAuditEventsDesc" xml:space="preserve"><value>When users perform actions, audit events will be recorded here.</value></data>
+  <data name="SearchAuditPlaceholder" xml:space="preserve"><value>Search audit events...</value></data>
+  <data name="Header_EventType" xml:space="preserve"><value>Event</value></data>
+  <data name="Header_Actor" xml:space="preserve"><value>User</value></data>
+  <data name="Header_TargetType" xml:space="preserve"><value>Target Type</value></data>
+  <data name="Header_TargetId" xml:space="preserve"><value>Target ID</value></data>
+  <data name="Header_Timestamp" xml:space="preserve"><value>Timestamp</value></data>
+  <data name="Header_Details" xml:space="preserve"><value>Details</value></data>
 
   <!-- Share Management -->
   <data name="AllSharedLinks" xml:space="preserve"><value>All Shared Links</value></data>

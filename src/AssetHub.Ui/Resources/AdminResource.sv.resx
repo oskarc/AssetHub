@@ -35,6 +35,19 @@
   <data name="Tab_ShareManagement" xml:space="preserve"><value>Delningshantering</value></data>
   <data name="Tab_CollectionAccess" xml:space="preserve"><value>Samlingsåtkomst</value></data>
   <data name="Tab_UserManagement" xml:space="preserve"><value>Användarhantering</value></data>
+  <data name="Tab_AuditLog" xml:space="preserve"><value>Granskningslogg</value></data>
+
+  <!-- Audit Log -->
+  <data name="AllAuditEvents" xml:space="preserve"><value>Alla granskningshändelser</value></data>
+  <data name="NoAuditEventsYet" xml:space="preserve"><value>Inga granskningshändelser ännu</value></data>
+  <data name="NoAuditEventsDesc" xml:space="preserve"><value>När användare utför åtgärder registreras granskningshändelser här.</value></data>
+  <data name="SearchAuditPlaceholder" xml:space="preserve"><value>Sök granskningshändelser...</value></data>
+  <data name="Header_EventType" xml:space="preserve"><value>Händelse</value></data>
+  <data name="Header_Actor" xml:space="preserve"><value>Användare</value></data>
+  <data name="Header_TargetType" xml:space="preserve"><value>Måltyp</value></data>
+  <data name="Header_TargetId" xml:space="preserve"><value>Mål-ID</value></data>
+  <data name="Header_Timestamp" xml:space="preserve"><value>Tidsstämpel</value></data>
+  <data name="Header_Details" xml:space="preserve"><value>Detaljer</value></data>
 
   <!-- Share Management -->
   <data name="AllSharedLinks" xml:space="preserve"><value>Alla delade länkar</value></data>

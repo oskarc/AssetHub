@@ -15,7 +15,7 @@ public interface IMediaProcessingService
     Task ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default);
 
     /// <summary>
-    /// Process a video: extract poster frame and create poster/preview versions.
+    /// Process a video: extract a poster frame thumbnail.
     /// Called by background job processor.
     /// </summary>
     Task ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default);

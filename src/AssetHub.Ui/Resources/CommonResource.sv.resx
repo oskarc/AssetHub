@@ -139,6 +139,7 @@
   <data name="Text_SignedIn" xml:space="preserve"><value>Inloggad</value></data>
   <data name="Text_NoTags" xml:space="preserve"><value>Inga taggar</value></data>
   <data name="Text_Processing" xml:space="preserve"><value>Bearbetar</value></data>
+  <data name="Text_Queued" xml:space="preserve"><value>I kö</value></data>
   <data name="Text_Remaining" xml:space="preserve"><value>({0} kvar)</value></data>
   <data name="Text_ShowingOfAssets" xml:space="preserve"><value>Visar {0} av {1} tillgångar</value></data>
   <data name="Text_CountAssets" xml:space="preserve"><value>{0} tillgångar</value></data>
@@ -277,6 +278,8 @@
   <data name="Dashboard_TotalUsers" xml:space="preserve"><value>Användare</value></data>
   <data name="Dashboard_SharesActive" xml:space="preserve"><value>Aktiva / Totala delningar</value></data>
   <data name="Dashboard_NoRecentAssets" xml:space="preserve"><value>Inga senaste tillgångar</value></data>
+  <data name="Dashboard_AddedBy" xml:space="preserve"><value>Av {0}</value></data>
+  <data name="Dashboard_Updated" xml:space="preserve"><value>Uppdaterad</value></data>
   <data name="Dashboard_NoCollections" xml:space="preserve"><value>Inga samlingar tillgängliga</value></data>
   <data name="Dashboard_NoShares" xml:space="preserve"><value>Inga aktiva delningar</value></data>
   <data name="Dashboard_NoActivity" xml:space="preserve"><value>Ingen senaste aktivitet</value></data>

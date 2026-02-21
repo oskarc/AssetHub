@@ -84,6 +84,10 @@
                             <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
                         </MudTooltip>
                     }
+                    else if (upload.Status == UploadStatus.Queued)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">@CommonLoc["Text_Queued"]</MudChip>
+                    }
                 </MudStack>
             }
         </MudStack>
@@ -151,6 +155,8 @@
         var fileMetadata = await _jsModule.InvokeAsync<FileMetadata[]>(
             "getFileMetadata", _inputFile.Element);
 
+        // Pre-populate all uploads with Queued status so user sees them immediately
+        var uploadItems = new List<UploadItem>();
         for (var i = 0; i < files.Count; i++)
         {
             var file = files[i];
@@ -161,10 +167,20 @@
                 FileName = file.Name,
                 Size = metadata?.Size ?? file.Size,
                 ContentType = metadata?.Type ?? file.ContentType,
-                Status = UploadStatus.Uploading,
+                Status = UploadStatus.Queued,
                 FileIndex = i
             };
-            _uploads.Insert(0, upload);
+            uploadItems.Add(upload);
+            _uploads.Insert(i, upload);
+        }
+        StateHasChanged();
+
+        // Process each file sequentially
+        for (var i = 0; i < files.Count; i++)
+        {
+            var file = files[i];
+            var upload = uploadItems[i];
+            upload.Status = UploadStatus.Uploading;
             StateHasChanged();
 
             try
@@ -213,7 +229,8 @@
                 upload.Message = confirmResult.Message;
                 StateHasChanged();
 
-                // After a short delay, mark as completed (in production, would poll for status)
+                // Allow backend processing to start, then mark as completed in the UI.
+                // The actual media processing continues asynchronously via Hangfire.
                 await Task.Delay(2000);
                 upload.Status = UploadStatus.Completed;
             }
@@ -244,6 +261,7 @@
             UploadStatus.Processing => Color.Info,
             UploadStatus.Completed => Color.Success,
             UploadStatus.Failed => Color.Error,
+            UploadStatus.Queued => Color.Default,
             _ => Color.Default
         };
     }
@@ -271,6 +289,7 @@
 
     private enum UploadStatus
     {
+        Queued,
         Uploading,
         Processing,
         Completed,

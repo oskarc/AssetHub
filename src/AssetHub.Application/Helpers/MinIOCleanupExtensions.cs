@@ -5,7 +5,7 @@ namespace AssetHub.Application.Helpers;
 
 /// <summary>
 /// Extension methods for cleaning up MinIO storage objects associated with assets.
-/// Centralises the rendition-aware deletion logic to avoid duplication across endpoint files.
+/// Centralises the rendition-aware deletion logic used by the asset deletion service.
 /// </summary>
 public static class MinIOCleanupExtensions
 {

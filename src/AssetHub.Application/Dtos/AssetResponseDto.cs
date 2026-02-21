@@ -18,6 +18,7 @@ public class AssetResponseDto
     public string? PosterObjectKey { get; set; }
     public required DateTime CreatedAt { get; set; }
     public required string CreatedByUserId { get; set; }
+    public string? CreatedByUserName { get; set; }
     public required DateTime UpdatedAt { get; set; }
     
     /// <summary>

@@ -39,4 +39,9 @@ public interface IAdminService
 
     /// <summary>Delete a user from Keycloak and clean up app data.</summary>
     Task<ServiceResult<DeleteUserResponse>> DeleteUserAsync(string userId, CancellationToken ct);
+
+    // ── Audit Log ────────────────────────────────────────────────────────────
+
+    /// <summary>Get all audit events with resolved actor usernames.</summary>
+    Task<ServiceResult<List<AuditEventDto>>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default);
 }

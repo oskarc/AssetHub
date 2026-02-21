@@ -25,6 +25,7 @@ public class DashboardService : IDashboardService
     private readonly IAssetRepository _assetRepo;
     private readonly IShareRepository _shareRepo;
     private readonly CurrentUser _currentUser;
+    private readonly IUserLookupService _userLookup;
     private readonly ILogger<DashboardService> _logger;
 
     public DashboardService(
@@ -33,6 +34,7 @@ public class DashboardService : IDashboardService
         ICollectionAuthorizationService authService,
         IAssetRepository assetRepo,
         IShareRepository shareRepo,
+        IUserLookupService userLookup,
         CurrentUser currentUser,
         ILogger<DashboardService> logger)
     {
@@ -41,6 +43,7 @@ public class DashboardService : IDashboardService
         _authService = authService;
         _assetRepo = assetRepo;
         _shareRepo = shareRepo;
+        _userLookup = userLookup;
         _currentUser = currentUser;
         _logger = logger;
     }
@@ -110,7 +113,7 @@ public class DashboardService : IDashboardService
         {
             // Admin sees all recent assets
             var (items, _) = await _assetRepo.SearchAllAsync(
-                sortBy: "created_desc",
+                sortBy: Constants.SortBy.CreatedDesc,
                 take: RecentAssetsLimit,
                 includeAllStatuses: false,
                 cancellationToken: ct);
@@ -126,7 +129,7 @@ public class DashboardService : IDashboardService
                 return [];
 
             var (items, _) = await _assetRepo.SearchAllAsync(
-                sortBy: "created_desc",
+                sortBy: Constants.SortBy.CreatedDesc,
                 take: RecentAssetsLimit,
                 allowedCollectionIds: collectionIds,
                 includeAllStatuses: false,
@@ -134,7 +137,12 @@ public class DashboardService : IDashboardService
             assets = items;
         }
 
-        return assets.Select(a => AssetMapper.ToDto(a)).ToList();
+        // Resolve creator usernames
+        var userIds = assets.Select(a => a.CreatedByUserId).Where(id => !string.IsNullOrEmpty(id)).Distinct();
+        var userNames = await _userLookup.GetUserNamesAsync(userIds, ct);
+
+        return assets.Select(a => AssetMapper.ToDto(a,
+            createdByUserName: userNames.GetValueOrDefault(a.CreatedByUserId))).ToList();
     }
 
     private async Task<List<CollectionResponseDto>> GetAccessibleCollectionsAsync(string userId, CancellationToken ct)
@@ -152,7 +160,26 @@ public class DashboardService : IDashboardService
             .Take(20)
             .ToList();
 
-        return await CollectionMapper.ToDtoListAsync(entryPoints, userId, _authService, ct);
+        var dtos = await CollectionMapper.ToDtoListAsync(entryPoints, userId, _authService, ct);
+
+        // Compute latest update time per collection from assets
+        var collectionIds = entryPoints.Select(c => c.Id).ToList();
+        var latestUpdates = await _db.AssetCollections
+            .AsNoTracking()
+            .Where(ac => collectionIds.Contains(ac.CollectionId))
+            .GroupBy(ac => ac.CollectionId)
+            .Select(g => new { CollectionId = g.Key, LatestUpdate = g.Max(ac => ac.Asset.UpdatedAt) })
+            .ToDictionaryAsync(x => x.CollectionId, x => x.LatestUpdate, ct);
+
+        // Enrich DTOs with UpdatedAt and sort by latest updated first
+        dtos = dtos.Select(d => d with
+        {
+            UpdatedAt = latestUpdates.GetValueOrDefault(d.Id, d.CreatedAt)
+        })
+        .OrderByDescending(d => d.UpdatedAt)
+        .ToList();
+
+        return dtos;
     }
 
     private async Task<List<DashboardShareDto>> GetRecentSharesAsync(string userId, bool isAdmin, CancellationToken ct)
@@ -216,12 +243,17 @@ public class DashboardService : IDashboardService
             .Take(RecentActivityLimit)
             .ToListAsync(ct);
 
+        // Resolve actor usernames
+        var actorIds = events.Select(e => e.ActorUserId).Where(id => !string.IsNullOrEmpty(id)).Distinct();
+        var actorNames = await _userLookup.GetUserNamesAsync(actorIds!, ct);
+
         return events.Select(e => new AuditEventDto
         {
             EventType = e.EventType,
             TargetType = e.TargetType,
             TargetId = e.TargetId,
             ActorUserId = e.ActorUserId,
+            ActorUserName = e.ActorUserId != null ? actorNames.GetValueOrDefault(e.ActorUserId) : null,
             CreatedAt = e.CreatedAt,
             Details = e.DetailsJson
         }).ToList();

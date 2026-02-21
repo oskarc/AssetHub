@@ -4,7 +4,7 @@ namespace AssetHub.Application.Helpers;
 
 /// <summary>
 /// Centralized storage configuration access.
-/// Provides consistent bucket name resolution across all endpoint handlers.
+/// Provides consistent bucket name resolution across all services.
 /// </summary>
 public static class StorageConfig
 {

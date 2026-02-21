@@ -29,7 +29,7 @@ public interface IAssetRepository
         Guid collectionId,
         string? query = null,
         string? assetType = null,
-        string sortBy = "created_desc",
+        string sortBy = Constants.SortBy.CreatedDesc,
         int skip = 0,
         int take = 50,
         CancellationToken cancellationToken = default);
@@ -41,7 +41,7 @@ public interface IAssetRepository
     Task<(List<Asset> Assets, int Total)> SearchAllAsync(
         string? query = null,
         string? assetType = null,
-        string sortBy = "created_desc",
+        string sortBy = Constants.SortBy.CreatedDesc,
         int skip = 0,
         int take = 50,
         List<Guid>? allowedCollectionIds = null,

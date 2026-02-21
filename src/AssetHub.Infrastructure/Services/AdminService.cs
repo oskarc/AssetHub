@@ -4,8 +4,10 @@ using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
+using AssetHub.Infrastructure.Data;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -30,6 +32,7 @@ public class AdminService : IAdminService
     private readonly CurrentUser _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<AdminService> _logger;
+    private readonly AssetHubDbContext _db;
 
     public AdminService(
         IShareRepository shareRepo,
@@ -45,7 +48,8 @@ public class AdminService : IAdminService
         IConfiguration configuration,
         CurrentUser currentUser,
         IHttpContextAccessor httpContextAccessor,
-        ILogger<AdminService> logger)
+        ILogger<AdminService> logger,
+        AssetHubDbContext db)
     {
         _shareRepo = shareRepo;
         _aclRepo = aclRepo;
@@ -61,6 +65,7 @@ public class AdminService : IAdminService
         _currentUser = currentUser;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _db = db;
     }
 
     private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
@@ -443,5 +448,34 @@ public class AdminService : IAdminService
             _logger.LogError(ex, "Unexpected error deleting user '{UserId}'", userId);
             return ServiceError.Server("An unexpected error occurred");
         }
+    }
+
+    // ── Audit Log ───────────────────────────────────────────────────────────────────
+
+    public async Task<ServiceResult<List<AuditEventDto>>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default)
+    {
+        var events = await _db.AuditEvents
+            .AsNoTracking()
+            .OrderByDescending(e => e.CreatedAt)
+            .Take(take)
+            .ToListAsync(ct);
+
+        // Resolve actor usernames in batch
+        var actorIds = events
+            .Select(e => e.ActorUserId)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct();
+        var actorNames = await _userLookup.GetUserNamesAsync(actorIds!, ct);
+
+        return events.Select(e => new AuditEventDto
+        {
+            EventType = e.EventType,
+            TargetType = e.TargetType,
+            TargetId = e.TargetId,
+            ActorUserId = e.ActorUserId,
+            ActorUserName = e.ActorUserId != null ? actorNames.GetValueOrDefault(e.ActorUserId) : null,
+            CreatedAt = e.CreatedAt,
+            Details = e.DetailsJson
+        }).ToList();
     }
 }

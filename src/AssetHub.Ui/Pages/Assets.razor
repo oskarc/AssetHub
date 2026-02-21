@@ -4,6 +4,7 @@
 @implements IAsyncDisposable
 
 @using AssetHub.Application.Dtos
+@using AssetHub.Application.Helpers
 @using AssetHub.Ui.Components
 @using AssetHub.Ui.Services
 @using Microsoft.AspNetCore.Authorization
@@ -15,113 +16,204 @@
 @inject IJSRuntime JS
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<CollectionsResource> CollectionLoc
 
 <PageTitle>@AssetLoc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
-    <MudGrid>
-        <!-- Left Sidebar: Collection Tree -->
-        <MudItem xs="12" md="3" lg="2">
-            <MudPaper Class="pa-3" Elevation="1">
-                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
-                    <MudText Typo="Typo.h6">@CommonLoc["Label_Collections"]</MudText>
-                    <MudStack Row="true" Spacing="1">
-                        @if (_selectedCollectionId.HasValue)
-                        {
-                            <MudIconButton Icon="@Icons.Material.Filled.Close" 
-                                           Size="Size.Small"
-                                           OnClick="DeselectCollection"
-                                           title="@CommonLoc["Btn_Close"]" />
-                        }
-                        <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder" 
-                                       Size="Size.Small"
-                                       OnClick="CreateCollectionAsync"
-                                       title="@AssetLoc["CreateCollection"]" />
-                    </MudStack>
-                </MudStack>
-                
-                <div class="collection-tree-scroll">
-                    <CollectionTree @ref="_collectionTree" 
-                                    OnCollectionSelected="OnCollectionSelected"
-                                    SelectedCollectionId="_selectedCollectionId" />
-                </div>
-            </MudPaper>
-        </MudItem>
+        <!-- Header with breadcrumb and actions -->
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0">
+                <ItemTemplate Context="item">
+                    <MudLink OnClick="@(() => OnBreadcrumbClick(item))" Color="Color.Primary" Style="cursor: pointer;">@item.Text</MudLink>
+                </ItemTemplate>
+            </MudBreadcrumbs>
 
-        <!-- Main Content -->
-        <MudItem xs="12" md="9" lg="10">
-            <!-- Header with breadcrumb and actions -->
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
-                <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0">
-                    <ItemTemplate Context="item">
-                        <MudLink Href="@item.Href" Color="Color.Primary">@item.Text</MudLink>
-                    </ItemTemplate>
-                </MudBreadcrumbs>
-
-                @if (_selectedCollectionId.HasValue)
-                {
-                    <MudStack Row="true" Spacing="2">
-                        <MudButton Variant="Variant.Outlined"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Download"
-                                   OnClick="DownloadAllAsync"
-                                   Disabled="_isDownloading">
-                            @if (_isDownloading)
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                                @_downloadStatusText
-                            }
-                            else
-                            {
-                                @CommonLoc["Btn_DownloadAll"]
-                            }
-                        </MudButton>
-                        @if (CanShare)
-                        {
-                            <MudButton Variant="Variant.Outlined"
-                                       Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.Share"
-                                       OnClick="ShareCollectionAsync">
-                                @AssetLoc["ShareCollection"]
-                            </MudButton>
-                        }
-                        @if (CanManageAccess)
-                        {
-                            <MudButton Variant="Variant.Outlined"
-                                       Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.Security"
-                                       OnClick="ManageAccessAsync">
-                                @AssetLoc["ManageAccess"]
-                            </MudButton>
-                        }
-                        <MudButton Variant="Variant.Outlined"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Refresh"
-                                   OnClick="RefreshAsync">
-                            @CommonLoc["Btn_Refresh"]
-                        </MudButton>
-                    </MudStack>
-                }
-            </MudStack>
-
-            @if (!_selectedCollectionId.HasValue)
+            @if (_selectedCollectionId.HasValue)
             {
-                <EmptyState Title="@AssetLoc["SelectCollection"]"
-                            Description="@AssetLoc["SelectCollectionDesc"]"
-                            Icon="@Icons.Material.Filled.FolderOpen" />
+                <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               OnClick="DownloadAllAsync"
+                               Disabled="_isDownloading">
+                        @if (_isDownloading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            @_downloadStatusText
+                        }
+                        else
+                        {
+                            @CommonLoc["Btn_DownloadAll"]
+                        }
+                    </MudButton>
+                    @if (CanShare)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Share"
+                                   OnClick="ShareCollectionAsync">
+                            @AssetLoc["ShareCollection"]
+                        </MudButton>
+                    }
+                    @if (CanManageAccess)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Security"
+                                   OnClick="ManageAccessAsync">
+                            @AssetLoc["ManageAccess"]
+                        </MudButton>
+                    }
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="RefreshAsync">
+                        @CommonLoc["Btn_Refresh"]
+                    </MudButton>
+                </MudStack>
             }
             else
             {
-                <!-- Upload Area (Contributors and above can upload) -->
-                @if (CanUpload)
-                {
-                    <AssetUpload CollectionId="@_selectedCollectionId" 
-                                 OnUploadComplete="@OnUploadComplete" />
-                }
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.CreateNewFolder"
+                           OnClick="CreateCollectionAsync">
+                    @AssetLoc["CreateCollection"]
+                </MudButton>
+            }
+        </MudStack>
 
-                <!-- Search and Filter -->
-                <MudPaper Class="pa-3 my-3" Elevation="0" Outlined="true">
-                    <MudGrid>
+        @if (!_selectedCollectionId.HasValue)
+        {
+            <MudText Typo="Typo.h6" Class="mb-1">@AssetLoc["SelectCollection"]</MudText>
+            <MudText Typo="Typo.body2" Class="mb-3" Style="opacity: 0.7;">@AssetLoc["SelectCollectionDesc"]</MudText>
+
+            <MudTextField @bind-Value="_collectionSearchString"
+                          Placeholder="@AssetLoc["SearchCollectionsPlaceholder"]"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          Class="mb-3" />
+
+            @if (_allCollectionsLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (_allCollections == null || !FilteredCollections.Any())
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                    @AssetLoc["NoCollectionsFound"]
+                </MudAlert>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var collection in FilteredCollections)
+                    {
+                        <MudItem xs="6" sm="4" md="3" lg="2">
+                            <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="() => OnCollectionSelected(collection.Id)">
+                                <MudCardContent>
+                                    <div class="d-flex align-center gap-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" />
+                                        <MudText Typo="Typo.subtitle2" Class="text-truncate" Style="flex: 1;">@collection.Name</MudText>
+                                        <div onclick="event.stopPropagation()" class="d-flex">
+                                            @if (RolePermissions.CanEdit(collection.UserRole))
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                               Size="Size.Small"
+                                                               Color="Color.Default"
+                                                               OnClick="@(() => EditCollectionAsync(collection))" />
+                                            }
+                                            @if (RolePermissions.CanDelete(collection.UserRole))
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Size="Size.Small"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => DeleteCollectionAsync(collection))" />
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-center justify-space-between mt-2">
+                                        <div class="d-flex align-center gap-1">
+                                            <MudText Typo="Typo.caption" Style="opacity: 0.6;">@CollectionLoc["YourRole"]:</MudText>
+                                            <MudChip T="string" Size="Size.Small"
+                                                     Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
+                                                @collection.UserRole
+                                            </MudChip>
+                                        </div>
+                                        @if (collection.AssetCount > 0)
+                                        {
+                                            <MudText Typo="Typo.caption" Style="opacity: 0.6;">@string.Format(CommonLoc["Text_CountAssets"], collection.AssetCount)</MudText>
+                                        }
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        }
+        else
+        {
+            <!-- Collection Info Banner -->
+            @if (_selectedCollection != null)
+            {
+                <MudPaper Class="pa-4 mb-3" Elevation="0" Outlined="true">
+                    <div class="d-flex justify-space-between align-start">
+                        <div style="flex: 1; min-width: 0;">
+                            @if (!string.IsNullOrWhiteSpace(_selectedCollection.Description))
+                            {
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;" Class="mb-1">@CollectionLoc["Description"]:</MudText>
+                                <MudText Typo="Typo.body2" Class="mb-3" Style="opacity: 0.85;">@_selectedCollection.Description</MudText>
+                            }
+                            <div class="d-flex align-center gap-2 flex-wrap">
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@CollectionLoc["YourRole"]:</MudText>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@AssetDisplayHelpers.GetRoleColor(_selectedCollection.UserRole)">
+                                    @_selectedCollection.UserRole
+                                </MudChip>
+                                <MudText Typo="Typo.caption" Style="opacity: 0.6;">— @GetRoleDescription(_selectedCollection.UserRole)</MudText>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 ml-3">
+                            @if (RolePermissions.CanEdit(CurrentUserRole))
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                           Size="Size.Small"
+                                           Color="Color.Default"
+                                           StartIcon="@Icons.Material.Filled.Edit"
+                                           OnClick="@(() => EditCollectionAsync(_selectedCollection))">
+                                    @CollectionLoc["EditCollection"]
+                                </MudButton>
+                            }
+                            @if (RolePermissions.CanDelete(CurrentUserRole))
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           StartIcon="@Icons.Material.Filled.Delete"
+                                           OnClick="@(() => DeleteCollectionAsync(_selectedCollection))">
+                                    @CollectionLoc["DeleteCollection"]
+                                </MudButton>
+                            }
+                        </div>
+                    </div>
+                </MudPaper>
+            }
+
+            <!-- Upload Area (Contributors and above can upload) -->
+            @if (CanUpload)
+            {
+                <AssetUpload CollectionId="@_selectedCollectionId" 
+                             OnUploadComplete="@OnUploadComplete" />
+            }
+
+            <!-- Search and Filter -->
+            <MudPaper Class="pa-3 my-3" Elevation="0" Outlined="true">
+                <MudGrid>
                         <MudItem xs="12" sm="6" md="4">
                             <MudTextField @bind-Value="_searchQuery"
                                           Placeholder="@AssetLoc["SearchPlaceholder"]"
@@ -139,9 +231,9 @@
                                        Variant="Variant.Outlined"
                                        Margin="Margin.Dense">
                                 <MudSelectItem Value="@((string?)null)">@CommonLoc["Filter_AllTypes"]</MudSelectItem>
-                                <MudSelectItem Value="@("image")">@CommonLoc["Filter_Images"]</MudSelectItem>
-                                <MudSelectItem Value="@("video")">@CommonLoc["Filter_Videos"]</MudSelectItem>
-                                <MudSelectItem Value="@("document")">@CommonLoc["Filter_Documents"]</MudSelectItem>
+                                <MudSelectItem Value="@(Constants.AssetTypeFilters.Image)">@CommonLoc["Filter_Images"]</MudSelectItem>
+                                <MudSelectItem Value="@(Constants.AssetTypeFilters.Video)">@CommonLoc["Filter_Videos"]</MudSelectItem>
+                                <MudSelectItem Value="@(Constants.AssetTypeFilters.Document)">@CommonLoc["Filter_Documents"]</MudSelectItem>
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="6" md="3">
@@ -149,44 +241,41 @@
                                        Label="@CommonLoc["Label_SortBy"]"
                                        Variant="Variant.Outlined"
                                        Margin="Margin.Dense">
-                                <MudSelectItem Value="@("created_desc")">@CommonLoc["Sort_NewestFirst"]</MudSelectItem>
-                                <MudSelectItem Value="@("created_asc")">@CommonLoc["Sort_OldestFirst"]</MudSelectItem>
-                                <MudSelectItem Value="@("title_asc")">@CommonLoc["Sort_TitleAZ"]</MudSelectItem>
-                                <MudSelectItem Value="@("size_desc")">@CommonLoc["Sort_LargestFirst"]</MudSelectItem>
+                                <MudSelectItem Value="@(Constants.SortBy.CreatedDesc)">@CommonLoc["Sort_NewestFirst"]</MudSelectItem>
+                                <MudSelectItem Value="@(Constants.SortBy.CreatedAsc)">@CommonLoc["Sort_OldestFirst"]</MudSelectItem>
+                                <MudSelectItem Value="@(Constants.SortBy.TitleAsc)">@CommonLoc["Sort_TitleAZ"]</MudSelectItem>
+                                <MudSelectItem Value="@(Constants.SortBy.SizeDesc)">@CommonLoc["Sort_LargestFirst"]</MudSelectItem>
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="6" md="2">
                             <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
                                 <MudIconButton Icon="@Icons.Material.Filled.GridView" 
-                                               Color="@(_viewMode == "grid" ? Color.Primary : Color.Default)"
-                                               OnClick="@(() => _viewMode = "grid")" />
+                                               Color="@(_viewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
+                                               OnClick="@(() => _viewMode = Constants.ViewModes.Grid)" />
                                 <MudIconButton Icon="@Icons.Material.Filled.ViewList"
-                                               Color="@(_viewMode == "list" ? Color.Primary : Color.Default)"
-                                               OnClick="@(() => _viewMode = "list")" />
-                            </MudButtonGroup>
-                        </MudItem>
-                    </MudGrid>
-                </MudPaper>
+                                               Color="@(_viewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
+                                               OnClick="@(() => _viewMode = Constants.ViewModes.List)" />
+                    </MudButtonGroup>
+                </MudItem>
+            </MudGrid>
+            </MudPaper>
 
-                <!-- Asset Grid -->
-                <AssetGrid @ref="_assetGrid"
+            <!-- Asset Grid -->
+            <AssetGrid @ref="_assetGrid"
                            CollectionId="@_selectedCollectionId"
                            SearchQuery="@_searchQuery"
                            FilterType="@_filterType"
                            SortBy="@_sortBy"
                            ViewMode="@_viewMode"
-                           UserRole="@(_selectedCollection?.UserRole ?? "viewer")"
+                           UserRole="@(_selectedCollection?.UserRole ?? RoleHierarchy.Roles.Viewer)"
                            OnAssetsChanged="@OnAssetsChanged" />
-            }
-        </MudItem>
-    </MudGrid>
+        }
 </MudContainer>
 
 @code {
     [SupplyParameterFromQuery(Name = "collection")]
     public Guid? CollectionQueryParam { get; set; }
 
-    private CollectionTree? _collectionTree;
     private AssetGrid? _assetGrid;
 
     private Guid? _selectedCollectionId;
@@ -195,11 +284,23 @@
 
     private string _searchQuery = "";
     private string? _filterType;
-    private string _sortBy = "created_desc";
-    private string _viewMode = "grid";
+    private string _sortBy = Constants.SortBy.CreatedDesc;
+    private string _viewMode = Constants.ViewModes.Grid;
+
+    // Collection browser state
+    private List<CollectionResponseDto>? _allCollections;
+    private bool _allCollectionsLoading = true;
+    private string _collectionSearchString = "";
+
+    private IEnumerable<CollectionResponseDto> FilteredCollections =>
+        (_allCollections ?? Enumerable.Empty<CollectionResponseDto>())
+        .Where(c => string.IsNullOrWhiteSpace(_collectionSearchString)
+            || c.Name.Contains(_collectionSearchString, StringComparison.OrdinalIgnoreCase)
+            || (c.Description?.Contains(_collectionSearchString, StringComparison.OrdinalIgnoreCase) ?? false))
+        .OrderBy(c => c.Name, new NaturalSortComparer());
     
     // Role-based UI visibility using centralized permissions
-    private string CurrentUserRole => _selectedCollection?.UserRole ?? "viewer";
+    private string CurrentUserRole => _selectedCollection?.UserRole ?? RoleHierarchy.Roles.Viewer;
     private bool CanUpload => RolePermissions.CanUpload(CurrentUserRole);
     private bool CanShare => RolePermissions.CanShare(CurrentUserRole);
     private bool CanManageAccess => RolePermissions.CanManageAccess(CurrentUserRole);
@@ -208,9 +309,32 @@
     {
         _breadcrumbs = new() { new(CommonLoc["Nav_Collections"].Value, "/collections") };
 
+        var loadCollections = LoadAllCollections();
+
         if (CollectionQueryParam.HasValue)
         {
-            await OnCollectionSelected(CollectionQueryParam.Value);
+            await Task.WhenAll(loadCollections, OnCollectionSelected(CollectionQueryParam.Value));
+        }
+        else
+        {
+            await loadCollections;
+        }
+    }
+
+    private async Task LoadAllCollections()
+    {
+        try
+        {
+            _allCollectionsLoading = true;
+            _allCollections = await Api.GetCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+        }
+        finally
+        {
+            _allCollectionsLoading = false;
         }
     }
 
@@ -249,6 +373,15 @@
     private async Task DeselectCollection()
     {
         await OnCollectionSelected(null);
+        Nav.NavigateTo("/collections", replace: true);
+    }
+
+    private async Task OnBreadcrumbClick(BreadcrumbItem item)
+    {
+        if (item.Href == "/collections")
+        {
+            await DeselectCollection();
+        }
     }
 
     private async Task CreateCollectionAsync()
@@ -264,11 +397,69 @@
 
         if (result != null && !result.Canceled)
         {
-            if (_collectionTree != null)
-            {
-                await _collectionTree.RefreshAsync();
-            }
+            await LoadAllCollections();
             Feedback.ShowSuccess(AssetLoc["CollectionCreatedSuccess"].Value);
+        }
+    }
+
+    private async Task EditCollectionAsync(CollectionResponseDto collection)
+    {
+        var parameters = new DialogParameters<EditCollectionDialog>
+        {
+            { x => x.CollectionId, collection.Id },
+            { x => x.InitialName, collection.Name },
+            { x => x.InitialDescription, collection.Description }
+        };
+
+        var dialog = await DialogService.ShowAsync<EditCollectionDialog>(CollectionLoc["EditCollection"], parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadAllCollections();
+
+            // Refresh the selected collection details if we edited the current one
+            if (_selectedCollectionId == collection.Id)
+            {
+                await OnCollectionSelected(collection.Id);
+            }
+
+            Feedback.ShowSuccess(CollectionLoc["UpdatedSuccess"].Value);
+        }
+    }
+
+    private async Task DeleteCollectionAsync(CollectionResponseDto collection)
+    {
+        var assetWarning = collection.AssetCount > 0
+            ? string.Format(CollectionLoc["AssetCountWarning"], collection.AssetCount)
+            : "";
+        var message = string.Format(CollectionLoc["ConfirmDeleteCollection"], collection.Name, assetWarning);
+
+        var confirmed = await DialogService.ShowMessageBox(
+            CollectionLoc["DeleteCollection"],
+            message,
+            yesText: CommonLoc["Btn_Delete"],
+            cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed == true)
+        {
+            try
+            {
+                await Api.DeleteCollectionAsync(collection.Id);
+
+                // If we deleted the currently selected collection, go back to grid
+                if (_selectedCollectionId == collection.Id)
+                {
+                    await DeselectCollection();
+                }
+
+                await LoadAllCollections();
+                Feedback.ShowSuccess(CollectionLoc["DeletedSuccess"].Value);
+            }
+            catch (Exception ex)
+            {
+                Feedback.HandleError(ex, "delete collection");
+            }
         }
     }
 
@@ -281,7 +472,7 @@
         var createParams = new DialogParameters<CreateShareDialog>
         {
             { x => x.ScopeId, _selectedCollectionId.Value },
-            { x => x.ScopeType, "collection" },
+            { x => x.ScopeType, Constants.ScopeTypes.Collection },
             { x => x.ContentName, contentName }
         };
 
@@ -309,7 +500,7 @@
         {
             { x => x.CollectionId, _selectedCollectionId.Value },
             { x => x.CollectionName, _selectedCollection.Name },
-            { x => x.CurrentUserRole, _selectedCollection.UserRole ?? "viewer" },
+            { x => x.CurrentUserRole, _selectedCollection.UserRole ?? RoleHierarchy.Roles.Viewer },
             { x => x.IsRoleInherited, _selectedCollection.IsRoleInherited }
         };
 
@@ -378,8 +569,8 @@
     {
         _downloadStatusText = status switch
         {
-            "pending" => CommonLoc["Msg_DownloadQueued"].Value,
-            "building" => CommonLoc["Msg_BuildingZip"].Value,
+            Constants.ZipProgressStatus.Pending => CommonLoc["Msg_DownloadQueued"].Value,
+            Constants.ZipProgressStatus.Building => CommonLoc["Msg_BuildingZip"].Value,
             _ => CommonLoc["Msg_PreparingDownload"].Value
         };
         InvokeAsync(StateHasChanged);
@@ -394,17 +585,22 @@
 
     private async Task OnAssetsChanged()
     {
-        // Update collection tree counts if needed
-        if (_collectionTree != null)
-        {
-            await _collectionTree.RefreshAsync();
-        }
+        // Refresh collection list to update asset counts
+        await LoadAllCollections();
     }
+
+    private string GetRoleDescription(string? role) => role?.ToLowerInvariant() switch
+    {
+        RoleHierarchy.Roles.Viewer => CollectionLoc["RoleDesc_Viewer"],
+        RoleHierarchy.Roles.Contributor => CollectionLoc["RoleDesc_Contributor"],
+        RoleHierarchy.Roles.Manager => CollectionLoc["RoleDesc_Manager"],
+        RoleHierarchy.Roles.Admin => CollectionLoc["RoleDesc_Admin"],
+        _ => ""
+    };
 
     private async Task SearchAsync()
     {
-        // In a real implementation, this would filter the asset grid
-        // For now, just refresh
+        // Debounced search handler — triggers AssetGrid reload with current _searchQuery
         await RefreshAsync();
     }
 

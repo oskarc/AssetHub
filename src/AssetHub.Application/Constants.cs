@@ -52,6 +52,47 @@ public static class Constants
     }
 
     /// <summary>
+    /// Sort-order values accepted by asset search endpoints.
+    /// </summary>
+    public static class SortBy
+    {
+        public const string CreatedDesc = "created_desc";
+        public const string CreatedAsc = "created_asc";
+        public const string TitleAsc = "title_asc";
+        public const string TitleDesc = "title_desc";
+        public const string SizeAsc = "size_asc";
+        public const string SizeDesc = "size_desc";
+    }
+
+    /// <summary>
+    /// Asset-type filter values (match DB string representation).
+    /// </summary>
+    public static class AssetTypeFilters
+    {
+        public const string Image = "image";
+        public const string Video = "video";
+        public const string Document = "document";
+    }
+
+    /// <summary>
+    /// View-mode identifiers for grid/list toggling.
+    /// </summary>
+    public static class ViewModes
+    {
+        public const string Grid = "grid";
+        public const string List = "list";
+    }
+
+    /// <summary>
+    /// Zip-download progress status strings (sent from JS interop).
+    /// </summary>
+    public static class ZipProgressStatus
+    {
+        public const string Pending = "pending";
+        public const string Building = "building";
+    }
+
+    /// <summary>
     /// Common content types.
     /// </summary>
     public static class ContentTypes

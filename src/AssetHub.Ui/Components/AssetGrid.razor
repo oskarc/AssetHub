@@ -23,7 +23,7 @@ else if (_assets.Count == 0)
 }
 else
 {
-    @if (ViewMode == "grid")
+    @if (ViewMode == Constants.ViewModes.Grid)
     {
     <MudGrid Spacing="3">
         @foreach (var asset in _assets)
@@ -150,20 +150,20 @@ else
     public string? FilterType { get; set; }
 
     [Parameter]
-    public string SortBy { get; set; } = "created_desc";
+    public string SortBy { get; set; } = Constants.SortBy.CreatedDesc;
 
     /// <summary>
-    /// Display mode: "grid" for card view, "list" for table view.
+    /// Display mode: Constants.ViewModes.Grid for card view, Constants.ViewModes.List for table view.
     /// </summary>
     [Parameter]
-    public string ViewMode { get; set; } = "grid";
+    public string ViewMode { get; set; } = Constants.ViewModes.Grid;
     
     /// <summary>
     /// The user's role in the current collection. Used to show/hide action buttons.
     /// Valid values: "viewer", "contributor", "manager", "admin"
     /// </summary>
     [Parameter]
-    public string UserRole { get; set; } = "viewer";
+    public string UserRole { get; set; } = RoleHierarchy.Roles.Viewer;
 
     [Parameter]
     public EventCallback<AssetResponseDto> OnAssetSelected { get; set; }

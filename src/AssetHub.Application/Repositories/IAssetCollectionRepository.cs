@@ -9,7 +9,7 @@ namespace AssetHub.Application.Repositories;
 public interface IAssetCollectionRepository
 {
     /// <summary>
-    /// Gets all collections an asset belongs to (including primary collection).
+    /// Gets all collections an asset belongs to.
     /// </summary>
     Task<List<Collection>> GetCollectionsForAssetAsync(Guid assetId, CancellationToken ct = default);
 
@@ -34,12 +34,12 @@ public interface IAssetCollectionRepository
     Task<bool> RemoveFromCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
-    /// Checks if an asset belongs to a collection (either primary or via join table).
+    /// Checks if an asset belongs to a specific collection.
     /// </summary>
     Task<bool> BelongsToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets the IDs of all collections an asset is linked to (excluding primary collection).
+    /// Gets the IDs of all collections an asset is linked to.
     /// </summary>
     Task<List<Guid>> GetCollectionIdsForAssetAsync(Guid assetId, CancellationToken ct = default);
 

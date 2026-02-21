@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
+using AssetHub.Application;
 
 namespace AssetHub.Ui.Services;
 
@@ -234,7 +235,7 @@ public class AssetHubApiClient
         Guid collectionId,
         string? query = null,
         string? type = null,
-        string sortBy = "created_desc",
+        string sortBy = Constants.SortBy.CreatedDesc,
         int skip = 0,
         int take = 50,
         CancellationToken ct = default)
@@ -258,7 +259,7 @@ public class AssetHubApiClient
         string? query = null,
         string? type = null,
         Guid? collectionId = null,
-        string sortBy = "created_desc",
+        string sortBy = Constants.SortBy.CreatedDesc,
         int skip = 0,
         int take = 50,
         CancellationToken ct = default)
@@ -487,18 +488,11 @@ public class AssetHubApiClient
     #region Presigned URLs
 
     /// <summary>
-    /// Gets a presigned download URL for an asset.
+    /// Gets the download URL for an asset.
     /// </summary>
-    public virtual async Task<string> GetPresignedDownloadUrlAsync(Guid assetId, string objectKey, CancellationToken ct = default)
+    public virtual Task<string> GetPresignedDownloadUrlAsync(Guid assetId, string objectKey, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/assets/{assetId}", ct);
-        if (response.IsSuccessStatusCode)
-        {
-            // The asset endpoint returns presigned URLs in the response
-            // For now, we'll use the direct download endpoint
-            return $"/api/assets/{assetId}/download";
-        }
-        return string.Empty;
+        return Task.FromResult($"/api/assets/{assetId}/download");
     }
 
     #endregion
@@ -631,6 +625,16 @@ public class AssetHubApiClient
         var response = await _http.PostAsync($"/api/admin/users/sync?dryRun={dryRun.ToString().ToLowerInvariant()}", null, ct);
         await EnsureSuccessAsync(response, "Sync deleted users");
         return await ReadRequiredJsonAsync<UserSyncResult>(response, "Sync deleted users");
+    }
+
+    /// <summary>
+    /// Gets all audit events (admin only).
+    /// </summary>
+    public virtual async Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/admin/audit?take={take}", ct);
+        await EnsureSuccessAsync(response, "Get audit events");
+        return await response.Content.ReadFromJsonAsync<List<AuditEventDto>>(ct) ?? new();
     }
 
     #endregion

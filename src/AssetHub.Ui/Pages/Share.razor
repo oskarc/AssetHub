@@ -78,14 +78,14 @@
             <!-- Preview Area -->
             <MudItem xs="12" md="8">
                 <MudPaper Class="pa-4" Elevation="1">
-                    @if (_sharedAsset.AssetType == "image")
+                    @if (_sharedAsset.AssetType == Constants.AssetTypeFilters.Image)
                     {
                         <MudImage Src="@GetPreviewUrl()"
                                   Alt="@_sharedAsset.Title"
                                   ObjectFit="ObjectFit.Contain"
                                   Class="media-preview-image rounded" />
                     }
-                    else if (_sharedAsset.AssetType == "video")
+                    else if (_sharedAsset.AssetType == Constants.AssetTypeFilters.Video)
                     {
                         <video controls poster="@GetPosterUrl()" class="media-preview-video">
                             <source src="@GetPreviewUrl()" type="@_sharedAsset.ContentType">
@@ -237,14 +237,14 @@
                 <!-- Preview Area -->
                 <MudItem xs="12" md="8">
                     <MudPaper Class="pa-4" Elevation="1">
-                        @if (_selectedAsset.AssetType == "image")
+                        @if (_selectedAsset.AssetType == Constants.AssetTypeFilters.Image)
                         {
                             <MudImage Src="@GetAssetPreviewUrl(_selectedAsset.Id)"
                                       Alt="@_selectedAsset.Title"
                                       ObjectFit="ObjectFit.Contain"
                                       Class="media-preview-image rounded" />
                         }
-                        else if (_selectedAsset.AssetType == "video")
+                        else if (_selectedAsset.AssetType == Constants.AssetTypeFilters.Video)
                         {
                             <video controls poster="@GetAssetPosterUrl(_selectedAsset.Id)" class="media-preview-video">
                                 <source src="@GetAssetPreviewUrl(_selectedAsset.Id)" type="@_selectedAsset.ContentType">
@@ -514,22 +514,23 @@
             }
 
             // The API returns either SharedAssetDto or SharedCollectionDto
-            // We can distinguish by checking if it has "Name" (collection) or "Title" (asset)
+            // We distinguish by the "type" discriminator property set server-side
             var jsonString = await response.Content.ReadAsStringAsync();
-            
-            if (jsonString.Contains("\"name\"", StringComparison.OrdinalIgnoreCase) && 
-                jsonString.Contains("\"assets\"", StringComparison.OrdinalIgnoreCase))
+            var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            using var jsonDoc = System.Text.Json.JsonDocument.Parse(jsonString);
+            var scopeType = jsonDoc.RootElement.TryGetProperty("type", out var typeProp) 
+                ? typeProp.GetString() 
+                : null;
+
+            if (scopeType == Constants.ScopeTypes.Collection)
             {
-                // It's a collection
-                _sharedCollection = System.Text.Json.JsonSerializer.Deserialize<SharedCollectionDto>(jsonString, 
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                _sharedCollection = System.Text.Json.JsonSerializer.Deserialize<SharedCollectionDto>(jsonString, jsonOptions);
                 _requiresPassword = false;
             }
             else
             {
-                // It's an asset
-                _sharedAsset = System.Text.Json.JsonSerializer.Deserialize<SharedAssetDto>(jsonString,
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                _sharedAsset = System.Text.Json.JsonSerializer.Deserialize<SharedAssetDto>(jsonString, jsonOptions);
                 _requiresPassword = false;
             }
 
@@ -592,7 +593,7 @@
         // For PDFs and videos/audio, use the preview endpoint without size
         // so the server returns the original file for inline display / playback.
         if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType)
-            || _sharedAsset.AssetType == "video"
+            || _sharedAsset.AssetType == Constants.AssetTypeFilters.Video
             || _sharedAsset.AssetType == "audio")
         {
             var url = $"/api/shares/{escapedToken}/preview";

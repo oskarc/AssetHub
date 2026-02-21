@@ -13,17 +13,20 @@ public class UserProvisioningService : IUserProvisioningService
     private readonly ICollectionRepository _collectionRepo;
     private readonly ICollectionAclRepository _aclRepo;
     private readonly IEmailService _emailService;
+    private readonly IAuditService _audit;
     private readonly ILogger<UserProvisioningService> _logger;
 
     public UserProvisioningService(
         ICollectionRepository collectionRepo,
         ICollectionAclRepository aclRepo,
         IEmailService emailService,
+        IAuditService audit,
         ILogger<UserProvisioningService> logger)
     {
         _collectionRepo = collectionRepo;
         _aclRepo = aclRepo;
         _emailService = emailService;
+        _audit = audit;
         _logger = logger;
     }
 
@@ -50,6 +53,8 @@ public class UserProvisioningService : IUserProvisioningService
             try
             {
                 await _aclRepo.SetAccessAsync(collectionId, "user", userId, role, ct);
+                await _audit.LogAsync("user.access_granted", "collection", collectionId, userId,
+                    new() { ["role"] = role, ["username"] = username }, ct);
                 _logger.LogInformation("Granted '{Role}' access on collection {CollectionId} to new user '{Username}'",
                     role, collectionId, username);
             }

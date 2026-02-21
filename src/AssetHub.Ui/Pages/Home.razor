@@ -75,7 +75,7 @@
                     <div class="d-flex justify-space-between align-center mb-3">
                         <MudText Typo="Typo.h6">@Loc["Dashboard_RecentAssets"]</MudText>
                         <MudButton Variant="Variant.Text" Color="Color.Primary"
-                                   Href="/collections"
+                                   Href="/assets"
                                    EndIcon="@Icons.Material.Filled.ArrowForward">
                             @Loc["Dashboard_ViewAll"]
                         </MudButton>
@@ -139,12 +139,9 @@
                                                 <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" />
                                                 <MudText Typo="Typo.subtitle1" Class="text-truncate">@collection.Name</MudText>
                                             </div>
-                                            @if (!string.IsNullOrEmpty(collection.Description))
-                                            {
-                                                <MudText Typo="Typo.caption" Class="mt-1 text-truncate" Style="opacity: 0.7;">
-                                                    @collection.Description
-                                                </MudText>
-                                            }
+                                            <MudText Typo="Typo.caption" Class="mt-1" Style="opacity: 0.6;">
+                                                @Loc["Dashboard_Updated"] @FormatTimeAgo(collection.UpdatedAt)
+                                            </MudText>
                                             <div class="d-flex align-center gap-2 mt-2">
                                                 <MudChip T="string" Size="Size.Small"
                                                          Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
@@ -168,7 +165,14 @@
                     @if (_showShares)
                     {
                         <MudPaper Elevation="1" Class="pa-4 mb-4">
-                            <MudText Typo="Typo.h6" Class="mb-3">@Loc["Dashboard_ActiveShares"]</MudText>
+                            <div class="d-flex justify-space-between align-center mb-3">
+                                <MudText Typo="Typo.h6">@Loc["Dashboard_ActiveShares"]</MudText>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                           Href="/admin"
+                                           EndIcon="@Icons.Material.Filled.ArrowForward">
+                                    @Loc["Dashboard_ViewAll"]
+                                </MudButton>
+                            </div>
 
                             @if (_dashboard.RecentShares.Count == 0)
                             {
@@ -211,7 +215,14 @@
                     @if (_showActivity)
                     {
                         <MudPaper Elevation="1" Class="pa-4">
-                            <MudText Typo="Typo.h6" Class="mb-3">@Loc["Dashboard_RecentActivity"]</MudText>
+                            <div class="d-flex justify-space-between align-center mb-3">
+                                <MudText Typo="Typo.h6">@Loc["Dashboard_RecentActivity"]</MudText>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                           Href="/admin?tab=3"
+                                           EndIcon="@Icons.Material.Filled.ArrowForward">
+                                    @Loc["Dashboard_ViewAll"]
+                                </MudButton>
+                            </div>
 
                             @if (_dashboard.RecentActivity.Count == 0)
                             {
@@ -222,20 +233,28 @@
                             else
                             {
                                 <MudTimeline TimelinePosition="TimelinePosition.Start" Dense="true">
-                                    @foreach (var evt in _dashboard.RecentActivity.Take(10))
+                                    @foreach (var evt in _dashboard.RecentActivity.Take(8))
                                     {
                                         <MudTimelineItem Color="@GetAuditEventColor(evt.EventType)" Size="Size.Small">
-                                            <MudText Typo="Typo.body2">@FormatEventType(evt.EventType)</MudText>
-                                            <MudText Typo="Typo.caption">
-                                                @evt.TargetType
-                                                @if (evt.TargetId.HasValue)
+                                            <div>
+                                                <MudText Typo="Typo.body2">@FormatEventType(evt.EventType)</MudText>
+                                                @if (!string.IsNullOrEmpty(evt.ActorUserName))
                                                 {
-                                                    @:&middot; @evt.TargetId.Value.ToString()[..8]
+                                                    <MudText Typo="Typo.caption" Style="opacity: 0.8; display: block;">
+                                                        @Loc["Dashboard_AddedBy", evt.ActorUserName]
+                                                    </MudText>
                                                 }
-                                            </MudText>
-                                            <MudText Typo="Typo.caption" Style="opacity: 0.6;">
-                                                @FormatTimeAgo(evt.CreatedAt)
-                                            </MudText>
+                                                <MudText Typo="Typo.caption" Style="display: block;">
+                                                    @evt.TargetType
+                                                    @if (evt.TargetId.HasValue)
+                                                    {
+                                                        @:&middot; @evt.TargetId.Value.ToString()[..8]
+                                                    }
+                                                </MudText>
+                                                <MudText Typo="Typo.caption" Style="opacity: 0.6; display: block;">
+                                                    @FormatTimeAgo(evt.CreatedAt)
+                                                </MudText>
+                                            </div>
                                         </MudTimelineItem>
                                     }
                                 </MudTimeline>
@@ -278,7 +297,7 @@
 
     private void NavigateToCollection(Guid collectionId)
     {
-        Nav.NavigateTo($"/collections?collectionId={collectionId}");
+        Nav.NavigateTo($"/collections?collection={collectionId}");
     }
 
     private Color GetShareStatusColor(string status) => status switch

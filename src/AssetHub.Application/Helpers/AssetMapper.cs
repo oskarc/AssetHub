@@ -4,15 +4,14 @@ using AssetHub.Domain.Entities;
 namespace AssetHub.Application.Helpers;
 
 /// <summary>
-/// Maps domain entities to DTOs.
-/// Centralizes mapping logic that was previously inline in endpoint handlers.
+/// Maps Asset domain entities to response DTOs.
 /// </summary>
 public static class AssetMapper
 {
     /// <summary>
     /// Maps an Asset entity to an AssetResponseDto.
     /// </summary>
-    public static AssetResponseDto ToDto(Asset asset, string userRole = RoleHierarchy.Roles.Viewer)
+    public static AssetResponseDto ToDto(Asset asset, string userRole = RoleHierarchy.Roles.Viewer, string? createdByUserName = null)
     {
         return new AssetResponseDto
         {
@@ -32,6 +31,7 @@ public static class AssetMapper
             PosterObjectKey = asset.PosterObjectKey,
             CreatedAt = asset.CreatedAt,
             CreatedByUserId = asset.CreatedByUserId,
+            CreatedByUserName = createdByUserName,
             UpdatedAt = asset.UpdatedAt,
             UserRole = userRole
         };

@@ -152,7 +152,7 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
         Guid collectionId,
         string? query = null,
         string? assetType = null,
-        string sortBy = "created_desc",
+        string sortBy = Constants.SortBy.CreatedDesc,
         int skip = 0,
         int take = 50,
         CancellationToken cancellationToken = default)
@@ -171,8 +171,8 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
                 (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)));
-            // Note: Tag search requires client-side evaluation for complex patterns
-            // For now, we search only in title and description which covers most use cases
+            // Search is limited to title and description. Tag search could use PostgreSQL
+            // JSONB operators but would require different query construction per filter.
         }
 
         // Apply asset type filter
@@ -197,7 +197,7 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
     public async Task<(List<Asset> Assets, int Total)> SearchAllAsync(
         string? query = null,
         string? assetType = null,
-        string sortBy = "created_desc",
+        string sortBy = Constants.SortBy.CreatedDesc,
         int skip = 0,
         int take = 50,
         List<Guid>? allowedCollectionIds = null,
@@ -251,12 +251,12 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
     private static IQueryable<Asset> ApplySorting(IQueryable<Asset> queryable, string sortBy) =>
         sortBy switch
         {
-            "created_asc" => queryable.OrderBy(a => a.CreatedAt),
-            "created_desc" => queryable.OrderByDescending(a => a.CreatedAt),
-            "title_asc" => queryable.OrderBy(a => a.Title),
-            "title_desc" => queryable.OrderByDescending(a => a.Title),
-            "size_asc" => queryable.OrderBy(a => a.SizeBytes),
-            "size_desc" => queryable.OrderByDescending(a => a.SizeBytes),
+            Constants.SortBy.CreatedAsc => queryable.OrderBy(a => a.CreatedAt),
+            Constants.SortBy.CreatedDesc => queryable.OrderByDescending(a => a.CreatedAt),
+            Constants.SortBy.TitleAsc => queryable.OrderBy(a => a.Title),
+            Constants.SortBy.TitleDesc => queryable.OrderByDescending(a => a.Title),
+            Constants.SortBy.SizeAsc => queryable.OrderBy(a => a.SizeBytes),
+            Constants.SortBy.SizeDesc => queryable.OrderByDescending(a => a.SizeBytes),
             _ => queryable.OrderByDescending(a => a.CreatedAt)
         };
 }

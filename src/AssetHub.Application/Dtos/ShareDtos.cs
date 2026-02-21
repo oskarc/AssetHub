@@ -46,6 +46,7 @@ public class ShareResponseDto
 /// </summary>
 public class SharedAssetDto
 {
+    public string Type { get; set; } = Constants.ScopeTypes.Asset;
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -64,6 +65,7 @@ public class SharedAssetDto
 /// </summary>
 public class SharedCollectionDto
 {
+    public string Type { get; set; } = Constants.ScopeTypes.Collection;
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
