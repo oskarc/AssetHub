@@ -41,8 +41,8 @@ setup('authenticate as admin', async ({ page }) => {
   const keycloak = new KeycloakLoginPage(page);
   await keycloak.loginAsAdmin();
 
-  // Verify we're authenticated
-  await expect(page.getByText(/sign out/i).or(page.getByText(/media admin/i).or(page.locator('.mud-drawer')))).toBeVisible({
+  // Verify we're authenticated — check for user display name in the app bar
+  await expect(page.locator('.mud-appbar .mud-typography-body2')).toBeVisible({
     timeout: 15_000,
   });
 

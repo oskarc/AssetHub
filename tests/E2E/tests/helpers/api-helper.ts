@@ -25,7 +25,14 @@ export class ApiHelper {
         password: password || env.adminUser.password,
       },
     });
+    if (!response.ok()) {
+      const body = await response.text();
+      throw new Error(`Keycloak token request failed (${response.status()}): ${body}`);
+    }
     const data = await response.json();
+    if (!data.access_token) {
+      throw new Error(`Keycloak returned no access_token: ${JSON.stringify(data)}`);
+    }
     this.token = data.access_token;
     return this.token!;
   }
@@ -41,8 +48,12 @@ export class ApiHelper {
     const res = await this.request.post(`${env.baseUrl}/api/collections`, {
       headers: this.authHeaders(),
       data: { name, description: description || '', parentId },
+      maxRedirects: 0,
     });
-    expect(res.ok()).toBeTruthy();
+    if (!res.ok()) {
+      const body = await res.text();
+      throw new Error(`createCollection failed (${res.status()} ${res.url()}): ${body.substring(0, 500)}`);
+    }
     return await res.json();
   }
 

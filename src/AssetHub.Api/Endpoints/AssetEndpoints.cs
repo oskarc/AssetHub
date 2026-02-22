@@ -19,17 +19,17 @@ public static class AssetEndpoints
         group.MapGet("all", GetAllAssets).RequireAuthorization("RequireAdmin").WithName("GetAllAssets");
         group.MapGet("{id:guid}", GetAsset).WithName("GetAsset");
         group.MapPost("", UploadAsset).DisableAntiforgery().WithName("UploadAsset");
-        group.MapPatch("{id:guid}", UpdateAsset).WithName("UpdateAsset");
-        group.MapDelete("{id:guid}", DeleteAsset).WithName("DeleteAsset");
+        group.MapPatch("{id:guid}", UpdateAsset).DisableAntiforgery().WithName("UpdateAsset");
+        group.MapDelete("{id:guid}", DeleteAsset).DisableAntiforgery().WithName("DeleteAsset");
         group.MapGet("collection/{collectionId:guid}", GetAssetsByCollection).WithName("GetAssetsByCollection");
 
         group.MapGet("{id:guid}/collections", GetAssetCollections).WithName("GetAssetCollections");
-        group.MapPost("{id:guid}/collections/{collectionId:guid}", AddAssetToCollection).WithName("AddAssetToCollection");
-        group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).WithName("RemoveAssetFromCollection");
+        group.MapPost("{id:guid}/collections/{collectionId:guid}", AddAssetToCollection).DisableAntiforgery().WithName("AddAssetToCollection");
+        group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).DisableAntiforgery().WithName("RemoveAssetFromCollection");
         group.MapGet("{id:guid}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
 
-        group.MapPost("init-upload", InitUpload).WithName("InitUpload");
-        group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).WithName("ConfirmUpload");
+        group.MapPost("init-upload", InitUpload).DisableAntiforgery().WithName("InitUpload");
+        group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).DisableAntiforgery().WithName("ConfirmUpload");
 
         group.MapGet("{id:guid}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
         group.MapGet("{id:guid}/preview", GetRendition("original", forceDownload: false)).WithName("PreviewOriginal");

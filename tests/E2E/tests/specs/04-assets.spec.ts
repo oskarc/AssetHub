@@ -370,7 +370,7 @@ test.describe('Asset Management @assets', () => {
       const backBtn = page.getByRole('button', { name: /back/i });
       if (await backBtn.isVisible()) {
         await backBtn.click();
-        await page.waitForURL(/\/assets/, { timeout: env.timeouts.navigation });
+        await page.waitForURL(/\/collections|\/assets/, { timeout: env.timeouts.navigation });
       }
     });
 

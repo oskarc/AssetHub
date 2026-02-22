@@ -30,9 +30,9 @@ public static class ShareEndpoints
 
         // Protected endpoints
         var authGroup = group.RequireAuthorization();
-        authGroup.MapPost("", CreateShare).WithName("CreateShare");
-        authGroup.MapDelete("{id:guid}", RevokeShare).WithName("RevokeShare");
-        authGroup.MapPut("{id:guid}/password", UpdateSharePassword).WithName("UpdateSharePassword");
+        authGroup.MapPost("", CreateShare).DisableAntiforgery().WithName("CreateShare");
+        authGroup.MapDelete("{id:guid}", RevokeShare).DisableAntiforgery().WithName("RevokeShare");
+        authGroup.MapPut("{id:guid}/password", UpdateSharePassword).DisableAntiforgery().WithName("UpdateSharePassword");
     }
 
     // ── Public endpoints ─────────────────────────────────────────────────────

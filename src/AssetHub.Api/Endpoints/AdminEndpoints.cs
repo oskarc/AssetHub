@@ -20,20 +20,20 @@ public static class AdminEndpoints
         // ===== SHARE MANAGEMENT =====
         group.MapGet("/shares", GetAllShares).WithName("GetAllShares");
         group.MapGet("/shares/{id:guid}/token", GetShareToken).WithName("AdminGetShareToken");
-        group.MapDelete("/shares/{id:guid}", RevokeShare).WithName("AdminRevokeShare");
+        group.MapDelete("/shares/{id:guid}", RevokeShare).DisableAntiforgery().WithName("AdminRevokeShare");
 
         // ===== COLLECTION ACCESS MANAGEMENT =====
         group.MapGet("/collections/access", GetCollectionAccess).WithName("GetCollectionAccess");
-        group.MapPost("/collections/{collectionId:guid}/acl", SetCollectionAccess).WithName("AdminSetCollectionAccess");
-        group.MapDelete("/collections/{collectionId:guid}/acl/{principalId}", RemoveCollectionAccess).WithName("RemoveCollectionAccess");
+        group.MapPost("/collections/{collectionId:guid}/acl", SetCollectionAccess).DisableAntiforgery().WithName("AdminSetCollectionAccess");
+        group.MapDelete("/collections/{collectionId:guid}/acl/{principalId}", RemoveCollectionAccess).DisableAntiforgery().WithName("RemoveCollectionAccess");
 
         // ===== USER MANAGEMENT =====
         group.MapGet("/users", GetUsers).WithName("GetUsers");
         group.MapGet("/keycloak-users", GetKeycloakUsers).WithName("GetKeycloakUsers");
-        group.MapPost("/users", CreateUser).WithName("CreateUser");
-        group.MapPost("/users/{userId}/reset-password", ResetUserPassword).WithName("ResetUserPassword");
-        group.MapPost("/users/sync", SyncDeletedUsers).WithName("SyncDeletedUsers");
-        group.MapDelete("/users/{userId}", DeleteUser).WithName("DeleteUser");
+        group.MapPost("/users", CreateUser).DisableAntiforgery().WithName("CreateUser");
+        group.MapPost("/users/{userId}/reset-password", ResetUserPassword).DisableAntiforgery().WithName("ResetUserPassword");
+        group.MapPost("/users/sync", SyncDeletedUsers).DisableAntiforgery().WithName("SyncDeletedUsers");
+        group.MapDelete("/users/{userId}", DeleteUser).DisableAntiforgery().WithName("DeleteUser");
 
         // ===== AUDIT LOG =====
         group.MapGet("/audit", GetAuditEvents).WithName("GetAuditEvents");

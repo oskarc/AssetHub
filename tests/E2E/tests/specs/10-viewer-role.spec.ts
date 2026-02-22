@@ -16,8 +16,8 @@ test.describe('Viewer Role Restrictions @acl @auth', () => {
   });
 
   test('viewer cannot see admin nav items', async ({ page }) => {
-    const allAssets = page.locator('.mud-nav-menu').getByText(/all assets/i);
-    const admin = page.locator('.mud-nav-menu').getByText(/admin/i);
+    const allAssets = page.locator('.mud-navmenu').getByText(/all assets/i);
+    const admin = page.locator('.mud-navmenu').getByText(/admin/i);
 
     // These should NOT be visible for a viewer
     await expect(allAssets).not.toBeVisible();

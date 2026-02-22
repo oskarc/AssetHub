@@ -29,14 +29,14 @@ export class KeycloakLoginPage {
   async fullLogin(username: string, password: string) {
     // Navigate to login page
     await this.page.goto('/login');
-    // Click sign-in (triggers OIDC redirect)
-    await this.page.getByRole('button', { name: /sign in/i }).click();
+    // Click sign-in (triggers OIDC redirect) — target the large primary button
+    await this.page.locator('button.mud-button-filled-primary.mud-button-filled-size-large').click();
     // Wait for Keycloak login page
-    await this.page.waitForURL(/.*keycloak.*|.*8080.*/);
+    await this.page.waitForURL(/.*keycloak.*|.*8443.*/);
     // Fill and submit
     await this.login(username, password);
     // Wait for redirect back to the app
-    await this.page.waitForURL(/.*localhost:7252.*/, { timeout: env.timeouts.navigation });
+    await this.page.waitForURL(/.*assethub\.local.*/, { timeout: env.timeouts.navigation });
   }
 
   /** Login as the pre-seeded admin user */

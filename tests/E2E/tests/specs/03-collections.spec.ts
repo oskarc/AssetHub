@@ -30,10 +30,8 @@ test.describe('Collection Management @collections', () => {
   });
 
   test('create a new root collection @smoke', async ({ page }) => {
-    // Open create dialog
-    const createBtn = page.locator('[title*="reate"]').first()
-      .or(page.locator('.mud-icon-button').filter({ has: page.locator('svg') }).nth(1));
-    await createBtn.click();
+    // Click Create Collection button
+    await page.getByRole('button', { name: /create collection/i }).click();
 
     // Fill dialog
     await dialog.waitForDialog();
@@ -49,14 +47,14 @@ test.describe('Collection Management @collections', () => {
     // Wait for collections to load
     await page.waitForTimeout(env.timeouts.animation);
 
-    // Click on first collection in tree
-    const firstCollection = page.locator('.mud-nav-menu').last().locator('.mud-nav-link').first();
+    // Click on first collection card
+    const firstCollection = page.locator('.mud-card').first();
     if (await firstCollection.isVisible()) {
       await firstCollection.click();
       await page.waitForTimeout(env.timeouts.animation);
 
       // Search/filter bar should now be visible
-      await expect(page.locator('.mud-input-root')).toBeVisible();
+      await expect(page.locator('input.mud-input-root').first()).toBeVisible();
     }
   });
 
@@ -68,8 +66,7 @@ test.describe('Collection Management @collections', () => {
       await page.waitForTimeout(env.timeouts.animation);
 
       // Find create sub-collection button (often in the action area)
-      const createSubBtn = page.locator('[title*="reate"]').first()
-        .or(page.locator('.mud-icon-button').filter({ has: page.locator('svg') }).nth(1));
+      const createSubBtn = page.getByRole('button', { name: /create/i }).first();
       if (await createSubBtn.isVisible()) {
         await createSubBtn.click();
         await dialog.waitForDialog();
@@ -104,7 +101,7 @@ test.describe('Collection Management @collections', () => {
 
   test('deselect collection shows empty state', async ({ page }) => {
     // Select a collection first
-    const firstCol = page.locator('.mud-nav-menu').last().locator('.mud-nav-link').first();
+    const firstCol = page.locator('.mud-card').first();
     if (await firstCol.isVisible()) {
       await firstCol.click();
       await page.waitForTimeout(env.timeouts.animation);
@@ -120,7 +117,7 @@ test.describe('Collection Management @collections', () => {
 
   test('manage access dialog opens for manager+ role', async ({ page }) => {
     // Select a collection
-    const firstCol = page.locator('.mud-nav-menu').last().locator('.mud-nav-link').first();
+    const firstCol = page.locator('.mud-card').first();
     if (await firstCol.isVisible()) {
       await firstCol.click();
       await page.waitForTimeout(env.timeouts.animation);
@@ -130,16 +127,19 @@ test.describe('Collection Management @collections', () => {
         await assetsPage.manageAccessButton.click();
         await dialog.waitForDialog();
         // Dialog should have user search
-        await expect(dialog.dialog.locator('input')).toBeVisible();
+        await expect(dialog.dialog.locator('input').first()).toBeVisible();
         await dialog.closeDialog();
       }
     }
   });
 
   test('collection breadcrumbs show correct hierarchy', async ({ page }) => {
-    const firstCol = page.locator('.mud-nav-menu').last().locator('.mud-nav-link').first();
+    const firstCol = page.locator('.mud-card').first();
     if (await firstCol.isVisible()) {
-      const colName = await firstCol.textContent();
+      // Extract just the collection name (subtitle2 typography, not the full card text)
+      const nameEl = firstCol.locator('.mud-typography-subtitle2').first()
+        .or(firstCol.locator('.mud-card-content .text-truncate').first());
+      const colName = (await nameEl.textContent())?.trim();
       await firstCol.click();
       await page.waitForTimeout(env.timeouts.animation);
 

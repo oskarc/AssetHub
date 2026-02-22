@@ -26,7 +26,7 @@ test.describe('Authentication & Login @auth @smoke', () => {
       await loginPage.goto();
       await loginPage.clickSignIn();
       // Should redirect to Keycloak login
-      await page.waitForURL(/.*keycloak.*|.*8080.*/, { timeout: 15_000 });
+      await page.waitForURL(/.*keycloak.*|.*8443.*/, { timeout: 15_000 });
       await expect(page.locator('#username')).toBeVisible();
       await expect(page.locator('#password')).toBeVisible();
     });
@@ -49,8 +49,8 @@ test.describe('Authentication & Login @auth @smoke', () => {
 
     test('rejects invalid credentials at Keycloak', async ({ page }) => {
       await page.goto('/login');
-      await page.getByRole('button', { name: /sign in/i }).click();
-      await page.waitForURL(/.*keycloak.*|.*8080.*/);
+      await page.locator('button.mud-button-filled-primary.mud-button-filled-size-large').click();
+      await page.waitForURL(/.*keycloak.*|.*8443.*/);
 
       const keycloak = new KeycloakLoginPage(page);
       await keycloak.login('baduser', 'badpassword');
@@ -62,7 +62,7 @@ test.describe('Authentication & Login @auth @smoke', () => {
     test('unauthenticated user redirected from protected pages', async ({ page }) => {
       await page.goto('/assets');
       // Should redirect to login
-      await page.waitForURL(/\/login|.*keycloak.*|.*8080.*/, { timeout: 15_000 });
+      await page.waitForURL(/\/login|.*keycloak.*|.*8443.*/, { timeout: 15_000 });
     });
   });
 

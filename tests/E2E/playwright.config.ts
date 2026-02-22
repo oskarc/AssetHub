@@ -1,16 +1,18 @@
+/// <reference types="node" />
+
 import { defineConfig, devices } from '@playwright/test';
 
 /**
  * AssetHub E2E Test Configuration
  *
  * Environment variables:
- *   BASE_URL   - Application URL (default: http://localhost:7252)
- *   KC_URL     - Keycloak URL (default: http://localhost:8080)
+ *   BASE_URL   - Application URL (default: https://assethub.local:7252)
+ *   KC_URL     - Keycloak URL (default: https://keycloak.assethub.local:8443)
  *   HEADED     - Run in headed mode (set to "true")
  *   CI         - Running in CI environment
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:7252';
+const BASE_URL = process.env.BASE_URL || 'https://assethub.local:7252';
 const isCI = !!process.env.CI;
 
 export default defineConfig({
@@ -30,6 +32,7 @@ export default defineConfig({
   },
   use: {
     baseURL: BASE_URL,
+    ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'on-first-retry',

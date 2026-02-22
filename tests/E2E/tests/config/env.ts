@@ -2,9 +2,17 @@
  * Environment configuration for E2E tests.
  * Centralizes all URLs, credentials, and test constants.
  */
+
+const processEnv =
+  (
+    globalThis as {
+      process?: { env?: Record<string, string | undefined> };
+    }
+  ).process?.env ?? {};
+
 export const env = {
-  baseUrl: process.env.BASE_URL || 'http://localhost:7252',
-  keycloakUrl: process.env.KC_URL || 'http://localhost:8080',
+  baseUrl: processEnv.BASE_URL || 'https://assethub.local:7252',
+  keycloakUrl: processEnv.KC_URL || 'https://keycloak.assethub.local:8443',
   keycloakRealm: 'media',
   keycloakClientId: 'assethub-app',
   keycloakClientSecret: 'VxBiV29QVchYHFzD5N62l43fTXbTMzSl',

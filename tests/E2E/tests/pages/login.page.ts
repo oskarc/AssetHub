@@ -17,7 +17,7 @@ export class LoginPage {
     this.appIcon = page.locator('.mud-icon-root').first();
     this.appName = page.locator('.mud-typography-h4');
     this.subtitle = page.locator('.mud-typography-body1');
-    this.signInButton = page.getByRole('button', { name: /sign in/i });
+    this.signInButton = page.getByRole('group').getByRole('button', { name: /sign in/i });
   }
 
   async goto() {

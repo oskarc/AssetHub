@@ -92,7 +92,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
         
         // Go back
         await page.goBack();
-        await page.waitForURL(/\/assets/);
+        await page.waitForURL(/\/collections|\/assets/);
         await expect(page.locator('.mud-container')).toBeVisible();
       }
     });

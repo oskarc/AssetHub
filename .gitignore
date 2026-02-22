@@ -58,6 +58,7 @@ coverage/
 # Package manager
 packages/
 .nuget/
+node_modules/
 
 # Testing
 TestResults/

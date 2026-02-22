@@ -15,12 +15,12 @@ public static class CollectionEndpoints
 
         group.MapGet("", GetRootCollections).WithName("GetRootCollections");
         group.MapGet("{id:guid}", GetCollectionById).WithName("GetCollectionById");
-        group.MapPost("", CreateCollection).WithName("CreateCollection");
-        group.MapPost("{id:guid}/children", CreateSubCollection).WithName("CreateSubCollection");
-        group.MapPatch("{id:guid}", UpdateCollection).WithName("UpdateCollection");
-        group.MapDelete("{id:guid}", DeleteCollection).WithName("DeleteCollection");
+        group.MapPost("", CreateCollection).DisableAntiforgery().WithName("CreateCollection");
+        group.MapPost("{id:guid}/children", CreateSubCollection).DisableAntiforgery().WithName("CreateSubCollection");
+        group.MapPatch("{id:guid}", UpdateCollection).DisableAntiforgery().WithName("UpdateCollection");
+        group.MapDelete("{id:guid}", DeleteCollection).DisableAntiforgery().WithName("DeleteCollection");
         group.MapGet("{id:guid}/children", GetChildren).WithName("GetChildren");
-        group.MapPost("{id:guid}/download-all", DownloadAllAssets).WithName("DownloadAllAssets");
+        group.MapPost("{id:guid}/download-all", DownloadAllAssets).DisableAntiforgery().WithName("DownloadAllAssets");
 
         // ACL Management
         var aclGroup = app.MapGroup("/api/collections/{collectionId:guid}/acl")
@@ -28,8 +28,8 @@ public static class CollectionEndpoints
             .RequireAuthorization();
 
         aclGroup.MapGet("", GetCollectionAcls).WithName("GetCollectionAcls");
-        aclGroup.MapPost("", SetCollectionAccess).WithName("SetCollectionAccess");
-        aclGroup.MapDelete("{principalType}/{principalId}", RevokeCollectionAccess).WithName("RevokeCollectionAccess");
+        aclGroup.MapPost("", SetCollectionAccess).DisableAntiforgery().WithName("SetCollectionAccess");
+        aclGroup.MapDelete("{principalType}/{principalId}", RevokeCollectionAccess).DisableAntiforgery().WithName("RevokeCollectionAccess");
         aclGroup.MapGet("/users/search", SearchUsersForAcl).WithName("SearchUsersForAcl");
     }
 

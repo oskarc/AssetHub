@@ -44,9 +44,9 @@ export class AssetsPage {
 
     // Sidebar
     this.collectionsHeading = page.getByText(/collections/i).first();
-    this.createCollectionButton = page.locator('[title*="Create"], button:has(.mud-icon-root)').filter({ hasText: '' }).locator('visible=true').first();
+    this.createCollectionButton = page.getByRole('button', { name: /create collection/i });
     this.deselectButton = page.locator('.mud-icon-button').filter({ has: page.locator('.mud-svg-icon') });
-    this.collectionTree = page.locator('.mud-nav-menu').last();
+    this.collectionTree = page.locator('.mud-card').first();
 
     // Search bar
     this.searchInput = page.locator('.mud-input-root input[type="text"]').first();
@@ -81,22 +81,16 @@ export class AssetsPage {
     await this.page.waitForLoadState('networkidle');
   }
 
-  /** Select a collection by clicking its name in the tree */
+  /** Select a collection by clicking its card */
   async selectCollection(name: string) {
-    await this.page.locator('.mud-nav-menu').last().getByText(name, { exact: false }).click();
+    await this.page.locator('.mud-card').filter({ hasText: name }).first().click();
     await this.page.waitForTimeout(env.timeouts.animation);
   }
 
   /** Create a new collection via the dialog */
   async createCollection(name: string, description?: string) {
-    // Look for a button that creates a collection (the + or folder icon)
-    const createBtn = this.page.locator('[title*="reate"]').first();
-    if (await createBtn.isVisible()) {
-      await createBtn.click();
-    } else {
-      // Fallback: look for icon button near collections heading
-      await this.page.locator('.mud-icon-button').filter({ has: this.page.locator('[data-testid="CreateNewFolderIcon"], svg') }).first().click();
-    }
+    // Click the "Create Collection" button
+    await this.page.getByRole('button', { name: /create collection/i }).click();
 
     // Fill the dialog
     const dialog = this.page.locator('.mud-dialog');

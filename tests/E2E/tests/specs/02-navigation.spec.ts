@@ -21,6 +21,7 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
   });
 
   test('sign out button visible for authenticated user', async () => {
+    // Sign Out is inside a MudMenu dropdown; verify auth via user display name
     await layout.expectAuthenticated();
   });
 
@@ -48,7 +49,7 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
 
   test('navigate to Collections page', async ({ page }) => {
     await layout.navigateToCollections();
-    await expect(page).toHaveURL(/\/assets/);
+    await expect(page).toHaveURL(/\/collections/);
   });
 
   test('navigate to All Assets page (admin)', async ({ page }) => {
