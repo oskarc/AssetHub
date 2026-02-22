@@ -71,6 +71,23 @@ public class MinIOAdapter(
         return pipe.Reader.AsStream();
     }
 
+    public async Task<byte[]> DownloadRangeAsync(string bucketName, string objectKey, long offset, int length, CancellationToken cancellationToken = default)
+    {
+        using var memoryStream = new MemoryStream(length);
+
+        var getObjectArgs = new GetObjectArgs()
+            .WithBucket(bucketName)
+            .WithObject(objectKey)
+            .WithOffsetAndLength(offset, length)
+            .WithCallbackStream(async stream =>
+            {
+                await stream.CopyToAsync(memoryStream, cancellationToken);
+            });
+
+        await minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
+        return memoryStream.ToArray();
+    }
+
     public async Task DeleteAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
     {
         try

@@ -13,6 +13,12 @@ public interface IMinIOAdapter
     Task<Stream> DownloadAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Download a range of bytes from an object in MinIO.
+    /// Useful for reading file headers without downloading the entire file.
+    /// </summary>
+    Task<byte[]> DownloadRangeAsync(string bucketName, string objectKey, long offset, int length, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Delete an object from MinIO.
     /// </summary>
     Task DeleteAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default);

@@ -162,10 +162,10 @@
       "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "VxBiV29QVchYHFzD5N62l43fTXbTMzSl",
+      "secret": "${KEYCLOAK_CLIENT_SECRET}",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "defaultClientScopes": ["profile", "email", "roles"],
       "redirectUris": [
@@ -202,7 +202,7 @@
       "lastName": "User",
       "email": "test@example.com",
       "credentials": [
-        { "type": "password", "value": "testuser123", "temporary": false }
+        { "type": "password", "value": "${KEYCLOAK_TESTUSER_PASSWORD}", "temporary": false }
       ],
       "realmRoles": ["viewer"]
     },
@@ -214,7 +214,7 @@
       "lastName": "Admin",
       "email": "admin@media.local",
       "credentials": [
-        { "type": "password", "value": "mediaadmin123", "temporary": false }
+        { "type": "password", "value": "${KEYCLOAK_ADMIN_USER_PASSWORD}", "temporary": false }
       ],
       "realmRoles": ["admin"]
     }

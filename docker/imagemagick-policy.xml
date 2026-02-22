@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ImageMagick Security Policy
+  
+  This policy restricts ImageMagick to only process raster image formats
+  needed by AssetHub (JPEG, PNG, GIF, WebP, TIFF, etc.) while disabling
+  potentially dangerous coders that have had security vulnerabilities.
+  
+  References:
+  - ImageTragick (CVE-2016-3714)
+  - https://imagemagick.org/script/security-policy.php
+-->
+<!DOCTYPE policymap [
+  <!ELEMENT policymap (policy)*>
+  <!ATTLIST policymap xmlns CDATA #FIXED "">
+  <!ELEMENT policy EMPTY>
+  <!ATTLIST policy xmlns CDATA #FIXED "">
+  <!ATTLIST policy domain NMTOKEN #REQUIRED>
+  <!ATTLIST policy name NMTOKEN #IMPLIED>
+  <!ATTLIST policy pattern CDATA #IMPLIED>
+  <!ATTLIST policy rights NMTOKEN #IMPLIED>
+  <!ATTLIST policy stealth NMTOKEN #IMPLIED>
+  <!ATTLIST policy value CDATA #IMPLIED>
+]>
+<policymap>
+  <!-- ============================================================
+       Resource Limits - Prevent DoS via resource exhaustion
+       ============================================================ -->
+  
+  <!-- Maximum width/height of an image (16K should cover most use cases) -->
+  <policy domain="resource" name="width" value="16KP"/>
+  <policy domain="resource" name="height" value="16KP"/>
+  
+  <!-- Maximum area (width × height) in pixels - 128 megapixels -->
+  <policy domain="resource" name="area" value="128MP"/>
+  
+  <!-- Maximum memory allocation for pixel cache -->
+  <policy domain="resource" name="memory" value="256MiB"/>
+  
+  <!-- Maximum disk space for temporary files -->
+  <policy domain="resource" name="disk" value="2GiB"/>
+  
+  <!-- Maximum number of images in a sequence (e.g., animated GIF frames) -->
+  <policy domain="resource" name="list-length" value="64"/>
+  
+  <!-- Maximum time for a single operation (seconds) -->
+  <policy domain="resource" name="time" value="120"/>
+  
+  <!-- Maximum number of threads -->
+  <policy domain="resource" name="thread" value="4"/>
+  
+  <!-- Maximum file size that can be read -->
+  <policy domain="resource" name="file" value="768"/>
+  
+  <!-- ============================================================
+       Disable Dangerous Coders
+       These formats have had security vulnerabilities or allow
+       code execution through delegates/external programs.
+       ============================================================ -->
+  
+  <!-- Disable SVG - can embed JavaScript, external references, XXE attacks -->
+  <policy domain="coder" rights="none" pattern="SVG"/>
+  <policy domain="coder" rights="none" pattern="SVGZ"/>
+  
+  <!-- Disable MVG (Magick Vector Graphics) - allows arbitrary file operations -->
+  <policy domain="coder" rights="none" pattern="MVG"/>
+  
+  <!-- Disable MSL (Magick Scripting Language) - allows arbitrary commands -->
+  <policy domain="coder" rights="none" pattern="MSL"/>
+  
+  <!-- Disable TEXT/LABEL - can trigger delegate vulnerabilities -->
+  <policy domain="coder" rights="none" pattern="TEXT"/>
+  <policy domain="coder" rights="none" pattern="LABEL"/>
+  
+  <!-- Disable PS/EPS/PDF - require Ghostscript delegate (CVE-rich) -->
+  <policy domain="coder" rights="none" pattern="PS"/>
+  <policy domain="coder" rights="none" pattern="PS2"/>
+  <policy domain="coder" rights="none" pattern="PS3"/>
+  <policy domain="coder" rights="none" pattern="EPS"/>
+  <policy domain="coder" rights="none" pattern="EPSF"/>
+  <policy domain="coder" rights="none" pattern="EPSI"/>
+  <policy domain="coder" rights="none" pattern="PDF"/>
+  
+  <!-- Disable XPS - requires delegate -->
+  <policy domain="coder" rights="none" pattern="XPS"/>
+  
+  <!-- Disable URL coders - prevent SSRF -->
+  <policy domain="coder" rights="none" pattern="URL"/>
+  <policy domain="coder" rights="none" pattern="HTTPS"/>
+  <policy domain="coder" rights="none" pattern="HTTP"/>
+  <policy domain="coder" rights="none" pattern="FTP"/>
+  
+  <!-- Disable ephemeral files (can be used to probe filesystem) -->
+  <policy domain="coder" rights="none" pattern="EPHEMERAL"/>
+  
+  <!-- Disable X11 display -->
+  <policy domain="coder" rights="none" pattern="X"/>
+  
+  <!-- ============================================================
+       Path Restrictions
+       ============================================================ -->
+  
+  <!-- Disable reading from arbitrary paths (use explicit input only) -->
+  <policy domain="path" rights="none" pattern="@*"/>
+  
+  <!-- ============================================================
+       Module/Delegate Restrictions  
+       ============================================================ -->
+  
+  <!-- Disable Gnuplot delegate -->
+  <policy domain="delegate" rights="none" pattern="gnuplot"/>
+  
+</policymap>

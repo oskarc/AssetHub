@@ -94,6 +94,11 @@ services:
       # terminates HTTPS and forwards to Keycloak on port 8080 (HTTP).
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
+
+      # Secrets for realm import (media-realm.json)
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_TESTUSER_PASSWORD: ${KEYCLOAK_TESTUSER_PASSWORD}
+      KEYCLOAK_ADMIN_USER_PASSWORD: ${KEYCLOAK_ADMIN_USER_PASSWORD}
     volumes:
       - keycloakdata:/opt/keycloak/data
       - ../keycloak/import:/opt/keycloak/data/import:ro

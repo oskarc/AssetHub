@@ -36,6 +36,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Apply restrictive ImageMagick policy to disable dangerous coders (SVG, MVG, etc.)
+# This mitigates ImageTragick and similar vulnerabilities
+COPY docker/imagemagick-policy.xml /etc/ImageMagick-6/policy.xml
+
 WORKDIR /app
 COPY --from=publish /app/publish .
 

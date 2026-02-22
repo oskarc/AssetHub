@@ -225,6 +225,10 @@ public class AssetService : IAssetService
         if (!Constants.AllowedUploadTypes.IsAllowed(contentType))
             return ServiceError.BadRequest($"Content type '{contentType}' is not allowed. Only images, videos, audio, documents, and other safe file types are permitted.");
 
+        // Validate file magic bytes match claimed content type (prevents Content-Type spoofing)
+        if (!await FileMagicValidator.ValidateStreamAsync(fileStream, contentType, ct))
+            return ServiceError.BadRequest($"File content does not match the claimed content type '{contentType}'.");
+
         var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, AssetStatus.Processing);
         if (!string.IsNullOrEmpty(title))
             asset.Title = title;
@@ -409,6 +413,17 @@ public class AssetService : IAssetService
         var stat = await _minioAdapter.StatObjectAsync(BucketName, asset.OriginalObjectKey, ct);
         if (stat == null)
             return ServiceError.BadRequest("File not found in storage. Upload may have failed or expired.");
+
+        // Validate file magic bytes match claimed content type (prevents Content-Type spoofing)
+        var headerBytes = await _minioAdapter.DownloadRangeAsync(
+            BucketName, asset.OriginalObjectKey, 0, FileMagicValidator.MinBytesForValidation, ct);
+        if (!FileMagicValidator.Validate(headerBytes, asset.ContentType))
+        {
+            // Delete the spoofed file from storage
+            await _minioAdapter.DeleteAsync(BucketName, asset.OriginalObjectKey, ct);
+            await _assetRepo.DeleteAsync(asset.Id, ct);
+            return ServiceError.BadRequest($"File content does not match the claimed content type '{asset.ContentType}'.");
+        }
 
         asset.SizeBytes = stat.Size;
         asset.Status = AssetStatus.Processing;
