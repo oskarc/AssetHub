@@ -54,7 +54,7 @@ export class AssetDetailPage {
     this.addToCollectionButton = page.locator('[title*="Add"]').first();
 
     // Actions
-    this.downloadButton = page.getByRole('button', { name: /download original/i }).or(page.getByRole('link', { name: /download original/i }));
+    this.downloadButton = page.getByRole('button', { name: /download original/i }).first().or(page.getByRole('link', { name: /download original/i }).first());
     this.shareButton = page.getByRole('button', { name: /share/i }).first();
     this.editButton = page.getByRole('button', { name: /edit/i });
     this.deleteButton = page.getByRole('button', { name: /delete/i });

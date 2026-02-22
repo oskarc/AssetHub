@@ -465,11 +465,20 @@
 
     private IJSObjectReference? _jsModule;
     private DotNetObjectReference<Share>? _dotNetRef;
+    private bool _jsModuleLoaded = false;
 
     protected override async Task OnInitializedAsync()
     {
-        _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AssetHub.Ui/js/helpers.js");
         await LoadSharedContent();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_jsModuleLoaded)
+        {
+            _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AssetHub.Ui/js/helpers.js");
+            _jsModuleLoaded = true;
+        }
     }
 
     private async Task LoadSharedContent(string? password = null)

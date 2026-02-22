@@ -52,13 +52,14 @@ test.describe('Admin Panel @admin', () => {
       await adminPage.expectLoaded();
     });
 
-    test('admin page has three tabs', async ({ page }) => {
+    test('admin page has four tabs', async ({ page }) => {
       adminPage = new AdminPage(page);
       await adminPage.goto();
 
       await expect(adminPage.shareManagementTab).toBeVisible();
       await expect(adminPage.collectionAccessTab).toBeVisible();
       await expect(adminPage.userManagementTab).toBeVisible();
+      await expect(adminPage.auditTab).toBeVisible();
     });
   });
 
@@ -169,11 +170,11 @@ test.describe('Admin Panel @admin', () => {
     });
 
     test('collection access tab loads @smoke', async ({ page }) => {
-      // Should show collection tree
+      // Should show collection access heading or Collections label
       await page.waitForTimeout(env.timeouts.animation);
-      const treeOrText = page.getByText(/collection/i).first()
-        .or(page.locator('.mud-paper').first());
-      await expect(treeOrText).toBeVisible();
+      const heading = page.getByRole('heading', { name: /collection access/i })
+        .or(page.getByText(/Collections/i).and(page.locator('p')));
+      await expect(heading.first()).toBeVisible();
     });
 
     test('collection tree displays collections', async ({ page }) => {
@@ -245,7 +246,7 @@ test.describe('Admin Panel @admin', () => {
       const adminRow = page.getByText('mediaadmin');
       const viewerRow = page.getByText('testuser');
       // At least admin should be visible
-      await expect(adminRow.or(viewerRow)).toBeVisible({ timeout: 15_000 });
+      await expect(adminRow.or(viewerRow).first()).toBeVisible({ timeout: 15_000 });
     });
 
     test('user search filters results', async ({ page }) => {
@@ -288,12 +289,11 @@ test.describe('Admin Panel @admin', () => {
         await createBtn.click();
         await dialog.waitForDialog();
 
-        // Try to submit empty form
-        const submitBtn = dialog.dialog.getByRole('button', { name: /create/i });
+        // Verify submit button is disabled with empty form
+        const submitBtn = dialog.dialog.getByRole('button', { name: /create user/i });
         if (await submitBtn.isVisible()) {
-          await submitBtn.click();
-          await page.waitForTimeout(env.timeouts.animation);
-          // Should show validation errors or stay open
+          await expect(submitBtn).toBeDisabled();
+          // Dialog should stay open
           await expect(dialog.dialog).toBeVisible();
         }
         await dialog.closeDialog();
@@ -321,6 +321,56 @@ test.describe('Admin Panel @admin', () => {
       const count = await chips.count();
       if (count > 0) {
         await expect(chips.first()).toBeVisible();
+      }
+    });
+  });
+
+  test.describe('Audit Log Tab', () => {
+    test.beforeEach(async ({ page }) => {
+      adminPage = new AdminPage(page);
+      dialog = new DialogHelper(page);
+      snackbar = new SnackbarHelper(page);
+      await adminPage.goto();
+      await adminPage.switchToAudit();
+    });
+
+    test('audit log tab loads @smoke', async ({ page }) => {
+      // Should show audit heading or table
+      await expect(page.getByText(/audit/i).first()).toBeVisible();
+    });
+
+    test('audit table is visible', async ({ page }) => {
+      const table = page.locator('.mud-table');
+      // Table should exist (may be empty)
+      await expect(table).toBeVisible({ timeout: 10_000 });
+    });
+
+    test('audit table has search or filter functionality', async ({ page }) => {
+      const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
+      if (await searchInput.isVisible()) {
+        await searchInput.fill('test');
+        await page.waitForTimeout(env.timeouts.debounce);
+        // Should filter results
+      }
+    });
+
+    test('audit entries show timestamp and action', async ({ page }) => {
+      await page.waitForTimeout(env.timeouts.animation * 2);
+      const rows = page.locator('.mud-table tbody tr');
+      const rowCount = await rows.count();
+      if (rowCount > 0) {
+        // First row should have content (action, user, timestamp, etc.)
+        await expect(rows.first()).toBeVisible();
+      }
+    });
+
+    test('audit log can be refreshed', async ({ page }) => {
+      const refreshBtn = page.getByRole('button', { name: /refresh/i });
+      if (await refreshBtn.isVisible()) {
+        await refreshBtn.click();
+        await page.waitForTimeout(env.timeouts.animation);
+        // Page should still be functional
+        await expect(page.getByText(/audit/i).first()).toBeVisible();
       }
     });
   });

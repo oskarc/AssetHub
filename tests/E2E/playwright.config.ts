@@ -1,6 +1,7 @@
 /// <reference types="node" />
 
 import { defineConfig, devices } from '@playwright/test';
+import * as path from 'path';
 
 /**
  * AssetHub E2E Test Configuration
@@ -50,7 +51,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: './tests/.auth/admin.json',
+        storageState: path.join(__dirname, 'tests', '.auth', 'admin.json'),
       },
       dependencies: ['auth-setup'],
     },

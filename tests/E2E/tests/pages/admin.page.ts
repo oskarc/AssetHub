@@ -15,6 +15,7 @@ export class AdminPage {
   readonly shareManagementTab: Locator;
   readonly collectionAccessTab: Locator;
   readonly userManagementTab: Locator;
+  readonly auditTab: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -26,6 +27,7 @@ export class AdminPage {
     this.shareManagementTab = page.getByRole('tab', { name: /share/i });
     this.collectionAccessTab = page.getByRole('tab', { name: /collection/i });
     this.userManagementTab = page.getByRole('tab', { name: /user/i });
+    this.auditTab = page.getByRole('tab', { name: /audit/i });
   }
 
   async goto() {
@@ -166,5 +168,25 @@ export class AdminPage {
     const row = this.userTable.locator('tbody tr').nth(rowIndex);
     await row.getByRole('button', { name: /manage access/i }).click();
     await expect(this.page.locator('.mud-dialog')).toBeVisible();
+  }
+
+  // --- Audit Log ---
+
+  async switchToAudit() {
+    await this.auditTab.click();
+    await this.page.waitForTimeout(env.timeouts.animation);
+  }
+
+  get auditTable(): Locator {
+    return this.page.locator('.mud-table').first();
+  }
+
+  get auditSearchInput(): Locator {
+    return this.page.locator('.mud-table .mud-input-root input').first();
+  }
+
+  async searchAudit(query: string) {
+    await this.auditSearchInput.fill(query);
+    await this.page.waitForTimeout(env.timeouts.debounce);
   }
 }

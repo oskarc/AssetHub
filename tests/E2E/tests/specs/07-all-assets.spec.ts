@@ -116,9 +116,10 @@ test.describe('All Assets (Admin) @admin @assets', () => {
     const cards = page.locator('.asset-card');
     const count = await cards.count();
     if (count > 0) {
-      const viewBtn = cards.first().locator('.mud-icon-button').first();
-      if (await viewBtn.isVisible()) {
-        await viewBtn.click();
+      // Click the card thumbnail/content area to view asset
+      const clickableArea = cards.first().locator('.clickable').first();
+      if (await clickableArea.isVisible()) {
+        await clickableArea.click();
         await page.waitForURL(/\/assets\/[0-9a-f-]+/, { timeout: env.timeouts.navigation });
       }
     }

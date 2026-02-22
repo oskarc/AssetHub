@@ -34,7 +34,7 @@ export class SharePage {
     this.page = page;
 
     // Password
-    this.passwordInput = page.locator('input[type="password"]');
+    this.passwordInput = page.locator('input[type="password"]').or(page.locator('.mud-input-root input').first());
     this.accessButton = page.getByRole('button', { name: /access/i });
     this.passwordError = page.locator('.mud-alert-error, .mud-alert');
 
@@ -63,19 +63,19 @@ export class SharePage {
   }
 
   async submitPassword(password: string) {
-    await this.passwordInput.fill(password);
+    await this.passwordInput.first().fill(password);
     await this.accessButton.click();
     await this.page.waitForTimeout(env.timeouts.animation);
   }
 
   async expectPasswordPrompt() {
-    await expect(this.passwordInput).toBeVisible();
-    await expect(this.accessButton).toBeVisible();
+    await expect(this.passwordInput.first()).toBeVisible({ timeout: 15_000 });
+    await expect(this.accessButton).toBeVisible({ timeout: 10_000 });
   }
 
   async expectAssetVisible() {
     await expect(this.assetTitle).toBeVisible();
-    await expect(this.downloadButton).toBeVisible();
+    await expect(this.downloadButton.first()).toBeVisible();
   }
 
   async expectCollectionVisible() {

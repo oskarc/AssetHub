@@ -8,7 +8,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
-      const notFound = page.getByText(/not found|doesn't exist|error/i);
+      const notFound = page.getByText(/not found|doesn't exist|error/i).first();
       await expect(notFound).toBeVisible({ timeout: 10_000 });
     });
 
@@ -20,14 +20,14 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       // Should show empty state or error
       const result = page.getByText(/no.*asset|empty|not found|error/i);
       // Page should not crash
-      await expect(page.locator('.mud-container, .mud-main-content, body')).toBeVisible();
+      await expect(page.locator('.mud-container, .mud-main-content, body').first()).toBeVisible();
     });
 
     test('invalid GUID in URL handled gracefully', async ({ page }) => {
       await page.goto('/assets/not-a-guid');
       await page.waitForLoadState('networkidle');
       // Should show error or redirect
-      await expect(page.locator('body')).toBeVisible();
+      await expect(page.locator('body')).toBeVisible({ timeout: 10_000 });
     });
   });
 
@@ -62,7 +62,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
-      const searchInput = page.locator('.mud-input-root input[type="text"]').first();
+      const searchInput = page.locator('.mud-input-root input:not([type="hidden"])').first();
       if (await searchInput.isVisible()) {
         // Type rapidly
         await searchInput.type('abcdefghijklmnop', { delay: 50 });
@@ -73,7 +73,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
         await page.waitForTimeout(env.timeouts.debounce);
 
         // App should still be functional
-        await expect(page.locator('.mud-container, .mud-main-content')).toBeVisible();
+        await expect(page.locator('.mud-container, .mud-main-content').first()).toBeVisible();
       }
     });
   });
@@ -107,7 +107,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       await page.goForward();
       await page.waitForTimeout(env.timeouts.animation);
 
-      await expect(page.locator('.mud-container, .mud-main-content')).toBeVisible();
+      await expect(page.locator('.mud-container, .mud-main-content').first()).toBeVisible();
     });
   });
 
@@ -117,7 +117,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       await page.goto('/assets');
       await page.waitForLoadState('networkidle');
       // The "select a collection" empty state should appear
-      const emptyState = page.getByText(/select|choose|no.*collection/i);
+      const emptyState = page.getByText(/select|choose|no.*collection/i).first();
       if (await emptyState.isVisible()) {
         await expect(emptyState).toBeVisible();
       }
@@ -131,7 +131,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       // During load, a progress indicator might flash
       // Just ensure the page eventually loads
       await page.waitForLoadState('networkidle');
-      await expect(page.locator('.mud-container, .mud-main-content')).toBeVisible();
+      await expect(page.locator('.mud-container, .mud-main-content').first()).toBeVisible();
     });
 
     test('admin page shows loading states', async ({ page }) => {

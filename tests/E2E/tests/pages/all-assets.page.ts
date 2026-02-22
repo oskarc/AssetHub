@@ -25,7 +25,7 @@ export class AllAssetsPage {
 
     this.pageTitle = page.locator('.mud-typography-h4');
     this.refreshButton = page.getByRole('button', { name: /refresh/i });
-    this.searchInput = page.locator('.mud-input-root input[type="text"]').first();
+    this.searchInput = page.getByRole('textbox', { name: /search/i });
     this.collectionFilter = page.locator('.mud-select').first();
     this.typeFilter = page.locator('.mud-select').nth(1);
     this.sortSelect = page.locator('.mud-select').nth(2);

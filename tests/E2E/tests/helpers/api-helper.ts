@@ -1,4 +1,4 @@
-import { type Page, type APIRequestContext, expect } from '@playwright/test';
+import { type APIRequestContext, expect } from '@playwright/test';
 import { env } from '../config/env';
 
 /**
@@ -16,25 +16,40 @@ export class ApiHelper {
   /** Obtain a JWT from Keycloak for API calls */
   async authenticate(username?: string, password?: string): Promise<string> {
     const tokenUrl = `${env.keycloakUrl}/realms/${env.keycloakRealm}/protocol/openid-connect/token`;
-    const response = await this.request.post(tokenUrl, {
-      form: {
-        grant_type: 'password',
-        client_id: env.keycloakClientId,
-        client_secret: env.keycloakClientSecret,
-        username: username || env.adminUser.username,
-        password: password || env.adminUser.password,
-      },
-    });
-    if (!response.ok()) {
-      const body = await response.text();
-      throw new Error(`Keycloak token request failed (${response.status()}): ${body}`);
+    let lastError = 'Unknown authentication error';
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await this.request.post(tokenUrl, {
+          form: {
+            grant_type: 'password',
+            client_id: env.keycloakClientId,
+            client_secret: env.keycloakClientSecret,
+            username: username || env.adminUser.username,
+            password: password || env.adminUser.password,
+          },
+        });
+
+        if (!response.ok()) {
+          const body = await response.text();
+          lastError = `Keycloak token request failed (${response.status()}): ${body}`;
+          continue;
+        }
+
+        const data = await response.json();
+        if (!data.access_token) {
+          lastError = `Keycloak returned no access_token: ${JSON.stringify(data)}`;
+          continue;
+        }
+
+        this.token = data.access_token;
+        return this.token;
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+      }
     }
-    const data = await response.json();
-    if (!data.access_token) {
-      throw new Error(`Keycloak returned no access_token: ${JSON.stringify(data)}`);
-    }
-    this.token = data.access_token;
-    return this.token!;
+
+    throw new Error(`Failed to authenticate against ${tokenUrl} after 3 attempts: ${lastError}`);
   }
 
   private authHeaders() {
@@ -151,7 +166,20 @@ export class ApiHelper {
     const res = await this.request.get(`${env.baseUrl}/api/admin/shares`, {
       headers: this.authHeaders(),
     });
-    return await res.json();
+    if (!res.ok()) {
+      console.warn(`getAdminShares failed with status ${res.status()}`);
+      return [];
+    }
+    const text = await res.text();
+    if (!text || text.trim().length === 0) {
+      return [];
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      console.warn(`getAdminShares returned invalid JSON: ${text.substring(0, 200)}`);
+      return [];
+    }
   }
 
   async revokeShare(id: string) {
@@ -184,7 +212,21 @@ export class ApiHelper {
     const res = await this.request.get(`${env.baseUrl}/api/admin/keycloak-users`, {
       headers: this.authHeaders(),
     });
-    return await res.json();
+    if (!res.ok()) {
+      console.warn(`getKeycloakUsers failed with status ${res.status()}`);
+      return [];
+    }
+    const text = await res.text();
+    if (!text || text.trim().length === 0) {
+      console.warn('getKeycloakUsers returned empty body');
+      return [];
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      console.warn(`getKeycloakUsers returned invalid JSON: ${text.substring(0, 200)}`);
+      return [];
+    }
   }
 
   // --- Health ---

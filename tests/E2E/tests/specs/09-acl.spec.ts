@@ -37,19 +37,25 @@ test.describe('Access Control & Permissions @acl', () => {
   });
 
   test.describe('Collection ACL Management', () => {
-    test('admin can view collection ACL', async () => {
+    test('admin can view collection ACL', async ({ request }) => {
+      api = new ApiHelper(request);
+      await api.authenticate();
       const acl = await api.getCollectionAcl(testCollectionId);
       expect(Array.isArray(acl)).toBeTruthy();
     });
 
-    test('admin can grant viewer access to user', async () => {
+    test('admin can grant viewer access to user', async ({ request }) => {
       if (!viewerUserId) test.skip();
+      api = new ApiHelper(request);
+      await api.authenticate();
       const res = await api.setCollectionAccess(testCollectionId, viewerUserId, 'viewer');
       expect(res.ok()).toBeTruthy();
     });
 
-    test('ACL shows granted access', async () => {
+    test('ACL shows granted access', async ({ request }) => {
       if (!viewerUserId) test.skip();
+      api = new ApiHelper(request);
+      await api.authenticate();
       const acl = await api.getCollectionAcl(testCollectionId);
       const viewerEntry = acl.find((a: any) =>
         (a.principalId || a.PrincipalId) === viewerUserId
@@ -57,8 +63,10 @@ test.describe('Access Control & Permissions @acl', () => {
       expect(viewerEntry).toBeTruthy();
     });
 
-    test('admin can upgrade user role', async () => {
+    test('admin can upgrade user role', async ({ request }) => {
       if (!viewerUserId) test.skip();
+      api = new ApiHelper(request);
+      await api.authenticate();
       const res = await api.setCollectionAccess(testCollectionId, viewerUserId, 'contributor');
       expect(res.ok()).toBeTruthy();
 
@@ -72,6 +80,7 @@ test.describe('Access Control & Permissions @acl', () => {
 
     test('admin can revoke user access', async ({ request }) => {
       if (!viewerUserId) test.skip();
+      api = new ApiHelper(request);
       const token = await api.authenticate();
       const res = await request.delete(
         `${env.baseUrl}/api/collections/${testCollectionId}/acl/user/${viewerUserId}`,
@@ -113,10 +122,11 @@ test.describe('Access Control & Permissions @acl', () => {
       await expect(manageAccessBtn).toBeVisible({ timeout: 10_000 });
     });
 
-    test('admin sees delete buttons on assets', async ({ page }) => {
+    test('admin sees delete buttons on assets', async ({ page, request }) => {
       if (!testCollectionId) test.skip();
 
       const fixtures = ensureTestFixtures();
+      api = new ApiHelper(request);
       await api.authenticate();
       try {
         await api.uploadAsset(testCollectionId, fixtures.testImage, `ACL-Vis-${timestamp}`);
@@ -138,11 +148,13 @@ test.describe('Access Control & Permissions @acl', () => {
   });
 
   test.describe('Manage Access Dialog UI', () => {
-    test('manage access dialog shows existing ACL entries', async ({ page }) => {
+    test('manage access dialog shows existing ACL entries', async ({ page, request }) => {
       if (!testCollectionId) test.skip();
 
       // Grant access first
       if (viewerUserId) {
+        api = new ApiHelper(request);
+        await api.authenticate();
         await api.setCollectionAccess(testCollectionId, viewerUserId, 'viewer');
       }
 
