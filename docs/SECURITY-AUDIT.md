@@ -41,10 +41,12 @@ AssetHub demonstrates a **strong security posture** for an internal/team-facing 
 
 > **Recommendation:** Create a Keycloak service account with `manage-users` permissions and switch to `client_credentials` grant.
 
-**[INFO] `directAccessGrantsEnabled: true` in realm config**
+**[INFO] `directAccessGrantsEnabled: true` in realm config** ✅ RESOLVED
 `media-realm.json:168` enables the Resource Owner Password Credentials grant on the client. This should be disabled unless explicitly needed.
 
 > **Recommendation:** Set `"directAccessGrantsEnabled": false` in the client config.
+>
+> **Status (2026-02-22):** Resolved. ROPC grant disabled in `media-realm.json`.
 
 ---
 
@@ -88,10 +90,12 @@ Endpoints without an explicit `.RequireAuthorization()` or `.AllowAnonymous()` a
 
 ### Findings
 
-**[MEDIUM] Content-type validation relies solely on client-supplied MIME type**
+**[MEDIUM] Content-type validation relies solely on client-supplied MIME type** ✅ RESOLVED
 `AllowedUploadTypes.IsAllowed()` checks the `contentType` provided by the client/browser. A malicious user could upload an executable with `Content-Type: image/jpeg`.
 
 > **Recommendation:** Add server-side file magic byte (file signature) validation. At minimum, for `image/*` types, verify the file header matches the claimed type. Libraries like `MimeDetective` can help.
+>
+> **Status (2026-02-22):** Resolved. `FileMagicValidator.cs` validates file signatures for images, video, audio, documents, and fonts. Validation runs on both direct uploads and presigned upload confirmations.
 
 **[LOW] SVG upload allowed — potential stored XSS vector**
 `application/svg+xml` is in the allowed list (`Constants.cs:140`). SVGs can contain embedded JavaScript.
@@ -116,7 +120,7 @@ While Kestrel has a global `MaxRequestBodySize`, individual endpoints don't vali
 
 ### Findings
 
-**[HIGH] Hardcoded client secret and user passwords in Keycloak realm import**
+**[HIGH] Hardcoded client secret and user passwords in Keycloak realm import** ✅ RESOLVED
 `media-realm.json:165` contains:
 
 - Client secret: `"secret": "VxBiV29QVchYHFzD5N62l43fTXbTMzSl"`
@@ -129,6 +133,8 @@ This file is committed to version control. Even though it's for development, the
 > 1. Rotate the client secret if it was ever used outside development.
 > 2. Replace hardcoded values with placeholders and use `envsubst` or a script at import time.
 > 3. Use stronger passwords even for development accounts to prevent habit formation.
+>
+> **Status (2026-02-22):** Resolved. Secrets replaced with environment variable placeholders (`${KEYCLOAK_CLIENT_SECRET}`, `${KEYCLOAK_TESTUSER_PASSWORD}`, `${KEYCLOAK_ADMIN_USER_PASSWORD}`). Variables added to docker-compose files and `.env.template`.
 
 **[MEDIUM] Shared PostgreSQL credentials between app and Keycloak**
 Both the application and Keycloak use the same `POSTGRES_USER`/`POSTGRES_PASSWORD` (`docker-compose.prod.yml:82-83`). A compromise of one gives full access to both databases.
@@ -240,18 +246,22 @@ Modern browsers have removed their XSS auditor. This header is harmless but misl
 
 ### Findings
 
-**[MEDIUM] No file content validation (magic bytes)**
+**[MEDIUM] No file content validation (magic bytes)** ✅ RESOLVED
 As noted in Section 3, file type is determined solely by the client-supplied Content-Type header.
 
 > **Recommendation:** Implement server-side magic byte validation for at minimum image types.
+>
+> **Status (2026-02-22):** Resolved. See Input Validation section.
 
-**[MEDIUM] ImageMagick and ffmpeg without hardened policy**
+**[MEDIUM] ImageMagick and ffmpeg without hardened policy** ✅ RESOLVED
 The Dockerfile installs `imagemagick` and `ffmpeg` (`Dockerfile:33-36`) without configuring ImageMagick's `policy.xml`. ImageMagick has a history of security vulnerabilities (ImageTragick, CVE-2016-3714 and successors).
 
 > **Recommendation:**
 > 1. Add a restrictive `policy.xml` that disables coders for dangerous formats (SVG, MVG, MSL, TEXT, LABEL).
 > 2. Set resource limits (memory, disk, time) in the policy.
 > 3. Pin ImageMagick to a specific version rather than the distro default.
+>
+> **Status (2026-02-22):** Resolved. `docker/imagemagick-policy.xml` added with restrictive policy disabling SVG, MVG, MSL, TEXT, LABEL, PS/PDF, URL handlers. Resource limits configured (128MP area, 256MiB memory, 120s timeout). Policy applied to both `Dockerfile` and `Dockerfile.Worker`.
 
 **[LOW] No virus/malware scanning on uploads**
 Files are stored and served without any malware scanning.
@@ -375,22 +385,22 @@ Most NuGet packages use `9.0.*` or `1.8.*` ranges. While convenient, this can pu
 
 ### Immediate (High Priority)
 
-1. **Rotate the Keycloak client secret** committed in `media-realm.json` and replace with environment variable placeholders
-2. **Add ImageMagick `policy.xml`** to restrict dangerous coders and set resource limits
+1. ~~**Rotate the Keycloak client secret** committed in `media-realm.json` and replace with environment variable placeholders~~ ✅ DONE (2026-02-22)
+2. ~~**Add ImageMagick `policy.xml`** to restrict dangerous coders and set resource limits~~ ✅ DONE (2026-02-22)
 
 ### Short-Term (Medium Priority)
 
-3. Implement file magic byte validation for uploaded files
+3. ~~Implement file magic byte validation for uploaded files~~ ✅ DONE (2026-02-22)
 4. Separate PostgreSQL credentials for app and Keycloak databases
 5. Upgrade Keycloak to latest stable (26.x)
-6. Pin Docker base images to specific patch versions
-7. Configure HSTS with 1-year max-age
-8. Add a fallback authorization policy requiring authentication
+6. ~~Pin Docker base images to specific patch versions~~ ✅ DONE (2026-02-22)
+7. ~~Configure HSTS with 1-year max-age~~ ✅ DONE (2026-02-22)
+8. ~~Add a fallback authorization policy requiring authentication~~ ✅ DONE (2026-02-22)
 
 ### Long-Term (Low Priority)
 
 9. Switch Keycloak admin auth from ROPC to `client_credentials` grant
-10. Disable `directAccessGrantsEnabled` on the OIDC client
+10. ~~Disable `directAccessGrantsEnabled` on the OIDC client~~ ✅ DONE (2026-02-22)
 11. Add malware scanning for file uploads
 12. Set `AllowedHosts` to the production hostname
 13. Add failed auth attempt logging for share links

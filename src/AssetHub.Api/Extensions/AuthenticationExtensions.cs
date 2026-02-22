@@ -3,6 +3,7 @@ using AssetHub.Application;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 
@@ -94,6 +95,12 @@ public static class AuthenticationExtensions
         // ── Authorization policies ──────────────────────────────────────────
         services.AddAuthorization(options =>
         {
+            // Fallback: require authentication by default for all endpoints
+            // Endpoints that should be anonymous must use .AllowAnonymous()
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+
             options.AddPolicy("Authenticated", policy =>
                 policy.RequireAuthenticatedUser());
 

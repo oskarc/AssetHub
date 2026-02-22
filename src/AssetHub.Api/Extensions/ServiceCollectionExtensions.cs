@@ -35,6 +35,17 @@ public static class ServiceCollectionExtensions
             options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
         });
 
+        // ── HSTS (production hardening) ────────────────────────────────────
+        if (!environment.IsDevelopment())
+        {
+            services.AddHsts(options =>
+            {
+                options.MaxAge = TimeSpan.FromDays(365);
+                options.IncludeSubDomains = true;
+                options.Preload = true;
+            });
+        }
+
         // ── Localization (Swedish & English) ────────────────────────────────
         services.AddLocalization();
         services.Configure<RequestLocalizationOptions>(options =>
