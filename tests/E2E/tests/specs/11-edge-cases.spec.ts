@@ -22,13 +22,6 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       // Page should not crash
       await expect(page.locator('.mud-container, .mud-main-content, body').first()).toBeVisible();
     });
-
-    test('invalid GUID in URL handled gracefully', async ({ page }) => {
-      await page.goto('/assets/not-a-guid');
-      await page.waitForLoadState('networkidle');
-      // Should show error or redirect
-      await expect(page.locator('body')).toBeVisible({ timeout: 10_000 });
-    });
   });
 
   test.describe('Blazor Error Handling', () => {

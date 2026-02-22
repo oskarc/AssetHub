@@ -82,9 +82,9 @@ public static class ShareEndpoints
     }
 
     private static async Task<IResult> PreviewSharedAsset(
-        string token, string? accessToken, string? size, Guid? assetId, bool download,
+        string token, string? accessToken, string? size, Guid? assetId,
         [FromServices] IShareAccessService svc,
-        HttpContext httpContext, CancellationToken ct)
+        HttpContext httpContext, CancellationToken ct, bool download = false)
     {
         var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
         var result = await svc.GetPreviewUrlAsync(token, effectiveCredential, size, assetId, download, ct);

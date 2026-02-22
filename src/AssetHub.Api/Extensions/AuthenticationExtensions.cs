@@ -64,6 +64,17 @@ public static class AuthenticationExtensions
                 NameClaimType = "preferred_username",
                 RoleClaimType = ClaimTypes.Role
             };
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnTokenValidated = context =>
+                {
+                    if (context.Principal?.Identity is ClaimsIdentity identity)
+                    {
+                        MapKeycloakRoles(identity);
+                    }
+                    return Task.CompletedTask;
+                }
+            };
         })
         .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
         {
