@@ -193,19 +193,6 @@ public class MediaProcessingService(
         }
     }
 
-    public async Task<(bool IsCompleted, string? Status, string? ErrorMessage)> GetJobStatusAsync(string jobId, CancellationToken cancellationToken = default)
-    {
-        if (jobId == "no-processing-required")
-        {
-            return (true, "completed", null);
-        }
-
-        // Actual Hangfire job status tracking is not yet implemented.
-        // The asset's status (Ready / Failed) is updated by the job itself;
-        // callers should poll the asset record instead.
-        return (false, "processing", null);
-    }
-
     /// <summary>
     /// Safely delete a temp file, logging any errors.
     /// </summary>

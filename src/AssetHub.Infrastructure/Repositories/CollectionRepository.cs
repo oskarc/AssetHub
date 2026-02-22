@@ -132,6 +132,7 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
         return await dbContext.Collections
             .Include(c => c.Acls)
             .OrderBy(c => c.Name)
+            .Take(AssetHub.Application.Constants.Limits.AdminCollectionQueryLimit)
             .ToListAsync(ct);
     }
 

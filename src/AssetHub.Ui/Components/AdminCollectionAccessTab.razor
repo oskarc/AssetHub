@@ -1,0 +1,295 @@
+@using AssetHub.Application.Helpers
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["CollectionAccessControl"]</MudText>
+
+@if (_collectionsLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_collections == null || !_collections.Any())
+{
+    <EmptyState Title="@AdminLoc["NoCollectionsYet"]"
+                Description="@AdminLoc["NoCollectionsDesc"]"
+                Icon="@Icons.Material.Filled.Folder" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="5">
+            <MudPaper Elevation="2" Class="pa-4 admin-collection-tree">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">@CommonLoc["Label_Collections"]</MudText>
+                @foreach (var collection in _collections.OrderBy(c => c.Name, new NaturalSortComparer()))
+                {
+                    @RenderCollectionTree(collection, 0)
+                }
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="7">
+            <MudPaper Elevation="2" Class="pa-4">
+                @if (_selectedCollection == null)
+                {
+                    <EmptyState Title="@AdminLoc["SelectACollection"]"
+                                Description="@AdminLoc["SelectACollectionDesc"]"
+                                Icon="@Icons.Material.Filled.FolderShared" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        @AdminLoc["AccessFor"] <strong>@_selectedCollection.Name</strong>
+                    </MudText>
+
+                    @* Add user form *@
+                    <MudGrid Class="mb-4">
+                        <MudItem xs="12" sm="5">
+                            <MudAutocomplete T="KeycloakUserDto"
+                                             @bind-Value="_newAclUser"
+                                             SearchFunc="SearchUsersForAcl"
+                                             ToStringFunc="@(u => u?.Username ?? "")"
+                                             Label="@AdminLoc["SearchUsersPlaceholder"]"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             ResetValueOnEmptyText="true"
+                                             DebounceInterval="200"
+                                             MinCharacters="0"
+                                             MaxItems="20">
+                                <ItemTemplate Context="user">
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body2">@user.Username</MudText>
+                                        @if (!string.IsNullOrEmpty(user.Email))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@user.Email</MudText>
+                                        }
+                                    </MudStack>
+                                </ItemTemplate>
+                            </MudAutocomplete>
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudSelect @bind-Value="_newAclRole" Label="@CommonLoc["Label_Role"]"
+                                Variant="Variant.Outlined" Margin="Margin.Dense">
+                                <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                                <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                                <MudSelectItem Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                                <MudSelectItem Value="@RoleHierarchy.Roles.Admin">@CommonLoc["Role_Admin"]</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                OnClick="AddCollectionAccess" Disabled="@(_newAclUser == null)"
+                                FullWidth="true" Class="mt-1">
+                                @CommonLoc["Btn_Add"]
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+
+                    @* Current ACLs *@
+                    @if (!_selectedCollection.Acls.Any())
+                    {
+                        <EmptyState Title="@AdminLoc["NoUsersHaveAccess"]"
+                                    Description="@AdminLoc["NoUsersHaveAccessDesc"]"
+                                    Icon="@Icons.Material.Filled.PersonAdd" />
+                    }
+                    else
+                    {
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                            <thead>
+                                <tr>
+                                    <th>@CommonLoc["Label_User"]</th>
+                                    <th>@CommonLoc["Label_Role"]</th>
+                                    <th>@CommonLoc["Label_Actions"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var acl in _selectedCollection.Acls)
+                                {
+                                    <tr>
+                                        <td>
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body2">@acl.PrincipalName</MudText>
+                                                @if (!string.IsNullOrEmpty(acl.PrincipalEmail))
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="text-secondary">@acl.PrincipalEmail</MudText>
+                                                }
+                                            </MudStack>
+                                        </td>
+                                        <td>
+                                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(acl.Role)">
+                                                @acl.Role
+                                            </MudChip>
+                                        </td>
+                                        <td>
+                                            @if (acl.IsSystemAdmin)
+                                            {
+                                                <MudTooltip Text="@AdminLoc["AdminImplicitAccess"]">
+                                                    <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings"
+                                                             Size="Size.Small" Color="Color.Default" />
+                                                </MudTooltip>
+                                            }
+                                            else
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                    Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    }
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private List<CollectionAccessDto>? _collections;
+    private bool _collectionsLoading = true;
+    private CollectionAccessDto? _selectedCollection;
+    private KeycloakUserDto? _newAclUser;
+    private string _newAclRole = RoleHierarchy.Roles.Viewer;
+
+    private List<KeycloakUserDto>? _allUsers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(LoadCollectionsAsync(), LoadUsersAsync());
+    }
+
+    public async Task RefreshAsync()
+    {
+        await Task.WhenAll(LoadCollectionsAsync(), LoadUsersAsync());
+        StateHasChanged();
+    }
+
+    private async Task LoadCollectionsAsync()
+    {
+        try
+        {
+            _collectionsLoading = true;
+            var selectedId = _selectedCollection?.Id;
+            _collections = await Api.GetCollectionAccessAsync();
+
+            if (selectedId.HasValue)
+                _selectedCollection = CollectionTreeHelper.FindById(_collections, selectedId.Value);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+        }
+        finally
+        {
+            _collectionsLoading = false;
+        }
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            _allUsers = await Api.GetKeycloakUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load users for ACL autocomplete");
+        }
+    }
+
+    private RenderFragment RenderCollectionTree(CollectionAccessDto collection, int depth) => __builder =>
+    {
+        var isSelected = _selectedCollection?.Id == collection.Id;
+        var depthClass = $"admin-tree-item-depth-{Math.Min(depth, 5)}";
+
+        <MudButton Variant="@(isSelected ? Variant.Filled : Variant.Text)"
+            Color="@(isSelected ? Color.Primary : Color.Default)"
+            OnClick="@(() => SelectCollection(collection))"
+            FullWidth="true"
+            Class="@($"justify-start mb-1 admin-tree-item {depthClass}")">
+            <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Small" Class="mr-2" />
+            @collection.Name
+            <MudSpacer />
+            <MudChip T="string" Size="Size.Small" Color="Color.Default">@collection.Acls.Count</MudChip>
+        </MudButton>
+
+        @foreach (var child in collection.Children.OrderBy(c => c.Name, new NaturalSortComparer()))
+        {
+            @RenderCollectionTree(child, depth + 1)
+        }
+    };
+
+    private void SelectCollection(CollectionAccessDto collection)
+    {
+        _selectedCollection = collection;
+        _newAclUser = null;
+        _newAclRole = RoleHierarchy.Roles.Viewer;
+    }
+
+    private Task<IEnumerable<KeycloakUserDto>> SearchUsersForAcl(string? value, CancellationToken ct)
+    {
+        var users = _allUsers ?? new List<KeycloakUserDto>();
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(users.AsEnumerable());
+
+        var filtered = users.Where(u =>
+            u.Username.Contains(value, StringComparison.OrdinalIgnoreCase)
+            || (u.Email?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (u.FirstName?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (u.LastName?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        return Task.FromResult(filtered);
+    }
+
+    private async Task AddCollectionAccess()
+    {
+        if (_selectedCollection == null || _newAclUser == null)
+            return;
+
+        var userId = _newAclUser.Id;
+        var username = _newAclUser.Username;
+
+        try
+        {
+            await Api.AddCollectionAclAsync(_selectedCollection.Id, Constants.PrincipalTypes.User, userId, _newAclRole);
+            Feedback.ShowSuccess(string.Format(CommonLoc["Success_AccessGranted"], username));
+            _newAclUser = null;
+            await LoadCollectionsAsync();
+            _selectedCollection = CollectionTreeHelper.FindById(_collections, _selectedCollection.Id);
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                Feedback.ShowWarning(string.Format(CommonLoc["Warning_UserNotFound"], username));
+            else
+                Feedback.HandleError(ex, "add access");
+        }
+    }
+
+    private async Task RemoveCollectionAccess(CollectionAclResponseDto acl)
+    {
+        if (_selectedCollection == null)
+            return;
+
+        var confirmed = await DialogService.ShowMessageBox(
+            CommonLoc["Confirm_RemoveAccess"],
+            string.Format(AdminLoc["ConfirmRemoveAccess"], acl.PrincipalId, _selectedCollection.Name),
+            yesText: CommonLoc["Btn_Remove"], cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true)
+            return;
+
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RemoveCollectionAclAsync(_selectedCollection.Id, acl.PrincipalId, acl.PrincipalType),
+            "remove access",
+            string.Format(CommonLoc["Success_AccessRemoved"], acl.PrincipalId));
+
+        if (success)
+        {
+            await LoadCollectionsAsync();
+            _selectedCollection = CollectionTreeHelper.FindById(_collections, _selectedCollection.Id);
+        }
+    }
+}

@@ -1,0 +1,194 @@
+@using AssetHub.Application.Helpers
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["AllSharedLinks"]</MudText>
+
+@if (_sharesLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_shares == null || !_shares.Any())
+{
+    <EmptyState Title="@AdminLoc["NoSharesYet"]"
+                Description="@AdminLoc["NoSharesDesc"]"
+                Icon="@Icons.Material.Filled.Share" />
+}
+else
+{
+    <MudTable Items="@_shares" Hover="true" Dense="true" Striped="true" Filter="ShareFilter" SortLabel="Sort By">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_shareSearchString" Placeholder="@AdminLoc["SearchSharesPlaceholder"]"
+                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+            <MudSpacer />
+            <MudChip T="string" Color="Color.Success" Size="Size.Small">@AdminLoc["Active"]: @_shares.Count(s => s.Status == "Active")</MudChip>
+            <MudChip T="string" Color="Color.Warning" Size="Size.Small">@AdminLoc["Expired"]: @_shares.Count(s => s.Status == "Expired")</MudChip>
+            <MudChip T="string" Color="Color.Error" Size="Size.Small">@AdminLoc["Revoked"]: @_shares.Count(s => s.Status == "Revoked")</MudChip>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeType)">@CommonLoc["Label_Type"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeName)">@AdminLoc["Header_Target"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.CreatedByUserName)">@AdminLoc["Header_CreatedBy"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.CreatedAt)">@CommonLoc["Label_Created"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ExpiresAt)">@CommonLoc["Label_Expires"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.LastAccessedAt ?? DateTime.MinValue)">@AdminLoc["Header_LastAccess"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.AccessCount)">@AdminLoc["Header_AccessCount"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.Status)">@CommonLoc["Label_Status"]</MudTableSortLabel></MudTh>
+            <MudTh>@CommonLoc["Label_Actions"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@(context.ScopeType == "asset" ? Color.Info : Color.Default)" Variant="Variant.Outlined">
+                    @context.ScopeType
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudTooltip Text="@context.ScopeId.ToString()">
+                    @context.ScopeName
+                </MudTooltip>
+                @if (context.HasPassword)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Warning" Class="ml-1" />
+                }
+            </MudTd>
+            <MudTd>@context.CreatedByUserName</MudTd>
+            <MudTd>@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
+            <MudTd>@context.ExpiresAt.ToLocalTime().ToString("g")</MudTd>
+            <MudTd>@(context.LastAccessedAt?.ToLocalTime().ToString("g") ?? @CommonLoc["Text_Never"])</MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small">@context.AccessCount</MudChip></MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetShareStatusColor(context.Status)">
+                    @context.Status
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                @if (context.Status == "Active")
+                {
+                    <MudStack Row="true" Spacing="1">
+                        <MudTooltip Text="@AdminLoc["ShowShareInfo"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"
+                                OnClick="@(() => ShowShareInfo(context))" />
+                        </MudTooltip>
+                        @if (context.HasPassword)
+                        {
+                            <MudTooltip Text="@AdminLoc["EditPassword"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.Key" Color="Color.Primary" Size="Size.Small"
+                                    OnClick="@(() => EditSharePassword(context))" />
+                            </MudTooltip>
+                        }
+                        <MudTooltip Text="@AdminLoc["RevokeShare"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
+                                OnClick="@(() => RevokeShare(context))" />
+                        </MudTooltip>
+                    </MudStack>
+                }
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private List<AdminShareDto>? _shares;
+    private bool _sharesLoading = true;
+    private string _shareSearchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    public async Task RefreshAsync()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _sharesLoading = true;
+            _shares = await Api.GetAllSharesAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load shares");
+        }
+        finally
+        {
+            _sharesLoading = false;
+        }
+    }
+
+    private bool ShareFilter(AdminShareDto share)
+    {
+        if (string.IsNullOrWhiteSpace(_shareSearchString))
+            return true;
+
+        return share.ScopeName.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase)
+            || share.CreatedByUserName.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase)
+            || share.Status.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task EditSharePassword(AdminShareDto share)
+    {
+        var parameters = new DialogParameters<SharePasswordDialog>
+        {
+            { x => x.Share, share }
+        };
+
+        var dialog = await DialogService.ShowAsync<SharePasswordDialog>(AdminLoc["EditSharePassword"], parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task RevokeShare(AdminShareDto share)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(AdminLoc["ConfirmRevokeShare"], share.ScopeName),
+            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true)
+            return;
+
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RevokeShareAdminAsync(share.Id),
+            "revoke share",
+            AdminLoc["ShareRevokedSuccess"]);
+
+        if (success)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task ShowShareInfo(AdminShareDto share)
+    {
+        var parameters = new DialogParameters<ShareInfoDialog>
+        {
+            { x => x.Share, share },
+            { x => x.ShareUrl, string.Empty },
+            { x => x.SharePassword, string.Empty }
+        };
+
+        var dialog = await DialogService.ShowAsync<ShareInfoDialog>(AdminLoc["ShowShareInfo"], parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadAsync();
+        }
+    }
+}

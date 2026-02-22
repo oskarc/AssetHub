@@ -1,0 +1,202 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+
+@* Shared asset detail panel used by Share.razor for both single-asset and
+   collection-selected-asset views. Renders preview, metadata, and a download button. *@
+
+<MudGrid>
+    <!-- Preview Area -->
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4" Elevation="1">
+            @if (Asset.AssetType == Constants.AssetTypeFilters.Image)
+            {
+                <MudImage Src="@PreviewUrl"
+                          Alt="@Asset.Title"
+                          ObjectFit="ObjectFit.Contain"
+                          Class="media-preview-image rounded" />
+            }
+            else if (Asset.AssetType == Constants.AssetTypeFilters.Video)
+            {
+                <video controls poster="@PosterUrl" class="media-preview-video">
+                    <source src="@PreviewUrl" type="@Asset.ContentType">
+                    @BrowserNoVideoText
+                </video>
+            }
+            else if (AssetDisplayHelpers.IsPdfContentType(Asset.ContentType))
+            {
+                <iframe src="@PreviewUrl"
+                        class="media-preview-iframe"
+                        title="@Asset.Title">
+                </iframe>
+            }
+            else
+            {
+                <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                    <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">@Asset.Title</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @PreviewNotAvailableText
+                    </MudText>
+                    <MudButton Variant="Variant.Outlined"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               Href="@DownloadUrl"
+                               Target="_blank"
+                               Class="mt-2">
+                        @DownloadToViewText
+                    </MudButton>
+                </MudStack>
+            }
+        </MudPaper>
+    </MudItem>
+
+    <!-- Details Panel -->
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudStack Spacing="3">
+                <!-- Title and Type -->
+                <MudStack>
+                    <MudText Typo="Typo.h5">@Asset.Title</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(Asset.AssetType)" Class="share-chip-width">
+                        @Asset.AssetType.ToUpperInvariant()
+                    </MudChip>
+                </MudStack>
+
+                <MudDivider />
+
+                <!-- Description -->
+                @if (!string.IsNullOrEmpty(Asset.Description))
+                {
+                    <MudStack>
+                        <MudText Typo="Typo.subtitle2">@DescriptionLabel</MudText>
+                        <MudText Typo="Typo.body2">@Asset.Description</MudText>
+                    </MudStack>
+                }
+
+                <!-- Copyright -->
+                @if (!string.IsNullOrEmpty(Asset.Copyright))
+                {
+                    <MudStack>
+                        <MudText Typo="Typo.subtitle2">@CopyrightLabel</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Copyright" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText Typo="Typo.body2">@Asset.Copyright</MudText>
+                        </MudStack>
+                    </MudStack>
+                }
+
+                <!-- File Information -->
+                <MudStack>
+                    <MudText Typo="Typo.subtitle2">@FileInformationText</MudText>
+                    <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                        <tbody>
+                            <tr>
+                                <td><MudText Typo="Typo.body2" Color="Color.Secondary">@SizeLabel</MudText></td>
+                                <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(Asset.SizeBytes)</MudText></td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2" Color="Color.Secondary">@TypeLabel</MudText></td>
+                                <td><MudText Typo="Typo.body2">@Asset.ContentType</MudText></td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </MudStack>
+
+                <!-- Advanced Metadata -->
+                <MudDivider />
+                <MudStack>
+                    <MudExpansionPanels Elevation="0" Class="share-panel-reset">
+                        <MudExpansionPanel MaxHeight="400"
+                                           Class="share-panel-header pa-0 ma-0">
+                            <TitleContent>
+                                <MudText Typo="Typo.subtitle2" Class="share-panel-icon">@AdvancedMetadataText</MudText>
+                            </TitleContent>
+                            <ChildContent>
+                                @if (Asset.MetadataJson.Any())
+                                {
+                                    <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                        <tbody>
+                                            @foreach (var kvp in Asset.MetadataJson.OrderBy(k => k.Key))
+                                            {
+                                                <tr>
+                                                    <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
+                                                    <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </MudSimpleTable>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        @NoMetadataText
+                                    </MudText>
+                                }
+                            </ChildContent>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                </MudStack>
+
+                <MudDivider />
+
+                <!-- Download Buttons -->
+                <MudStack Spacing="2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               FullWidth="true"
+                               OnClick="OnDownload">
+                        @DownloadOriginalText
+                    </MudButton>
+                    @if (!string.IsNullOrEmpty(MediumDownloadUrl))
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   FullWidth="true"
+                                   OnClick="OnDownloadMedium">
+                            @DownloadMediumText
+                        </MudButton>
+                    }
+                    @if (!string.IsNullOrEmpty(ThumbnailDownloadUrl))
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   FullWidth="true"
+                                   OnClick="OnDownloadThumbnail">
+                            @DownloadThumbnailText
+                        </MudButton>
+                    }
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter, EditorRequired] public SharedAssetDto Asset { get; set; } = default!;
+    [Parameter, EditorRequired] public string PreviewUrl { get; set; } = "";
+    [Parameter] public string? PosterUrl { get; set; }
+    [Parameter, EditorRequired] public string DownloadUrl { get; set; } = "";
+    [Parameter] public EventCallback OnDownload { get; set; }
+    [Parameter] public string? MediumDownloadUrl { get; set; }
+    [Parameter] public EventCallback OnDownloadMedium { get; set; }
+    [Parameter] public string? ThumbnailDownloadUrl { get; set; }
+    [Parameter] public EventCallback OnDownloadThumbnail { get; set; }
+
+    // Localisation strings passed in from the parent page so this component
+    // stays free of injected localisers and works in both pages and tests.
+    [Parameter] public string BrowserNoVideoText { get; set; } = "";
+    [Parameter] public string PreviewNotAvailableText { get; set; } = "";
+    [Parameter] public string DownloadToViewText { get; set; } = "";
+    [Parameter] public string DescriptionLabel { get; set; } = "Description";
+    [Parameter] public string CopyrightLabel { get; set; } = "Copyright";
+    [Parameter] public string FileInformationText { get; set; } = "File Information";
+    [Parameter] public string SizeLabel { get; set; } = "Size";
+    [Parameter] public string TypeLabel { get; set; } = "Type";
+    [Parameter] public string AdvancedMetadataText { get; set; } = "Advanced Metadata";
+    [Parameter] public string NoMetadataText { get; set; } = "No metadata available";
+    [Parameter] public string DownloadOriginalText { get; set; } = "Download Original";
+    [Parameter] public string DownloadMediumText { get; set; } = "Download Medium";
+    [Parameter] public string DownloadThumbnailText { get; set; } = "Download Thumbnail";
+}

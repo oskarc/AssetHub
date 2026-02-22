@@ -120,7 +120,7 @@
                                         <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" />
                                         <MudText Typo="Typo.subtitle2" Class="text-truncate" Style="flex: 1;">@collection.Name</MudText>
                                         <div onclick="event.stopPropagation()" class="d-flex">
-                                            @if (RolePermissions.CanEdit(collection.UserRole))
+                                            @if (RolePermissions.CanEditCollection(collection.UserRole))
                                             {
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                                Size="Size.Small"
@@ -179,7 +179,7 @@
                             </div>
                         </div>
                         <div class="d-flex gap-2 ml-3">
-                            @if (RolePermissions.CanEdit(CurrentUserRole))
+                            @if (RolePermissions.CanEditCollection(CurrentUserRole))
                             {
                                 <MudButton Variant="Variant.Outlined"
                                            Size="Size.Small"

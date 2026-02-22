@@ -1,4 +1,6 @@
 @page "/share/{Token}"
+@layout Layout.ShareLayout
+@rendermode @(new Microsoft.AspNetCore.Components.Web.InteractiveServerRenderMode(prerender: false))
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @implements IAsyncDisposable
 
@@ -73,159 +75,35 @@
     }
     else if (_sharedAsset != null)
     {
-        <!-- Shared Asset View - Two Column Layout -->
-        <MudGrid>
-            <!-- Preview Area -->
-            <MudItem xs="12" md="8">
-                <MudPaper Class="pa-4" Elevation="1">
-                    @if (_sharedAsset.AssetType == Constants.AssetTypeFilters.Image)
-                    {
-                        <MudImage Src="@GetPreviewUrl()"
-                                  Alt="@_sharedAsset.Title"
-                                  ObjectFit="ObjectFit.Contain"
-                                  Class="media-preview-image rounded" />
-                    }
-                    else if (_sharedAsset.AssetType == Constants.AssetTypeFilters.Video)
-                    {
-                        <video controls poster="@GetPosterUrl()" class="media-preview-video">
-                            <source src="@GetPreviewUrl()" type="@_sharedAsset.ContentType">
-                            @CommonLoc["Text_BrowserNoVideo"]
-                        </video>
-                    }
-                    else if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType))
-                    {
-                        <iframe src="@GetPreviewUrl()" 
-                                class="media-preview-iframe" 
-                                title="@_sharedAsset.Title">
-                        </iframe>
-                    }
-                    else
-                    {
-                        <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
-                            <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Primary" />
-                            <MudText Typo="Typo.h6">@_sharedAsset.Title</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                @CommonLoc["Text_PreviewNotAvailable"]
-                            </MudText>
-                            <MudButton Variant="Variant.Outlined"
-                                       StartIcon="@Icons.Material.Filled.Download"
-                                       Href="@GetDownloadUrl()"
-                                       Target="_blank"
-                                       Class="mt-2">
-                                @CommonLoc["Btn_DownloadToView"]
-                            </MudButton>
-                        </MudStack>
-                    }
-                </MudPaper>
-            </MudItem>
-
-            <!-- Details Panel -->
-            <MudItem xs="12" md="4">
-                <MudPaper Class="pa-4" Elevation="1">
-                    <MudStack Spacing="3">
-                        <!-- Title and Type -->
-                        <MudStack>
-                            <MudText Typo="Typo.h5">@_sharedAsset.Title</MudText>
-                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_sharedAsset.AssetType)" Class="share-chip-width">
-                                @_sharedAsset.AssetType.ToUpperInvariant()
-                            </MudChip>
-                        </MudStack>
-
-                        <MudDivider />
-
-                        <!-- Description -->
-                        @if (!string.IsNullOrEmpty(_sharedAsset.Description))
-                        {
-                            <MudStack>
-                                <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Description"]</MudText>
-                                <MudText Typo="Typo.body2">@_sharedAsset.Description</MudText>
-                            </MudStack>
-                        }
-
-                        <!-- Copyright -->
-                        @if (!string.IsNullOrEmpty(_sharedAsset.Copyright))
-                        {
-                            <MudStack>
-                                <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Copyright"]</MudText>
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudIcon Icon="@Icons.Material.Filled.Copyright" Size="Size.Small" Color="Color.Secondary" />
-                                    <MudText Typo="Typo.body2">@_sharedAsset.Copyright</MudText>
-                                </MudStack>
-                            </MudStack>
-                        }
-
-                        <!-- File Information -->
-                        <MudStack>
-                            <MudText Typo="Typo.subtitle2">@CommonLoc["Text_FileInformation"]</MudText>
-                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
-                                <tbody>
-                                    <tr>
-                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Size"]</MudText></td>
-                                        <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(_sharedAsset.SizeBytes)</MudText></td>
-                                    </tr>
-                                    <tr>
-                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Type"]</MudText></td>
-                                        <td><MudText Typo="Typo.body2">@_sharedAsset.ContentType</MudText></td>
-                                    </tr>
-                                </tbody>
-                            </MudSimpleTable>
-                        </MudStack>
-
-                        <!-- Advanced Metadata -->
-                        <MudDivider />
-                        <MudStack>
-                            <MudExpansionPanels Elevation="0" Class="share-panel-reset">
-                                <MudExpansionPanel MaxHeight="400"
-                                                   Class="share-panel-header pa-0 ma-0">
-                                    <TitleContent>
-                                        <MudText Typo="Typo.subtitle2" Class="share-panel-icon">@CommonLoc["Text_AdvancedMetadata"]</MudText>
-                                    </TitleContent>
-                                    <ChildContent>
-                                        @if (_sharedAsset.MetadataJson.Any())
-                                        {
-                                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
-                                                <tbody>
-                                                    @foreach (var kvp in _sharedAsset.MetadataJson.OrderBy(k => k.Key))
-                                                    {
-                                                        <tr>
-                                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
-                                                            <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </MudSimpleTable>
-                                        }
-                                        else
-                                        {
-                                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                                @CommonLoc["Text_NoMetadata"]
-                                            </MudText>
-                                        }
-                                    </ChildContent>
-                                </MudExpansionPanel>
-                            </MudExpansionPanels>
-                        </MudStack>
-
-                        <MudDivider />
-
-                        <!-- Download Button -->
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Download"
-                                   FullWidth="true"
-                                   OnClick="@(() => DownloadAsset(null))">
-                            @CommonLoc["Btn_DownloadOriginal"]
-                        </MudButton>
-                    </MudStack>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+        <!-- Shared Asset View -->
+        <AssetDetailPanel Asset="_sharedAsset"
+                          PreviewUrl="@GetPreviewUrl()"
+                          PosterUrl="@GetPosterUrl()"
+                          DownloadUrl="@GetDownloadUrl()"
+                          OnDownload="@(() => DownloadAsset(null))"
+                          MediumDownloadUrl="@GetMediumDownloadUrl(null)"
+                          OnDownloadMedium="@(() => DownloadSpecificSize(null, "medium"))"
+                          ThumbnailDownloadUrl="@GetThumbnailDownloadUrl(null)"
+                          OnDownloadThumbnail="@(() => DownloadSpecificSize(null, "thumb"))"
+                          BrowserNoVideoText="@CommonLoc["Text_BrowserNoVideo"]"
+                          PreviewNotAvailableText="@CommonLoc["Text_PreviewNotAvailable"]"
+                          DownloadToViewText="@CommonLoc["Btn_DownloadToView"]"
+                          DescriptionLabel="@CommonLoc["Label_Description"]"
+                          CopyrightLabel="@CommonLoc["Label_Copyright"]"
+                          FileInformationText="@CommonLoc["Text_FileInformation"]"
+                          SizeLabel="@CommonLoc["Label_Size"]"
+                          TypeLabel="@CommonLoc["Label_Type"]"
+                          AdvancedMetadataText="@CommonLoc["Text_AdvancedMetadata"]"
+                          NoMetadataText="@CommonLoc["Text_NoMetadata"]"
+                          DownloadOriginalText="@CommonLoc["Btn_DownloadOriginal"]"
+                          DownloadMediumText="@CommonLoc["Btn_DownloadMedium"]"
+                          DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]" />
     }
     else if (_sharedCollection != null)
     {
         @if (_selectedAsset != null)
         {
-            <!-- Selected Asset Detail View - Two Column Layout -->
+            <!-- Selected Asset Detail View -->
             <MudButton Variant="Variant.Text"
                        StartIcon="@Icons.Material.Filled.ArrowBack"
                        OnClick="@(() => _selectedAsset = null)"
@@ -233,138 +111,28 @@
                 @CommonLoc["Btn_BackToCollection"]
             </MudButton>
 
-            <MudGrid>
-                <!-- Preview Area -->
-                <MudItem xs="12" md="8">
-                    <MudPaper Class="pa-4" Elevation="1">
-                        @if (_selectedAsset.AssetType == Constants.AssetTypeFilters.Image)
-                        {
-                            <MudImage Src="@GetAssetPreviewUrl(_selectedAsset.Id)"
-                                      Alt="@_selectedAsset.Title"
-                                      ObjectFit="ObjectFit.Contain"
-                                      Class="media-preview-image rounded" />
-                        }
-                        else if (_selectedAsset.AssetType == Constants.AssetTypeFilters.Video)
-                        {
-                            <video controls poster="@GetAssetPosterUrl(_selectedAsset.Id)" class="media-preview-video">
-                                <source src="@GetAssetPreviewUrl(_selectedAsset.Id)" type="@_selectedAsset.ContentType">
-                                @CommonLoc["Text_BrowserNoVideo"]
-                            </video>
-                        }
-                        else
-                        {
-                            <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
-                                <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Primary" />
-                                <MudText Typo="Typo.h6">@_selectedAsset.Title</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    @CommonLoc["Text_DocumentPreviewNotAvailable"]
-                                </MudText>
-                            </MudStack>
-                        }
-                    </MudPaper>
-                </MudItem>
-
-                <!-- Details Panel -->
-                <MudItem xs="12" md="4">
-                    <MudPaper Class="pa-4" Elevation="1">
-                        <MudStack Spacing="3">
-                            <!-- Title and Type -->
-                            <MudStack>
-                                <MudText Typo="Typo.h5">@_selectedAsset.Title</MudText>
-                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_selectedAsset.AssetType)" Class="share-chip-width">
-                                    @_selectedAsset.AssetType.ToUpperInvariant()
-                                </MudChip>
-                            </MudStack>
-
-                            <MudDivider />
-
-                            <!-- Description -->
-                            @if (!string.IsNullOrEmpty(_selectedAsset.Description))
-                            {
-                                <MudStack>
-                                    <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Description"]</MudText>
-                                    <MudText Typo="Typo.body2">@_selectedAsset.Description</MudText>
-                                </MudStack>
-                            }
-
-                            <!-- Copyright -->
-                            @if (!string.IsNullOrEmpty(_selectedAsset.Copyright))
-                            {
-                                <MudStack>
-                                    <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Copyright"]</MudText>
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.Copyright" Size="Size.Small" Color="Color.Secondary" />
-                                        <MudText Typo="Typo.body2">@_selectedAsset.Copyright</MudText>
-                                    </MudStack>
-                                </MudStack>
-                            }
-
-                            <!-- File Information -->
-                            <MudStack>
-                                <MudText Typo="Typo.subtitle2">@CommonLoc["Text_FileInformation"]</MudText>
-                                <MudSimpleTable Dense="true" Hover="true" Elevation="0">
-                                    <tbody>
-                                        <tr>
-                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Size"]</MudText></td>
-                                            <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatFileSize(_selectedAsset.SizeBytes)</MudText></td>
-                                        </tr>
-                                        <tr>
-                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Type"]</MudText></td>
-                                            <td><MudText Typo="Typo.body2">@_selectedAsset.ContentType</MudText></td>
-                                        </tr>
-                                    </tbody>
-                                </MudSimpleTable>
-                            </MudStack>
-
-                            <!-- Advanced Metadata -->
-                            <MudDivider />
-                            <MudStack>
-                                <MudExpansionPanels Elevation="0" Class="share-panel-reset">
-                                    <MudExpansionPanel MaxHeight="400"
-                                                       Class="share-panel-header pa-0 ma-0">
-                                        <TitleContent>
-                                            <MudText Typo="Typo.subtitle2" Class="share-panel-icon">@CommonLoc["Text_AdvancedMetadata"]</MudText>
-                                        </TitleContent>
-                                        <ChildContent>
-                                            @if (_selectedAsset.MetadataJson.Any())
-                                            {
-                                                <MudSimpleTable Dense="true" Hover="true" Elevation="0">
-                                                    <tbody>
-                                                        @foreach (var kvp in _selectedAsset.MetadataJson.OrderBy(k => k.Key))
-                                                        {
-                                                            <tr>
-                                                                <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
-                                                                <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
-                                                            </tr>
-                                                        }
-                                                    </tbody>
-                                                </MudSimpleTable>
-                                            }
-                                            else
-                                            {
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                                    @CommonLoc["Text_NoMetadata"]
-                                                </MudText>
-                                            }
-                                        </ChildContent>
-                                    </MudExpansionPanel>
-                                </MudExpansionPanels>
-                            </MudStack>
-
-                            <MudDivider />
-
-                            <!-- Download Button -->
-                            <MudButton Variant="Variant.Filled"
-                                       Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.Download"
-                                       FullWidth="true"
-                                       OnClick="@(() => DownloadAsset(_selectedAsset.Id))">
-                                @CommonLoc["Btn_DownloadOriginal"]
-                            </MudButton>
-                        </MudStack>
-                    </MudPaper>
-                </MudItem>
-            </MudGrid>
+            <AssetDetailPanel Asset="_selectedAsset"
+                              PreviewUrl="@GetAssetPreviewUrl(_selectedAsset.Id)"
+                              PosterUrl="@GetAssetPosterUrl(_selectedAsset.Id)"
+                              DownloadUrl="@GetAssetDownloadUrl(_selectedAsset.Id)"
+                              OnDownload="@(() => DownloadAsset(_selectedAsset.Id))"
+                              MediumDownloadUrl="@GetMediumDownloadUrl(_selectedAsset.Id)"
+                              OnDownloadMedium="@(() => DownloadSpecificSize(_selectedAsset.Id, "medium"))"
+                              ThumbnailDownloadUrl="@GetThumbnailDownloadUrl(_selectedAsset.Id)"
+                              OnDownloadThumbnail="@(() => DownloadSpecificSize(_selectedAsset.Id, "thumb"))"
+                              BrowserNoVideoText="@CommonLoc["Text_BrowserNoVideo"]"
+                              PreviewNotAvailableText="@CommonLoc["Text_DocumentPreviewNotAvailable"]"
+                              DownloadToViewText="@CommonLoc["Btn_DownloadToView"]"
+                              DescriptionLabel="@CommonLoc["Label_Description"]"
+                              CopyrightLabel="@CommonLoc["Label_Copyright"]"
+                              FileInformationText="@CommonLoc["Text_FileInformation"]"
+                              SizeLabel="@CommonLoc["Label_Size"]"
+                              TypeLabel="@CommonLoc["Label_Type"]"
+                              AdvancedMetadataText="@CommonLoc["Text_AdvancedMetadata"]"
+                              NoMetadataText="@CommonLoc["Text_NoMetadata"]"
+                              DownloadOriginalText="@CommonLoc["Btn_DownloadOriginal"]"
+                              DownloadMediumText="@CommonLoc["Btn_DownloadMedium"]"
+                              DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]" />
         }
         else
         {
@@ -466,10 +234,11 @@
     private IJSObjectReference? _jsModule;
     private DotNetObjectReference<Share>? _dotNetRef;
     private bool _jsModuleLoaded = false;
+    private bool _initialLoadComplete = false;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadSharedContent();
+        // Don't load content yet - wait for OnAfterRenderAsync to check for stored password
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -478,6 +247,15 @@
         {
             _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AssetHub.Ui/js/helpers.js");
             _jsModuleLoaded = true;
+            
+            // Check if there's a stored password for this share
+            var cookieName = $"share_pwd_{Token}";
+            var storedPassword = await _jsModule.InvokeAsync<string?>("getCookie", cookieName);
+            
+            // Now load content with the stored password (if available)
+            await LoadSharedContent(storedPassword);
+            _initialLoadComplete = true;
+            StateHasChanged();
         }
     }
 
@@ -498,6 +276,20 @@
                 {
                     _requiresPassword = true;
                     _isLoading = false;
+                    
+                    // If we tried with a stored password and failed, clear it and show error
+                    if (!string.IsNullOrEmpty(password) && _initialLoadComplete)
+                    {
+                        _error = ShareLoc["InvalidPassword"].Value;
+                        _password = password; // Show what was attempted
+                        
+                        // Clear the invalid stored password
+                        if (_jsModule != null)
+                        {
+                            var cookieName = $"share_pwd_{Token}";
+                            await _jsModule.InvokeVoidAsync("setCookie", cookieName, "", 0);
+                        }
+                    }
                     return;
                 }
                 _error = ShareLoc["InvalidPassword"].Value;
@@ -507,15 +299,19 @@
 
             if (!response.IsSuccessStatusCode)
             {
-                var error = await response.Content.ReadAsStringAsync();
-                _errorMessage = response.StatusCode switch
+                string? errorCode = null;
+                try
                 {
-                    System.Net.HttpStatusCode.NotFound => ShareLoc["InvalidOrRemoved"].Value,
-                    System.Net.HttpStatusCode.BadRequest => error.Contains("expired") 
-                        ? ShareLoc["LinkExpired"].Value 
-                        : error.Contains("revoked") 
-                            ? ShareLoc["LinkRevoked"].Value
-                            : ShareLoc["UnableToAccess"].Value,
+                    var errorDto = await response.Content.ReadFromJsonAsync<AssetHub.Application.Dtos.ApiError>();
+                    errorCode = errorDto?.Code;
+                }
+                catch { /* non-JSON body — fall through to generic message */ }
+
+                _errorMessage = errorCode switch
+                {
+                    "SHARE_EXPIRED" => ShareLoc["LinkExpired"].Value,
+                    "SHARE_REVOKED" => ShareLoc["LinkRevoked"].Value,
+                    _ when response.StatusCode == System.Net.HttpStatusCode.NotFound => ShareLoc["InvalidOrRemoved"].Value,
                     _ => ShareLoc["ErrorLoading"].Value
                 };
                 _isLoading = false;
@@ -551,6 +347,13 @@
                 var tokenResponse = await Api.GetShareAccessTokenAsync(Token, password);
                 if (tokenResponse != null)
                     _accessToken = tokenResponse.AccessToken;
+                
+                // Store password in cookie for language switches (1 hour expiry)
+                if (_jsModule != null)
+                {
+                    var cookieName = $"share_pwd_{Token}";
+                    await _jsModule.InvokeVoidAsync("setCookie", cookieName, password, 3600);
+                }
             }
         }
         catch (Exception ex)
@@ -580,6 +383,13 @@
         if (_requiresPassword)
         {
             _error = ShareLoc["InvalidPassword"];
+            
+            // Clear the stored password cookie since it's invalid
+            if (_jsModule != null)
+            {
+                var cookieName = $"share_pwd_{Token}";
+                await _jsModule.InvokeVoidAsync("setCookie", cookieName, "", 0);
+            }
         }
 
         _isSubmitting = false;
@@ -663,9 +473,15 @@
     {
         var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download";
         if (!string.IsNullOrEmpty(_accessToken))
-        {
             url += $"?accessToken={Uri.EscapeDataString(_accessToken)}";
-        }
+        return url;
+    }
+
+    private string GetAssetDownloadUrl(Guid assetId)
+    {
+        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download?assetId={assetId}";
+        if (!string.IsNullOrEmpty(_accessToken))
+            url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
     }
 
@@ -707,8 +523,13 @@
                 }
             }
         }
-        catch
+        catch (OperationCanceledException)
         {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Download-all failed for share token");
             _errorMessage = CommonLoc["Msg_DownloadFailed"].Value;
         }
         finally
@@ -748,6 +569,48 @@
 
         if (_jsModule != null)
             await _jsModule.InvokeVoidAsync("downloadViaAnchor", url);
+    }
+
+    private async Task DownloadSpecificSize(Guid? assetId, string size)
+    {
+        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?size={size}&download=true";
+        if (assetId.HasValue)
+            url += $"&assetId={assetId.Value}";
+        if (!string.IsNullOrEmpty(_accessToken))
+            url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
+
+        if (_jsModule != null)
+            await _jsModule.InvokeVoidAsync("downloadViaAnchor", url);
+    }
+
+    private string? GetMediumDownloadUrl(Guid? assetId)
+    {
+        if (_sharedAsset != null && string.IsNullOrEmpty(_sharedAsset.MediumUrl))
+            return null;
+        if (_selectedAsset != null && string.IsNullOrEmpty(_selectedAsset.MediumUrl))
+            return null;
+        
+        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?size=medium";
+        if (assetId.HasValue)
+            url += $"&assetId={assetId.Value}";
+        if (!string.IsNullOrEmpty(_accessToken))
+            url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
+        return url;
+    }
+
+    private string? GetThumbnailDownloadUrl(Guid? assetId)
+    {
+        if (_sharedAsset != null && string.IsNullOrEmpty(_sharedAsset.ThumbnailUrl))
+            return null;
+        if (_selectedAsset != null && string.IsNullOrEmpty(_selectedAsset.ThumbnailUrl))
+            return null;
+        
+        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?size=thumb";
+        if (assetId.HasValue)
+            url += $"&assetId={assetId.Value}";
+        if (!string.IsNullOrEmpty(_accessToken))
+            url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
+        return url;
     }
 
     public async ValueTask DisposeAsync()

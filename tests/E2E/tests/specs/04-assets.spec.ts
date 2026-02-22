@@ -208,10 +208,13 @@ test.describe('Asset Management @assets', () => {
       const cards = page.locator('.asset-card');
       const count = await cards.count();
       if (count > 0) {
-        // Click the view button on first card
-        const viewBtn = cards.first().locator('.mud-icon-button').first();
-        await viewBtn.click();
-        await page.waitForURL(/\/assets\/[0-9a-f-]+/, { timeout: 30_000 });
+        // Click the card body, which is the actual navigation target in grid mode
+        const openTarget = cards.first().locator('.clickable').first();
+        await expect(openTarget).toBeVisible();
+        await Promise.all([
+          page.waitForURL(/\/assets\/[0-9a-f-]+/, { timeout: 30_000 }),
+          openTarget.click()
+        ]);
       }
     });
 
@@ -256,9 +259,12 @@ test.describe('Asset Management @assets', () => {
         await page.waitForTimeout(env.timeouts.animation);
         const card = page.locator('.asset-card').first();
         if (await card.isVisible()) {
-          const viewBtn = card.locator('.mud-icon-button').first();
-          await viewBtn.click();
-          await page.waitForURL(/\/assets\/[0-9a-f-]+/);
+          const openTarget = card.locator('.clickable').first();
+          await expect(openTarget).toBeVisible();
+          await Promise.all([
+            page.waitForURL(/\/assets\/[0-9a-f-]+/),
+            openTarget.click()
+          ]);
         }
       }
     });

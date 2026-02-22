@@ -87,8 +87,12 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       // Navigate to detail
       const card = page.locator('.asset-card').first();
       if (await card.isVisible()) {
-        await card.locator('.mud-icon-button').first().click();
-        await page.waitForURL(/\/assets\/[0-9a-f-]+/);
+        const openTarget = card.locator('.clickable').first();
+        await expect(openTarget).toBeVisible();
+        await Promise.all([
+          page.waitForURL(/\/assets\/[0-9a-f-]+/),
+          openTarget.click()
+        ]);
         
         // Go back
         await page.goBack();

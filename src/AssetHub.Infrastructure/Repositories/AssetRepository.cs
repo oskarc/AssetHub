@@ -30,7 +30,8 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
 
     public async Task<List<Asset>> GetByTypeAsync(string assetType, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
-        var type = Enum.Parse<AssetType>(assetType, true);
+        if (!Enum.TryParse<AssetType>(assetType, ignoreCase: true, out var type))
+            return new List<Asset>();
         return await dbContext.Assets
             .Where(a => a.AssetType == type)
             .OrderByDescending(a => a.CreatedAt)
@@ -41,7 +42,8 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
 
     public async Task<List<Asset>> GetByStatusAsync(string status, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
-        var statusEnum = Enum.Parse<AssetStatus>(status, true);
+        if (!Enum.TryParse<AssetStatus>(status, ignoreCase: true, out var statusEnum))
+            return new List<Asset>();
         return await dbContext.Assets
             .Where(a => a.Status == statusEnum)
             .OrderByDescending(a => a.CreatedAt)
@@ -69,7 +71,8 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
 
     public async Task<int> CountByStatusAsync(string status, CancellationToken cancellationToken = default)
     {
-        var statusEnum = Enum.Parse<AssetStatus>(status, true);
+        if (!Enum.TryParse<AssetStatus>(status, ignoreCase: true, out var statusEnum))
+            return 0;
         return await dbContext.Assets
             .CountAsync(a => a.Status == statusEnum, cancellationToken);
     }
@@ -104,48 +107,62 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
 
     public async Task<List<Asset>> DeleteByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
-        // Find all assets linked to this collection
-        var assetIds = await dbContext.AssetCollections
-            .Where(ac => ac.CollectionId == collectionId)
-            .Select(ac => ac.AssetId)
-            .ToListAsync(cancellationToken);
+        // Use REPEATABLE READ isolation so that the read-decide-delete logic is
+        // consistent: no other transaction can add an "exclusive" asset to a second
+        // collection between our membership check and the DELETE.
+        return await dbContext.Database
+            .CreateExecutionStrategy()
+            .ExecuteAsync(async () =>
+            {
+                await using var tx = await dbContext.Database.BeginTransactionAsync(
+                    System.Data.IsolationLevel.RepeatableRead, cancellationToken);
 
-        if (assetIds.Count == 0) return new List<Asset>();
+                // Find all assets linked to this collection
+                var assetIds = await dbContext.AssetCollections
+                    .Where(ac => ac.CollectionId == collectionId)
+                    .Select(ac => ac.AssetId)
+                    .ToListAsync(cancellationToken);
 
-        // For each asset, determine whether it belongs to OTHER collections too
-        var sharedAssetIds = await dbContext.AssetCollections
-            .Where(ac => assetIds.Contains(ac.AssetId) && ac.CollectionId != collectionId)
-            .Select(ac => ac.AssetId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+                if (assetIds.Count == 0)
+                {
+                    await tx.CommitAsync(cancellationToken);
+                    return new List<Asset>();
+                }
 
-        var exclusiveAssetIds = assetIds.Except(sharedAssetIds).ToList();
+                // Determine which assets belong to OTHER collections too
+                var sharedAssetIds = await dbContext.AssetCollections
+                    .Where(ac => assetIds.Contains(ac.AssetId) && ac.CollectionId != collectionId)
+                    .Select(ac => ac.AssetId)
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
 
-        // Remove all links for this collection (covers both shared and exclusive)
-        var links = await dbContext.AssetCollections
-            .Where(ac => ac.CollectionId == collectionId)
-            .ToListAsync(cancellationToken);
-        dbContext.AssetCollections.RemoveRange(links);
+                var exclusiveAssetIds = assetIds.Except(sharedAssetIds).ToList();
 
-        // Hard-delete assets that were exclusive to this collection
-        var exclusiveAssets = new List<Asset>();
-        if (exclusiveAssetIds.Count > 0)
-        {
-            exclusiveAssets = await dbContext.Assets
-                .Where(a => exclusiveAssetIds.Contains(a.Id))
-                .ToListAsync(cancellationToken);
-            dbContext.Assets.RemoveRange(exclusiveAssets);
-        }
+                // Remove all links for this collection (covers both shared and exclusive)
+                var links = await dbContext.AssetCollections
+                    .Where(ac => ac.CollectionId == collectionId)
+                    .ToListAsync(cancellationToken);
+                dbContext.AssetCollections.RemoveRange(links);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+                // Hard-delete assets that were exclusive to this collection
+                var exclusiveAssets = new List<Asset>();
+                if (exclusiveAssetIds.Count > 0)
+                {
+                    exclusiveAssets = await dbContext.Assets
+                        .Where(a => exclusiveAssetIds.Contains(a.Id))
+                        .ToListAsync(cancellationToken);
+                    dbContext.Assets.RemoveRange(exclusiveAssets);
+                }
 
-        // Invalidate cached collection IDs for all affected assets
-        foreach (var assetId in assetIds)
-        {
-            CacheKeys.InvalidateAssetCollectionIds(cache, assetId);
-        }
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await tx.CommitAsync(cancellationToken);
 
-        return exclusiveAssets; // caller can clean up MinIO for these
+                // Invalidate cached collection IDs for all affected assets
+                foreach (var assetId in assetIds)
+                    CacheKeys.InvalidateAssetCollectionIds(cache, assetId);
+
+                return exclusiveAssets; // caller can clean up MinIO for these
+            });
     }
 
     public async Task<(List<Asset> Assets, int Total)> SearchAsync(
@@ -178,7 +195,8 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
         // Apply asset type filter
         if (!string.IsNullOrWhiteSpace(assetType))
         {
-            var type = Enum.Parse<AssetType>(assetType, true);
+            if (!Enum.TryParse<AssetType>(assetType, ignoreCase: true, out var type))
+                return (new List<Asset>(), 0);
             queryable = queryable.Where(a => a.AssetType == type);
         }
 
@@ -229,7 +247,8 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
         // Apply asset type filter
         if (!string.IsNullOrWhiteSpace(assetType))
         {
-            var type = Enum.Parse<AssetType>(assetType, true);
+            if (!Enum.TryParse<AssetType>(assetType, ignoreCase: true, out var type))
+                return (new List<Asset>(), 0);
             queryable = queryable.Where(a => a.AssetType == type);
         }
 

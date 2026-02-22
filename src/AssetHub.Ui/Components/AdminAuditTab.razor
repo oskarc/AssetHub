@@ -1,0 +1,128 @@
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["AllAuditEvents"]</MudText>
+
+@if (_auditLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_auditEvents == null || !_auditEvents.Any())
+{
+    <EmptyState Title="@AdminLoc["NoAuditEventsYet"]"
+                Description="@AdminLoc["NoAuditEventsDesc"]"
+                Icon="@Icons.Material.Filled.History" />
+}
+else
+{
+    <MudTable Items="@_auditEvents" Hover="true" Dense="true" Striped="true"
+              Filter="new Func<AuditEventDto, bool>(AuditFilter)" SortLabel="Sort By"
+              FixedHeader="true" Height="600px">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_auditSearchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
+                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+            <MudSpacer />
+            <MudChip T="string" Color="Color.Info" Size="Size.Small">@AdminLoc["Total"]: @_auditEvents.Count</MudChip>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<AuditEventDto, object>(x => x.CreatedAt)">@AdminLoc["Header_Timestamp"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AuditEventDto, object>(x => x.EventType)">@AdminLoc["Header_EventType"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="@(new Func<AuditEventDto, object>(x => x.ActorUserName ?? string.Empty))">@AdminLoc["Header_Actor"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AuditEventDto, object>(x => x.TargetType)">@AdminLoc["Header_TargetType"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AuditEventDto, object>(x => x.TargetId ?? Guid.Empty)">@AdminLoc["Header_TargetId"]</MudTableSortLabel></MudTh>
+            <MudTh>@AdminLoc["Header_Details"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="@AdminLoc["Header_Timestamp"]">@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
+            <MudTd DataLabel="@AdminLoc["Header_EventType"]">
+                <MudChip T="string" Size="Size.Small" Color="@GetEventColor(context.EventType)" Variant="Variant.Outlined">
+                    @context.EventType
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="@AdminLoc["Header_Actor"]">@(context.ActorUserName ?? context.ActorUserId ?? "—")</MudTd>
+            <MudTd DataLabel="@AdminLoc["Header_TargetType"]">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.TargetType</MudChip>
+            </MudTd>
+            <MudTd DataLabel="@AdminLoc["Header_TargetId"]">
+                <MudTooltip Text="@(context.TargetId?.ToString() ?? "—")">
+                    <MudText Typo="Typo.body2" Style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        @(context.TargetId?.ToString()?[..8] ?? "—")...
+                    </MudText>
+                </MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="@AdminLoc["Header_Details"]">
+                @if (context.Details != null && context.Details.Any())
+                {
+                    <MudTooltip>
+                        <ChildContent>
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
+                        </ChildContent>
+                        <TooltipContent>
+                            <div style="max-width: 400px; white-space: pre-wrap;">
+                                @foreach (var kvp in context.Details)
+                                {
+                                    <div><strong>@kvp.Key:</strong> @kvp.Value</div>
+                                }
+                            </div>
+                        </TooltipContent>
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private List<AuditEventDto>? _auditEvents;
+    private bool _auditLoading = true;
+    private string _auditSearchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _auditLoading = true;
+            _auditEvents = await Api.GetAuditEventsAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load audit events");
+        }
+        finally
+        {
+            _auditLoading = false;
+        }
+    }
+
+    private bool AuditFilter(AuditEventDto evt)
+    {
+        if (string.IsNullOrWhiteSpace(_auditSearchString))
+            return true;
+
+        return evt.EventType.Contains(_auditSearchString, StringComparison.OrdinalIgnoreCase)
+            || evt.TargetType.Contains(_auditSearchString, StringComparison.OrdinalIgnoreCase)
+            || (evt.ActorUserName?.Contains(_auditSearchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (evt.ActorUserId?.Contains(_auditSearchString, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private static Color GetEventColor(string eventType) => eventType.ToLowerInvariant() switch
+    {
+        var e when e.Contains("create") || e.Contains("upload") => Color.Success,
+        var e when e.Contains("delete") || e.Contains("revoke") => Color.Error,
+        var e when e.Contains("update") || e.Contains("edit") || e.Contains("move") => Color.Warning,
+        var e when e.Contains("share") || e.Contains("download") => Color.Info,
+        var e when e.Contains("login") || e.Contains("access") => Color.Secondary,
+        _ => Color.Default
+    };
+}

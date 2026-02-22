@@ -38,12 +38,18 @@ else
                     }
                 </MudNavLink>
                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomRight">
-                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditCollection(collection))">
-                        @CollectionLoc["Rename"]
-                    </MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteCollection(collection))" IconColor="Color.Error">
-                        @CommonLoc["Btn_Delete"]
-                    </MudMenuItem>
+                    @if (RolePermissions.CanEditCollection(collection.UserRole))
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditCollection(collection))">
+                            @CollectionLoc["Rename"]
+                        </MudMenuItem>
+                    }
+                    @if (RolePermissions.CanDelete(collection.UserRole))
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteCollection(collection))" IconColor="Color.Error">
+                            @CommonLoc["Btn_Delete"]
+                        </MudMenuItem>
+                    }
                 </MudMenu>
             </div>
         }

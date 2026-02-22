@@ -158,7 +158,7 @@ public class ShareAccessService : IShareAccessService
     }
 
     public async Task<ServiceResult<string>> GetPreviewUrlAsync(
-        string token, string? password, string? size, Guid? assetId, CancellationToken ct)
+        string token, string? password, string? size, Guid? assetId, bool forceDownload, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
         if (error != null) return error;
@@ -169,7 +169,7 @@ public class ShareAccessService : IShareAccessService
         // PDF → serve original for inline preview
         if (string.Equals(targetAsset!.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
         {
-            return await GetPresignedUrl(targetAsset.OriginalObjectKey, ct);
+            return await GetPresignedUrl(targetAsset.OriginalObjectKey, forceDownload, ct);
         }
 
         // Video/audio without specific size → serve original for playback
@@ -177,7 +177,7 @@ public class ShareAccessService : IShareAccessService
             && (targetAsset.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
                 || targetAsset.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)))
         {
-            return await GetPresignedUrl(targetAsset.OriginalObjectKey, ct);
+            return await GetPresignedUrl(targetAsset.OriginalObjectKey, forceDownload, ct);
         }
 
         // Determine rendition key
@@ -191,7 +191,7 @@ public class ShareAccessService : IShareAccessService
         if (string.IsNullOrEmpty(objectKey))
             return ServiceError.NotFound("Preview not available");
 
-        return await GetPresignedUrl(objectKey, ct);
+        return await GetPresignedUrl(objectKey, forceDownload, ct);
     }
 
     /// <summary>
@@ -314,7 +314,12 @@ public class ShareAccessService : IShareAccessService
 
         var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
         if (accessError != null)
-            return (null, ServiceError.BadRequest(accessError));
+        {
+            var error = share.RevokedAt.HasValue
+                ? ServiceError.ShareRevoked(accessError)
+                : ServiceError.ShareExpired(accessError);
+            return (null, error);
+        }
 
         if (!string.IsNullOrEmpty(share.PasswordHash))
         {
@@ -420,10 +425,10 @@ public class ShareAccessService : IShareAccessService
         return (null, ServiceError.BadRequest("Invalid share scope type"));
     }
 
-    private async Task<ServiceResult<string>> GetPresignedUrl(string objectKey, CancellationToken ct)
+    private async Task<ServiceResult<string>> GetPresignedUrl(string objectKey, bool forceDownload, CancellationToken ct)
     {
         var url = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload: false, null, ct);
+            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, null, ct);
         return url;
     }
 }

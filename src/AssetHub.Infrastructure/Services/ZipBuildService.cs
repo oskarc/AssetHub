@@ -104,7 +104,7 @@ public class ZipBuildService : IZipBuildService
                 "Too many ZIP downloads in progress for this share. Please wait.");
 
         var zipFileName = $"{collectionName.Replace(" ", "_")}_assets.zip";
-        var zipDownload = CreateZipDownloadRecord(collectionId, "share", zipFileName, shareTokenHash: shareTokenHash);
+        var zipDownload = CreateZipDownloadRecord(collectionId, "collection", zipFileName, shareTokenHash: shareTokenHash);
 
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);

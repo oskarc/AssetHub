@@ -17,8 +17,7 @@ public class MinIOAdapter(
 {
     public async Task UploadAsync(string bucketName, string objectKey, Stream data, string contentType, CancellationToken cancellationToken = default)
     {
-        await EnsureBucketExistsAsync(bucketName, cancellationToken);
-
+        // Bucket existence is guaranteed at startup via RunStartupTasksAsync; no per-call check needed.
         var putObjectArgs = new PutObjectArgs()
             .WithBucket(bucketName)
             .WithObject(objectKey)
@@ -153,7 +152,7 @@ public class MinIOAdapter(
 
         if (forceDownload)
         {
-            var fileName = downloadFileName ?? Path.GetFileName(objectKey);
+            var fileName = SanitizeFileName(downloadFileName ?? Path.GetFileName(objectKey));
             var headers = new Dictionary<string, string>
             {
                 ["response-content-disposition"] = $"attachment; filename=\"{fileName}\""
@@ -163,6 +162,23 @@ public class MinIOAdapter(
 
         var url = await publicMinioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
         return url;
+    }
+
+    /// <summary>
+    /// Strips control characters (including CRLF) and quote characters from a filename
+    /// to prevent Content-Disposition header injection.
+    /// </summary>
+    private static string SanitizeFileName(string fileName)
+    {
+        var sb = new System.Text.StringBuilder(fileName.Length);
+        foreach (var c in fileName)
+        {
+            if (c is '\r' or '\n' or '"' or '\\' || c < 0x20)
+                sb.Append('_');
+            else
+                sb.Append(c);
+        }
+        return sb.ToString().Trim();
     }
 
     /// <summary>

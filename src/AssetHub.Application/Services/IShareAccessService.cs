@@ -25,7 +25,7 @@ public interface IShareAccessService
 
     /// <summary>Get a presigned preview URL for a shared asset.</summary>
     Task<ServiceResult<string>> GetPreviewUrlAsync(
-        string token, string? password, string? size, Guid? assetId,
+        string token, string? password, string? size, Guid? assetId, bool forceDownload,
         CancellationToken ct);
 
     /// <summary>

@@ -53,4 +53,10 @@ public record ServiceError(int StatusCode, string Code, string Message, Dictiona
 
     public static ServiceError Server(string message = "An unexpected error occurred")
         => new(500, "SERVER_ERROR", message);
+
+    public static ServiceError ShareExpired(string message = "This share link has expired")
+        => new(400, "SHARE_EXPIRED", message);
+
+    public static ServiceError ShareRevoked(string message = "This share link has been revoked")
+        => new(400, "SHARE_REVOKED", message);
 }

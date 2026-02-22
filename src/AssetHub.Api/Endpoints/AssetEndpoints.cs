@@ -18,6 +18,10 @@ public static class AssetEndpoints
         group.MapGet("", GetAssets).RequireAuthorization("RequireAdmin").WithName("GetAssets");
         group.MapGet("all", GetAllAssets).RequireAuthorization("RequireAdmin").WithName("GetAllAssets");
         group.MapGet("{id:guid}", GetAsset).WithName("GetAsset");
+        // .DisableAntiforgery() is required here because these endpoints are called
+        // by the Blazor Server HttpClient (cookie-authenticated) as well as external
+        // JWT Bearer clients. Antiforgery tokens cannot be provided by either caller.
+        // CSRF risk is mitigated by SameSite=Lax cookies and Keycloak Referer checks.
         group.MapPost("", UploadAsset).DisableAntiforgery().WithName("UploadAsset");
         group.MapPatch("{id:guid}", UpdateAsset).DisableAntiforgery().WithName("UpdateAsset");
         group.MapDelete("{id:guid}", DeleteAsset).DisableAntiforgery().WithName("DeleteAsset");
@@ -93,6 +97,9 @@ public static class AssetEndpoints
     {
         if (file == null || file.Length == 0)
             return Results.BadRequest(new { error = "File is required" });
+
+        if (string.IsNullOrWhiteSpace(title))
+            return Results.BadRequest(new { error = "Title is required" });
 
         using var stream = file.OpenReadStream();
         var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, ct);

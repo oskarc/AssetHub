@@ -67,6 +67,11 @@ public static class RoleHierarchy
     public static bool CanManageCollections(string? role) => GetLevel(role) >= 2;
 
     /// <summary>
+    /// Checks if user can edit collection properties like name and description (requires manager+).
+    /// </summary>
+    public static bool CanEditCollection(string? role) => GetLevel(role) >= 3;
+
+    /// <summary>
     /// Checks if user can delete assets (requires manager+).
     /// </summary>
     public static bool CanDelete(string? role) => GetLevel(role) >= 3;
@@ -113,7 +118,7 @@ public static class RoleHierarchy
     {
         return roles
             .OrderByDescending(r => GetLevel(r))
-            .FirstOrDefault() ?? Roles.Viewer;
+            .FirstOrDefault(r => GetLevel(r) > 0) ?? Roles.Viewer;
     }
 
     /// <summary>

@@ -49,11 +49,17 @@ public static class WebApplicationExtensions
     /// </summary>
     public static void UseAssetHubMiddleware(this WebApplication app)
     {
-        // Process X-Forwarded-* headers from reverse proxy (must be first)
-        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        // Process X-Forwarded-* headers from reverse proxy (must be first).
+        // KnownNetworks/KnownProxies are cleared so the proxy IP on the Docker
+        // bridge network is trusted. This is safe because the app is only
+        // reachable via the reverse proxy; direct external access is blocked.
+        var forwardedOptions = new ForwardedHeadersOptions
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-        });
+        };
+        forwardedOptions.KnownNetworks.Clear();
+        forwardedOptions.KnownProxies.Clear();
+        app.UseForwardedHeaders(forwardedOptions);
 
         if (!app.Environment.IsDevelopment())
         {

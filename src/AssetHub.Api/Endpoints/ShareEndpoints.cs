@@ -70,7 +70,7 @@ public static class ShareEndpoints
     }
 
     private static async Task<IResult> DownloadAllSharedAssets(
-        string token, string? accessToken,
+        string token, [FromQuery] string? accessToken,
         [FromServices] IShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
@@ -82,12 +82,12 @@ public static class ShareEndpoints
     }
 
     private static async Task<IResult> PreviewSharedAsset(
-        string token, string? accessToken, string? size, Guid? assetId,
+        string token, string? accessToken, string? size, Guid? assetId, bool download,
         [FromServices] IShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
         var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
-        var result = await svc.GetPreviewUrlAsync(token, effectiveCredential, size, assetId, ct);
+        var result = await svc.GetPreviewUrlAsync(token, effectiveCredential, size, assetId, download, ct);
         return HandleShareResult(result, url => Results.Redirect(url));
     }
 

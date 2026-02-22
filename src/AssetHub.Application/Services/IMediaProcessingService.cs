@@ -20,8 +20,4 @@ public interface IMediaProcessingService
     /// </summary>
     Task ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default);
 
-    /// <summary>
-    /// Get the status of a processing job.
-    /// </summary>
-    Task<(bool IsCompleted, string? Status, string? ErrorMessage)> GetJobStatusAsync(string jobId, CancellationToken cancellationToken = default);
 }

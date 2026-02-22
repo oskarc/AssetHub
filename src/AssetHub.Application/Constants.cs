@@ -214,5 +214,12 @@ public static class Constants
 
         /// <summary>Maximum number of entries in the in-memory cache.</summary>
         public const int MemoryCacheSizeLimit = 10_000;
+
+        /// <summary>
+        /// Hard cap for admin queries that load all collections with ACLs in one shot
+        /// (e.g. the admin access-tree and user-list views). Prevents unbounded memory
+        /// use if the collection count grows large.
+        /// </summary>
+        public const int AdminCollectionQueryLimit = 2_000;
     }
 }

@@ -27,7 +27,10 @@ export async function enqueueAndPollZipDownload(enqueueUrl, headers, dotNetRef) 
         const enqueueResp = await fetch(enqueueUrl, {
             method: 'POST',
             credentials: 'same-origin',
-            headers: headers || {}
+            headers: {
+                'Content-Type': 'application/json',
+                ...(headers || {})
+            }
         });
 
         if (!enqueueResp.ok) {
@@ -94,6 +97,22 @@ export async function enqueueAndPollZipDownload(enqueueUrl, headers, dotNetRef) 
  */
 export function setCookie(name, value, maxAge) {
     document.cookie = `${name}=${value};path=/;max-age=${maxAge};samesite=lax`;
+}
+
+/**
+ * Gets a cookie value.
+ * @param {string} name - Cookie name.
+ * @returns {string|null} Cookie value or null if not found.
+ */
+export function getCookie(name) {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [cookieName, cookieValue] = cookie.trim().split('=');
+        if (cookieName === name) {
+            return cookieValue;
+        }
+    }
+    return null;
 }
 
 /**

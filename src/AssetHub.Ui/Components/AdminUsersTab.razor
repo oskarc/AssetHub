@@ -1,0 +1,283 @@
+@using AssetHub.Application.Helpers
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["UserManagement"]</MudText>
+
+@if (_allUsersLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_allUsers == null || !_allUsers.Any())
+{
+    <EmptyState Title="@AdminLoc["NoUsersFound"]"
+                Description="@AdminLoc["NoUsersFoundDesc"]"
+                Icon="@Icons.Material.Filled.PeopleAlt"
+                ActionText="@CommonLoc["Btn_CreateUser"]"
+                ActionIcon="@Icons.Material.Filled.PersonAdd"
+                OnAction="OpenCreateUserDialog" />
+}
+else
+{
+    <MudTable Items="@_allUsers" Hover="true" Dense="true" Striped="true" Filter="new Func<KeycloakUserDto,bool>(UserFilter)" SortLabel="Sort By">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_userSearchString" Placeholder="@AdminLoc["SearchUsersPlaceholder"]"
+                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+            <MudSpacer />
+            <MudChip T="string" Color="Color.Info" Size="Size.Small">@AdminLoc["Total"]: @_allUsers.Count</MudChip>
+            <MudChip T="string" Color="Color.Success" Size="Size.Small">@AdminLoc["WithAccess"]: @_allUsers.Count(u => u.CollectionCount > 0)</MudChip>
+            <MudTooltip Text="@AdminLoc["SyncUsersTooltip"]">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Sync"
+                           OnClick="SyncDeletedUsers" Class="ml-2"
+                           Disabled="@_isSyncing">
+                    @if (_isSyncing)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                    }
+                    @AdminLoc["Btn_SyncUsers"]
+                </MudButton>
+            </MudTooltip>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                       OnClick="OpenCreateUserDialog" Class="ml-2">
+                @CommonLoc["Btn_CreateUser"]
+            </MudButton>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Username)">@AdminLoc["Header_Username"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.Email ?? string.Empty)">@AdminLoc["Header_Email"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.CreatedAt ?? DateTime.MinValue)">@AdminLoc["Header_Created"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.CollectionCount)">@CommonLoc["Label_Collections"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<KeycloakUserDto, object>(x => x.HighestRole ?? string.Empty)">@AdminLoc["Header_HighestRole"]</MudTableSortLabel></MudTh>
+            <MudTh>@CommonLoc["Label_Actions"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Username</MudTd>
+            <MudTd>@(context.Email ?? "-")</MudTd>
+            <MudTd>@(context.CreatedAt?.ToLocalTime().ToString("g") ?? "-")</MudTd>
+            <MudTd>
+                @if (context.IsSystemAdmin)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled"
+                             Icon="@Icons.Material.Filled.AdminPanelSettings">
+                        @CommonLoc["Text_AllCollections"]
+                    </MudChip>
+                }
+                else if (context.CollectionCount > 0)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.CollectionCount</MudChip>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="text-muted">@CommonLoc["Text_None"]</MudText>
+                }
+            </MudTd>
+            <MudTd>
+                @if (context.IsSystemAdmin)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(RoleHierarchy.Roles.Admin)" Variant="Variant.Filled">
+                        @RoleHierarchy.Roles.Admin
+                    </MudChip>
+                }
+                else if (!string.IsNullOrEmpty(context.HighestRole))
+                {
+                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(context.HighestRole)">
+                        @context.HighestRole
+                    </MudChip>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="text-muted">@CommonLoc["Text_NoAccess"]</MudText>
+                }
+            </MudTd>
+            <MudTd>
+                <MudStack Row="true" Spacing="1">
+                    <MudTooltip Text="@CommonLoc["Btn_ManageAccess"]">
+                        <MudIconButton Icon="@Icons.Material.Filled.ManageAccounts"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       OnClick="@(() => ManageUserAccess(context))" />
+                    </MudTooltip>
+                    <MudTooltip Text="@AdminLoc["DeleteUser"]">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="@(() => DeleteUser(context))" />
+                    </MudTooltip>
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    /// <summary>
+    /// Fires after any action that also changes collection ACL data (create/delete/manage access/sync),
+    /// so the parent can tell the collections tab to refresh.
+    /// </summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private List<KeycloakUserDto>? _allUsers;
+    private bool _allUsersLoading = true;
+    private string _userSearchString = "";
+    private bool _isSyncing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    public async Task RefreshAsync()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _allUsersLoading = true;
+            _allUsers = await Api.GetKeycloakUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load Keycloak users");
+        }
+        finally
+        {
+            _allUsersLoading = false;
+        }
+    }
+
+    private bool UserFilter(KeycloakUserDto user)
+    {
+        if (string.IsNullOrWhiteSpace(_userSearchString))
+            return true;
+
+        return user.Username.Contains(_userSearchString, StringComparison.OrdinalIgnoreCase)
+            || (user.Email?.Contains(_userSearchString, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private async Task ManageUserAccess(KeycloakUserDto user)
+    {
+        var parameters = new DialogParameters<ManageUserAccessDialog>
+        {
+            { x => x.UserId, user.Id },
+            { x => x.Username, user.Username },
+            { x => x.Email, user.Email },
+            { x => x.FirstName, user.FirstName },
+            { x => x.LastName, user.LastName },
+            { x => x.IsSystemAdmin, user.IsSystemAdmin }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ManageUserAccessDialog>(AdminLoc["ManageUserAccess"], parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadAsync();
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    private async Task OpenCreateUserDialog()
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<CreateUserDialog>(AdminLoc["CreateNewUser"], options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadAsync();
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    private async Task DeleteUser(KeycloakUserDto user)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            AdminLoc["DeleteUser"],
+            string.Format(AdminLoc["ConfirmDeleteUser"], user.Username),
+            yesText: CommonLoc["Btn_Delete"], cancelText: CommonLoc["Btn_Cancel"],
+            options: new DialogOptions { CloseOnEscapeKey = true });
+
+        if (confirmed != true)
+            return;
+
+        var (success, _) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteUserAsync(user.Id),
+            "delete user",
+            string.Format(AdminLoc["UserDeletedSuccess"], user.Username));
+
+        if (success)
+        {
+            await LoadAsync();
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    private async Task SyncDeletedUsers()
+    {
+        try
+        {
+            _isSyncing = true;
+            StateHasChanged();
+
+            var preview = await Api.SyncDeletedUsersAsync(dryRun: true);
+
+            if (preview.DeletedUsers == 0)
+            {
+                Snackbar.Add(AdminLoc["SyncNoGhostUsers"], Severity.Success);
+                return;
+            }
+
+            var message = string.Format(AdminLoc["SyncConfirm"], preview.DeletedUsers, preview.AclsRemoved, preview.SharesRevoked);
+            var confirmed = await DialogService.ShowMessageBox(
+                AdminLoc["Btn_SyncUsers"],
+                message,
+                yesText: CommonLoc["Btn_Confirm"], cancelText: CommonLoc["Btn_Cancel"]);
+
+            if (confirmed != true)
+                return;
+
+            var result = await Api.SyncDeletedUsersAsync(dryRun: false);
+
+            Snackbar.Add(string.Format(AdminLoc["SyncCompleted"], result.DeletedUsers, result.AclsRemoved, result.SharesRevoked), Severity.Success);
+
+            await LoadAsync();
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "sync users");
+        }
+        finally
+        {
+            _isSyncing = false;
+            StateHasChanged();
+        }
+    }
+}
