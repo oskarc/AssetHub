@@ -58,3 +58,14 @@ public interface IMinIOAdapter
 /// MinIO object metadata returned by StatObject.
 /// </summary>
 public record ObjectStatInfo(long Size, string ContentType, string ETag);
+
+/// <summary>
+/// Exception thrown when a storage operation fails (MinIO unavailable, network errors, etc.).
+/// </summary>
+public class StorageException : Exception
+{
+    public StorageException(string message) : base(message) { }
+    
+    public StorageException(string message, Exception innerException) 
+        : base(message, innerException) { }
+}

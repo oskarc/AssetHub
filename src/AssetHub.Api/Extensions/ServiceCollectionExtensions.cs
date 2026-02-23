@@ -167,16 +167,7 @@ public static class ServiceCollectionExtensions
         {
             client.Timeout = TimeSpan.FromSeconds(keycloakTimeoutSeconds);
         })
-        .ConfigurePrimaryHttpMessageHandler(() =>
-        {
-            var handler = new HttpClientHandler();
-            if (environment.IsDevelopment())
-            {
-                handler.ServerCertificateCustomValidationCallback =
-                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-            }
-            return handler;
-        });
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler());
 
         // ── UI Services ─────────────────────────────────────────────────────
         services.AddScoped<AssetHub.Ui.Services.IUserFeedbackService, AssetHub.Ui.Services.UserFeedbackService>();
@@ -202,16 +193,7 @@ public static class ServiceCollectionExtensions
                 client.BaseAddress = new Uri(baseUrl);
             }
         })
-        .ConfigurePrimaryHttpMessageHandler(() =>
-        {
-            var handler = new HttpClientHandler();
-            if (environment.IsDevelopment())
-            {
-                handler.ServerCertificateCustomValidationCallback =
-                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-            }
-            return handler;
-        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler())
         .AddHttpMessageHandler<AssetHub.Ui.Services.CookieForwardingHandler>();
 
         // ── Health checks ───────────────────────────────────────────────────

@@ -47,14 +47,6 @@ public static class AuthenticationExtensions
         {
             options.Authority = keycloakAuthority;
             options.RequireHttpsMetadata = requireHttpsMetadata;
-            if (environment.IsDevelopment())
-            {
-                options.BackchannelHttpHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback =
-                        HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                };
-            }
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
@@ -148,14 +140,6 @@ public static class AuthenticationExtensions
         options.ClientSecret = clientSecret;
 
         options.RequireHttpsMetadata = requireHttpsMetadata;
-        if (environment.IsDevelopment())
-        {
-            options.BackchannelHttpHandler = new HttpClientHandler
-            {
-                ServerCertificateCustomValidationCallback =
-                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-            };
-        }
 
         options.CallbackPath = "/signin-oidc";
         options.SignedOutCallbackPath = "/signout-callback-oidc";

@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using AssetHub.Application.Services;
 using Microsoft.Extensions.Logging;
 using Minio;
@@ -17,16 +18,35 @@ public class MinIOAdapter(
 {
     public async Task UploadAsync(string bucketName, string objectKey, Stream data, string contentType, CancellationToken cancellationToken = default)
     {
-        // Bucket existence is guaranteed at startup via RunStartupTasksAsync; no per-call check needed.
-        var putObjectArgs = new PutObjectArgs()
-            .WithBucket(bucketName)
-            .WithObject(objectKey)
-            .WithStreamData(data)
-            .WithObjectSize(data.Length)
-            .WithContentType(contentType);
+        try
+        {
+            // Bucket existence is guaranteed at startup via RunStartupTasksAsync; no per-call check needed.
+            var putObjectArgs = new PutObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectKey)
+                .WithStreamData(data)
+                .WithObjectSize(data.Length)
+                .WithContentType(contentType);
 
-        await minioClient.PutObjectAsync(putObjectArgs, cancellationToken);
+            await minioClient.PutObjectAsync(putObjectArgs, cancellationToken);
+        }
+        catch (MinioException ex)
+        {
+            logger.LogError(ex, "MinIO upload failed for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service failed to upload file. Please try again.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO upload for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO upload for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
     }
+
 
     public async Task<Stream> DownloadAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
     {
@@ -73,19 +93,41 @@ public class MinIOAdapter(
 
     public async Task<byte[]> DownloadRangeAsync(string bucketName, string objectKey, long offset, int length, CancellationToken cancellationToken = default)
     {
-        using var memoryStream = new MemoryStream(length);
+        try
+        {
+            using var memoryStream = new MemoryStream(length);
 
-        var getObjectArgs = new GetObjectArgs()
-            .WithBucket(bucketName)
-            .WithObject(objectKey)
-            .WithOffsetAndLength(offset, length)
-            .WithCallbackStream(async stream =>
-            {
-                await stream.CopyToAsync(memoryStream, cancellationToken);
-            });
+            var getObjectArgs = new GetObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectKey)
+                .WithOffsetAndLength(offset, length)
+                .WithCallbackStream(async stream =>
+                {
+                    await stream.CopyToAsync(memoryStream, cancellationToken);
+                });
 
-        await minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
-        return memoryStream.ToArray();
+            await minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
+            return memoryStream.ToArray();
+        }
+        catch (ObjectNotFoundException)
+        {
+            throw; // Let this propagate - it's a business logic error, not infrastructure failure
+        }
+        catch (MinioException ex)
+        {
+            logger.LogError(ex, "MinIO download range failed for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service failed to download file. Please try again.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO download range for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO download range for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
     }
 
     public async Task DeleteAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
@@ -106,6 +148,21 @@ public class MinIOAdapter(
         catch (BucketNotFoundException)
         {
             logger.LogWarning("Bucket {BucketName} not found during delete of {ObjectKey} – ignoring", bucketName, objectKey);
+        }
+        catch (MinioException ex)
+        {
+            logger.LogError(ex, "MinIO delete failed for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service failed to delete file. Please try again.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO delete for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO delete for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
         }
     }
 
@@ -128,10 +185,20 @@ public class MinIOAdapter(
         {
             return false;
         }
-        catch (Exception ex)
+        catch (MinioException ex)
         {
-            logger.LogWarning(ex, "Error checking if object exists: {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw;
+            logger.LogError(ex, "MinIO exists check failed for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service failed to check file existence. Please try again.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO exists check for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO exists check for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
         }
     }
 
@@ -154,6 +221,21 @@ public class MinIOAdapter(
         {
             return null;
         }
+        catch (MinioException ex)
+        {
+            logger.LogError(ex, "MinIO stat failed for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service failed to retrieve file metadata. Please try again.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO stat for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO stat for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
     }
 
     /// <summary>
@@ -162,23 +244,41 @@ public class MinIOAdapter(
     /// </summary>
     public async Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, bool forceDownload = false, string? downloadFileName = null, CancellationToken cancellationToken = default)
     {
-        var presignedGetObjectArgs = new PresignedGetObjectArgs()
-            .WithBucket(bucketName)
-            .WithObject(objectKey)
-            .WithExpiry(expirySeconds);
-
-        if (forceDownload)
+        try
         {
-            var fileName = SanitizeFileName(downloadFileName ?? Path.GetFileName(objectKey));
-            var headers = new Dictionary<string, string>
-            {
-                ["response-content-disposition"] = $"attachment; filename=\"{fileName}\""
-            };
-            presignedGetObjectArgs.WithHeaders(headers);
-        }
+            var presignedGetObjectArgs = new PresignedGetObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectKey)
+                .WithExpiry(expirySeconds);
 
-        var url = await publicMinioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
-        return url;
+            if (forceDownload)
+            {
+                var fileName = SanitizeFileName(downloadFileName ?? Path.GetFileName(objectKey));
+                var headers = new Dictionary<string, string>
+                {
+                    ["response-content-disposition"] = $"attachment; filename=\"{fileName}\""
+                };
+                presignedGetObjectArgs.WithHeaders(headers);
+            }
+
+            var url = await publicMinioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
+            return url;
+        }
+        catch (MinioException ex)
+        {
+            logger.LogError(ex, "MinIO presigned URL generation failed for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service failed to generate download URL. Please try again.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO presigned URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO presigned URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
     }
 
     /// <summary>
@@ -204,31 +304,71 @@ public class MinIOAdapter(
     /// </summary>
     public async Task<string> GetPresignedUploadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, CancellationToken cancellationToken = default)
     {
-        await EnsureBucketExistsAsync(bucketName, cancellationToken);
+        try
+        {
+            await EnsureBucketExistsAsync(bucketName, cancellationToken);
 
-        var presignedPutObjectArgs = new PresignedPutObjectArgs()
-            .WithBucket(bucketName)
-            .WithObject(objectKey)
-            .WithExpiry(expirySeconds);
+            var presignedPutObjectArgs = new PresignedPutObjectArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectKey)
+                .WithExpiry(expirySeconds);
 
-        var url = await publicMinioClient.PresignedPutObjectAsync(presignedPutObjectArgs);
-        return url;
+            var url = await publicMinioClient.PresignedPutObjectAsync(presignedPutObjectArgs);
+            return url;
+        }
+        catch (StorageException)
+        {
+            throw; // Already wrapped
+        }
+        catch (MinioException ex)
+        {
+            logger.LogError(ex, "MinIO presigned upload URL generation failed for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service failed to generate upload URL. Please try again.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO presigned upload URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO presigned upload URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
     }
 
     public async Task EnsureBucketExistsAsync(string bucketName, CancellationToken cancellationToken = default)
     {
-        var bucketExistsArgs = new BucketExistsArgs()
-            .WithBucket(bucketName);
-
-        bool exists = await minioClient.BucketExistsAsync(bucketExistsArgs, cancellationToken);
-
-        if (!exists)
+        try
         {
-            logger.LogInformation("Creating bucket: {BucketName}", bucketName);
-            var makeBucketArgs = new MakeBucketArgs()
+            var bucketExistsArgs = new BucketExistsArgs()
                 .WithBucket(bucketName);
 
-            await minioClient.MakeBucketAsync(makeBucketArgs, cancellationToken);
+            bool exists = await minioClient.BucketExistsAsync(bucketExistsArgs, cancellationToken);
+
+            if (!exists)
+            {
+                logger.LogInformation("Creating bucket: {BucketName}", bucketName);
+                var makeBucketArgs = new MakeBucketArgs()
+                    .WithBucket(bucketName);
+
+                await minioClient.MakeBucketAsync(makeBucketArgs, cancellationToken);
+            }
+        }
+        catch (MinioException ex)
+        {
+            logger.LogError(ex, "MinIO bucket check/creation failed for {BucketName}", bucketName);
+            throw new StorageException("Storage service failed during bucket setup. Please try again.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO bucket check for {BucketName}", bucketName);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO bucket check for {BucketName}", bucketName);
+            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
         }
     }
 }
