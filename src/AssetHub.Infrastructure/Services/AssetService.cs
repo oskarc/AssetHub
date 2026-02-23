@@ -24,6 +24,7 @@ public class AssetService : IAssetService
     private readonly IMediaProcessingService _mediaProcessing;
     private readonly IAssetDeletionService _deletionService;
     private readonly IAuditService _audit;
+    private readonly IMalwareScannerService _malwareScanner;
     private readonly IConfiguration _configuration;
     private readonly CurrentUser _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -38,6 +39,7 @@ public class AssetService : IAssetService
         IMediaProcessingService mediaProcessing,
         IAssetDeletionService deletionService,
         IAuditService audit,
+        IMalwareScannerService malwareScanner,
         IConfiguration configuration,
         CurrentUser currentUser,
         IHttpContextAccessor httpContextAccessor,
@@ -51,6 +53,7 @@ public class AssetService : IAssetService
         _mediaProcessing = mediaProcessing;
         _deletionService = deletionService;
         _audit = audit;
+        _malwareScanner = malwareScanner;
         _configuration = configuration;
         _currentUser = currentUser;
         _httpContextAccessor = httpContextAccessor;
@@ -228,6 +231,21 @@ public class AssetService : IAssetService
         // Validate file magic bytes match claimed content type (prevents Content-Type spoofing)
         if (!await FileMagicValidator.ValidateStreamAsync(fileStream, contentType, ct))
             return ServiceError.BadRequest($"File content does not match the claimed content type '{contentType}'.");
+
+        // Scan for malware (stream position is reset by FileMagicValidator)
+        var scanResult = await _malwareScanner.ScanAsync(fileStream, fileName, ct);
+        if (!scanResult.ScanCompleted)
+        {
+            _logger.LogError("Malware scan failed for upload {FileName}: {Error}", fileName, scanResult.ErrorMessage);
+            return ServiceError.Server("File scanning failed. Please try again later.");
+        }
+        if (scanResult.IsClean == false)
+        {
+            _logger.LogWarning("Malware detected in upload {FileName}: {ThreatName}", fileName, scanResult.ThreatName);
+            await _audit.LogAsync("asset.malware_detected", "upload", Guid.Empty, _currentUser.UserId,
+                new() { ["fileName"] = fileName, ["threatName"] = scanResult.ThreatName ?? "unknown" }, ct);
+            return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
+        }
 
         var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, AssetStatus.Processing);
         if (!string.IsNullOrEmpty(title))
@@ -423,6 +441,26 @@ public class AssetService : IAssetService
             await _minioAdapter.DeleteAsync(BucketName, asset.OriginalObjectKey, ct);
             await _assetRepo.DeleteAsync(asset.Id, ct);
             return ServiceError.BadRequest($"File content does not match the claimed content type '{asset.ContentType}'.");
+        }
+
+        // Scan for malware (download file from storage for scanning)
+        await using var fileStream = await _minioAdapter.DownloadAsync(BucketName, asset.OriginalObjectKey, ct);
+        var scanResult = await _malwareScanner.ScanAsync(fileStream, asset.Title, ct);
+        if (!scanResult.ScanCompleted)
+        {
+            _logger.LogError("Malware scan failed for upload {FileName}: {Error}", asset.Title, scanResult.ErrorMessage);
+            // Don't block upload on scanner failure, but log it
+        }
+        else if (scanResult.IsClean == false)
+        {
+            _logger.LogWarning("Malware detected in upload {AssetId}/{FileName}: {ThreatName}",
+                asset.Id, asset.Title, scanResult.ThreatName);
+            await _audit.LogAsync("asset.malware_detected", "asset", asset.Id, userId,
+                new() { ["fileName"] = asset.Title, ["threatName"] = scanResult.ThreatName ?? "unknown" }, ct);
+            // Delete the infected file
+            await _minioAdapter.DeleteAsync(BucketName, asset.OriginalObjectKey, ct);
+            await _assetRepo.DeleteAsync(asset.Id, ct);
+            return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
         }
 
         asset.SizeBytes = stat.Size;

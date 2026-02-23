@@ -331,7 +331,16 @@ public class ShareAccessService : IShareAccessService
                 return (null, new ServiceError(401, "PASSWORD_REQUIRED", "Password required"));
 
             if (!BCrypt.Net.BCrypt.Verify(password, share.PasswordHash))
+            {
+                // Log failed password attempt for security monitoring
+                var ip = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+                _logger.LogWarning("Failed share password attempt for token hash {TokenHashPrefix}... from IP {IP}",
+                    tokenHash[..Math.Min(8, tokenHash.Length)], ip ?? "unknown");
+                await _audit.LogAsync("share.password_failed", "share", share.Id, null,
+                    new() { ["ip"] = ip ?? "unknown", ["tokenHashPrefix"] = tokenHash[..Math.Min(8, tokenHash.Length)] },
+                    ct);
                 return (null, new ServiceError(401, "UNAUTHORIZED", "Invalid password"));
+            }
         }
 
         return (share, null);

@@ -27,14 +27,16 @@ export class KeycloakLoginPage {
 
   /** Full login flow: navigate to app, trigger OIDC, fill Keycloak form, wait for redirect back */
   async fullLogin(username: string, password: string) {
-    // Navigate to login page
-    await this.page.goto('/login');
-    // Click sign-in (triggers OIDC redirect) — target the large primary button
-    await this.page.locator('button.mud-button-filled-primary.mud-button-filled-size-large').click();
-    // Wait for Keycloak login page
-    await this.page.waitForURL(/.*keycloak.*|.*8443.*/);
+    // Navigate directly to auth/login endpoint which triggers OIDC challenge
+    // This bypasses the JS button click and goes straight to the OIDC flow
+    await this.page.goto('/auth/login?returnUrl=%2F', { waitUntil: 'domcontentloaded' });
+    
+    // Wait for Keycloak login page to load (check for username field)
+    await this.usernameInput.waitFor({ state: 'visible', timeout: 30_000 });
+    
     // Fill and submit
     await this.login(username, password);
+    
     // Wait for redirect back to the app
     await this.page.waitForURL(/.*assethub\.local.*/, { timeout: env.timeouts.navigation });
   }

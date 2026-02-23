@@ -22,6 +22,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Keycloak DB credentials (used by init-keycloak-db.sh)
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
@@ -57,7 +60,7 @@ services:
     # ports:
     #   - "127.0.0.1:9001:9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -70,20 +73,20 @@ services:
 
   # ---------- Keycloak (OIDC provider) ----------------------------------------
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0.1
+    image: quay.io/keycloak/keycloak:26.1.0
     container_name: assethub-keycloak
     restart: unless-stopped
     environment:
-      # Database — separate 'keycloak' database on the shared PostgreSQL instance
+      # Database — separate 'keycloak' database with dedicated user
       # (created automatically by docker/init-keycloak-db.sh on first start)
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: ${POSTGRES_USER}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
 
-      # Admin bootstrap
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Admin bootstrap (KC_BOOTSTRAP_* is the non-deprecated form for Keycloak 26+)
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
 
       # Production hostname — must match the URL users see in the browser.
       # Keycloak embeds this in tokens; the app validates it.
@@ -137,6 +140,8 @@ services:
       Keycloak__RequireHttpsMetadata: "true"
       Keycloak__AdminUsername: "${KEYCLOAK_ADMIN_API_USERNAME}"
       Keycloak__AdminPassword: "${KEYCLOAK_ADMIN_API_PASSWORD}"
+      Keycloak__AdminClientId: "${KEYCLOAK_ADMIN_CLIENT_ID:-admin-cli}"
+      Keycloak__AdminClientSecret: "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}"
 
       # MinIO — internal endpoint (container-to-container)
       MinIO__Endpoint: "minio:9000"
@@ -148,6 +153,11 @@ services:
       # Leave MINIO_PUBLIC_URL blank if MinIO is not directly exposed.
       MinIO__PublicUrl: "${MINIO_PUBLIC_URL:-}"
       MinIO__PublicUseSSL: "${MINIO_PUBLIC_USE_SSL:-true}"
+
+      # ClamAV malware scanning
+      ClamAV__Enabled: "${CLAMAV_ENABLED:-true}"
+      ClamAV__Host: "clamav"
+      ClamAV__Port: "3310"
 
       # Hangfire
       Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
@@ -179,7 +189,7 @@ services:
     ports:
       - "127.0.0.1:7252:7252"
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:7252/health"]
+      test: ["CMD", "curl", "-sf", "http://api:7252/health"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -191,6 +201,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_started
+      clamav:
+        condition: service_healthy
     networks:
       - internal
     deploy:
@@ -234,6 +246,23 @@ services:
       resources:
         limits:
           memory: 1G
+
+  # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
+  clamav:
+    image: clamav/clamav:1.5.1
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    restart: unless-stopped
 
 volumes:
   pgdata:

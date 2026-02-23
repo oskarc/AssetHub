@@ -32,6 +32,7 @@ public class AssetServiceAuditTests : IAsyncLifetime
     private Mock<IMinIOAdapter> _minioMock = null!;
     private Mock<IAuditService> _auditMock = null!;
     private Mock<IMediaProcessingService> _mediaMock = null!;
+    private Mock<IMalwareScannerService> _malwareMock = null!;
 
     private const string BucketName = "test-bucket";
     private const string TestUser = "audit-test-user-001";
@@ -55,6 +56,11 @@ public class AssetServiceAuditTests : IAsyncLifetime
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
         _mediaMock = new Mock<IMediaProcessingService>();
+        _malwareMock = new Mock<IMalwareScannerService>();
+
+        // Default: malware scanner returns clean
+        _malwareMock.Setup(m => m.ScanAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MalwareScanResult.Clean());
 
         _deletionService = new AssetDeletionService(
             _assetRepo, _acRepo, _shareRepo, _minioMock.Object);
@@ -89,6 +95,7 @@ public class AssetServiceAuditTests : IAsyncLifetime
             _mediaMock.Object,
             _deletionService,
             _auditMock.Object,
+            _malwareMock.Object,
             config,
             currentUser,
             new Mock<IHttpContextAccessor>().Object,

@@ -142,6 +142,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IZipBuildService, ZipBuildService>();
         services.AddScoped<IShareService, ShareService>();
         services.AddScoped<IUserCleanupService, UserCleanupService>();
+        services.AddSingleton<IMalwareScannerService, ClamAvScannerService>();
 
         // ── Orchestration Services (business logic layer) ───────────────────
         services.AddScoped<CurrentUser>(sp =>
@@ -220,7 +221,8 @@ public static class ServiceCollectionExtensions
                 name: "postgresql",
                 tags: ["db", "ready"])
             .AddCheck<MinioHealthCheck>("minio", tags: ["storage", "ready"])
-            .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", "ready"]);
+            .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", "ready"])
+            .AddCheck<ClamAvHealthCheck>("clamav", tags: ["security", "ready"]);
 
         return services;
     }

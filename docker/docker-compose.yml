@@ -9,6 +9,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Keycloak DB credentials (used by init-keycloak-db.sh)
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
@@ -35,7 +38,7 @@ services:
       - "127.0.0.1:9001:9001"
     command: server /minio --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -43,15 +46,15 @@ services:
       - assethub-network
 
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0.1
+    image: quay.io/keycloak/keycloak:26.1.0
     container_name: assethub-keycloak
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: ${POSTGRES_USER}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       KEYCLOAK_TESTUSER_PASSWORD: ${KEYCLOAK_TESTUSER_PASSWORD}
       KEYCLOAK_ADMIN_USER_PASSWORD: ${KEYCLOAK_ADMIN_USER_PASSWORD}
@@ -79,10 +82,11 @@ services:
         aliases:
           - keycloak.assethub.local
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8443; echo -e 'GET /health/ready HTTP/1.1\nHost: localhost\nConnection: close\n\n' >&3; timeout 2 cat <&3 | grep -q 'UP' || exec 3<>/dev/tcp/localhost/8080; echo -e 'GET /health/ready HTTP/1.1\nHost: localhost\nConnection: close\n\n' >&3; cat <&3 | grep -q 'UP'"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/keycloak.assethub.local/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: keycloak.assethub.local\r\nConnection: close\r\n\r\n' >&3 && timeout 2 cat <&3 | grep -q 'UP'"]
       interval: 15s
       timeout: 10s
       retries: 5
+      start_period: 60s
 
   api:
     build:
@@ -102,6 +106,8 @@ services:
       Keycloak__ClientSecret: "${KEYCLOAK_CLIENT_SECRET}"
       Keycloak__AdminUsername: "${KEYCLOAK_ADMIN_API_USERNAME}"
       Keycloak__AdminPassword: "${KEYCLOAK_ADMIN_API_PASSWORD}"
+      Keycloak__AdminClientId: "${KEYCLOAK_ADMIN_CLIENT_ID:-admin-cli}"
+      Keycloak__AdminClientSecret: "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
       MinIO__SecretKey: "${MINIO_SECRET_KEY}"
@@ -111,6 +117,9 @@ services:
       MinIO__PublicUseSSL: "false"
       Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       App__BaseUrl: "https://assethub.local:7252"
+      ClamAV__Enabled: "${CLAMAV_ENABLED:-true}"
+      ClamAV__Host: "clamav"
+      ClamAV__Port: "3310"
     volumes:
       - ../certs:/app/certs:ro
     ports:
@@ -121,6 +130,8 @@ services:
       minio:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      clamav:
         condition: service_healthy
     networks:
       - assethub-network
@@ -156,6 +167,20 @@ services:
     ports:
       - "127.0.0.1:8025:8025"
       - "127.0.0.1:1025:1025"
+    networks:
+      - assethub-network
+    restart: unless-stopped
+
+  # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
+  clamav:
+    image: clamav/clamav:1.5.1
+    container_name: assethub-clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
     networks:
       - assethub-network
     restart: unless-stopped

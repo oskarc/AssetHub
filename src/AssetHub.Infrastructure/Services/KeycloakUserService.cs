@@ -22,6 +22,9 @@ public class KeycloakUserService : IKeycloakUserService
     private readonly string _realm;
     private readonly string _adminUsername;
     private readonly string _adminPassword;
+    private readonly string _adminClientId;
+    private readonly string? _adminClientSecret;
+    private readonly bool _useClientCredentials;
 
     // Token cache — guarded by _tokenLock for thread safety
     private readonly SemaphoreSlim _tokenLock = new(1, 1);
@@ -58,6 +61,16 @@ public class KeycloakUserService : IKeycloakUserService
         if (string.IsNullOrWhiteSpace(adminPassword))
             throw new InvalidOperationException("Keycloak:AdminPassword is required. Check appsettings for the current environment.");
         _adminPassword = adminPassword;
+
+        // Service account settings for client_credentials grant (preferred)
+        _adminClientId = configuration["Keycloak:AdminClientId"] ?? "admin-cli";
+        _adminClientSecret = configuration["Keycloak:AdminClientSecret"];
+        _useClientCredentials = !string.IsNullOrWhiteSpace(_adminClientSecret);
+
+        if (_useClientCredentials)
+            _logger.LogInformation("Using client_credentials grant for Keycloak admin API (client: {ClientId})", _adminClientId);
+        else
+            _logger.LogInformation("Using password grant for Keycloak admin API (user: {Username})", _adminUsername);
     }
 
     /// <inheritdoc />
@@ -269,7 +282,8 @@ public class KeycloakUserService : IKeycloakUserService
     }
 
     /// <summary>
-    /// Obtains an admin access token from Keycloak's master realm using resource owner password credentials.
+    /// Obtains an admin access token from Keycloak's master realm.
+    /// Uses client_credentials grant if AdminClientSecret is configured, otherwise falls back to password grant.
     /// Caches the token until it expires.
     /// </summary>
     private async Task<string> GetAdminTokenAsync(CancellationToken ct)
@@ -287,13 +301,29 @@ public class KeycloakUserService : IKeycloakUserService
 
             var tokenUrl = $"{_keycloakBaseUrl}/realms/master/protocol/openid-connect/token";
 
-            var formData = new Dictionary<string, string>
+            Dictionary<string, string> formData;
+
+            if (_useClientCredentials)
             {
-                ["grant_type"] = "password",
-                ["client_id"] = "admin-cli",
-                ["username"] = _adminUsername,
-                ["password"] = _adminPassword
-            };
+                // Preferred: client_credentials grant with service account
+                formData = new Dictionary<string, string>
+                {
+                    ["grant_type"] = "client_credentials",
+                    ["client_id"] = _adminClientId,
+                    ["client_secret"] = _adminClientSecret!
+                };
+            }
+            else
+            {
+                // Fallback: password grant (ROPC) - less secure but simpler setup
+                formData = new Dictionary<string, string>
+                {
+                    ["grant_type"] = "password",
+                    ["client_id"] = _adminClientId,
+                    ["username"] = _adminUsername,
+                    ["password"] = _adminPassword
+                };
+            }
 
             using var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(formData), ct);
 

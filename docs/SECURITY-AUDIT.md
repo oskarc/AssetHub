@@ -36,10 +36,12 @@ AssetHub demonstrates a **strong security posture** for an internal/team-facing 
 
 > **Recommendation:** Add a startup log warning or assertion that verifies `ASPNETCORE_ENVIRONMENT != "Development"` when `RequireHttpsMetadata = true`. Consider also adding a check in the production Dockerfile that asserts the environment variable.
 
-**[LOW] Keycloak admin credentials use ROPC grant**
+**[LOW] Keycloak admin credentials use ROPC grant** ✅ RESOLVED
 `GetAdminTokenAsync` uses the `password` grant type against master realm (`KeycloakUserService.cs:288-296`). While functional, the `client_credentials` grant with a dedicated service account is preferred.
 
 > **Recommendation:** Create a Keycloak service account with `manage-users` permissions and switch to `client_credentials` grant.
+>
+> **Status (2026-02-22):** Resolved. `KeycloakUserService` now supports both grant types. Set `AdminClientSecret` in config to use `client_credentials` grant; otherwise falls back to password grant.
 
 **[INFO] `directAccessGrantsEnabled: true` in realm config** ✅ RESOLVED
 `media-realm.json:168` enables the Resource Owner Password Credentials grant on the client. This should be disabled unless explicitly needed.
@@ -136,15 +138,19 @@ This file is committed to version control. Even though it's for development, the
 >
 > **Status (2026-02-22):** Resolved. Secrets replaced with environment variable placeholders (`${KEYCLOAK_CLIENT_SECRET}`, `${KEYCLOAK_TESTUSER_PASSWORD}`, `${KEYCLOAK_ADMIN_USER_PASSWORD}`). Variables added to docker-compose files and `.env.template`.
 
-**[MEDIUM] Shared PostgreSQL credentials between app and Keycloak**
+**[MEDIUM] Shared PostgreSQL credentials between app and Keycloak** ✅ RESOLVED
 Both the application and Keycloak use the same `POSTGRES_USER`/`POSTGRES_PASSWORD` (`docker-compose.prod.yml:82-83`). A compromise of one gives full access to both databases.
 
 > **Recommendation:** Create separate PostgreSQL users with limited privileges for each database.
+>
+> **Status (2026-02-22):** Resolved. Created dedicated `keycloak` user with `KEYCLOAK_DB_USER`/`KEYCLOAK_DB_PASSWORD` env vars. Updated `init-keycloak-db.sh` to create the user automatically.
 
-**[LOW] `AllowedHosts: "*"` in base appsettings**
+**[LOW] `AllowedHosts: "*"` in base appsettings** ✅ RESOLVED
 `appsettings.json:75` allows all host headers. While the reverse proxy should filter, this is defense-in-depth.
 
 > **Recommendation:** Set `AllowedHosts` to the expected production hostname in `appsettings.Production.json`.
+>
+> **Status (2026-02-22):** Resolved. Added `"AllowedHosts": "${APP_HOSTNAME}"` to `appsettings.Production.json`. Environment variable configurable via `.env`.
 
 ---
 
@@ -263,10 +269,17 @@ The Dockerfile installs `imagemagick` and `ffmpeg` (`Dockerfile:33-36`) without 
 >
 > **Status (2026-02-22):** Resolved. `docker/imagemagick-policy.xml` added with restrictive policy disabling SVG, MVG, MSL, TEXT, LABEL, PS/PDF, URL handlers. Resource limits configured (128MP area, 256MiB memory, 120s timeout). Policy applied to both `Dockerfile` and `Dockerfile.Worker`.
 
-**[LOW] No virus/malware scanning on uploads**
+**[LOW] No virus/malware scanning on uploads** ✅ RESOLVED
 Files are stored and served without any malware scanning.
 
 > **Recommendation:** Integrate ClamAV or a similar scanner, either inline or as an async background job via Hangfire.
+>
+> **Status (2026-02-22):** Resolved. ClamAV integration implemented:
+> - `IMalwareScannerService` interface and `ClamAvScannerService` implementation using clamd TCP protocol
+> - Integrated into `AssetService.UploadAsync` (streaming scan before storage)
+> - Integrated into `AssetService.ConfirmUploadAsync` (scan after presigned upload)
+> - ClamAV container added to `docker-compose.yml` and `docker-compose.prod.yml`
+> - Configurable via `ClamAV:Enabled` (default: false in base config, true in Docker)
 
 ---
 
@@ -329,10 +342,12 @@ Files are stored and served without any malware scanning.
 
 ### Findings
 
-**[LOW] No audit log for failed authentication attempts**
+**[LOW] No audit log for failed authentication attempts** ✅ RESOLVED
 Brute-force password attempts on share links are rate-limited but not explicitly audit-logged.
 
 > **Recommendation:** Log failed share password attempts with IP and token hash for security monitoring.
+>
+> **Status (2026-02-22):** Resolved. Added `share.password_failed` audit event and warning log in `ShareAccessService.cs` capturing IP and token hash prefix.
 
 **[INFO] Admin audit endpoint exists but no log retention/rotation policy visible**
 No log rotation configuration found.
@@ -345,10 +360,12 @@ No log rotation configuration found.
 
 ### Findings
 
-**[MEDIUM] Keycloak 24.0.1 is outdated**
+**[MEDIUM] Keycloak 24.0.1 is outdated** ✅ RESOLVED
 `docker-compose.prod.yml:73` — Keycloak 24.0.1 (released early 2024) has known CVEs patched in later versions.
 
 > **Recommendation:** Upgrade to Keycloak 26.x or latest stable.
+>
+> **Status (2026-02-22):** Resolved. Upgraded to Keycloak 26.1.0 in both docker-compose.yml and docker-compose.prod.yml.
 
 **[LOW] Wildcard version ranges in `.csproj`**
 Most NuGet packages use `9.0.*` or `1.8.*` ranges. While convenient, this can pull in broken or vulnerable patch releases.
@@ -391,17 +408,17 @@ Most NuGet packages use `9.0.*` or `1.8.*` ranges. While convenient, this can pu
 ### Short-Term (Medium Priority)
 
 3. ~~Implement file magic byte validation for uploaded files~~ ✅ DONE (2026-02-22)
-4. Separate PostgreSQL credentials for app and Keycloak databases
-5. Upgrade Keycloak to latest stable (26.x)
+4. ~~Separate PostgreSQL credentials for app and Keycloak databases~~ ✅ DONE (2026-02-22)
+5. ~~Upgrade Keycloak to latest stable (26.x)~~ ✅ DONE (2026-02-22)
 6. ~~Pin Docker base images to specific patch versions~~ ✅ DONE (2026-02-22)
 7. ~~Configure HSTS with 1-year max-age~~ ✅ DONE (2026-02-22)
 8. ~~Add a fallback authorization policy requiring authentication~~ ✅ DONE (2026-02-22)
 
 ### Long-Term (Low Priority)
 
-9. Switch Keycloak admin auth from ROPC to `client_credentials` grant
+9. ~~Switch Keycloak admin auth from ROPC to `client_credentials` grant~~ ✅ DONE (2026-02-22)
 10. ~~Disable `directAccessGrantsEnabled` on the OIDC client~~ ✅ DONE (2026-02-22)
-11. Add malware scanning for file uploads
-12. Set `AllowedHosts` to the production hostname
-13. Add failed auth attempt logging for share links
-14. Add `dotnet list package --vulnerable` to CI pipeline
+11. ~~Add malware scanning for file uploads~~ ✅ DONE (2026-02-22)
+12. ~~Set `AllowedHosts` to the production hostname~~ ✅ DONE (2026-02-22)
+13. ~~Add failed auth attempt logging for share links~~ ✅ DONE (2026-02-22)
+14. ~~Add `dotnet list package --vulnerable` to CI pipeline~~ ✅ DONE (2026-02-22)
