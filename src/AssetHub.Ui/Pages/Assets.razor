@@ -386,13 +386,7 @@
 
     private async Task CreateCollectionAsync()
     {
-        // Always create top-level collections - users can create sub-collections from the tree context menu
-        var parameters = new DialogParameters<CreateCollectionDialog>
-        {
-            { x => x.ParentId, (Guid?)null }
-        };
-
-        var dialog = await DialogService.ShowAsync<CreateCollectionDialog>(AssetLoc["CreateCollection"], parameters);
+        var dialog = await DialogService.ShowAsync<CreateCollectionDialog>(AssetLoc["CreateCollection"]);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled)
@@ -500,8 +494,7 @@
         {
             { x => x.CollectionId, _selectedCollectionId.Value },
             { x => x.CollectionName, _selectedCollection.Name },
-            { x => x.CurrentUserRole, _selectedCollection.UserRole ?? RoleHierarchy.Roles.Viewer },
-            { x => x.IsRoleInherited, _selectedCollection.IsRoleInherited }
+            { x => x.CurrentUserRole, _selectedCollection.UserRole ?? RoleHierarchy.Roles.Viewer }
         };
 
         var options = new DialogOptions

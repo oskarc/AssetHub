@@ -153,17 +153,13 @@ public class DashboardService : IDashboardService
         if (collectionList.Count == 0)
             return [];
 
-        // Show root-level entry points (same logic as CollectionService.GetRootCollectionsAsync)
-        var accessibleIds = collectionList.Select(c => c.Id).ToHashSet();
-        var entryPoints = collectionList
-            .Where(c => c.ParentId == null || !accessibleIds.Contains(c.ParentId.Value))
-            .Take(20)
-            .ToList();
+        // Take top 20 collections
+        var topCollections = collectionList.Take(20).ToList();
 
-        var dtos = await CollectionMapper.ToDtoListAsync(entryPoints, userId, _authService, ct);
+        var dtos = await CollectionMapper.ToDtoListAsync(topCollections, userId, _authService, ct);
 
         // Compute latest update time per collection from assets
-        var collectionIds = entryPoints.Select(c => c.Id).ToList();
+        var collectionIds = topCollections.Select(c => c.Id).ToList();
         var latestUpdates = await _db.AssetCollections
             .AsNoTracking()
             .Where(ac => collectionIds.Contains(ac.CollectionId))

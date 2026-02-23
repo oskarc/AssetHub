@@ -21,13 +21,6 @@
                         <MudText Typo="Typo.subtitle1"><strong>@CollectionName</strong></MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">@CollLoc["YourRole"]: @CurrentUserRole</MudText>
                     </MudStack>
-                    @if (IsRoleInherited)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined"
-                                 Icon="@Icons.Material.Filled.AccountTree">
-                            @CollLoc["InheritedRole"]
-                        </MudChip>
-                    }
                 </MudStack>
             </MudPaper>
 
@@ -212,7 +205,6 @@
     [Parameter] public Guid CollectionId { get; set; }
     [Parameter] public string CollectionName { get; set; } = "";
     [Parameter] public string CurrentUserRole { get; set; } = "";
-    [Parameter] public bool IsRoleInherited { get; set; }
 
     private List<CollectionAclResponseDto> _aclEntries = new();
     private bool _isLoading = true;

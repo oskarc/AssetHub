@@ -5,16 +5,13 @@ namespace AssetHub.Ui.Tests.Components;
 
 /// <summary>
 /// Tests for the CreateCollectionDialog component.
-/// Verifies form rendering, validation, sub-collection hint, and creation flow.
+/// Verifies form rendering, validation, and creation flow.
 /// </summary>
 public class CreateCollectionDialogTests : BunitTestBase
 {
-    private async Task<IRenderedComponent<MudDialogProvider>> RenderDialogAsync(Guid? parentId = null)
+    private async Task<IRenderedComponent<MudDialogProvider>> RenderDialogAsync()
     {
-        var parameters = new DialogParameters<CreateCollectionDialog>
-        {
-            { x => x.ParentId, parentId }
-        };
+        var parameters = new DialogParameters<CreateCollectionDialog>();
         return await ShowDialogAsync<CreateCollectionDialog>(parameters);
     }
 
@@ -35,23 +32,6 @@ public class CreateCollectionDialogTests : BunitTestBase
 
         Assert.Contains("Btn_Cancel", cut.Markup);
         Assert.Contains("Btn_Create", cut.Markup);
-    }
-
-    [Fact]
-    public async Task Shows_SubCollectionHint_When_ParentId_Set()
-    {
-        var parentId = Guid.NewGuid();
-        var cut = await RenderDialogAsync(parentId);
-
-        Assert.Contains("SubCollectionHint", cut.Markup);
-    }
-
-    [Fact]
-    public async Task Hides_SubCollectionHint_When_No_ParentId()
-    {
-        var cut = await RenderDialogAsync();
-
-        Assert.DoesNotContain("SubCollectionHint", cut.Markup);
     }
 
     [Fact]
@@ -92,35 +72,6 @@ public class CreateCollectionDialogTests : BunitTestBase
 
         MockApi.Verify(a => a.CreateCollectionAsync(
             It.Is<CreateCollectionDto>(dto => dto.Name == "New Collection"),
-            It.IsAny<CancellationToken>()), Times.Once());
-    }
-
-    [Fact]
-    public async Task Calls_CreateSubCollectionAsync_When_ParentId_Set()
-    {
-        var parentId = Guid.NewGuid();
-        var result = TestData.CreateCollection(parentId: parentId);
-        MockApi.Setup(a => a.CreateSubCollectionAsync(parentId, It.IsAny<CreateCollectionDto>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(result);
-
-        var cut = await RenderDialogAsync(parentId);
-
-        // Fill in name
-        var nameInput = cut.Find("input");
-        nameInput.Change("Sub Collection");
-        nameInput.Blur();
-
-        // Wait for form to become valid, then click the Create button
-        cut.WaitForState(() => cut.FindAll("button").Any(b =>
-            b.TextContent.Contains("Btn_Create") && !b.HasAttribute("disabled")),
-            TimeSpan.FromSeconds(2));
-
-        var createButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Create"));
-        await cut.InvokeAsync(() => createButton.Click());
-
-        MockApi.Verify(a => a.CreateSubCollectionAsync(
-            parentId,
-            It.Is<CreateCollectionDto>(dto => dto.Name == "Sub Collection"),
             It.IsAny<CancellationToken>()), Times.Once());
     }
 

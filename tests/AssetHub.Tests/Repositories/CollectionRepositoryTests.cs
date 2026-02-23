@@ -85,43 +85,7 @@ public class CollectionRepositoryTests : IAsyncLifetime
         Assert.Empty(result.Acls);
     }
 
-    [Fact]
-    public async Task GetByIdAsync_IncludesChildren_WhenRequested()
-    {
-        var parent = TestData.CreateCollection(name: "Parent");
-        _db.Collections.Add(parent);
-        await _db.SaveChangesAsync();
-
-        var child1 = TestData.CreateCollection(name: "Child1", parentId: parent.Id);
-        var child2 = TestData.CreateCollection(name: "Child2", parentId: parent.Id);
-        _db.Collections.AddRange(child1, child2);
-        await _db.SaveChangesAsync();
-
-        var result = await _repo.GetByIdAsync(parent.Id, includeChildren: true);
-
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Children.Count);
-    }
-
     // ── GetRootCollectionsAsync ─────────────────────────────────────
-
-    [Fact]
-    public async Task GetRootCollectionsAsync_ReturnsOnlyRoots()
-    {
-        var root1 = TestData.CreateCollection(name: "Root1");
-        var root2 = TestData.CreateCollection(name: "Root2");
-        _db.Collections.AddRange(root1, root2);
-        await _db.SaveChangesAsync();
-
-        var child = TestData.CreateCollection(name: "Child", parentId: root1.Id);
-        _db.Collections.Add(child);
-        await _db.SaveChangesAsync();
-
-        var roots = (await _repo.GetRootCollectionsAsync()).ToList();
-
-        Assert.Equal(2, roots.Count);
-        Assert.All(roots, r => Assert.Null(r.ParentId));
-    }
 
     [Fact]
     public async Task GetRootCollectionsAsync_OrdersByName()
@@ -136,31 +100,6 @@ public class CollectionRepositoryTests : IAsyncLifetime
         Assert.Equal("Alpha", roots[0].Name);
         Assert.Equal("Middle", roots[1].Name);
         Assert.Equal("Zebra", roots[2].Name);
-    }
-
-    // ── GetChildrenAsync ────────────────────────────────────────────
-
-    [Fact]
-    public async Task GetChildrenAsync_ReturnsDirectChildren()
-    {
-        var parent = TestData.CreateCollection(name: "Parent");
-        _db.Collections.Add(parent);
-        await _db.SaveChangesAsync();
-
-        var child1 = TestData.CreateCollection(name: "Child1", parentId: parent.Id);
-        var child2 = TestData.CreateCollection(name: "Child2", parentId: parent.Id);
-        _db.Collections.AddRange(child1, child2);
-        await _db.SaveChangesAsync();
-
-        var grandchild = TestData.CreateCollection(name: "Grandchild", parentId: child1.Id);
-        _db.Collections.Add(grandchild);
-        await _db.SaveChangesAsync();
-
-        var children = (await _repo.GetChildrenAsync(parent.Id)).ToList();
-
-        Assert.Equal(2, children.Count); // direct children only, not grandchild
-        Assert.Contains(children, c => c.Name == "Child1");
-        Assert.Contains(children, c => c.Name == "Child2");
     }
 
     // ── GetAccessibleCollectionsAsync ───────────────────────────────
@@ -236,28 +175,6 @@ public class CollectionRepositoryTests : IAsyncLifetime
         await _repo.DeleteAsync(collection.Id);
 
         Assert.Null(await _db.Collections.FindAsync(collection.Id));
-    }
-
-    [Fact]
-    public async Task DeleteAsync_CascadesChildrenRecursively()
-    {
-        var parent = TestData.CreateCollection(name: "Parent");
-        _db.Collections.Add(parent);
-        await _db.SaveChangesAsync();
-
-        var child = TestData.CreateCollection(name: "Child", parentId: parent.Id);
-        _db.Collections.Add(child);
-        await _db.SaveChangesAsync();
-
-        var grandchild = TestData.CreateCollection(name: "Grandchild", parentId: child.Id);
-        _db.Collections.Add(grandchild);
-        await _db.SaveChangesAsync();
-
-        await _repo.DeleteAsync(parent.Id);
-
-        Assert.Null(await _db.Collections.FindAsync(parent.Id));
-        Assert.Null(await _db.Collections.FindAsync(child.Id));
-        Assert.Null(await _db.Collections.FindAsync(grandchild.Id));
     }
 
     [Fact]

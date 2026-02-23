@@ -114,17 +114,12 @@ public class AssetHubApiClient
     #region Collections
 
     /// <summary>
-    /// Gets all collections, optionally filtered by parent ID.
+    /// Gets all collections.
     /// </summary>
-    /// <param name="parentId">If specified, returns only children of this collection.</param>
     /// <returns>List of collections (empty if none found).</returns>
-    public virtual async Task<List<CollectionResponseDto>> GetCollectionsAsync(Guid? parentId = null, CancellationToken ct = default)
+    public virtual async Task<List<CollectionResponseDto>> GetCollectionsAsync(CancellationToken ct = default)
     {
-        var url = parentId.HasValue
-            ? $"/api/collections/{parentId}/children"
-            : "/api/collections";
-
-        var response = await _http.GetAsync(url, ct);
+        var response = await _http.GetAsync("/api/collections", ct);
         await EnsureSuccessAsync(response, "Get collections");
         return await response.Content.ReadFromJsonAsync<List<CollectionResponseDto>>(ct) ?? new();
     }
@@ -143,23 +138,13 @@ public class AssetHubApiClient
     }
 
     /// <summary>
-    /// Creates a new root-level collection.
+    /// Creates a new collection.
     /// </summary>
     public virtual async Task<CollectionResponseDto> CreateCollectionAsync(CreateCollectionDto dto, CancellationToken ct = default)
     {
         var response = await _http.PostAsJsonAsync("/api/collections", dto, ct);
         await EnsureSuccessAsync(response, "Create collection");
         return await ReadRequiredJsonAsync<CollectionResponseDto>(response, "Create collection");
-    }
-
-    /// <summary>
-    /// Creates a new sub-collection under a parent.
-    /// </summary>
-    public virtual async Task<CollectionResponseDto> CreateSubCollectionAsync(Guid parentId, CreateCollectionDto dto, CancellationToken ct = default)
-    {
-        var response = await _http.PostAsJsonAsync($"/api/collections/{parentId}/children", dto, ct);
-        await EnsureSuccessAsync(response, "Create sub-collection");
-        return await ReadRequiredJsonAsync<CollectionResponseDto>(response, "Create sub-collection");
     }
 
     /// <summary>

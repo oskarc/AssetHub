@@ -4,28 +4,24 @@ using AssetHub.Domain.Entities;
 namespace AssetHub.Application.Helpers;
 
 /// <summary>
-/// Helpers for building and traversing hierarchical collection trees.
+/// Helpers for mapping collections to DTOs.
 /// </summary>
 public static class CollectionTreeHelper
 {
     /// <summary>
-    /// Builds a hierarchical CollectionAccessDto tree from a flat list of collections.
+    /// Maps a Collection entity to a CollectionAccessDto.
     /// </summary>
-    public static CollectionAccessDto BuildAccessTree(
+    public static CollectionAccessDto ToAccessDto(
         Collection collection,
-        List<Collection> allCollections,
         Dictionary<string, string> userNames,
         Dictionary<string, string>? userEmails = null,
         HashSet<string>? adminUserIds = null)
     {
-        var children = allCollections.Where(c => c.ParentId == collection.Id).ToList();
-
         return new CollectionAccessDto
         {
             Id = collection.Id,
             Name = collection.Name,
             Description = collection.Description,
-            ParentId = collection.ParentId,
             Acls = collection.Acls.Select(a => new CollectionAclResponseDto
             {
                 Id = a.Id,
@@ -37,56 +33,33 @@ public static class CollectionTreeHelper
                 PrincipalEmail = a.PrincipalType == PrincipalType.User && userEmails != null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
                 Role = a.Role.ToDbString(),
                 IsSystemAdmin = a.PrincipalType == PrincipalType.User && adminUserIds != null && adminUserIds.Contains(a.PrincipalId)
-            }).ToList(),
-            Children = children.Select(c => BuildAccessTree(c, allCollections, userNames, userEmails, adminUserIds)).ToList()
+            }).ToList()
         };
     }
 
     /// <summary>
-    /// Flattens a hierarchical CollectionAccessDto tree into a flat list with depth tracking.
+    /// Converts a list of CollectionAccessDto to FlatCollection list for display.
     /// </summary>
-    public static List<FlatCollection> Flatten(List<CollectionAccessDto>? collections, int depth = 0)
+    public static List<FlatCollection> Flatten(List<CollectionAccessDto>? collections)
     {
-        var result = new List<FlatCollection>();
-        if (collections == null) return result;
-
-        foreach (var col in collections)
-        {
-            result.Add(new FlatCollection { Id = col.Id, Name = col.Name, Depth = depth });
-            result.AddRange(Flatten(col.Children, depth + 1));
-        }
-        return result;
+        if (collections == null) return new();
+        return collections.Select(col => new FlatCollection { Id = col.Id, Name = col.Name, Depth = 0 }).ToList();
     }
 
     /// <summary>
-    /// Flattens a hierarchical CollectionAccessDto tree as an enumerable (no depth tracking).
+    /// Returns the collections as-is (no flattening needed with flat structure).
     /// </summary>
     public static IEnumerable<CollectionAccessDto> FlattenAll(List<CollectionAccessDto> collections)
     {
-        foreach (var collection in collections)
-        {
-            yield return collection;
-            foreach (var child in FlattenAll(collection.Children))
-            {
-                yield return child;
-            }
-        }
+        return collections;
     }
 
     /// <summary>
-    /// Recursively searches a collection tree for a specific collection by ID.
+    /// Searches a collection list for a specific collection by ID.
     /// </summary>
     public static CollectionAccessDto? FindById(List<CollectionAccessDto>? collections, Guid id)
     {
-        if (collections == null) return null;
-
-        foreach (var col in collections)
-        {
-            if (col.Id == id) return col;
-            var found = FindById(col.Children, id);
-            if (found != null) return found;
-        }
-        return null;
+        return collections?.FirstOrDefault(c => c.Id == id);
     }
 }
 

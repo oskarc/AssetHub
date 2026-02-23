@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// Orchestrates collection CRUD, child navigation, and bulk download.
+/// Orchestrates collection CRUD and bulk download.
 /// </summary>
 public class CollectionService : ICollectionService
 {
@@ -64,11 +64,7 @@ public class CollectionService : ICollectionService
         var userId = _currentUser.UserId;
         var collections = await _collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
 
-        var accessibleIds = collections.Select(c => c.Id).ToHashSet();
-        var entryPoints = collections
-            .Where(c => c.ParentId == null || !accessibleIds.Contains(c.ParentId.Value));
-
-        var dtos = await CollectionMapper.ToDtoListAsync(entryPoints, userId, _authService, ct);
+        var dtos = await CollectionMapper.ToDtoListAsync(collections, userId, _authService, ct);
         return dtos;
     }
 
@@ -96,27 +92,15 @@ public class CollectionService : ICollectionService
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 255)
             return ServiceError.BadRequest("Name must be 1-255 characters");
 
-        if (!dto.ParentId.HasValue)
-        {
-            var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, ct: ct);
-            if (nameExists)
-                return ServiceError.BadRequest($"A top-level collection named '{dto.Name}' already exists");
-        }
+        var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, ct: ct);
+        if (nameExists)
+            return ServiceError.BadRequest($"A collection named '{dto.Name}' already exists");
 
-        if (dto.ParentId.HasValue)
+        if (!_currentUser.IsSystemAdmin)
         {
-            var canCreate = await _authService.CanCreateSubCollectionAsync(userId, dto.ParentId.Value, ct);
+            var canCreate = await _authService.CanCreateRootCollectionAsync(userId);
             if (!canCreate)
                 return ServiceError.Forbidden();
-        }
-        else
-        {
-            if (!_currentUser.IsSystemAdmin)
-            {
-                var canCreate = await _authService.CanCreateRootCollectionAsync(userId);
-                if (!canCreate)
-                    return ServiceError.Forbidden();
-            }
         }
 
         var collection = new Collection
@@ -124,7 +108,6 @@ public class CollectionService : ICollectionService
             Id = Guid.NewGuid(),
             Name = dto.Name,
             Description = dto.Description,
-            ParentId = dto.ParentId,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
         };
@@ -133,7 +116,7 @@ public class CollectionService : ICollectionService
         await _aclRepo.SetAccessAsync(collection.Id, "user", userId, RoleHierarchy.Roles.Admin, ct);
 
         await _audit.LogAsync("collection.created", "collection", collection.Id, userId,
-            new() { ["name"] = collection.Name, ["parentId"] = (object?)collection.ParentId ?? "root" },
+            new() { ["name"] = collection.Name },
             ct);
 
         return new CollectionResponseDto
@@ -141,7 +124,6 @@ public class CollectionService : ICollectionService
             Id = collection.Id,
             Name = collection.Name,
             Description = collection.Description,
-            ParentId = collection.ParentId,
             CreatedAt = collection.CreatedAt,
             CreatedByUserId = collection.CreatedByUserId,
             UserRole = RoleHierarchy.Roles.Admin
@@ -163,11 +145,11 @@ public class CollectionService : ICollectionService
 
         if (!string.IsNullOrWhiteSpace(dto.Name))
         {
-            if (collection.ParentId == null && !string.Equals(collection.Name, dto.Name, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(collection.Name, dto.Name, StringComparison.OrdinalIgnoreCase))
             {
                 var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct);
                 if (nameExists)
-                    return ServiceError.BadRequest($"A top-level collection named '{dto.Name}' already exists");
+                    return ServiceError.BadRequest($"A collection named '{dto.Name}' already exists");
             }
             collection.Name = dto.Name;
         }
@@ -204,20 +186,6 @@ public class CollectionService : ICollectionService
             ct);
 
         return ServiceResult.Success;
-    }
-
-    public async Task<ServiceResult<List<CollectionResponseDto>>> GetChildrenAsync(
-        Guid parentId, CancellationToken ct)
-    {
-        var userId = _currentUser.UserId;
-
-        var hasAccess = await _authService.CheckAccessAsync(userId, parentId, RoleHierarchy.Roles.Viewer, ct);
-        if (!hasAccess)
-            return ServiceError.Forbidden();
-
-        var children = await _collectionRepo.GetChildrenAsync(parentId, ct);
-        var dtos = await CollectionMapper.ToDtoListAsync(children, userId, _authService, ct);
-        return dtos;
     }
 
     public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> DownloadAllAssetsAsync(

@@ -24,7 +24,7 @@ public class AddToCollectionDialogTests : BunitTestBase
     [Fact]
     public async Task Shows_Loading_While_Fetching_Collections()
     {
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .Returns(new TaskCompletionSource<List<CollectionResponseDto>>().Task);
 
         var cut = await RenderDialogAsync();
@@ -40,7 +40,7 @@ public class AddToCollectionDialogTests : BunitTestBase
         {
             TestData.CreateCollection(id: existingId)
         };
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(collections);
 
         var cut = await RenderDialogAsync(existingCollectionIds: [existingId]);
@@ -58,7 +58,7 @@ public class AddToCollectionDialogTests : BunitTestBase
             TestData.CreateCollection(id: existingId, name: "Already In"),
             TestData.CreateCollection(id: availableId, name: "Available")
         };
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(collections);
 
         var cut = await RenderDialogAsync(existingCollectionIds: [existingId]);
@@ -70,7 +70,7 @@ public class AddToCollectionDialogTests : BunitTestBase
     [Fact]
     public async Task Has_Cancel_And_Add_Buttons()
     {
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto> { TestData.CreateCollection() });
 
         var cut = await RenderDialogAsync();
@@ -82,7 +82,7 @@ public class AddToCollectionDialogTests : BunitTestBase
     [Fact]
     public async Task Add_Button_Disabled_When_No_Selection()
     {
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto> { TestData.CreateCollection() });
 
         var cut = await RenderDialogAsync();
@@ -96,7 +96,7 @@ public class AddToCollectionDialogTests : BunitTestBase
     [Fact]
     public async Task Shows_Select_Collection_Prompt()
     {
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto> { TestData.CreateCollection() });
 
         var cut = await RenderDialogAsync();
@@ -107,7 +107,7 @@ public class AddToCollectionDialogTests : BunitTestBase
     [Fact]
     public async Task Handles_Api_Error_Gracefully()
     {
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("API Error"));
 
         var cut = await RenderDialogAsync();
@@ -119,7 +119,7 @@ public class AddToCollectionDialogTests : BunitTestBase
     public async Task Multiple_Available_Collections_All_Rendered()
     {
         var collections = TestData.CreateCollections(5);
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(collections);
 
         var cut = await RenderDialogAsync();
@@ -142,7 +142,7 @@ public class AddToCollectionDialogTests : BunitTestBase
         {
             TestData.CreateCollection(id: collectionId, name: "Target Collection")
         };
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(collections);
         MockApi.Setup(a => a.AddAssetToCollectionAsync(_assetId, collectionId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -172,7 +172,7 @@ public class AddToCollectionDialogTests : BunitTestBase
         {
             TestData.CreateCollection(id: collectionId, name: "Failing Collection")
         };
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(collections);
         MockApi.Setup(a => a.AddAssetToCollectionAsync(_assetId, collectionId, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Server error"));

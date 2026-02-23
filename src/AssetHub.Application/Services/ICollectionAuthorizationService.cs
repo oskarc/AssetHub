@@ -30,22 +30,10 @@ public interface ICollectionAuthorizationService
     Task<bool> CanManageAclAsync(string userId, Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
-    /// Checks whether a user's effective role on a collection is inherited from a parent
-    /// (i.e., no direct ACL exists on the collection itself).
-    /// </summary>
-    Task<bool> IsRoleInheritedAsync(string userId, Guid collectionId, CancellationToken ct = default);
-
-    /// <summary>
-    /// Checks if user can create collections at root level.
-    /// Currently: all authenticated users can create root collections.
+    /// Checks if user can create collections.
+    /// Currently: all authenticated users can create collections.
     /// </summary>
     Task<bool> CanCreateRootCollectionAsync(string userId);
-
-    /// <summary>
-    /// Checks if user can create a sub-collection under a parent.
-    /// </summary>
-    /// <param name="ct">Cancellation token</param>
-    Task<bool> CanCreateSubCollectionAsync(string userId, Guid parentCollectionId, CancellationToken ct = default);
 
     /// <summary>
     /// Batch-resolves user roles for multiple collections in a single operation,
@@ -58,11 +46,4 @@ public interface ICollectionAuthorizationService
     /// More efficient than calling CheckAccessAsync in a loop.
     /// </summary>
     Task<List<Guid>> FilterAccessibleAsync(string userId, IEnumerable<Guid> collectionIds, string requiredRole, CancellationToken ct = default);
-
-    /// <summary>
-    /// Batch-checks whether the user's effective role on each collection is inherited from a parent.
-    /// Returns a dictionary of collectionId → isInherited. More efficient than calling
-    /// IsRoleInheritedAsync in a loop.
-    /// </summary>
-    Task<Dictionary<Guid, bool>> AreRolesInheritedAsync(string userId, IEnumerable<Guid> collectionIds, CancellationToken ct = default);
 }

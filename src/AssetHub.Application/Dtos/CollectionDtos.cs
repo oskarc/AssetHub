@@ -19,11 +19,6 @@ public class CreateCollectionDto
     /// </summary>
     [StringLength(2000)]
     public string? Description { get; set; }
-
-    /// <summary>
-    /// Parent collection ID. Null = root level collection.
-    /// </summary>
-    public Guid? ParentId { get; set; }
 }
 
 /// <summary>
@@ -52,18 +47,11 @@ public record CollectionResponseDto
     public Guid Id { get; init; }
     public required string Name { get; init; }
     public string? Description { get; init; }
-    public Guid? ParentId { get; init; }
     public string UserRole { get; init; } = "";
-    /// <summary>
-    /// True when the user's effective role is inherited from a parent collection
-    /// rather than being directly assigned on this collection.
-    /// </summary>
-    public bool IsRoleInherited { get; init; }
     public DateTime CreatedAt { get; init; }
     public string CreatedByUserId { get; init; } = "";
     /// <summary>Most recent update time (latest asset update, or collection creation time).</summary>
     public DateTime UpdatedAt { get; init; }
-    public int ChildCount { get; init; }
     public int AssetCount { get; init; }
 }
 

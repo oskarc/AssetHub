@@ -24,16 +24,14 @@ public record AdminShareDto
 }
 
 /// <summary>
-/// Hierarchical collection with ACL information for admin view.
+/// Collection with ACL information for admin view.
 /// </summary>
 public record CollectionAccessDto
 {
     public Guid Id { get; init; }
     public required string Name { get; init; }
     public string? Description { get; init; }
-    public Guid? ParentId { get; init; }
     public List<CollectionAclResponseDto> Acls { get; init; } = [];
-    public List<CollectionAccessDto> Children { get; init; } = [];
 }
 
 /// <summary>

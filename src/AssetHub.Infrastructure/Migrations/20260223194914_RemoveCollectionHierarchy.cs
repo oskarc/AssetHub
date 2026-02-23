@@ -1,0 +1,50 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class RemoveCollectionHierarchy : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "FK_Collections_Collections_ParentId",
+                table: "Collections");
+
+            migrationBuilder.DropIndex(
+                name: "idx_collections_parent_id",
+                table: "Collections");
+
+            migrationBuilder.DropColumn(
+                name: "ParentId",
+                table: "Collections");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<Guid>(
+                name: "ParentId",
+                table: "Collections",
+                type: "uuid",
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "idx_collections_parent_id",
+                table: "Collections",
+                column: "ParentId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Collections_Collections_ParentId",
+                table: "Collections",
+                column: "ParentId",
+                principalTable: "Collections",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+        }
+    }
+}

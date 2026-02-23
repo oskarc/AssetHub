@@ -104,30 +104,12 @@ public class CollectionServiceTests : IAsyncLifetime
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Marketing", result.Value!.Name);
-        Assert.Null(result.Value.ParentId);
         Assert.Equal(RoleHierarchy.Roles.Admin, result.Value.UserRole);
 
         // Verify ACL was auto-created for the creator
         var acl = await _aclRepo.GetByPrincipalAsync(result.Value.Id, Constants.PrincipalTypes.User, AdminUser);
         Assert.NotNull(acl);
         Assert.Equal(AclRole.Admin, acl.Role);
-    }
-
-    [Fact]
-    public async Task CreateAsync_AdminCreatesSubCollection_Success()
-    {
-        var parent = TestData.CreateCollection(name: "Parent");
-        _db.Collections.Add(parent);
-        _db.CollectionAcls.Add(TestData.CreateAcl(parent.Id, AdminUser, AclRole.Admin));
-        await _db.SaveChangesAsync();
-
-        var dto = new CreateCollectionDto { Name = "Child", ParentId = parent.Id };
-
-        var result = await _service.CreateAsync(dto, CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Child", result.Value!.Name);
-        Assert.Equal(parent.Id, result.Value.ParentId);
     }
 
     [Fact]
@@ -167,23 +149,6 @@ public class CollectionServiceTests : IAsyncLifetime
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Authenticated Root", result.Value!.Name);
-    }
-
-    [Fact]
-    public async Task CreateAsync_ContributorCannotCreateSubCollection_ReturnsForbidden()
-    {
-        var parent = TestData.CreateCollection(name: "Parent");
-        _db.Collections.Add(parent);
-        _db.CollectionAcls.Add(TestData.CreateAcl(parent.Id, ViewerUser, AclRole.Viewer));
-        await _db.SaveChangesAsync();
-
-        var viewerService = CreateService(ViewerUser, isAdmin: false);
-        var dto = new CreateCollectionDto { Name = "Sub", ParentId = parent.Id };
-
-        var result = await viewerService.CreateAsync(dto, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(403, result.Error!.StatusCode);
     }
 
     [Fact]
@@ -329,38 +294,6 @@ public class CollectionServiceTests : IAsyncLifetime
 
         // Admin has CheckAccess that fails on non-existent collection
         Assert.False(result.IsSuccess);
-    }
-
-    // ── GetChildrenAsync ────────────────────────────────────────────
-
-    [Fact]
-    public async Task GetChildrenAsync_ReturnsChildren()
-    {
-        var parent = TestData.CreateCollection(name: "Parent");
-        var child1 = TestData.CreateCollection(name: "Child 1", parentId: parent.Id);
-        var child2 = TestData.CreateCollection(name: "Child 2", parentId: parent.Id);
-        _db.Collections.AddRange(parent, child1, child2);
-        _db.CollectionAcls.Add(TestData.CreateAcl(parent.Id, AdminUser, AclRole.Admin));
-        await _db.SaveChangesAsync();
-
-        var result = await _service.GetChildrenAsync(parent.Id, CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Value!.Count);
-    }
-
-    [Fact]
-    public async Task GetChildrenAsync_NoAccess_ReturnsForbidden()
-    {
-        var parent = TestData.CreateCollection(name: "Secret Parent");
-        _db.Collections.Add(parent);
-        await _db.SaveChangesAsync();
-
-        var noAccessService = CreateService(NoAccessUser, isAdmin: false);
-        var result = await noAccessService.GetChildrenAsync(parent.Id, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(403, result.Error!.StatusCode);
     }
 
     // ── GetRootCollectionsAsync ─────────────────────────────────────

@@ -202,23 +202,17 @@ else
     private RenderFragment RenderCollectionTree(CollectionAccessDto collection, int depth) => __builder =>
     {
         var isSelected = _selectedCollection?.Id == collection.Id;
-        var depthClass = $"admin-tree-item-depth-{Math.Min(depth, 5)}";
 
         <MudButton Variant="@(isSelected ? Variant.Filled : Variant.Text)"
             Color="@(isSelected ? Color.Primary : Color.Default)"
             OnClick="@(() => SelectCollection(collection))"
             FullWidth="true"
-            Class="@($"justify-start mb-1 admin-tree-item {depthClass}")">
+            Class="justify-start mb-1 admin-tree-item">
             <MudIcon Icon="@Icons.Material.Filled.Folder" Size="Size.Small" Class="mr-2" />
             @collection.Name
             <MudSpacer />
             <MudChip T="string" Size="Size.Small" Color="Color.Default">@collection.Acls.Count</MudChip>
         </MudButton>
-
-        @foreach (var child in collection.Children.OrderBy(c => c.Name, new NaturalSortComparer()))
-        {
-            @RenderCollectionTree(child, depth + 1)
-        }
     };
 
     private void SelectCollection(CollectionAccessDto collection)

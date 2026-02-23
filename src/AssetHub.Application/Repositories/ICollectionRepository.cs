@@ -4,24 +4,19 @@ using AssetHub.Domain.Entities;
 
 /// <summary>
 /// Repository interface for Collection entities.
-/// Handles database operations for collections with hierarchical relationships.
+/// Handles database operations for collections.
 /// </summary>
 public interface ICollectionRepository
 {
     /// <summary>
     /// Gets a collection by ID with optional related data.
     /// </summary>
-    Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, bool includeChildren = false, CancellationToken ct = default);
+    Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets all root-level collections (no parent).
+    /// Gets all collections.
     /// </summary>
     Task<IEnumerable<Collection>> GetRootCollectionsAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// Gets all child collections of a parent.
-    /// </summary>
-    Task<IEnumerable<Collection>> GetChildrenAsync(Guid parentId, CancellationToken ct = default);
 
     /// <summary>
     /// Gets all collections accessible to a user (by checking ACLs).
@@ -39,7 +34,7 @@ public interface ICollectionRepository
     Task<Collection> UpdateAsync(Collection collection, CancellationToken ct = default);
 
     /// <summary>
-    /// Deletes a collection and its children.
+    /// Deletes a collection.
     /// </summary>
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 
@@ -49,7 +44,7 @@ public interface ICollectionRepository
     Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
-    /// Checks if a top-level collection with the given name already exists (case-insensitive).
+    /// Checks if a collection with the given name already exists (case-insensitive).
     /// </summary>
     Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default);
 

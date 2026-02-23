@@ -76,7 +76,7 @@ else
         try
         {
             _isLoading = true;
-            _collections = await Api.GetCollectionsAsync(null);
+            _collections = await Api.GetCollectionsAsync();
             _collections = _collections.OrderBy(c => c.Name, new NaturalSortComparer()).ToList();
         }
         catch (Exception ex)

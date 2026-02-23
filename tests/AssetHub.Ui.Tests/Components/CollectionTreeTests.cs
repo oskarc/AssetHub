@@ -11,7 +11,7 @@ public class CollectionTreeTests : BunitTestBase
     [Fact]
     public void Shows_Loading_Indicator_Initially()
     {
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .Returns(new TaskCompletionSource<List<CollectionResponseDto>>().Task);
 
         var cut = Render<CollectionTree>();
@@ -22,7 +22,7 @@ public class CollectionTreeTests : BunitTestBase
     [Fact]
     public void Shows_EmptyState_When_No_Collections()
     {
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto>());
 
         var cut = Render<CollectionTree>();
@@ -34,7 +34,7 @@ public class CollectionTreeTests : BunitTestBase
     public void Renders_Collection_Names()
     {
         var collections = TestData.CreateCollections(3);
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(collections);
 
         var cut = Render<CollectionTree>();
@@ -49,7 +49,7 @@ public class CollectionTreeTests : BunitTestBase
     public void Shows_Asset_Count_Badge()
     {
         var collection = TestData.CreateCollection(assetCount: 42);
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto> { collection });
 
         var cut = Render<CollectionTree>();
@@ -61,7 +61,7 @@ public class CollectionTreeTests : BunitTestBase
     public void Hides_Asset_Count_When_Zero()
     {
         var collection = TestData.CreateCollection(assetCount: 0);
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto> { collection });
 
         var cut = Render<CollectionTree>();
@@ -74,7 +74,7 @@ public class CollectionTreeTests : BunitTestBase
     public void Clicking_Collection_Fires_OnCollectionSelected()
     {
         var collection = TestData.CreateCollection();
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto> { collection });
 
         Guid? selectedId = null;
@@ -93,7 +93,7 @@ public class CollectionTreeTests : BunitTestBase
     {
         var collections = TestData.CreateCollections(3);
         var selectedId = collections[1].Id;
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(collections);
 
         var cut = Render<CollectionTree>(p => p
@@ -107,7 +107,7 @@ public class CollectionTreeTests : BunitTestBase
     public void Shows_Context_Menu_With_Edit_And_Delete()
     {
         var collection = TestData.CreateCollection();
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto> { collection });
 
         var cut = Render<CollectionTree>();
@@ -119,7 +119,7 @@ public class CollectionTreeTests : BunitTestBase
     [Fact]
     public void Handles_Api_Error_Gracefully()
     {
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Network error"));
 
         var cut = Render<CollectionTree>();
@@ -131,7 +131,7 @@ public class CollectionTreeTests : BunitTestBase
     public void Renders_Folder_Icons()
     {
         var collection = TestData.CreateCollection();
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CollectionResponseDto> { collection });
 
         var cut = Render<CollectionTree>();
@@ -143,7 +143,7 @@ public class CollectionTreeTests : BunitTestBase
     public void Multiple_Collections_All_Rendered()
     {
         var collections = TestData.CreateCollections(10);
-        MockApi.Setup(a => a.GetCollectionsAsync(null, It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(collections);
 
         var cut = Render<CollectionTree>();

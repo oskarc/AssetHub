@@ -267,7 +267,6 @@ public class CollectionAclService : ICollectionAclService
     {
         var collections = await _collectionRepo.GetAllWithAclsAsync(ct);
         var allCollections = collections.ToList();
-        var rootCollections = allCollections.Where(c => c.ParentId == null).ToList();
 
         var allUserIds = allCollections
             .SelectMany(c => c.Acls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId))
@@ -277,8 +276,8 @@ public class CollectionAclService : ICollectionAclService
         var userEmails = await _userLookup.GetUserEmailsAsync(allUserIds, ct);
         var adminIds = await _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
 
-        var result = rootCollections
-            .Select(c => CollectionTreeHelper.BuildAccessTree(c, allCollections, userNames, userEmails, adminIds))
+        var result = allCollections
+            .Select(c => CollectionTreeHelper.ToAccessDto(c, userNames, userEmails, adminIds))
             .ToList();
 
         return result;

@@ -46,7 +46,6 @@ public static class TestData
         Guid? id = null,
         string name = "Test Collection",
         string? description = null,
-        Guid? parentId = null,
         string? createdByUserId = null)
     {
         return new Collection
@@ -54,7 +53,6 @@ public static class TestData
             Id = id ?? Guid.NewGuid(),
             Name = name,
             Description = description,
-            ParentId = parentId,
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = createdByUserId ?? DefaultUserId
         };

@@ -16,10 +16,8 @@ public static class CollectionEndpoints
         group.MapGet("", GetRootCollections).WithName("GetRootCollections");
         group.MapGet("{id:guid}", GetCollectionById).WithName("GetCollectionById");
         group.MapPost("", CreateCollection).DisableAntiforgery().WithName("CreateCollection");
-        group.MapPost("{id:guid}/children", CreateSubCollection).DisableAntiforgery().WithName("CreateSubCollection");
         group.MapPatch("{id:guid}", UpdateCollection).DisableAntiforgery().WithName("UpdateCollection");
         group.MapDelete("{id:guid}", DeleteCollection).DisableAntiforgery().WithName("DeleteCollection");
-        group.MapGet("{id:guid}/children", GetChildren).WithName("GetChildren");
         group.MapPost("{id:guid}/download-all", DownloadAllAssets).DisableAntiforgery().WithName("DownloadAllAssets");
 
         // ACL Management
@@ -57,15 +55,6 @@ public static class CollectionEndpoints
         return result.ToHttpResult(v => Results.Created($"/api/collections/{v.Id}", v));
     }
 
-    private static async Task<IResult> CreateSubCollection(
-        Guid id, CreateCollectionDto dto,
-        [FromServices] ICollectionService svc, CancellationToken ct)
-    {
-        dto.ParentId = id;
-        var result = await svc.CreateAsync(dto, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/collections/{v.Id}", v));
-    }
-
     private static async Task<IResult> UpdateCollection(
         Guid id, UpdateCollectionDto dto,
         [FromServices] ICollectionService svc, CancellationToken ct)
@@ -78,13 +67,6 @@ public static class CollectionEndpoints
         Guid id, [FromServices] ICollectionService svc, CancellationToken ct)
     {
         var result = await svc.DeleteAsync(id, ct);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> GetChildren(
-        Guid id, [FromServices] ICollectionService svc, CancellationToken ct)
-    {
-        var result = await svc.GetChildrenAsync(id, ct);
         return result.ToHttpResult();
     }
 

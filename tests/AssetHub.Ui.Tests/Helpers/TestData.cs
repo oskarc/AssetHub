@@ -68,10 +68,7 @@ public static class TestData
         Guid? id = null,
         string name = "Test Collection",
         string? description = null,
-        Guid? parentId = null,
         string userRole = "manager",
-        bool isRoleInherited = false,
-        int childCount = 0,
         int assetCount = 0)
     {
         var counter = Interlocked.Increment(ref _counter);
@@ -80,12 +77,9 @@ public static class TestData
             Id = id ?? Guid.NewGuid(),
             Name = $"{name}-{counter}",
             Description = description,
-            ParentId = parentId,
             UserRole = userRole,
-            IsRoleInherited = isRoleInherited,
             CreatedAt = DateTime.UtcNow.AddDays(-7),
             CreatedByUserId = "user-1",
-            ChildCount = childCount,
             AssetCount = assetCount
         };
     }

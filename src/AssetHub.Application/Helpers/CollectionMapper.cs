@@ -20,25 +20,21 @@ public static class CollectionMapper
         CancellationToken ct = default)
     {
         var role = await authService.GetUserRoleAsync(userId, collection.Id, ct);
-        var isInherited = role != null
-            && await authService.IsRoleInheritedAsync(userId, collection.Id, ct);
 
         return new CollectionResponseDto
         {
             Id = collection.Id,
             Name = collection.Name,
             Description = collection.Description,
-            ParentId = collection.ParentId,
             CreatedAt = collection.CreatedAt,
             CreatedByUserId = collection.CreatedByUserId,
-            UserRole = role ?? "none",
-            IsRoleInherited = isInherited
+            UserRole = role ?? "none"
         };
     }
 
     /// <summary>
     /// Maps a batch of collection entities to response DTOs.
-    /// Uses batch role resolution and batch inheritance check to avoid N+1 database queries.
+    /// Uses batch role resolution to avoid N+1 database queries.
     /// </summary>
     public static async Task<List<CollectionResponseDto>> ToDtoListAsync(
         IEnumerable<Collection> collections,
@@ -54,26 +50,19 @@ public static class CollectionMapper
         // Batch-resolve roles for all collections in one operation
         var roles = await authService.GetUserRolesAsync(userId, collectionIds, ct);
 
-        // Batch-check inheritance for all collections with a role (single query)
-        var collectionsWithRoles = roles.Where(kv => kv.Value != null).Select(kv => kv.Key);
-        var inherited = await authService.AreRolesInheritedAsync(userId, collectionsWithRoles, ct);
-
         var results = new List<CollectionResponseDto>(collectionList.Count);
         foreach (var c in collectionList)
         {
             var role = roles.GetValueOrDefault(c.Id);
-            var isInherited = role != null && inherited.GetValueOrDefault(c.Id, false);
 
             results.Add(new CollectionResponseDto
             {
                 Id = c.Id,
                 Name = c.Name,
                 Description = c.Description,
-                ParentId = c.ParentId,
                 CreatedAt = c.CreatedAt,
                 CreatedByUserId = c.CreatedByUserId,
-                UserRole = role ?? "none",
-                IsRoleInherited = isInherited
+                UserRole = role ?? "none"
             });
         }
         return results;

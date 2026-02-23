@@ -55,72 +55,8 @@ public class CollectionAuthorizationService(
 
         var role = acl?.Role.ToDbString();
 
-        // If no direct ACL, walk up the parent chain to find inherited access.
-        // Max depth guard prevents infinite loops from corrupted circular ParentId chains.
-        const int maxDepth = 20;
-        if (role == null)
-        {
-            var currentId = collectionId;
-            var depth = 0;
-            while (role == null && depth < maxDepth)
-            {
-                depth++;
-                var parentId = await dbContext.Collections
-                    .Where(c => c.Id == currentId)
-                    .Select(c => c.ParentId)
-                    .FirstOrDefaultAsync(ct);
-
-                if (parentId == null) break;
-
-                // Check cache for the parent first
-                var parentCacheKey = $"{userId}:{parentId.Value}";
-                if (_roleCache.TryGetValue(parentCacheKey, out var parentCachedRole))
-                {
-                    role = parentCachedRole;
-                    break;
-                }
-
-                var parentAcl = await dbContext.CollectionAcls
-                    .FirstOrDefaultAsync(a =>
-                        a.CollectionId == parentId.Value &&
-                        a.PrincipalType == PrincipalType.User &&
-                        a.PrincipalId == userId, ct);
-
-                if (parentAcl != null)
-                {
-                    role = parentAcl.Role.ToDbString();
-                    // Cache the parent's role too
-                    _roleCache[parentCacheKey] = role;
-                }
-
-                currentId = parentId.Value;
-            }
-
-            if (depth >= maxDepth)
-            {
-                logger.LogWarning("Max parent-chain depth ({MaxDepth}) reached for collection {CollectionId}. Possible circular ParentId.", maxDepth, collectionId);
-            }
-
-            if (role != null)
-            {
-                logger.LogDebug("Inherited role for {UserId} on {CollectionId}: {Role}", userId, collectionId, role);
-            }
-        }
-
         _roleCache[cacheKey] = role;
         return role;
-    }
-
-    public async Task<bool> IsRoleInheritedAsync(string userId, Guid collectionId, CancellationToken ct = default)
-    {
-        // Check if there is a direct ACL entry for this user on this collection
-        var hasDirectAcl = await dbContext.CollectionAcls
-            .AnyAsync(a =>
-                a.CollectionId == collectionId &&
-                a.PrincipalType == PrincipalType.User &&
-                a.PrincipalId == userId, ct);
-
-        return !hasDirectAcl;
     }
 
     public async Task<bool> CanManageAclAsync(string userId, Guid collectionId, CancellationToken ct = default)
@@ -131,15 +67,8 @@ public class CollectionAuthorizationService(
 
     public Task<bool> CanCreateRootCollectionAsync(string userId)
     {
-        // Any authenticated user may create root collections.
-        // Non-admin users must still have appropriate access to create sub-collections.
+        // Any authenticated user may create collections.
         return Task.FromResult(!string.IsNullOrWhiteSpace(userId));
-    }
-
-    public async Task<bool> CanCreateSubCollectionAsync(string userId, Guid parentCollectionId, CancellationToken ct = default)
-    {
-        // User must have contributor role or higher on parent collection
-        return await CheckAccessAsync(userId, parentCollectionId, "contributor", ct);
     }
 
     public async Task<Dictionary<Guid, string?>> GetUserRolesAsync(string userId, IEnumerable<Guid> collectionIds, CancellationToken ct = default)
@@ -173,22 +102,6 @@ public class CollectionAuthorizationService(
                 accessible.Add(collectionId);
         }
         return accessible;
-    }
-
-    public async Task<Dictionary<Guid, bool>> AreRolesInheritedAsync(string userId, IEnumerable<Guid> collectionIds, CancellationToken ct = default)
-    {
-        var ids = collectionIds.ToList();
-        if (ids.Count == 0) return new();
-
-        // Single query: check which collections have a direct ACL for this user
-        var directAclCollectionIds = await dbContext.CollectionAcls
-            .Where(a => ids.Contains(a.CollectionId) &&
-                        a.PrincipalType == PrincipalType.User &&
-                        a.PrincipalId == userId)
-            .Select(a => a.CollectionId)
-            .ToHashSetAsync(ct);
-
-        return ids.ToDictionary(id => id, id => !directAclCollectionIds.Contains(id));
     }
 
     /// <summary>

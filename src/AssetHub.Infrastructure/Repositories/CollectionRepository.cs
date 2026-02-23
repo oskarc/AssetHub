@@ -7,15 +7,12 @@ namespace AssetHub.Infrastructure.Repositories;
 
 public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepository
 {
-    public async Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, bool includeChildren = false, CancellationToken ct = default)
+    public async Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, CancellationToken ct = default)
     {
         var query = dbContext.Collections.AsQueryable();
 
         if (includeAcls)
             query = query.Include(c => c.Acls);
-
-        if (includeChildren)
-            query = query.Include(c => c.Children);
 
         return await query.FirstOrDefaultAsync(c => c.Id == id, ct);
     }
@@ -23,39 +20,17 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
     public async Task<IEnumerable<Collection>> GetRootCollectionsAsync(CancellationToken ct = default)
     {
         return await dbContext.Collections
-            .Where(c => c.ParentId == null)
-            .OrderBy(c => c.Name)
-            .ToListAsync(ct);
-    }
-
-    public async Task<IEnumerable<Collection>> GetChildrenAsync(Guid parentId, CancellationToken ct = default)
-    {
-        return await dbContext.Collections
-            .Where(c => c.ParentId == parentId)
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
     }
 
     public async Task<IEnumerable<Collection>> GetAccessibleCollectionsAsync(string userId, CancellationToken ct = default)
     {
-        // Use a recursive CTE to find all collections accessible via direct ACL
-        // or inherited from a parent collection's ACL.
-        var accessibleIds = await dbContext.Database
-            .SqlQueryRaw<Guid>(@"
-                WITH RECURSIVE accessible AS (
-                    -- Base case: collections where the user has a direct ACL
-                    SELECT c.""Id"", c.""ParentId""
-                    FROM ""Collections"" c
-                    INNER JOIN ""CollectionAcls"" a ON a.""CollectionId"" = c.""Id""
-                    WHERE a.""PrincipalId"" = {0} AND a.""PrincipalType"" = 'user'
-                    UNION
-                    -- Recursive case: children of accessible collections
-                    SELECT child.""Id"", child.""ParentId""
-                    FROM ""Collections"" child
-                    INNER JOIN accessible acc ON child.""ParentId"" = acc.""Id""
-                )
-                SELECT DISTINCT ""Id"" AS ""Value"" FROM accessible
-            ", userId)
+        // Find all collections where the user has a direct ACL entry
+        var accessibleIds = await dbContext.CollectionAcls
+            .Where(a => a.PrincipalId == userId && a.PrincipalType == PrincipalType.User)
+            .Select(a => a.CollectionId)
+            .Distinct()
             .ToListAsync(ct);
 
         return await dbContext.Collections
@@ -86,8 +61,6 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        // Leverage the DB's ON DELETE CASCADE for the parent-child relationship.
-        // Only load the root entity — PostgreSQL cascades to all descendants.
         var collection = await dbContext.Collections.FindAsync([id], ct);
         if (collection == null) return;
 
@@ -103,7 +76,6 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
     public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
     {
         return await dbContext.Collections
-            .Where(c => c.ParentId == null)
             .Where(c => c.Name.ToLower() == name.ToLower())
             .Where(c => excludeId == null || c.Id != excludeId.Value)
             .AnyAsync(ct);

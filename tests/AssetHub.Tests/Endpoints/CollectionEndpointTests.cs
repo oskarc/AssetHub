@@ -95,22 +95,6 @@ public class CollectionEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateSubCollection_Returns201()
-    {
-        var client = AdminClient();
-        var parentResponse = await client.PostAsJsonAsync("/api/collections",
-            new CreateCollectionDto { Name = $"Parent-{Guid.NewGuid():N}" });
-        var parent = await parentResponse.Content.ReadFromJsonAsync<CollectionResponseDto>();
-
-        var response = await client.PostAsJsonAsync($"/api/collections/{parent!.Id}/children",
-            new CreateCollectionDto { Name = $"Child-{Guid.NewGuid():N}" });
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var child = await response.Content.ReadFromJsonAsync<CollectionResponseDto>();
-        Assert.Equal(parent.Id, child!.ParentId);
-    }
-
-    [Fact]
     public async Task UpdateCollection_Admin_Returns200()
     {
         var client = AdminClient();

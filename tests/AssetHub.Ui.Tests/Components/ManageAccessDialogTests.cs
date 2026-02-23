@@ -12,7 +12,6 @@ public class ManageAccessDialogTests : BunitTestBase
 
     private async Task<IRenderedComponent<MudDialogProvider>> RenderDialogAsync(
         string currentUserRole = "manager",
-        bool isRoleInherited = false,
         List<CollectionAclResponseDto>? aclEntries = null)
     {
         var entries = aclEntries ?? new List<CollectionAclResponseDto>
@@ -28,8 +27,7 @@ public class ManageAccessDialogTests : BunitTestBase
         {
             { x => x.CollectionId, _collectionId },
             { x => x.CollectionName, "Test Collection" },
-            { x => x.CurrentUserRole, currentUserRole },
-            { x => x.IsRoleInherited, isRoleInherited }
+            { x => x.CurrentUserRole, currentUserRole }
         };
         return await ShowDialogAsync<ManageAccessDialog>(parameters);
     }
@@ -56,22 +54,6 @@ public class ManageAccessDialogTests : BunitTestBase
         var cut = await RenderDialogAsync(currentUserRole: "manager");
 
         Assert.Contains("manager", cut.Markup);
-    }
-
-    [Fact]
-    public async Task Shows_Inherited_Role_Chip_When_Inherited()
-    {
-        var cut = await RenderDialogAsync(isRoleInherited: true);
-
-        Assert.Contains("InheritedRole", cut.Markup);
-    }
-
-    [Fact]
-    public async Task Hides_Inherited_Role_Chip_When_Direct()
-    {
-        var cut = await RenderDialogAsync(isRoleInherited: false);
-
-        Assert.DoesNotContain("InheritedRole", cut.Markup);
     }
 
     [Fact]
@@ -205,8 +187,7 @@ public class ManageAccessDialogTests : BunitTestBase
         {
             { x => x.CollectionId, _collectionId },
             { x => x.CollectionName, "Test" },
-            { x => x.CurrentUserRole, "manager" },
-            { x => x.IsRoleInherited, false }
+            { x => x.CurrentUserRole, "manager" }
         };
         var cut = await ShowDialogAsync<ManageAccessDialog>(parameters);
 

@@ -136,43 +136,6 @@ public class AuthorizationEdgeCaseTests : IAsyncLifetime
         Assert.True(canManage);
     }
 
-    // ── CanCreateSubCollectionAsync — negative cases ────────────────
-
-    [Fact]
-    public async Task CanCreateSubCollection_ViewerRole_ReturnsFalse()
-    {
-        var parent = TestData.CreateCollection(name: "Parent");
-        await _collectionRepo.CreateAsync(parent);
-        await _aclRepo.SetAccessAsync(parent.Id, Constants.PrincipalTypes.User, UserA, RoleHierarchy.Roles.Viewer);
-
-        var canCreate = await _authService.CanCreateSubCollectionAsync(UserA, parent.Id);
-
-        Assert.False(canCreate);
-    }
-
-    [Fact]
-    public async Task CanCreateSubCollection_NoAcl_ReturnsFalse()
-    {
-        var parent = TestData.CreateCollection(name: "No ACL Parent");
-        await _collectionRepo.CreateAsync(parent);
-
-        var canCreate = await _authService.CanCreateSubCollectionAsync(UserA, parent.Id);
-
-        Assert.False(canCreate);
-    }
-
-    [Fact]
-    public async Task CanCreateSubCollection_ContributorRole_ReturnsTrue()
-    {
-        var parent = TestData.CreateCollection(name: "Contributor Parent");
-        await _collectionRepo.CreateAsync(parent);
-        await _aclRepo.SetAccessAsync(parent.Id, Constants.PrincipalTypes.User, UserA, RoleHierarchy.Roles.Contributor);
-
-        var canCreate = await _authService.CanCreateSubCollectionAsync(UserA, parent.Id);
-
-        Assert.True(canCreate);
-    }
-
     // ── CheckAccessAsync — direct ACL + non-existent collection ─────
 
     [Fact]
@@ -218,53 +181,5 @@ public class AuthorizationEdgeCaseTests : IAsyncLifetime
         var hasAccess = await _authService.CheckAccessAsync(UserA, collection.Id, RoleHierarchy.Roles.Viewer);
 
         Assert.False(hasAccess);
-    }
-
-    // ── GetUserRoleAsync — multiple users on same chain ─────────────
-
-    [Fact]
-    public async Task GetUserRole_ThreeUsersOnSameChain_IndependentRoles()
-    {
-        var parent = TestData.CreateCollection(name: "Root");
-        var child = TestData.CreateCollection(name: "Child", parentId: parent.Id);
-        await _collectionRepo.CreateAsync(parent);
-        await _collectionRepo.CreateAsync(child);
-
-        // UserA: admin on parent (inherits to child)
-        await _aclRepo.SetAccessAsync(parent.Id, Constants.PrincipalTypes.User, UserA, RoleHierarchy.Roles.Admin);
-        // UserB: viewer on parent, contributor on child (direct override)
-        await _aclRepo.SetAccessAsync(parent.Id, Constants.PrincipalTypes.User, UserB, RoleHierarchy.Roles.Viewer);
-        await _aclRepo.SetAccessAsync(child.Id, Constants.PrincipalTypes.User, UserB, RoleHierarchy.Roles.Contributor);
-        // UserC: no ACL at all
-        // (no call needed)
-
-        var roleA = await _authService.GetUserRoleAsync(UserA, child.Id);
-        var roleB = await _authService.GetUserRoleAsync(UserB, child.Id);
-        var roleC = await _authService.GetUserRoleAsync(UserC, child.Id);
-
-        // UserA inherits admin from parent
-        Assert.Equal(RoleHierarchy.Roles.Admin, roleA);
-        // UserB has direct contributor on child (overrides viewer from parent)
-        Assert.Equal(RoleHierarchy.Roles.Contributor, roleB);
-        // UserC has no access
-        Assert.Null(roleC);
-    }
-
-    [Fact]
-    public async Task GetUserRole_DirectAclTakesPriority_EvenIfLowerThanInherited()
-    {
-        var parent = TestData.CreateCollection(name: "HighParent");
-        var child = TestData.CreateCollection(name: "LowChild", parentId: parent.Id);
-        await _collectionRepo.CreateAsync(parent);
-        await _collectionRepo.CreateAsync(child);
-
-        // Admin on parent, but viewer on child directly
-        await _aclRepo.SetAccessAsync(parent.Id, Constants.PrincipalTypes.User, UserA, RoleHierarchy.Roles.Admin);
-        await _aclRepo.SetAccessAsync(child.Id, Constants.PrincipalTypes.User, UserA, RoleHierarchy.Roles.Viewer);
-
-        var role = await _authService.GetUserRoleAsync(UserA, child.Id);
-
-        // Direct ACL should take priority over inherited
-        Assert.Equal(RoleHierarchy.Roles.Viewer, role);
     }
 }

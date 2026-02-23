@@ -259,48 +259,4 @@ public class MultiCollectionAccessTests : IAsyncLifetime
             .ToListAsync();
         Assert.Empty(remaining);
     }
-
-    // ── Hierarchical collection deletion ────────────────────────────
-
-    [Fact]
-    public async Task HierarchicalDeletion_CascadesDeep()
-    {
-        // Create a 3-level hierarchy
-        var root = TestData.CreateCollection(name: "Root");
-        _db.Collections.Add(root);
-        await _db.SaveChangesAsync();
-
-        var child = TestData.CreateCollection(name: "Child", parentId: root.Id);
-        _db.Collections.Add(child);
-        await _db.SaveChangesAsync();
-
-        var grandchild = TestData.CreateCollection(name: "Grandchild", parentId: child.Id);
-        _db.Collections.Add(grandchild);
-
-        // Each level has an asset
-        var asset1 = TestData.CreateAsset(title: "Root Asset");
-        var asset2 = TestData.CreateAsset(title: "Child Asset");
-        var asset3 = TestData.CreateAsset(title: "Grandchild Asset");
-        _db.Assets.AddRange(asset1, asset2, asset3);
-        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset1.Id, root.Id));
-        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset2.Id, child.Id));
-        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset3.Id, grandchild.Id));
-        await _db.SaveChangesAsync();
-
-        // Delete root — should cascade through child → grandchild
-        await _collectionRepo.DeleteAsync(root.Id);
-
-        // All 3 collections gone
-        Assert.Null(await _db.Collections.FindAsync(root.Id));
-        Assert.Null(await _db.Collections.FindAsync(child.Id));
-        Assert.Null(await _db.Collections.FindAsync(grandchild.Id));
-
-        // All AssetCollection links gone
-        Assert.Empty(await _db.AssetCollections.ToListAsync());
-
-        // But all 3 assets survive (orphaned)
-        Assert.NotNull(await _db.Assets.FindAsync(asset1.Id));
-        Assert.NotNull(await _db.Assets.FindAsync(asset2.Id));
-        Assert.NotNull(await _db.Assets.FindAsync(asset3.Id));
-    }
 }

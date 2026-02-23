@@ -28,13 +28,6 @@
                           Label="@CollectionLoc["DescriptionOptional"]"
                           Lines="3"
                           Variant="Variant.Outlined" />
-
-            @if (ParentId.HasValue)
-            {
-                <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
-                    @CollectionLoc["SubCollectionHint"]
-                </MudAlert>
-            }
         </MudForm>
     </DialogContent>
     <DialogActions>
@@ -55,9 +48,6 @@
 @code {
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = default!;
-
-    [Parameter]
-    public Guid? ParentId { get; set; }
 
     private MudForm? _form;
     private string _name = "";
@@ -82,19 +72,10 @@
             var dto = new CreateCollectionDto
             {
                 Name = _name,
-                Description = string.IsNullOrWhiteSpace(_description) ? null : _description,
-                ParentId = ParentId
+                Description = string.IsNullOrWhiteSpace(_description) ? null : _description
             };
 
-            CollectionResponseDto result;
-            if (ParentId.HasValue)
-            {
-                result = await Api.CreateSubCollectionAsync(ParentId.Value, dto);
-            }
-            else
-            {
-                result = await Api.CreateCollectionAsync(dto);
-            }
+            var result = await Api.CreateCollectionAsync(dto);
 
             MudDialog.Close(DialogResult.Ok(result));
         }
