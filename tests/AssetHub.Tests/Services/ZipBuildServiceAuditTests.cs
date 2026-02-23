@@ -42,8 +42,8 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
         _db = await _fixture.CreateDbContextAsync(_dbName);
 
         var cache = new MemoryCache(new MemoryCacheOptions());
-        _assetRepo = new AssetRepository(_db, cache);
-        _colRepo = new CollectionRepository(_db);
+        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
+        _colRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();

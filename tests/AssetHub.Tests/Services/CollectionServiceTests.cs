@@ -43,14 +43,14 @@ public class CollectionServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db);
-        _aclRepo = new CollectionAclRepository(_db);
+        _collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
         _assetRepo = new AssetRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), NullLogger<AssetRepository>.Instance);
         _assetCollectionRepo = new AssetCollectionRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
             new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
             NullLogger<AssetCollectionRepository>.Instance);
-        _shareRepo = new ShareRepository(_db);
+        _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         _deletionServiceMock = new Mock<IAssetDeletionService>();
         _zipBuildServiceMock = new Mock<IZipBuildService>();

@@ -2,10 +2,13 @@ using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepository
+public class CollectionRepository(
+    AssetHubDbContext dbContext,
+    ILogger<CollectionRepository> logger) : ICollectionRepository
 {
     public async Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, CancellationToken ct = default)
     {
@@ -49,6 +52,7 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
         dbContext.Collections.Add(collection);
         await dbContext.SaveChangesAsync(ct);
 
+        logger.LogInformation("Created collection {CollectionId} with name '{Name}'", collection.Id, collection.Name);
         return collection;
     }
 
@@ -62,10 +66,15 @@ public class CollectionRepository(AssetHubDbContext dbContext) : ICollectionRepo
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var collection = await dbContext.Collections.FindAsync([id], ct);
-        if (collection == null) return;
+        if (collection == null)
+        {
+            logger.LogWarning("Attempted to delete non-existent collection {CollectionId}", id);
+            return;
+        }
 
         dbContext.Collections.Remove(collection);
         await dbContext.SaveChangesAsync(ct);
+        logger.LogInformation("Deleted collection {CollectionId}", id);
     }
 
     public async Task<bool> ExistsAsync(Guid id, CancellationToken ct = default)

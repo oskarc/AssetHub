@@ -2,10 +2,13 @@ using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
+public class ShareRepository(
+    AssetHubDbContext dbContext,
+    ILogger<ShareRepository> logger) : IShareRepository
 {
     public async Task<Share?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -87,6 +90,7 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
     {
         dbContext.Shares.Add(share);
         await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Created share {ShareId} for {ScopeType} {ScopeId}", share.Id, share.ScopeType, share.ScopeId);
     }
 
     public async Task UpdateAsync(Share share, CancellationToken cancellationToken = default)
@@ -102,6 +106,11 @@ public class ShareRepository(AssetHubDbContext dbContext) : IShareRepository
         {
             dbContext.Shares.Remove(share);
             await dbContext.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Deleted share {ShareId}", id);
+        }
+        else
+        {
+            logger.LogWarning("Attempted to delete non-existent share {ShareId}", id);
         }
     }
 

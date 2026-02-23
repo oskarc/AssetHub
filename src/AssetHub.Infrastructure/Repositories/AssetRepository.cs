@@ -4,10 +4,14 @@ using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : IAssetRepository
+public class AssetRepository(
+    AssetHubDbContext dbContext,
+    IMemoryCache cache,
+    ILogger<AssetRepository> logger) : IAssetRepository
 {
     public async Task<Asset?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -87,6 +91,7 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
     {
         dbContext.Assets.Add(asset);
         await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Created asset {AssetId} of type {AssetType}", asset.Id, asset.AssetType);
     }
 
     public async Task UpdateAsync(Asset asset, CancellationToken cancellationToken = default)
@@ -102,6 +107,11 @@ public class AssetRepository(AssetHubDbContext dbContext, IMemoryCache cache) : 
         {
             dbContext.Assets.Remove(asset);
             await dbContext.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Deleted asset {AssetId}", id);
+        }
+        else
+        {
+            logger.LogWarning("Attempted to delete non-existent asset {AssetId}", id);
         }
     }
 

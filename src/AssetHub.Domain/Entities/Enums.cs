@@ -5,6 +5,8 @@ namespace AssetHub.Domain.Entities;
 /// </summary>
 public enum AssetStatus
 {
+    /// <summary>Fallback for unknown database values.</summary>
+    Unknown = 0,
     Uploading,
     Processing,
     Ready,
@@ -16,6 +18,8 @@ public enum AssetStatus
 /// </summary>
 public enum AssetType
 {
+    /// <summary>Fallback for unknown database values.</summary>
+    Unknown = 0,
     Image,
     Video,
     Document
@@ -55,6 +59,8 @@ public enum PrincipalType
 /// </summary>
 public enum ZipDownloadStatus
 {
+    /// <summary>Fallback for unknown database values.</summary>
+    Unknown = 0,
     Pending,
     Building,
     Completed,
@@ -76,7 +82,8 @@ public static class DomainEnumExtensions
         AssetStatus.Processing => "processing",
         AssetStatus.Ready => "ready",
         AssetStatus.Failed => "failed",
-        _ => throw new ArgumentOutOfRangeException(nameof(status))
+        AssetStatus.Unknown => "unknown",
+        _ => "unknown" // Fallback for future values
     };
 
     public static AssetStatus ToAssetStatus(this string value) => value switch
@@ -85,7 +92,7 @@ public static class DomainEnumExtensions
         "processing" => AssetStatus.Processing,
         "ready" => AssetStatus.Ready,
         "failed" => AssetStatus.Failed,
-        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown asset status: {value}")
+        _ => AssetStatus.Unknown // Graceful fallback for unknown database values
     };
 
     // ── AssetType ───────────────────────────────────────────────────────
@@ -95,7 +102,8 @@ public static class DomainEnumExtensions
         AssetType.Image => "image",
         AssetType.Video => "video",
         AssetType.Document => "document",
-        _ => throw new ArgumentOutOfRangeException(nameof(type))
+        AssetType.Unknown => "unknown",
+        _ => "unknown" // Fallback for future values
     };
 
     public static AssetType ToAssetType(this string value) => value switch
@@ -103,7 +111,7 @@ public static class DomainEnumExtensions
         "image" => AssetType.Image,
         "video" => AssetType.Video,
         "document" => AssetType.Document,
-        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown asset type: {value}")
+        _ => AssetType.Unknown // Graceful fallback for unknown database values
     };
 
     // ── AclRole ─────────────────────────────────────────────────────────
@@ -164,7 +172,8 @@ public static class DomainEnumExtensions
         ZipDownloadStatus.Building => "building",
         ZipDownloadStatus.Completed => "completed",
         ZipDownloadStatus.Failed => "failed",
-        _ => throw new ArgumentOutOfRangeException(nameof(status))
+        ZipDownloadStatus.Unknown => "unknown",
+        _ => "unknown" // Fallback for future values
     };
 
     public static ZipDownloadStatus ToZipDownloadStatus(this string value) => value switch
@@ -173,6 +182,6 @@ public static class DomainEnumExtensions
         "building" => ZipDownloadStatus.Building,
         "completed" => ZipDownloadStatus.Completed,
         "failed" => ZipDownloadStatus.Failed,
-        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown zip download status: {value}")
+        _ => ZipDownloadStatus.Unknown // Graceful fallback for unknown database values
     };
 }

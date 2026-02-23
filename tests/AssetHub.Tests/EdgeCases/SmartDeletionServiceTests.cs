@@ -51,11 +51,11 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         _db = await _fixture.CreateDbContextAsync();
 
         var cache = new MemoryCache(new MemoryCacheOptions());
-        _assetRepo = new AssetRepository(_db, cache);
+        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache,
             NullLogger<AssetCollectionRepository>.Instance);
-        _colRepo = new CollectionRepository(_db);
-        _shareRepo = new ShareRepository(_db);
+        _colRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
             _db, NullLogger<CollectionAuthorizationService>.Instance);
@@ -249,7 +249,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         var dbName = new Npgsql.NpgsqlConnectionStringBuilder(_db.Database.GetConnectionString()!).Database!;
         var db2 = _fixture.CreateDbContextForExistingDb(dbName);
         var cache2 = new MemoryCache(new MemoryCacheOptions());
-        var assetRepo2 = new AssetRepository(db2, cache2);
+        var assetRepo2 = new AssetRepository(db2, cache2, NullLogger<AssetRepository>.Instance);
         var acRepo2 = new AssetCollectionRepository(db2, cache2,
             NullLogger<AssetCollectionRepository>.Instance);
         var authService2 = new CollectionAuthorizationService(db2,

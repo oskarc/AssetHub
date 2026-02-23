@@ -30,10 +30,10 @@ public class MultiCollectionAccessTests : IAsyncLifetime
         _db = await _fixture.CreateDbContextAsync();
         var cache = new MemoryCache(new MemoryCacheOptions());
         var logger = NullLogger<AssetCollectionRepository>.Instance;
-        _assetRepo = new AssetRepository(_db, cache);
+        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache, logger);
-        _collectionRepo = new CollectionRepository(_db);
-        _aclRepo = new CollectionAclRepository(_db);
+        _collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
     }
 
     public async Task DisposeAsync()

@@ -4,6 +4,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.Repositories;
 
@@ -19,7 +20,7 @@ public class ShareRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new ShareRepository(_db);
+        _repo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
     }
 
     public async Task DisposeAsync()

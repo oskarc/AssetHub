@@ -4,6 +4,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.Repositories;
 
@@ -19,7 +20,7 @@ public class CollectionRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new CollectionRepository(_db);
+        _repo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -76,7 +77,7 @@ public class CollectionRepositoryTests : IAsyncLifetime
         // Use a fresh context to avoid change-tracker populating the navigation
         var dbName = _db.Database.GetDbConnection().Database!;
         await using var freshDb = _fixture.CreateDbContextForExistingDb(dbName);
-        var freshRepo = new CollectionRepository(freshDb);
+        var freshRepo = new CollectionRepository(freshDb, NullLogger<CollectionRepository>.Instance);
 
         var result = await freshRepo.GetByIdAsync(collection.Id);
 

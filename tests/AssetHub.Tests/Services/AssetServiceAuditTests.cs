@@ -44,11 +44,11 @@ public class AssetServiceAuditTests : IAsyncLifetime
         _db = await _fixture.CreateDbContextAsync();
 
         var cache = new MemoryCache(new MemoryCacheOptions());
-        _assetRepo = new AssetRepository(_db, cache);
+        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache,
             NullLogger<AssetCollectionRepository>.Instance);
-        _colRepo = new CollectionRepository(_db);
-        _shareRepo = new ShareRepository(_db);
+        _colRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
             _db, NullLogger<CollectionAuthorizationService>.Instance);

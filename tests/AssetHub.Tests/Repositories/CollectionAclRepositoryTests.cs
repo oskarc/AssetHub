@@ -4,6 +4,7 @@ using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.Repositories;
 
@@ -19,7 +20,7 @@ public class CollectionAclRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new CollectionAclRepository(_db);
+        _repo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
     }
 
     public async Task DisposeAsync()

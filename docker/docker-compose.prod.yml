@@ -15,7 +15,7 @@ services:
 
   # ---------- PostgreSQL 16 ---------------------------------------------------
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.6-alpine
     container_name: assethub-postgres
     restart: unless-stopped
     environment:

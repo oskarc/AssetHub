@@ -36,10 +36,10 @@ public class DashboardServiceTests : IAsyncLifetime
         Dictionary<string, string>? userNames = null)
     {
         var currentUser = new CurrentUser(userId, isAdmin);
-        var collectionRepo = new CollectionRepository(_db);
+        var collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
         var assetRepo = new AssetRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
-        var shareRepo = new ShareRepository(_db);
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), NullLogger<AssetRepository>.Instance);
+        var shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
         var authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         var userLookupMock = new Mock<IUserLookupService>();
         userLookupMock.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))

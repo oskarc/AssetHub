@@ -6,6 +6,7 @@ using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.Repositories;
 
@@ -21,7 +22,7 @@ public class AssetRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new AssetRepository(_db, new MemoryCache(new MemoryCacheOptions()));
+        _repo = new AssetRepository(_db, new MemoryCache(new MemoryCacheOptions()), NullLogger<AssetRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -793,7 +794,7 @@ public class AssetRepositoryTests : IAsyncLifetime
 
         // Create second context + repo pointing to same DB
         await using var db2 = _fixture.CreateDbContextForExistingDb(dbName!);
-        var repo2 = new AssetRepository(db2, new MemoryCache(new MemoryCacheOptions()));
+        var repo2 = new AssetRepository(db2, new MemoryCache(new MemoryCacheOptions()), NullLogger<AssetRepository>.Instance);
 
         // Load the same entity in both contexts
         var asset1 = await _repo.GetByIdAsync(asset.Id);

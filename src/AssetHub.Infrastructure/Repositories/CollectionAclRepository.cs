@@ -4,9 +4,12 @@ using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
-public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionAclRepository
+public class CollectionAclRepository(
+    AssetHubDbContext dbContext,
+    ILogger<CollectionAclRepository> logger) : ICollectionAclRepository
 {
     public async Task<IEnumerable<CollectionAcl>> GetByCollectionAsync(Guid collectionId, CancellationToken ct = default)
     {
@@ -65,6 +68,9 @@ public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionA
             try
             {
                 await dbContext.SaveChangesAsync(ct);
+                logger.LogInformation(
+                    "Set {Role} access for {PrincipalType} {PrincipalId} on collection {CollectionId}",
+                    role, principalType, principalId, collectionId);
                 return existing;
             }
             catch (DbUpdateException ex) when (
@@ -84,10 +90,19 @@ public class CollectionAclRepository(AssetHubDbContext dbContext) : ICollectionA
     public async Task RevokeAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
         var acl = await GetByPrincipalAsync(collectionId, principalType, principalId, ct);
-        if (acl == null) return;
+        if (acl == null)
+        {
+            logger.LogDebug(
+                "No ACL found to revoke for {PrincipalType} {PrincipalId} on collection {CollectionId}",
+                principalType, principalId, collectionId);
+            return;
+        }
 
         dbContext.CollectionAcls.Remove(acl);
         await dbContext.SaveChangesAsync(ct);
+        logger.LogInformation(
+            "Revoked access for {PrincipalType} {PrincipalId} on collection {CollectionId}",
+            principalType, principalId, collectionId);
     }
 
     public async Task RevokeAllAccessAsync(Guid collectionId, CancellationToken ct = default)
