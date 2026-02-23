@@ -47,7 +47,7 @@ public static class AssetEndpoints
     // ── Queries ──────────────────────────────────────────────────────────────
 
     private static async Task<IResult> GetAssets(
-        [FromServices] IAssetService svc, CancellationToken ct,
+        [FromServices] IAssetQueryService svc, CancellationToken ct,
         int skip = 0, int take = 50)
     {
         take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
@@ -56,7 +56,7 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> GetAllAssets(
-        [FromServices] IAssetService svc, CancellationToken ct,
+        [FromServices] IAssetQueryService svc, CancellationToken ct,
         string? query = null, string? type = null, Guid? collectionId = null,
         string sortBy = "created_desc", int skip = 0, int take = 50)
     {
@@ -66,14 +66,14 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> GetAsset(
-        Guid id, [FromServices] IAssetService svc, CancellationToken ct)
+        Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetAssetAsync(id, ct);
         return result.ToHttpResult();
     }
 
     private static async Task<IResult> GetAssetsByCollection(
-        Guid collectionId, [FromServices] IAssetService svc, CancellationToken ct,
+        Guid collectionId, [FromServices] IAssetQueryService svc, CancellationToken ct,
         string? query = null, string? type = null,
         string sortBy = "created_desc", int skip = 0, int take = 50)
     {
@@ -83,7 +83,7 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> GetAssetDeletionContext(
-        Guid id, [FromServices] IAssetService svc, CancellationToken ct)
+        Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetDeletionContextAsync(id, ct);
         return result.ToHttpResult();
@@ -93,7 +93,7 @@ public static class AssetEndpoints
 
     private static async Task<IResult> UploadAsset(
         IFormFile file, [FromForm] Guid collectionId, [FromForm] string title,
-        [FromServices] IAssetService svc, CancellationToken ct)
+        [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
         if (file == null || file.Length == 0)
             return Results.BadRequest(new { error = "File is required" });
@@ -126,14 +126,14 @@ public static class AssetEndpoints
 
     private static async Task<IResult> InitUpload(
         InitUploadRequest request,
-        [FromServices] IAssetService svc, CancellationToken ct)
+        [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
         var result = await svc.InitUploadAsync(request, ct);
         return result.ToHttpResult();
     }
 
     private static async Task<IResult> ConfirmUpload(
-        Guid id, [FromServices] IAssetService svc, CancellationToken ct)
+        Guid id, [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
         var result = await svc.ConfirmUploadAsync(id, ct);
         return result.ToHttpResult();
@@ -142,7 +142,7 @@ public static class AssetEndpoints
     // ── Multi-Collection ─────────────────────────────────────────────────────
 
     private static async Task<IResult> GetAssetCollections(
-        Guid id, [FromServices] IAssetService svc, CancellationToken ct)
+        Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetAssetCollectionsAsync(id, ct);
         return result.ToHttpResult();
@@ -166,8 +166,8 @@ public static class AssetEndpoints
 
     // ── Renditions ───────────────────────────────────────────────────────────
 
-    private static Func<Guid, IAssetService, CancellationToken, Task<IResult>> GetRendition(string size, bool forceDownload = false) =>
-        async (Guid id, [FromServices] IAssetService svc, CancellationToken ct) =>
+    private static Func<Guid, IAssetQueryService, CancellationToken, Task<IResult>> GetRendition(string size, bool forceDownload = false) =>
+        async (Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct) =>
         {
             var result = await svc.GetRenditionUrlAsync(id, size, forceDownload, ct);
             return result.ToHttpResult(url => Results.Redirect(url));

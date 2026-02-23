@@ -77,7 +77,7 @@ public class AssetServiceAuditTests : IAsyncLifetime
         await _db.DisposeAsync();
     }
 
-    private AssetService CreateSut(CurrentUser currentUser)
+    private AssetQueryService CreateSut(CurrentUser currentUser)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -86,20 +86,16 @@ public class AssetServiceAuditTests : IAsyncLifetime
             })
             .Build();
 
-        return new AssetService(
+        return new AssetQueryService(
             _assetRepo,
             _acRepo,
             _colRepo,
             _authService,
             _minioMock.Object,
-            _mediaMock.Object,
-            _deletionService,
             _auditMock.Object,
-            _malwareMock.Object,
-            config,
             currentUser,
-            new Mock<IHttpContextAccessor>().Object,
-            NullLogger<AssetService>.Instance);
+            config,
+            NullLogger<AssetQueryService>.Instance);
     }
 
     // ── asset.downloaded audit event ─────────────────────────────────────────

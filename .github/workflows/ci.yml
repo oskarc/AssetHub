@@ -29,8 +29,14 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
       
-      - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults
+      - name: Test with coverage
+        run: |
+          dotnet test --no-build --configuration Release \
+            --verbosity normal \
+            --logger trx \
+            --results-directory TestResults \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
       
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -38,6 +44,38 @@ jobs:
         with:
           name: test-results
           path: TestResults/*.trx
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: TestResults/**/coverage.cobertura.xml
+      
+      - name: Generate coverage summary
+        if: always()
+        run: |
+          echo "## Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Find and parse coverage file
+          COVERAGE_FILE=$(find TestResults -name "coverage.cobertura.xml" 2>/dev/null | head -1)
+          
+          if [ -n "$COVERAGE_FILE" ] && [ -f "$COVERAGE_FILE" ]; then
+            # Extract line-rate (line coverage percentage)
+            LINE_RATE=$(grep -oP 'line-rate="\K[^"]+' "$COVERAGE_FILE" | head -1)
+            BRANCH_RATE=$(grep -oP 'branch-rate="\K[^"]+' "$COVERAGE_FILE" | head -1)
+            
+            LINE_PCT=$(echo "scale=1; $LINE_RATE * 100" | bc 2>/dev/null || echo "N/A")
+            BRANCH_PCT=$(echo "scale=1; $BRANCH_RATE * 100" | bc 2>/dev/null || echo "N/A")
+            
+            echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Line Coverage | ${LINE_PCT}% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branch Coverage | ${BRANCH_PCT}% |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage report not found or tests did not run." >> $GITHUB_STEP_SUMMARY
+          fi
 
   security-audit:
     runs-on: ubuntu-latest
@@ -90,6 +128,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: false
+          load: true
           tags: assethub-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -100,6 +139,57 @@ jobs:
           context: .
           file: docker/Dockerfile.Worker
           push: false
+          load: true
           tags: assethub-worker:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: Scan API image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'assethub-api:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-api-results.txt'
+      
+      - name: Scan Worker image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        if: success() || failure()
+        with:
+          image-ref: 'assethub-worker:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-worker-results.txt'
+      
+      - name: Upload Trivy scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-scan-results
+          path: trivy-*.txt
+      
+      - name: Add Trivy results to summary
+        if: always()
+        run: |
+          echo "## Container Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f trivy-api-results.txt ]; then
+            echo "### API Image" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat trivy-api-results.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f trivy-worker-results.txt ]; then
+            echo "### Worker Image" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat trivy-worker-results.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

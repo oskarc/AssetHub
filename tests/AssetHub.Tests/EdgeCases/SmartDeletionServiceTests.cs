@@ -91,17 +91,33 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         return new AssetService(
             _assetRepo,
             _acRepo,
+            _authService,
+            _deletionService,
+            _auditMock.Object,
+            currentUser,
+            config,
+            NullLogger<AssetService>.Instance);
+    }
+
+    private AssetQueryService CreateQuerySut(CurrentUser currentUser)
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["MinIO:BucketName"] = BucketName
+            })
+            .Build();
+
+        return new AssetQueryService(
+            _assetRepo,
+            _acRepo,
             _colRepo,
             _authService,
             _minioMock.Object,
-            _mediaMock.Object,
-            _deletionService,
             _auditMock.Object,
-            _malwareMock.Object,
-            config,
             currentUser,
-            new Mock<IHttpContextAccessor>().Object,
-            NullLogger<AssetService>.Instance);
+            config,
+            NullLogger<AssetQueryService>.Instance);
     }
 
     // ── §10.6 Edge Case 1: asset in 1 collection → deleted permanently ──
@@ -285,7 +301,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         _db.CollectionAcls.Add(TestData.CreateAcl(col.Id, ManagerUser, AclRole.Manager));
         await _db.SaveChangesAsync();
 
-        var sut = CreateSut(new CurrentUser(ManagerUser, isSystemAdmin: false));
+        var sut = CreateQuerySut(new CurrentUser(ManagerUser, isSystemAdmin: false));
         var result = await sut.GetDeletionContextAsync(asset.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -307,7 +323,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         // No access to col2
         await _db.SaveChangesAsync();
 
-        var sut = CreateSut(new CurrentUser(PartialUser, isSystemAdmin: false));
+        var sut = CreateQuerySut(new CurrentUser(PartialUser, isSystemAdmin: false));
         var result = await sut.GetDeletionContextAsync(asset.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);

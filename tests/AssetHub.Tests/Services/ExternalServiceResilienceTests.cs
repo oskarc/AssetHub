@@ -74,7 +74,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         await _db.DisposeAsync();
     }
 
-    private AssetService CreateSut(CurrentUser currentUser)
+    private AssetUploadService CreateSut(CurrentUser currentUser)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -83,20 +83,38 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
             })
             .Build();
 
-        return new AssetService(
+        return new AssetUploadService(
+            _assetRepo,
+            _acRepo,
+            _authService,
+            _minioMock.Object,
+            _mediaMock.Object,
+            _malwareMock.Object,
+            _auditMock.Object,
+            currentUser,
+            config,
+            NullLogger<AssetUploadService>.Instance);
+    }
+
+    private AssetQueryService CreateQuerySut(CurrentUser currentUser)
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["MinIO:BucketName"] = BucketName
+            })
+            .Build();
+
+        return new AssetQueryService(
             _assetRepo,
             _acRepo,
             _colRepo,
             _authService,
             _minioMock.Object,
-            _mediaMock.Object,
-            _deletionService,
             _auditMock.Object,
-            _malwareMock.Object,
-            config,
             currentUser,
-            new Mock<IHttpContextAccessor>().Object,
-            NullLogger<AssetService>.Instance);
+            config,
+            NullLogger<AssetQueryService>.Instance);
     }
 
     private async Task<Guid> CreateTestCollectionAsync()
@@ -259,7 +277,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         // Arrange
         var collectionId = await CreateTestCollectionAsync();
         var currentUser = new CurrentUser(TestUser, false);
-        var sut = CreateSut(currentUser);
+        var sut = CreateQuerySut(currentUser);
 
         // Create an asset first
         var asset = new Asset

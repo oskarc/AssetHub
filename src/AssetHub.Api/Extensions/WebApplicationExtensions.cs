@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AssetHub.Api.Endpoints;
 using AssetHub.Api.Middleware;
+using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using AssetHub.Ui;
 using Hangfire;
@@ -283,7 +284,34 @@ public static class WebApplicationExtensions
                 if (!context.Response.HasStarted)
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(new ApiError
+                    {
+                        Code = "UNAUTHORIZED",
+                        Message = "Authentication required"
+                    });
+                }
+            }
+            catch (StorageException storageEx) when (context.Request.Path.StartsWithSegments("/api"))
+            {
+                var logger = context.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("ApiExceptionHandler");
+                
+                var correlationId = context.TraceIdentifier;
+                logger.LogError(storageEx, "Storage service error on {Method} {Path} [CorrelationId: {CorrelationId}]",
+                    context.Request.Method, context.Request.Path, correlationId);
+
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(new ApiError
+                    {
+                        Code = "SERVICE_UNAVAILABLE",
+                        Message = storageEx.Message,
+                        Details = new Dictionary<string, string> { ["correlationId"] = correlationId }
+                    });
                 }
             }
             catch (Microsoft.AspNetCore.Http.BadHttpRequestException badEx) when (context.Request.Path.StartsWithSegments("/api"))
@@ -291,19 +319,44 @@ public static class WebApplicationExtensions
                 var logger = context.RequestServices
                     .GetRequiredService<ILoggerFactory>()
                     .CreateLogger("ApiExceptionHandler");
-                logger.LogWarning(badEx, "Bad request on {Method} {Path}",
-                    context.Request.Method, context.Request.Path);
+                
+                var correlationId = context.TraceIdentifier;
+                logger.LogWarning(badEx, "Bad request on {Method} {Path} [CorrelationId: {CorrelationId}]",
+                    context.Request.Method, context.Request.Path, correlationId);
 
                 if (!context.Response.HasStarted)
                 {
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    context.Response.ContentType = "application/problem+json";
-                    await context.Response.WriteAsJsonAsync(new
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(new ApiError
                     {
-                        type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-                        title = "Bad request",
-                        status = 400,
-                        detail = "The request was invalid. Please try again."
+                        Code = "BAD_REQUEST",
+                        Message = "The request was invalid. Please check your input and try again.",
+                        Details = new Dictionary<string, string> { ["correlationId"] = correlationId }
+                    });
+                }
+            }
+            catch (InvalidOperationException configEx) when (
+                context.Request.Path.StartsWithSegments("/api") && 
+                configEx.Message.Contains("configuration", StringComparison.OrdinalIgnoreCase))
+            {
+                var logger = context.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("ApiExceptionHandler");
+                
+                var correlationId = context.TraceIdentifier;
+                logger.LogCritical(configEx, "Configuration error on {Method} {Path} [CorrelationId: {CorrelationId}]",
+                    context.Request.Method, context.Request.Path, correlationId);
+
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(new ApiError
+                    {
+                        Code = "CONFIGURATION_ERROR",
+                        Message = "The service is misconfigured. Please contact support.",
+                        Details = new Dictionary<string, string> { ["correlationId"] = correlationId }
                     });
                 }
             }
@@ -312,19 +365,20 @@ public static class WebApplicationExtensions
                 var logger = context.RequestServices
                     .GetRequiredService<ILoggerFactory>()
                     .CreateLogger("ApiExceptionHandler");
-                logger.LogError(ex, "Unhandled exception on {Method} {Path}",
-                    context.Request.Method, context.Request.Path);
+                
+                var correlationId = context.TraceIdentifier;
+                logger.LogError(ex, "Unhandled exception on {Method} {Path} [CorrelationId: {CorrelationId}]",
+                    context.Request.Method, context.Request.Path, correlationId);
 
                 if (!context.Response.HasStarted)
                 {
                     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                    context.Response.ContentType = "application/problem+json";
-                    await context.Response.WriteAsJsonAsync(new
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(new ApiError
                     {
-                        type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
-                        title = "An unexpected error occurred",
-                        status = 500,
-                        detail = "Something went wrong on the server. Please try again or contact support."
+                        Code = "SERVER_ERROR",
+                        Message = "An unexpected error occurred. Please try again or contact support.",
+                        Details = new Dictionary<string, string> { ["correlationId"] = correlationId }
                     });
                 }
             }

@@ -154,7 +154,12 @@ public static class ServiceCollectionExtensions
                 ? new CurrentUser(userId, user!.IsGlobalAdmin())
                 : new CurrentUser("", false);
         });
-        services.AddScoped<IAssetService, AssetService>();
+        
+        // Asset services split by responsibility (Interface Segregation Principle)
+        services.AddScoped<IAssetService, AssetService>();           // Commands: update, delete, collection membership
+        services.AddScoped<IAssetQueryService, AssetQueryService>(); // Queries: get, list, rendition URLs
+        services.AddScoped<IAssetUploadService, AssetUploadService>(); // Uploads: streaming and presigned
+        
         services.AddScoped<ICollectionService, CollectionService>();
         services.AddScoped<ICollectionAclService, CollectionAclService>();
         services.AddScoped<IAdminService, AdminService>();
