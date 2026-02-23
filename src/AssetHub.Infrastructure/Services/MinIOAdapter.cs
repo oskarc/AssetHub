@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using AssetHub.Application.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Minio;
 using Minio.Exceptions;
@@ -14,7 +15,8 @@ namespace AssetHub.Infrastructure.Services;
 public class MinIOAdapter(
     IMinioClient minioClient,
     IMinioClient publicMinioClient,
-    ILogger<MinIOAdapter> logger) : IMinIOAdapter
+    ILogger<MinIOAdapter> logger,
+    IMemoryCache cache) : IMinIOAdapter
 {
     public async Task UploadAsync(string bucketName, string objectKey, Stream data, string contentType, CancellationToken cancellationToken = default)
     {
@@ -241,9 +243,19 @@ public class MinIOAdapter(
     /// <summary>
     /// Generate presigned download URL using the PUBLIC MinIO client,
     /// so the URL is accessible from browsers.
+    /// URLs are cached for 75% of their expiry time to reduce MinIO calls.
     /// </summary>
     public async Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, bool forceDownload = false, string? downloadFileName = null, CancellationToken cancellationToken = default)
     {
+        // Build cache key from all parameters that affect the URL
+        var sanitizedFileName = forceDownload ? SanitizeFileName(downloadFileName ?? Path.GetFileName(objectKey)) : null;
+        var cacheKey = $"presigned:{bucketName}:{objectKey}:{forceDownload}:{sanitizedFileName}";
+
+        if (cache.TryGetValue(cacheKey, out string? cachedUrl) && cachedUrl is not null)
+        {
+            return cachedUrl;
+        }
+
         try
         {
             var presignedGetObjectArgs = new PresignedGetObjectArgs()
@@ -251,17 +263,21 @@ public class MinIOAdapter(
                 .WithObject(objectKey)
                 .WithExpiry(expirySeconds);
 
-            if (forceDownload)
+            if (forceDownload && sanitizedFileName is not null)
             {
-                var fileName = SanitizeFileName(downloadFileName ?? Path.GetFileName(objectKey));
                 var headers = new Dictionary<string, string>
                 {
-                    ["response-content-disposition"] = $"attachment; filename=\"{fileName}\""
+                    ["response-content-disposition"] = $"attachment; filename=\"{sanitizedFileName}\""
                 };
                 presignedGetObjectArgs.WithHeaders(headers);
             }
 
             var url = await publicMinioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
+
+            // Cache for 75% of expiry time to ensure URL is still valid when served
+            var cacheDuration = TimeSpan.FromSeconds(expirySeconds * 0.75);
+            cache.Set(cacheKey, url, cacheDuration);
+
             return url;
         }
         catch (MinioException ex)

@@ -7,6 +7,7 @@ using AssetHub.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -105,7 +106,8 @@ public static class InfrastructureServiceExtensions
             var internalClient = sp.GetRequiredService<IMinioClient>();
             var publicClient = sp.GetRequiredKeyedService<IMinioClient>("public");
             var adapterLogger = sp.GetRequiredService<ILogger<MinIOAdapter>>();
-            return new MinIOAdapter(internalClient, publicClient, adapterLogger);
+            var cache = sp.GetRequiredService<IMemoryCache>();
+            return new MinIOAdapter(internalClient, publicClient, adapterLogger, cache);
         });
         services.AddScoped<IMediaProcessingService, MediaProcessingService>();
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
