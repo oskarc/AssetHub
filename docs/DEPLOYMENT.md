@@ -199,7 +199,7 @@ server {
     client_max_body_size 500M;
 
     location / {
-        proxy_pass https://assethub;
+        proxy_pass http://assethub;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -219,11 +219,7 @@ Create `Caddyfile`:
 
 ```caddy
 assethub.example.com {
-    reverse_proxy 127.0.0.1:7252 {
-        transport http {
-            tls_insecure_skip_verify
-        }
-    }
+    reverse_proxy 127.0.0.1:7252
 }
 ```
 

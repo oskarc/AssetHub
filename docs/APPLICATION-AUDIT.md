@@ -1,6 +1,6 @@
 # AssetHub Application Audit Report
 
-**Date:** 2026-02-23
+**Date:** 2026-02-23 (Revision 2 — post-remediation re-audit)
 **Scope:** Full application architecture, code quality, infrastructure, testing, and operational readiness review
 **Application:** AssetHub (.NET 9, Blazor Server, Keycloak, PostgreSQL, MinIO, ClamAV, Hangfire)
 
@@ -8,592 +8,392 @@
 
 ## Executive Summary
 
-AssetHub is a self-hosted Digital Asset Management system with a clean multi-layered architecture, strong security posture, and professional test suite. This audit examines architecture, code quality, Docker infrastructure, testing practices, configuration management, and CI/CD readiness.
+This is the **second audit** of AssetHub, conducted after the developer remediated findings from the initial 2026-02-23 review. The codebase has improved significantly: comprehensive exception handling was added, input validation was expanded across all DTOs, new test suites cover resilience/concurrency/security scenarios, CI now includes Trivy container scanning and code coverage, and DEPLOYMENT.md was created. Several new minor bugs were found during this re-audit.
 
-**Overall Score: 8.3 / 10**
+**Previous Score: 8.3 / 10**
+**Current Score: 8.8 / 10**
 
-| Dimension                      | Score      | Verdict     |
-| ------------------------------ | ---------- | ----------- |
-| Architecture & Separation      | 8.5/10     | Excellent   |
-| Code Quality & Patterns        | 8.0/10     | Strong      |
-| Security Posture               | 8.1/10     | Strong      |
-| Docker & Infrastructure        | 8.4/10     | Strong      |
-| Testing & Coverage             | 8.0/10     | Strong      |
-| Configuration & Best Practices | 8.5/10     | Excellent   |
-| CI/CD & Ways of Working        | 6.5/10     | Needs Work  |
+| Dimension                      | Previous | Current | Delta   |
+| ------------------------------ | -------- | ------- | ------- |
+| Architecture & Separation      | 8.5/10   | 8.5/10  | —       |
+| Code Quality & Patterns        | 8.0/10   | 9.0/10  | +1.0    |
+| Security Posture               | 8.1/10   | 8.6/10  | +0.5    |
+| Docker & Infrastructure        | 8.4/10   | 8.5/10  | +0.1    |
+| Testing & Coverage             | 8.0/10   | 9.0/10  | +1.0    |
+| Configuration & Best Practices | 8.5/10   | 8.5/10  | —       |
+| CI/CD & Ways of Working        | 6.5/10   | 8.0/10  | +1.5    |
+
+---
+
+## Resolved Findings from Initial Audit
+
+### Fully Resolved (14 of 28 findings closed)
+
+| ID         | Finding                                             | Status                  |
+| ---------- | --------------------------------------------------- | ----------------------- |
+| CQ-001     | No try-catch blocks in source code                  | ✅ RESOLVED — Comprehensive try-catch added to all infrastructure services (KeycloakUserService, MinIOAdapter, ClamAvScannerService, AssetUploadService, ZipBuildService) |
+| RES-001    | No global exception handling middleware              | ✅ RESOLVED — `WebApplicationExtensions.cs:274-385` handles UnauthorizedAccessException, StorageException, BadHttpRequestException, InvalidOperationException, and generic Exception with correlation IDs |
+| CQ-003     | Input validation underutilized on DTOs              | ✅ RESOLVED — `[Required]`, `[StringLength]`, `[RegularExpression]`, `[EmailAddress]`, `[MaxLength]` now on all input DTOs (ShareDtos, CollectionDtos, AdminDtos, AssetUploadDto) |
+| CQ-002     | Inconsistent logging coverage                       | ✅ RESOLVED — All services now use `ILogger<T>` with structured Serilog, correlation IDs in error responses |
+| CFG-002    | DangerousAcceptAnyServerCertificateValidator scope   | ✅ RESOLVED — Completely removed from source code (0 occurrences). Standard HttpClientHandler used everywhere |
+| CFG-001    | No DEPLOYMENT.md                                    | ✅ RESOLVED — Comprehensive 15KB+ document covering prerequisites, proxy setup, env config, backup, troubleshooting, upgrade procedures |
+| CI-001     | No deployment stage in CI                           | ✅ RESOLVED — Docker build + Trivy scanning stage added, triggered on main push |
+| CI-002     | No container vulnerability scanning                 | ✅ RESOLVED — Trivy scans both API and Worker images; fails on CRITICAL/HIGH |
+| TEST-001   | No error recovery / resilience tests                | ✅ RESOLVED — `ExternalServiceResilienceTests.cs` (9 tests) covers MinIO failure, scanner timeout, media processing failure |
+| TEST-002   | No concurrency tests                                | ✅ RESOLVED — `ConcurrencyTests.cs` (10 tests) covers concurrent deletion, ACL modification, 100-concurrent share access increments |
+| TEST-003   | No security-specific tests                          | ✅ RESOLVED — `SecurityTests.cs` (25+ tests) covers role-based authz, parameter tampering, data enumeration, XSS, SQL injection, privilege escalation |
+| TEST-004   | No code coverage metrics                            | ✅ RESOLVED — XPlat Code Coverage with Cobertura format in CI, summary posted to GitHub PR |
+| DOCKER-002 | ClamAV start_period insufficient                    | ✅ RESOLVED — Increased to 300s in both dev and prod compose |
+| DOCKER-003 | Image version mismatch dev/prod                     | ✅ RESOLVED — PostgreSQL pinned to 16.6-alpine, MinIO pinned identically in both files |
+
+### Still Open (14 findings remain, 5 new findings added)
+
+See sections below for current status of each.
 
 ---
 
 ## 1. Architecture & Separation of Concerns — Score: 8.5/10
 
-### Strengths
-
-- **Clean Architecture with 5 distinct layers:** Domain → Application → Infrastructure → Api → Ui. Each layer depends only inward. The dependency flow is strictly `Api → Application ← Infrastructure` with `Domain` at the center.
-- **ServiceResult pattern** — Services return `ServiceResult<T>` instead of throwing exceptions. Endpoints convert these to HTTP responses via `ToHttpResult()`. This makes error paths explicit, testable, and eliminates the exception-as-control-flow anti-pattern.
-- **Request-scoped authorization cache** — `CollectionAuthorizationService` caches resolved roles per-request in a dictionary. This eliminates N+1 ACL lookups while guaranteeing fresh permissions on each new HTTP request. Prevents both performance degradation and stale permission bugs.
-- **Shared infrastructure registration** — `InfrastructureServiceExtensions.AddSharedInfrastructure()` is shared between the API host and the Worker host, preventing service registration duplication and drift between the two processes.
-- **Repository pattern** — All data access goes through interfaces (`IAssetRepository`, `ICollectionRepository`, etc.), enabling testing with mocks and keeping the infrastructure layer swappable.
-- **DTO layer separation** — Rich DTOs with context-aware data (e.g., `AssetResponseDto.UserRole` for UI visibility decisions). Separate DTOs for create, update, and response operations.
-- **Explicit role hierarchy** — `RoleHierarchy` centralizes role logic with numeric levels (Viewer=1, Contributor=2, Manager=3, Admin=4). All permission checks use `MeetsRequirement()` rather than scattered string comparisons.
-
 ### Findings
 
-**[ARC-001] Large constructor injection in service classes** — Severity: Medium
+**[ARC-001] Large constructor injection in service classes** — Severity: Medium — Status: OPEN
 
-Several services inject 10+ dependencies via constructor injection. While this is not incorrect, it signals that these services may be doing too much and could benefit from decomposition.
+Several services inject 10+ dependencies. The codebase has been refactored to extract `AssetUploadService` and `AssetQueryService` from the original monolithic `AssetService`, which is a positive step. However, some services still have large constructor signatures.
 
-**Affected locations:**
-- `AssetService` — orchestrates uploads, metadata, authorization, malware scanning, audit, media processing
-- `CollectionService` — manages hierarchy, access, bulk downloads, ACL
-
-**Impact:** Harder to test (requires many mocks), harder to understand at a glance, increased risk of unrelated changes causing regressions.
-
-**Recommendation:** Consider introducing facade services or command/query handlers to distribute responsibilities. For example, extract `AssetUploadService` (handling the upload pipeline) and `AssetQueryService` (handling search and retrieval) from the monolithic `AssetService`.
+**Recommendation:** Continue decomposing if these services grow further. Current state is acceptable.
 
 ---
 
-**[ARC-002] Collection hierarchy depth not validated at creation time** — Severity: Low
+**[ARC-002] Collection hierarchy depth not validated at creation time** — Severity: Low — Status: OPEN
 
-The ACL inheritance traversal in `CollectionAuthorizationService` has a `const int maxDepth = 20` guard to prevent infinite loops from circular parent references. However, there is no validation during collection creation that prevents a user from creating collections deeper than 20 levels.
-
-**Impact:** A deeply nested collection (21+ levels) would silently fail ACL inheritance. Users at the deepest levels would lose inherited permissions without any error message.
-
-**Recommendation:** Add a depth validation check in `CollectionService.CreateAsync()` that walks the parent chain before persisting. Return a clear error if the maximum depth would be exceeded.
+Max depth of 20 is enforced during ACL traversal, but nothing prevents creating collections deeper than 20 levels. No change from initial audit.
 
 ---
 
-**[ARC-003] Polymorphic foreign key on Share entity** — Severity: Low
+**[ARC-003] Polymorphic FK on Share entity** — Severity: Low — Status: OPEN
 
-`Share.ScopeType` + `Share.ScopeId` implements a polymorphic relationship pointing to either an `Asset` or a `Collection`. There is no database-level foreign key constraint — referential integrity is enforced only at the application level.
-
-**Impact:** If a bug bypasses the service layer (e.g., direct database manipulation, migration script error), orphaned shares could reference non-existent assets or collections. The current service implementation handles this correctly, so real-world risk is minimal.
-
-**Recommendation:** Consider adding a database trigger or periodic cleanup job that detects and removes orphaned shares. Alternatively, document this as an accepted design trade-off since the application layer handles it correctly.
+`Share.ScopeType + ScopeId` remains a polymorphic FK with application-level enforcement only. No change from initial audit.
 
 ---
 
-## 2. Code Quality & Patterns — Score: 8.0/10
+## 2. Code Quality & Patterns — Score: 9.0/10 (+1.0)
 
-### Strengths
+### Improvements Verified
 
-- **Async-first throughout** — All I/O operations use `async Task<T>` with proper `CancellationToken` propagation. Zero instances of `.Result` or `.Wait()` found. No sync-over-async anti-patterns.
-- **Nullable reference types enabled** — Project-wide `<Nullable>enable</Nullable>`. Proper `string?` usage, defensive null checks in constructors and configuration loading with `throw new InvalidOperationException()` for required config.
-- **LINQ-to-SQL compilation** — Queries use EF Core's IQueryable pipeline for server-side evaluation. Proper use of `FirstOrDefaultAsync`, `AnyAsync`, `CountAsync`. No accidental client-side evaluation patterns found.
-- **Zero raw SQL** — No instances of `ExecuteSqlRaw` or `FromSqlRaw`. All data access is parameterized via EF Core, eliminating SQL injection risks by construction.
-- **Centralized constants** — All magic numbers live in `Constants.Limits` (pagination sizes, presigned URL expiry, ZIP limits, worker counts). No scattered literals.
-- **Consistent naming** — Interfaces prefixed with `I`, clear `GetAsync`/`CreateAsync`/`DeleteAsync` patterns. Test methods follow `MethodName_Scenario_ExpectedResult`.
+- **Try-catch everywhere:** All infrastructure services now wrap external calls (MinIO, Keycloak HTTP, ClamAV socket, SMTP) with specific exception handlers. Catches `StorageException`, `HttpRequestException`, `SocketException`, `TaskCanceledException`, `MinioException`, `ObjectNotFoundException`.
+- **Global exception middleware:** Comprehensive handler in `WebApplicationExtensions.cs:274-385` with correlation IDs, proper HTTP status mapping (503 for storage errors, 400 for bad requests, 500 for unexpected), and response-started guards.
+- **DTO validation:** All input DTOs now have Data Annotation attributes.
+- **Logging:** Structured logging with Serilog across all services.
 
-### Findings
+### Remaining Findings
 
-**[CQ-001] No try-catch blocks in application source code** — Severity: Medium
+**[CQ-004] Enum-to-string value converter lacks graceful fallback** — Severity: Low — Status: OPEN
 
-A search for try-catch blocks across all source files returned zero results. All error handling relies on the `ServiceResult` pattern. While this is a clean approach for business logic errors, it means unhandled exceptions from external dependencies (MinIO HTTP calls, Keycloak API requests, SMTP delivery, ClamAV connections) will bubble up uncontrolled to the global exception handler.
-
-**Impact:** When an external service is temporarily unavailable (e.g., MinIO returns a 503, Keycloak is restarting, ClamAV is loading definitions), the user receives a generic 500 error instead of a meaningful message like "Storage service temporarily unavailable." There is no opportunity for graceful degradation or retry logic.
-
-**Recommendation:**
-1. Add targeted try-catch blocks around external service calls in infrastructure services. Catch specific exceptions (e.g., `HttpRequestException`, `SocketException`, `MinioException`) and return appropriate `ServiceResult.Failure()` responses.
-2. Add a structured global exception handling middleware for API routes that catches unhandled exceptions, logs them with full context, and returns a clean `ApiError` JSON response (not a stack trace).
-3. Consider adding Polly retry policies for transient failures (MinIO, Keycloak HTTP calls).
+No change. Enum conversions still throw `ArgumentOutOfRangeException` on unknown values.
 
 ---
 
-**[CQ-002] Inconsistent logging coverage across services** — Severity: Medium
+**[CQ-005] Nested LINQ subqueries in repository layer** — Severity: Low — Status: OPEN
 
-Only 46 `ILogger` usages were found across 155 source files (~30% of classes have any logging). Service-layer logging is concentrated in a few key services (KeycloakUserService, ClamAvScannerService), while repositories and many other services have little to no logging.
-
-**Impact:** Production debugging of data-layer issues becomes harder. When a repository query returns unexpected results or a service silently returns an empty collection, there is no trace in the logs to diagnose the issue.
-
-**Recommendation:**
-1. Add `LogDebug` calls to repository methods for query parameters and result counts.
-2. Add `LogInformation` calls to all service methods for significant operations (collection created, ACL changed, share revoked).
-3. Add `LogWarning` for unexpected but non-fatal conditions (empty results where data was expected, cache misses).
-4. Standardize on structured logging with consistent property names across all services.
+No change. Some queries use nested `Where + Contains` instead of explicit joins.
 
 ---
 
-**[CQ-003] Input validation class exists but is barely used** — Severity: Medium
+**[CQ-006] DashboardEndpoints uses manual status code instead of ToHttpResult()** — Severity: Low — Status: NEW BUG
 
-`InputValidation.cs` provides centralized validation with regex-based validators for username, email, and password. However, only 2 explicit usages were found in the codebase. DTOs lack validation attributes (`[Required]`, `[StringLength]`, `[Range]`). No FluentValidation is integrated.
+[DashboardEndpoints.cs:21-23](src/AssetHub.Api/Endpoints/DashboardEndpoints.cs#L21-L23) returns `Results.StatusCode(500)` on failure instead of using the `ToHttpResult()` extension that all other endpoints use. This produces a raw 500 response with no JSON body, inconsistent with the structured `ApiError` format the API otherwise returns.
 
-**Impact:** Invalid data can reach the service layer before being caught. While EF Core will reject null violations at the database level, business validation (string length limits, format requirements, range checks) is not consistently enforced at the API boundary.
-
-**Recommendation:**
-1. Add Data Annotation attributes to all input DTOs (`CreateCollectionDto`, `UpdateAssetDto`, etc.) with appropriate constraints.
-2. Alternatively, integrate FluentValidation with automatic model validation in the request pipeline.
-3. Ensure the existing `InputValidation` class is used wherever user-provided text is processed (not just in the 2 current locations).
-
----
-
-**[CQ-004] Enum-to-string value converter lacks graceful fallback** — Severity: Low
-
-`DomainEnumExtensions` converts between C# enums and lowercase database strings. If the database contains an unknown string value (e.g., from a migration or manual edit), the converter throws `ArgumentOutOfRangeException` with no fallback.
-
-**Impact:** A single unexpected value in the database could cause an entire query to fail, affecting all results, not just the problematic row. This is especially risky during schema evolution where a new enum value might be added to the database before the application is updated.
-
-**Recommendation:** Add a fallback strategy: either return a default enum value (e.g., `AssetStatus.Unknown`) or catch the exception and log a warning while skipping the problematic entity.
-
----
-
-**[CQ-005] Nested LINQ subqueries in repository layer** — Severity: Low
-
-Some repository queries use nested `Where` + `Contains` subqueries instead of explicit joins:
 ```csharp
-.Where(a => dbContext.AssetCollections
-    .Where(ac => ac.CollectionId == collectionId)
-    .Select(ac => ac.AssetId)
-    .Contains(a.Id))
+// Current (inconsistent):
+return result.IsSuccess
+    ? Results.Ok(result.Value)
+    : Results.StatusCode(500);
+
+// Should be (consistent with all other endpoints):
+return result.ToHttpResult();
 ```
 
-**Impact:** While EF Core translates this to SQL correctly, explicit joins can produce more predictable query plans and are easier to optimize with indexes on large datasets.
+**Impact:** API consumers receive an empty 500 response instead of a structured error with code, message, and correlation ID. Minor because dashboard failures are rare, but breaks the API contract.
 
-**Recommendation:** For performance-critical queries (asset listing, search), consider refactoring to explicit `Join` syntax. Profile with `EXPLAIN ANALYZE` on representative data volumes to confirm whether this is a real issue or theoretical.
+**Recommendation:** Replace with `return result.ToHttpResult();`
 
 ---
 
-## 3. Docker & Infrastructure — Score: 8.4/10
+## 3. Security Posture — Score: 8.6/10 (+0.5)
 
-### Strengths
+### Improvements Verified
 
-- **Multi-stage Dockerfile builds** — SDK stage for compilation, slim runtime image for deployment. Minimizes attack surface and image size.
-- **Pinned base images** — SDK `9.0.102-bookworm-slim` and runtime `9.0.2-bookworm-slim` pinned to patch versions.
-- **Non-root execution** — Both Dockerfiles use `USER app` (default from aspnet base image).
-- **Network isolation in production** — PostgreSQL, MinIO, Keycloak, and ClamAV have no externally exposed ports. Only the API binds to `127.0.0.1:7252`.
-- **Comprehensive health checks** — PostgreSQL (`pg_isready`), MinIO (HTTP health endpoint), Keycloak (TCP check), ClamAV (`clamdcheck.sh`), API (HTTP `/health`). All services use `condition: service_healthy` dependency chains.
-- **Resource limits** — Production compose sets memory limits: PostgreSQL 512M, MinIO 512M, Keycloak 768M, API 1G, Worker 1G, ClamAV 1G.
-- **Database isolation** — Separate databases (`assethub` + `keycloak`) with dedicated credentials and auto-provisioned via `init-keycloak-db.sh`.
-- **ImageMagick hardening** — Custom `policy.xml` disables 13+ dangerous coders (SVG, PDF, PS, MSL, MVG, URL handlers), limits resources (16K max dimensions, 128MP area, 256MiB memory, 2GiB disk, 120s timeout).
+- **DangerousAcceptAnyServerCertificateValidator:** Completely removed (0 occurrences in source). TLS validation enabled everywhere.
+- **Fallback authorization policy:** Implemented. All endpoints require authentication by default.
+- **DTO validation attributes:** Comprehensive `[Required]`, `[StringLength]`, `[RegularExpression]`, `[EmailAddress]` on all input DTOs.
+- **File magic byte validation:** 160+ signatures covering 40+ MIME types.
+- **ClamAV integration:** Streaming protocol, health checks, graceful degradation.
+- **Audit logging:** Failed share password attempts logged with IP and token hash prefix.
+
+### Remaining Findings
+
+**[SEC-001] FileMagicValidator has overly broad container format matching** — Severity: Low — Status: NEW
+
+[FileMagicValidator.cs](src/AssetHub.Application/Helpers/FileMagicValidator.cs) — WebP validation only checks the RIFF header (`0x52494646`) without verifying "WEBP" at offset 8. HEIC/HEIF/AVIF/MP4/MOV all check for `[0x00, 0x00, 0x00]` at offset 0, which is very broad.
+
+**Impact:** Low. The `AllowedUploadTypes` whitelist restricts accepted MIME types, and the validator operates in fail-open mode for unrecognized formats. A misidentified file type would still need to pass content-type checks. No security exploitation path identified.
+
+**Recommendation:** For higher fidelity, verify the full RIFF+WEBP signature and specific ftyp box brands for MP4/MOV variants.
+
+---
+
+## 4. Docker & Infrastructure — Score: 8.5/10 (+0.1)
+
+### Improvements Verified
+
+- **ClamAV start_period:** Increased to 300s in both compose files.
+- **Image pinning:** PostgreSQL `16.6-alpine`, MinIO `RELEASE.2025-01-20T14-49-07Z`, both consistent across dev/prod.
+- **DEPLOYMENT.md:** Created with comprehensive setup guide.
+
+### Remaining Findings
+
+**[DOCKER-001] No reverse proxy in production compose** — Severity: Low (downgraded from Critical) — Status: RESOLVED BY DOCUMENTATION
+
+The production compose intentionally excludes a reverse proxy to allow operators to choose their own (Nginx, Caddy, Traefik, cloud ALB). This is now properly documented in [DEPLOYMENT.md:170-228](docs/DEPLOYMENT.md) with complete Nginx and Caddy examples. Downgraded from Critical to Low since it's a documented architectural decision.
+
+---
+
+**[DOCKER-004] Keycloak admin credentials as env vars** — Severity: Low — Status: OPEN
+
+No change. Still using environment variables rather than Docker secrets.
+
+---
+
+**[DOCKER-005] Dev HTTPS certificate generation undocumented** — Severity: Low — Status: OPEN
+
+[DEPLOYMENT.md](docs/DEPLOYMENT.md) now references certificate setup, but no generation script exists.
+
+---
+
+**[DOCKER-006] Production Keycloak missing healthcheck** — Severity: Medium — Status: NEW BUG
+
+[docker-compose.prod.yml:75-119](docker/docker-compose.prod.yml#L75-L119) — The production Keycloak service has **no healthcheck defined**, while the development compose has a proper TCP health check with 60s start_period. The API service depends on Keycloak with `condition: service_started` instead of `condition: service_healthy`.
+
+**Impact:** The API container may start before Keycloak is ready to accept authentication requests. This causes a race condition on first deployment where the first few requests may fail with authentication errors until Keycloak finishes initializing. Subsequent container restarts are less affected because Keycloak starts faster with a warm database.
+
+**Recommendation:** Add the same healthcheck from the development compose:
+```yaml
+keycloak:
+  healthcheck:
+    test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3 && timeout 1 cat <&3 | grep -q '200'"]
+    interval: 15s
+    timeout: 10s
+    retries: 5
+    start_period: 60s
+```
+And update the API dependency to `condition: service_healthy`.
+
+---
+
+**[DOCKER-007] Mailpit uses floating `latest` tag** — Severity: Low — Status: NEW
+
+[docker-compose.yml:165](docker/docker-compose.yml#L165) — The Mailpit dev service uses `axllent/mailpit:latest` while all other services are pinned. Development-only, but inconsistent with the pinning standard applied everywhere else.
+
+**Recommendation:** Pin to a specific version (e.g., `axllent/mailpit:v1.22`).
+
+---
+
+## 5. Testing & Coverage — Score: 9.0/10 (+1.0)
+
+### New Tests Added (Verified)
+
+| Test File | Tests | Purpose | Quality |
+| --- | --- | --- | --- |
+| `ExternalServiceResilienceTests.cs` | 9 | MinIO failure, scanner timeout, media processing failure | Excellent |
+| `ConcurrencyTests.cs` | 10 | Race conditions, concurrent deletion, 100-thread share counter | Excellent |
+| `SecurityTests.cs` | 25+ | Role authz, parameter tampering, XSS, SQL injection, privilege escalation | Excellent (1 minor issue) |
+| `AssetServiceMalwareScanTests.cs` | 4 | All 4 scan result types (clean, infected, failed, skipped) | Excellent |
+| `ClamAvScannerServiceTests.cs` | 9 | Config, connection failure, response parsing | Excellent |
+| `KeycloakUserServiceTests.cs` | 9 | Grant type selection, config validation, user creation | Excellent |
+| `FileMagicValidatorTests.cs` | 20+ | Magic bytes, spoofing attacks, edge cases | Excellent |
+| `SmartDeletionServiceTests.cs` | 8 | Multi-collection deletion, partial access, admin bypass | Excellent |
+
+**Total estimated test count:** 180+ C# tests + 15 Playwright E2E specs.
+
+### Remaining Findings
+
+**[TEST-005] E2E tests not integrated into CI** — Severity: Low — Status: OPEN
+
+The 15 Playwright specs still run only locally.
+
+---
+
+**[TEST-006] SecurityTests uses fake share tokens** — Severity: Low — Status: NEW
+
+[SecurityTests.cs](tests/AssetHub.Tests/EdgeCases/SecurityTests.cs) — Share access control tests use fabricated token strings (e.g., `"expired-share-token-xyz"`) instead of real tokens from seeded shares. The tests correctly verify 401/404 responses for invalid tokens, but they don't exercise the actual expiration and revocation logic paths.
+
+**Impact:** Low. The share expiration/revocation logic is still tested indirectly through other test files. These tests verify the endpoint rejects bad tokens, which is valid. But a dedicated test using a real expired share would be more thorough.
+
+**Recommendation:** Seed actual shares with past expiry dates or revoked status, then use their real tokens to verify the specific rejection reason.
+
+---
+
+## 6. Configuration & Best Practices — Score: 8.5/10
 
 ### Findings
 
-**[DOCKER-001] No reverse proxy in production docker-compose** — Severity: Critical
+**[CFG-003] Keycloak `--import-realm` on every production start** — Severity: Low — Status: OPEN
 
-`docker-compose.prod.yml` exposes the API on `127.0.0.1:7252` and assumes a reverse proxy exists in front, but no reverse proxy service (Nginx, Caddy, Traefik) is defined in the compose file. The Keycloak service sets `KC_PROXY_HEADERS: xforwarded` (expecting proxy headers), and the API enables `ForwardedHeaders` middleware, but the proxy itself is missing.
-
-**Impact:** Without a reverse proxy, there is:
-- No TLS termination or certificate management
-- No HTTP→HTTPS redirect at the edge
-- No rate limiting or request buffering at the proxy layer
-- The application must handle all TLS directly, which is less performant and harder to manage
-- New deployments will fail to work with HTTPS out of the box
-
-**Recommendation:** Either:
-1. Add an Nginx or Caddy service to `docker-compose.prod.yml` with TLS termination, certificate auto-renewal, and proper proxy headers. Example:
-   ```yaml
-   nginx:
-     image: nginx:1.27-alpine
-     ports:
-       - "80:80"
-       - "443:443"
-     volumes:
-       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-       - /etc/letsencrypt:/etc/letsencrypt:ro
-     depends_on:
-       api:
-         condition: service_healthy
-   ```
-2. Or create a `DEPLOYMENT.md` document that explicitly details the external reverse proxy requirement with example configurations for Nginx, Caddy, and Traefik.
+No change. Keycloak safely skips existing realms, but it's unnecessary work.
 
 ---
 
-**[DOCKER-002] ClamAV health check start_period may be insufficient** — Severity: Medium
+**[CFG-004] DEPLOYMENT.md Nginx example uses wrong proxy protocol** — Severity: High — Status: NEW BUG
 
-ClamAV is configured with `start_period: 120s` (2 minutes). On first startup, ClamAV must download and load virus definition databases, which can take 2-5 minutes depending on network speed and system resources.
+[DEPLOYMENT.md:201-202](docs/DEPLOYMENT.md#L201-L202) — The Nginx reverse proxy example specifies `proxy_pass https://assethub;` but the upstream API listens on **HTTP** only (`ASPNETCORE_URLS: http://+:7252` in docker-compose.prod.yml:131). Nginx will attempt a TLS handshake with a plaintext HTTP server, causing an immediate connection failure.
 
-**Impact:** On slower systems or first-time deployments, the ClamAV container may be marked unhealthy before it finishes loading definitions. Services depending on ClamAV (the API) may fail to start or report unhealthy status during this window. Subsequent restarts are faster because definitions are cached in the volume.
+```nginx
+# CURRENT (broken):
+proxy_pass https://assethub;
 
-**Recommendation:** Increase to `start_period: 300s` (5 minutes). Consider mounting a named volume for `/var/lib/clamav` to persist definitions between container recreations and reduce subsequent startup times.
-
----
-
-**[DOCKER-003] Image version mismatch between development and production** — Severity: Medium
-
-Development `docker-compose.yml` uses `minio/minio:latest` while production pins `minio/minio:RELEASE.2025-01-20T14-49-07Z`. Similarly, PostgreSQL uses `postgres:16-alpine` without a patch version pin.
-
-**Impact:** Developers may test against a different MinIO version than production, leading to behavioral differences that only surface during deployment. The `latest` tag can change at any time, breaking builds without any code changes.
-
-**Recommendation:**
-1. Pin MinIO to the same version in both compose files: `minio/minio:RELEASE.2025-01-20T14-49-07Z`
-2. Pin PostgreSQL to a specific patch version: `postgres:16.6-alpine` (or latest stable 16.x)
-3. Document version update procedures in a maintenance runbook.
-
----
-
-**[DOCKER-004] Keycloak admin credentials exposed as environment variables** — Severity: Low
-
-`KC_BOOTSTRAP_ADMIN_USERNAME` and `KC_BOOTSTRAP_ADMIN_PASSWORD` are passed as plain environment variables in both compose files. These are visible via `docker inspect` and in process listings.
-
-**Impact:** Anyone with access to the Docker host can read the admin credentials. While these are only used for initial Keycloak bootstrap, they remain set in the container environment for the lifetime of the container.
-
-**Recommendation:**
-1. Document that initial admin credentials should be rotated via the Keycloak admin console immediately after first startup.
-2. For higher security environments, use Docker secrets instead:
-   ```yaml
-   secrets:
-     keycloak_admin_password:
-       file: ./secrets/keycloak_admin_password
-   ```
-3. Consider unsetting the bootstrap environment variables after first startup (Keycloak 26.x supports this).
-
----
-
-**[DOCKER-005] Development HTTPS certificate not documented** — Severity: Low
-
-`docker-compose.yml` references `../certs/dev-cert.pfx` for both Kestrel and Keycloak HTTPS configuration, but this file is not in version control (correctly gitignored) and no generation script or setup instructions exist.
-
-**Impact:** New developers cloning the repository will get container creation errors when the certificate file is missing. This creates a friction point in the onboarding experience.
-
-**Recommendation:** Either:
-1. Add a `scripts/generate-dev-cert.sh` script that creates the certificate and document it in the README.
-2. Or make the dev certificate optional by falling back to HTTP-only in development when the cert file is absent.
-
----
-
-## 4. Testing & Coverage — Score: 8.0/10
-
-### Strengths
-
-- **Real database testing** — `CustomWebApplicationFactory` uses Testcontainers to spin up a real PostgreSQL instance. Tests run against actual database behavior, not an in-memory fake. This catches real SQL issues, index behavior, and constraint violations.
-- **Comprehensive mock setup** — External services (MinIO, Keycloak, Email, ClamAV) are mocked with sensible defaults. The `CustomWebApplicationFactory` exposes `MockMinIO`, `MockUserLookup`, etc. for per-test customization.
-- **Flexible test authentication** — `TestAuthHandler` with `TestClaimsProvider` supports `Default()` (Viewer), `Admin()`, and `WithUser(userId, username, role)` for per-test claim override without modifying global state.
-- **Excellent edge case coverage** — `SmartDeletionServiceTests` tests 6 sophisticated scenarios (exclusive deletion, partial access unlink, system admin bypass, forbidden). `CollectionAclInheritanceTests` tests 18 scenarios including 5-level deep hierarchies and closest-ancestor-wins behavior.
-- **Test data builders** — `TestData.CreateAsset()` and `TestData.CreateCollection()` use optional parameters with sensible defaults, reducing test boilerplate while allowing per-test customization.
-- **Strong test isolation** — Each test gets a unique database name, `EnsureDeletedAsync` cleans up after each test, no shared mutable state between test classes.
-- **E2E coverage** — 15 Playwright specs covering authentication, navigation, collections, assets, shares, admin, ACL, responsive design, accessibility, i18n, and multi-step workflows.
-- **Consistent naming** — All tests follow `MethodName_Scenario_ExpectedResult` convention.
-
-### Findings
-
-**[TEST-001] No error recovery or resilience tests** — Severity: Medium
-
-No tests verify service behavior when external dependencies fail. There are no tests for MinIO unavailability, Keycloak timeout, ClamAV connection refused, SMTP delivery failure, or database connection pool exhaustion.
-
-**Impact:** Without resilience tests, the application's behavior during partial outages is unknown. If MinIO goes down during an upload, does the user get a clear error or a stack trace? If ClamAV is restarting, are uploads blocked or does the scan gracefully degrade? These questions cannot be answered without dedicated tests.
-
-**Recommendation:**
-1. Add tests that configure mocks to throw `HttpRequestException`, `SocketException`, `TimeoutException` and verify the service returns an appropriate `ServiceResult.Failure()`.
-2. Test that ClamAV unavailability with `ClamAV:Enabled = true` returns a clear error, not a crash.
-3. Test database connection timeout behavior.
-
----
-
-**[TEST-002] Limited concurrency and race condition tests** — Severity: Medium
-
-Only 1 test addresses concurrent modification: `UpdateAsync_ConcurrentModification_LastWriteWins`. No tests exist for simultaneous deletion of the same asset, concurrent ACL modifications, race conditions on share access counting, or parallel upload confirmation.
-
-**Impact:** Race conditions may exist in production under concurrent load. The `AssetDeletionService` could potentially double-delete an asset if two requests arrive simultaneously. Share access counters could lose increments under high concurrency.
-
-**Recommendation:**
-1. Add tests that execute the same operation from multiple threads using `Task.WhenAll()`.
-2. Test simultaneous deletion of the same asset from two different collection contexts.
-3. Test concurrent share access with password verification.
-4. Consider adding optimistic concurrency tokens (`RowVersion`) to entities that are frequently updated.
-
----
-
-**[TEST-003] No security-specific test cases** — Severity: Low
-
-While the application uses EF Core (which prevents SQL injection by construction) and has strong authorization checks, there are no explicit security tests that verify:
-- Parameter tampering (modifying IDs in requests to access other users' resources)
-- Authorization bypass attempts (accessing admin endpoints with viewer role)
-- XSS vector injection in asset titles/descriptions
-- Path traversal in file names
-
-**Impact:** Security properties are implicitly tested through integration tests but not explicitly verified. A refactoring that accidentally removes an authorization check would not be caught by any dedicated security test.
-
-**Recommendation:**
-1. Add explicit authorization tests: verify that a Viewer cannot access `RequireAdmin` endpoints (returns 403).
-2. Add parameter tampering tests: verify that User A cannot access User B's collections by guessing collection IDs.
-3. Add input sanitization tests: verify that HTML/script content in asset titles is properly escaped in API responses.
-
----
-
-**[TEST-004] No code coverage metrics configured** — Severity: Low
-
-No coverage tool (Coverlet, dotCover) is configured in the test projects or CI pipeline. The estimated coverage based on test density is 50-70%, but there is no way to track this over time or enforce a minimum threshold.
-
-**Impact:** Coverage may silently decrease over time as new features are added without proportional test additions. There is no visibility into which code paths are untested.
-
-**Recommendation:**
-1. Add Coverlet to the test projects: `dotnet add package coverlet.msbuild`
-2. Configure CI to generate coverage reports: `dotnet test --collect:"XPlat Code Coverage"`
-3. Set a baseline threshold (e.g., 70%) and fail the build if coverage drops below it.
-4. Generate coverage reports as CI artifacts for developer review.
-
----
-
-**[TEST-005] E2E tests not integrated into CI pipeline** — Severity: Low
-
-15 well-structured Playwright E2E specs exist but are not triggered by the CI workflow (`.github/workflows/ci.yml`). They run only locally.
-
-**Impact:** E2E regressions are caught only when a developer remembers to run the E2E suite manually. UI-breaking changes can merge to main without detection.
-
-**Recommendation:**
-1. Add a CI job that starts the application stack via docker-compose, waits for health checks, then runs the Playwright suite.
-2. Use the existing Playwright configuration's JUnit XML output for CI test result reporting.
-3. Consider running E2E tests on a schedule (nightly) rather than on every push if they are too slow for PR workflows.
-
----
-
-## 5. Configuration & Best Practices — Score: 8.5/10
-
-### Strengths
-
-- **Layered configuration** — `appsettings.json` → `appsettings.{Environment}.json` → environment variables → `appsettings.Local.json` (gitignored). Clear precedence chain.
-- **No hardcoded secrets** — All credentials are empty strings in base config, overridden via environment variables in Docker.
-- **Options validation at startup** — `ValidateDataAnnotations()` + `ValidateOnStart()` catches missing or invalid configuration immediately, preventing runtime surprises.
-- **Environment-appropriate defaults** — Development allows HTTP, disables HTTPS metadata; Production restricts `AllowedHosts`, uses compact JSON logging (Warning level), enables HSTS.
-- **Certificates gitignored** — `*.pfx`, `*.pem`, `*.key`, `*.crt` all excluded from version control.
-- **Clear environment template** — `.env.template` (126 lines) documents every variable with descriptions and safe defaults.
-- **Structured logging** — Serilog with environment/machine name/thread ID enrichment. Production uses compact JSON format for log aggregation.
-
-### Findings
-
-**[CFG-001] No DEPLOYMENT.md documentation** — Severity: Medium
-
-The production compose file assumes knowledge of reverse proxy configuration, certificate generation, environment variable setup, Keycloak hardening, and backup strategy. No deployment guide exists.
-
-**Impact:** New operators deploying to production must reverse-engineer the requirements from docker-compose files and configuration templates. This increases deployment errors and security misconfigurations.
-
-**Recommendation:** Create a `docs/DEPLOYMENT.md` covering:
-1. Prerequisites (Docker, DNS, TLS certificates)
-2. Environment variable configuration (walking through `.env.template`)
-3. Reverse proxy setup (with examples for Nginx, Caddy)
-4. Initial Keycloak configuration (admin credential rotation, realm import)
-5. Backup strategy (PostgreSQL dumps, MinIO data, ClamAV definitions)
-6. Health check monitoring endpoints
-7. Log aggregation setup
-8. Upgrade procedures
-
----
-
-**[CFG-002] `DangerousAcceptAnyServerCertificateValidator` scope too broad** — Severity: Medium
-
-The TLS validation bypass appears in 4 locations and is gated by `!environment.IsProduction()`. This means it is active not only in Development but also in Staging or any custom environment name.
-
-**Affected locations:**
-- `AuthenticationExtensions.cs:51-55` (JWT Bearer backchannel)
-- `AuthenticationExtensions.cs:146-150` (OIDC backchannel)
-- `ServiceCollectionExtensions.cs:173-176` (Keycloak HttpClient)
-- `ServiceCollectionExtensions.cs:209-211` (UI HttpClient)
-
-**Impact:** If a staging environment is configured with `ASPNETCORE_ENVIRONMENT=Staging`, all TLS validation is disabled. A man-in-the-middle attack could intercept Keycloak tokens or API calls in staging.
-
-**Recommendation:** Restrict to `environment.IsDevelopment()` only (not `!IsProduction()`). This ensures TLS validation is only disabled in the explicitly named "Development" environment.
-
----
-
-**[CFG-003] Keycloak realm import runs on every production start** — Severity: Low
-
-`docker-compose.prod.yml` includes `--import-realm` in the Keycloak command. Keycloak safely skips existing realms, so this is functionally harmless. However, it performs unnecessary file parsing and validation on every container restart.
-
-**Impact:** Minimal — a few seconds of wasted startup time. No data risk since Keycloak's import is idempotent.
-
-**Recommendation:** Use a separate init container or one-time script for realm import, then remove `--import-realm` from the production command. This makes the production startup cleaner and more intentional.
-
----
-
-## 6. CI/CD & Ways of Working — Score: 6.5/10
-
-### Strengths
-
-- **Automated build and test** — CI triggers on push to main/develop and on pull requests.
-- **.NET 9 build in Release mode** — Catches compilation errors that only appear in Release (e.g., trimming, AOT).
-- **Test result artifacts** — TRX output uploaded as GitHub Actions artifacts for review.
-- **NuGet vulnerability audit** — `dotnet list package --vulnerable` runs as a CI step.
-- **Docker image build with caching** — GitHub Actions cache used for Docker layer caching.
-
-### Findings
-
-**[CI-001] No deployment stage — images built but never pushed** — Severity: High
-
-Docker images are built in CI with `push: false`. There is no continuous deployment to any environment. Production deployments must be done manually.
-
-**Impact:** Manual deployments are error-prone and inconsistent. There is no automated path from a merged PR to a running production instance. This slows down the release cycle and increases the risk of deployment mistakes.
-
-**Recommendation:**
-1. Add a deployment stage that pushes Docker images to a container registry (GitHub Container Registry, Docker Hub, or a private registry) on merge to main.
-2. Consider separate deployment jobs for staging (automatic on merge) and production (manual approval gate).
-3. Tag images with both the commit SHA and a semantic version for traceability.
-
----
-
-**[CI-002] No container image vulnerability scanning** — Severity: Medium
-
-Built Docker images are not scanned for known vulnerabilities. The base images (`aspnet:9.0.2-bookworm-slim`) and installed system packages (ImageMagick, FFmpeg, libvips) may contain CVEs.
-
-**Impact:** Vulnerabilities in system packages or base images could be deployed to production without detection. These are particularly risky because they are outside the application code and not covered by NuGet vulnerability checks.
-
-**Recommendation:**
-1. Add Trivy as a CI step after Docker image build:
-   ```yaml
-   - name: Scan image
-     uses: aquasecurity/trivy-action@master
-     with:
-       image-ref: assethub-api:latest
-       severity: CRITICAL,HIGH
-       exit-code: 1
-   ```
-2. Consider also scanning the Worker image.
-3. Set a policy: fail the build on CRITICAL vulnerabilities, warn on HIGH.
-
----
-
-**[CI-003] No integration test stage in CI** — Severity: Medium
-
-CI runs only unit tests. There are no docker-compose-based integration tests that verify the full stack (API + PostgreSQL + MinIO + Keycloak) works together.
-
-**Impact:** Integration issues (database migration failures, MinIO connectivity, Keycloak token validation with real OIDC flows) are caught only during manual testing or in production.
-
-**Recommendation:**
-1. Add a CI job that starts the development docker-compose stack.
-2. Wait for all health checks to pass.
-3. Run a subset of integration tests against the running stack.
-4. This can run as a separate workflow on a schedule (nightly) if it's too slow for every PR.
-
----
-
-**[CI-004] No SAST or DAST tooling** — Severity: Low
-
-No static application security testing (CodeQL, SonarQube, Semgrep) or dynamic application security testing (OWASP ZAP) is configured.
-
-**Impact:** Security regressions (e.g., accidentally removing an authorization check, introducing an injection vulnerability) are not automatically detected.
-
-**Recommendation:**
-1. Enable GitHub CodeQL for C# analysis (free for public and private repositories):
-   ```yaml
-   - name: Initialize CodeQL
-     uses: github/codeql-action/init@v3
-     with:
-       languages: csharp
-   ```
-2. Consider adding OWASP ZAP as a DAST step against the running integration test environment.
-
----
-
-## 7. Additional Findings
-
-### Error Handling & Resilience
-
-**[RES-001] No global exception handling middleware for API routes** — Severity: Medium
-
-The current exception handler catches `UnauthorizedAccessException` but does not produce structured `ApiError` JSON for other unhandled exceptions. An unexpected null reference or network timeout produces a raw 500 response.
-
-**Impact:** API consumers receive inconsistent error formats — sometimes a structured `ApiError` (from ServiceResult failures) and sometimes a raw server error. This makes client-side error handling unreliable.
-
-**Recommendation:** Add middleware that catches all unhandled exceptions on `/api/*` routes, logs the full exception with context, and returns a consistent `ApiError` response:
-```csharp
-app.UseExceptionHandler(errorApp =>
-{
-    errorApp.Run(async context =>
-    {
-        context.Response.StatusCode = 500;
-        context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(new ApiError
-        {
-            Code = "INTERNAL_ERROR",
-            Message = "An unexpected error occurred"
-        });
-    });
-});
+# CORRECT:
+proxy_pass http://assethub;
 ```
 
----
+**Impact:** High. Anyone following the Nginx deployment guide will get a non-functional reverse proxy. Nginx will log `SSL_do_handshake() failed` errors and return 502 Bad Gateway to all clients.
 
-### Performance
-
-**[PERF-001] Presigned URL generation not cached** — Severity: Low
-
-Each request for an asset download, preview, or thumbnail generates a new presigned MinIO URL via an HTTP call to MinIO. Under high traffic, this creates significant overhead.
-
-**Impact:** For a page displaying 50 thumbnails, 50 separate presigned URL requests are made to MinIO. This adds latency to page loads and puts unnecessary load on the MinIO service.
-
-**Recommendation:** Consider caching presigned URLs with a TTL shorter than their expiry time. For example, if URLs expire in 60 minutes, cache them for 45 minutes. Use `IMemoryCache` with the object key as the cache key.
+**Recommendation:** Change `proxy_pass https://assethub;` to `proxy_pass http://assethub;`. The `X-Forwarded-Proto https` header (already present at line 209) correctly tells the application that the original client connection was HTTPS.
 
 ---
 
-**[PERF-002] Keycloak token acquisition serialized via SemaphoreSlim** — Severity: Low
+**[CFG-005] DEPLOYMENT.md Caddy example has unnecessary tls_insecure_skip_verify** — Severity: Low — Status: NEW
 
-`KeycloakUserService` uses a `SemaphoreSlim(1, 1)` to serialize all token acquisition requests. When the cached token expires, all concurrent admin API calls queue up waiting for a single token refresh.
+[DEPLOYMENT.md:222-225](docs/DEPLOYMENT.md#L222-L225) — The Caddy example includes a `transport http { tls_insecure_skip_verify }` block. Since the upstream is plain HTTP, this TLS configuration block is nonsensical and confusing. It suggests the upstream uses HTTPS with an untrusted certificate, which is not the case.
 
-**Impact:** Under high concurrency (e.g., bulk user provisioning), this becomes a bottleneck. Only one token refresh can happen at a time while all other requests wait.
+```caddy
+# CURRENT (confusing):
+reverse_proxy 127.0.0.1:7252 {
+    transport http {
+        tls_insecure_skip_verify
+    }
+}
 
-**Recommendation:** This is currently an acceptable trade-off for correctness (prevents duplicate token requests). If it becomes a bottleneck, consider using a `Lazy<Task<T>>` pattern with atomic swap for lock-free token caching.
+# CORRECT (simple):
+reverse_proxy 127.0.0.1:7252
+```
+
+**Impact:** Low. Caddy ignores the `tls_insecure_skip_verify` directive when the upstream is HTTP, so it works. But it's misleading and could confuse operators into thinking TLS is involved.
+
+**Recommendation:** Simplify to `reverse_proxy 127.0.0.1:7252`.
 
 ---
 
-## Score Summary
+**[CFG-006] KC_HOSTNAME_STRICT not documented in .env.template** — Severity: Low — Status: NEW
 
-| Area                             | Score      | Issues Found |
-| -------------------------------- | ---------- | ------------ |
-| Architecture & Separation        | 8.5/10     | 3            |
-| Code Quality & Patterns          | 8.0/10     | 5            |
-| Docker & Infrastructure          | 8.4/10     | 5            |
-| Testing & Coverage               | 8.0/10     | 5            |
-| Configuration & Best Practices   | 8.5/10     | 3            |
-| CI/CD & Ways of Working          | 6.5/10     | 4            |
-| Error Handling & Resilience      | 7.0/10     | 1            |
-| Performance                      | 8.0/10     | 2            |
-| **Overall**                      | **8.3/10** | **28**       |
+[docker-compose.prod.yml:94](docker/docker-compose.prod.yml#L94) sets `KC_HOSTNAME_STRICT: "true"` as a hardcoded value (not an environment variable). While this is fine since it should always be `true` in production, the `.env.template` documents the related `KEYCLOAK_HOSTNAME` variable but doesn't mention `KC_HOSTNAME_STRICT` or explain that strict hostname validation is enforced.
+
+**Impact:** Low. The value is correctly hardcoded. An operator who wants to disable it for debugging would need to edit the compose file directly, which is appropriate for a security-sensitive setting.
+
+**Recommendation:** Add a comment in `.env.template` near `KEYCLOAK_HOSTNAME` noting that strict hostname validation is enabled by default in the production compose.
+
+---
+
+## 7. CI/CD & Ways of Working — Score: 8.0/10 (+1.5)
+
+### Improvements Verified
+
+- **Docker build + Trivy scanning** stage added to CI (triggered on main after build/security tests pass).
+- **Code coverage** collection with Cobertura format, posted to GitHub PR summary.
+- **NuGet vulnerability scanning** with blocking exit code on findings.
+- **Proper dependency chaining:** `needs: [build-and-test, security-audit]`.
+
+### Remaining Findings
+
+**[CI-003] No integration test stage in CI** — Severity: Medium — Status: OPEN
+
+CI still runs only unit tests. No docker-compose-based integration test job.
+
+---
+
+**[CI-004] No SAST/DAST tooling** — Severity: Low — Status: OPEN
+
+No CodeQL or OWASP ZAP configured.
+
+---
+
+## All Findings Summary
+
+### New Bugs Introduced (5)
+
+| ID      | Severity | Finding |
+| ------- | -------- | ------- |
+| CFG-004 | **High** | DEPLOYMENT.md Nginx example uses `proxy_pass https://` to HTTP upstream — will fail |
+| DOCKER-006 | **Medium** | Production Keycloak has no healthcheck — race condition on startup |
+| CQ-006  | Low      | DashboardEndpoints returns raw 500 instead of structured ApiError JSON |
+| CFG-005 | Low      | DEPLOYMENT.md Caddy example has unnecessary tls_insecure_skip_verify |
+| TEST-006 | Low     | SecurityTests uses fake share tokens instead of real seeded shares |
+
+### Additional New Observations (3)
+
+| ID         | Severity | Finding |
+| ---------- | -------- | ------- |
+| SEC-001    | Low      | FileMagicValidator broad container format matching |
+| DOCKER-007 | Low      | Mailpit uses floating `latest` tag |
+| CFG-006    | Low      | KC_HOSTNAME_STRICT not documented in .env.template |
+
+### Still Open from Initial Audit (8)
+
+| ID         | Severity | Finding |
+| ---------- | -------- | ------- |
+| CI-003     | Medium   | No integration test stage in CI |
+| ARC-001    | Medium   | Large constructor injection in some services |
+| ARC-002    | Low      | Collection hierarchy depth not validated at creation |
+| ARC-003    | Low      | Polymorphic FK on Share entity |
+| CQ-004     | Low      | Enum converter lacks graceful fallback |
+| CQ-005     | Low      | Nested LINQ subqueries |
+| DOCKER-004 | Low      | Keycloak admin credentials as env vars |
+| DOCKER-005 | Low      | Dev HTTPS cert generation undocumented |
+| CFG-003    | Low      | Keycloak `--import-realm` on every production start |
+| CI-004     | Low      | No SAST/DAST tooling |
+| TEST-005   | Low      | E2E tests not in CI |
 
 ---
 
 ## Priority Remediation Roadmap
 
-### Critical (Address Immediately)
+### Immediate (Fix Before Deployment)
 
-| ID         | Finding                                                    |
-| ---------- | ---------------------------------------------------------- |
-| DOCKER-001 | Add reverse proxy to production compose or document requirement |
+| ID         | Action |
+| ---------- | ------ |
+| CFG-004    | Fix Nginx example: change `proxy_pass https://assethub;` to `proxy_pass http://assethub;` in DEPLOYMENT.md:202 |
+| DOCKER-006 | Add healthcheck to production Keycloak service in docker-compose.prod.yml |
 
-### High Priority (Address Within 2 Weeks)
+### Short-Term (Within 2 Weeks)
 
-| ID      | Finding                                              |
-| ------- | ---------------------------------------------------- |
-| CI-001  | Add deployment stage to CI — push images to registry |
-| CQ-001  | Add targeted exception handling around external service calls |
-| RES-001 | Add global exception handling middleware for API routes |
+| ID      | Action |
+| ------- | ------ |
+| CQ-006  | Replace `Results.StatusCode(500)` with `result.ToHttpResult()` in DashboardEndpoints.cs |
+| CFG-005 | Simplify Caddy example in DEPLOYMENT.md |
+| CI-003  | Add integration test stage to CI |
 
-### Medium Priority (Address Within 1 Month)
+### Long-Term (Within 3 Months)
 
-| ID         | Finding                                                       |
-| ---------- | ------------------------------------------------------------- |
-| CQ-002     | Standardize logging coverage across all services              |
-| CQ-003     | Expand input validation on DTOs                               |
-| CI-002     | Add container vulnerability scanning (Trivy)                  |
-| CI-003     | Add integration test stage to CI                              |
-| CFG-001    | Create DEPLOYMENT.md documentation                            |
-| CFG-002    | Restrict TLS bypass to `IsDevelopment()` only                 |
-| TEST-001   | Add error recovery and resilience tests                       |
-| TEST-002   | Add concurrency and race condition tests                      |
-| DOCKER-002 | Increase ClamAV start_period to 300s                          |
-| DOCKER-003 | Pin all container image versions consistently across environments |
-
-### Low Priority (Address Within 3 Months)
-
-| ID         | Finding                                                     |
-| ---------- | ----------------------------------------------------------- |
-| ARC-001    | Decompose large service classes                             |
-| ARC-002    | Add collection hierarchy depth validation at creation time  |
-| ARC-003    | Add orphaned share cleanup mechanism                        |
-| CQ-004     | Add graceful fallback for enum-to-string conversion         |
-| CQ-005     | Optimize nested LINQ subqueries with explicit joins         |
-| DOCKER-004 | Document Keycloak admin credential rotation                 |
-| DOCKER-005 | Document or automate development certificate generation     |
-| TEST-003   | Add explicit security test cases                            |
-| TEST-004   | Configure code coverage metrics and thresholds              |
-| TEST-005   | Integrate E2E tests into CI pipeline                        |
-| CI-004     | Add SAST/DAST tooling (CodeQL, OWASP ZAP)                  |
-| CFG-003    | Remove `--import-realm` from production Keycloak command    |
-| PERF-001   | Cache presigned MinIO URLs                                  |
-| PERF-002   | Optimize Keycloak token caching under high concurrency      |
+| ID         | Action |
+| ---------- | ------ |
+| ARC-001    | Continue decomposing large services as they grow |
+| ARC-002    | Add depth check on collection creation |
+| CQ-004     | Add enum fallback strategy |
+| CQ-005     | Profile and optimize nested LINQ queries |
+| TEST-005   | Integrate E2E tests into CI |
+| TEST-006   | Use real share tokens in SecurityTests |
+| CI-004     | Add CodeQL SAST |
+| SEC-001    | Improve container format magic byte validation |
+| DOCKER-007 | Pin Mailpit version |
+| CFG-006    | Document KC_HOSTNAME_STRICT in .env.template |
 
 ---
 
 ## Conclusion
 
-AssetHub demonstrates **professional, enterprise-grade software engineering** across all dimensions. The clean architecture separation is exemplary, the security posture includes proper defense-in-depth, and the test suite covers sophisticated edge cases with real database integration. The Docker infrastructure is well-configured with health checks, network isolation, and resource limits.
+The remediation effort has been **highly effective**. Of the 28 original findings, 14 have been fully resolved — including all Critical and High severity items from the initial audit. The codebase now has comprehensive exception handling, input validation on all DTOs, 85+ new tests covering resilience/concurrency/security scenarios, and CI includes container vulnerability scanning with code coverage tracking.
 
-The primary gaps are operational: **missing deployment documentation**, **no CD pipeline**, and **no reverse proxy in the production compose file**. On the code side, the main opportunities are around **error recovery resilience**, **input validation coverage**, and **logging consistency**. These are all tractable improvements on an otherwise strong foundation.
+**5 new issues were found** during re-audit. The most significant are:
+1. **CFG-004 (High):** The Nginx proxy example in DEPLOYMENT.md will cause deployment failures — a one-line fix.
+2. **DOCKER-006 (Medium):** Missing Keycloak healthcheck in production creates a startup race condition.
 
-This audit should be revisited quarterly or after significant architectural changes.
+The remaining open findings are predominantly Low severity and represent refinements rather than risks. The application is **production-ready** once the two immediate items are addressed.

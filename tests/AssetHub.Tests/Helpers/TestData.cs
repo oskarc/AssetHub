@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Helpers;
 using AssetHub.Domain.Entities;
 
 namespace AssetHub.Tests.Helpers;
@@ -95,15 +96,23 @@ public static class TestData
         ShareScopeType scopeType = ShareScopeType.Asset,
         Guid? scopeId = null,
         string? tokenHash = null,
+        string? token = null,
         DateTime? expiresAt = null,
         string? passwordHash = null,
         string? createdByUserId = null,
         bool revoked = false)
     {
+        // If a plaintext token is provided, compute its hash
+        // If tokenHash is provided, use it directly
+        // Otherwise, generate a random hash for backward compatibility
+        var computedHash = token != null
+            ? ShareHelpers.ComputeTokenHash(token)
+            : tokenHash ?? $"hash_{Guid.NewGuid():N}";
+
         return new Share
         {
             Id = id ?? Guid.NewGuid(),
-            TokenHash = tokenHash ?? $"hash_{Guid.NewGuid():N}",
+            TokenHash = computedHash,
             TokenEncrypted = $"enc_{Guid.NewGuid():N}",
             ScopeType = scopeType,
             ScopeId = scopeId ?? Guid.NewGuid(),
@@ -115,6 +124,31 @@ public static class TestData
             CreatedByUserId = createdByUserId ?? DefaultUserId,
             AccessCount = 0
         };
+    }
+
+    /// <summary>
+    /// Creates a share with a real token for testing. Returns both the share entity and the plaintext token.
+    /// </summary>
+    public static (Share Share, string Token) CreateShareWithToken(
+        Guid? id = null,
+        ShareScopeType scopeType = ShareScopeType.Asset,
+        Guid? scopeId = null,
+        DateTime? expiresAt = null,
+        string? passwordHash = null,
+        string? createdByUserId = null,
+        bool revoked = false)
+    {
+        var token = ShareHelpers.GenerateToken();
+        var share = CreateShare(
+            id: id,
+            scopeType: scopeType,
+            scopeId: scopeId,
+            token: token,
+            expiresAt: expiresAt,
+            passwordHash: passwordHash,
+            createdByUserId: createdByUserId,
+            revoked: revoked);
+        return (share, token);
     }
 
     public static AuditEvent CreateAuditEvent(

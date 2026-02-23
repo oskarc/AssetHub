@@ -282,15 +282,14 @@ public class SecurityTests : IAsyncLifetime
     public async Task ExpiredShare_ReturnsUnauthorized()
     {
         // Create a share that expired yesterday
-        var (colId, assetId, shareId) = await SeedShareAsync(
+        var (colId, assetId, shareId, token) = await SeedShareAsync(
             userId: UserAId,
             scopeType: ShareScopeType.Asset,
             expiresAt: DateTime.UtcNow.AddDays(-1));
 
-        // Using a fake token - real token isn't accessible from the entity
-        // The point is to verify expired shares are rejected
+        // Use the real token - the share lookup will succeed but validation will fail
         var client = AnonymousClient();
-        var response = await client.GetAsync("/api/shares/expired-share-token-xyz");
+        var response = await client.GetAsync($"/api/shares/{token}");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.Unauthorized ||
@@ -301,14 +300,14 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task RevokedShare_ReturnsUnauthorized()
     {
-        var (colId, assetId, shareId) = await SeedShareAsync(
+        var (colId, assetId, shareId, token) = await SeedShareAsync(
             userId: UserAId,
             scopeType: ShareScopeType.Asset,
             revoked: true);
 
-        // Revoked share should be rejected
+        // Use the real token - revoked share should be rejected
         var client = AnonymousClient();
-        var response = await client.GetAsync("/api/shares/revoked-share-token-xyz");
+        var response = await client.GetAsync($"/api/shares/{token}");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.Unauthorized ||
@@ -319,15 +318,16 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task PasswordProtectedShare_WithoutPassword_ReturnsUnauthorized()
     {
-        var (colId, assetId, shareId) = await SeedShareAsync(
+        var (colId, assetId, shareId, token) = await SeedShareAsync(
             userId: UserAId,
             scopeType: ShareScopeType.Asset,
             passwordHash: "$argon2id$v=19$m=65536,t=3,p=4$somesalt$somehash");  // Fake hash
 
+        // Use the real token - password-protected share should require password
         var client = AnonymousClient();
-        var response = await client.GetAsync("/api/shares/password-protected-token-xyz");
+        var response = await client.GetAsync($"/api/shares/{token}");
 
-        // Should require password - invalid token returns 401/404
+        // Should require password - returns 401 (PasswordRequired) or similar
         Assert.True(
             response.StatusCode == HttpStatusCode.Unauthorized ||
             response.StatusCode == HttpStatusCode.NotFound,
@@ -362,7 +362,7 @@ public class SecurityTests : IAsyncLifetime
     public async Task Viewer_CannotRevoke_OtherUsers_Share()
     {
         // Admin creates a share
-        var (_, _, shareId) = await SeedShareAsync(
+        var (_, _, shareId, _) = await SeedShareAsync(
             userId: TestAuthHandler.AdminUserId,
             scopeType: ShareScopeType.Asset);
 
@@ -377,7 +377,7 @@ public class SecurityTests : IAsyncLifetime
     public async Task UserA_CannotRevoke_UserBs_Share()
     {
         // User B creates a share
-        var (_, _, shareId) = await SeedShareAsync(
+        var (_, _, shareId, _) = await SeedShareAsync(
             userId: UserBId,
             scopeType: ShareScopeType.Asset);
 
@@ -574,7 +574,7 @@ public class SecurityTests : IAsyncLifetime
         return (col.Id, asset.Id);
     }
 
-    private async Task<(Guid ColId, Guid AssetId, Guid ShareId)> SeedShareAsync(
+    private async Task<(Guid ColId, Guid AssetId, Guid ShareId, string Token)> SeedShareAsync(
         string userId,
         ShareScopeType scopeType,
         DateTime? expiresAt = null,
@@ -592,7 +592,7 @@ public class SecurityTests : IAsyncLifetime
         db.CollectionAcls.Add(TestData.CreateAcl(col.Id, userId, AclRole.Admin));
 
         var scopeId = scopeType == ShareScopeType.Asset ? asset.Id : col.Id;
-        var share = TestData.CreateShare(
+        var (share, token) = TestData.CreateShareWithToken(
             scopeType: scopeType,
             scopeId: scopeId,
             expiresAt: expiresAt,
@@ -602,6 +602,6 @@ public class SecurityTests : IAsyncLifetime
         db.Shares.Add(share);
         await db.SaveChangesAsync();
 
-        return (col.Id, asset.Id, share.Id);
+        return (col.Id, asset.Id, share.Id, token);
     }
 }

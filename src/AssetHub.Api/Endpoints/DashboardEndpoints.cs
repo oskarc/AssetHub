@@ -1,3 +1,4 @@
+using AssetHub.Api.Extensions;
 using AssetHub.Application.Services;
 
 namespace AssetHub.Api.Endpoints;
@@ -18,8 +19,6 @@ public static class DashboardEndpoints
         CancellationToken ct)
     {
         var result = await dashboardService.GetDashboardAsync(ct);
-        return result.IsSuccess
-            ? Results.Ok(result.Value)
-            : Results.StatusCode(500);
+        return result.ToHttpResult();
     }
 }
