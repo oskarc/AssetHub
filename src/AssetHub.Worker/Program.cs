@@ -30,6 +30,7 @@ class Program
 
                 // Worker-specific services
                 services.AddScoped<StaleUploadCleanupJob>();
+                services.AddScoped<CleanupOrphanedSharesJob>();
             })
             .Build();
 
@@ -47,6 +48,12 @@ class Program
             "stale-upload-cleanup",
             job => job.ExecuteAsync(),
             Cron.Daily(3, 0), // Run daily at 3:00 AM UTC
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        recurringJobs.AddOrUpdate<CleanupOrphanedSharesJob>(
+            "orphaned-shares-cleanup",
+            job => job.ExecuteAsync(),
+            Cron.Weekly(DayOfWeek.Sunday, 4, 0), // Run weekly on Sunday at 4:00 AM UTC
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
         Console.WriteLine("Worker service started — Hangfire server processing jobs");

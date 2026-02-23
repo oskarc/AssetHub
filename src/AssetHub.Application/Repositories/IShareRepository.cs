@@ -28,4 +28,10 @@ public interface IShareRepository
     /// Avoids the read-modify-write race condition of fetching the entity first.
     /// </summary>
     Task IncrementAccessAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes shares that reference non-existent assets or collections (orphaned shares).
+    /// Returns the number of shares deleted.
+    /// </summary>
+    Task<int> DeleteOrphanedAsync(CancellationToken cancellationToken = default);
 }

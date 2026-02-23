@@ -131,4 +131,36 @@ public class ShareRepository(
                 .SetProperty(p => p.LastAccessedAt, DateTime.UtcNow),
                 cancellationToken);
     }
+
+    public async Task<int> DeleteOrphanedAsync(CancellationToken cancellationToken = default)
+    {
+        // Find shares pointing to non-existent assets
+        var orphanedAssetShares = await dbContext.Shares
+            .Where(s => s.ScopeType == ShareScopeType.Asset)
+            .Where(s => !dbContext.Assets.Any(a => a.Id == s.ScopeId))
+            .Select(s => s.Id)
+            .ToListAsync(cancellationToken);
+
+        // Find shares pointing to non-existent collections
+        var orphanedCollectionShares = await dbContext.Shares
+            .Where(s => s.ScopeType == ShareScopeType.Collection)
+            .Where(s => !dbContext.Collections.Any(c => c.Id == s.ScopeId))
+            .Select(s => s.Id)
+            .ToListAsync(cancellationToken);
+
+        var orphanedIds = orphanedAssetShares.Concat(orphanedCollectionShares).ToList();
+
+        if (orphanedIds.Count == 0)
+            return 0;
+
+        var deleted = await dbContext.Shares
+            .Where(s => orphanedIds.Contains(s.Id))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Deleted {Count} orphaned shares ({AssetShares} asset, {CollectionShares} collection)",
+            deleted, orphanedAssetShares.Count, orphanedCollectionShares.Count);
+
+        return deleted;
+    }
 }

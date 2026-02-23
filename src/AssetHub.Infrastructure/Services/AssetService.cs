@@ -251,7 +251,16 @@ public class AssetService : IAssetService
         if (!string.IsNullOrEmpty(title))
             asset.Title = title;
 
-        await _minioAdapter.UploadAsync(BucketName, asset.OriginalObjectKey, fileStream, contentType, ct);
+        try
+        {
+            await _minioAdapter.UploadAsync(BucketName, asset.OriginalObjectKey, fileStream, contentType, ct);
+        }
+        catch (StorageException ex)
+        {
+            _logger.LogError(ex, "Storage upload failed for {FileName}", fileName);
+            return ServiceError.Server(ex.Message);
+        }
+
         await _assetRepo.CreateAsync(asset, ct);
         await _assetCollectionRepo.AddToCollectionAsync(asset.Id, collectionId, userId, ct);
 
@@ -403,8 +412,17 @@ public class AssetService : IAssetService
             new() { ["title"] = request.Title ?? "", ["fileName"] = request.FileName, ["contentType"] = request.ContentType, ["fileSize"] = request.FileSize, ["collectionId"] = request.CollectionId?.ToString() ?? "" },
             ct);
 
-        var presignedUrl = await _minioAdapter.GetPresignedUploadUrlAsync(
-            BucketName, asset.OriginalObjectKey, Constants.Limits.PresignedUploadExpirySec, ct);
+        string presignedUrl;
+        try
+        {
+            presignedUrl = await _minioAdapter.GetPresignedUploadUrlAsync(
+                BucketName, asset.OriginalObjectKey, Constants.Limits.PresignedUploadExpirySec, ct);
+        }
+        catch (StorageException ex)
+        {
+            _logger.LogError(ex, "Failed to generate presigned upload URL for asset {AssetId}", asset.Id);
+            return ServiceError.Server(ex.Message);
+        }
 
         return new InitUploadResponse
         {
@@ -627,8 +645,17 @@ public class AssetService : IAssetService
             downloadFileName = $"{asset.Title}{prefix}{ext}";
         }
 
-        var presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, downloadFileName, ct);
+        string presignedUrl;
+        try
+        {
+            presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
+                BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, downloadFileName, ct);
+        }
+        catch (StorageException ex)
+        {
+            _logger.LogError(ex, "Failed to generate presigned download URL for asset {AssetId}", id);
+            return ServiceError.Server(ex.Message);
+        }
 
         if (forceDownload)
         {

@@ -21,11 +21,14 @@ public class AssetRepository(
 
     public async Task<List<Asset>> GetByCollectionAsync(Guid collectionId, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
-        return await dbContext.Assets
-            .Where(a => dbContext.AssetCollections
-                .Where(ac => ac.CollectionId == collectionId)
-                .Select(ac => ac.AssetId)
-                .Contains(a.Id))
+        // Use explicit join for more predictable query plans on large datasets
+        return await dbContext.AssetCollections
+            .Where(ac => ac.CollectionId == collectionId)
+            .Join(
+                dbContext.Assets,
+                ac => ac.AssetId,
+                a => a.Id,
+                (ac, a) => a)
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip)
             .Take(take)
@@ -184,12 +187,14 @@ public class AssetRepository(
         int take = 50,
         CancellationToken cancellationToken = default)
     {
-        var collectionAssetIds = dbContext.AssetCollections
+        // Use explicit join for more predictable query plans on large datasets
+        var queryable = dbContext.AssetCollections
             .Where(ac => ac.CollectionId == collectionId)
-            .Select(ac => ac.AssetId);
-
-        var queryable = dbContext.Assets
-            .Where(a => collectionAssetIds.Contains(a.Id));
+            .Join(
+                dbContext.Assets,
+                ac => ac.AssetId,
+                a => a.Id,
+                (ac, a) => a);
 
         // Apply text search filter
         if (!string.IsNullOrWhiteSpace(query))
@@ -237,12 +242,16 @@ public class AssetRepository(
             : dbContext.Assets.Where(a => a.Status == AssetStatus.Ready);
 
         // Filter to assets in allowed collections (ACL enforcement)
+        // Use explicit join for more predictable query plans on large datasets
         if (allowedCollectionIds != null)
         {
-            var allowedAssetIds = dbContext.AssetCollections
-                .Where(ac => allowedCollectionIds.Contains(ac.CollectionId))
-                .Select(ac => ac.AssetId);
-            queryable = queryable.Where(a => allowedAssetIds.Contains(a.Id));
+            queryable = queryable
+                .Join(
+                    dbContext.AssetCollections.Where(ac => allowedCollectionIds.Contains(ac.CollectionId)),
+                    a => a.Id,
+                    ac => ac.AssetId,
+                    (a, ac) => a)
+                .Distinct();
         }
 
         // Apply text search filter
