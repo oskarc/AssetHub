@@ -20,9 +20,8 @@ test.describe('Share Management @shares', () => {
   const testCollectionName = `${env.testData.collectionPrefix}-Share-${timestamp}`;
   const testAssetTitle = `${env.testData.assetTitlePrefix}-Share-${timestamp}`;
 
-  test.beforeAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.beforeAll(async () => {
+    api = await ApiHelper.withCookieAuth();
 
     // Create collection + asset for sharing
     const collection = await api.createCollection(testCollectionName, 'Share test collection');
@@ -37,12 +36,12 @@ test.describe('Share Management @shares', () => {
     }
   });
 
-  test.afterAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.afterAll(async () => {
+    api = await ApiHelper.withCookieAuth();
     if (testCollectionId) {
       await api.deleteCollection(testCollectionId).catch(() => {});
     }
+    await api.dispose();
   });
 
   test.describe('Share Creation (via UI)', () => {
@@ -139,34 +138,28 @@ test.describe('Share Management @shares', () => {
     });
   });
 
-  test.describe('Share Creation (via API)', () => {
-    test('create share via API for public access tests', async ({ request }) => {
-      if (!testAssetId) {
-        test.skip();
-        return;
-      }
-
-      api = new ApiHelper(request);
-      await api.authenticate();
-
-      const shareResult = await api.createShare(
-        testAssetId,
-        'asset',
-        env.testData.sharePasswordDefault,
-        30
-      );
-
-      shareToken = shareResult.token;
-      shareId = shareResult.id;
-      sharePassword = shareResult.password || env.testData.sharePasswordDefault;
-
-      expect(shareToken).toBeTruthy();
-      expect(shareId).toBeTruthy();
-    });
-  });
-
   test.describe('Public Share Access', () => {
     test.use({ storageState: { cookies: [], origins: [] } }); // Unauthenticated
+
+    // Create share in beforeAll for this describe block since test.use creates separate context
+    test.beforeAll(async () => {
+      if (!testAssetId) return;
+
+      const apiForShare = await ApiHelper.withCookieAuth();
+      try {
+        const shareResult = await apiForShare.createShare(
+          testAssetId,
+          'asset',
+          env.testData.sharePasswordDefault,
+          30
+        );
+        shareToken = shareResult.token;
+        shareId = shareResult.id;
+        sharePassword = shareResult.password || env.testData.sharePasswordDefault;
+      } finally {
+        await apiForShare.dispose();
+      }
+    });
 
     test('share page shows password prompt for protected share', async ({ page }) => {
       if (!shareToken) {
@@ -263,29 +256,48 @@ test.describe('Share Management @shares', () => {
   });
 
   test.describe('Share Revocation', () => {
-    test('revoke share via API', async ({ request }) => {
-      if (!shareId) {
-        test.skip();
-        return;
+    test.use({ storageState: { cookies: [], origins: [] } }); // Unauthenticated
+
+    let revokedShareToken: string;
+    let revokedShareId: string;
+
+    // Create and revoke a share for revocation testing
+    test.beforeAll(async () => {
+      if (!testAssetId) return;
+
+      const apiForShare = await ApiHelper.withCookieAuth();
+      try {
+        // Create share and verify it was created
+        const shareResult = await apiForShare.createShare(
+          testAssetId,
+          'asset',
+          env.testData.sharePasswordDefault,
+          30
+        );
+        if (!shareResult.token || !shareResult.id) {
+          throw new Error('Failed to create share for revocation test');
+        }
+        revokedShareToken = shareResult.token;
+        revokedShareId = shareResult.id;
+
+        // Revoke it immediately
+        const revokeRes = await apiForShare.revokeShare(revokedShareId);
+        if (!revokeRes.ok()) {
+          throw new Error(`Failed to revoke share: ${revokeRes.status()}`);
+        }
+      } finally {
+        await apiForShare.dispose();
       }
-
-      api = new ApiHelper(request);
-      await api.authenticate();
-
-      const result = await api.revokeShare(shareId);
-      expect(result.ok()).toBeTruthy();
     });
 
-    test.use({ storageState: { cookies: [], origins: [] } });
-
     test('revoked share is inaccessible', async ({ page }) => {
-      if (!shareToken) {
+      if (!revokedShareToken) {
         test.skip();
         return;
       }
 
       const sharePage = new SharePage(page);
-      await sharePage.goto(shareToken);
+      await sharePage.goto(revokedShareToken);
       await page.waitForTimeout(env.timeouts.animation);
 
       // Should show error (expired/revoked)

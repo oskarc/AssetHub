@@ -8,6 +8,27 @@ import * as path from 'path';
 const AUTH_DIR = path.join(__dirname, '.auth');
 
 /**
+ * Helper to authenticate a user via OIDC and save browser state.
+ */
+async function authenticateUser(
+  page: import('@playwright/test').Page,
+  username: string,
+  password: string,
+  stateFileName: string
+) {
+  const keycloak = new KeycloakLoginPage(page);
+  await keycloak.fullLogin(username, password);
+
+  // Verify we're authenticated — check for user display name in the app bar
+  await expect(page.locator('.mud-appbar .mud-typography-body2')).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // Save auth state
+  await page.context().storageState({ path: path.join(AUTH_DIR, stateFileName) });
+}
+
+/**
  * Global setup: authenticate as admin and save browser state for reuse.
  */
 setup('authenticate as admin', async ({ page }) => {
@@ -37,15 +58,19 @@ setup('authenticate as admin', async ({ page }) => {
     throw new Error(`Application at ${env.baseUrl} is not responding. Ensure docker-compose is running.`);
   }
 
-  // Login via Keycloak
-  const keycloak = new KeycloakLoginPage(page);
-  await keycloak.loginAsAdmin();
+  // Login as admin via Keycloak
+  await authenticateUser(page, env.adminUser.username, env.adminUser.password, 'admin.json');
+});
 
-  // Verify we're authenticated — check for user display name in the app bar
-  await expect(page.locator('.mud-appbar .mud-typography-body2')).toBeVisible({
-    timeout: 15_000,
-  });
-
-  // Save auth state
-  await page.context().storageState({ path: path.join(AUTH_DIR, 'admin.json') });
+/**
+ * Setup: authenticate as viewer user for permission tests.
+ */
+setup('authenticate as viewer', async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  
+  // Login as viewer via Keycloak
+  await authenticateUser(page, env.viewerUser.username, env.viewerUser.password, 'viewer.json');
+  
+  await context.close();
 });

@@ -15,7 +15,7 @@ export const env = {
   keycloakUrl: processEnv.KC_URL || 'https://keycloak.assethub.local:8443',
   keycloakRealm: 'media',
   keycloakClientId: 'assethub-app',
-  keycloakClientSecret: 'VxBiV29QVchYHFzD5N62l43fTXbTMzSl',
+  keycloakClientSecret: processEnv.KEYCLOAK_CLIENT_SECRET || 'dev_client_secret_replace_this',
 
   /** Pre-seeded admin user */
   adminUser: {

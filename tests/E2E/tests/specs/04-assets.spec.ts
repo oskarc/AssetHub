@@ -19,24 +19,23 @@ test.describe('Asset Management @assets', () => {
   const testCollectionName = `${env.testData.collectionPrefix}-Assets-${timestamp}`;
   const testAssetTitle = `${env.testData.assetTitlePrefix}-${timestamp}`;
 
-  test.beforeAll(async ({ request }) => {
+  test.beforeAll(async () => {
     // Create test fixtures and API-seed a collection
     ensureTestFixtures();
-    api = new ApiHelper(request);
-    await api.authenticate();
+    api = await ApiHelper.withCookieAuth();
 
     // Create a test collection via API
     const collection = await api.createCollection(testCollectionName, 'E2E test collection for assets');
     testCollectionId = collection.id;
   });
 
-  test.afterAll(async ({ request }) => {
+  test.afterAll(async () => {
     // Cleanup: delete test collection (and its assets)
     if (testCollectionId) {
-      api = new ApiHelper(request);
-      await api.authenticate();
+      api = await ApiHelper.withCookieAuth();
       await api.deleteCollection(testCollectionId).catch(() => {});
     }
+    await api.dispose();
   });
 
   test.describe('Asset Upload', () => {
@@ -100,10 +99,9 @@ test.describe('Asset Management @assets', () => {
   });
 
   test.describe('Asset Browsing & Search', () => {
-    test.beforeAll(async ({ request }) => {
+    test.beforeAll(async () => {
       // Ensure we have test assets — upload via API
-      api = new ApiHelper(request);
-      await api.authenticate();
+      api = await ApiHelper.withCookieAuth();
       const fixtures = ensureTestFixtures();
       try {
         const result = await api.uploadAsset(testCollectionId, fixtures.testImage, testAssetTitle);

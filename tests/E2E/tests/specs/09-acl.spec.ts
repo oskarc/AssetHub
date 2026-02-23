@@ -12,9 +12,8 @@ test.describe('Access Control & Permissions @acl', () => {
   const timestamp = Date.now();
   const testCollectionName = `${env.testData.collectionPrefix}-ACL-${timestamp}`;
 
-  test.beforeAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.beforeAll(async () => {
+    api = await ApiHelper.withCookieAuth();
 
     // Create a test collection
     const collection = await api.createCollection(testCollectionName, 'ACL test collection');
@@ -28,34 +27,31 @@ test.describe('Access Control & Permissions @acl', () => {
     }
   });
 
-  test.afterAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.afterAll(async () => {
+    api = await ApiHelper.withCookieAuth();
     if (testCollectionId) {
       await api.deleteCollection(testCollectionId).catch(() => {});
     }
+    await api.dispose();
   });
 
   test.describe('Collection ACL Management', () => {
-    test('admin can view collection ACL', async ({ request }) => {
-      api = new ApiHelper(request);
-      await api.authenticate();
+    test('admin can view collection ACL', async () => {
+      api = await ApiHelper.withCookieAuth();
       const acl = await api.getCollectionAcl(testCollectionId);
       expect(Array.isArray(acl)).toBeTruthy();
     });
 
-    test('admin can grant viewer access to user', async ({ request }) => {
+    test('admin can grant viewer access to user', async () => {
       if (!viewerUserId) test.skip();
-      api = new ApiHelper(request);
-      await api.authenticate();
+      api = await ApiHelper.withCookieAuth();
       const res = await api.setCollectionAccess(testCollectionId, viewerUserId, 'viewer');
       expect(res.ok()).toBeTruthy();
     });
 
-    test('ACL shows granted access', async ({ request }) => {
+    test('ACL shows granted access', async () => {
       if (!viewerUserId) test.skip();
-      api = new ApiHelper(request);
-      await api.authenticate();
+      api = await ApiHelper.withCookieAuth();
       const acl = await api.getCollectionAcl(testCollectionId);
       const viewerEntry = acl.find((a: any) =>
         (a.principalId || a.PrincipalId) === viewerUserId
@@ -63,10 +59,9 @@ test.describe('Access Control & Permissions @acl', () => {
       expect(viewerEntry).toBeTruthy();
     });
 
-    test('admin can upgrade user role', async ({ request }) => {
+    test('admin can upgrade user role', async () => {
       if (!viewerUserId) test.skip();
-      api = new ApiHelper(request);
-      await api.authenticate();
+      api = await ApiHelper.withCookieAuth();
       const res = await api.setCollectionAccess(testCollectionId, viewerUserId, 'contributor');
       expect(res.ok()).toBeTruthy();
 
@@ -78,15 +73,14 @@ test.describe('Access Control & Permissions @acl', () => {
       expect(entry.role || entry.Role).toBe('contributor');
     });
 
-    test('admin can revoke user access', async ({ request }) => {
+    test('admin can revoke user access', async () => {
       if (!viewerUserId) test.skip();
-      api = new ApiHelper(request);
-      const token = await api.authenticate();
-      const res = await request.delete(
-        `${env.baseUrl}/api/collections/${testCollectionId}/acl/user/${viewerUserId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      api = await ApiHelper.withCookieAuth();
+      const res = await api.delete(
+        `${env.baseUrl}/api/collections/${testCollectionId}/acl/user/${viewerUserId}`
       );
       expect(res.ok()).toBeTruthy();
+      await api.dispose();
     });
   });
 
@@ -122,12 +116,11 @@ test.describe('Access Control & Permissions @acl', () => {
       await expect(manageAccessBtn).toBeVisible({ timeout: 10_000 });
     });
 
-    test('admin sees delete buttons on assets', async ({ page, request }) => {
+    test('admin sees delete buttons on assets', async ({ page }) => {
       if (!testCollectionId) test.skip();
 
       const fixtures = ensureTestFixtures();
-      api = new ApiHelper(request);
-      await api.authenticate();
+      api = await ApiHelper.withCookieAuth();
       try {
         await api.uploadAsset(testCollectionId, fixtures.testImage, `ACL-Vis-${timestamp}`);
       } catch {}
@@ -148,13 +141,12 @@ test.describe('Access Control & Permissions @acl', () => {
   });
 
   test.describe('Manage Access Dialog UI', () => {
-    test('manage access dialog shows existing ACL entries', async ({ page, request }) => {
+    test('manage access dialog shows existing ACL entries', async ({ page }) => {
       if (!testCollectionId) test.skip();
 
       // Grant access first
       if (viewerUserId) {
-        api = new ApiHelper(request);
-        await api.authenticate();
+        api = await ApiHelper.withCookieAuth();
         await api.setCollectionAccess(testCollectionId, viewerUserId, 'viewer');
       }
 

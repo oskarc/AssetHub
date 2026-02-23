@@ -8,6 +8,7 @@ using Hangfire;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -122,6 +123,34 @@ public static class WebApplicationExtensions
         app.UseRequestLocalization();
         app.UseRateLimiter();
         app.UseAuthentication();
+
+        // Allow anonymous access to Blazor framework files and the SignalR hub.
+        // Required for anonymous pages like /share/{token} to load and establish
+        // an interactive Blazor circuit without triggering an OIDC auth redirect.
+        // We add AllowAnonymous (rather than stripping IAuthorizeData) because the
+        // FallbackPolicy requires authentication on endpoints with no auth metadata.
+        // Page-level authorization is still enforced by individual Blazor components
+        // via [Authorize]/[AllowAnonymous] attributes — the hub is just the transport.
+        app.Use(async (context, next) =>
+        {
+            var path = context.Request.Path.Value;
+            if (path != null &&
+                (path.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase) ||
+                 path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)))
+            {
+                var endpoint = context.GetEndpoint();
+                if (endpoint != null)
+                {
+                    context.SetEndpoint(new Endpoint(
+                        endpoint.RequestDelegate,
+                        new EndpointMetadataCollection(
+                            endpoint.Metadata.Append(new AllowAnonymousAttribute())),
+                        endpoint.DisplayName));
+                }
+            }
+            await next();
+        });
+
         app.UseAuthorization();
 
         // Required for Blazor Server interactive rendering. Does NOT blanket-enforce

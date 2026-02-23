@@ -16,9 +16,8 @@ test.describe('Admin Panel @admin', () => {
   const timestamp = Date.now();
   const testCollectionName = `${env.testData.collectionPrefix}-Admin-${timestamp}`;
 
-  test.beforeAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.beforeAll(async () => {
+    api = await ApiHelper.withCookieAuth();
 
     // Create test data
     const collection = await api.createCollection(testCollectionName, 'Admin test collection');
@@ -37,12 +36,12 @@ test.describe('Admin Panel @admin', () => {
     }
   });
 
-  test.afterAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.afterAll(async () => {
+    api = await ApiHelper.withCookieAuth();
     if (testCollectionId) {
       await api.deleteCollection(testCollectionId).catch(() => {});
     }
+    await api.dispose();
   });
 
   test.describe('Admin Page Access', () => {

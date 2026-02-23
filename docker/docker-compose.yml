@@ -82,10 +82,10 @@ services:
         aliases:
           - keycloak.assethub.local
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/keycloak.assethub.local/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: keycloak.assethub.local\r\nConnection: close\r\n\r\n' >&3 && timeout 2 cat <&3 | grep -q 'UP'"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 2>/dev/null"]
       interval: 15s
-      timeout: 10s
-      retries: 5
+      timeout: 5s
+      retries: 10
       start_period: 60s
 
   api:

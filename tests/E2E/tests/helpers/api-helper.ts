@@ -1,19 +1,51 @@
-import { type APIRequestContext, expect } from '@playwright/test';
+import { type APIRequestContext, expect, request as playwrightRequest } from '@playwright/test';
 import { env } from '../config/env';
+import * as path from 'path';
+import * as fs from 'fs';
+
+const AUTH_DIR = path.join(__dirname, '..', '.auth');
 
 /**
  * API helper for direct backend calls in test setup/teardown.
- * Uses the admin JWT for authenticated requests.
+ * Supports both cookie-based auth (from browser session) and Bearer token auth.
  */
 export class ApiHelper {
   private request: APIRequestContext;
   private token: string | null = null;
+  private useCookieAuth: boolean = false;
 
-  constructor(request: APIRequestContext) {
+  constructor(request: APIRequestContext, useCookieAuth: boolean = false) {
     this.request = request;
+    this.useCookieAuth = useCookieAuth;
   }
 
-  /** Obtain a JWT from Keycloak for API calls */
+  /**
+   * Create an ApiHelper that uses cookies from the saved browser session.
+   * This avoids requiring password grant (directAccessGrantsEnabled) in Keycloak.
+   * @param user - 'admin' (default) or 'viewer'
+   */
+  static async withCookieAuth(user: 'admin' | 'viewer' = 'admin'): Promise<ApiHelper> {
+    const stateFile = user === 'viewer' ? 'viewer.json' : 'admin.json';
+    const storageStatePath = path.join(AUTH_DIR, stateFile);
+    
+    if (!fs.existsSync(storageStatePath)) {
+      throw new Error(`Storage state not found at ${storageStatePath}. Run global setup first.`);
+    }
+
+    const context = await playwrightRequest.newContext({
+      baseURL: env.baseUrl,
+      storageState: storageStatePath,
+      ignoreHTTPSErrors: true,
+    });
+
+    return new ApiHelper(context, true);
+  }
+
+  /** 
+   * Obtain a JWT from Keycloak for API calls.
+   * NOTE: Requires directAccessGrantsEnabled in Keycloak client (password grant).
+   * Consider using ApiHelper.withCookieAuth() instead for security-hardened setups.
+   */
   async authenticate(username?: string, password?: string): Promise<string> {
     const tokenUrl = `${env.keycloakUrl}/realms/${env.keycloakRealm}/protocol/openid-connect/token`;
     let lastError = 'Unknown authentication error';
@@ -43,7 +75,7 @@ export class ApiHelper {
         }
 
         this.token = data.access_token;
-        return this.token;
+        return this.token as string;
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
       }
@@ -52,9 +84,63 @@ export class ApiHelper {
     throw new Error(`Failed to authenticate against ${tokenUrl} after 3 attempts: ${lastError}`);
   }
 
-  private authHeaders() {
+  private authHeaders(): Record<string, string> {
+    // Cookie auth: cookies are sent automatically, no header needed
+    if (this.useCookieAuth) {
+      return {};
+    }
+    // Bearer token auth
     if (!this.token) throw new Error('Not authenticated — call authenticate() first');
     return { Authorization: `Bearer ${this.token}` };
+  }
+
+  /** Clean up the API context if created via withCookieAuth() */
+  async dispose(): Promise<void> {
+    if (this.useCookieAuth) {
+      await this.request.dispose();
+    }
+  }
+
+  // --- Raw HTTP methods for direct API access ---
+
+  /** Make a raw GET request with authentication */
+  async get(url: string, options?: { maxRedirects?: number }) {
+    return await this.request.get(url, {
+      headers: this.authHeaders(),
+      ...options,
+    });
+  }
+
+  /** Make a raw POST request with authentication */
+  async post(url: string, data?: unknown, options?: { maxRedirects?: number }) {
+    return await this.request.post(url, {
+      headers: this.authHeaders(),
+      data,
+      ...options,
+    });
+  }
+
+  /** Make a raw PATCH request with authentication */
+  async patch(url: string, data?: unknown) {
+    return await this.request.patch(url, {
+      headers: this.authHeaders(),
+      data,
+    });
+  }
+
+  /** Make a raw PUT request with authentication */
+  async put(url: string, data?: unknown) {
+    return await this.request.put(url, {
+      headers: this.authHeaders(),
+      data,
+    });
+  }
+
+  /** Make a raw DELETE request with authentication */
+  async delete(url: string) {
+    return await this.request.delete(url, {
+      headers: this.authHeaders(),
+    });
   }
 
   // --- Collections ---

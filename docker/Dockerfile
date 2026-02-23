@@ -30,15 +30,21 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0.2-bookworm-slim AS final
 # Install ImageMagick for image processing (thumbnails, resizing)
 # Install ffmpeg for video processing (poster frames)
 # Install curl for Docker health checks
+# Install ca-certificates for SSL trust
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     ffmpeg \
     curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Apply restrictive ImageMagick policy to disable dangerous coders (SVG, MVG, etc.)
 # This mitigates ImageTragick and similar vulnerabilities
 COPY docker/imagemagick-policy.xml /etc/ImageMagick-6/policy.xml
+
+# Custom CA certificates can be mounted at runtime via docker-compose volumes:
+#   - ./certs/custom-ca.crt:/usr/local/share/ca-certificates/custom-ca.crt:ro
+# Then run update-ca-certificates in an entrypoint script if needed.
 
 WORKDIR /app
 COPY --from=publish /app/publish .

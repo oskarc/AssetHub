@@ -172,7 +172,7 @@ public static class ServiceCollectionExtensions
         {
             client.Timeout = TimeSpan.FromSeconds(keycloakTimeoutSeconds);
         })
-        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler());
+        .ConfigurePrimaryHttpMessageHandler(() => CreateHttpHandler(environment));
 
         // ── UI Services ─────────────────────────────────────────────────────
         services.AddScoped<AssetHub.Ui.Services.IUserFeedbackService, AssetHub.Ui.Services.UserFeedbackService>();
@@ -198,7 +198,7 @@ public static class ServiceCollectionExtensions
                 client.BaseAddress = new Uri(baseUrl);
             }
         })
-        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler())
+        .ConfigurePrimaryHttpMessageHandler(() => CreateHttpHandler(environment))
         .AddHttpMessageHandler<AssetHub.Ui.Services.CookieForwardingHandler>();
 
         // ── Health checks ───────────────────────────────────────────────────
@@ -212,5 +212,21 @@ public static class ServiceCollectionExtensions
             .AddCheck<ClamAvHealthCheck>("clamav", tags: ["security", "ready"]);
 
         return services;
+    }
+
+    /// <summary>
+    /// Creates an HttpClientHandler that bypasses TLS certificate validation in
+    /// Development only (self-signed certs for Keycloak, etc.). In all other
+    /// environments, standard certificate validation is enforced.
+    /// </summary>
+    private static HttpClientHandler CreateHttpHandler(IWebHostEnvironment environment)
+    {
+        var handler = new HttpClientHandler();
+        if (environment.IsDevelopment())
+        {
+            handler.ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        }
+        return handler;
     }
 }

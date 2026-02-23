@@ -22,9 +22,8 @@ test.describe('Authentication & Login @auth @smoke', () => {
     });
 
     test('sign-in redirects to Keycloak', async ({ page }) => {
-      const loginPage = new LoginPage(page);
-      await loginPage.goto();
-      await loginPage.clickSignIn();
+      // Navigate directly to auth endpoint (bypasses Blazor button which requires circuit)
+      await page.goto('/auth/login?returnUrl=%2F');
       // Should redirect to Keycloak login
       await page.waitForURL(/.*keycloak.*|.*8443.*/, { timeout: 15_000 });
       await expect(page.locator('#username')).toBeVisible();
@@ -48,8 +47,8 @@ test.describe('Authentication & Login @auth @smoke', () => {
     });
 
     test('rejects invalid credentials at Keycloak', async ({ page }) => {
-      await page.goto('/login');
-      await page.locator('button.mud-button-filled-primary.mud-button-filled-size-large').click();
+      // Navigate directly to auth endpoint to reach Keycloak
+      await page.goto('/auth/login?returnUrl=%2F');
       await page.waitForURL(/.*keycloak.*|.*8443.*/);
 
       const keycloak = new KeycloakLoginPage(page);

@@ -20,9 +20,8 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
    * 8. View in admin panel
    * 9. Clean up
    */
-  test('complete DAM workflow: create → upload → edit → share → admin → cleanup', async ({ page, request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test('complete DAM workflow: create → upload → edit → share → admin → cleanup', async ({ page }) => {
+    api = await ApiHelper.withCookieAuth();
     const fixtures = ensureTestFixtures();
     const dialog = new DialogHelper(page);
 
@@ -105,7 +104,6 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     await expect(page.getByText(collectionName)).toBeVisible({ timeout: 10_000 });
 
     // === Cleanup: delete collection via API ===
-    await api.authenticate();
     const collections = await api.getCollections();
     const workflowCol = collections.find((c: any) => c.name === collectionName);
     if (workflowCol) {
@@ -113,9 +111,8 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     }
   });
 
-  test('share workflow: create share → access publicly → verify content', async ({ page, request, browser }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test('share workflow: create share → access publicly → verify content', async ({ page, browser }) => {
+    api = await ApiHelper.withCookieAuth();
     const fixtures = ensureTestFixtures();
 
     // Create collection + asset + share via API
@@ -175,9 +172,8 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     await api.deleteCollection(collection.id);
   });
 
-  test('collection hierarchy: root → sub-collection → assets → breadcrumbs', async ({ page, request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test('collection hierarchy: root → sub-collection → assets → breadcrumbs', async ({ page }) => {
+    api = await ApiHelper.withCookieAuth();
 
     // Create root + sub-collection via API
     const root = await api.createCollection(`Root-${timestamp}`, 'Root collection');

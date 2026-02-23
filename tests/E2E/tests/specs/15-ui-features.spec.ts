@@ -23,21 +23,20 @@ test.describe('UI Feature Tests @ui', () => {
   const collectionDescription = `E2E description for UI tests ${timestamp}`;
   let testCollectionId: string;
 
-  test.beforeAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.beforeAll(async () => {
+    api = await ApiHelper.withCookieAuth();
 
     // Create collection with a description via API
     const collection = await api.createCollection(collectionName, collectionDescription);
     testCollectionId = collection.id;
   });
 
-  test.afterAll(async ({ request }) => {
+  test.afterAll(async () => {
     if (testCollectionId) {
-      api = new ApiHelper(request);
-      await api.authenticate();
+      api = await ApiHelper.withCookieAuth();
       await api.deleteCollection(testCollectionId).catch(() => {});
     }
+    await api.dispose();
   });
 
   test.describe('Collection Info Banner', () => {
@@ -114,18 +113,17 @@ test.describe('UI Feature Tests @ui', () => {
     let noDescCollectionId: string;
     const noDescName = `${env.testData.collectionPrefix}-NoDesc-${timestamp}`;
 
-    test.beforeAll(async ({ request }) => {
-      api = new ApiHelper(request);
-      await api.authenticate();
+    test.beforeAll(async () => {
+      api = await ApiHelper.withCookieAuth();
       const collection = await api.createCollection(noDescName);
       noDescCollectionId = collection.id;
     });
 
-    test.afterAll(async ({ request }) => {
+    test.afterAll(async () => {
       if (noDescCollectionId) {
-        api = new ApiHelper(request);
-        await api.authenticate();
+        api = await ApiHelper.withCookieAuth();
         await api.deleteCollection(noDescCollectionId).catch(() => {});
+        await api.dispose();
       }
     });
 

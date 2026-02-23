@@ -13,9 +13,8 @@ test.describe('All Assets (Admin) @admin @assets', () => {
 
   const timestamp = Date.now();
 
-  test.beforeAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.beforeAll(async () => {
+    api = await ApiHelper.withCookieAuth();
 
     // Ensure we have test data
     const collection = await api.createCollection(`${env.testData.collectionPrefix}-AllAssets-${timestamp}`);
@@ -28,12 +27,12 @@ test.describe('All Assets (Admin) @admin @assets', () => {
     }
   });
 
-  test.afterAll(async ({ request }) => {
-    api = new ApiHelper(request);
-    await api.authenticate();
+  test.afterAll(async () => {
+    api = await ApiHelper.withCookieAuth();
     if (testCollectionId) {
       await api.deleteCollection(testCollectionId).catch(() => {});
     }
+    await api.dispose();
   });
 
   test.beforeEach(async ({ page }) => {
