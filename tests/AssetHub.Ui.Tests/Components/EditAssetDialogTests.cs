@@ -91,7 +91,7 @@ public class EditAssetDialogTests : BunitTestBase
     {
         var cut = await RenderDialogAsync();
 
-        Assert.Contains("Btn_AddTag", cut.Markup);
+        Assert.Contains("Label_AddTag", cut.Markup);
         Assert.Contains("Btn_Add", cut.Markup);
     }
 

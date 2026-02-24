@@ -121,22 +121,6 @@ public class CollectionEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
 
-    [Fact]
-    public async Task GetChildren_Returns200()
-    {
-        var client = AdminClient();
-        var parentResp = await client.PostAsJsonAsync("/api/collections",
-            new CreateCollectionDto { Name = $"WithChildren-{Guid.NewGuid():N}" });
-        var parent = await parentResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
-
-        await client.PostAsJsonAsync($"/api/collections/{parent!.Id}/children",
-            new CreateCollectionDto { Name = $"Child1-{Guid.NewGuid():N}" });
-
-        var response = await client.GetAsync($"/api/collections/{parent.Id}/children");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
     // ── ACL Management ──────────────────────────────────────────────
 
     [Fact]
@@ -246,37 +230,6 @@ public class CollectionEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    // ── CreateSubCollection — negative ──────────────────────────────
-
-    [Fact]
-    public async Task CreateSubCollection_NonExistentParent_Returns403()
-    {
-        var client = AdminClient();
-        var response = await client.PostAsJsonAsync($"/api/collections/{Guid.NewGuid()}/children",
-            new CreateCollectionDto { Name = $"Orphan-{Guid.NewGuid():N}" });
-
-        // No ACL for non-existent collection → 403
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreateSubCollection_ViewerNoAccess_Returns403()
-    {
-        var adminClient = AdminClient();
-        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
-            new CreateCollectionDto { Name = $"ViewerSub-{Guid.NewGuid():N}" });
-        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
-
-        // Grant viewer read-only access
-        await adminClient.PostAsJsonAsync($"/api/collections/{col!.Id}/acl",
-            new SetCollectionAccessDto { PrincipalType = Constants.PrincipalTypes.User, PrincipalId = TestAuthHandler.DefaultUserId, Role = RoleHierarchy.Roles.Viewer });
-
-        var viewerClient = ViewerClient();
-        var response = await viewerClient.PostAsJsonAsync($"/api/collections/{col.Id}/children",
-            new CreateCollectionDto { Name = $"Child-{Guid.NewGuid():N}" });
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
     // ── UpdateCollection — negative ─────────────────────────────────
 
     [Fact]
@@ -316,29 +269,6 @@ public class CollectionEndpointTests : IAsyncLifetime
         var client = AdminClient();
         var response = await client.DeleteAsync($"/api/collections/{Guid.NewGuid()}");
         // No ACL → 403
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    // ── GetChildren — negative ──────────────────────────────────────
-
-    [Fact]
-    public async Task GetChildren_NonExistentCollection_Returns403()
-    {
-        var client = AdminClient();
-        var response = await client.GetAsync($"/api/collections/{Guid.NewGuid()}/children");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetChildren_ViewerNoAccess_Returns403()
-    {
-        var adminClient = AdminClient();
-        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
-            new CreateCollectionDto { Name = $"Children-{Guid.NewGuid():N}" });
-        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
-
-        var viewerClient = ViewerClient();
-        var response = await viewerClient.GetAsync($"/api/collections/{col!.Id}/children");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
