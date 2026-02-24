@@ -52,7 +52,9 @@ else
                 </MudTooltip>
                 @if (context.HasPassword)
                 {
-                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Warning" Class="ml-1" />
+                    <MudTooltip Text="@CommonLoc["Dashboard_PasswordProtected"]">
+                        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Warning" Class="ml-1" />
+                    </MudTooltip>
                 }
             </MudTd>
             <MudTd>@context.CreatedByUserName</MudTd>

@@ -61,6 +61,7 @@
   <data name="CreatedSuccess" xml:space="preserve"><value>Din dellänk har skapats!</value></data>
   <data name="PasswordProtectedWarning" xml:space="preserve"><value>Denna länk är lösenordsskyddad. Dela lösenordet säkert med mottagarna.</value></data>
   <data name="PasswordHelperText" xml:space="preserve"><value>Ett säkert lösenord har genererats. Du kan redigera det vid behov.</value></data>
+  <data name="Text_CopyAllTemplate" xml:space="preserve"><value>Dellänk: {0}&#xA;Lösenord: {1}</value></data>
 
   <!-- Share Password Dialog -->
   <data name="SharePassword" xml:space="preserve"><value>Delningslösenord</value></data>

@@ -61,6 +61,7 @@
   <data name="CreatedSuccess" xml:space="preserve"><value>Your share link has been created successfully!</value></data>
   <data name="PasswordProtectedWarning" xml:space="preserve"><value>This link is password protected. Share the password securely with recipients.</value></data>
   <data name="PasswordHelperText" xml:space="preserve"><value>A secure password has been generated. You can edit it if needed.</value></data>
+  <data name="Text_CopyAllTemplate" xml:space="preserve"><value>Share Link: {0}&#xA;Password: {1}</value></data>
 
   <!-- Share Password Dialog -->
   <data name="SharePassword" xml:space="preserve"><value>Share Password</value></data>

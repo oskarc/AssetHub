@@ -181,17 +181,21 @@
                             <MudCardActions Class="pa-2 pt-0">
                                 @if (CanShare(asset))
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Filled.Share" 
-                                                   Size="Size.Small" 
-                                                   OnClick="@(async () => await ShareAsset(asset))" />
+                                    <MudTooltip Text="@CommonLoc["Btn_Share"]">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Share" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(async () => await ShareAsset(asset))" />
+                                    </MudTooltip>
                                 }
                                 <MudSpacer />
                                 @if (CanDelete(asset))
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                                   Size="Size.Small" 
-                                                   Color="Color.Error"
-                                                   OnClick="@(async () => await DeleteAsset(asset))" />
+                                    <MudTooltip Text="@CommonLoc["Btn_Delete"]">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                       Size="Size.Small" 
+                                                       Color="Color.Error"
+                                                       OnClick="@(async () => await DeleteAsset(asset))" />
+                                    </MudTooltip>
                                 }
                             </MudCardActions>
                         </MudCard>
@@ -240,16 +244,20 @@
                     <MudTd DataLabel="@AssetLoc["Column_Actions"]" Class="col-text-right">
                         @if (CanShare(context))
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Share"
-                                           Size="Size.Small"
-                                           OnClick="@(async () => await ShareAsset(context))" />
+                            <MudTooltip Text="@CommonLoc["Btn_Share"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.Share"
+                                               Size="Size.Small"
+                                               OnClick="@(async () => await ShareAsset(context))" />
+                            </MudTooltip>
                         }
                         @if (CanDelete(context))
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                           Size="Size.Small"
-                                           Color="Color.Error"
-                                           OnClick="@(async () => await DeleteAsset(context))" />
+                            <MudTooltip Text="@CommonLoc["Btn_Delete"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               OnClick="@(async () => await DeleteAsset(context))" />
+                            </MudTooltip>
                         }
                     </MudTd>
                 </RowTemplate>
