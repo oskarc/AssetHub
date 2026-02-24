@@ -15,7 +15,7 @@ public static class CollectionEndpoints
 
         group.MapGet("", GetRootCollections).WithName("GetRootCollections");
         group.MapGet("{id:guid}", GetCollectionById).WithName("GetCollectionById");
-        group.MapPost("", CreateCollection).DisableAntiforgery().WithName("CreateCollection");
+        group.MapPost("", CreateCollection).DisableAntiforgery().RequireAuthorization("RequireContributor").WithName("CreateCollection");
         group.MapPatch("{id:guid}", UpdateCollection).DisableAntiforgery().WithName("UpdateCollection");
         group.MapDelete("{id:guid}", DeleteCollection).DisableAntiforgery().WithName("DeleteCollection");
         group.MapPost("{id:guid}/download-all", DownloadAllAssets).DisableAntiforgery().WithName("DownloadAllAssets");

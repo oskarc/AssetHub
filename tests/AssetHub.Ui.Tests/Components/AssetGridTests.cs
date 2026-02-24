@@ -96,7 +96,7 @@ public class AssetGridTests : BunitTestBase
 
         // Should show load more with remaining count
         Assert.Contains("Btn_LoadMore", cut.Markup);
-        Assert.Contains("25 remaining", cut.Markup);
+        Assert.Contains("Text_Remaining", cut.Markup);
     }
 
     [Fact]
@@ -187,7 +187,7 @@ public class AssetGridTests : BunitTestBase
             .Add(x => x.UserRole, "viewer"));
 
         // Click the card container (not a button)
-        var cardDiv = cut.Find(".asset-card div[style*='cursor: pointer']");
+        var cardDiv = cut.Find(".asset-card div.clickable");
         cardDiv.Click();
 
         var nav = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();

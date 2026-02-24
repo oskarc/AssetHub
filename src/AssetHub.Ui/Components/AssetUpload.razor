@@ -36,7 +36,7 @@
                    Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.AttachFile"
                    for="fileInput"
-                   Disabled="@(_isUploading)">
+                   Disabled="@(!CollectionId.HasValue || _isUploading)">
             @CommonLoc["Btn_BrowseFiles"]
         </MudButton>
         <MudText Typo="Typo.caption" Color="Color.Secondary">
