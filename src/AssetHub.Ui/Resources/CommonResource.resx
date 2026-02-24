@@ -292,4 +292,9 @@
   <data name="Dashboard_ShareRevoked" xml:space="preserve"><value>Revoked</value></data>
   <data name="Dashboard_ShareActive" xml:space="preserve"><value>Active</value></data>
   <data name="Dashboard_PasswordProtected" xml:space="preserve"><value>Password protected</value></data>
+  <data name="Dashboard_JustNow" xml:space="preserve"><value>just now</value></data>
+  <data name="Dashboard_MinutesAgo" xml:space="preserve"><value>{0}m ago</value></data>
+  <data name="Dashboard_HoursAgo" xml:space="preserve"><value>{0}h ago</value></data>
+  <data name="Dashboard_DaysAgo" xml:space="preserve"><value>{0}d ago</value></data>
+  <data name="Error_UploadModuleNotInit" xml:space="preserve"><value>Upload module not initialized</value></data>
 </root>

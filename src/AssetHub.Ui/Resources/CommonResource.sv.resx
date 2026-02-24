@@ -289,4 +289,9 @@
   <data name="Dashboard_ShareRevoked" xml:space="preserve"><value>Återkallad</value></data>
   <data name="Dashboard_ShareActive" xml:space="preserve"><value>Aktiv</value></data>
   <data name="Dashboard_PasswordProtected" xml:space="preserve"><value>Lösenordsskyddad</value></data>
+  <data name="Dashboard_JustNow" xml:space="preserve"><value>just nu</value></data>
+  <data name="Dashboard_MinutesAgo" xml:space="preserve"><value>{0} min sedan</value></data>
+  <data name="Dashboard_HoursAgo" xml:space="preserve"><value>{0} tim sedan</value></data>
+  <data name="Dashboard_DaysAgo" xml:space="preserve"><value>{0} d sedan</value></data>
+  <data name="Error_UploadModuleNotInit" xml:space="preserve"><value>Uppladdningsmodul ej initierad</value></data>
 </root>

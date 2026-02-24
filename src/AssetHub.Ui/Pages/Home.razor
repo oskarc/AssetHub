@@ -194,8 +194,9 @@
                                                         @string.Format(Loc["Dashboard_Accesses"].Value, share.AccessCount)
                                                         @if (share.HasPassword)
                                                         {
-                                                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="ml-1"
-                                                                     Title="@Loc["Dashboard_PasswordProtected"].Value" />
+                                                            <MudTooltip Text="@Loc["Dashboard_PasswordProtected"].Value">
+                                                                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="ml-1" />
+                                                            </MudTooltip>
                                                         }
                                                     </MudText>
                                                 </div>
@@ -340,13 +341,13 @@
             .Select(w => char.ToUpper(w[0]) + w[1..]));
     }
 
-    private static string FormatTimeAgo(DateTime utcTime)
+    private string FormatTimeAgo(DateTime utcTime)
     {
         var diff = DateTime.UtcNow - utcTime;
-        if (diff.TotalMinutes < 1) return "just now";
-        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
-        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
-        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+        if (diff.TotalMinutes < 1) return Loc["Dashboard_JustNow"].Value;
+        if (diff.TotalMinutes < 60) return string.Format(Loc["Dashboard_MinutesAgo"].Value, (int)diff.TotalMinutes);
+        if (diff.TotalHours < 24) return string.Format(Loc["Dashboard_HoursAgo"].Value, (int)diff.TotalHours);
+        if (diff.TotalDays < 7) return string.Format(Loc["Dashboard_DaysAgo"].Value, (int)diff.TotalDays);
         return utcTime.ToString("yyyy-MM-dd");
     }
 }
