@@ -30,10 +30,16 @@ public class PostgresFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        var exceptions = new List<Exception>();
         foreach (var ds in _dataSources.Values)
-            await ds.DisposeAsync();
+        {
+            try { await ds.DisposeAsync(); }
+            catch (Exception ex) { exceptions.Add(ex); }
+        }
         _dataSources.Clear();
         await _container.DisposeAsync();
+        if (exceptions.Count > 0)
+            throw new AggregateException("One or more data sources failed to dispose.", exceptions);
     }
 
     /// <summary>

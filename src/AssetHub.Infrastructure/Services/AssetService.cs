@@ -84,7 +84,7 @@ public sealed class AssetService : IAssetService
         {
             if (!_currentUser.IsSystemAdmin)
             {
-                var canAccess = await _authService.CheckAccessAsync(userId, fromCollectionId.Value, RoleHierarchy.Roles.Contributor, ct);
+                var canAccess = await _authService.CheckAccessAsync(userId, fromCollectionId.Value, RoleHierarchy.Roles.Manager, ct);
                 if (!canAccess)
                     return ServiceError.Forbidden();
             }
