@@ -1,8 +1,10 @@
 using AssetHub.Api.Extensions;
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Api.Endpoints;
 
@@ -96,9 +98,10 @@ public static class ShareEndpoints
     private static async Task<IResult> CreateShare(
         CreateShareDto dto,
         [FromServices] IShareAccessService svc,
-        HttpContext httpContext, CancellationToken ct)
+        [FromServices] IOptions<AppSettings> appSettings,
+        CancellationToken ct)
     {
-        var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+        var baseUrl = (appSettings.Value.BaseUrl ?? "").TrimEnd('/');
         var result = await svc.CreateShareAsync(dto, baseUrl, ct);
         return result.ToHttpResult(v => Results.Created($"/api/shares/{v.Id}", v));
     }

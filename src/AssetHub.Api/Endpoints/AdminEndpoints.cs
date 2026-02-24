@@ -1,7 +1,10 @@
 using AssetHub.Api.Extensions;
+using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Api.Endpoints;
 
@@ -106,9 +109,10 @@ public static class AdminEndpoints
     private static async Task<IResult> CreateUser(
         [FromBody] CreateUserRequest request,
         [FromServices] IAdminService svc,
-        HttpContext httpContext, CancellationToken ct)
+        [FromServices] IOptions<AppSettings> appSettings,
+        CancellationToken ct)
     {
-        var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+        var baseUrl = (appSettings.Value.BaseUrl ?? "").TrimEnd('/');
         var result = await svc.CreateUserAsync(request, baseUrl, ct);
         return result.ToHttpResult(v => Results.Created($"/api/admin/users/{v.UserId}", v));
     }
@@ -145,6 +149,7 @@ public static class AdminEndpoints
         CancellationToken ct,
         [FromQuery] int take = 200)
     {
+        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
         var result = await svc.GetAuditEventsAsync(take, ct);
         return result.ToHttpResult();
     }
