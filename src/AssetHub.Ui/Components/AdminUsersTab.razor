@@ -82,13 +82,13 @@ else
                 @if (context.IsSystemAdmin)
                 {
                     <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(RoleHierarchy.Roles.Admin)" Variant="Variant.Filled">
-                        @RoleHierarchy.Roles.Admin
+                        @CommonLoc[AssetDisplayHelpers.GetRoleKey(RoleHierarchy.Roles.Admin)]
                     </MudChip>
                 }
                 else if (!string.IsNullOrEmpty(context.HighestRole))
                 {
                     <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(context.HighestRole)">
-                        @context.HighestRole
+                        @CommonLoc[AssetDisplayHelpers.GetRoleKey(context.HighestRole)]
                     </MudChip>
                 }
                 else

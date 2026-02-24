@@ -47,11 +47,18 @@ else
                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.TargetType</MudChip>
             </MudTd>
             <MudTd DataLabel="@AdminLoc["Header_TargetId"]">
-                <MudTooltip Text="@(context.TargetId?.ToString() ?? "—")">
-                    <MudText Typo="Typo.body2" Style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        @(context.TargetId?.ToString()?[..8] ?? "—")...
-                    </MudText>
-                </MudTooltip>
+                @if (context.TargetId.HasValue)
+                {
+                    <MudTooltip Text="@context.TargetId.Value.ToString()">
+                        <MudText Typo="Typo.body2" Style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            @(context.TargetId.Value.ToString()[..8])...
+                        </MudText>
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2">—</MudText>
+                }
             </MudTd>
             <MudTd DataLabel="@AdminLoc["Header_Details"]">
                 @if (context.Details != null && context.Details.Any())

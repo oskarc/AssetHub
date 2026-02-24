@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Claims;
 using AssetHub.Api.Endpoints;
 using AssetHub.Api.Middleware;
@@ -52,15 +53,21 @@ public static class WebApplicationExtensions
     public static void UseAssetHubMiddleware(this WebApplication app)
     {
         // Process X-Forwarded-* headers from reverse proxy (must be first).
-        // KnownNetworks/KnownProxies are cleared so the proxy IP on the Docker
-        // bridge network is trusted. This is safe because the app is only
-        // reachable via the reverse proxy; direct external access is blocked.
+        // Restricted to RFC 1918 private ranges so only the Docker reverse proxy
+        // (which lives on the internal bridge network) can influence the client IP.
+        // Accepting X-Forwarded-For from arbitrary sources would allow any client to
+        // spoof their IP address and bypass IP-based rate limiting (CWE-807).
         var forwardedOptions = new ForwardedHeadersOptions
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         };
-        forwardedOptions.KnownNetworks.Clear();
-        forwardedOptions.KnownProxies.Clear();
+        // Trust only RFC 1918 private ranges — Docker bridge (172.16.0.0/12),
+        // loopback (127.0.0.0/8), class-A private (10.0.0.0/8), and
+        // class-C private (192.168.0.0/16).
+        forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("10.0.0.0"), 8));
+        forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("172.16.0.0"), 12));
+        forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
+        forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
         app.UseForwardedHeaders(forwardedOptions);
 
         if (!app.Environment.IsDevelopment())

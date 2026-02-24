@@ -131,8 +131,10 @@ else
                                             }
                                             else
                                             {
-                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                                    Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
+                                                <MudTooltip Text="@CommonLoc["Btn_Remove"]">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                        Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
+                                                </MudTooltip>
                                             }
                                         </td>
                                     </tr>

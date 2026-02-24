@@ -73,6 +73,19 @@ public static class AssetDisplayHelpers
     }
 
     /// <summary>
+    /// Returns the CommonResource key for an asset type, e.g. "image" → "AssetType_Image".
+    /// Use with IStringLocalizer to display a localized type label.
+    /// </summary>
+    public static string GetAssetTypeKey(string? assetType) => (assetType?.ToLowerInvariant()) switch
+    {
+        "image" => "AssetType_Image",
+        "video" => "AssetType_Video",
+        "document" => "AssetType_Document",
+        "audio" => "AssetType_Audio",
+        _ => assetType ?? ""
+    };
+
+    /// <summary>
     /// Gets the MudBlazor icon string for an asset type.
     /// </summary>
     public static string GetAssetIcon(string? assetType)
@@ -122,6 +135,18 @@ public static class AssetDisplayHelpers
     }
 
     /// <summary>
+    /// Returns the CommonResource key for an asset processing status, e.g. "ready" → "AssetStatus_Ready".
+    /// Use with IStringLocalizer to display a localized status label.
+    /// </summary>
+    public static string GetAssetStatusKey(string? status) => (status?.ToLowerInvariant()) switch
+    {
+        "ready" => "AssetStatus_Ready",
+        "processing" => "AssetStatus_Processing",
+        "failed" => "AssetStatus_Failed",
+        _ => status ?? ""
+    };
+
+    /// <summary>
     /// Gets the MudBlazor color for a share status (Active/Expired/Revoked).
     /// </summary>
     public static MudBlazor.Color GetShareStatusColor(string? status)
@@ -134,6 +159,18 @@ public static class AssetDisplayHelpers
             _ => MudBlazor.Color.Default
         };
     }
+
+    /// <summary>
+    /// Returns the resource key for a share status value, e.g. "Active" → "Active".
+    /// Use with IStringLocalizer to display a localized status label.
+    /// </summary>
+    public static string GetShareStatusKey(string? status) => status switch
+    {
+        "Active" => "Active",
+        "Expired" => "Expired",
+        "Revoked" => "Revoked",
+        _ => status ?? ""
+    };
 
     // ===== ROLE DISPLAY =====
 
@@ -151,6 +188,19 @@ public static class AssetDisplayHelpers
             _ => MudBlazor.Color.Default
         };
     }
+
+    /// <summary>
+    /// Returns the resource key for a role name, e.g. "viewer" → "Role_Viewer".
+    /// Use with IStringLocalizer to display a localized role label.
+    /// </summary>
+    public static string GetRoleKey(string? role) => (role?.ToLowerInvariant()) switch
+    {
+        RoleHierarchy.Roles.Viewer => "Role_Viewer",
+        RoleHierarchy.Roles.Contributor => "Role_Contributor",
+        RoleHierarchy.Roles.Manager => "Role_Manager",
+        RoleHierarchy.Roles.Admin => "Role_Admin",
+        _ => role ?? ""
+    };
 
     // ===== FORMATTING =====
 

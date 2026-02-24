@@ -32,7 +32,9 @@ public class AuditService(
             TargetId = targetId,
             ActorUserId = actorUserId,
             IP = httpContext?.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = httpContext?.Request.Headers.UserAgent.FirstOrDefault(),
+            UserAgent = httpContext?.Request.Headers.UserAgent.FirstOrDefault() is { } ua
+                ? ua[..Math.Min(ua.Length, 512)]
+                : null,
             DetailsJson = details ?? new Dictionary<string, object>(),
             CreatedAt = DateTime.UtcNow
         };

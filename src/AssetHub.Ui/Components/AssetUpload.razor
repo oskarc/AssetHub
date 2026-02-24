@@ -144,7 +144,7 @@
     {
         if (_jsModule == null || _inputFile?.Element == null)
         {
-            Feedback.ShowError("Upload module not initialized");
+            Feedback.ShowError(CommonLoc["Error_UploadModuleNotInit"].Value);
             return;
         }
 
@@ -217,8 +217,8 @@
                 if (!success)
                 {
                     upload.Status = UploadStatus.Failed;
-                    upload.ErrorMessage ??= "Upload failed";
-                    Feedback.ShowError($"Upload failed: {file.Name}");
+                    upload.ErrorMessage ??= string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name);
+                    Feedback.ShowError(string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name));
                     StateHasChanged();
                     continue;
                 }
@@ -238,7 +238,7 @@
             {
                 upload.Status = UploadStatus.Failed;
                 upload.ErrorMessage = ex.Message;
-                Feedback.ShowError($"Upload failed: {file.Name}");
+                Feedback.ShowError(string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name));
             }
 
             StateHasChanged();

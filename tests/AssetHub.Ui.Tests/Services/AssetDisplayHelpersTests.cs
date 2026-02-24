@@ -165,6 +165,60 @@ public class AssetDisplayHelpersTests
         Assert.Equal(expected, AssetDisplayHelpers.GetRoleColor(role));
     }
 
+    // ===== GetRoleKey =====
+
+    [Theory]
+    [InlineData("viewer", "Role_Viewer")]
+    [InlineData("contributor", "Role_Contributor")]
+    [InlineData("manager", "Role_Manager")]
+    [InlineData("admin", "Role_Admin")]
+    [InlineData("unknown", "unknown")]
+    [InlineData(null, "")]
+    public void GetRoleKey_Returns_Correct_Resource_Key(string? role, string expected)
+    {
+        Assert.Equal(expected, AssetDisplayHelpers.GetRoleKey(role));
+    }
+
+    // ===== GetShareStatusKey =====
+
+    [Theory]
+    [InlineData("Active", "Active")]
+    [InlineData("Expired", "Expired")]
+    [InlineData("Revoked", "Revoked")]
+    [InlineData("Unknown", "Unknown")]
+    [InlineData(null, "")]
+    public void GetShareStatusKey_Returns_Correct_Resource_Key(string? status, string expected)
+    {
+        Assert.Equal(expected, AssetDisplayHelpers.GetShareStatusKey(status));
+    }
+
+    // ===== GetAssetTypeKey =====
+
+    [Theory]
+    [InlineData("image", "AssetType_Image")]
+    [InlineData("video", "AssetType_Video")]
+    [InlineData("document", "AssetType_Document")]
+    [InlineData("audio", "AssetType_Audio")]
+    [InlineData("unknown", "unknown")]
+    [InlineData(null, "")]
+    public void GetAssetTypeKey_Returns_Correct_Resource_Key(string? assetType, string expected)
+    {
+        Assert.Equal(expected, AssetDisplayHelpers.GetAssetTypeKey(assetType));
+    }
+
+    // ===== GetAssetStatusKey =====
+
+    [Theory]
+    [InlineData("ready", "AssetStatus_Ready")]
+    [InlineData("processing", "AssetStatus_Processing")]
+    [InlineData("failed", "AssetStatus_Failed")]
+    [InlineData("unknown", "unknown")]
+    [InlineData(null, "")]
+    public void GetAssetStatusKey_Returns_Correct_Resource_Key(string? status, string expected)
+    {
+        Assert.Equal(expected, AssetDisplayHelpers.GetAssetStatusKey(status));
+    }
+
     // ===== FormatFileSize =====
 
     [Theory]

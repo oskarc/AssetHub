@@ -99,6 +99,8 @@
   <data name="NoCollectionAccessDesc" xml:space="preserve"><value>This user doesn't have access to any collections yet.</value></data>
   <data name="ChangeRole" xml:space="preserve"><value>Change Role</value></data>
   <data name="RevokeAccess" xml:space="preserve"><value>Revoke Access</value></data>
+  <data name="ConfirmRemoveAccess" xml:space="preserve"><value>Are you sure you want to remove access for {0} from '{1}'? This action cannot be undone.</value></data>
+  <data name="ConfirmRevokeAccess" xml:space="preserve"><value>Are you sure you want to revoke access to '{0}'? This action cannot be undone.</value></data>
 
   <!-- Create User Dialog -->
   <data name="CreateNewUser" xml:space="preserve"><value>Create New User</value></data>

@@ -43,7 +43,7 @@ else
                                          Size="Size.Small" 
                                          Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
                                          Variant="Variant.Outlined">
-                                    @asset.AssetType
+                                    @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
                                 </MudChip>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                                     @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
@@ -54,17 +54,21 @@ else
                     <MudCardActions Class="pa-2 pt-0">
                         @if (CanShare)
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Share" 
-                                           Size="Size.Small" 
-                                           OnClick="@(async () => await ShareAsset(asset))" />
+                            <MudTooltip Text="@CommonLoc["Btn_Share"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.Share" 
+                                               Size="Size.Small" 
+                                               OnClick="@(async () => await ShareAsset(asset))" />
+                            </MudTooltip>
                         }
                         <MudSpacer />
                         @if (CanDelete)
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                           Size="Size.Small" 
-                                           Color="Color.Error"
-                                           OnClick="@(async () => await DeleteAsset(asset))" />
+                            <MudTooltip Text="@CommonLoc["Btn_Delete"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Size="Size.Small" 
+                                               Color="Color.Error"
+                                               OnClick="@(async () => await DeleteAsset(asset))" />
+                            </MudTooltip>
                         }
                     </MudCardActions>
                 </MudCard>
@@ -101,7 +105,7 @@ else
                     <MudChip T="string" Size="Size.Small"
                              Color="@AssetDisplayHelpers.GetAssetTypeColor(context.AssetType)"
                              Variant="Variant.Outlined">
-                        @context.AssetType
+                        @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(context.AssetType)]
                     </MudChip>
                 </MudTd>
                 <MudTd DataLabel="@AssetLoc["Column_Size"]">
@@ -113,16 +117,20 @@ else
                 <MudTd DataLabel="@AssetLoc["Column_Actions"]" Class="col-text-right">
                     @if (CanShare)
                     {
-                        <MudIconButton Icon="@Icons.Material.Filled.Share"
-                                       Size="Size.Small"
-                                       OnClick="@(async () => await ShareAsset(context))" />
+                        <MudTooltip Text="@CommonLoc["Btn_Share"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.Share"
+                                           Size="Size.Small"
+                                           OnClick="@(async () => await ShareAsset(context))" />
+                        </MudTooltip>
                     }
                     @if (CanDelete)
                     {
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                       Size="Size.Small"
-                                       Color="Color.Error"
-                                       OnClick="@(async () => await DeleteAsset(context))" />
+                        <MudTooltip Text="@CommonLoc["Btn_Delete"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(async () => await DeleteAsset(context))" />
+                        </MudTooltip>
                     }
                 </MudTd>
             </RowTemplate>

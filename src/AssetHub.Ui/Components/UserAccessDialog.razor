@@ -6,6 +6,7 @@
 @inject NavigationManager Nav
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 
@@ -26,7 +27,7 @@
                         <MudText Typo="Typo.caption" Color="Color.Secondary">@User.UserId</MudText>
                     </MudStack>
                     <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(User.HighestRole)">
-                        @AdminLoc["Highest"]: @User.HighestRole
+                        @AdminLoc["Highest"]: @CommonLoc[AssetDisplayHelpers.GetRoleKey(User.HighestRole)]
                     </MudChip>
                 </MudStack>
             </MudPaper>
@@ -60,13 +61,14 @@
                                 <td>
                                     <MudLink Href="@($"/collections?collection={collection.CollectionId}")" 
                                              Color="Color.Primary"
-                                             Underline="Underline.Hover">
+                                             Underline="Underline.Hover"
+                                             Target="_blank">
                                         @collection.CollectionName
                                     </MudLink>
                                 </td>
                                 <td>
                                     <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(collection.Role)" Variant="Variant.Outlined">
-                                        @collection.Role
+                                        @CommonLoc[AssetDisplayHelpers.GetRoleKey(collection.Role)]
                                     </MudChip>
                                 </td>
                                 <td>
@@ -104,6 +106,14 @@
 
     private async Task RevokeAccess(UserCollectionAccessDto collection)
     {
+        var confirmed = await DialogService.ShowMessageBox(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName),
+            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true)
+            return;
+
         _isRevoking = true;
         StateHasChanged();
 

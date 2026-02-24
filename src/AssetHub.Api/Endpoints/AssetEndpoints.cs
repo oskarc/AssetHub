@@ -100,6 +100,8 @@ public static class AssetEndpoints
 
         if (string.IsNullOrWhiteSpace(title))
             return Results.BadRequest(new { error = "Title is required" });
+        if (title.Length > 255)
+            return Results.BadRequest(new { error = "Title must be 255 characters or fewer" });
 
         using var stream = file.OpenReadStream();
         var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, ct);

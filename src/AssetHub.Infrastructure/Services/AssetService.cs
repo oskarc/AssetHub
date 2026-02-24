@@ -59,7 +59,12 @@ public sealed class AssetService : IAssetService
         if (dto.Title != null) asset.Title = dto.Title;
         if (dto.Description != null) asset.Description = dto.Description;
         if (dto.Copyright != null) asset.Copyright = dto.Copyright;
-        if (dto.Tags != null) asset.Tags = dto.Tags;
+        if (dto.Tags != null)
+        {
+            if (dto.Tags.Any(t => t.Length > Constants.Limits.MaxTagLength))
+                return ServiceError.BadRequest($"Each tag must be {Constants.Limits.MaxTagLength} characters or fewer");
+            asset.Tags = dto.Tags;
+        }
         if (dto.MetadataJson != null) asset.MetadataJson = dto.MetadataJson;
         asset.UpdatedAt = DateTime.UtcNow;
 

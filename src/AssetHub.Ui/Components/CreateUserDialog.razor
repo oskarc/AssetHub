@@ -200,7 +200,7 @@
             };
 
             _createdUser = await Api.CreateUserAsync(request);
-            Feedback.ShowSuccess($"User \"{_model.Username}\" created successfully");
+            Feedback.ShowSuccess(string.Format(CommonLoc["User_CreatedSuccess"].Value, _model.Username));
         }
         catch (ApiException ex)
         {

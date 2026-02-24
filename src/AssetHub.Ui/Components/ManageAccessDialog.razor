@@ -2,6 +2,7 @@
 
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<CollectionsResource> CollLoc
 
@@ -135,7 +136,7 @@
                                         <MudChip T="string" Size="Size.Small"
                                                  Color="@AssetDisplayHelpers.GetRoleColor(entry.Role)"
                                                  Variant="Variant.Outlined">
-                                            @entry.Role
+                                            @CommonLoc[AssetDisplayHelpers.GetRoleKey(entry.Role)]
                                         </MudChip>
                                     }
                                 </td>
@@ -330,6 +331,14 @@
 
     private async Task RevokeAccessAsync(CollectionAclResponseDto entry)
     {
+        var confirmed = await DialogService.ShowMessageBox(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(CollLoc["ConfirmRevokeAccess"], entry.PrincipalName ?? entry.PrincipalId),
+            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true)
+            return;
+
         _revokingIds.Add(entry.Id);
         StateHasChanged();
 

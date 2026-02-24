@@ -70,8 +70,8 @@ public class ManageAccessDialogTests : BunitTestBase
     {
         var cut = await RenderDialogAsync();
 
-        Assert.Contains("viewer", cut.Markup);
-        Assert.Contains("contributor", cut.Markup);
+        Assert.Contains("Role_Viewer", cut.Markup);
+        Assert.Contains("Role_Contributor", cut.Markup);
     }
 
     [Fact]
@@ -219,11 +219,17 @@ public class ManageAccessDialogTests : BunitTestBase
 
         var cut = await RenderDialogAsync(currentUserRole: "manager", aclEntries: entries);
 
-        // Find the revoke button (PersonRemove icon button — rendered with mud-error-text CSS class)
-        var revokeBtn = cut.FindAll("button.mud-error-text").FirstOrDefault();
+        // Find the revoke button by its error color CSS class (Color.Error on MudIconButton)
+        var revokeBtn = cut.Find("button.mud-error-text");
         Assert.NotNull(revokeBtn);
 
-        await cut.InvokeAsync(() => revokeBtn!.Click());
+        await cut.InvokeAsync(() => revokeBtn.Click());
+
+        // Confirm the MudMessageBox by clicking the yes button ("Btn_Revoke" via StubStringLocalizer)
+        var confirmBtn = cut.FindAll("button")
+            .FirstOrDefault(b => b.TextContent.Contains("Btn_Revoke"));
+        Assert.NotNull(confirmBtn);
+        await cut.InvokeAsync(() => confirmBtn!.Click());
 
         MockApi.Verify(a => a.RevokeCollectionAccessAsync(
             _collectionId, "user", "user-revoke", It.IsAny<CancellationToken>()), Times.Once());
@@ -244,10 +250,16 @@ public class ManageAccessDialogTests : BunitTestBase
 
         var cut = await RenderDialogAsync(currentUserRole: "manager", aclEntries: entries);
 
-        var revokeBtn = cut.FindAll("button.mud-error-text").FirstOrDefault();
+        var revokeBtn = cut.Find("button.mud-error-text");
         Assert.NotNull(revokeBtn);
 
-        await cut.InvokeAsync(() => revokeBtn!.Click());
+        await cut.InvokeAsync(() => revokeBtn.Click());
+
+        // Confirm the MudMessageBox by clicking the yes button ("Btn_Revoke" via StubStringLocalizer)
+        var confirmBtn = cut.FindAll("button")
+            .FirstOrDefault(b => b.TextContent.Contains("Btn_Revoke"));
+        Assert.NotNull(confirmBtn);
+        await cut.InvokeAsync(() => confirmBtn!.Click());
 
         VerifyHandleErrorCalled();
     }

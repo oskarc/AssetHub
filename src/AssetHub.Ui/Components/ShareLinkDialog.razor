@@ -27,6 +27,8 @@
                           AdornmentIcon="@Icons.Material.Filled.ContentCopy"
                           OnAdornmentClick="CopyUrlToClipboard" />
 
+            @if (!string.IsNullOrEmpty(Password))
+            {
             <MudTextField Value="@Password"
                           Label="@CommonLoc["Label_Password"]"
                           ReadOnly="true"
@@ -50,6 +52,7 @@
                     @CommonLoc["Btn_CopyAll"]
                 </MudButton>
             </MudStack>
+            }
 
             @if (ExpiresAt.HasValue)
             {
@@ -59,20 +62,26 @@
                 </MudText>
             }
 
-            <MudAlert Severity="Severity.Warning" Dense="true">
-                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
-                @ShareLoc["PasswordProtectedWarning"]
-            </MudAlert>
+            @if (!string.IsNullOrEmpty(Password))
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                    @ShareLoc["PasswordProtectedWarning"]
+                </MudAlert>
+            }
         </MudStack>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
-        <MudButton Color="Color.Primary" 
-                   Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.ContentCopy"
-                   OnClick="CopyAllToClipboard">
-            @CommonLoc["Btn_CopyAll"]
-        </MudButton>
+        @if (!string.IsNullOrEmpty(Password))
+        {
+            <MudButton Color="Color.Primary" 
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.ContentCopy"
+                       OnClick="CopyAllToClipboard">
+                @CommonLoc["Btn_CopyAll"]
+            </MudButton>
+        }
     </DialogActions>
 </MudDialog>
 
@@ -125,7 +134,7 @@
     {
         try
         {
-            var text = $"Share Link: {ShareUrl}\nPassword: {Password}";
+            var text = string.Format(ShareLoc["Text_CopyAllTemplate"].Value, ShareUrl, Password);
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
             Feedback.ShowSuccess(CommonLoc["Success_LinkAndPasswordCopied"].Value);
         }

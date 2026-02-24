@@ -7,6 +7,7 @@
 @inject NavigationManager Nav
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 
@@ -170,7 +171,7 @@
                                     else
                                     {
                                         <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(collection.Role)" Variant="Variant.Outlined">
-                                            @collection.Role
+                                            @CommonLoc[AssetDisplayHelpers.GetRoleKey(collection.Role)]
                                         </MudChip>
                                     }
                                 </td>
@@ -178,33 +179,37 @@
                                     @if (_editingCollectionId == collection.CollectionId)
                                     {
                                         <MudStack Row="true" Spacing="1">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Save" 
-                                                           Size="Size.Small" 
-                                                           Color="Color.Success"
-                                                           OnClick="SaveRoleEdit"
-                                                           title="@CommonLoc["Btn_Save"]" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" 
-                                                           Size="Size.Small" 
-                                                           Color="Color.Default"
-                                                           OnClick="CancelRoleEdit"
-                                                           title="@CommonLoc["Btn_Cancel"]" />
+                                            <MudTooltip Text="@CommonLoc["Btn_Save"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Save" 
+                                                               Size="Size.Small" 
+                                                               Color="Color.Success"
+                                                               OnClick="SaveRoleEdit" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="@CommonLoc["Btn_Cancel"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Cancel" 
+                                                               Size="Size.Small" 
+                                                               Color="Color.Default"
+                                                               OnClick="CancelRoleEdit" />
+                                            </MudTooltip>
                                         </MudStack>
                                     }
                                     else
                                     {
                                         <MudStack Row="true" Spacing="1">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                                           Size="Size.Small" 
-                                                           Color="Color.Primary"
-                                                           OnClick="@(() => StartRoleEdit(collection))"
-                                                           Disabled="@(_revokingCollections.Count > 0)"
-                                                           title="@AdminLoc["ChangeRole"]" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" 
-                                                           Size="Size.Small" 
-                                                           Color="Color.Error"
-                                                           OnClick="@(() => RevokeAccess(collection))"
-                                                           Disabled="@(_revokingCollections.Contains(collection.CollectionId))"
-                                                           title="@AdminLoc["RevokeAccess"]" />
+                                            <MudTooltip Text="@AdminLoc["ChangeRole"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                               Size="Size.Small" 
+                                                               Color="Color.Primary"
+                                                               OnClick="@(() => StartRoleEdit(collection))"
+                                                               Disabled="@(_revokingCollections.Count > 0)" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="@AdminLoc["RevokeAccess"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" 
+                                                               Size="Size.Small" 
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => RevokeAccess(collection))"
+                                                               Disabled="@(_revokingCollections.Contains(collection.CollectionId))" />
+                                            </MudTooltip>
                                         </MudStack>
                                     }
                                 </td>
@@ -367,6 +372,14 @@
 
     private async Task RevokeAccess(UserCollectionAccessDto collection)
     {
+        var confirmed = await DialogService.ShowMessageBox(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName),
+            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true)
+            return;
+
         _revokingCollections.Add(collection.CollectionId);
         StateHasChanged();
 

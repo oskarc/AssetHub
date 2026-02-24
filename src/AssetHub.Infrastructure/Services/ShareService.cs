@@ -77,6 +77,17 @@ public class ShareService(
                 return ShareCreationResult.Error($"Expiry date cannot be more than {Constants.Limits.MaxShareExpiryDays} days in the future");
         }
 
+        // Validate notification email addresses up-front so the caller receives
+        // a 400 rather than a silent email failure (CWE-20)
+        if (dto.NotifyEmails?.Count > 0)
+        {
+            var invalidEmails = dto.NotifyEmails
+                .Where(e => InputValidation.ValidateEmail(e) != null)
+                .ToList();
+            if (invalidEmails.Count > 0)
+                return ShareCreationResult.Error("One or more notification email addresses are invalid");
+        }
+
         // Generate secure token
         var token = ShareHelpers.GenerateToken();
         var tokenHash = ShareHelpers.ComputeTokenHash(token);

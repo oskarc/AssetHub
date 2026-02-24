@@ -68,6 +68,7 @@
   <data name="User" xml:space="preserve"><value>Användare</value></data>
   <data name="ChangeRole" xml:space="preserve"><value>Ändra roll</value></data>
   <data name="RevokeAccess" xml:space="preserve"><value>Återkalla åtkomst</value></data>
+  <data name="ConfirmRevokeAccess" xml:space="preserve"><value>Är du säker på att du vill återkalla åtkomst för {0}? Denna åtgärd kan inte ångras.</value></data>
   <data name="InsufficientLevel" xml:space="preserve"><value>Högre roll</value></data>
   <data name="AccessGrantedSuccess" xml:space="preserve"><value>Beviljat {1}-åtkomst till {0}</value></data>
   <data name="RoleUpdatedSuccess" xml:space="preserve"><value>Roll uppdaterad</value></data>
