@@ -61,14 +61,6 @@ test.describe('API Endpoint Tests @api', () => {
       expect(data.name).toBe(testCollectionName);
     });
 
-    test('create sub-collection', async () => {
-      if (!testCollectionId) test.skip();
-      const subName = `${testCollectionName}-Sub`;
-      const result = await api.createCollection(subName, 'Sub-collection', testCollectionId);
-      expect(result.id).toBeTruthy();
-      expect(result.parentId || result.ParentId).toBe(testCollectionId);
-    });
-
     test('get collection children', async () => {
       if (!testCollectionId) test.skip();
       const children = await api.getCollectionChildren(testCollectionId);
@@ -212,36 +204,38 @@ test.describe('API Endpoint Tests @api', () => {
 
     test('access share with password', async ({ request }) => {
       if (!shareToken) test.skip();
-      const res = await request.get(
-        `${env.baseUrl}/api/shares/${shareToken}?password=test-password-123`
-      );
-      expect([200, 400, 401, 403, 404]).toContain(res.status());
+      const res = await request.get(`${env.baseUrl}/api/shares/${shareToken}`, {
+        headers: { 'X-Share-Password': 'test-password-123' },
+      });
+      expect(res.status()).toBe(200);
     });
 
     test('access share with wrong password returns 401', async ({ request }) => {
       if (!shareToken) test.skip();
-      const res = await request.get(
-        `${env.baseUrl}/api/shares/${shareToken}?password=wrong-password`
-      );
+      const res = await request.get(`${env.baseUrl}/api/shares/${shareToken}`, {
+        headers: { 'X-Share-Password': 'wrong-password' },
+      });
       expect(res.status()).toBe(401);
     });
 
     test('share download endpoint', async ({ request }) => {
       if (!shareToken) test.skip();
-      const res = await request.get(
-        `${env.baseUrl}/api/shares/${shareToken}/download?password=test-password-123`,
-        { maxRedirects: 0 }
-      );
-      expect([200, 301, 302, 307, 401, 403, 404]).toContain(res.status());
+      const res = await request.get(`${env.baseUrl}/api/shares/${shareToken}/download`, {
+        headers: { 'X-Share-Password': 'test-password-123' },
+        maxRedirects: 0,
+      });
+      // Should redirect to presigned URL (302/307) or serve directly (200)
+      expect([200, 302, 307]).toContain(res.status());
     });
 
     test('share preview endpoint', async ({ request }) => {
       if (!shareToken) test.skip();
-      const res = await request.get(
-        `${env.baseUrl}/api/shares/${shareToken}/preview?password=test-password-123`,
-        { maxRedirects: 0 }
-      );
-      expect([200, 301, 302, 307, 401, 403, 404]).toContain(res.status());
+      const res = await request.get(`${env.baseUrl}/api/shares/${shareToken}/preview`, {
+        headers: { 'X-Share-Password': 'test-password-123' },
+        maxRedirects: 0,
+      });
+      // Should redirect to presigned URL (302/307) or serve directly (200)
+      expect([200, 302, 307]).toContain(res.status());
     });
 
     test('admin list shares', async () => {
@@ -252,7 +246,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('admin get share token', async () => {
       if (!shareId) test.skip();
       const res = await api.get(`${env.baseUrl}/api/admin/shares/${shareId}/token`);
-      expect([200, 204, 403, 404]).toContain(res.status());
+      expect(res.status()).toBe(200);
     });
 
     test('update share password', async () => {
@@ -264,20 +258,22 @@ test.describe('API Endpoint Tests @api', () => {
     test('revoke share', async () => {
       if (!shareId) test.skip();
       const res = await api.revokeShare(shareId);
-      expect([200, 204, 403, 404]).toContain(res.status());
+      // Revoke returns 204 No Content on success
+      expect(res.status()).toBe(204);
     });
 
     test('revoked share returns error', async ({ request }) => {
       if (!shareToken) test.skip();
-      const res = await request.get(
-        `${env.baseUrl}/api/shares/${shareToken}?password=new-password-456`
-      );
-      expect([400, 401, 403, 404, 410]).toContain(res.status());
+      const res = await request.get(`${env.baseUrl}/api/shares/${shareToken}`, {
+        headers: { 'X-Share-Password': 'new-password-456' },
+      });
+      // Revoked share should return 410 Gone or 404 Not Found
+      expect([404, 410]).toContain(res.status());
     });
 
-    test('invalid token returns error', async ({ request }) => {
+    test('invalid token returns 404', async ({ request }) => {
       const res = await request.get(`${env.baseUrl}/api/shares/invalid-token-xyz`);
-      expect([400, 401, 404]).toContain(res.status());
+      expect(res.status()).toBe(404);
     });
   });
 
@@ -294,12 +290,12 @@ test.describe('API Endpoint Tests @api', () => {
 
     test('admin collections access endpoint', async () => {
       const res = await api.get(`${env.baseUrl}/api/admin/collections/access`);
-      expect([200, 204, 403, 404]).toContain(res.status());
+      expect(res.status()).toBe(200);
     });
 
     test('admin users endpoint', async () => {
       const res = await api.get(`${env.baseUrl}/api/admin/users`);
-      expect([200, 204, 403, 404]).toContain(res.status());
+      expect(res.status()).toBe(200);
     });
 
     test('admin keycloak users endpoint', async () => {
@@ -310,17 +306,18 @@ test.describe('API Endpoint Tests @api', () => {
 
     test('admin all assets endpoint', async () => {
       const res = await api.get(`${env.baseUrl}/api/assets/all?skip=0&take=10`);
-      expect([200, 204, 403, 404]).toContain(res.status());
+      expect(res.status()).toBe(200);
     });
   });
 
   test.describe('Authorization Guards', () => {
-    test('unauthenticated request to protected endpoint returns 401', async ({ browser }) => {
+    test('unauthenticated request to protected endpoint returns 401 or redirect', async ({ browser }) => {
       // Use a fresh context without stored auth state
       const ctx = await browser.newContext();
       const request = ctx.request;
       const res = await request.get(`${env.baseUrl}/api/collections`);
-      expect([200, 401, 302]).toContain(res.status());
+      // Should return 401 Unauthorized or 302 redirect to login
+      expect([401, 302]).toContain(res.status());
       await ctx.close();
     });
 

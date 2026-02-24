@@ -137,7 +137,7 @@ public static class Constants
             "application/json",
             "application/xml",
             "text/xml",
-            "application/svg+xml",
+            // NOTE: application/svg+xml removed due to XSS risk — SVGs can contain embedded JavaScript
             "font/woff",
             "font/woff2",
             "font/ttf",
