@@ -33,13 +33,13 @@ public class SmtpEmailService : IEmailService
         
         if (!recipientList.Any())
         {
-            _logger.LogWarning($"No valid recipients provided for email: {template.Subject}");
+            _logger.LogWarning("No valid recipients provided for email: {Subject}", template.Subject);
             return;
         }
 
         if (!_settings.Enabled)
         {
-            _logger.LogInformation($"Email sending is disabled. Would have sent '{template.Subject}' to: {string.Join(", ", recipientList)}");
+            _logger.LogInformation("Email sending is disabled. Would have sent '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
             return;
         }
 
@@ -50,11 +50,11 @@ public class SmtpEmailService : IEmailService
 
             await client.SendMailAsync(message, cancellationToken);
 
-            _logger.LogInformation($"Successfully sent email '{template.Subject}' to {recipientList.Count} recipient(s)");
+            _logger.LogInformation("Successfully sent email '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failed to send email '{template.Subject}' to: {string.Join(", ", recipientList)}");
+            _logger.LogError(ex, "Failed to send email '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
             throw;
         }
     }
