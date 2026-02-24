@@ -328,7 +328,7 @@ public class CollectionAclServiceTests : IAsyncLifetime
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value!);
-        Assert.Equal(NewUser, result.Value[0].Id);
+        Assert.Equal(NewUser, result.Value![0].Id);
     }
 
     [Fact]
@@ -351,6 +351,6 @@ public class CollectionAclServiceTests : IAsyncLifetime
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value!);
-        Assert.Equal("alice", result.Value[0].Username);
+        Assert.Equal("alice", result.Value![0].Username);
     }
 }
