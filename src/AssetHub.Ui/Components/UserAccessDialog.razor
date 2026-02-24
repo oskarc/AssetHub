@@ -6,6 +6,7 @@
 @inject NavigationManager Nav
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 
@@ -60,7 +61,8 @@
                                 <td>
                                     <MudLink Href="@($"/collections?collection={collection.CollectionId}")" 
                                              Color="Color.Primary"
-                                             Underline="Underline.Hover">
+                                             Underline="Underline.Hover"
+                                             Target="_blank">
                                         @collection.CollectionName
                                     </MudLink>
                                 </td>
@@ -104,6 +106,14 @@
 
     private async Task RevokeAccess(UserCollectionAccessDto collection)
     {
+        var confirmed = await DialogService.ShowMessageBox(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName),
+            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true)
+            return;
+
         _isRevoking = true;
         StateHasChanged();
 
