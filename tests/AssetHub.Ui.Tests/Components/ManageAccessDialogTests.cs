@@ -70,8 +70,8 @@ public class ManageAccessDialogTests : BunitTestBase
     {
         var cut = await RenderDialogAsync();
 
-        Assert.Contains("viewer", cut.Markup);
-        Assert.Contains("contributor", cut.Markup);
+        Assert.Contains("Role_Viewer", cut.Markup);
+        Assert.Contains("Role_Contributor", cut.Markup);
     }
 
     [Fact]

@@ -41,7 +41,10 @@
                 <MudTextField @bind-Value="_password"
                               Label="@CommonLoc["Label_Password"]"
                               Variant="Variant.Outlined"
-                              InputType="InputType.Password"
+                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                              OnAdornmentClick="@(() => _showPassword = !_showPassword)"
                               Immediate="true"
                               OnKeyDown="@OnPasswordKeyDown" />
                 
@@ -221,6 +224,7 @@
     private bool _requiresPassword = false;
     private bool _isSubmitting = false;
     private bool _isDownloading = false;
+    private bool _showPassword = false;
     private string _downloadStatusText = "";
     private string _password = "";
     private string? _accessToken;

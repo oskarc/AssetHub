@@ -64,7 +64,7 @@ else
             <MudTd><MudChip T="string" Size="Size.Small">@context.AccessCount</MudChip></MudTd>
             <MudTd>
                 <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetShareStatusColor(context.Status)">
-                    @context.Status
+                    @AdminLoc[AssetDisplayHelpers.GetShareStatusKey(context.Status)]
                 </MudChip>
             </MudTd>
             <MudTd>

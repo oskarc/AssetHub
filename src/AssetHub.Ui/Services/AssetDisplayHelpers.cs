@@ -135,6 +135,18 @@ public static class AssetDisplayHelpers
         };
     }
 
+    /// <summary>
+    /// Returns the resource key for a share status value, e.g. "Active" → "Active".
+    /// Use with IStringLocalizer to display a localized status label.
+    /// </summary>
+    public static string GetShareStatusKey(string? status) => status switch
+    {
+        "Active" => "Active",
+        "Expired" => "Expired",
+        "Revoked" => "Revoked",
+        _ => status ?? ""
+    };
+
     // ===== ROLE DISPLAY =====
 
     /// <summary>
@@ -151,6 +163,19 @@ public static class AssetDisplayHelpers
             _ => MudBlazor.Color.Default
         };
     }
+
+    /// <summary>
+    /// Returns the resource key for a role name, e.g. "viewer" → "Role_Viewer".
+    /// Use with IStringLocalizer to display a localized role label.
+    /// </summary>
+    public static string GetRoleKey(string? role) => (role?.ToLowerInvariant()) switch
+    {
+        RoleHierarchy.Roles.Viewer => "Role_Viewer",
+        RoleHierarchy.Roles.Contributor => "Role_Contributor",
+        RoleHierarchy.Roles.Manager => "Role_Manager",
+        RoleHierarchy.Roles.Admin => "Role_Admin",
+        _ => role ?? ""
+    };
 
     // ===== FORMATTING =====
 
