@@ -27,11 +27,23 @@ public static class FileHelpers
             };
         }
 
-        var safeName = string.Join("_", title.Split(Path.GetInvalidFileNameChars()));
+        var safeName = SanitizeNamePart(string.Join("_", title.Split(Path.GetInvalidFileNameChars())));
         if (string.IsNullOrEmpty(safeName))
-            safeName = Path.GetFileNameWithoutExtension(objectKey);
+            safeName = SanitizeNamePart(Path.GetFileNameWithoutExtension(objectKey));
+        if (string.IsNullOrEmpty(safeName))
+            safeName = "untitled";
 
         return safeName + extension;
+    }
+
+    /// <summary>
+    /// Removes leading dots and surrounding whitespace from a filename component
+    /// to prevent hidden-file creation and ZIP path traversal on extraction.
+    /// </summary>
+    private static string SanitizeNamePart(string name)
+    {
+        // Replace any internal ".." sequences, then strip leading dots/spaces
+        return name.Replace("..", "_").TrimStart('.', ' ').TrimEnd(' ');
     }
 
     /// <summary>
