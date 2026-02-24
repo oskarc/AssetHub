@@ -221,5 +221,11 @@ public static class Constants
         /// use if the collection count grows large.
         /// </summary>
         public const int AdminCollectionQueryLimit = 2_000;
+
+        /// <summary>Maximum number of tags per asset.</summary>
+        public const int MaxTagsPerAsset = 50;
+
+        /// <summary>Maximum character length for a single asset tag.</summary>
+        public const int MaxTagLength = 100;
     }
 }

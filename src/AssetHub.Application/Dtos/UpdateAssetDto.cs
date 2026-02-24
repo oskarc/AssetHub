@@ -16,6 +16,7 @@ public class UpdateAssetDto
     [StringLength(500)]
     public string? Copyright { get; set; }
     
+    [MaxLength(Constants.Limits.MaxTagsPerAsset, ErrorMessage = "Maximum 50 tags allowed")]
     public List<string>? Tags { get; set; }
     
     public Dictionary<string, object>? MetadataJson { get; set; }

@@ -388,6 +388,12 @@ public class ShareAccessService : IShareAccessService
         string? mediumUrl = !string.IsNullOrEmpty(asset.MediumObjectKey)
             ? $"/api/shares/{token}/preview?size=medium{assetIdQuery}" : null;
 
+        // Strip GPS coordinates from shared metadata to protect location privacy
+        // when assets are accessed by external share-link recipients (CWE-359).
+        var publicMetadata = asset.MetadataJson
+            .Where(kvp => !kvp.Key.StartsWith("gps", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
         return new SharedAssetDto
         {
             Id = asset.Id,
@@ -399,7 +405,7 @@ public class ShareAccessService : IShareAccessService
             SizeBytes = asset.SizeBytes,
             ThumbnailUrl = thumbnailUrl,
             MediumUrl = mediumUrl,
-            MetadataJson = asset.MetadataJson,
+            MetadataJson = publicMetadata,
             Permissions = permissions
         };
     }
