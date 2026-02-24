@@ -87,6 +87,9 @@
   <data name="Label_Role" xml:space="preserve"><value>Roll</value></data>
   <data name="Label_Actions" xml:space="preserve"><value>Åtgärder</value></data>
   <data name="Label_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="AssetStatus_Ready" xml:space="preserve"><value>Klar</value></data>
+  <data name="AssetStatus_Processing" xml:space="preserve"><value>Bearbetar</value></data>
+  <data name="AssetStatus_Failed" xml:space="preserve"><value>Misslyckades</value></data>
   <data name="Label_User" xml:space="preserve"><value>Användare</value></data>
   <data name="Label_Email" xml:space="preserve"><value>E-post</value></data>
   <data name="Label_Password" xml:space="preserve"><value>Lösenord</value></data>
@@ -123,6 +126,10 @@
   <data name="Filter_Images" xml:space="preserve"><value>Bilder</value></data>
   <data name="Filter_Videos" xml:space="preserve"><value>Videor</value></data>
   <data name="Filter_Documents" xml:space="preserve"><value>Dokument</value></data>
+  <data name="AssetType_Image" xml:space="preserve"><value>Bild</value></data>
+  <data name="AssetType_Video" xml:space="preserve"><value>Video</value></data>
+  <data name="AssetType_Document" xml:space="preserve"><value>Dokument</value></data>
+  <data name="AssetType_Audio" xml:space="preserve"><value>Ljud</value></data>
 
   <!-- Sort Options -->
   <data name="Sort_NewestFirst" xml:space="preserve"><value>Nyast först</value></data>

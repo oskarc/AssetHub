@@ -145,7 +145,7 @@
                                             <MudText Typo="Typo.caption" Style="opacity: 0.6;">@CollectionLoc["YourRole"]:</MudText>
                                             <MudChip T="string" Size="Size.Small"
                                                      Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
-                                                @collection.UserRole
+                                                @CommonLoc[AssetDisplayHelpers.GetRoleKey(collection.UserRole)]
                                             </MudChip>
                                         </div>
                                         @if (collection.AssetCount > 0)
@@ -177,7 +177,7 @@
                                 <MudText Typo="Typo.body2" Style="font-weight: 500;">@CollectionLoc["YourRole"]:</MudText>
                                 <MudChip T="string" Size="Size.Small"
                                          Color="@AssetDisplayHelpers.GetRoleColor(_selectedCollection.UserRole)">
-                                    @_selectedCollection.UserRole
+                                    @CommonLoc[AssetDisplayHelpers.GetRoleKey(_selectedCollection.UserRole)]
                                 </MudChip>
                                 <MudText Typo="Typo.caption" Style="opacity: 0.6;">— @GetRoleDescription(_selectedCollection.UserRole)</MudText>
                             </div>

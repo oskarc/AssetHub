@@ -170,7 +170,7 @@
                                                  Size="Size.Small" 
                                                  Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
                                                  Variant="Variant.Outlined">
-                                            @asset.AssetType
+                                            @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
                                         </MudChip>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                                             @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
@@ -232,7 +232,7 @@
                         <MudChip T="string" Size="Size.Small"
                                  Color="@AssetDisplayHelpers.GetAssetTypeColor(context.AssetType)"
                                  Variant="Variant.Outlined">
-                            @context.AssetType
+                            @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(context.AssetType)]
                         </MudChip>
                     </MudTd>
                     <MudTd DataLabel="@AssetLoc["Column_Size"]">
