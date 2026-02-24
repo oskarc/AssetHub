@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -15,6 +16,11 @@ public class PostgresFixture : IAsyncLifetime
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16-alpine")
         .Build();
 
+    // Reuse one NpgsqlDataSource per database name to avoid connection-pool
+    // exhaustion caused by creating (but never disposing) a fresh data source
+    // for every CreateDbContextAsync / CreateDbContextForExistingDb call.
+    private readonly ConcurrentDictionary<string, NpgsqlDataSource> _dataSources = new();
+
     public string ConnectionString => _container.GetConnectionString();
 
     public async Task InitializeAsync()
@@ -24,7 +30,24 @@ public class PostgresFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        foreach (var ds in _dataSources.Values)
+            await ds.DisposeAsync();
+        _dataSources.Clear();
         await _container.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Returns (creating if necessary) a shared NpgsqlDataSource for the given database.
+    /// </summary>
+    private NpgsqlDataSource GetOrCreateDataSource(string dbName)
+    {
+        return _dataSources.GetOrAdd(dbName, name =>
+        {
+            var builder = new NpgsqlConnectionStringBuilder(ConnectionString) { Database = name };
+            var dsBuilder = new NpgsqlDataSourceBuilder(builder.ConnectionString);
+            dsBuilder.EnableDynamicJson();
+            return dsBuilder.Build();
+        });
     }
 
     /// <summary>
@@ -42,11 +65,7 @@ public class PostgresFixture : IAsyncLifetime
         cmd.CommandText = $"CREATE DATABASE \"{dbName}\"";
         await cmd.ExecuteNonQueryAsync();
 
-        // Build connection string for the new database
-        var builder = new NpgsqlConnectionStringBuilder(ConnectionString) { Database = dbName };
-        var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.ConnectionString);
-        dataSourceBuilder.EnableDynamicJson();
-        var dataSource = dataSourceBuilder.Build();
+        var dataSource = GetOrCreateDataSource(dbName);
         var options = new DbContextOptionsBuilder<AssetHubDbContext>()
             .UseNpgsql(dataSource)
             .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
@@ -75,10 +94,7 @@ public class PostgresFixture : IAsyncLifetime
     /// </summary>
     public AssetHubDbContext CreateDbContextForExistingDb(string dbName)
     {
-        var builder = new NpgsqlConnectionStringBuilder(ConnectionString) { Database = dbName };
-        var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.ConnectionString);
-        dataSourceBuilder.EnableDynamicJson();
-        var dataSource = dataSourceBuilder.Build();
+        var dataSource = GetOrCreateDataSource(dbName);
         var options = new DbContextOptionsBuilder<AssetHubDbContext>()
             .UseNpgsql(dataSource)
             .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))

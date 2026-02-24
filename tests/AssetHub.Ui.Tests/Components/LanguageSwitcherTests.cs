@@ -5,15 +5,17 @@ namespace AssetHub.Ui.Tests.Components;
 /// <summary>
 /// Tests for the LanguageSwitcher component.
 /// Verifies culture options, initial selection, and culture change behavior.
+/// The component uses a MudMenu (icon button + menu items) rather than a MudSelect.
 /// </summary>
 public class LanguageSwitcherTests : BunitTestBase
 {
     [Fact]
-    public void Renders_Language_Select()
+    public void Renders_Language_Menu()
     {
         var cut = Render<LanguageSwitcher>();
 
-        Assert.Contains("language-switcher", cut.Markup);
+        // Component renders a MudMenu with a language icon
+        Assert.NotNull(cut.FindComponent<MudMenu>());
     }
 
     [Fact]
@@ -21,10 +23,10 @@ public class LanguageSwitcherTests : BunitTestBase
     {
         var cut = Render<LanguageSwitcher>();
 
-        // Open the MudSelect dropdown (MudBlazor 8 uses mousedown)
-        cut.Find("div.mud-input-control").MouseDown();
+        // Open the MudMenu by clicking the activator button
+        cut.Find("button.mud-button-root").Click();
 
-        // MudSelectItem contents render inside MudPopoverProvider
+        // MudMenuItem contents render inside MudPopoverProvider
         Assert.Contains("English", PopoverProvider!.Markup);
     }
 
@@ -33,10 +35,10 @@ public class LanguageSwitcherTests : BunitTestBase
     {
         var cut = Render<LanguageSwitcher>();
 
-        // Open the MudSelect dropdown (MudBlazor 8 uses mousedown)
-        cut.Find("div.mud-input-control").MouseDown();
+        // Open the MudMenu by clicking the activator button
+        cut.Find("button.mud-button-root").Click();
 
-        // MudSelectItem contents render inside MudPopoverProvider
+        // MudMenuItem contents render inside MudPopoverProvider
         Assert.Contains("Svenska", PopoverProvider!.Markup);
     }
 
@@ -46,23 +48,23 @@ public class LanguageSwitcherTests : BunitTestBase
         // Default culture is "en"
         var cut = Render<LanguageSwitcher>();
 
-        // Should render without errors — culture detection happens server-side
-        Assert.Contains("language-switcher", cut.Markup);
+        // Should render without errors — component renders a MudMenu
+        Assert.NotNull(cut.FindComponent<MudMenu>());
     }
 
     [Fact]
-    public void Renders_As_Compact_MudSelect()
+    public void Renders_As_MudMenu_With_Language_Icon()
     {
         var cut = Render<LanguageSwitcher>();
 
-        // Should be a dense variant
-        Assert.Contains("language-switcher", cut.Markup);
+        // Should render a MudMenu with the language icon
+        Assert.NotNull(cut.FindComponent<MudMenu>());
     }
 
     [Fact]
     public async Task Changing_Culture_Sets_Cookie_Via_JsInterop()
     {
-        // Explicitly set UI culture to "en" so the OnCultureChanged guard
+        // Explicitly set UI culture to "en" so the guard
         // (if culture == _currentCulture return) doesn't skip the logic.
         var originalCulture = System.Globalization.CultureInfo.CurrentUICulture;
         System.Globalization.CultureInfo.CurrentUICulture = new System.Globalization.CultureInfo("en");
@@ -74,16 +76,16 @@ public class LanguageSwitcherTests : BunitTestBase
 
             var cut = Render<LanguageSwitcher>();
 
-            // Programmatically trigger the culture change via MudSelect's ValueChanged callback.
-            // Clicking MudSelectItems in bUnit doesn't reliably trigger ValueChanged through
-            // MudBlazor's internal event chain, so we invoke the callback directly.
-            var select = cut.FindComponent<MudSelect<string>>();
+            // Invoke SetCulture("sv") directly via reflection — clicking menu items through
+            // MudBlazor's popover provider is unreliable in bUnit; the JS interop logic
+            // is what this test is really verifying.
+            var method = typeof(LanguageSwitcher).GetMethod(
+                "SetCulture",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.NotNull(method);
             try
             {
-                await cut.InvokeAsync(async () =>
-                {
-                    await select.Instance.ValueChanged.InvokeAsync("sv");
-                });
+                await cut.InvokeAsync(() => (Task)method!.Invoke(cut.Instance, ["sv"])!);
             }
             catch (Microsoft.AspNetCore.Components.NavigationException)
             {

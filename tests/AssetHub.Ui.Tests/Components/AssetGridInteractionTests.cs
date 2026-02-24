@@ -56,8 +56,8 @@ public class AssetGridInteractionTests : BunitTestBase
 
         var cardActions = cut.Find(".mud-card-actions");
         var iconButtons = cardActions.QuerySelectorAll("button.mud-icon-button");
-        Assert.True(iconButtons.Length >= 2, $"Expected at least 2 icon buttons, got {iconButtons.Length}");
-        var shareButton = iconButtons[1]; // Share is the second button after Visibility
+        Assert.True(iconButtons.Length >= 1, $"Expected at least 1 icon button, got {iconButtons.Length}");
+        var shareButton = iconButtons[0]; // Share is the first icon button for contributor
         shareButton.Click();
 
         MockDialogService.Verify(d => d.ShowAsync<CreateShareDialog>(
