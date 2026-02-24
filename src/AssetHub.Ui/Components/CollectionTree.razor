@@ -96,8 +96,21 @@ else
 
     private async Task EditCollection(CollectionResponseDto collection)
     {
-        // TODO: Implement rename dialog
-        Feedback.ShowInfo(CommonLoc["Msg_RenameComingSoon"].Value);
+        var parameters = new DialogParameters<EditCollectionDialog>
+        {
+            { x => x.CollectionId, collection.Id },
+            { x => x.InitialName, collection.Name },
+            { x => x.InitialDescription, collection.Description }
+        };
+
+        var dialog = await DialogService.ShowAsync<EditCollectionDialog>(CollectionLoc["EditCollection"], parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadCollectionsAsync();
+            Feedback.ShowSuccess(CollectionLoc["UpdatedSuccess"].Value);
+        }
     }
 
     private async Task DeleteCollection(CollectionResponseDto collection)

@@ -122,17 +122,21 @@
                                         <div onclick="event.stopPropagation()" class="d-flex">
                                             @if (RolePermissions.CanEditCollection(collection.UserRole))
                                             {
-                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                                               Size="Size.Small"
-                                                               Color="Color.Default"
-                                                               OnClick="@(() => EditCollectionAsync(collection))" />
+                                                <MudTooltip Text="@CollectionLoc["EditCollection"]">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Default"
+                                                                   OnClick="@(() => EditCollectionAsync(collection))" />
+                                                </MudTooltip>
                                             }
                                             @if (RolePermissions.CanDelete(collection.UserRole))
                                             {
-                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                               Size="Size.Small"
-                                                               Color="Color.Error"
-                                                               OnClick="@(() => DeleteCollectionAsync(collection))" />
+                                                <MudTooltip Text="@CollectionLoc["DeleteCollection"]">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Error"
+                                                                   OnClick="@(() => DeleteCollectionAsync(collection))" />
+                                                </MudTooltip>
                                             }
                                         </div>
                                     </div>

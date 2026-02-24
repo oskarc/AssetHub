@@ -117,11 +117,12 @@ else
                                 <MudText Typo="Typo.subtitle2">@CommonLoc["Label_Collections"]</MudText>
                                 @if (RolePermissions.CanManageCollections(_asset?.UserRole))
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Filled.Add"
-                                                   Size="Size.Small"
-                                                   Color="Color.Primary"
-                                                   OnClick="OpenAddToCollectionDialogAsync"
-                                                   title="@AssetLoc["AddToCollection"]" />
+                                    <MudTooltip Text="@AssetLoc["AddToCollection"]">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                                       Size="Size.Small"
+                                                       Color="Color.Primary"
+                                                       OnClick="OpenAddToCollectionDialogAsync" />
+                                    </MudTooltip>
                                 }
                             </MudStack>
                             
@@ -141,11 +142,12 @@ else
                                             </MudChip>
                                             @if (RolePermissions.CanManageCollections(_asset?.UserRole))
                                             {
-                                                <MudIconButton Icon="@Icons.Material.Filled.Close"
-                                                               Size="Size.Small"
-                                                               Color="Color.Error"
-                                                               OnClick="@(() => RemoveFromCollectionAsync(collection))"
-                                                               title="@AssetLoc["RemoveFromCollection"]" />
+                                                <MudTooltip Text="@AssetLoc["RemoveFromCollection"]">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Error"
+                                                                   OnClick="@(() => RemoveFromCollectionAsync(collection))" />
+                                                </MudTooltip>
                                             }
                                         </MudStack>
                                     }
