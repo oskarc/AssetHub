@@ -312,7 +312,7 @@ public class CollectionServiceTests : IAsyncLifetime
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value!);
-        Assert.Equal("Accessible", result.Value[0].Name);
+        Assert.Equal("Accessible", result.Value![0].Name);
     }
 
     // ── DownloadAllAssetsAsync ──────────────────────────────────────

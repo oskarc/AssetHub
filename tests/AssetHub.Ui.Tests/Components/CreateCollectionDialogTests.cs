@@ -57,10 +57,13 @@ public class CreateCollectionDialogTests : BunitTestBase
 
         var cut = await RenderDialogAsync();
 
-        // Fill in the name field
+        // Fill in the name field — use Input() to fire oninput so Immediate="true" triggers validation
         var nameInput = cut.Find("input");
-        nameInput.Change("New Collection");
+        nameInput.Input("New Collection");
         nameInput.Blur();
+
+        // Explicitly validate the form so @bind-IsValid updates in the bUnit test environment
+        await cut.InvokeAsync(async () => await cut.FindComponent<MudForm>().Instance.Validate());
 
         // Wait for form to become valid, then click the Create button
         cut.WaitForState(() => cut.FindAll("button").Any(b =>

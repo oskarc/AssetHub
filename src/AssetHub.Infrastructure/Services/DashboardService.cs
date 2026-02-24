@@ -200,7 +200,7 @@ public class DashboardService : IDashboardService
 
         var assetNames = assetScopeIds.Count > 0
             ? await _db.Assets.Where(a => assetScopeIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Title, ct)
-            : new Dictionary<Guid, string?>();
+            : new Dictionary<Guid, string>();
         var collectionNames = collectionScopeIds.Count > 0
             ? await _db.Collections.Where(c => collectionScopeIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Name, ct)
             : new Dictionary<Guid, string>();

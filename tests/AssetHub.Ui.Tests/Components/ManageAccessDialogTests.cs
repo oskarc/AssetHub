@@ -219,9 +219,8 @@ public class ManageAccessDialogTests : BunitTestBase
 
         var cut = await RenderDialogAsync(currentUserRole: "manager", aclEntries: entries);
 
-        // Find the revoke button (PersonRemove icon button)
-        var revokeBtn = cut.FindAll("button")
-            .FirstOrDefault(b => b.OuterHtml.Contains("PersonRemove") || b.GetAttribute("title")?.Contains("RevokeAccess") == true);
+        // Find the revoke button (PersonRemove icon button — rendered with mud-error-text CSS class)
+        var revokeBtn = cut.FindAll("button.mud-error-text").FirstOrDefault();
         Assert.NotNull(revokeBtn);
 
         await cut.InvokeAsync(() => revokeBtn!.Click());
@@ -245,8 +244,7 @@ public class ManageAccessDialogTests : BunitTestBase
 
         var cut = await RenderDialogAsync(currentUserRole: "manager", aclEntries: entries);
 
-        var revokeBtn = cut.FindAll("button")
-            .FirstOrDefault(b => b.OuterHtml.Contains("PersonRemove") || b.GetAttribute("title")?.Contains("RevokeAccess") == true);
+        var revokeBtn = cut.FindAll("button.mud-error-text").FirstOrDefault();
         Assert.NotNull(revokeBtn);
 
         await cut.InvokeAsync(() => revokeBtn!.Click());

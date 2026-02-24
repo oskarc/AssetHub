@@ -232,7 +232,7 @@
                             }
                             else
                             {
-                                <MudTimeline TimelinePosition="TimelinePosition.Start" Dense="true">
+                                <MudTimeline TimelinePosition="TimelinePosition.Start">
                                     @foreach (var evt in _dashboard.RecentActivity.Take(8))
                                     {
                                         <MudTimelineItem Color="@GetAuditEventColor(evt.EventType)" Size="Size.Small">

@@ -247,7 +247,7 @@ public class AdminEndpointTests : IAsyncLifetime
 
         // Setup Keycloak mock to simulate user creation
         _factory.MockKeycloak
-            .Setup(x => x.CreateUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.CreateUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("new-user-id");
 
         var request = new CreateUserRequest
