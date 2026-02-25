@@ -227,5 +227,11 @@ public static class Constants
 
         /// <summary>Maximum character length for a single asset tag.</summary>
         public const int MaxTagLength = 100;
+
+        /// <summary>Maximum number of entries in the asset metadata dictionary.</summary>
+        public const int MaxMetadataEntries = 200;
+
+        /// <summary>Maximum character length for a single metadata key.</summary>
+        public const int MaxMetadataKeyLength = 100;
     }
 }
