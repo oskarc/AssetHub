@@ -173,6 +173,9 @@ public sealed class AssetQueryService : IAssetQueryService
         if (asset == null)
             return ServiceError.NotFound("Asset not found");
 
+        if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Viewer, ct))
+            return ServiceError.Forbidden();
+
         var collectionIds = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
 
         bool canDeleteAll = _currentUser.IsSystemAdmin;

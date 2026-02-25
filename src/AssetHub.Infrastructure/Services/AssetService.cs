@@ -65,7 +65,16 @@ public sealed class AssetService : IAssetService
                 return ServiceError.BadRequest($"Each tag must be {Constants.Limits.MaxTagLength} characters or fewer");
             asset.Tags = dto.Tags;
         }
-        if (dto.MetadataJson != null) asset.MetadataJson = dto.MetadataJson;
+        if (dto.MetadataJson != null)
+        {
+            if (dto.MetadataJson.Count > Constants.Limits.MaxMetadataEntries)
+                return ServiceError.BadRequest($"Metadata cannot exceed {Constants.Limits.MaxMetadataEntries} entries");
+            if (dto.MetadataJson.Keys.Any(k => k.Length > Constants.Limits.MaxMetadataKeyLength))
+                return ServiceError.BadRequest($"Each metadata key must be {Constants.Limits.MaxMetadataKeyLength} characters or fewer");
+            if (dto.MetadataJson.Values.Any(v => v?.ToString()?.Length > Constants.Limits.MaxMetadataValueLength))
+                return ServiceError.BadRequest($"Each metadata value must be {Constants.Limits.MaxMetadataValueLength} characters or fewer");
+            asset.MetadataJson = dto.MetadataJson;
+        }
         asset.UpdatedAt = DateTime.UtcNow;
 
         await _assetRepo.UpdateAsync(asset, ct);
@@ -204,7 +213,7 @@ public sealed class AssetService : IAssetService
 
         if (!_currentUser.IsSystemAdmin)
         {
-            var canAccess = await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
+            var canAccess = await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Manager, ct);
             if (!canAccess)
                 return ServiceError.Forbidden("You don't have permission to manage this asset in this collection");
         }

@@ -92,10 +92,12 @@ public class ShareService(
         var token = ShareHelpers.GenerateToken();
         var tokenHash = ShareHelpers.ComputeTokenHash(token);
 
-        // Generate password if not provided
+        // Generate password if not provided; validate length if explicitly provided
         var plainPassword = dto.Password;
         if (string.IsNullOrWhiteSpace(plainPassword))
             plainPassword = PasswordGenerator.Generate(12);
+        else if (plainPassword.Length < Constants.Limits.MinSharePasswordLength)
+            return ShareCreationResult.Error($"Password must be at least {Constants.Limits.MinSharePasswordLength} characters");
 
         var protector = dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
         var protectedBytes = protector.Protect(System.Text.Encoding.UTF8.GetBytes(token));

@@ -259,6 +259,12 @@ public class AdminService : IAdminService
         var password = request.Password;
         if (string.IsNullOrWhiteSpace(password))
             password = AssetHub.Application.Helpers.PasswordGenerator.Generate(20);
+        else
+        {
+            var pwError = InputValidation.ValidatePassword(password);
+            if (pwError != null)
+                return ServiceError.Validation("Validation failed", new Dictionary<string, string> { ["password"] = pwError });
+        }
 
         var collectionErrors = await _provisioning.ValidateCollectionsExistAsync(request.InitialCollectionIds, ct);
         if (collectionErrors.Count > 0)

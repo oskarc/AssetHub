@@ -572,6 +572,104 @@ public class SecurityTests : IAsyncLifetime
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  SECTION 8: AUTHORIZATION CONSISTENCY TESTS
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task Contributor_CannotRemoveAsset_FromCollection()
+    {
+        // Seed a collection with Contributor role for User A
+        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Contributor);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
+
+        // Contributor should not be able to remove an asset from a collection — requires Manager+
+        var response = await client.DeleteAsync($"/api/assets/{assetId}/collections/{colId}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UserA_CannotGet_DeletionContext_ForUserBsAsset()
+    {
+        // User B creates a collection and asset
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
+        // User A has no access to User B's asset
+        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
+
+        var response = await clientA.GetAsync($"/api/assets/{assetId}/deletion-context");
+
+        // Should be 403, not 200 with collection count disclosure
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateAsset_WithOversizedMetadata_Returns400()
+    {
+        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
+
+        // Build a metadata dictionary exceeding the allowed limit
+        var oversizedMetadata = Enumerable.Range(0, Constants.Limits.MaxMetadataEntries + 1)
+            .ToDictionary(i => $"key_{i}", i => (object)$"value_{i}");
+
+        var patchContent = JsonContent.Create(new { MetadataJson = oversizedMetadata });
+        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SECTION 9: INPUT VALIDATION DEPTH TESTS
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task CreateShare_WithShortPassword_Returns400()
+    {
+        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Contributor);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
+
+        var dto = new CreateShareDto
+        {
+            ScopeId = assetId,
+            ScopeType = Constants.ScopeTypes.Asset,
+            Password = "abc1234"  // Only 7 chars — below the 8-char minimum
+        };
+        var response = await client.PostAsJsonAsync("/api/shares", dto);
+
+        // Should be rejected: password too short
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateSharePassword_WithShortPassword_Returns400()
+    {
+        var (_, _, shareId, _) = await SeedShareAsync(UserAId, ShareScopeType.Asset);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
+
+        var dto = new UpdateSharePasswordDto { Password = "abc123" }; // 6 chars — below minimum
+        var response = await client.PutAsJsonAsync($"/api/shares/{shareId}/password", dto);
+
+        // Should be rejected: password too short
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateAsset_WithOversizedMetadataValue_Returns400()
+    {
+        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
+
+        // Single metadata value that exceeds the per-value length limit
+        var oversizedValue = new string('x', Constants.Limits.MaxMetadataValueLength + 1);
+        var metadata = new Dictionary<string, object> { ["key"] = oversizedValue };
+
+        var patchContent = JsonContent.Create(new { MetadataJson = metadata });
+        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  HELPER METHODS
     // ═══════════════════════════════════════════════════════════════
 

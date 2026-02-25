@@ -197,6 +197,9 @@ public static class Constants
         /// <summary>Maximum share link expiry in days.</summary>
         public const int MaxShareExpiryDays = 90;
 
+        /// <summary>Minimum character length for share link passwords.</summary>
+        public const int MinSharePasswordLength = 8;
+
         /// <summary>How long a share access token remains valid (minutes).</summary>
         public const int ShareAccessTokenLifetimeMinutes = 30;
 
@@ -222,10 +225,25 @@ public static class Constants
         /// </summary>
         public const int AdminCollectionQueryLimit = 2_000;
 
+        /// <summary>
+        /// Maximum number of users loaded in a single query from the Keycloak database.
+        /// Prevents unbounded memory use in large deployments (CWE-400).
+        /// </summary>
+        public const int MaxUserQueryLimit = 10_000;
+
         /// <summary>Maximum number of tags per asset.</summary>
         public const int MaxTagsPerAsset = 50;
 
         /// <summary>Maximum character length for a single asset tag.</summary>
         public const int MaxTagLength = 100;
+
+        /// <summary>Maximum number of entries in the asset metadata dictionary.</summary>
+        public const int MaxMetadataEntries = 200;
+
+        /// <summary>Maximum character length for a single metadata key.</summary>
+        public const int MaxMetadataKeyLength = 100;
+
+        /// <summary>Maximum character length for a single metadata value (string representation).</summary>
+        public const int MaxMetadataValueLength = 1000;
     }
 }
