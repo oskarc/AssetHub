@@ -115,7 +115,7 @@
   <data name="Label_Environment" xml:space="preserve"><value>Miljö:</value></data>
 
   <!-- Roles -->
-  <data name="Role_Viewer" xml:space="preserve"><value>Betraktare</value></data>
+  <data name="Role_Viewer" xml:space="preserve"><value>Läsare</value></data>
   <data name="Role_Contributor" xml:space="preserve"><value>Bidragsgivare</value></data>
   <data name="Role_Manager" xml:space="preserve"><value>Förvaltare</value></data>
   <data name="Role_Admin" xml:space="preserve"><value>Administratör</value></data>

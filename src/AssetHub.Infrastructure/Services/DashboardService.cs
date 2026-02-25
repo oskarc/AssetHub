@@ -18,6 +18,7 @@ public class DashboardService : IDashboardService
     private const int RecentAssetsLimit = 12;
     private const int RecentSharesLimit = 10;
     private const int RecentActivityLimit = 20;
+    private const int QuickAccessCollectionsLimit = 12;
 
     private readonly AssetHubDbContext _db;
     private readonly ICollectionRepository _collectionRepo;
@@ -153,8 +154,8 @@ public class DashboardService : IDashboardService
         if (collectionList.Count == 0)
             return [];
 
-        // Take top 20 collections
-        var topCollections = collectionList.Take(20).ToList();
+        // Take top collections for quick access
+        var topCollections = collectionList.Take(QuickAccessCollectionsLimit).ToList();
 
         var dtos = await CollectionMapper.ToDtoListAsync(topCollections, userId, _authService, ct);
 

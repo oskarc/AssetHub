@@ -10,6 +10,7 @@
 @inject NavigationManager Nav
 @inject IStringLocalizer<AssetHub.Ui.Resources.CommonResource> Loc
 @inject AuthenticationStateProvider AuthState
+@inject IDialogService DialogService
 
 <PageTitle>@Loc["Dashboard_Title"] - @Loc["AppName"]</PageTitle>
 
@@ -182,10 +183,10 @@
                             }
                             else
                             {
-                                <MudList T="DashboardShareDto" Dense="true">
+                                <MudList T="DashboardShareDto" Dense="true" Clickable="true">
                                     @foreach (var share in _dashboard.RecentShares)
                                     {
-                                        <MudListItem T="DashboardShareDto" Icon="@Icons.Material.Filled.Link">
+                                        <MudListItem T="DashboardShareDto" Icon="@Icons.Material.Filled.Link" OnClick="@(() => ShowShareInfo(share))">
                                             <div class="d-flex justify-space-between align-center" style="width: 100%;">
                                                 <div>
                                                     <MudText Typo="Typo.body2">@(share.ScopeName ?? share.ScopeId.ToString()[..8])</MudText>
@@ -299,6 +300,34 @@
     private void NavigateToCollection(Guid collectionId)
     {
         Nav.NavigateTo($"/collections?collection={collectionId}");
+    }
+
+    private async Task ShowShareInfo(DashboardShareDto dashboardShare)
+    {
+        // Convert DashboardShareDto to AdminShareDto for ShareInfoDialog
+        var share = new AdminShareDto
+        {
+            Id = dashboardShare.Id,
+            ScopeType = dashboardShare.ScopeType,
+            ScopeId = dashboardShare.ScopeId,
+            ScopeName = dashboardShare.ScopeName ?? "",
+            CreatedByUserId = "",
+            CreatedByUserName = "",
+            CreatedAt = dashboardShare.CreatedAt,
+            ExpiresAt = dashboardShare.ExpiresAt ?? DateTime.MaxValue,
+            AccessCount = dashboardShare.AccessCount,
+            HasPassword = dashboardShare.HasPassword,
+            Status = dashboardShare.Status
+        };
+
+        var parameters = new DialogParameters<ShareInfoDialog>
+        {
+            { x => x.Share, share },
+            { x => x.ShareUrl, string.Empty },
+            { x => x.SharePassword, string.Empty }
+        };
+
+        await DialogService.ShowAsync<ShareInfoDialog>(Loc["Dashboard_ShareDetails"], parameters);
     }
 
     private Color GetShareStatusColor(string status) => status switch

@@ -101,6 +101,22 @@
     height: 100%;
 }
 
+.collection-card .mud-card-content {
+    overflow: hidden;
+}
+
+.collection-card-header {
+    overflow: hidden;
+    width: 100%;
+}
+
+.collection-name-truncate {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Dialog Layouts */
 .dialog-min-width {
     min-width: 500px;
