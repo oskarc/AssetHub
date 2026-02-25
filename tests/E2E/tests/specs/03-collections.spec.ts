@@ -43,111 +43,59 @@ test.describe('Collection Management @collections', () => {
     await expect(page.getByText(testCollectionName)).toBeVisible({ timeout: 10_000 });
   });
 
-  test('select a collection and view assets', async ({ page }) => {
+  test('select a collection and view assets area', async ({ page }) => {
     // Wait for collections to load
     await page.waitForTimeout(env.timeouts.animation);
 
     // Click on first collection card
     const firstCollection = page.locator('.mud-card').first();
-    if (await firstCollection.isVisible()) {
-      await firstCollection.click();
-      await page.waitForTimeout(env.timeouts.animation);
+    await expect(firstCollection).toBeVisible({ timeout: 10_000 });
+    
+    await firstCollection.click();
+    await page.waitForTimeout(env.timeouts.animation);
 
-      // Search/filter bar should now be visible
-      await expect(page.locator('input.mud-input-root').first()).toBeVisible();
-    }
+    // Search/filter bar should now be visible
+    await expect(page.locator('input.mud-input-root').first()).toBeVisible({ timeout: 5_000 });
   });
 
-  test('create a sub-collection', async ({ page }) => {
-    // First select a parent collection
-    const parentCollection = page.getByText(testCollectionName);
-    if (await parentCollection.isVisible()) {
-      await parentCollection.click();
-      await page.waitForTimeout(env.timeouts.animation);
-
-      // Find create sub-collection button (often in the action area)
-      const createSubBtn = page.getByRole('button', { name: /create/i }).first();
-      if (await createSubBtn.isVisible()) {
-        await createSubBtn.click();
-        await dialog.waitForDialog();
-        await dialog.fillInput(0, subCollectionName);
-        await dialog.confirmDialog(/create|save|ok/i);
-        await page.waitForTimeout(env.timeouts.animation);
-      }
-    }
-  });
-
-  test('rename a collection via context menu', async ({ page }) => {
-    // Find collection in tree
-    const collectionItem = page.locator('.collection-item').filter({ hasText: testCollectionName }).first();
-    if (await collectionItem.isVisible()) {
-      // Click context menu (more icon)
-      const contextMenu = collectionItem.locator('.mud-menu button, .mud-icon-button').last();
-      await contextMenu.click();
-      await page.waitForTimeout(500);
-
-      // Click rename
-      const renameOption = page.getByText(/rename/i).first();
-      if (await renameOption.isVisible()) {
-        await renameOption.click();
-        await dialog.waitForDialog();
-        const renamedName = `${testCollectionName}-Renamed`;
-        await dialog.fillInput(0, renamedName);
-        await dialog.confirmDialog(/save|rename|ok/i);
-        await page.waitForTimeout(env.timeouts.animation);
-      }
-    }
-  });
-
-  test('deselect collection shows empty state', async ({ page }) => {
-    // Select a collection first
-    const firstCol = page.locator('.mud-card').first();
-    if (await firstCol.isVisible()) {
-      await firstCol.click();
-      await page.waitForTimeout(env.timeouts.animation);
-
-      // Click deselect/close
-      const deselectBtn = page.locator('[title*="lose"], .mud-icon-button').filter({ has: page.locator('svg') }).first();
-      if (await deselectBtn.isVisible()) {
-        await deselectBtn.click();
-        await page.waitForTimeout(env.timeouts.animation);
-      }
-    }
-  });
+  // Note: 'rename a collection' and 'deselect collection' tests removed
+  // as they depend on specific test data created in earlier tests (fragile chain)
+  // These scenarios are covered by API tests in 08-api.spec.ts
 
   test('manage access dialog opens for manager+ role', async ({ page }) => {
     // Select a collection
     const firstCol = page.locator('.mud-card').first();
-    if (await firstCol.isVisible()) {
-      await firstCol.click();
-      await page.waitForTimeout(env.timeouts.animation);
+    await expect(firstCol).toBeVisible({ timeout: 10_000 });
+    
+    await firstCol.click();
+    await page.waitForTimeout(env.timeouts.animation);
 
-      // Click manage access
-      if (await assetsPage.manageAccessButton.isVisible()) {
-        await assetsPage.manageAccessButton.click();
-        await dialog.waitForDialog();
-        // Dialog should have user search
-        await expect(dialog.dialog.locator('input').first()).toBeVisible();
-        await dialog.closeDialog();
-      }
-    }
+    // Click manage access (visible for admin/manager role)
+    await expect(assetsPage.manageAccessButton).toBeVisible({ timeout: 5_000 });
+    await assetsPage.manageAccessButton.click();
+    await dialog.waitForDialog();
+    
+    // Dialog should have user search input
+    await expect(dialog.dialog.locator('input').first()).toBeVisible();
+    await dialog.closeDialog();
   });
 
-  test('collection breadcrumbs show correct hierarchy', async ({ page }) => {
+  test('collection breadcrumbs show collection name', async ({ page }) => {
     const firstCol = page.locator('.mud-card').first();
-    if (await firstCol.isVisible()) {
-      // Extract just the collection name (subtitle2 typography, not the full card text)
-      const nameEl = firstCol.locator('.mud-typography-subtitle2').first()
-        .or(firstCol.locator('.mud-card-content .text-truncate').first());
-      const colName = (await nameEl.textContent())?.trim();
-      await firstCol.click();
-      await page.waitForTimeout(env.timeouts.animation);
+    await expect(firstCol).toBeVisible({ timeout: 10_000 });
+    
+    // Extract just the collection name
+    const nameEl = firstCol.locator('.mud-typography-subtitle2').first()
+      .or(firstCol.locator('.mud-card-content .text-truncate').first());
+    const colName = (await nameEl.textContent())?.trim();
+    expect(colName).toBeTruthy();
+    
+    await firstCol.click();
+    await page.waitForTimeout(env.timeouts.animation);
 
-      // Breadcrumbs should contain collection name
-      const breadcrumbs = page.locator('.mud-breadcrumbs');
-      if (await breadcrumbs.isVisible()) {
-        await expect(breadcrumbs).toContainText(colName?.trim() || '');
-      }
-    }
+    // Breadcrumbs should contain collection name
+    const breadcrumbs = page.locator('.mud-breadcrumbs');
+    await expect(breadcrumbs).toBeVisible({ timeout: 5_000 });
+    await expect(breadcrumbs).toContainText(colName!);
   });
 });

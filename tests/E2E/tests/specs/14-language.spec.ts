@@ -63,33 +63,26 @@ test.describe('Language Switching @language', () => {
     await expect(page.getByRole('link', { name: 'Hem' })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Swedish culture persists after navigation', async ({ page }) => {
+  test('Swedish culture persists after page reload', async ({ page }) => {
     // First switch to Swedish
     await openLanguageMenu(page);
 
     const svenskaOption = page.getByText('Svenska');
-    if (await svenskaOption.isVisible()) {
-      await svenskaOption.click();
-      await page.waitForLoadState('domcontentloaded');
+    await expect(svenskaOption).toBeVisible();
+    await svenskaOption.click();
+    await page.waitForLoadState('domcontentloaded');
 
-      // Navigate via full reload to verify language state is retained
-      await page.reload({ waitUntil: 'domcontentloaded' });
+    // Verify Swedish is active
+    await expect(page.getByRole('link', { name: 'Hem' })).toBeVisible({ timeout: 10_000 });
 
-      // Swedish UI should persist after navigation
-      await expect
-        .poll(
-          async () => {
-            const hasSwedish = await page.getByRole('link', { name: 'Hem' }).isVisible();
-            const hasEnglish = await page.getByRole('link', { name: 'Home' }).isVisible();
-            return hasSwedish || hasEnglish;
-          },
-          { timeout: 10_000 }
-        )
-        .toBeTruthy();
-    }
+    // Navigate via full reload to verify language state is retained
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // Swedish UI should persist after navigation
+    await expect(page.getByRole('link', { name: 'Hem' })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('switching back to English works', async ({ page }) => {
+  test('switching back to English shows English UI', async ({ page }) => {
     // Set Swedish first via cookie
     await page.context().addCookies([{
       name: '.AspNetCore.Culture',
@@ -99,6 +92,9 @@ test.describe('Language Switching @language', () => {
     }]);
     await page.reload({ waitUntil: 'networkidle' });
 
+    // Verify Swedish is showing
+    await expect(page.getByRole('link', { name: 'Hem' })).toBeVisible({ timeout: 10_000 });
+
     // Open language menu and switch back to English
     await openLanguageMenu(page);
 
@@ -107,15 +103,7 @@ test.describe('Language Switching @language', () => {
     await englishOption.click();
     await page.waitForLoadState('domcontentloaded');
 
-    await expect
-      .poll(
-        async () => {
-          const hasEnglish = await page.getByRole('link', { name: 'Home' }).isVisible();
-          const hasSwedish = await page.getByRole('link', { name: 'Hem' }).isVisible();
-          return hasEnglish || hasSwedish;
-        },
-        { timeout: 10_000 }
-      )
-      .toBeTruthy();
+    // English UI should now be visible
+    await expect(page.getByRole('link', { name: 'Home' })).toBeVisible({ timeout: 10_000 });
   });
 });

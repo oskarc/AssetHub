@@ -66,26 +66,33 @@ test.describe('Asset Management @assets', () => {
       await expect(fileInput).toHaveAttribute('type', 'file');
     });
 
-    test('upload a PNG image @smoke', async ({ page }) => {
+    test('upload a PNG image and verify it appears @smoke', async ({ page }) => {
       const fixtures = ensureTestFixtures();
       const fileInput = page.locator('#fileInput');
+      const uploadTitle = `Upload-Test-${timestamp}`;
+
+      // Count existing cards
+      const cardsBefore = await page.locator('.asset-card').count();
 
       // Upload the test image
       await fileInput.setInputFiles(fixtures.testImage);
 
-      // Wait for upload to complete — look for success indicator
-      await page.waitForTimeout(env.timeouts.upload);
-
-      // Should see upload progress or success
-      const success = page.locator('.mud-icon-root').filter({ has: page.locator('[data-testid*="Check"], svg') });
-      // Upload might complete quickly or show progress
+      // Wait for upload to complete - asset card should appear
+      await expect(page.locator('.asset-card')).toHaveCount(cardsBefore + 1, { timeout: env.timeouts.upload });
     });
 
-    test('upload a PDF document', async ({ page }) => {
+    test('upload a PDF document and verify it appears', async ({ page }) => {
       const fixtures = ensureTestFixtures();
       const fileInput = page.locator('#fileInput');
+
+      // Count existing cards
+      const cardsBefore = await page.locator('.asset-card').count();
+
+      // Upload the PDF
       await fileInput.setInputFiles(fixtures.testPdf);
-      await page.waitForTimeout(env.timeouts.upload);
+
+      // Wait for upload to complete - asset card should appear
+      await expect(page.locator('.asset-card')).toHaveCount(cardsBefore + 1, { timeout: env.timeouts.upload });
     });
 
     test('file input accepts correct file types', async ({ page }) => {
@@ -120,125 +127,114 @@ test.describe('Asset Management @assets', () => {
 
     test('asset grid displays cards', async ({ page }) => {
       const cards = page.locator('.asset-card');
-      // Should have at least one card (from upload)
-      const count = await cards.count();
-      if (count > 0) {
-        // Each card should have a thumbnail area and title
-        const firstCard = cards.first();
-        await expect(firstCard).toBeVisible();
-      }
+      // Should have at least one card (from upload in beforeAll)
+      await expect(cards.first()).toBeVisible({ timeout: 15_000 });
+      // Each card should have a title
+      await expect(cards.first().locator('.mud-typography').first()).toBeVisible();
     });
 
-    test('asset card shows title, type chip, and size', async ({ page }) => {
+    test('asset card shows title and type chip', async ({ page }) => {
       const cards = page.locator('.asset-card');
-      const count = await cards.count();
-      if (count > 0) {
-        const card = cards.first();
-        // Should have title text
-        await expect(card.locator('.mud-typography').first()).toBeVisible();
-        // Should have type chip
-        await expect(card.locator('.mud-chip').first()).toBeVisible();
-      }
+      await expect(cards.first()).toBeVisible({ timeout: 15_000 });
+      
+      const card = cards.first();
+      // Should have title text
+      await expect(card.locator('.mud-typography').first()).toBeVisible();
+      // Should have type chip
+      await expect(card.locator('.mud-chip').first()).toBeVisible();
     });
 
-    test('search filters assets', async ({ page }) => {
-      const searchInput = page.locator('.mud-input-root input[type="text"]').first();
-      if (await searchInput.isVisible()) {
-        await searchInput.fill('nonexistent-asset-xyz');
-        await page.waitForTimeout(env.timeouts.debounce);
-        // Should show no results or empty state
-        const cards = page.locator('.asset-card');
-        const emptyState = page.getByText(/no.*asset|no.*result|empty/i);
-        const hasCards = await cards.count() > 0;
-        const hasEmpty = await emptyState.isVisible().catch(() => false);
-        // Either no cards or empty state visible
-        expect(hasCards || hasEmpty !== undefined).toBeTruthy();
-      }
+    test('search filters assets with no results for nonexistent query', async ({ page }) => {
+      // Search input may be in toolbar or main content area
+      const searchInput = page.locator('input[placeholder*="earch" i], .mud-input input[type="text"]').first();
+      const hasSearch = await searchInput.isVisible().catch(() => false);
+      test.skip(!hasSearch, 'Search input not available on this page');
+      
+      await searchInput.fill('nonexistent-asset-xyz-99999');
+      await page.waitForTimeout(env.timeouts.debounce);
+      
+      // Should show no asset cards for nonsense query
+      const cards = page.locator('.asset-card');
+      await expect(cards).toHaveCount(0, { timeout: 5_000 });
     });
 
-    test('type filter works', async ({ page }) => {
+    test('type filter dropdown has options', async ({ page }) => {
       const typeSelect = page.locator('.mud-select').first();
-      if (await typeSelect.isVisible()) {
-        await typeSelect.click();
-        await page.waitForTimeout(500);
-        // Select image filter
-        const imageOption = page.getByRole('option', { name: /image/i });
-        if (await imageOption.isVisible()) {
-          await imageOption.click();
-          await page.waitForTimeout(env.timeouts.debounce);
-        } else {
-          // Close dropdown
-          await page.keyboard.press('Escape');
-        }
-      }
+      await expect(typeSelect).toBeVisible({ timeout: 10_000 });
+      
+      await typeSelect.click();
+      await page.waitForTimeout(500);
+      
+      // MudBlazor renders options as list items in a popover
+      const options = page.locator('.mud-popover .mud-list-item');
+      await expect(options.first()).toBeVisible({ timeout: 5_000 });
+      
+      await page.keyboard.press('Escape');
     });
 
-    test('sort options work', async ({ page }) => {
+    test('sort dropdown has options', async ({ page }) => {
       const sortSelect = page.locator('.mud-select').nth(1);
-      if (await sortSelect.isVisible()) {
-        await sortSelect.click();
-        await page.waitForTimeout(500);
-        // Select oldest first
-        const option = page.getByRole('option', { name: /oldest|asc/i }).first();
-        if (await option.isVisible()) {
-          await option.click();
-          await page.waitForTimeout(env.timeouts.debounce);
-        } else {
-          await page.keyboard.press('Escape');
-        }
-      }
+      await expect(sortSelect).toBeVisible({ timeout: 10_000 });
+      
+      await sortSelect.click();
+      await page.waitForTimeout(500);
+      
+      // MudBlazor renders options as list items in a popover
+      const options = page.locator('.mud-popover .mud-list-item');
+      await expect(options.first()).toBeVisible({ timeout: 5_000 });
+      
+      await page.keyboard.press('Escape');
     });
 
-    test('grid/list view toggle works', async ({ page }) => {
+    test.skip('grid/list view toggle works', async ({ page }) => {
+      // NOTE: View toggle UI not currently present - skipped until feature is added
       const viewButtons = page.locator('.mud-button-group .mud-icon-button');
-      const count = await viewButtons.count();
-      if (count >= 2) {
-        // Click list view
-        await viewButtons.last().click();
-        await page.waitForTimeout(env.timeouts.animation);
-        // Click grid view
-        await viewButtons.first().click();
-        await page.waitForTimeout(env.timeouts.animation);
-      }
+      await expect(viewButtons.first()).toBeVisible({ timeout: 10_000 });
+      await expect(viewButtons).toHaveCount(2);
+      
+      // Click list view
+      await viewButtons.last().click();
+      await page.waitForTimeout(env.timeouts.animation);
+      
+      // Click grid view
+      await viewButtons.first().click();
+      await page.waitForTimeout(env.timeouts.animation);
     });
 
     test('clicking asset navigates to detail page', async ({ page }) => {
       const cards = page.locator('.asset-card');
-      const count = await cards.count();
-      if (count > 0) {
-        // Click the card body, which is the actual navigation target in grid mode
-        const openTarget = cards.first().locator('.clickable').first();
-        await expect(openTarget).toBeVisible();
-        await Promise.all([
-          page.waitForURL(/\/assets\/[0-9a-f-]+/, { timeout: 30_000 }),
-          openTarget.click()
-        ]);
-      }
+      await expect(cards.first()).toBeVisible({ timeout: 15_000 });
+      
+      // Click the card body, which is the actual navigation target in grid mode
+      const openTarget = cards.first().locator('.clickable').first();
+      await expect(openTarget).toBeVisible();
+      await Promise.all([
+        page.waitForURL(/\/assets\/[0-9a-f-]+/, { timeout: 30_000 }),
+        openTarget.click()
+      ]);
     });
 
     test('refresh button reloads assets', async ({ page }) => {
       const refreshBtn = page.getByRole('button', { name: /refresh/i });
-      if (await refreshBtn.isVisible()) {
-        await refreshBtn.click();
-        await page.waitForTimeout(env.timeouts.animation);
-        // Page should still show assets
-        await expect(page.locator('.mud-container, .mud-grid').first()).toBeVisible();
-      }
+      await expect(refreshBtn).toBeVisible({ timeout: 10_000 });
+      
+      await refreshBtn.click();
+      await page.waitForTimeout(env.timeouts.animation);
+      
+      // Page should still show assets
+      await expect(page.locator('.mud-container, .mud-grid').first()).toBeVisible();
     });
 
-    test('download all button is visible', async ({ page }) => {
+    test('download all button is visible and enabled', async ({ page }) => {
       const downloadAllBtn = page.getByRole('button', { name: /download all/i });
-      if (await downloadAllBtn.isVisible()) {
-        await expect(downloadAllBtn).toBeEnabled();
-      }
+      await expect(downloadAllBtn).toBeVisible({ timeout: 10_000 });
+      await expect(downloadAllBtn).toBeEnabled();
     });
 
-    test('share collection button is visible', async ({ page }) => {
+    test('share collection button is visible and enabled', async ({ page }) => {
       const shareBtn = page.getByRole('button', { name: /share collection/i });
-      // Should be visible for contributor+ roles
-      if (await shareBtn.isVisible()) {
-        await expect(shareBtn).toBeEnabled();
-      }
+      await expect(shareBtn).toBeVisible({ timeout: 10_000 });
+      await expect(shareBtn).toBeEnabled();
     });
   });
 
@@ -287,21 +283,10 @@ test.describe('Asset Management @assets', () => {
 
     test('shows file info table', async ({ page }) => {
       const table = page.locator('.mud-simple-table');
-      if (await table.isVisible()) {
-        // Should contain size, type, created date
-        await expect(table).toBeVisible();
-      }
+      await expect(table).toBeVisible({ timeout: 10_000 });
     });
 
-    test('shows collection membership', async ({ page }) => {
-      // Collection chips should be visible
-      const collectionChips = page.locator('.mud-chip').filter({ has: page.locator('svg') });
-      if (await collectionChips.first().isVisible()) {
-        await expect(collectionChips.first()).toBeVisible();
-      }
-    });
-
-    test('preview image is displayed for image assets', async ({ page }) => {
+    test('preview is displayed for image assets', async ({ page }) => {
       // Either image, video, iframe, or generic icon
       const preview = page.locator('.mud-image, video, iframe, .mud-icon-root').first();
       await expect(preview).toBeVisible({ timeout: 10_000 });
@@ -313,104 +298,80 @@ test.describe('Asset Management @assets', () => {
       await expect(downloadBtn).toBeVisible();
     });
 
-    test('edit button opens dialog', async ({ page }) => {
+    test('edit button opens dialog with title input', async ({ page }) => {
       const editBtn = page.getByRole('button', { name: /edit/i });
-      if (await editBtn.isVisible()) {
-        await editBtn.click();
-        await dialog.waitForDialog();
-        // Dialog should have title input
-        await expect(dialog.dialog.locator('input').first()).toBeVisible();
+      await expect(editBtn).toBeVisible({ timeout: 10_000 });
+      
+      await editBtn.click();
+      await dialog.waitForDialog();
+      
+      // Dialog should have title input
+      await expect(dialog.dialog.locator('input').first()).toBeVisible();
+      await dialog.closeDialog();
+    });
+
+    test('edit asset title and verify change', async ({ page }) => {
+      const editBtn = page.getByRole('button', { name: /edit/i });
+      await expect(editBtn).toBeVisible({ timeout: 10_000 });
+      
+      await editBtn.click();
+      await dialog.waitForDialog();
+
+      const newTitle = `Updated-${timestamp}`;
+      const titleInput = dialog.dialog.locator('input').first();
+      await titleInput.clear();
+      await titleInput.fill(newTitle);
+
+      // Wait for form validation and save button to become enabled
+      const saveBtn = dialog.dialog.getByRole('button', { name: /save|update|ok/i });
+      await expect(saveBtn).toBeVisible({ timeout: 5_000 });
+      
+      // Form may require additional fields - check if enabled, skip if validation blocks
+      const isEnabled = await saveBtn.isEnabled().catch(() => false);
+      if (!isEnabled) {
+        // Close dialog and skip - form validation requires fields we can't fill
         await dialog.closeDialog();
+        test.skip(true, 'Edit form has validation requirements that prevent saving');
+        return;
       }
+      
+      await saveBtn.click();
+      await page.waitForTimeout(env.timeouts.animation);
+      
+      // Title should update
+      await expect(page.locator('.mud-typography-h5').first()).toContainText(newTitle, { timeout: 5_000 });
     });
 
-    test('edit asset title and description', async ({ page }) => {
-      const editBtn = page.getByRole('button', { name: /edit/i });
-      if (await editBtn.isVisible()) {
-        await editBtn.click();
-        await dialog.waitForDialog();
-
-        const newTitle = `Updated-${timestamp}`;
-        const titleInput = dialog.dialog.locator('input').first();
-        await titleInput.clear();
-        await titleInput.fill(newTitle);
-
-        // Wait for save button to become enabled
-        const saveBtn = dialog.dialog.getByRole('button', { name: /save|update|ok/i });
-        await saveBtn.waitFor({ state: 'visible', timeout: 5_000 });
-        if (await saveBtn.isEnabled()) {
-          await saveBtn.click();
-          await page.waitForTimeout(env.timeouts.animation);
-          // Title should update
-          await expect(page.locator('.mud-typography-h5').first()).toContainText(newTitle, { timeout: 5_000 });
-        } else {
-          // Button may remain disabled if form validation requires more fields
-          await dialog.closeDialog();
-        }
-      }
-    });
-
-    test('share button opens share dialog', async ({ page }) => {
+    test('share button opens share dialog with password field', async ({ page }) => {
       const shareBtn = page.getByRole('button', { name: /share/i }).first();
-      if (await shareBtn.isVisible()) {
-        await shareBtn.click();
-        await dialog.waitForDialog();
-        // Should have password field and expiration
-        await expect(dialog.dialog.locator('input').first()).toBeVisible();
-        await dialog.closeDialog();
-      }
+      await expect(shareBtn).toBeVisible({ timeout: 10_000 });
+      
+      await shareBtn.click();
+      await dialog.waitForDialog();
+      
+      // Should have password field
+      await expect(dialog.dialog.locator('input').first()).toBeVisible();
+      await dialog.closeDialog();
     });
 
     test('delete button opens confirmation dialog', async ({ page }) => {
       const deleteBtn = page.getByRole('button', { name: /delete/i });
-      if (await deleteBtn.isVisible()) {
-        await deleteBtn.click();
-        // Confirmation dialog
-        const confirmDialog = page.locator('.mud-dialog');
-        if (await confirmDialog.isVisible()) {
-          // Should have cancel and confirm buttons
-          const cancelBtn = confirmDialog.getByRole('button', { name: /cancel|no/i });
-          if (await cancelBtn.isVisible()) {
-            await cancelBtn.click();
-          } else {
-            await page.keyboard.press('Escape');
-          }
-        }
-      }
+      await expect(deleteBtn).toBeVisible({ timeout: 10_000 });
+      
+      await deleteBtn.click();
+      
+      // Confirmation dialog
+      const confirmDialog = page.locator('.mud-dialog');
+      await expect(confirmDialog).toBeVisible({ timeout: 5_000 });
+      
+      // Should have cancel button
+      const cancelBtn = confirmDialog.getByRole('button', { name: /cancel|no/i });
+      await expect(cancelBtn).toBeVisible();
+      await cancelBtn.click();
     });
 
-    test('back button navigates to collection view', async ({ page }) => {
-      const backBtn = page.getByRole('button', { name: /back/i });
-      if (await backBtn.isVisible()) {
-        await backBtn.click();
-        await page.waitForURL(/\/collections|\/assets/, { timeout: env.timeouts.navigation });
-      }
-    });
-
-    test('add to collection button opens dialog', async ({ page }) => {
-      const addBtn = page.locator('[title*="Add"]').first();
-      if (await addBtn.isVisible()) {
-        await addBtn.click();
-        await dialog.waitForDialog();
-        await dialog.closeDialog();
-      }
-    });
-
-    test('advanced metadata panel is expandable', async ({ page }) => {
-      const metadataPanel = page.locator('.mud-expand-panel');
-      if (await metadataPanel.isVisible()) {
-        // Click to expand
-        await metadataPanel.click();
-        await page.waitForTimeout(env.timeouts.animation);
-      }
-    });
-
-    test('tags section is displayed', async ({ page }) => {
-      const tagChipSet = page.locator('.mud-chip-set');
-      // Tags section may or may not have tags
-      if (await tagChipSet.isVisible()) {
-        await expect(tagChipSet).toBeVisible();
-      }
-    });
+    // Note: 'back button', 'add to collection', 'metadata panel', and 'tags section' tests removed
+    // These were testing element existence with conditional guards - not meaningful behavioral tests
+    // The core workflows (edit, share, delete) are tested above
   });
 });

@@ -31,8 +31,13 @@ test.describe('Viewer Role Restrictions @acl @auth', () => {
 
     // Should be redirected away or see forbidden content
     const url = page.url();
-    const isRedirected = !url.includes('/admin') || await page.getByText(/forbidden|unauthorized|access denied/i).isVisible().catch(() => false);
-    expect(isRedirected || true).toBeTruthy(); // Graceful handling
+    const forbiddenText = page.getByText(/forbidden|unauthorized|access denied/i);
+    
+    // Either redirected OR showing forbidden message
+    const isRedirected = !url.includes('/admin');
+    const hasForbiddenMessage = await forbiddenText.isVisible().catch(() => false);
+    
+    expect(isRedirected || hasForbiddenMessage).toBeTruthy();
   });
 
   test('viewer is redirected from /all-assets', async ({ page }) => {
@@ -40,10 +45,15 @@ test.describe('Viewer Role Restrictions @acl @auth', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(env.timeouts.animation);
 
-    // Should not render admin content
+    // Should be redirected or not show admin page content
     const url = page.url();
-    const hasAdminContent = await page.locator('.mud-typography-h4').isVisible().catch(() => false);
-    // Either redirected or doesn't show admin page title
+    const adminTitle = page.locator('.mud-typography-h4');
+    
+    // Either redirected away from all-assets OR admin title not visible
+    const isRedirected = !url.includes('/all-assets');
+    const hasAdminContent = await adminTitle.isVisible().catch(() => false);
+    
+    expect(isRedirected || !hasAdminContent).toBeTruthy();
   });
 
   test('viewer sees collections page', async ({ page }) => {
@@ -52,14 +62,14 @@ test.describe('Viewer Role Restrictions @acl @auth', () => {
     await expect(page.getByText(/collections/i).first()).toBeVisible();
   });
 
-  test('viewer does not see upload area (without collection access)', async ({ page }) => {
+  test('viewer does not see upload area (without explicit collection access)', async ({ page }) => {
     await page.goto('/assets');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(env.timeouts.animation);
 
     // Viewer without specific collection access should not see upload
     const uploadArea = page.locator('.upload-area');
-    const isVisible = await uploadArea.isVisible().catch(() => false);
-    // May or may not be visible depending on assigned collections
+    // With no collection selected or no access, upload should not be visible
+    await expect(uploadArea).not.toBeVisible();
   });
 });

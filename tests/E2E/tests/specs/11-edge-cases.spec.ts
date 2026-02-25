@@ -55,19 +55,22 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
-      const searchInput = page.locator('.mud-input-root input:not([type="hidden"])').first();
-      if (await searchInput.isVisible()) {
-        // Type rapidly
-        await searchInput.type('abcdefghijklmnop', { delay: 50 });
-        await page.waitForTimeout(env.timeouts.debounce);
-        // Clear and type again
-        await searchInput.clear();
-        await searchInput.type('test', { delay: 100 });
-        await page.waitForTimeout(env.timeouts.debounce);
+      // Search input may be in toolbar or main content
+      const searchInput = page.locator('input[placeholder*="earch" i], .mud-input input[type="text"]').first();
+      const hasSearch = await searchInput.isVisible().catch(() => false);
+      test.skip(!hasSearch, 'Search input not available on this page');
+      
+      // Type rapidly
+      await searchInput.type('abcdefghijklmnop', { delay: 50 });
+      await page.waitForTimeout(env.timeouts.debounce);
+      
+      // Clear and type again
+      await searchInput.clear();
+      await searchInput.type('test', { delay: 100 });
+      await page.waitForTimeout(env.timeouts.debounce);
 
-        // App should still be functional
-        await expect(page.locator('.mud-container, .mud-main-content').first()).toBeVisible();
-      }
+      // App should still be functional
+      await expect(page.locator('.mud-container, .mud-main-content').first()).toBeVisible();
     });
   });
 
@@ -77,21 +80,22 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
-      // Navigate to detail
+      // Navigate to detail - skip if no assets available
       const card = page.locator('.asset-card').first();
-      if (await card.isVisible()) {
-        const openTarget = card.locator('.clickable').first();
-        await expect(openTarget).toBeVisible();
-        await Promise.all([
-          page.waitForURL(/\/assets\/[0-9a-f-]+/),
-          openTarget.click()
-        ]);
-        
-        // Go back
-        await page.goBack();
-        await page.waitForURL(/\/collections|\/assets/);
-        await expect(page.locator('.mud-container')).toBeVisible();
-      }
+      const hasAssets = await card.isVisible().catch(() => false);
+      test.skip(!hasAssets, 'No assets available in collection');
+      
+      const openTarget = card.locator('.clickable').first();
+      await expect(openTarget).toBeVisible();
+      await Promise.all([
+        page.waitForURL(/\/assets\/[0-9a-f-]+/),
+        openTarget.click()
+      ]);
+      
+      // Go back
+      await page.goBack();
+      await page.waitForURL(/\/collections|\/assets/);
+      await expect(page.locator('.mud-container')).toBeVisible();
     });
 
     test('browser forward after back works', async ({ page }) => {
@@ -109,29 +113,25 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
   });
 
   test.describe('Empty States', () => {
-    test('empty collection shows appropriate message', async ({ page }) => {
-      // This depends on having a collection with no assets
+    test('empty collection area shows select prompt', async ({ page }) => {
+      // Navigate to assets without selecting a collection
       await page.goto('/assets');
       await page.waitForLoadState('networkidle');
+      
       // The "select a collection" empty state should appear
       const emptyState = page.getByText(/select|choose|no.*collection/i).first();
-      if (await emptyState.isVisible()) {
-        await expect(emptyState).toBeVisible();
-      }
+      await expect(emptyState).toBeVisible({ timeout: 10_000 });
     });
   });
 
   test.describe('Loading States', () => {
-    test('collections page shows loading indicator', async ({ page }) => {
-      // Check for progress indicator during initial load
+    test('collections page loads without crashing', async ({ page }) => {
       await page.goto('/assets');
-      // During load, a progress indicator might flash
-      // Just ensure the page eventually loads
       await page.waitForLoadState('networkidle');
       await expect(page.locator('.mud-container, .mud-main-content').first()).toBeVisible();
     });
 
-    test('admin page shows loading states', async ({ page }) => {
+    test('admin page loads without crashing', async ({ page }) => {
       await page.goto('/admin');
       await page.waitForLoadState('networkidle');
       // Content should eventually load

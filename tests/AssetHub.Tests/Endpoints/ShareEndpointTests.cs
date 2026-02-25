@@ -32,7 +32,12 @@ public class ShareEndpointTests : IAsyncLifetime
 
     private HttpClient AdminClient() => _factory.CreateAuthenticatedClient(TestClaimsProvider.Admin());
     private HttpClient ViewerClient() => _factory.CreateAuthenticatedClient(TestClaimsProvider.Default());
-    private HttpClient AnonymousClient() => _factory.CreateClient();
+    private HttpClient AnonymousClient()
+    {
+        // Clear any previous auth state to simulate unauthenticated request
+        TestAuthHandler.ClaimsOverride = null;
+        return _factory.CreateClient();
+    }
 
     /// <summary>Seeds a collection + asset + share and returns identifiers.</summary>
     private async Task<(Guid ColId, Guid AssetId, Guid ShareId)> SeedShareAsync(

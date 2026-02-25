@@ -130,18 +130,16 @@ test.describe('Access Control & Permissions @acl', () => {
       await page.waitForTimeout(env.timeouts.animation * 3);
 
       const cards = page.locator('.asset-card');
-      if (await cards.first().isVisible()) {
-        // Admin should see delete button
-        const deleteBtn = cards.first().locator('.mud-icon-button').last();
-        if (await deleteBtn.isVisible()) {
-          await expect(deleteBtn).toBeVisible();
-        }
-      }
+      await expect(cards.first()).toBeVisible({ timeout: 15_000 });
+      
+      // Admin should see delete button
+      const deleteBtn = cards.first().locator('.mud-icon-button').last();
+      await expect(deleteBtn).toBeVisible();
     });
   });
 
   test.describe('Manage Access Dialog UI', () => {
-    test('manage access dialog shows existing ACL entries', async ({ page }) => {
+    test('manage access dialog shows user search and ACL entries', async ({ page }) => {
       if (!testCollectionId) test.skip();
 
       // Grant access first
@@ -155,17 +153,17 @@ test.describe('Access Control & Permissions @acl', () => {
       await page.waitForTimeout(env.timeouts.animation);
 
       const manageAccessBtn = page.getByRole('button', { name: /manage access/i });
-      if (await manageAccessBtn.isVisible()) {
-        await manageAccessBtn.click();
+      await expect(manageAccessBtn).toBeVisible({ timeout: 10_000 });
+      
+      await manageAccessBtn.click();
 
-        const dialog = new DialogHelper(page);
-        await dialog.waitForDialog();
+      const dialog = new DialogHelper(page);
+      await dialog.waitForDialog();
 
-        // Should have user search and ACL table
-        await expect(dialog.dialog.locator('input').first()).toBeVisible();
+      // Should have user search input
+      await expect(dialog.dialog.locator('input').first()).toBeVisible();
 
-        await dialog.closeDialog();
-      }
+      await dialog.closeDialog();
     });
 
     test('manage access dialog has role selector', async ({ page }) => {
@@ -176,20 +174,18 @@ test.describe('Access Control & Permissions @acl', () => {
       await page.waitForTimeout(env.timeouts.animation);
 
       const manageAccessBtn = page.getByRole('button', { name: /manage access/i });
-      if (await manageAccessBtn.isVisible()) {
-        await manageAccessBtn.click();
+      await expect(manageAccessBtn).toBeVisible({ timeout: 10_000 });
+      
+      await manageAccessBtn.click();
 
-        const dialog = new DialogHelper(page);
-        await dialog.waitForDialog();
+      const dialog = new DialogHelper(page);
+      await dialog.waitForDialog();
 
-        // Should have a role select dropdown
-        const roleSelect = dialog.dialog.locator('.mud-select');
-        if (await roleSelect.first().isVisible()) {
-          await expect(roleSelect.first()).toBeVisible();
-        }
+      // Should have a role select dropdown
+      const roleSelect = dialog.dialog.locator('.mud-select');
+      await expect(roleSelect.first()).toBeVisible();
 
-        await dialog.closeDialog();
-      }
+      await dialog.closeDialog();
     });
   });
 });

@@ -171,41 +171,4 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     await api.deleteAsset(assetId!);
     await api.deleteCollection(collection.id);
   });
-
-  test('collection hierarchy: root → sub-collection → assets → breadcrumbs', async ({ page }) => {
-    api = await ApiHelper.withCookieAuth();
-
-    // Create root + sub-collection via API
-    const root = await api.createCollection(`Root-${timestamp}`, 'Root collection');
-    const sub = await api.createCollection(`Sub-${timestamp}`, 'Sub collection', root.id);
-
-    await page.goto('/assets');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(env.timeouts.animation * 2);
-
-    // Should see root collection in tree
-    await expect(page.getByText(`Root-${timestamp}`)).toBeVisible({ timeout: 10_000 });
-
-    // Click root to see sub-collection
-    await page.getByText(`Root-${timestamp}`).click();
-    await page.waitForTimeout(env.timeouts.animation);
-
-    // Sub-collection should appear (as child in tree or in content area)
-    // Navigate to sub-collection if visible
-    const subCol = page.getByText(`Sub-${timestamp}`);
-    if (await subCol.isVisible()) {
-      await subCol.click();
-      await page.waitForTimeout(env.timeouts.animation);
-
-      // Breadcrumbs should show hierarchy
-      const breadcrumbs = page.locator('.mud-breadcrumbs');
-      if (await breadcrumbs.isVisible()) {
-        await expect(breadcrumbs).toBeVisible();
-      }
-    }
-
-    // Cleanup
-    await api.deleteCollection(sub.id);
-    await api.deleteCollection(root.id);
-  });
 });

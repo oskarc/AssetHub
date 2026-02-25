@@ -48,7 +48,12 @@ public class SecurityTests : IAsyncLifetime
 
     private HttpClient AdminClient() => _factory.CreateAuthenticatedClient(TestClaimsProvider.Admin());
     private HttpClient ViewerClient() => _factory.CreateAuthenticatedClient(TestClaimsProvider.Default());
-    private HttpClient AnonymousClient() => _factory.CreateClient();
+    private HttpClient AnonymousClient()
+    {
+        // Clear any previous auth state to simulate unauthenticated request
+        TestAuthHandler.ClaimsOverride = null;
+        return _factory.CreateClient();
+    }
 
     // ═══════════════════════════════════════════════════════════════
     //  SECTION 1: ROLE-BASED AUTHORIZATION BYPASS TESTS
@@ -476,13 +481,16 @@ public class SecurityTests : IAsyncLifetime
     {
         var client = AnonymousClient();
 
-        // All major admin-level endpoints should require auth or be forbidden to non-admins.
-        // Note: /api/collections and /api/dashboard only require basic authentication and are
-        // accessible to Viewer-role users in this test environment.
+        // All protected endpoints should require authentication.
+        // Anonymous requests should return 401 Unauthorized.
         var endpoints = new[]
         {
-            "/api/assets",
-            "/api/admin/audit"
+            "/api/collections",     // Viewer+ required
+            "/api/dashboard",       // Viewer+ required
+            "/api/assets",          // Admin required
+            "/api/admin/audit",     // Admin required
+            "/api/admin/shares",    // Admin required
+            "/api/admin/users"      // Admin required
         };
 
         foreach (var endpoint in endpoints)
@@ -491,8 +499,19 @@ public class SecurityTests : IAsyncLifetime
             Assert.True(
                 response.StatusCode == HttpStatusCode.Unauthorized ||
                 response.StatusCode == HttpStatusCode.Forbidden,
-                $"Anonymous access to {endpoint} returned {response.StatusCode}");
+                $"Anonymous access to {endpoint} returned {response.StatusCode} - expected 401 or 403");
         }
+    }
+
+    [Fact]
+    public async Task Anonymous_CannotAccess_Collections_Returns401()
+    {
+        var client = AnonymousClient();
+
+        var response = await client.GetAsync("/api/collections");
+
+        // Critical security test: unauthenticated access to collections MUST be blocked
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]

@@ -11,34 +11,16 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  test('app bar is visible with branding', async ({ page }) => {
+  test('app bar displays branding and user info', async ({ page }) => {
     await expect(layout.appBar).toBeVisible();
     await expect(layout.appName).toBeVisible();
-  });
-
-  test('user display name shown in app bar', async ({ page }) => {
     await expect(layout.userDisplayName).toBeVisible();
   });
 
-  test('sign out button visible for authenticated user', async () => {
-    // Sign Out is inside a MudMenu dropdown; verify auth via user display name
-    await layout.expectAuthenticated();
-  });
-
-  test('navigation drawer is visible', async () => {
+  test('navigation drawer contains expected links', async () => {
     await expect(layout.drawer).toBeVisible();
-  });
-
-  test('nav menu contains Home link', async () => {
     await expect(layout.navHome).toBeVisible();
-  });
-
-  test('nav menu contains Collections link', async () => {
     await expect(layout.navCollections).toBeVisible();
-  });
-
-  test('admin nav items visible for admin user', async () => {
-    await layout.expectAdminNavVisible();
   });
 
   test('navigate to Home page', async ({ page }) => {
@@ -62,14 +44,16 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
     await expect(page).toHaveURL(/\/admin/);
   });
 
-  test('dark mode toggle works', async ({ page }) => {
-    // Get initial theme state
-    const bodyClasses = await page.locator('body').getAttribute('class') || '';
+  test('dark mode toggle changes theme', async ({ page }) => {
+    // Get initial body background
+    const initialBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    
     await layout.toggleDarkMode();
     await page.waitForTimeout(env.timeouts.animation);
-    // Theme should change (MudBlazor applies theme via style)
-    const darkModeIcon = page.locator('.mud-appbar .mud-icon-button').last();
-    await expect(darkModeIcon).toBeVisible();
+    
+    // Background should change
+    const newBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(newBg).not.toBe(initialBg);
   });
 
   test('direct URL navigation to /assets works', async ({ page }) => {
@@ -90,14 +74,23 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
     await expect(page.locator('.mud-typography-h4')).toBeVisible();
   });
 
-  test('hamburger menu toggles drawer', async ({ page }) => {
+  test('hamburger menu toggles drawer visibility', async ({ page }) => {
+    // Get initial drawer state
+    const initialVisible = await layout.drawer.isVisible();
+    
     // Click menu toggle
     await layout.menuToggle.click();
     await page.waitForTimeout(env.timeouts.animation);
+    
     // Drawer state should change
-    const drawerVisible = await layout.drawer.isVisible();
-    // Toggle again
+    const afterFirstClick = await layout.drawer.isVisible();
+    expect(afterFirstClick).not.toBe(initialVisible);
+    
+    // Toggle again to restore
     await layout.menuToggle.click();
     await page.waitForTimeout(env.timeouts.animation);
+    
+    const afterSecondClick = await layout.drawer.isVisible();
+    expect(afterSecondClick).toBe(initialVisible);
   });
 });

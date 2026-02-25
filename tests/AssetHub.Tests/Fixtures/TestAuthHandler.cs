@@ -35,7 +35,13 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var provider = ClaimsOverride ?? TestClaimsProvider.Default();
+        // If no override is set, simulate unauthenticated request
+        if (ClaimsOverride == null)
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        var provider = ClaimsOverride;
 
         var identity = new ClaimsIdentity(provider.Claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);

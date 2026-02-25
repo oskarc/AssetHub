@@ -145,10 +145,10 @@ export class ApiHelper {
 
   // --- Collections ---
 
-  async createCollection(name: string, description?: string, parentId?: string) {
+  async createCollection(name: string, description?: string) {
     const res = await this.request.post(`${env.baseUrl}/api/collections`, {
       headers: this.authHeaders(),
-      data: { name, description: description || '', parentId },
+      data: { name, description: description || '' },
       maxRedirects: 0,
     });
     if (!res.ok()) {
@@ -171,13 +171,6 @@ export class ApiHelper {
       headers: this.authHeaders(),
     });
     return res;
-  }
-
-  async getCollectionChildren(id: string) {
-    const res = await this.request.get(`${env.baseUrl}/api/collections/${id}/children`, {
-      headers: this.authHeaders(),
-    });
-    return await res.json();
   }
 
   // --- Assets ---

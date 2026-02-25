@@ -84,18 +84,19 @@ test.describe('Admin Panel @admin', () => {
 
     test('share table has search functionality', async ({ page }) => {
       const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
-      if (await searchInput.isVisible()) {
-        await searchInput.fill('test');
-        await page.waitForTimeout(env.timeouts.debounce);
-        // Should filter results
-      }
+      await expect(searchInput).toBeVisible({ timeout: 10_000 });
+      
+      await searchInput.fill('test');
+      await page.waitForTimeout(env.timeouts.debounce);
+      // Page should still be functional after search
+      await expect(page.locator('.mud-table')).toBeVisible();
     });
 
     test('share table shows status chips', async ({ page }) => {
       // Status chips (Active, Expired, Revoked counts)
       const chips = page.locator('.mud-chip').filter({ hasText: /active|expired|revoked/i });
-      const count = await chips.count();
-      // May have status indicators
+      // Should have at least one status indicator
+      await expect(chips.first()).toBeVisible({ timeout: 10_000 });
     });
 
     test('share info button opens dialog', async ({ page }) => {
@@ -201,18 +202,18 @@ test.describe('Admin Panel @admin', () => {
     test('add user access form is functional', async ({ page }) => {
       await page.waitForTimeout(env.timeouts.animation * 2);
       const collectionBtn = page.getByText(testCollectionName);
-      if (await collectionBtn.isVisible()) {
-        await collectionBtn.click();
-        await page.waitForTimeout(env.timeouts.animation);
+      await expect(collectionBtn).toBeVisible({ timeout: 10_000 });
+      
+      await collectionBtn.click();
+      await page.waitForTimeout(env.timeouts.animation);
 
-        // Should have user ID input and role select
-        const userInput = page.locator('input').filter({ has: page.locator('..') }).first();
-        const roleSelect = page.locator('.mud-select').first();
-        if (await userInput.isVisible() && await roleSelect.isVisible()) {
-          // UI is functional
-          await expect(userInput).toBeEnabled();
-        }
-      }
+      // Should have user ID input and role select
+      const userInput = page.locator('input').first();
+      const roleSelect = page.locator('.mud-select').first();
+      
+      await expect(userInput).toBeVisible();
+      await expect(roleSelect).toBeVisible();
+      await expect(userInput).toBeEnabled();
     });
   });
 
@@ -251,13 +252,16 @@ test.describe('Admin Panel @admin', () => {
     test('user search filters results', async ({ page }) => {
       await page.waitForTimeout(env.timeouts.animation * 2);
       const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
-      if (await searchInput.isVisible()) {
-        await searchInput.fill('mediaadmin');
-        await page.waitForTimeout(env.timeouts.debounce);
-        // Should filter to show admin user
-        const rows = page.locator('.mud-table tbody tr');
-        const count = await rows.count();
-      }
+      await expect(searchInput).toBeVisible({ timeout: 10_000 });
+      
+      await searchInput.fill('mediaadmin');
+      await page.waitForTimeout(env.timeouts.debounce);
+      
+      // Should filter to show admin user
+      const rows = page.locator('.mud-table tbody tr');
+      const count = await rows.count();
+      // After filtering, should have at least one result for mediaadmin
+      expect(count).toBeGreaterThanOrEqual(1);
     });
 
     test('create user button is visible', async ({ page }) => {
@@ -265,38 +269,36 @@ test.describe('Admin Panel @admin', () => {
       await expect(createBtn).toBeVisible({ timeout: 10_000 });
     });
 
-    test('create user dialog opens', async ({ page }) => {
+    test('create user dialog opens and has form fields', async ({ page }) => {
       await page.waitForTimeout(env.timeouts.animation);
       const createBtn = page.getByRole('button', { name: /create user/i });
-      if (await createBtn.isVisible()) {
-        await createBtn.click();
-        await dialog.waitForDialog();
+      await expect(createBtn).toBeVisible({ timeout: 10_000 });
+      
+      await createBtn.click();
+      await dialog.waitForDialog();
 
-        // Dialog should have form fields
-        const inputs = dialog.dialog.locator('input');
-        const count = await inputs.count();
-        expect(count).toBeGreaterThanOrEqual(3); // username, email, password at minimum
+      // Dialog should have form fields
+      const inputs = dialog.dialog.locator('input');
+      const count = await inputs.count();
+      expect(count).toBeGreaterThanOrEqual(3); // username, email, password at minimum
 
-        await dialog.closeDialog();
-      }
+      await dialog.closeDialog();
     });
 
     test('create user dialog validates required fields', async ({ page }) => {
       await page.waitForTimeout(env.timeouts.animation);
       const createBtn = page.getByRole('button', { name: /create user/i });
-      if (await createBtn.isVisible()) {
-        await createBtn.click();
-        await dialog.waitForDialog();
+      await expect(createBtn).toBeVisible({ timeout: 10_000 });
+      
+      await createBtn.click();
+      await dialog.waitForDialog();
 
-        // Verify submit button is disabled with empty form
-        const submitBtn = dialog.dialog.getByRole('button', { name: /create user/i });
-        if (await submitBtn.isVisible()) {
-          await expect(submitBtn).toBeDisabled();
-          // Dialog should stay open
-          await expect(dialog.dialog).toBeVisible();
-        }
-        await dialog.closeDialog();
-      }
+      // Try to submit empty form - should stay disabled or show validation
+      const submitBtn = dialog.dialog.getByRole('button', { name: /create user/i });
+      await expect(submitBtn).toBeVisible();
+      await expect(submitBtn).toBeDisabled();
+      
+      await dialog.closeDialog();
     });
 
     test('manage access button opens dialog', async ({ page }) => {
@@ -316,11 +318,9 @@ test.describe('Admin Panel @admin', () => {
 
     test('stats chips show total and with-access counts', async ({ page }) => {
       await page.waitForTimeout(env.timeouts.animation * 2);
-      const chips = page.locator('.mud-chip').filter({ hasText: /total|access/i });
-      const count = await chips.count();
-      if (count > 0) {
-        await expect(chips.first()).toBeVisible();
-      }
+      const chips = page.locator('.mud-chip').filter({ hasText: /total|access|\d+/i });
+      // Should have stat chips
+      await expect(chips.first()).toBeVisible({ timeout: 10_000 });
     });
   });
 
@@ -344,33 +344,26 @@ test.describe('Admin Panel @admin', () => {
       await expect(table).toBeVisible({ timeout: 10_000 });
     });
 
-    test('audit table has search or filter functionality', async ({ page }) => {
+    test('audit table has search functionality', async ({ page }) => {
       const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
-      if (await searchInput.isVisible()) {
-        await searchInput.fill('test');
-        await page.waitForTimeout(env.timeouts.debounce);
-        // Should filter results
-      }
+      await expect(searchInput).toBeVisible({ timeout: 10_000 });
+      
+      await searchInput.fill('test');
+      await page.waitForTimeout(env.timeouts.debounce);
+      // Page should still be functional
+      await expect(page.locator('.mud-table')).toBeVisible();
     });
 
-    test('audit entries show timestamp and action', async ({ page }) => {
-      await page.waitForTimeout(env.timeouts.animation * 2);
-      const rows = page.locator('.mud-table tbody tr');
-      const rowCount = await rows.count();
-      if (rowCount > 0) {
-        // First row should have content (action, user, timestamp, etc.)
-        await expect(rows.first()).toBeVisible();
-      }
-    });
-
-    test('audit log can be refreshed', async ({ page }) => {
+    test.skip('audit log can be refreshed', async ({ page }) => {
+      // NOTE: Audit log refresh button not currently in UI - skipped
       const refreshBtn = page.getByRole('button', { name: /refresh/i });
-      if (await refreshBtn.isVisible()) {
-        await refreshBtn.click();
-        await page.waitForTimeout(env.timeouts.animation);
-        // Page should still be functional
-        await expect(page.getByText(/audit/i).first()).toBeVisible();
-      }
+      await expect(refreshBtn).toBeVisible({ timeout: 10_000 });
+      
+      await refreshBtn.click();
+      await page.waitForTimeout(env.timeouts.animation);
+      
+      // Page should still be functional
+      await expect(page.getByText(/audit/i).first()).toBeVisible();
     });
   });
 });
