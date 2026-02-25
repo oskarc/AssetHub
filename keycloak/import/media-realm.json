@@ -2,6 +2,7 @@
   "realm": "media",
   "enabled": true,
   "displayName": "Media",
+  "emailTheme": "assethub",
   "registrationAllowed": false,
   "resetPasswordAllowed": true,
   "smtpServer": {

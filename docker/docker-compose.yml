@@ -66,6 +66,7 @@ services:
     volumes:
       - keycloakdata:/opt/keycloak/data
       - ../keycloak/import:/opt/keycloak/data/import:ro
+      - ../keycloak/themes:/opt/keycloak/themes:ro
       - ../certs:/opt/keycloak/certs:ro
     ports:
       - "127.0.0.1:8080:8080"
