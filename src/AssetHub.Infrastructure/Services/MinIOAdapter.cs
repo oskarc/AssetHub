@@ -52,45 +52,19 @@ public class MinIOAdapter(
 
     public async Task<Stream> DownloadAsync(string bucketName, string objectKey, CancellationToken cancellationToken = default)
     {
-        // Use a pipe to stream data without buffering the entire file in memory.
-        // GetObjectAsync blocks until its callback completes, so the download
-        // must run on a background task; otherwise the pipe writer will stall
-        // once its buffer fills because no reader is consuming yet (deadlock).
-        var pipe = new System.IO.Pipelines.Pipe();
+        var memoryStream = new MemoryStream();
 
-        _ = Task.Run(async () =>
-        {
-            Exception? completionException = null;
-            try
+        var getObjectArgs = new GetObjectArgs()
+            .WithBucket(bucketName)
+            .WithObject(objectKey)
+            .WithCallbackStream(async (stream, ct) =>
             {
-                var getObjectArgs = new GetObjectArgs()
-                    .WithBucket(bucketName)
-                    .WithObject(objectKey)
-                    .WithCallbackStream(async (stream) =>
-                    {
-                        try
-                        {
-                            await stream.CopyToAsync(pipe.Writer.AsStream(), 81920, cancellationToken);
-                        }
-                        catch (Exception ex)
-                        {
-                            completionException = ex;
-                        }
-                    });
+                await stream.CopyToAsync(memoryStream, ct);
+            });
 
-                await minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                completionException ??= ex;
-            }
-            finally
-            {
-                await pipe.Writer.CompleteAsync(completionException);
-            }
-        }, CancellationToken.None); // Use None: the inner code already checks cancellationToken
-
-        return pipe.Reader.AsStream();
+        await minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
+        memoryStream.Position = 0;
+        return memoryStream;
     }
 
     public async Task<byte[]> DownloadRangeAsync(string bucketName, string objectKey, long offset, int length, CancellationToken cancellationToken = default)
