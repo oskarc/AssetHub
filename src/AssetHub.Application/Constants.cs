@@ -222,6 +222,12 @@ public static class Constants
         /// </summary>
         public const int AdminCollectionQueryLimit = 2_000;
 
+        /// <summary>
+        /// Maximum number of users loaded in a single query from the Keycloak database.
+        /// Prevents unbounded memory use in large deployments (CWE-400).
+        /// </summary>
+        public const int MaxUserQueryLimit = 10_000;
+
         /// <summary>Maximum number of tags per asset.</summary>
         public const int MaxTagsPerAsset = 50;
 
@@ -233,5 +239,8 @@ public static class Constants
 
         /// <summary>Maximum character length for a single metadata key.</summary>
         public const int MaxMetadataKeyLength = 100;
+
+        /// <summary>Maximum character length for a single metadata value (string representation).</summary>
+        public const int MaxMetadataValueLength = 1000;
     }
 }

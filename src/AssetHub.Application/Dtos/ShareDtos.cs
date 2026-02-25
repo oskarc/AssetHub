@@ -18,7 +18,7 @@ public class CreateShareDto
 
     public DateTime? ExpiresAt { get; set; }
 
-    [StringLength(100, MinimumLength = 4, ErrorMessage = "Password must be 4-100 characters")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be 8-100 characters")]
     public string? Password { get; set; }
 
     public Dictionary<string, bool>? PermissionsJson { get; set; }
@@ -90,7 +90,7 @@ public class SharedCollectionDto
 public class UpdateSharePasswordDto
 {
     [Required]
-    [StringLength(100, MinimumLength = 4, ErrorMessage = "Password must be 4-100 characters")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be 8-100 characters")]
     public required string Password { get; set; }
 }
 

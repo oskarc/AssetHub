@@ -619,6 +619,57 @@ public class SecurityTests : IAsyncLifetime
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  SECTION 9: INPUT VALIDATION DEPTH TESTS
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task CreateShare_WithShortPassword_Returns400()
+    {
+        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Contributor);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
+
+        var dto = new CreateShareDto
+        {
+            ScopeId = assetId,
+            ScopeType = Constants.ScopeTypes.Asset,
+            Password = "abc1234"  // Only 7 chars — below the 8-char minimum
+        };
+        var response = await client.PostAsJsonAsync("/api/shares", dto);
+
+        // Should be rejected: password too short
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateSharePassword_WithShortPassword_Returns400()
+    {
+        var (_, _, shareId, _) = await SeedShareAsync(UserAId, ShareScopeType.Asset);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
+
+        var dto = new UpdateSharePasswordDto { Password = "abc123" }; // 6 chars — below minimum
+        var response = await client.PutAsJsonAsync($"/api/shares/{shareId}/password", dto);
+
+        // Should be rejected: password too short
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateAsset_WithOversizedMetadataValue_Returns400()
+    {
+        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
+
+        // Single metadata value that exceeds the per-value length limit
+        var oversizedValue = new string('x', Constants.Limits.MaxMetadataValueLength + 1);
+        var metadata = new Dictionary<string, object> { ["key"] = oversizedValue };
+
+        var patchContent = JsonContent.Create(new { MetadataJson = metadata });
+        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  HELPER METHODS
     // ═══════════════════════════════════════════════════════════════
 

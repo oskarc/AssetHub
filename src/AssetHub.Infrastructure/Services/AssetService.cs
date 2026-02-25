@@ -71,6 +71,8 @@ public sealed class AssetService : IAssetService
                 return ServiceError.BadRequest($"Metadata cannot exceed {Constants.Limits.MaxMetadataEntries} entries");
             if (dto.MetadataJson.Keys.Any(k => k.Length > Constants.Limits.MaxMetadataKeyLength))
                 return ServiceError.BadRequest($"Each metadata key must be {Constants.Limits.MaxMetadataKeyLength} characters or fewer");
+            if (dto.MetadataJson.Values.Any(v => v?.ToString()?.Length > Constants.Limits.MaxMetadataValueLength))
+                return ServiceError.BadRequest($"Each metadata value must be {Constants.Limits.MaxMetadataValueLength} characters or fewer");
             asset.MetadataJson = dto.MetadataJson;
         }
         asset.UpdatedAt = DateTime.UtcNow;

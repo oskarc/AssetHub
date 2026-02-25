@@ -135,7 +135,7 @@ public class UserLookupService(
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(ct);
 
-        var sql = "SELECT id, username, email, first_name, last_name, created_timestamp FROM user_entity ORDER BY username";
+        var sql = $"SELECT id, username, email, first_name, last_name, created_timestamp FROM user_entity ORDER BY username LIMIT {Constants.Limits.MaxUserQueryLimit}";
         await using var cmd = new NpgsqlCommand(sql, connection);
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
