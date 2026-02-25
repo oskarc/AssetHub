@@ -46,7 +46,29 @@
     @if (_showUpload)
     {
         <MudPaper Class="pa-3 mb-4" Elevation="1">
-            <AssetUpload OnUploadComplete="@OnUploadComplete" />
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudSelect T="Guid?"
+                               @bind-Value="_uploadCollectionId"
+                               Label="@AssetLoc["UploadToCollection"]"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Style="max-width: 300px;">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">@AssetLoc["NoCollection"]</MudSelectItem>
+                        @foreach (var collection in _collections)
+                        {
+                            <MudSelectItem T="Guid?" Value="@collection.Id">@collection.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    @if (!_uploadCollectionId.HasValue)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Warning">
+                            @AssetLoc["UploadNoCollectionWarning"]
+                        </MudText>
+                    }
+                </MudStack>
+                <AssetUpload CollectionId="@_uploadCollectionId" OnUploadComplete="@OnUploadComplete" RequireCollection="false" />
+            </MudStack>
         </MudPaper>
     }
 
@@ -291,6 +313,7 @@
     private string _searchQuery = "";
     private string? _filterType;
     private Guid? _filterCollectionId;
+    private Guid? _uploadCollectionId;
     private string _sortBy = Constants.SortBy.CreatedDesc;
     private string _viewMode = Constants.ViewModes.Grid;
     private bool _showUpload = false;

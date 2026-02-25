@@ -58,25 +58,25 @@ public static class FileMagicValidator
         ],
         ["image/heic"] =
         [
-            new([0x00, 0x00, 0x00], Offset: 0), // ftyp box (needs additional check for heic brand)
+            new([0x66, 0x74, 0x79, 0x70], Offset: 4), // "ftyp" at offset 4
         ],
         ["image/heif"] =
         [
-            new([0x00, 0x00, 0x00], Offset: 0),
+            new([0x66, 0x74, 0x79, 0x70], Offset: 4), // "ftyp" at offset 4
         ],
         ["image/avif"] =
         [
-            new([0x00, 0x00, 0x00], Offset: 0), // ftyp box
+            new([0x66, 0x74, 0x79, 0x70], Offset: 4), // "ftyp" at offset 4
         ],
 
         // Video formats
         ["video/mp4"] =
         [
-            new([0x00, 0x00, 0x00], Offset: 0), // ftyp box (MP4 container)
+            new([0x66, 0x74, 0x79, 0x70], Offset: 4), // "ftyp" at offset 4
         ],
         ["video/quicktime"] =
         [
-            new([0x00, 0x00, 0x00], Offset: 0), // MOV uses same ftyp structure
+            new([0x66, 0x74, 0x79, 0x70], Offset: 4), // "ftyp" at offset 4 (MOV)
         ],
         ["video/x-msvideo"] =
         [
@@ -132,11 +132,11 @@ public static class FileMagicValidator
         ],
         ["audio/mp4"] =
         [
-            new([0x00, 0x00, 0x00], Offset: 0), // ftyp box (M4A)
+            new([0x66, 0x74, 0x79, 0x70], Offset: 4), // "ftyp" at offset 4 (M4A)
         ],
         ["audio/x-m4a"] =
         [
-            new([0x00, 0x00, 0x00], Offset: 0),
+            new([0x66, 0x74, 0x79, 0x70], Offset: 4), // "ftyp" at offset 4
         ],
 
         // Documents

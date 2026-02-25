@@ -36,7 +36,7 @@
                    Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.AttachFile"
                    for="fileInput"
-                   Disabled="@(!CollectionId.HasValue || _isUploading)">
+                   Disabled="@((RequireCollection && !CollectionId.HasValue) || _isUploading)">
             @CommonLoc["Btn_BrowseFiles"]
         </MudButton>
         <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -97,6 +97,13 @@
 @code {
     [Parameter]
     public Guid? CollectionId { get; set; }
+
+    /// <summary>
+    /// When true (default), the browse button is disabled if no CollectionId is set.
+    /// Set to false to allow uploads without a target collection (e.g., admin uploads).
+    /// </summary>
+    [Parameter]
+    public bool RequireCollection { get; set; } = true;
 
     [Parameter]
     public EventCallback OnUploadComplete { get; set; }

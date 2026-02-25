@@ -3,6 +3,7 @@ using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
+using AssetHub.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -224,7 +225,27 @@ public sealed class AssetQueryService : IAssetQueryService
         if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Viewer, ct))
             return ServiceError.Forbidden();
 
-        string? objectKey = size.ToLower() switch
+        var sizeNormalized = size.ToLower();
+        var isOriginal = sizeNormalized == "original";
+
+        // Block all requests while upload is in progress (no files in storage yet)
+        if (asset.Status == AssetStatus.Uploading)
+        {
+            return ServiceError.BadRequest("Asset is still being uploaded. Please wait for the upload to complete.");
+        }
+
+        // For forced downloads (not previews), provide helpful error messages if not ready
+        if (forceDownload && asset.Status != AssetStatus.Ready && !isOriginal)
+        {
+            return asset.Status switch
+            {
+                AssetStatus.Processing => ServiceError.BadRequest("Asset is still being processed. Please try again in a few moments."),
+                AssetStatus.Failed => ServiceError.BadRequest("Asset processing failed. Original file may still be available for download."),
+                _ => ServiceError.BadRequest("Asset is not available for download.")
+            };
+        }
+
+        string? objectKey = sizeNormalized switch
         {
             "original" => asset.OriginalObjectKey,
             "thumb" => asset.ThumbObjectKey,

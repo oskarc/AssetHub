@@ -15,6 +15,7 @@
 @inject ILogger<Share> Logger
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<SharesResource> ShareLoc
+@inject ISnackbar Snackbar
 
 <PageTitle>@ShareLoc["SharedContent"] - @CommonLoc["AppName"]</PageTitle>
 
@@ -572,7 +573,13 @@
             url += "?" + string.Join("&", queryParams);
 
         if (_jsModule != null)
-            await _jsModule.InvokeVoidAsync("downloadViaAnchor", url);
+        {
+            var error = await _jsModule.InvokeAsync<string?>("downloadWithErrorCheck", url, null);
+            if (!string.IsNullOrEmpty(error))
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
     }
 
     private async Task DownloadSpecificSize(Guid? assetId, string size)
@@ -584,7 +591,13 @@
             url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
 
         if (_jsModule != null)
-            await _jsModule.InvokeVoidAsync("downloadViaAnchor", url);
+        {
+            var error = await _jsModule.InvokeAsync<string?>("downloadWithErrorCheck", url, null);
+            if (!string.IsNullOrEmpty(error))
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
     }
 
     private string? GetMediumDownloadUrl(Guid? assetId)

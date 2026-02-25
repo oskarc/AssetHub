@@ -100,4 +100,9 @@
 
   <!-- Processing -->
   <data name="ProcessingFailedMessage" xml:space="preserve"><value>Bearbetningen misslyckades för denna tillgång. Försök ladda upp igen eller kontakta en administratör.</value></data>
+
+  <!-- Admin Upload -->
+  <data name="UploadToCollection" xml:space="preserve"><value>Ladda upp till samling</value></data>
+  <data name="NoCollection" xml:space="preserve"><value>Ingen samling (föräldralös)</value></data>
+  <data name="UploadNoCollectionWarning" xml:space="preserve"><value>Tillgången blir föräldralös tills den läggs till i en samling</value></data>
 </root>

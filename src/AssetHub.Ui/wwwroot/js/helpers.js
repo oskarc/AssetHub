@@ -13,6 +13,58 @@ export function downloadViaAnchor(url) {
 }
 
 /**
+ * Safely downloads a file by first checking the URL for errors.
+ * Returns null on success, or an error message string if download failed.
+ * @param {string} url - The URL to download from.
+ * @param {object|null} headers - Optional headers to include.
+ * @returns {Promise<string|null>} null on success, error message on failure.
+ */
+export async function downloadWithErrorCheck(url, headers) {
+    try {
+        // Use fetch with redirect: 'manual' to intercept redirects
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            redirect: 'manual',
+            headers: headers || {}
+        });
+
+        // 3xx redirect means success - the server returned a presigned URL
+        if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+            // Let the browser handle the redirect normally
+            downloadViaAnchor(url);
+            return null;
+        }
+
+        // 2xx with redirect in body (some APIs return redirect URL in response)
+        if (response.ok) {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const data = await response.json();
+                if (data.url || data.redirectUrl || data.downloadUrl) {
+                    downloadViaAnchor(data.url || data.redirectUrl || data.downloadUrl);
+                    return null;
+                }
+            }
+            // Direct 200 response - download directly
+            downloadViaAnchor(url);
+            return null;
+        }
+
+        // Error response - extract message from JSON
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            const errorData = await response.json();
+            return errorData.message || errorData.error || `Download failed (${response.status})`;
+        }
+
+        return `Download failed (${response.status})`;
+    } catch (ex) {
+        return ex.message || 'Download failed';
+    }
+}
+
+/**
  * Enqueues a ZIP download, polls for completion, then triggers the download.
  * Returns a JSON string with { success, error } so Blazor can handle feedback.
  *

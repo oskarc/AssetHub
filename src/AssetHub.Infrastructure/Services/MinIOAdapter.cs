@@ -276,7 +276,11 @@ public class MinIOAdapter(
 
             // Cache for 75% of expiry time to ensure URL is still valid when served
             var cacheDuration = TimeSpan.FromSeconds(expirySeconds * 0.75);
-            cache.Set(cacheKey, url, cacheDuration);
+            cache.Set(cacheKey, url, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = cacheDuration,
+                Size = 1
+            });
 
             return url;
         }

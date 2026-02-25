@@ -58,8 +58,8 @@ public class MediaProcessingService(
     public async Task ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
         var tempOriginal = Path.GetTempFileName();
-        var thumbPath = Path.GetTempFileName();
-        var mediumPath = Path.GetTempFileName();
+        var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
+        var mediumPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         
         try
         {
@@ -230,11 +230,25 @@ public class MediaProcessingService(
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        command.ArgumentList.Add(inputPath);
+        // Use [0] to handle multi-page/animated images (take first frame)
+        command.ArgumentList.Add($"{inputPath}[0]");
+        // Auto-orient based on EXIF data (critical for phone photos)
+        command.ArgumentList.Add("-auto-orient");
+        // Flatten transparency to white background for JPEG output
+        command.ArgumentList.Add("-background");
+        command.ArgumentList.Add("white");
+        command.ArgumentList.Add("-flatten");
+        // Ensure proper color space
+        command.ArgumentList.Add("-colorspace");
+        command.ArgumentList.Add("sRGB");
+        // Resize preserving aspect ratio (> means only shrink if larger)
         command.ArgumentList.Add("-resize");
         command.ArgumentList.Add($"{maxWidth}x{maxHeight}>");
+        // Set JPEG quality
         command.ArgumentList.Add("-quality");
         command.ArgumentList.Add(_imageSettings.JpegQuality.ToString());
+        // Strip metadata to reduce file size
+        command.ArgumentList.Add("-strip");
         command.ArgumentList.Add(outputPath);
 
         await RunProcessAsync(executable, command, ct);
@@ -280,6 +294,12 @@ public class MediaProcessingService(
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(ProcessTimeout);
 
+        // Read stdout and stderr concurrently to prevent pipe buffer deadlocks.
+        // If the pipe buffer fills up before the process exits, the process will
+        // block on writes and WaitForExitAsync will never complete.
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+        var stderrTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
+
         try
         {
             await process.WaitForExitAsync(timeoutCts.Token);
@@ -290,10 +310,12 @@ public class MediaProcessingService(
             throw new TimeoutException($"{toolName} process exceeded the {ProcessTimeout.TotalMinutes:F0}-minute timeout and was killed");
         }
 
+        await stdoutTask;
+        var stderr = await stderrTask;
+
         if (process.ExitCode != 0)
         {
-            var error = await process.StandardError.ReadToEndAsync(ct);
-            throw new InvalidOperationException($"{toolName} error (exit code {process.ExitCode}): {error}");
+            throw new InvalidOperationException($"{toolName} error (exit code {process.ExitCode}): {stderr}");
         }
     }
 

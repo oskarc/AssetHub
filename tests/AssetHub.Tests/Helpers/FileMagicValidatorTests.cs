@@ -130,6 +130,50 @@ public class FileMagicValidatorTests
         Assert.True(result);
     }
 
+    // ── MP4/MOV/M4A (ftyp container formats) ────────────────────────────────
+
+    [Theory]
+    [InlineData("video/mp4")]
+    [InlineData("video/quicktime")]
+    [InlineData("audio/mp4")]
+    [InlineData("audio/x-m4a")]
+    [InlineData("image/heic")]
+    [InlineData("image/heif")]
+    [InlineData("image/avif")]
+    public void Validate_ValidFtypContainer_ReturnsTrue(string mimeType)
+    {
+        // ftyp box: [size:4 bytes][ftyp:4 bytes][brand...]
+        // Example: 00 00 00 18 66 74 79 70 (24-byte ftyp box)
+        var header = new byte[] { 0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x00, 0x00 };
+        
+        var result = FileMagicValidator.Validate(header, mimeType);
+        
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Validate_Mp4_LargeFtypBox_ReturnsTrue()
+    {
+        // Large ftyp box (256+ bytes) - first byte of size is non-zero
+        // This was the bug: [0x00, 0x00, 0x01, 0x00] at offset 0 would fail old validation
+        var header = new byte[] { 0x00, 0x00, 0x01, 0x00, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x00, 0x00 };
+        
+        var result = FileMagicValidator.Validate(header, "video/mp4");
+        
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Validate_Mp4_InvalidHeader_ReturnsFalse()
+    {
+        // Not an ftyp container (random bytes)
+        var header = new byte[] { 0x00, 0x00, 0x00, 0x18, 0x6D, 0x6F, 0x6F, 0x76, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        
+        var result = FileMagicValidator.Validate(header, "video/mp4");
+        
+        Assert.False(result);
+    }
+
     // ── WebP ────────────────────────────────────────────────────────────────
 
     [Fact]
