@@ -354,16 +354,5 @@ test.describe('Admin Panel @admin', () => {
       await expect(page.locator('.mud-table')).toBeVisible();
     });
 
-    test.skip('audit log can be refreshed', async ({ page }) => {
-      // NOTE: Audit log refresh button not currently in UI - skipped
-      const refreshBtn = page.getByRole('button', { name: /refresh/i });
-      await expect(refreshBtn).toBeVisible({ timeout: 10_000 });
-      
-      await refreshBtn.click();
-      await page.waitForTimeout(env.timeouts.animation);
-      
-      // Page should still be functional
-      await expect(page.getByText(/audit/i).first()).toBeVisible();
-    });
   });
 });
