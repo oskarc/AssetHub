@@ -89,6 +89,18 @@
     overflow-y: auto;
 }
 
+.collection-nav-item {
+    min-height: 46px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+/* Collection Cards */
+.collection-card {
+    min-height: 115px;
+    height: 100%;
+}
+
 /* Dialog Layouts */
 .dialog-min-width {
     min-width: 500px;

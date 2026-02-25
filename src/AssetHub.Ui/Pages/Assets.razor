@@ -114,31 +114,13 @@
                     @foreach (var collection in FilteredCollections)
                     {
                         <MudItem xs="6" sm="4" md="3" lg="2">
-                            <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="() => OnCollectionSelected(collection.Id)">
+                            <MudCard Class="cursor-pointer collection-card" @onclick="() => OnCollectionSelected(collection.Id)">
                                 <MudCardContent>
                                     <div class="d-flex align-center gap-2">
                                         <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" />
-                                        <MudText Typo="Typo.subtitle2" Class="text-truncate" Style="flex: 1;">@collection.Name</MudText>
-                                        <div onclick="event.stopPropagation()" class="d-flex">
-                                            @if (RolePermissions.CanEditCollection(collection.UserRole))
-                                            {
-                                                <MudTooltip Text="@CollectionLoc["EditCollection"]">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                                                   Size="Size.Small"
-                                                                   Color="Color.Default"
-                                                                   OnClick="@(() => EditCollectionAsync(collection))" />
-                                                </MudTooltip>
-                                            }
-                                            @if (RolePermissions.CanDelete(collection.UserRole))
-                                            {
-                                                <MudTooltip Text="@CollectionLoc["DeleteCollection"]">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                                   Size="Size.Small"
-                                                                   Color="Color.Error"
-                                                                   OnClick="@(() => DeleteCollectionAsync(collection))" />
-                                                </MudTooltip>
-                                            }
-                                        </div>
+                                        <MudTooltip Text="@collection.Name">
+                                            <MudText Typo="Typo.subtitle2" Class="text-truncate" Style="flex: 1;">@collection.Name</MudText>
+                                        </MudTooltip>
                                     </div>
                                     <div class="d-flex align-center justify-space-between mt-2">
                                         <div class="d-flex align-center gap-1">
