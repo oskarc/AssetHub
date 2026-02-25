@@ -91,12 +91,13 @@ public class ShareEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetSharedAsset_EmptyToken_ReturnsMethodNotAllowed()
+    public async Task GetSharedAsset_EmptyToken_ReturnsUnauthorized()
     {
         var client = AnonymousClient();
-        // An empty token segment matches the group root (no handler on GET "/") → 405
+        // A trailing slash with no token segment: the FallbackPolicy (RequireAuthenticatedUser)
+        // runs before routing resolves to a share handler, so anonymous callers get 401.
         var response = await client.GetAsync("/api/shares/");
-        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // ── POST /api/shares/{token}/access-token ───────────────────────

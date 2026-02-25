@@ -291,6 +291,8 @@ public class ShareAccessService : IShareAccessService
 
         if (string.IsNullOrWhiteSpace(password))
             return ServiceError.BadRequest("Password cannot be empty");
+        if (password.Length < Constants.Limits.MinSharePasswordLength)
+            return ServiceError.BadRequest($"Password must be at least {Constants.Limits.MinSharePasswordLength} characters");
 
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
         await _shareRepo.UpdateAsync(share, ct);

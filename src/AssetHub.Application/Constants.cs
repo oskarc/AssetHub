@@ -197,6 +197,9 @@ public static class Constants
         /// <summary>Maximum share link expiry in days.</summary>
         public const int MaxShareExpiryDays = 90;
 
+        /// <summary>Minimum character length for share link passwords.</summary>
+        public const int MinSharePasswordLength = 8;
+
         /// <summary>How long a share access token remains valid (minutes).</summary>
         public const int ShareAccessTokenLifetimeMinutes = 30;
 
