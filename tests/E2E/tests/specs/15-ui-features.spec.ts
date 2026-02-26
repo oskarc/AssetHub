@@ -148,50 +148,35 @@ test.describe('UI Feature Tests @ui', () => {
       await page.waitForTimeout(env.timeouts.animation);
     });
 
-    test('edit icon button on collection card opens edit dialog without navigating', async ({ page }) => {
+    test('collection card shows access role text', async ({ page }) => {
       // Find the test collection card
       const card = page.locator('.mud-card').filter({ hasText: collectionName });
-      if (await card.isVisible()) {
-        // Click the edit icon button on the card (should not navigate into the collection)
-        const editIcon = card.locator('.mud-icon-button').first();
-        await editIcon.click();
-        await page.waitForTimeout(env.timeouts.animation);
+      await expect(card).toBeVisible({ timeout: 10_000 });
 
-        // Should open edit dialog, not navigate
-        const dialogVisible = await page.locator('.mud-dialog').isVisible();
-        if (dialogVisible) {
-          await dialog.closeDialog();
-        }
+      // Card should display "Your Role:" label
+      const roleLabel = card.getByText(/your role/i);
+      await expect(roleLabel).toBeVisible();
 
-        // URL should still be /assets (not /assets?collection=...)
-        expect(page.url()).toMatch(/\/assets$/);
-      }
+      // Card should show a role chip (Admin, Editor, or Viewer)
+      const roleChip = card.locator('.mud-chip');
+      await expect(roleChip).toBeVisible();
+      const chipText = await roleChip.textContent();
+      expect(chipText).toMatch(/admin|editor|viewer/i);
     });
 
-    test('delete icon button on collection card opens confirmation without navigating', async ({ page }) => {
+    test('collection card name has tooltip with full name', async ({ page }) => {
       // Find the test collection card
       const card = page.locator('.mud-card').filter({ hasText: collectionName });
-      if (await card.isVisible()) {
-        // Click the delete icon button on the card
-        const deleteIcon = card.locator('.mud-icon-button').last();
-        await deleteIcon.click();
-        await page.waitForTimeout(env.timeouts.animation);
+      await expect(card).toBeVisible({ timeout: 10_000 });
 
-        // Should open confirm dialog, not navigate
-        const confirmDialog = page.locator('.mud-dialog, .mud-message-box');
-        if (await confirmDialog.isVisible()) {
-          // Cancel
-          const cancelBtn = confirmDialog.getByRole('button', { name: /cancel/i });
-          if (await cancelBtn.isVisible()) {
-            await cancelBtn.click();
-          } else {
-            await page.keyboard.press('Escape');
-          }
-        }
+      // Hover over the collection name to trigger tooltip
+      const collectionNameElement = card.locator('.collection-name-truncate');
+      await collectionNameElement.hover();
+      await page.waitForTimeout(env.timeouts.animation);
 
-        // URL should still be /assets (not /assets?collection=...)
-        expect(page.url()).toMatch(/\/assets$/);
-      }
+      // Tooltip should appear with the full collection name
+      const tooltip = page.locator('.mud-tooltip').filter({ hasText: collectionName });
+      await expect(tooltip).toBeVisible({ timeout: 5_000 });
     });
   });
 

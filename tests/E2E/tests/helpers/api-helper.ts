@@ -137,9 +137,10 @@ export class ApiHelper {
   }
 
   /** Make a raw DELETE request with authentication */
-  async delete(url: string) {
+  async delete(url: string, options?: { maxRedirects?: number }) {
     return await this.request.delete(url, {
       headers: this.authHeaders(),
+      ...options,
     });
   }
 
