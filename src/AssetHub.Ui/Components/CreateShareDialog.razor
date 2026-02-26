@@ -32,6 +32,7 @@
                           Adornment="Adornment.End"
                           AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
                           OnAdornmentClick="TogglePasswordVisibility"
+                          Validation="@((string p) => !string.IsNullOrEmpty(p) && p.Length < Constants.Limits.MinSharePasswordLength ? string.Format(CommonLoc["Validation_PasswordMinLength"].Value, Constants.Limits.MinSharePasswordLength) : null)"
                           HelperText="@ShareLoc["PasswordHelperText"]" />
 
             <MudStack Row="true">

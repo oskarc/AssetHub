@@ -162,6 +162,7 @@
   <data name="Text_NotAssignedToCollection" xml:space="preserve"><value>Inte tilldelad någon samling</value></data>
   <data name="Text_SupportedFormats" xml:space="preserve"><value>Stöds: Bilder (JPEG, PNG, WebP), Videor (MP4), Dokument (PDF)</value></data>
   <data name="Text_DragDropFiles" xml:space="preserve"><value>Dra och släpp filer här eller</value></data>
+  <data name="Text_MaxFilesHint" xml:space="preserve"><value>Maximalt {0} filer per uppladdning</value></data>
   <data name="Text_Uploads" xml:space="preserve"><value>Uppladdningar</value></data>
   <data name="Text_FileInformation" xml:space="preserve"><value>Filinformation</value></data>
   <data name="Text_AdvancedMetadata" xml:space="preserve"><value>Avancerad metadata</value></data>
@@ -180,6 +181,7 @@
   <data name="Validation_TitleRequired" xml:space="preserve"><value>Titel krävs</value></data>
   <data name="Validation_PasswordRequired" xml:space="preserve"><value>Lösenord krävs</value></data>
   <data name="Validation_PasswordEmpty" xml:space="preserve"><value>Lösenordet får inte vara tomt.</value></data>
+  <data name="Validation_PasswordMinLength" xml:space="preserve"><value>Lösenordet måste vara minst {0} tecken</value></data>
   <data name="Validation_InvalidEmail" xml:space="preserve"><value>Ange en giltig e-postadress.</value></data>
   <data name="Validation_DuplicateEmail" xml:space="preserve"><value>Denna e-postadress har redan lagts till.</value></data>
   <data name="Validation_EnterPassword" xml:space="preserve"><value>Ange ett lösenord</value></data>
