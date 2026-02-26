@@ -69,7 +69,7 @@
   <data name="ChangeRole" xml:space="preserve"><value>Change Role</value></data>
   <data name="RevokeAccess" xml:space="preserve"><value>Revoke Access</value></data>
   <data name="ConfirmRevokeAccess" xml:space="preserve"><value>Are you sure you want to revoke access for {0}? This action cannot be undone.</value></data>
-  <data name="InsufficientLevel" xml:space="preserve"><value>Higher role</value></data>
+  <data name="InsufficientLevel" xml:space="preserve"><value>Cannot modify</value></data>
   <data name="AccessGrantedSuccess" xml:space="preserve"><value>Granted {1} access to {0}</value></data>
   <data name="RoleUpdatedSuccess" xml:space="preserve"><value>Role updated successfully</value></data>
   <data name="AccessRevokedSuccess" xml:space="preserve"><value>Revoked access for {0}</value></data>

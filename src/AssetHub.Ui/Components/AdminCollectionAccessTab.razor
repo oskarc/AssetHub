@@ -118,7 +118,7 @@ else
                                         </td>
                                         <td>
                                             <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(acl.Role)">
-                                                @acl.Role
+                                                @CommonLoc[AssetDisplayHelpers.GetRoleKey(acl.Role)]
                                             </MudChip>
                                         </td>
                                         <td>
@@ -271,7 +271,7 @@ else
 
         var confirmed = await DialogService.ShowMessageBox(
             CommonLoc["Confirm_RemoveAccess"],
-            string.Format(AdminLoc["ConfirmRemoveAccess"], acl.PrincipalId, _selectedCollection.Name),
+            string.Format(AdminLoc["ConfirmRemoveAccess"], acl.PrincipalName ?? acl.PrincipalId, _selectedCollection.Name),
             yesText: CommonLoc["Btn_Remove"], cancelText: CommonLoc["Btn_Cancel"]);
 
         if (confirmed != true)
@@ -280,7 +280,7 @@ else
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.RemoveCollectionAclAsync(_selectedCollection.Id, acl.PrincipalId, acl.PrincipalType),
             "remove access",
-            string.Format(CommonLoc["Success_AccessRemoved"], acl.PrincipalId));
+            string.Format(CommonLoc["Success_AccessRemoved"], acl.PrincipalName ?? acl.PrincipalId));
 
         if (success)
         {

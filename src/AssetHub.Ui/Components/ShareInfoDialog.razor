@@ -109,13 +109,29 @@
     private async Task CopyUrl()
     {
         if (string.IsNullOrEmpty(ShareUrl)) return;
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
+            Feedback.ShowSuccess(CommonLoc["Success_LinkCopied"].Value);
+        }
+        catch (Exception)
+        {
+            Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
+        }
     }
 
     private async Task CopyPassword()
     {
         if (string.IsNullOrEmpty(SharePassword)) return;
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", SharePassword);
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", SharePassword);
+            Feedback.ShowSuccess(CommonLoc["Success_PasswordCopied"].Value);
+        }
+        catch (Exception)
+        {
+            Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
+        }
     }
 
     private async Task CopyAll()
@@ -123,8 +139,16 @@
         var parts = new List<string>();
         if (!string.IsNullOrEmpty(ShareUrl)) parts.Add(ShareUrl);
         if (!string.IsNullOrEmpty(SharePassword)) parts.Add(SharePassword);
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", string.Join("\n", parts));
-        MudDialog.Close(DialogResult.Ok(true));
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", string.Join("\n", parts));
+            Feedback.ShowSuccess(CommonLoc["Success_LinkAndPasswordCopied"].Value);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception)
+        {
+            Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
+        }
     }
 
     private async Task OpenSetPassword()

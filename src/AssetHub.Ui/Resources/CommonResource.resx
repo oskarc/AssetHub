@@ -165,6 +165,7 @@
   <data name="Text_NotAssignedToCollection" xml:space="preserve"><value>Not assigned to any collection</value></data>
   <data name="Text_SupportedFormats" xml:space="preserve"><value>Supported: Images (JPEG, PNG, WebP), Videos (MP4), Documents (PDF)</value></data>
   <data name="Text_DragDropFiles" xml:space="preserve"><value>Drag and drop files here or</value></data>
+  <data name="Text_MaxFilesHint" xml:space="preserve"><value>Maximum {0} files per upload</value></data>
   <data name="Text_Uploads" xml:space="preserve"><value>Uploads</value></data>
   <data name="Text_FileInformation" xml:space="preserve"><value>File Information</value></data>
   <data name="Text_AdvancedMetadata" xml:space="preserve"><value>Advanced MetaData</value></data>
@@ -183,6 +184,7 @@
   <data name="Validation_TitleRequired" xml:space="preserve"><value>Title is required</value></data>
   <data name="Validation_PasswordRequired" xml:space="preserve"><value>Password is required</value></data>
   <data name="Validation_PasswordEmpty" xml:space="preserve"><value>Password cannot be empty.</value></data>
+  <data name="Validation_PasswordMinLength" xml:space="preserve"><value>Password must be at least {0} characters</value></data>
   <data name="Validation_InvalidEmail" xml:space="preserve"><value>Please enter a valid email address.</value></data>
   <data name="Validation_DuplicateEmail" xml:space="preserve"><value>This email has already been added.</value></data>
   <data name="Validation_EnterPassword" xml:space="preserve"><value>Please enter a password</value></data>

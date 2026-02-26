@@ -245,5 +245,8 @@ public static class Constants
 
         /// <summary>Maximum character length for a single metadata value (string representation).</summary>
         public const int MaxMetadataValueLength = 1000;
+
+        /// <summary>Maximum number of files that can be uploaded in a single batch.</summary>
+        public const int MaxFilesPerUpload = 10;
     }
 }

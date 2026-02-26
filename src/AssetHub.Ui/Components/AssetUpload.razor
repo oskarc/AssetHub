@@ -42,6 +42,9 @@
         <MudText Typo="Typo.caption" Color="Color.Secondary">
             @CommonLoc["Text_SupportedFormats"]
         </MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @string.Format(CommonLoc["Text_MaxFilesHint"].Value, Constants.Limits.MaxFilesPerUpload)
+        </MudText>
     </MudStack>
 </div>
 
@@ -156,7 +159,7 @@
         }
 
         _isUploading = true;
-        var files = e.GetMultipleFiles(10); // Max 10 files at once
+        var files = e.GetMultipleFiles(Constants.Limits.MaxFilesPerUpload);
 
         // Get file metadata from JS (no file data sent over SignalR)
         var fileMetadata = await _jsModule.InvokeAsync<FileMetadata[]>(
