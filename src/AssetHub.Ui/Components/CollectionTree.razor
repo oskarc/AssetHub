@@ -1,0 +1,63 @@
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CollectionsResource> CollectionLoc
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!_collections.Any())
+{
+    <EmptyState Title="@CollectionLoc["NoCollectionsYet"]"
+                Description="@CollectionLoc["CreateFirstHint"]"
+                Icon="@Icons.Material.Filled.Folder" />
+}
+else
+{
+    <MudNavMenu>
+        @foreach (var collection in _collections)
+        {
+            <MudNavLink Icon="@Icons.Material.Filled.Folder"
+                        Class="@(SelectedCollectionId == collection.Id ? "mud-nav-link-active" : null)"
+                        @onclick="@(() => OnCollectionSelected.InvokeAsync(collection.Id))">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <span>@collection.Name</span>
+                    @if (collection.AssetCount > 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">@collection.AssetCount</MudChip>
+                    }
+                    <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" />
+                </MudStack>
+            </MudNavLink>
+        }
+    </MudNavMenu>
+}
+
+@code {
+    /// <summary>The ID of the currently selected collection, used to highlight the active item.</summary>
+    [Parameter]
+    public Guid? SelectedCollectionId { get; set; }
+
+    /// <summary>Fires when the user clicks a collection item.</summary>
+    [Parameter]
+    public EventCallback<Guid?> OnCollectionSelected { get; set; }
+
+    private List<CollectionResponseDto> _collections = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _collections = await Api.GetCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
