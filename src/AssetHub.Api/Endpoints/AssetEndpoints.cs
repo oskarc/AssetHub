@@ -18,10 +18,10 @@ public static class AssetEndpoints
         group.MapGet("", GetAssets).RequireAuthorization("RequireAdmin").WithName("GetAssets");
         group.MapGet("all", GetAllAssets).RequireAuthorization("RequireAdmin").WithName("GetAllAssets");
         group.MapGet("{id:guid}", GetAsset).WithName("GetAsset");
-        // .DisableAntiforgery() is required here because these endpoints are called
-        // by the Blazor Server HttpClient (cookie-authenticated) as well as external
-        // JWT Bearer clients. Antiforgery tokens cannot be provided by either caller.
-        // CSRF risk is mitigated by SameSite=Lax cookies and Keycloak Referer checks.
+        // .DisableAntiforgery() is required because antiforgery tokens cannot be
+        // provided by either caller: the Blazor Server HttpClient (cookie-auth,
+        // same-origin only) or external JWT Bearer clients (inherently CSRF-immune
+        // since the token must be explicitly attached to each request).
         group.MapPost("", UploadAsset).DisableAntiforgery().WithName("UploadAsset");
         group.MapPatch("{id:guid}", UpdateAsset).DisableAntiforgery().WithName("UpdateAsset");
         group.MapDelete("{id:guid}", DeleteAsset).DisableAntiforgery().WithName("DeleteAsset");

@@ -75,22 +75,26 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
   });
 
   test('hamburger menu toggles drawer visibility', async ({ page }) => {
-    // Get initial drawer state
-    const initialVisible = await layout.drawer.isVisible();
+    // MudBlazor drawer doesn't hide from DOM; it uses CSS classes to indicate open/closed state
+    const isDrawerOpen = async () => layout.drawer.evaluate(el => el.classList.contains('mud-drawer--open'));
+    
+    // Get initial drawer state (should be open by default)
+    const initialOpen = await isDrawerOpen();
+    expect(initialOpen).toBe(true);
     
     // Click menu toggle
     await layout.menuToggle.click();
     await page.waitForTimeout(env.timeouts.animation);
     
-    // Drawer state should change
-    const afterFirstClick = await layout.drawer.isVisible();
-    expect(afterFirstClick).not.toBe(initialVisible);
+    // Drawer state should change (now closed)
+    const afterFirstClick = await isDrawerOpen();
+    expect(afterFirstClick).toBe(false);
     
     // Toggle again to restore
     await layout.menuToggle.click();
     await page.waitForTimeout(env.timeouts.animation);
     
-    const afterSecondClick = await layout.drawer.isVisible();
-    expect(afterSecondClick).toBe(initialVisible);
+    const afterSecondClick = await isDrawerOpen();
+    expect(afterSecondClick).toBe(true);
   });
 });

@@ -275,8 +275,42 @@
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
+                // First check if this is an error response (revoked/expired) vs password required
+                string? errorCode = null;
+                string? responseBody = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    var errorDto = System.Text.Json.JsonSerializer.Deserialize<AssetHub.Application.Dtos.ApiError>(
+                        responseBody, 
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    errorCode = errorDto?.Code;
+                }
+                catch { /* not an error response */ }
+
+                // Handle revoked/expired shares before password logic
+                if (errorCode == "SHARE_REVOKED")
+                {
+                    _errorMessage = ShareLoc["LinkRevoked"].Value;
+                    _isLoading = false;
+                    return;
+                }
+                if (errorCode == "SHARE_EXPIRED")
+                {
+                    _errorMessage = ShareLoc["LinkExpired"].Value;
+                    _isLoading = false;
+                    return;
+                }
+
                 // Check if it requires password
-                var authContent = await response.Content.ReadFromJsonAsync<PasswordRequiredResponse>();
+                PasswordRequiredResponse? authContent = null;
+                try
+                {
+                    authContent = System.Text.Json.JsonSerializer.Deserialize<PasswordRequiredResponse>(
+                        responseBody,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                catch { /* not a password required response */ }
+
                 if (authContent?.RequiresPassword == true)
                 {
                     _requiresPassword = true;
