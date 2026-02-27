@@ -97,17 +97,6 @@ test.describe('All Assets (Admin) @admin @assets', () => {
     await expect(statsText.first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test.skip('view toggle between grid and list', async ({ page }) => {
-    // NOTE: View toggle UI not currently present - skipped until feature is added
-    const viewButtons = page.locator('.mud-button-group .mud-icon-button');
-    await expect(viewButtons).toHaveCount(2);
-    
-    await viewButtons.last().click();
-    await page.waitForTimeout(env.timeouts.animation);
-    await viewButtons.first().click();
-    await page.waitForTimeout(env.timeouts.animation);
-  });
-
   test('clicking asset navigates to detail page', async ({ page }) => {
     await page.waitForTimeout(env.timeouts.animation * 2);
     const cards = page.locator('.asset-card');

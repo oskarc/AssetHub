@@ -1,7 +1,31 @@
 import { test, expect } from '@playwright/test';
+import { ApiHelper } from '../helpers/api-helper';
+import { ensureTestFixtures } from '../helpers/test-fixtures';
 import { env } from '../config/env';
 
 test.describe('Error Handling & Edge Cases @edge-cases', () => {
+  let testCollectionId: string;
+
+  const timestamp = Date.now();
+  const testCollectionName = `${env.testData.collectionPrefix}-Edge-${timestamp}`;
+
+  test.beforeAll(async () => {
+    const api = await ApiHelper.withCookieAuth();
+    const collection = await api.createCollection(testCollectionName, 'Edge case test collection');
+    testCollectionId = collection.id;
+
+    const fixtures = ensureTestFixtures();
+    await api.uploadAsset(testCollectionId, fixtures.testImage, `Edge-Asset-${timestamp}`);
+    await api.dispose();
+  });
+
+  test.afterAll(async () => {
+    if (testCollectionId) {
+      const api = await ApiHelper.withCookieAuth();
+      await api.deleteCollection(testCollectionId).catch(() => {});
+      await api.dispose();
+    }
+  });
   test.describe('404 / Not Found', () => {
     test('non-existent asset ID shows not found', async ({ page }) => {
       await page.goto('/assets/00000000-0000-0000-0000-000000000000');
@@ -76,22 +100,20 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
 
   test.describe('Browser Back/Forward', () => {
     test('browser back from asset detail returns to collection', async ({ page }) => {
-      await page.goto('/assets');
+      await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
-      // Navigate to detail - skip if no assets available
       const card = page.locator('.asset-card').first();
-      const hasAssets = await card.isVisible().catch(() => false);
-      test.skip(!hasAssets, 'No assets available in collection');
-      
+      await expect(card).toBeVisible({ timeout: 10_000 });
+
       const openTarget = card.locator('.clickable').first();
       await expect(openTarget).toBeVisible();
       await Promise.all([
         page.waitForURL(/\/assets\/[0-9a-f-]+/),
         openTarget.click()
       ]);
-      
+
       // Go back
       await page.goBack();
       await page.waitForURL(/\/collections|\/assets/);

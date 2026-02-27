@@ -28,12 +28,8 @@ test.describe('Share Management @shares', () => {
     testCollectionId = collection.id;
 
     const fixtures = ensureTestFixtures();
-    try {
-      const asset = await api.uploadAsset(testCollectionId, fixtures.testImage, testAssetTitle);
-      testAssetId = asset.id;
-    } catch {
-      // May fail if image too small
-    }
+    const asset = await api.uploadAsset(testCollectionId, fixtures.testImage, testAssetTitle);
+    testAssetId = asset.id;
   });
 
   test.afterAll(async () => {
@@ -49,32 +45,29 @@ test.describe('Share Management @shares', () => {
       dialog = new DialogHelper(page);
       snackbar = new SnackbarHelper(page);
 
-      if (!testAssetId) {
-        test.skip();
-        return;
-      }
-
-      await page.goto(`/assets/${testAssetId}`);
+      // Navigate to collection, then click asset to open detail view
+      await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
-      const shareBtn = page.getByRole('button', { name: /share/i }).first();
-      if (!(await shareBtn.isVisible())) {
-        test.skip();
-        return;
-      }
+      const card = page.locator('.asset-card').first();
+      await expect(card).toBeVisible({ timeout: 10_000 });
+      const openTarget = card.locator('.clickable').first();
+      await expect(openTarget).toBeVisible();
+      await Promise.all([
+        page.waitForURL(/\/assets\/[0-9a-f-]+/),
+        openTarget.click()
+      ]);
+      await page.waitForLoadState('networkidle');
+
+      // Now on asset detail page — find the share button (not "Share Collection")
+      const shareBtn = page.getByRole('button', { name: /^share$/i }).first();
+      await expect(shareBtn).toBeVisible({ timeout: 10_000 });
 
       await shareBtn.click();
       await page.waitForTimeout(env.timeouts.animation);
-      
-      // Wait for dialog - may take a moment in Blazor Server
-      try {
-        await dialog.waitForDialog();
-      } catch {
-        // Dialog might not appear if share functionality has a different UI flow
-        test.skip();
-        return;
-      }
+
+      await dialog.waitForDialog();
 
       // Dialog should have password field
       const passwordInput = dialog.dialog.locator('input[type="password"], input').first();

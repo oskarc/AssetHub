@@ -186,21 +186,6 @@ test.describe('Asset Management @assets', () => {
       await page.keyboard.press('Escape');
     });
 
-    test.skip('grid/list view toggle works', async ({ page }) => {
-      // NOTE: View toggle UI not currently present - skipped until feature is added
-      const viewButtons = page.locator('.mud-button-group .mud-icon-button');
-      await expect(viewButtons.first()).toBeVisible({ timeout: 10_000 });
-      await expect(viewButtons).toHaveCount(2);
-      
-      // Click list view
-      await viewButtons.last().click();
-      await page.waitForTimeout(env.timeouts.animation);
-      
-      // Click grid view
-      await viewButtons.first().click();
-      await page.waitForTimeout(env.timeouts.animation);
-    });
-
     test('clicking asset navigates to detail page', async ({ page }) => {
       const cards = page.locator('.asset-card');
       await expect(cards.first()).toBeVisible({ timeout: 15_000 });
@@ -313,7 +298,7 @@ test.describe('Asset Management @assets', () => {
     test('edit asset title and verify change', async ({ page }) => {
       const editBtn = page.getByRole('button', { name: /edit/i });
       await expect(editBtn).toBeVisible({ timeout: 10_000 });
-      
+
       await editBtn.click();
       await dialog.waitForDialog();
 
@@ -321,25 +306,19 @@ test.describe('Asset Management @assets', () => {
       const titleInput = dialog.dialog.locator('input').first();
       await titleInput.clear();
       await titleInput.fill(newTitle);
+      // Trigger MudBlazor validation by moving focus away from the input
+      await titleInput.press('Tab');
+      await page.waitForTimeout(env.timeouts.animation);
 
-      // Wait for form validation and save button to become enabled
       const saveBtn = dialog.dialog.getByRole('button', { name: /save|update|ok/i });
       await expect(saveBtn).toBeVisible({ timeout: 5_000 });
-      
-      // Form may require additional fields - check if enabled, skip if validation blocks
-      const isEnabled = await saveBtn.isEnabled().catch(() => false);
-      if (!isEnabled) {
-        // Close dialog and skip - form validation requires fields we can't fill
-        await dialog.closeDialog();
-        test.skip(true, 'Edit form has validation requirements that prevent saving');
-        return;
-      }
-      
+      await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
+
       await saveBtn.click();
       await page.waitForTimeout(env.timeouts.animation);
-      
-      // Title should update
-      await expect(page.locator('.mud-typography-h5').first()).toContainText(newTitle, { timeout: 5_000 });
+
+      // Title should update — use getByRole to find the asset heading (not the app title)
+      await expect(page.getByRole('heading', { name: newTitle, level: 5 })).toBeVisible({ timeout: 5_000 });
     });
 
     test('share button opens share dialog with password field', async ({ page }) => {

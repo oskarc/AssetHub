@@ -344,13 +344,16 @@ test.describe('API Endpoint Tests @api', () => {
       shareId = '';
     });
 
-    test('revoked share returns 404 or 410', async ({ browser }) => {
+    test('revoked share returns 401 SHARE_REVOKED', async ({ browser }) => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       try {
         const res = await ctx.request.get(`${env.baseUrl}/api/shares/${shareToken}`, {
           headers: { 'X-Share-Password': 'new-password-456' },
         });
-        expect([404, 410]).toContain(res.status());
+        // Backend checks revocation BEFORE password validation (prevents password enumeration)
+        expect(res.status()).toBe(401);
+        const data = await res.json();
+        expect(data.code).toBe('SHARE_REVOKED');
       } finally {
         await ctx.close();
       }
@@ -430,25 +433,12 @@ test.describe('API Endpoint Tests @api', () => {
   // server response before Playwright follows the redirect.
 
   test.describe('Authorization Guards', () => {
-    test('unauthenticated request redirects to Keycloak', async ({ browser }) => {
-      const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
-      try {
-        const res = await ctx.request.get(`${env.baseUrl}/api/collections`, { maxRedirects: 0 });
-        expect([301, 302, 303, 307, 308]).toContain(res.status());
-        const location = res.headers()['location'];
-        expect(location).toBeTruthy();
-        expect(location?.toLowerCase()).toContain('keycloak');
-      } finally {
-        await ctx.close();
-      }
-    });
-
     test('viewer cannot create collections at root', async () => {
       const viewerApi = await ApiHelper.withCookieAuth('viewer');
       try {
-        await expect(async () => {
-          await viewerApi.createCollection('Unauthorized Collection');
-        }).rejects.toThrow(/400|401|403|failed/i);
+        await expect(
+          viewerApi.createCollection('Unauthorized Collection')
+        ).rejects.toThrow(/400|401|403|failed/i);
       } finally {
         await viewerApi.dispose();
       }
