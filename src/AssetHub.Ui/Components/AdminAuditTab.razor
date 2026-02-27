@@ -58,9 +58,11 @@ else
         <RowTemplate>
             <MudTd DataLabel="@AdminLoc["Header_Timestamp"]">@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
             <MudTd DataLabel="@AdminLoc["Header_EventType"]">
-                <MudChip T="string" Size="Size.Small" Color="@GetEventColor(context.EventType)" Variant="Variant.Outlined">
-                    @context.EventType
-                </MudChip>
+                <MudTooltip Text="@context.EventType">
+                    <MudChip T="string" Size="Size.Small" Color="@GetEventColor(context.EventType)" Variant="Variant.Outlined">
+                        @GetLocalizedEventType(context.EventType)
+                    </MudChip>
+                </MudTooltip>
             </MudTd>
             <MudTd DataLabel="@AdminLoc["Header_Actor"]">@(context.ActorUserName ?? context.ActorUserId ?? "—")</MudTd>
             <MudTd DataLabel="@AdminLoc["Header_TargetType"]">
@@ -197,7 +199,9 @@ else
         if (string.IsNullOrWhiteSpace(_searchString))
             return true;
 
+        var localizedEventType = GetLocalizedEventType(evt.EventType);
         return evt.EventType.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
+            || localizedEventType.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
             || evt.TargetType.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
             || (evt.TargetName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
             || (evt.ActorUserName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
@@ -211,6 +215,15 @@ else
         var e when e.Contains("update") || e.Contains("edit") || e.Contains("move") => Color.Warning,
         var e when e.Contains("share") || e.Contains("download") => Color.Info,
         var e when e.Contains("login") || e.Contains("access") => Color.Secondary,
+        var e when e.Contains("malware") => Color.Error,
         _ => Color.Default
     };
+
+    private string GetLocalizedEventType(string eventType)
+    {
+        var key = $"Event_{eventType}";
+        var localized = AdminLoc[key];
+        // If no localization found, return the raw event type
+        return localized.ResourceNotFound ? eventType : localized.Value;
+    }
 }

@@ -44,10 +44,35 @@
   <data name="SearchAuditPlaceholder" xml:space="preserve"><value>Sök granskningshändelser...</value></data>
   <data name="Header_EventType" xml:space="preserve"><value>Händelse</value></data>
   <data name="Header_Actor" xml:space="preserve"><value>Användare</value></data>
-  <data name="Header_TargetType" xml:space="preserve"><value>Måltyp</value></data>
-  <data name="Header_TargetName" xml:space="preserve"><value>Målnamn</value></data>
+  <data name="Header_TargetType" xml:space="preserve"><value>Objekttyp</value></data>
+  <data name="Header_TargetName" xml:space="preserve"><value>Objektnamn</value></data>
   <data name="Header_Timestamp" xml:space="preserve"><value>Tidsstämpel</value></data>
   <data name="Header_Details" xml:space="preserve"><value>Detaljer</value></data>
+
+  <!-- Audit Event Types -->
+  <data name="Event_asset.created" xml:space="preserve"><value>Tillgång skapad</value></data>
+  <data name="Event_asset.updated" xml:space="preserve"><value>Tillgång uppdaterad</value></data>
+  <data name="Event_asset.deleted" xml:space="preserve"><value>Tillgång raderad</value></data>
+  <data name="Event_asset.added_to_collection" xml:space="preserve"><value>Tillgång tillagd i samling</value></data>
+  <data name="Event_asset.removed_from_collection" xml:space="preserve"><value>Tillgång borttagen från samling</value></data>
+  <data name="Event_asset.removed_from_collections" xml:space="preserve"><value>Tillgång borttagen från samlingar</value></data>
+  <data name="Event_asset.upload_initiated" xml:space="preserve"><value>Uppladdning startad</value></data>
+  <data name="Event_asset.upload_confirmed" xml:space="preserve"><value>Uppladdning slutförd</value></data>
+  <data name="Event_asset.malware_detected" xml:space="preserve"><value>Skadlig kod upptäckt</value></data>
+  <data name="Event_collection.created" xml:space="preserve"><value>Samling skapad</value></data>
+  <data name="Event_collection.updated" xml:space="preserve"><value>Samling uppdaterad</value></data>
+  <data name="Event_collection.deleted" xml:space="preserve"><value>Samling raderad</value></data>
+  <data name="Event_collection.download_requested" xml:space="preserve"><value>Samlingsnedladdning begärd</value></data>
+  <data name="Event_collection.downloaded" xml:space="preserve"><value>Samling nedladdad</value></data>
+  <data name="Event_share.created" xml:space="preserve"><value>Dellänk skapad</value></data>
+  <data name="Event_share.revoked" xml:space="preserve"><value>Dellänk återkallad</value></data>
+  <data name="Event_share.password_updated" xml:space="preserve"><value>Delningslösenord ändrat</value></data>
+  <data name="Event_share.password_failed" xml:space="preserve"><value>Delningslösenord misslyckades</value></data>
+  <data name="Event_acl.set" xml:space="preserve"><value>Åtkomst beviljad</value></data>
+  <data name="Event_acl.revoked" xml:space="preserve"><value>Åtkomst återkallad</value></data>
+  <data name="Event_user.access_granted" xml:space="preserve"><value>Användaråtkomst beviljad</value></data>
+  <data name="Event_user.cleanup" xml:space="preserve"><value>Användardata rensad</value></data>
+  <data name="Event_user.sync.cleanup" xml:space="preserve"><value>Användarsynk rensning</value></data>
 
   <!-- Share Management -->
   <data name="AllSharedLinks" xml:space="preserve"><value>Alla delade länkar</value></data>
@@ -57,7 +82,7 @@
   <data name="Active" xml:space="preserve"><value>Aktiv</value></data>
   <data name="Expired" xml:space="preserve"><value>Utgången</value></data>
   <data name="Revoked" xml:space="preserve"><value>Återkallad</value></data>
-  <data name="Header_Target" xml:space="preserve"><value>Mål</value></data>
+  <data name="Header_Target" xml:space="preserve"><value>Tillgång</value></data>
   <data name="Header_CreatedBy" xml:space="preserve"><value>Skapad av</value></data>
   <data name="Header_LastAccess" xml:space="preserve"><value>Senast använd</value></data>
   <data name="Header_AccessCount" xml:space="preserve"><value>Antal åtkomster</value></data>
