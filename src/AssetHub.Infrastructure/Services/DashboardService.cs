@@ -244,16 +244,44 @@ public class DashboardService : IDashboardService
         var actorIds = events.Select(e => e.ActorUserId).Where(id => !string.IsNullOrEmpty(id)).Distinct();
         var actorNames = await _userLookup.GetUserNamesAsync(actorIds!, ct);
 
+        // Resolve target names by type
+        var assetIds = events.Where(e => e.TargetId.HasValue && e.TargetType == Constants.ScopeTypes.Asset).Select(e => e.TargetId!.Value).Distinct().ToList();
+        var collectionIds = events.Where(e => e.TargetId.HasValue && e.TargetType == Constants.ScopeTypes.Collection).Select(e => e.TargetId!.Value).Distinct().ToList();
+
+        var assetNames = await _db.Assets
+            .AsNoTracking()
+            .Where(a => assetIds.Contains(a.Id))
+            .Select(a => new { a.Id, a.Title })
+            .ToDictionaryAsync(a => a.Id, a => a.Title, ct);
+
+        var collectionNames = await _db.Collections
+            .AsNoTracking()
+            .Where(c => collectionIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.Name })
+            .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+
         return events.Select(e => new AuditEventDto
         {
             EventType = e.EventType,
             TargetType = e.TargetType,
             TargetId = e.TargetId,
+            TargetName = ResolveTargetName(e.TargetType, e.TargetId, assetNames, collectionNames),
             ActorUserId = e.ActorUserId,
             ActorUserName = e.ActorUserId != null ? actorNames.GetValueOrDefault(e.ActorUserId) : null,
             CreatedAt = e.CreatedAt,
             Details = e.DetailsJson
         }).ToList();
+    }
+
+    private static string? ResolveTargetName(string targetType, Guid? targetId, Dictionary<Guid, string> assetNames, Dictionary<Guid, string> collectionNames)
+    {
+        if (!targetId.HasValue) return null;
+        return targetType switch
+        {
+            Constants.ScopeTypes.Asset => assetNames.GetValueOrDefault(targetId.Value),
+            Constants.ScopeTypes.Collection => collectionNames.GetValueOrDefault(targetId.Value),
+            _ => null
+        };
     }
 
     private async Task<DashboardStatsDto> GetGlobalStatsAsync(CancellationToken ct)

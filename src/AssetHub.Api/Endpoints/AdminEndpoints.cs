@@ -40,6 +40,7 @@ public static class AdminEndpoints
 
         // ===== AUDIT LOG =====
         group.MapGet("/audit", GetAuditEvents).WithName("GetAuditEvents");
+        group.MapGet("/audit/paginated", GetAuditEventsPaginated).WithName("GetAuditEventsPaginated");
     }
 
     // ── Share Management ─────────────────────────────────────────────────────
@@ -145,12 +146,33 @@ public static class AdminEndpoints
     // ── Audit Log ─────────────────────────────────────────────────────────────
 
     private static async Task<IResult> GetAuditEvents(
-        [FromServices] IAdminService svc,
+        [FromServices] IAuditQueryService svc,
         CancellationToken ct,
         [FromQuery] int take = 200)
     {
         take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
-        var result = await svc.GetAuditEventsAsync(take, ct);
+        var result = await svc.GetRecentAuditEventsAsync(take, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetAuditEventsPaginated(
+        [FromServices] IAuditQueryService svc,
+        CancellationToken ct,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] DateTime? cursor = null,
+        [FromQuery] string? eventType = null,
+        [FromQuery] string? targetType = null,
+        [FromQuery] string? actorUserId = null)
+    {
+        var request = new AuditQueryRequest
+        {
+            PageSize = pageSize,
+            Cursor = cursor,
+            EventType = eventType,
+            TargetType = targetType,
+            ActorUserId = actorUserId
+        };
+        var result = await svc.GetAuditEventsAsync(request, ct);
         return result.ToHttpResult();
     }
 }

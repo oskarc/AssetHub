@@ -5,11 +5,11 @@
 
 <MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["AllAuditEvents"]</MudText>
 
-@if (_auditLoading)
+@if (_auditLoading && _auditEvents == null)
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
 }
-else if (_auditEvents == null || !_auditEvents.Any())
+else if (_auditEvents == null || (!_auditEvents.Any() && !_hasMore))
 {
     <EmptyState Title="@AdminLoc["NoAuditEventsYet"]"
                 Description="@AdminLoc["NoAuditEventsDesc"]"
@@ -17,22 +17,42 @@ else if (_auditEvents == null || !_auditEvents.Any())
 }
 else
 {
+    <MudPaper Elevation="0" Class="mb-3">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_searchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
+                    Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                    IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
+                    Immediate="true" DebounceInterval="300" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudSelect @bind-Value="_filterTargetType" Label="@AdminLoc["Header_TargetType"]"
+                    Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem Value="@("asset")">Asset</MudSelectItem>
+                    <MudSelectItem Value="@("collection")">Collection</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="ApplyFiltersAsync"
+                    Disabled="@_auditLoading" FullWidth="true" Class="mt-1">
+                    @CommonLoc["Btn_ApplyFilters"]
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-center justify-end">
+                <MudChip T="string" Color="Color.Info" Size="Size.Small">@AdminLoc["Total"]: @_totalCount</MudChip>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
     <MudTable Items="@_auditEvents" Hover="true" Dense="true" Striped="true"
               Filter="new Func<AuditEventDto, bool>(AuditFilter)" SortLabel="Sort By"
-              FixedHeader="true" Height="600px">
-        <ToolBarContent>
-            <MudTextField @bind-Value="_auditSearchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
-                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                IconSize="Size.Medium" Class="mt-0" Immediate="true" />
-            <MudSpacer />
-            <MudChip T="string" Color="Color.Info" Size="Size.Small">@AdminLoc["Total"]: @_auditEvents.Count</MudChip>
-        </ToolBarContent>
+              FixedHeader="true" Height="550px" Loading="@_auditLoading">
         <HeaderContent>
             <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<AuditEventDto, object>(x => x.CreatedAt)">@AdminLoc["Header_Timestamp"]</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortBy="new Func<AuditEventDto, object>(x => x.EventType)">@AdminLoc["Header_EventType"]</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortBy="@(new Func<AuditEventDto, object>(x => x.ActorUserName ?? string.Empty))">@AdminLoc["Header_Actor"]</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortBy="new Func<AuditEventDto, object>(x => x.TargetType)">@AdminLoc["Header_TargetType"]</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<AuditEventDto, object>(x => x.TargetId ?? Guid.Empty)">@AdminLoc["Header_TargetId"]</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<AuditEventDto, object>(x => x.TargetName ?? string.Empty)">@AdminLoc["Header_TargetName"]</MudTableSortLabel></MudTh>
             <MudTh>@AdminLoc["Header_Details"]</MudTh>
         </HeaderContent>
         <RowTemplate>
@@ -46,11 +66,19 @@ else
             <MudTd DataLabel="@AdminLoc["Header_TargetType"]">
                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.TargetType</MudChip>
             </MudTd>
-            <MudTd DataLabel="@AdminLoc["Header_TargetId"]">
-                @if (context.TargetId.HasValue)
+            <MudTd DataLabel="@AdminLoc["Header_TargetName"]">
+                @if (!string.IsNullOrEmpty(context.TargetName))
+                {
+                    <MudTooltip Text="@context.TargetId?.ToString()">
+                        <MudText Typo="Typo.body2" Style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            @context.TargetName
+                        </MudText>
+                    </MudTooltip>
+                }
+                else if (context.TargetId.HasValue)
                 {
                     <MudTooltip Text="@context.TargetId.Value.ToString()">
-                        <MudText Typo="Typo.body2" Style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <MudText Typo="Typo.body2" Style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mud-palette-text-secondary);">
                             @(context.TargetId.Value.ToString()[..8])...
                         </MudText>
                     </MudTooltip>
@@ -79,28 +107,70 @@ else
                 }
             </MudTd>
         </RowTemplate>
-        <PagerContent>
-            <MudTablePager PageSizeOptions="new[] { 25, 50, 100 }" />
-        </PagerContent>
     </MudTable>
+
+    @* Cursor-based pagination controls *@
+    <MudPaper Elevation="0" Class="d-flex justify-center align-center pa-3 gap-3">
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            @CommonLoc["Showing"] @_auditEvents.Count @CommonLoc["OfTotal"] @_totalCount
+        </MudText>
+        @if (_hasMore)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                OnClick="LoadMoreAsync" Disabled="@_auditLoading">
+                @if (_auditLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @AdminLoc["LoadMore"]
+            </MudButton>
+        }
+    </MudPaper>
 }
 
 @code {
     private List<AuditEventDto>? _auditEvents;
     private bool _auditLoading = true;
-    private string _auditSearchString = "";
+    private string _searchString = "";
+    private string? _filterTargetType;
+    private DateTime? _nextCursor;
+    private bool _hasMore;
+    private int _totalCount;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAsync();
+        await LoadAsync(reset: true);
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool reset = false)
     {
         try
         {
             _auditLoading = true;
-            _auditEvents = await Api.GetAuditEventsAsync();
+            
+            if (reset)
+            {
+                _auditEvents = null;
+                _nextCursor = null;
+            }
+
+            var response = await Api.GetAuditEventsPaginatedAsync(
+                pageSize: 50,
+                cursor: _nextCursor,
+                targetType: _filterTargetType);
+
+            if (reset || _auditEvents == null)
+            {
+                _auditEvents = response.Items;
+            }
+            else
+            {
+                _auditEvents.AddRange(response.Items);
+            }
+
+            _nextCursor = response.NextCursor;
+            _hasMore = response.HasMore;
+            _totalCount = response.TotalCount;
         }
         catch (Exception ex)
         {
@@ -112,15 +182,26 @@ else
         }
     }
 
+    private async Task LoadMoreAsync()
+    {
+        await LoadAsync(reset: false);
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        await LoadAsync(reset: true);
+    }
+
     private bool AuditFilter(AuditEventDto evt)
     {
-        if (string.IsNullOrWhiteSpace(_auditSearchString))
+        if (string.IsNullOrWhiteSpace(_searchString))
             return true;
 
-        return evt.EventType.Contains(_auditSearchString, StringComparison.OrdinalIgnoreCase)
-            || evt.TargetType.Contains(_auditSearchString, StringComparison.OrdinalIgnoreCase)
-            || (evt.ActorUserName?.Contains(_auditSearchString, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (evt.ActorUserId?.Contains(_auditSearchString, StringComparison.OrdinalIgnoreCase) ?? false);
+        return evt.EventType.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
+            || evt.TargetType.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
+            || (evt.TargetName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (evt.ActorUserName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (evt.ActorUserId?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     private static Color GetEventColor(string eventType) => eventType.ToLowerInvariant() switch

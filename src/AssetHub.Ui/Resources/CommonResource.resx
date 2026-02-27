@@ -307,4 +307,9 @@
   <data name="Dashboard_HoursAgo" xml:space="preserve"><value>{0}h ago</value></data>
   <data name="Dashboard_DaysAgo" xml:space="preserve"><value>{0}d ago</value></data>
   <data name="Error_UploadModuleNotInit" xml:space="preserve"><value>Upload module not initialized</value></data>
+
+  <!-- Pagination -->
+  <data name="Showing" xml:space="preserve"><value>Showing</value></data>
+  <data name="OfTotal" xml:space="preserve"><value>of</value></data>
+  <data name="Btn_ApplyFilters" xml:space="preserve"><value>Apply Filters</value></data>
 </root>

@@ -45,7 +45,7 @@
   <data name="Header_EventType" xml:space="preserve"><value>Event</value></data>
   <data name="Header_Actor" xml:space="preserve"><value>User</value></data>
   <data name="Header_TargetType" xml:space="preserve"><value>Target Type</value></data>
-  <data name="Header_TargetId" xml:space="preserve"><value>Target ID</value></data>
+  <data name="Header_TargetName" xml:space="preserve"><value>Target Name</value></data>
   <data name="Header_Timestamp" xml:space="preserve"><value>Timestamp</value></data>
   <data name="Header_Details" xml:space="preserve"><value>Details</value></data>
 
@@ -137,4 +137,7 @@
 
   <!-- Admin Role -->
   <data name="AdminImplicitAccess" xml:space="preserve"><value>System admins have implicit access to all collections via their role</value></data>
+
+  <!-- Audit Pagination -->
+  <data name="LoadMore" xml:space="preserve"><value>Load More</value></data>
 </root>

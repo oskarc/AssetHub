@@ -248,9 +248,9 @@
                                                 }
                                                 <MudText Typo="Typo.caption" Style="display: block;">
                                                     @evt.TargetType
-                                                    @if (evt.TargetId.HasValue)
+                                                    @if (!string.IsNullOrEmpty(evt.TargetName))
                                                     {
-                                                        @:&middot; @evt.TargetId.Value.ToString()[..8]
+                                                        @:&middot; @evt.TargetName
                                                     }
                                                 </MudText>
                                                 <MudText Typo="Typo.caption" Style="opacity: 0.6; display: block;">

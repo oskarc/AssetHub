@@ -45,7 +45,7 @@
   <data name="Header_EventType" xml:space="preserve"><value>Händelse</value></data>
   <data name="Header_Actor" xml:space="preserve"><value>Användare</value></data>
   <data name="Header_TargetType" xml:space="preserve"><value>Måltyp</value></data>
-  <data name="Header_TargetId" xml:space="preserve"><value>Mål-ID</value></data>
+  <data name="Header_TargetName" xml:space="preserve"><value>Målnamn</value></data>
   <data name="Header_Timestamp" xml:space="preserve"><value>Tidsstämpel</value></data>
   <data name="Header_Details" xml:space="preserve"><value>Detaljer</value></data>
 
@@ -137,4 +137,7 @@
 
   <!-- Admin Role -->
   <data name="AdminImplicitAccess" xml:space="preserve"><value>Systemadministratörer har implicit åtkomst till alla samlingar via sin roll</value></data>
+
+  <!-- Audit Pagination -->
+  <data name="LoadMore" xml:space="preserve"><value>Ladda fler</value></data>
 </root>

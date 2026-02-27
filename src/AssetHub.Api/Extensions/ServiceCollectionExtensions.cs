@@ -138,6 +138,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<IAuditQueryService, AuditQueryService>();
         services.AddScoped<IUserSyncService, UserSyncService>();
         services.AddScoped<IZipBuildService, ZipBuildService>();
         services.AddScoped<IShareService, ShareService>();

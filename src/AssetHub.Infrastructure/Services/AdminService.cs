@@ -455,33 +455,4 @@ public class AdminService : IAdminService
             return ServiceError.Server("An unexpected error occurred");
         }
     }
-
-    // ── Audit Log ───────────────────────────────────────────────────────────────────
-
-    public async Task<ServiceResult<List<AuditEventDto>>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default)
-    {
-        var events = await _db.AuditEvents
-            .AsNoTracking()
-            .OrderByDescending(e => e.CreatedAt)
-            .Take(take)
-            .ToListAsync(ct);
-
-        // Resolve actor usernames in batch
-        var actorIds = events
-            .Select(e => e.ActorUserId)
-            .Where(id => !string.IsNullOrEmpty(id))
-            .Distinct();
-        var actorNames = await _userLookup.GetUserNamesAsync(actorIds!, ct);
-
-        return events.Select(e => new AuditEventDto
-        {
-            EventType = e.EventType,
-            TargetType = e.TargetType,
-            TargetId = e.TargetId,
-            ActorUserId = e.ActorUserId,
-            ActorUserName = e.ActorUserId != null ? actorNames.GetValueOrDefault(e.ActorUserId) : null,
-            CreatedAt = e.CreatedAt,
-            Details = e.DetailsJson
-        }).ToList();
-    }
 }

@@ -622,6 +622,33 @@ public class AssetHubApiClient
         return await response.Content.ReadFromJsonAsync<List<AuditEventDto>>(ct) ?? new();
     }
 
+    /// <summary>
+    /// Gets audit events with pagination and filtering (admin only).
+    /// </summary>
+    public virtual async Task<AuditQueryResponse> GetAuditEventsPaginatedAsync(
+        int pageSize = 50,
+        DateTime? cursor = null,
+        string? eventType = null,
+        string? targetType = null,
+        string? actorUserId = null,
+        CancellationToken ct = default)
+    {
+        var queryParams = new List<string> { $"pageSize={pageSize}" };
+        if (cursor.HasValue)
+            queryParams.Add($"cursor={cursor.Value:O}");
+        if (!string.IsNullOrWhiteSpace(eventType))
+            queryParams.Add($"eventType={Uri.EscapeDataString(eventType)}");
+        if (!string.IsNullOrWhiteSpace(targetType))
+            queryParams.Add($"targetType={Uri.EscapeDataString(targetType)}");
+        if (!string.IsNullOrWhiteSpace(actorUserId))
+            queryParams.Add($"actorUserId={Uri.EscapeDataString(actorUserId)}");
+
+        var url = $"/api/admin/audit/paginated?{string.Join("&", queryParams)}";
+        var response = await _http.GetAsync(url, ct);
+        await EnsureSuccessAsync(response, "Get audit events paginated");
+        return await response.Content.ReadFromJsonAsync<AuditQueryResponse>(ct) ?? new();
+    }
+
     #endregion
 
     #region Asset Collections (Multi-Collection)
