@@ -1,8 +1,7 @@
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
+using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
-using AssetHub.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -10,37 +9,16 @@ namespace AssetHub.Infrastructure.Services;
 /// Queries audit events with filtering, pagination, and name resolution.
 /// </summary>
 public class AuditQueryService(
-    AssetHubDbContext db,
+    IAuditEventRepository auditRepo,
+    IAssetRepository assetRepo,
+    ICollectionRepository collectionRepo,
     IUserLookupService userLookup) : IAuditQueryService
 {
     public async Task<ServiceResult<AuditQueryResponse>> GetAuditEventsAsync(AuditQueryRequest request, CancellationToken ct = default)
     {
         var pageSize = Math.Clamp(request.PageSize, 1, Constants.Limits.MaxPageSize);
 
-        var query = db.AuditEvents.AsNoTracking();
-
-        // Apply filters
-        if (!string.IsNullOrWhiteSpace(request.EventType))
-            query = query.Where(e => e.EventType == request.EventType);
-
-        if (!string.IsNullOrWhiteSpace(request.TargetType))
-            query = query.Where(e => e.TargetType == request.TargetType);
-
-        if (!string.IsNullOrWhiteSpace(request.ActorUserId))
-            query = query.Where(e => e.ActorUserId == request.ActorUserId);
-
-        // Get total count (capped for performance on large datasets)
-        var totalCount = await query.Take(10001).CountAsync(ct);
-
-        // Apply cursor-based pagination
-        if (request.Cursor.HasValue)
-            query = query.Where(e => e.CreatedAt < request.Cursor.Value);
-
-        // Fetch one extra to determine HasMore
-        var events = await query
-            .OrderByDescending(e => e.CreatedAt)
-            .Take(pageSize + 1)
-            .ToListAsync(ct);
+        var (events, totalCount) = await auditRepo.GetPageAsync(request, pageSize + 1, ct);
 
         var hasMore = events.Count > pageSize;
         if (hasMore)
@@ -52,7 +30,7 @@ public class AuditQueryService(
         return new AuditQueryResponse
         {
             Items = items,
-            TotalCount = Math.Min(totalCount, 10000), // Cap displayed count
+            TotalCount = Math.Min(totalCount, Constants.Limits.AuditCountDisplayCap), // Cap displayed count
             NextCursor = hasMore && events.Count > 0 ? events[^1].CreatedAt : null,
             HasMore = hasMore
         };
@@ -61,13 +39,7 @@ public class AuditQueryService(
     public async Task<ServiceResult<List<AuditEventDto>>> GetRecentAuditEventsAsync(int take = 200, CancellationToken ct = default)
     {
         take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
-
-        var events = await db.AuditEvents
-            .AsNoTracking()
-            .OrderByDescending(e => e.CreatedAt)
-            .Take(take)
-            .ToListAsync(ct);
-
+        var events = await auditRepo.GetRecentAsync(take, ct);
         return await ResolveNamesAsync(events, ct);
     }
 
@@ -95,17 +67,8 @@ public class AuditQueryService(
             .Distinct()
             .ToList();
 
-        var assetNames = await db.Assets
-            .AsNoTracking()
-            .Where(a => assetIds.Contains(a.Id))
-            .Select(a => new { a.Id, a.Title })
-            .ToDictionaryAsync(a => a.Id, a => a.Title, ct);
-
-        var collectionNames = await db.Collections
-            .AsNoTracking()
-            .Where(c => collectionIds.Contains(c.Id))
-            .Select(c => new { c.Id, c.Name })
-            .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+        var assetNames = await assetRepo.GetTitlesByIdsAsync(assetIds, ct);
+        var collectionNames = await collectionRepo.GetNamesByIdsAsync(collectionIds, ct);
 
         return events.Select(e => new AuditEventDto
         {
@@ -135,3 +98,4 @@ public class AuditQueryService(
         };
     }
 }
+

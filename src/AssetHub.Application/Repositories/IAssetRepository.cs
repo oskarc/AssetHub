@@ -47,4 +47,10 @@ public interface IAssetRepository
         List<Guid>? allowedCollectionIds = null,
         bool includeAllStatuses = false,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns a Title lookup dictionary for the specified asset IDs.
+    /// Missing IDs are simply absent from the result.
+    /// </summary>
+    Task<Dictionary<Guid, string>> GetTitlesByIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default);
 }

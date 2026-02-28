@@ -384,13 +384,6 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
     private static SharedAssetDto BuildSharedAssetDto(
         Asset asset, string token, Dictionary<string, bool> permissions, Guid? assetId = null)
     {
-        var assetIdQuery = assetId.HasValue ? $"&assetId={assetId.Value}" : "";
-
-        string? thumbnailUrl = !string.IsNullOrEmpty(asset.ThumbObjectKey)
-            ? $"/api/shares/{token}/preview?size=thumb{assetIdQuery}" : null;
-        string? mediumUrl = !string.IsNullOrEmpty(asset.MediumObjectKey)
-            ? $"/api/shares/{token}/preview?size=medium{assetIdQuery}" : null;
-
         // Strip GPS coordinates from shared metadata to protect location privacy
         // when assets are accessed by external share-link recipients (CWE-359).
         var publicMetadata = asset.MetadataJson
@@ -406,11 +399,19 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
             AssetType = asset.AssetType.ToDbString(),
             ContentType = asset.ContentType,
             SizeBytes = asset.SizeBytes,
-            ThumbnailUrl = thumbnailUrl,
-            MediumUrl = mediumUrl,
+            ThumbnailUrl = BuildPreviewUrl(token, "thumb", asset.ThumbObjectKey, assetId),
+            MediumUrl = BuildPreviewUrl(token, "medium", asset.MediumObjectKey, assetId),
             MetadataJson = publicMetadata,
             Permissions = permissions
         };
+    }
+
+    private static string? BuildPreviewUrl(string token, string size, string? objectKey, Guid? assetId)
+    {
+        if (string.IsNullOrEmpty(objectKey))
+            return null;
+        var assetIdQuery = assetId.HasValue ? $"&assetId={assetId.Value}" : "";
+        return $"/api/shares/{token}/preview?size={size}{assetIdQuery}";
     }
 
     private async Task<(Asset? asset, ServiceError? error)> ResolveTargetAssetAsync(

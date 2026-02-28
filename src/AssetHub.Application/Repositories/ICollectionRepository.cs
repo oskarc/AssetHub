@@ -57,6 +57,12 @@ public interface ICollectionRepository
     /// Gets all collections with their ACLs (admin use).
     /// </summary>
     Task<IEnumerable<Collection>> GetAllWithAclsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns a Name lookup dictionary for the specified collection IDs.
+    /// Missing IDs are simply absent from the result.
+    /// </summary>
+    Task<Dictionary<Guid, string>> GetNamesByIdsAsync(List<Guid> ids, CancellationToken ct = default);
 }
 
 /// <summary>
