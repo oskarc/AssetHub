@@ -103,6 +103,14 @@ public static partial class InputValidation
     }
 
     /// <summary>
+    /// Returns <c>null</c> when <paramref name="value"/> is null, empty, or whitespace-only;
+    /// otherwise returns the original value unchanged.
+    /// Avoids the repeated inline ternary <c>string.IsNullOrWhiteSpace(x) ? null : x</c>.
+    /// </summary>
+    public static string? NormalizeToNull(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    /// <summary>
     /// Runs multiple field validations and collects errors into a dictionary.
     /// Returns true if all validations pass (no errors).
     /// </summary>

@@ -4,7 +4,6 @@ using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
@@ -23,7 +22,6 @@ public sealed class AssetService : IAssetService
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
     private readonly string _bucketName;
-    private readonly ILogger<AssetService> _logger;
 
     public AssetService(
         IAssetRepository assetRepo,
@@ -32,8 +30,7 @@ public sealed class AssetService : IAssetService
         IAssetDeletionService deletionService,
         IAuditService audit,
         CurrentUser currentUser,
-        IOptions<MinIOSettings> minioSettings,
-        ILogger<AssetService> logger)
+        IOptions<MinIOSettings> minioSettings)
     {
         _assetRepo = assetRepo;
         _assetCollectionRepo = assetCollectionRepo;
@@ -42,7 +39,6 @@ public sealed class AssetService : IAssetService
         _audit = audit;
         _currentUser = currentUser;
         _bucketName = minioSettings.Value.BucketName;
-        _logger = logger;
     }
 
 
@@ -65,14 +61,14 @@ public sealed class AssetService : IAssetService
         }
         if (dto.Description != null)
         {
-            var desc = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
+            var desc = InputValidation.NormalizeToNull(dto.Description);
             if (desc != null && desc.Length > 2000)
                 return ServiceError.BadRequest("Description must be 2000 characters or fewer");
             asset.Description = desc;
         }
         if (dto.Copyright != null)
         {
-            var copyright = string.IsNullOrWhiteSpace(dto.Copyright) ? null : dto.Copyright;
+            var copyright = InputValidation.NormalizeToNull(dto.Copyright);
             if (copyright != null && copyright.Length > 500)
                 return ServiceError.BadRequest("Copyright must be 500 characters or fewer");
             asset.Copyright = copyright;

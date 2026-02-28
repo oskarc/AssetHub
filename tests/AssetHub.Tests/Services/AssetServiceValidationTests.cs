@@ -62,8 +62,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
             new Mock<IAssetDeletionService>().Object,
             _auditMock.Object,
             new CurrentUser(userId, isSystemAdmin: false),
-            minioSettings,
-            NullLogger<AssetService>.Instance);
+            minioSettings);
     }
 
     private async Task<(Asset asset, Collection col)> SeedContributorAccessAsync()

@@ -70,8 +70,7 @@ public class CollectionServiceTests : IAsyncLifetime
         return new CollectionService(
             _collectionRepo, _aclRepo, _assetRepo, _shareRepo,
             _authService, _deletionServiceMock.Object, _zipBuildServiceMock.Object,
-            _auditMock.Object, minioSettings, currentUser,
-            NullLogger<CollectionService>.Instance);
+            _auditMock.Object, minioSettings, currentUser);
     }
 
     public async Task DisposeAsync()
