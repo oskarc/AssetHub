@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// Handles public share access and protected share management.
+/// Handles public share access and authenticated share management.
 /// </summary>
 public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShareAccessService
 {
@@ -221,7 +221,7 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
         };
     }
 
-    // ── Protected operations ─────────────────────────────────────────────────
+    // ── Authenticated operations ─────────────────────────────────────────────
 
     public async Task<ServiceResult<ShareResponseDto>> CreateShareAsync(
         CreateShareDto dto, string baseUrl, CancellationToken ct)

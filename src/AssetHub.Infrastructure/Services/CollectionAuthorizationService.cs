@@ -124,7 +124,7 @@ public class CollectionAuthorizationService(
                         a.PrincipalId == userId)
             .ToDictionaryAsync(a => a.CollectionId, a => a.Role.ToDbString(), ct);
 
-        // Cache direct hits (but don't cache misses — they may have inherited roles from parents)
+        // Cache direct hits; misses are left uncached so GetUserRoleAsync confirms and caches them individually
         foreach (var (collId, role) in directAcls)
         {
             _roleCache[$"{userId}:{collId}"] = role;

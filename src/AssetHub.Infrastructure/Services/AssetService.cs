@@ -144,7 +144,6 @@ public sealed class AssetService : IAssetService
         if (partialDelete != null)
             return partialDelete;
 
-        // Full permanent delete
         await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
         await _audit.LogAsync("asset.deleted", "asset", id, userId,
             new() { ["title"] = asset.Title }, ct);
