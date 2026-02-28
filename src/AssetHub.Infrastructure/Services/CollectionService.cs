@@ -5,8 +5,6 @@ using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
@@ -26,8 +24,6 @@ public class CollectionService : ICollectionService
     private readonly IAuditService _audit;
     private readonly string _bucketName;
     private readonly CurrentUser _currentUser;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly ILogger<CollectionService> _logger;
 
     public CollectionService(
         ICollectionRepository collectionRepo,
@@ -39,9 +35,7 @@ public class CollectionService : ICollectionService
         IZipBuildService zipBuildService,
         IAuditService audit,
         IOptions<MinIOSettings> minioSettings,
-        CurrentUser currentUser,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<CollectionService> logger)
+        CurrentUser currentUser)
     {
         _collectionRepo = collectionRepo;
         _aclRepo = aclRepo;
@@ -53,12 +47,8 @@ public class CollectionService : ICollectionService
         _audit = audit;
         _bucketName = minioSettings.Value.BucketName;
         _currentUser = currentUser;
-        _httpContextAccessor = httpContextAccessor;
-        _logger = logger;
     }
 
-    private string BucketName => _bucketName;
-    private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
 
     public async Task<ServiceResult<List<CollectionResponseDto>>> GetRootCollectionsAsync(CancellationToken ct)
     {
@@ -96,7 +86,7 @@ public class CollectionService : ICollectionService
         if (dto.Description != null && !string.IsNullOrWhiteSpace(dto.Description) && dto.Description.Length > 1000)
             return ServiceError.BadRequest("Description must be 1000 characters or fewer");
 
-        var descToStore = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
+        var descToStore = InputValidation.NormalizeToNull(dto.Description);
 
         var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, ct: ct);
         if (nameExists)
@@ -163,7 +153,7 @@ public class CollectionService : ICollectionService
         }
         if (dto.Description != null)
         {
-            var desc = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
+            var desc = InputValidation.NormalizeToNull(dto.Description);
             if (desc != null && desc.Length > 1000)
                 return ServiceError.BadRequest("Description must be 1000 characters or fewer");
             collection.Description = desc;
@@ -190,7 +180,7 @@ public class CollectionService : ICollectionService
             return ServiceError.NotFound("Collection not found");
 
         var collectionName = collection.Name;
-        await _deletionService.DeleteCollectionAssetsAsync(id, BucketName, ct);
+        await _deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
         await _shareRepo.DeleteByScopeAsync("collection", id, ct);
         await _collectionRepo.DeleteAsync(id, ct);
 

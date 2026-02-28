@@ -13,9 +13,9 @@ using Microsoft.Extensions.Options;
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// Handles public share access and protected share management.
+/// Handles public share access and authenticated share management.
 /// </summary>
-public class ShareAccessService : IShareAccessService
+public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShareAccessService
 {
     private readonly IShareRepository _shareRepo;
     private readonly IAssetRepository _assetRepo;
@@ -28,7 +28,7 @@ public class ShareAccessService : IShareAccessService
     private readonly IAuditService _audit;
     private readonly string _bucketName;
     private readonly IDataProtectionProvider _dataProtection;
-    private readonly CurrentUser? _currentUser;
+    private readonly CurrentUser _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<ShareAccessService> _logger;
 
@@ -46,7 +46,7 @@ public class ShareAccessService : IShareAccessService
         IDataProtectionProvider dataProtection,
         IHttpContextAccessor httpContextAccessor,
         ILogger<ShareAccessService> logger,
-        CurrentUser? currentUser = null)
+        CurrentUser currentUser)
     {
         _shareRepo = shareRepo;
         _assetRepo = assetRepo;
@@ -64,12 +64,11 @@ public class ShareAccessService : IShareAccessService
         _currentUser = currentUser;
     }
 
-    private string BucketName => _bucketName;
     private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
 
     // ── Public operations ────────────────────────────────────────────────────
 
-    public async Task<ServiceResult<object>> GetSharedContentAsync(
+    public async Task<ServiceResult<ISharedContentDto>> GetSharedContentAsync(
         string token, string? password, int skip, int take, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
@@ -83,7 +82,7 @@ public class ShareAccessService : IShareAccessService
             if (asset == null)
                 return ServiceError.NotFound("Asset not found");
 
-            return (object)BuildSharedAssetDto(asset, token, share.PermissionsJson);
+            return BuildSharedAssetDto(asset, token, share.PermissionsJson);
         }
 
         if (share.ScopeType == ShareScopeType.Collection)
@@ -98,7 +97,7 @@ public class ShareAccessService : IShareAccessService
                 .Select(a => BuildSharedAssetDto(a, token, share.PermissionsJson, a.Id))
                 .ToList();
 
-            return (object)new SharedCollectionDto
+            return new SharedCollectionDto
             {
                 Id = collection.Id,
                 Name = collection.Name,
@@ -130,7 +129,7 @@ public class ShareAccessService : IShareAccessService
         await _shareRepo.IncrementAccessAsync(share.Id, ct);
 
         var presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, targetAsset.OriginalObjectKey,
+            _bucketName, targetAsset.OriginalObjectKey,
             Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, null, ct);
 
         return presignedUrl;
@@ -222,12 +221,12 @@ public class ShareAccessService : IShareAccessService
         };
     }
 
-    // ── Protected operations ─────────────────────────────────────────────────
+    // ── Authenticated operations ─────────────────────────────────────────────
 
     public async Task<ServiceResult<ShareResponseDto>> CreateShareAsync(
         CreateShareDto dto, string baseUrl, CancellationToken ct)
     {
-        var userId = _currentUser?.UserId;
+        var userId = _currentUser.UserId;
         if (string.IsNullOrEmpty(userId))
             return ServiceError.Forbidden("Authentication required to create shares");
 
@@ -264,7 +263,7 @@ public class ShareAccessService : IShareAccessService
         if (share == null)
             return ServiceError.NotFound("Share not found");
 
-        var userId = _currentUser?.UserId;
+        var userId = _currentUser.UserId;
         if (share.CreatedByUserId != userId)
             return ServiceError.Forbidden("You don't have permission to revoke this share");
 
@@ -285,15 +284,16 @@ public class ShareAccessService : IShareAccessService
         if (share == null)
             return ServiceError.NotFound("Share not found");
 
-        var userId = _currentUser?.UserId;
-        var isAdmin = _currentUser?.IsSystemAdmin ?? false;
+        var userId = _currentUser.UserId;
+        var isAdmin = _currentUser.IsSystemAdmin;
         if (share.CreatedByUserId != userId && !isAdmin)
             return ServiceError.Forbidden("You don't have permission to update this share");
 
         if (string.IsNullOrWhiteSpace(password))
             return ServiceError.BadRequest("Password cannot be empty");
-        if (password.Length < Constants.Limits.MinSharePasswordLength)
-            return ServiceError.BadRequest($"Password must be at least {Constants.Limits.MinSharePasswordLength} characters");
+        var pwError = InputValidation.ValidateSharePassword(password);
+        if (pwError != null)
+            return ServiceError.BadRequest(pwError);
 
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
         await _shareRepo.UpdateAsync(share, ct);
@@ -384,13 +384,6 @@ public class ShareAccessService : IShareAccessService
     private static SharedAssetDto BuildSharedAssetDto(
         Asset asset, string token, Dictionary<string, bool> permissions, Guid? assetId = null)
     {
-        var assetIdQuery = assetId.HasValue ? $"&assetId={assetId.Value}" : "";
-
-        string? thumbnailUrl = !string.IsNullOrEmpty(asset.ThumbObjectKey)
-            ? $"/api/shares/{token}/preview?size=thumb{assetIdQuery}" : null;
-        string? mediumUrl = !string.IsNullOrEmpty(asset.MediumObjectKey)
-            ? $"/api/shares/{token}/preview?size=medium{assetIdQuery}" : null;
-
         // Strip GPS coordinates from shared metadata to protect location privacy
         // when assets are accessed by external share-link recipients (CWE-359).
         var publicMetadata = asset.MetadataJson
@@ -406,11 +399,19 @@ public class ShareAccessService : IShareAccessService
             AssetType = asset.AssetType.ToDbString(),
             ContentType = asset.ContentType,
             SizeBytes = asset.SizeBytes,
-            ThumbnailUrl = thumbnailUrl,
-            MediumUrl = mediumUrl,
+            ThumbnailUrl = BuildPreviewUrl(token, "thumb", asset.ThumbObjectKey, assetId),
+            MediumUrl = BuildPreviewUrl(token, "medium", asset.MediumObjectKey, assetId),
             MetadataJson = publicMetadata,
             Permissions = permissions
         };
+    }
+
+    private static string? BuildPreviewUrl(string token, string size, string? objectKey, Guid? assetId)
+    {
+        if (string.IsNullOrEmpty(objectKey))
+            return null;
+        var assetIdQuery = assetId.HasValue ? $"&assetId={assetId.Value}" : "";
+        return $"/api/shares/{token}/preview?size={size}{assetIdQuery}";
     }
 
     private async Task<(Asset? asset, ServiceError? error)> ResolveTargetAssetAsync(
@@ -446,7 +447,7 @@ public class ShareAccessService : IShareAccessService
     private async Task<ServiceResult<string>> GetPresignedUrl(string objectKey, bool forceDownload, CancellationToken ct)
     {
         var url = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, null, ct);
+            _bucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, null, ct);
         return url;
     }
 }

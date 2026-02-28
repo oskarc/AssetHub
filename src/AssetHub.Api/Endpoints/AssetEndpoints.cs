@@ -98,10 +98,12 @@ public static class AssetEndpoints
         if (file == null || file.Length == 0)
             return Results.BadRequest(new { error = "File is required" });
 
-        if (string.IsNullOrWhiteSpace(title))
-            return Results.BadRequest(new { error = "Title is required" });
-        if (title.Length > 255)
-            return Results.BadRequest(new { error = "Title must be 255 characters or fewer" });
+        if (collectionId == Guid.Empty)
+            return Results.BadRequest(new { error = "collectionId is required" });
+
+        var titleError = InputValidation.ValidateAssetTitle(title);
+        if (titleError != null)
+            return Results.BadRequest(new { error = titleError });
 
         using var stream = file.OpenReadStream();
         var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, ct);

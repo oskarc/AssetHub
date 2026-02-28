@@ -78,6 +78,39 @@ public static partial class InputValidation
     }
 
     /// <summary>
+    /// Validates an asset title: required, 1-255 characters.
+    /// </summary>
+    public static string? ValidateAssetTitle(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Title is required";
+        if (value.Length > 255)
+            return "Title must be 255 characters or fewer";
+        return null;
+    }
+
+    /// <summary>
+    /// Validates a share password: must not be blank and must meet the minimum length requirement.
+    /// Returns null on success, or an error message string on failure.
+    /// </summary>
+    public static string? ValidateSharePassword(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Password cannot be empty";
+        if (value.Length < Constants.Limits.MinSharePasswordLength)
+            return $"Password must be at least {Constants.Limits.MinSharePasswordLength} characters";
+        return null;
+    }
+
+    /// <summary>
+    /// Returns <c>null</c> when <paramref name="value"/> is null, empty, or whitespace-only;
+    /// otherwise returns the original value unchanged.
+    /// Avoids the repeated inline ternary <c>string.IsNullOrWhiteSpace(x) ? null : x</c>.
+    /// </summary>
+    public static string? NormalizeToNull(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    /// <summary>
     /// Runs multiple field validations and collects errors into a dictionary.
     /// Returns true if all validations pass (no errors).
     /// </summary>

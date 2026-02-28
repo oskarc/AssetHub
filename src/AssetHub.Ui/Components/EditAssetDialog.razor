@@ -150,8 +150,8 @@
             var dto = new UpdateAssetDto
             {
                 Title = _title,
-                Description = string.IsNullOrWhiteSpace(_description) ? null : _description,
-                Copyright = string.IsNullOrWhiteSpace(_copyright) ? null : _copyright,
+                Description = InputValidation.NormalizeToNull(_description),
+                Copyright = InputValidation.NormalizeToNull(_copyright),
                 Tags = _tags
             };
 

@@ -81,7 +81,7 @@ public class ShareAccessServiceTests
             _dataProtectionMock.Object,
             _httpContextAccessorMock.Object,
             NullLogger<ShareAccessService>.Instance,
-            currentUser);
+            currentUser ?? CurrentUser.Anonymous);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

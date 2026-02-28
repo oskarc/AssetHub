@@ -260,5 +260,12 @@ public static class Constants
 
         /// <summary>Maximum number of files that can be uploaded in a single batch.</summary>
         public const int MaxFilesPerUpload = 10;
+
+        /// <summary>
+        /// Soft cap used when counting audit events for display.
+        /// We fetch at most this many rows before stopping the count query,
+        /// so the UI shows "10 000+" rather than scanning the entire table.
+        /// </summary>
+        public const int AuditCountDisplayCap = 10_000;
     }
 }

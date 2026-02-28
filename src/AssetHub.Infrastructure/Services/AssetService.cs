@@ -4,7 +4,6 @@ using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
@@ -23,7 +22,6 @@ public sealed class AssetService : IAssetService
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
     private readonly string _bucketName;
-    private readonly ILogger<AssetService> _logger;
 
     public AssetService(
         IAssetRepository assetRepo,
@@ -32,8 +30,7 @@ public sealed class AssetService : IAssetService
         IAssetDeletionService deletionService,
         IAuditService audit,
         CurrentUser currentUser,
-        IOptions<MinIOSettings> minioSettings,
-        ILogger<AssetService> logger)
+        IOptions<MinIOSettings> minioSettings)
     {
         _assetRepo = assetRepo;
         _assetCollectionRepo = assetCollectionRepo;
@@ -42,10 +39,8 @@ public sealed class AssetService : IAssetService
         _audit = audit;
         _currentUser = currentUser;
         _bucketName = minioSettings.Value.BucketName;
-        _logger = logger;
     }
 
-    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<AssetResponseDto>> UpdateAsync(
         Guid id, UpdateAssetDto dto, CancellationToken ct)
@@ -59,26 +54,29 @@ public sealed class AssetService : IAssetService
 
         if (dto.Title != null)
         {
-            if (string.IsNullOrWhiteSpace(dto.Title) || dto.Title.Length > 255)
-                return ServiceError.BadRequest("Title must be 1-255 characters");
+            var titleError = InputValidation.ValidateAssetTitle(dto.Title);
+            if (titleError != null)
+                return ServiceError.BadRequest(titleError);
             asset.Title = dto.Title;
         }
         if (dto.Description != null)
         {
-            var desc = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
+            var desc = InputValidation.NormalizeToNull(dto.Description);
             if (desc != null && desc.Length > 2000)
                 return ServiceError.BadRequest("Description must be 2000 characters or fewer");
             asset.Description = desc;
         }
         if (dto.Copyright != null)
         {
-            var copyright = string.IsNullOrWhiteSpace(dto.Copyright) ? null : dto.Copyright;
+            var copyright = InputValidation.NormalizeToNull(dto.Copyright);
             if (copyright != null && copyright.Length > 500)
                 return ServiceError.BadRequest("Copyright must be 500 characters or fewer");
             asset.Copyright = copyright;
         }
         if (dto.Tags != null)
         {
+            if (dto.Tags.Count > Constants.Limits.MaxTagsPerAsset)
+                return ServiceError.BadRequest($"Cannot have more than {Constants.Limits.MaxTagsPerAsset} tags");
             if (dto.Tags.Any(t => t.Length > Constants.Limits.MaxTagLength))
                 return ServiceError.BadRequest($"Each tag must be {Constants.Limits.MaxTagLength} characters or fewer");
             asset.Tags = dto.Tags;
@@ -121,7 +119,7 @@ public sealed class AssetService : IAssetService
                     return ServiceError.Forbidden();
             }
 
-            var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, BucketName, ct);
+            var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, _bucketName, ct);
             if (!removed)
                 return ServiceError.NotFound("Asset is not linked to this collection");
 
@@ -142,33 +140,44 @@ public sealed class AssetService : IAssetService
 
         // Full permanent delete (no specific collection context)
         var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
+        var partialDelete = await TryPartialDeleteAsync(id, asset.Title, userId, assetCollections, ct);
+        if (partialDelete != null)
+            return partialDelete;
 
-        if (!_currentUser.IsSystemAdmin)
-        {
-            var authorizedCollectionIds = await _authService.FilterAccessibleAsync(
-                userId, assetCollections, RoleHierarchy.Roles.Manager, ct);
-            if (authorizedCollectionIds.Count == 0)
-                return ServiceError.Forbidden();
-
-            var unauthorizedRemain = assetCollections.Except(authorizedCollectionIds).Any();
-            if (unauthorizedRemain)
-            {
-                // User can only remove from the collections they manage
-                foreach (var collId in authorizedCollectionIds)
-                    await _assetCollectionRepo.RemoveFromCollectionAsync(id, collId, ct);
-
-                await _audit.LogAsync("asset.removed_from_collections", "asset", id, userId,
-                    new() { ["title"] = asset.Title, ["count"] = authorizedCollectionIds.Count.ToString() },
-                    ct);
-                return ServiceResult.Success;
-            }
-        }
-
-        // Full permanent delete
-        await _deletionService.PermanentDeleteAsync(asset, BucketName, ct);
+        await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
         await _audit.LogAsync("asset.deleted", "asset", id, userId,
             new() { ["title"] = asset.Title }, ct);
 
+        return ServiceResult.Success;
+    }
+
+    /// <summary>
+    /// When the user lacks Manager access to all collections, removes the asset only
+    /// from the collections they do manage and returns a success result.
+    /// Returns null when the user can permanently delete the asset (either admin or full access).
+    /// </summary>
+    private async Task<ServiceResult?> TryPartialDeleteAsync(
+        Guid assetId, string assetTitle, string userId,
+        List<Guid> assetCollections, CancellationToken ct)
+    {
+        if (_currentUser.IsSystemAdmin)
+            return null;
+
+        var authorizedCollectionIds = await _authService.FilterAccessibleAsync(
+            userId, assetCollections, RoleHierarchy.Roles.Manager, ct);
+        if (authorizedCollectionIds.Count == 0)
+            return ServiceError.Forbidden();
+
+        if (!assetCollections.Except(authorizedCollectionIds).Any())
+            return null; // user manages all collections → allow permanent delete
+
+        // User can only remove from the collections they manage
+        foreach (var collId in authorizedCollectionIds)
+            await _assetCollectionRepo.RemoveFromCollectionAsync(assetId, collId, ct);
+
+        await _audit.LogAsync("asset.removed_from_collections", "asset", assetId, userId,
+            new() { ["title"] = assetTitle, ["count"] = authorizedCollectionIds.Count.ToString() },
+            ct);
         return ServiceResult.Success;
     }
 
@@ -236,7 +245,7 @@ public sealed class AssetService : IAssetService
                 return ServiceError.Forbidden("You don't have permission to manage this asset in this collection");
         }
 
-        var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, BucketName, ct);
+        var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, _bucketName, ct);
         if (!removed)
             return ServiceError.NotFound("Asset is not linked to this collection");
 

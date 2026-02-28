@@ -13,7 +13,7 @@ namespace AssetHub.Infrastructure.Services;
 /// Unified ACL management for collections. Replaces the duplicated logic
 /// that existed in both CollectionEndpoints and AdminEndpoints.
 /// </summary>
-public class CollectionAclService : ICollectionAclService
+public class CollectionAclService : ICollectionAclService, IAdminCollectionAclService
 {
     private readonly ICollectionRepository _collectionRepo;
     private readonly ICollectionAclRepository _aclRepo;

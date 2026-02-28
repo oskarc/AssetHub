@@ -3,8 +3,8 @@ using AssetHub.Application.Dtos;
 namespace AssetHub.Application.Services;
 
 /// <summary>
-/// Unified service for collection ACL management — used by both regular
-/// collection endpoints (manager self-service) and admin endpoints.
+/// Manager self-service operations for collection ACLs.
+/// Used by collection owners to view and grant access within their own authority level.
 /// </summary>
 public interface ICollectionAclService
 {
@@ -25,9 +25,14 @@ public interface ICollectionAclService
     /// <summary>Search users that can be added to a collection's ACL.</summary>
     Task<ServiceResult<List<UserSearchResultDto>>> SearchUsersForAclAsync(
         Guid collectionId, string? query, CancellationToken ct);
+}
 
-    // ── Admin-only operations ────────────────────────────────────────────────
-
+/// <summary>
+/// Admin-only collection ACL operations: bypasses manager-level auth checks
+/// and supports username-or-ID principal resolution.
+/// </summary>
+public interface IAdminCollectionAclService
+{
     /// <summary>Admin: set access with user-ID-or-username resolution.</summary>
     Task<ServiceResult<AccessUpdatedResponse>> AdminSetAccessAsync(
         Guid collectionId, SetCollectionAccessRequest request, CancellationToken ct);

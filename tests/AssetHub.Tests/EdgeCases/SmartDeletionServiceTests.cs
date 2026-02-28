@@ -91,8 +91,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
             _deletionService,
             _auditMock.Object,
             currentUser,
-            minioSettings,
-            NullLogger<AssetService>.Instance);
+            minioSettings);
     }
 
     private AssetQueryService CreateQuerySut(CurrentUser currentUser)

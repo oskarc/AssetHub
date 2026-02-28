@@ -297,4 +297,16 @@ public class AssetRepository(
             Constants.SortBy.SizeDesc => queryable.OrderByDescending(a => a.SizeBytes),
             _ => queryable.OrderByDescending(a => a.CreatedAt)
         };
+
+    public async Task<Dictionary<Guid, string>> GetTitlesByIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+            return [];
+
+        return await dbContext.Assets
+            .AsNoTracking()
+            .Where(a => ids.Contains(a.Id))
+            .Select(a => new { a.Id, a.Title })
+            .ToDictionaryAsync(a => a.Id, a => a.Title, cancellationToken);
+    }
 }

@@ -13,7 +13,7 @@ namespace AssetHub.Infrastructure.Services;
 /// <summary>
 /// Admin user lifecycle management: listing, creation, password reset, sync, and deletion.
 /// </summary>
-public class UserAdminService : IUserAdminService
+public class UserAdminService : IUserAdminQueryService, IUserAdminService
 {
     private readonly ICollectionAclRepository _aclRepo;
     private readonly ICollectionRepository _collectionRepo;

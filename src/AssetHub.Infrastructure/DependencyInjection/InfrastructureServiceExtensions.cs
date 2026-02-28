@@ -104,6 +104,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAssetRepository, AssetRepository>();
         services.AddScoped<IAssetCollectionRepository, AssetCollectionRepository>();
         services.AddScoped<IShareRepository, ShareRepository>();
+        services.AddScoped<IAuditEventRepository, AuditEventRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);

@@ -117,4 +117,16 @@ public class CollectionRepository(
             .ToListAsync(ct);
     }
 
+    public async Task<Dictionary<Guid, string>> GetNamesByIdsAsync(List<Guid> ids, CancellationToken ct = default)
+    {
+        if (ids.Count == 0)
+            return [];
+
+        return await dbContext.Collections
+            .AsNoTracking()
+            .Where(c => ids.Contains(c.Id))
+            .Select(c => new { c.Id, c.Name })
+            .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+    }
+
 }

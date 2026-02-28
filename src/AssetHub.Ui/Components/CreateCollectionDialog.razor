@@ -72,7 +72,7 @@
             var dto = new CreateCollectionDto
             {
                 Name = _name,
-                Description = string.IsNullOrWhiteSpace(_description) ? null : _description
+                Description = InputValidation.NormalizeToNull(_description)
             };
 
             var result = await Api.CreateCollectionAsync(dto);

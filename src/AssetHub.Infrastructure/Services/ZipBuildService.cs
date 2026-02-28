@@ -49,7 +49,6 @@ public class ZipBuildService : IZipBuildService
         _logger = logger;
     }
 
-    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> EnqueueCollectionZipAsync(
         Guid collectionId, string userId, CancellationToken ct)
@@ -161,7 +160,7 @@ public class ZipBuildService : IZipBuildService
             }
 
             var downloadUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
-                BucketName, zip.ZipObjectKey,
+                _bucketName, zip.ZipObjectKey,
                 expirySeconds: (int)(zip.ExpiresAt - DateTime.UtcNow).TotalSeconds,
                 forceDownload: true,
                 downloadFileName: zip.ZipFileName,
@@ -226,7 +225,7 @@ public class ZipBuildService : IZipBuildService
                         try
                         {
                             await using var assetStream = await _minioAdapter.DownloadAsync(
-                                BucketName, asset.OriginalObjectKey!, ct);
+                                _bucketName, asset.OriginalObjectKey!, ct);
 
                             var fileName = FileHelpers.GetSafeFileName(
                                 asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
@@ -261,7 +260,7 @@ public class ZipBuildService : IZipBuildService
                 var fileInfo = new FileInfo(tempPath);
                 await using (var uploadStream = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    await _minioAdapter.UploadAsync(BucketName, objectKey, uploadStream, "application/zip", ct);
+                    await _minioAdapter.UploadAsync(_bucketName, objectKey, uploadStream, "application/zip", ct);
                 }
 
                 zip.ZipObjectKey = objectKey;
@@ -328,7 +327,7 @@ public class ZipBuildService : IZipBuildService
             {
                 try
                 {
-                    await _minioAdapter.DeleteAsync(BucketName, zip.ZipObjectKey, ct);
+                    await _minioAdapter.DeleteAsync(_bucketName, zip.ZipObjectKey, ct);
                 }
                 catch (Exception ex)
                 {

@@ -8,7 +8,6 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -59,24 +58,19 @@ public class CollectionServiceTests : IAsyncLifetime
 
         var minioSettings = Options.Create(new MinIOSettings { BucketName = "test-bucket" });
 
-        var httpContextAccessor = new Mock<IHttpContextAccessor>();
-        httpContextAccessor.Setup(x => x.HttpContext).Returns(new DefaultHttpContext());
-
-        _service = CreateService(AdminUser, isAdmin: true, minioSettings, httpContextAccessor.Object);
+        _service = CreateService(AdminUser, isAdmin: true, minioSettings);
     }
 
     private CollectionService CreateService(string userId, bool isAdmin,
-        IOptions<MinIOSettings>? minioSettings = null, IHttpContextAccessor? httpCtx = null)
+        IOptions<MinIOSettings>? minioSettings = null)
     {
         var currentUser = new CurrentUser(userId, isAdmin);
         minioSettings ??= Options.Create(new MinIOSettings { BucketName = "test-bucket" });
-        httpCtx ??= Mock.Of<IHttpContextAccessor>(x => x.HttpContext == new DefaultHttpContext());
 
         return new CollectionService(
             _collectionRepo, _aclRepo, _assetRepo, _shareRepo,
             _authService, _deletionServiceMock.Object, _zipBuildServiceMock.Object,
-            _auditMock.Object, minioSettings, currentUser, httpCtx,
-            NullLogger<CollectionService>.Instance);
+            _auditMock.Object, minioSettings, currentUser);
     }
 
     public async Task DisposeAsync()

@@ -168,14 +168,20 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAssetUploadService, AssetUploadService>(); // Uploads: streaming and presigned
         
         services.AddScoped<ICollectionService, CollectionService>();
-        services.AddScoped<ICollectionAclService, CollectionAclService>();
+        services.AddScoped<CollectionAclService>();
+        services.AddScoped<ICollectionAclService>(sp => sp.GetRequiredService<CollectionAclService>());
+        services.AddScoped<IAdminCollectionAclService>(sp => sp.GetRequiredService<CollectionAclService>());
         
         // Admin services split by responsibility (Interface Segregation Principle)
         services.AddScoped<IShareAdminService, ShareAdminService>();
-        services.AddScoped<IUserAdminService, UserAdminService>();
-        services.AddScoped<IAdminService, AdminService>(); // Kept for backward compatibility
+        services.AddScoped<UserAdminService>();
+        services.AddScoped<IUserAdminQueryService>(sp => sp.GetRequiredService<UserAdminService>());
+        services.AddScoped<IUserAdminService>(sp => sp.GetRequiredService<UserAdminService>());
         
-        services.AddScoped<IShareAccessService, ShareAccessService>();
+        services.AddScoped<ShareAccessService>();
+        services.AddScoped<IPublicShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
+        services.AddScoped<IAuthenticatedShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
+        services.AddScoped<IDashboardQueryService, DashboardQueryService>();
         services.AddScoped<IDashboardService, DashboardService>();
 
         // ── Keycloak Admin API HttpClient ───────────────────────────────────

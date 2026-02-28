@@ -62,8 +62,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
             new Mock<IAssetDeletionService>().Object,
             _auditMock.Object,
             new CurrentUser(userId, isSystemAdmin: false),
-            minioSettings,
-            NullLogger<AssetService>.Instance);
+            minioSettings);
     }
 
     private async Task<(Asset asset, Collection col)> SeedContributorAccessAsync()
@@ -89,7 +88,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
-        Assert.Contains("1-255", result.Error.Message);
+        Assert.Contains("required", result.Error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -137,6 +136,19 @@ public class AssetServiceValidationTests : IAsyncLifetime
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
         Assert.Contains("500", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_TooManyTags_ReturnsBadRequest()
+    {
+        var (asset, _) = await SeedContributorAccessAsync();
+        var tooManyTags = Enumerable.Range(0, Constants.Limits.MaxTagsPerAsset + 1).Select(i => $"tag{i}").ToList();
+
+        var result = await CreateSut().UpdateAsync(asset.Id, new UpdateAssetDto { Tags = tooManyTags }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+        Assert.Contains(Constants.Limits.MaxTagsPerAsset.ToString(), result.Error.Message);
     }
 
     [Fact]
