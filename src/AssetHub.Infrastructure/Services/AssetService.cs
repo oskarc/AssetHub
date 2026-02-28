@@ -79,6 +79,8 @@ public sealed class AssetService : IAssetService
         }
         if (dto.Tags != null)
         {
+            if (dto.Tags.Count > Constants.Limits.MaxTagsPerAsset)
+                return ServiceError.BadRequest($"Cannot have more than {Constants.Limits.MaxTagsPerAsset} tags");
             if (dto.Tags.Any(t => t.Length > Constants.Limits.MaxTagLength))
                 return ServiceError.BadRequest($"Each tag must be {Constants.Limits.MaxTagLength} characters or fewer");
             asset.Tags = dto.Tags;

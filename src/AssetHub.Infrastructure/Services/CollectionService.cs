@@ -5,7 +5,6 @@ using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -26,7 +25,6 @@ public class CollectionService : ICollectionService
     private readonly IAuditService _audit;
     private readonly string _bucketName;
     private readonly CurrentUser _currentUser;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<CollectionService> _logger;
 
     public CollectionService(
@@ -40,7 +38,6 @@ public class CollectionService : ICollectionService
         IAuditService audit,
         IOptions<MinIOSettings> minioSettings,
         CurrentUser currentUser,
-        IHttpContextAccessor httpContextAccessor,
         ILogger<CollectionService> logger)
     {
         _collectionRepo = collectionRepo;
@@ -53,12 +50,10 @@ public class CollectionService : ICollectionService
         _audit = audit;
         _bucketName = minioSettings.Value.BucketName;
         _currentUser = currentUser;
-        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
     private string BucketName => _bucketName;
-    private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
 
     public async Task<ServiceResult<List<CollectionResponseDto>>> GetRootCollectionsAsync(CancellationToken ct)
     {

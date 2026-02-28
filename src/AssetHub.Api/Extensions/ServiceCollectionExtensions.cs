@@ -173,7 +173,6 @@ public static class ServiceCollectionExtensions
         // Admin services split by responsibility (Interface Segregation Principle)
         services.AddScoped<IShareAdminService, ShareAdminService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
-        services.AddScoped<IAdminService, AdminService>(); // Kept for backward compatibility
         
         services.AddScoped<IShareAccessService, ShareAccessService>();
         services.AddScoped<IDashboardService, DashboardService>();

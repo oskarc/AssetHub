@@ -140,6 +140,19 @@ public class AssetServiceValidationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAsync_TooManyTags_ReturnsBadRequest()
+    {
+        var (asset, _) = await SeedContributorAccessAsync();
+        var tooManyTags = Enumerable.Range(0, Constants.Limits.MaxTagsPerAsset + 1).Select(i => $"tag{i}").ToList();
+
+        var result = await CreateSut().UpdateAsync(asset.Id, new UpdateAssetDto { Tags = tooManyTags }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+        Assert.Contains(Constants.Limits.MaxTagsPerAsset.ToString(), result.Error.Message);
+    }
+
+    [Fact]
     public async Task UpdateAsync_ValidTitle_Succeeds()
     {
         var (asset, _) = await SeedContributorAccessAsync();
