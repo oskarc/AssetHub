@@ -9,7 +9,9 @@ using Hangfire;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Http.Resilience;
 using MudBlazor.Services;
+using Polly;
 using System.Threading.RateLimiting;
 
 namespace AssetHub.Api.Extensions;
@@ -168,12 +170,44 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDashboardService, DashboardService>();
 
         // ── Keycloak Admin API HttpClient ───────────────────────────────────
-        var keycloakTimeoutSeconds = configuration.GetValue("Keycloak:TimeoutSeconds", 30);
+        // HttpClient.Timeout is disabled (Infinite) because Polly manages both
+        // per-attempt and total timeouts. Setting HttpClient.Timeout alongside
+        // Polly would cap the entire retry sequence, potentially killing the
+        // last retry mid-flight.
+        var keycloakAttemptTimeoutSeconds = configuration.GetValue("Keycloak:TimeoutSeconds", 10);
         services.AddHttpClient<IKeycloakUserService, KeycloakUserService>(client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(keycloakTimeoutSeconds);
+            client.Timeout = Timeout.InfiniteTimeSpan;
         })
-        .ConfigurePrimaryHttpMessageHandler(() => CreateHttpHandler(environment));
+        .ConfigurePrimaryHttpMessageHandler(() => CreateHttpHandler(environment))
+        .AddResilienceHandler("keycloak", builder =>
+        {
+            // Retry 5xx and transient network errors; never retry 4xx (auth/conflict).
+            static bool IsTransientHttpFailure(Outcome<HttpResponseMessage> outcome) =>
+                outcome.Exception is HttpRequestException or TimeoutException
+                || (outcome.Result is { StatusCode: >= System.Net.HttpStatusCode.InternalServerError });
+
+            builder.AddRetry(new HttpRetryStrategyOptions
+            {
+                MaxRetryAttempts = 3,
+                BackoffType = DelayBackoffType.Exponential,
+                Delay = TimeSpan.FromMilliseconds(500),
+                ShouldHandle = args => ValueTask.FromResult(IsTransientHttpFailure(args.Outcome))
+            });
+
+            builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+            {
+                SamplingDuration = TimeSpan.FromSeconds(30),
+                FailureRatio = 0.5,
+                MinimumThroughput = 10,
+                BreakDuration = TimeSpan.FromSeconds(15),
+                ShouldHandle = args => ValueTask.FromResult(IsTransientHttpFailure(args.Outcome))
+            });
+
+            // Per-attempt timeout (each individual HTTP call).
+            // Total time is bounded by: attempts × timeout + backoff delays.
+            builder.AddTimeout(TimeSpan.FromSeconds(keycloakAttemptTimeoutSeconds));
+        });
 
         // ── UI Services ─────────────────────────────────────────────────────
         services.AddScoped<AssetHub.Ui.Services.IUserFeedbackService, AssetHub.Ui.Services.UserFeedbackService>();

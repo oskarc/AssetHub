@@ -2,6 +2,8 @@ using AssetHub.Application.Services;
 using AssetHub.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Polly;
+using Polly.Registry;
 
 namespace AssetHub.Tests.Services;
 
@@ -11,6 +13,13 @@ namespace AssetHub.Tests.Services;
 /// </summary>
 public class ClamAvScannerServiceTests
 {
+    private static ResiliencePipelineProvider<string> CreatePipelineProvider()
+    {
+        var registry = new ResiliencePipelineRegistry<string>();
+        registry.TryAddBuilder("clamav", (builder, _) => { });
+        return registry;
+    }
+
     private static IConfiguration CreateConfig(bool enabled = false, string host = "localhost", int port = 3310)
     {
         var configValues = new Dictionary<string, string?>
@@ -31,7 +40,7 @@ public class ClamAvScannerServiceTests
     {
         // Arrange
         var config = CreateConfig(enabled: false);
-        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance);
+        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance, CreatePipelineProvider());
         using var stream = new MemoryStream("test content"u8.ToArray());
 
         // Act
@@ -48,7 +57,7 @@ public class ClamAvScannerServiceTests
     {
         // Arrange
         var config = CreateConfig(enabled: false);
-        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance);
+        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance, CreatePipelineProvider());
         var data = "test content"u8.ToArray();
 
         // Act
@@ -64,7 +73,7 @@ public class ClamAvScannerServiceTests
     {
         // Arrange
         var config = CreateConfig(enabled: false);
-        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance);
+        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance, CreatePipelineProvider());
 
         // Act
         var result = await scanner.IsAvailableAsync(CancellationToken.None);
@@ -78,7 +87,7 @@ public class ClamAvScannerServiceTests
     {
         // Arrange - use localhost on a port unlikely to have ClamAV
         var config = CreateConfig(enabled: true, host: "127.0.0.1", port: 59999);
-        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance);
+        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance, CreatePipelineProvider());
         using var stream = new MemoryStream("test content"u8.ToArray());
 
         // Act
@@ -96,7 +105,7 @@ public class ClamAvScannerServiceTests
     {
         // Arrange
         var config = CreateConfig(enabled: true, host: "127.0.0.1", port: 59999);
-        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance);
+        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance, CreatePipelineProvider());
 
         // Act
         var result = await scanner.IsAvailableAsync(CancellationToken.None);
@@ -164,7 +173,7 @@ public class ClamAvScannerServiceTests
         var config = new ConfigurationBuilder().Build();
         
         // Act - should not throw
-        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance);
+        var scanner = new ClamAvScannerService(config, NullLogger<ClamAvScannerService>.Instance, CreatePipelineProvider());
 
         // Assert - scanner is disabled by default
         var result = await scanner.IsAvailableAsync(CancellationToken.None);

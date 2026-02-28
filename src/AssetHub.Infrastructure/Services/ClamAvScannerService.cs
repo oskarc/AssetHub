@@ -3,12 +3,15 @@ using System.Text;
 using AssetHub.Application.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Registry;
 
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
 /// ClamAV antivirus scanner implementation using the clamd TCP protocol.
 /// Supports INSTREAM command for streaming file content directly to clamd.
+/// Wraps TCP operations with a Polly resilience pipeline for retry and circuit-breaker.
 /// </summary>
 public class ClamAvScannerService : IMalwareScannerService
 {
@@ -18,13 +21,16 @@ public class ClamAvScannerService : IMalwareScannerService
     private readonly bool _enabled;
     private readonly int _timeoutMs;
     private readonly int _chunkSize;
+    private readonly ResiliencePipeline _pipeline;
 
     public ClamAvScannerService(
         IConfiguration configuration,
-        ILogger<ClamAvScannerService> logger)
+        ILogger<ClamAvScannerService> logger,
+        ResiliencePipelineProvider<string> pipelineProvider)
     {
         _logger = logger;
-        
+        _pipeline = pipelineProvider.GetPipeline("clamav");
+
         var section = configuration.GetSection("ClamAV");
         _enabled = section.GetValue("Enabled", false);
         _host = section.GetValue("Host", "clamav") ?? "clamav";
@@ -48,52 +54,55 @@ public class ClamAvScannerService : IMalwareScannerService
 
         try
         {
-            // Reset stream position if seekable
-            if (stream.CanSeek)
-                stream.Position = 0;
-
-            using var client = new TcpClient();
-            await client.ConnectAsync(_host, _port, ct);
-            client.ReceiveTimeout = _timeoutMs;
-            client.SendTimeout = _timeoutMs;
-
-            await using var networkStream = client.GetStream();
-
-            // Send INSTREAM command
-            await networkStream.WriteAsync("zINSTREAM\0"u8.ToArray(), ct);
-
-            // Stream file in chunks (length-prefixed in network byte order)
-            var buffer = new byte[_chunkSize];
-            int bytesRead;
-            while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
+            return await _pipeline.ExecuteAsync(async innerCt =>
             {
-                // Send chunk length (4 bytes, big-endian)
-                var lengthBytes = BitConverter.GetBytes(bytesRead);
-                if (BitConverter.IsLittleEndian)
-                    Array.Reverse(lengthBytes);
-                await networkStream.WriteAsync(lengthBytes, ct);
-                
-                // Send chunk data
-                await networkStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-            }
+                // Reset stream position if seekable (important for retries)
+                if (stream.CanSeek)
+                    stream.Position = 0;
 
-            // Send zero-length chunk to signal end of stream
-            await networkStream.WriteAsync(new byte[4], ct);
+                using var client = new TcpClient();
+                await client.ConnectAsync(_host, _port, innerCt);
+                client.ReceiveTimeout = _timeoutMs;
+                client.SendTimeout = _timeoutMs;
 
-            // Read response
-            var responseBuffer = new byte[1024];
-            var responseLength = await networkStream.ReadAsync(responseBuffer, ct);
-            var response = Encoding.UTF8.GetString(responseBuffer, 0, responseLength).Trim('\0', '\n', '\r');
+                await using var networkStream = client.GetStream();
 
-            // Reset stream position for subsequent use
-            if (stream.CanSeek)
-                stream.Position = 0;
+                // Send INSTREAM command
+                await networkStream.WriteAsync("zINSTREAM\0"u8.ToArray(), innerCt);
 
-            return ParseResponse(response, fileName);
+                // Stream file in chunks (length-prefixed in network byte order)
+                var buffer = new byte[_chunkSize];
+                int bytesRead;
+                while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), innerCt)) > 0)
+                {
+                    // Send chunk length (4 bytes, big-endian)
+                    var lengthBytes = BitConverter.GetBytes(bytesRead);
+                    if (BitConverter.IsLittleEndian)
+                        Array.Reverse(lengthBytes);
+                    await networkStream.WriteAsync(lengthBytes, innerCt);
+
+                    // Send chunk data
+                    await networkStream.WriteAsync(buffer.AsMemory(0, bytesRead), innerCt);
+                }
+
+                // Send zero-length chunk to signal end of stream
+                await networkStream.WriteAsync(new byte[4], innerCt);
+
+                // Read response
+                var responseBuffer = new byte[1024];
+                var responseLength = await networkStream.ReadAsync(responseBuffer, innerCt);
+                var response = Encoding.UTF8.GetString(responseBuffer, 0, responseLength).Trim('\0', '\n', '\r');
+
+                // Reset stream position for subsequent use
+                if (stream.CanSeek)
+                    stream.Position = 0;
+
+                return ParseResponse(response, fileName);
+            }, ct);
         }
         catch (SocketException ex)
         {
-            _logger.LogError(ex, "Failed to connect to ClamAV at {Host}:{Port} for file {FileName}", 
+            _logger.LogError(ex, "Failed to connect to ClamAV at {Host}:{Port} for file {FileName}",
                 _host, _port, fileName);
             return MalwareScanResult.Failed($"Scanner unavailable: {ex.Message}");
         }
@@ -117,6 +126,7 @@ public class ClamAvScannerService : IMalwareScannerService
 
         try
         {
+            // No resilience pipeline for health checks — they should fail fast
             using var client = new TcpClient();
             await client.ConnectAsync(_host, _port, ct);
             client.ReceiveTimeout = 5000;

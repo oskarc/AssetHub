@@ -5,21 +5,29 @@ using AssetHub.Application.Services;
 using AssetHub.Application.Services.Email;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Registry;
 
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
 /// SMTP-based email service implementation.
+/// Wraps send operations with a Polly resilience pipeline for retry on transient failures.
 /// </summary>
 public class SmtpEmailService : IEmailService
 {
     private readonly EmailSettings _settings;
     private readonly ILogger<SmtpEmailService> _logger;
+    private readonly ResiliencePipeline _pipeline;
 
-    public SmtpEmailService(IOptions<EmailSettings> settings, ILogger<SmtpEmailService> logger)
+    public SmtpEmailService(
+        IOptions<EmailSettings> settings,
+        ILogger<SmtpEmailService> logger,
+        ResiliencePipelineProvider<string> pipelineProvider)
     {
         _settings = settings.Value;
         _logger = logger;
+        _pipeline = pipelineProvider.GetPipeline("smtp");
     }
 
     public async Task SendEmailAsync(string to, IEmailTemplate template, CancellationToken cancellationToken = default)
@@ -45,10 +53,13 @@ public class SmtpEmailService : IEmailService
 
         try
         {
-            using var client = CreateSmtpClient();
-            using var message = CreateMailMessage(recipientList, template);
+            await _pipeline.ExecuteAsync(async ct =>
+            {
+                using var client = CreateSmtpClient();
+                using var message = CreateMailMessage(recipientList, template);
 
-            await client.SendMailAsync(message, cancellationToken);
+                await client.SendMailAsync(message, ct);
+            }, cancellationToken);
 
             _logger.LogInformation("Successfully sent email '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
         }

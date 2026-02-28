@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
@@ -11,7 +12,11 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Resilience;
 using Minio;
+using Minio.Exceptions;
+using Polly;
+using Polly.Registry;
 
 namespace AssetHub.Infrastructure.DependencyInjection;
 
@@ -100,6 +105,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAssetCollectionRepository, AssetCollectionRepository>();
         services.AddScoped<IShareRepository, ShareRepository>();
 
+        // ── Resilience pipelines ──────────────────────────────────────────
+        AddResiliencePipelines(services);
+
         // ── Core services ───────────────────────────────────────────────────
         services.AddScoped<IMinIOAdapter>(sp =>
         {
@@ -107,12 +115,89 @@ public static class InfrastructureServiceExtensions
             var publicClient = sp.GetRequiredKeyedService<IMinioClient>("public");
             var adapterLogger = sp.GetRequiredService<ILogger<MinIOAdapter>>();
             var cache = sp.GetRequiredService<IMemoryCache>();
-            return new MinIOAdapter(internalClient, publicClient, adapterLogger, cache);
+            var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
+            return new MinIOAdapter(internalClient, publicClient, adapterLogger, cache, pipelineProvider);
         });
         services.AddScoped<IMediaProcessingService, MediaProcessingService>();
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
 
         return services;
+    }
+
+    private static void AddResiliencePipelines(IServiceCollection services)
+    {
+        // MinIO: retry transient network/SDK errors with circuit breaker
+        var minioShouldHandle = new PredicateBuilder()
+            .Handle<HttpRequestException>()
+            .Handle<SocketException>()
+            .Handle<MinioException>(ex => ex is not ObjectNotFoundException and not BucketNotFoundException);
+
+        services.AddResiliencePipeline("minio", builder =>
+        {
+            builder.AddRetryWithCircuitBreaker(minioShouldHandle,
+                retryAttempts: 3, retryDelay: TimeSpan.FromSeconds(1), retryBackoff: DelayBackoffType.Exponential,
+                breakDuration: TimeSpan.FromSeconds(30), samplingDuration: TimeSpan.FromSeconds(30), minimumThroughput: 5);
+        });
+
+        // ClamAV: lighter retry for TCP socket connections
+        var clamavShouldHandle = new PredicateBuilder()
+            .Handle<SocketException>();
+
+        services.AddResiliencePipeline("clamav", builder =>
+        {
+            builder.AddRetryWithCircuitBreaker(clamavShouldHandle,
+                retryAttempts: 2, retryDelay: TimeSpan.FromMilliseconds(500), retryBackoff: DelayBackoffType.Constant,
+                breakDuration: TimeSpan.FromSeconds(60), samplingDuration: TimeSpan.FromSeconds(60), minimumThroughput: 3);
+        });
+
+        // SMTP: retry transient email failures (no circuit breaker — low volume)
+        var smtpShouldHandle = new PredicateBuilder()
+            .Handle<System.Net.Mail.SmtpException>()
+            .Handle<SocketException>();
+
+        services.AddResiliencePipeline("smtp", builder =>
+        {
+            builder.AddRetry(new Polly.Retry.RetryStrategyOptions
+            {
+                MaxRetryAttempts = 2,
+                BackoffType = DelayBackoffType.Exponential,
+                Delay = TimeSpan.FromSeconds(2),
+                ShouldHandle = smtpShouldHandle
+            });
+        });
+    }
+
+    /// <summary>
+    /// Adds a retry strategy followed by a circuit breaker, both using the same
+    /// <paramref name="shouldHandle"/> predicate. This avoids duplicating the
+    /// predicate across the two strategies.
+    /// </summary>
+    private static void AddRetryWithCircuitBreaker(
+        this ResiliencePipelineBuilder builder,
+        PredicateBuilder<object> shouldHandle,
+        int retryAttempts,
+        TimeSpan retryDelay,
+        DelayBackoffType retryBackoff,
+        TimeSpan breakDuration,
+        TimeSpan samplingDuration,
+        int minimumThroughput,
+        double failureRatio = 0.5)
+    {
+        builder.AddRetry(new Polly.Retry.RetryStrategyOptions
+        {
+            MaxRetryAttempts = retryAttempts,
+            BackoffType = retryBackoff,
+            Delay = retryDelay,
+            ShouldHandle = shouldHandle
+        });
+        builder.AddCircuitBreaker(new Polly.CircuitBreaker.CircuitBreakerStrategyOptions
+        {
+            SamplingDuration = samplingDuration,
+            FailureRatio = failureRatio,
+            MinimumThroughput = minimumThroughput,
+            BreakDuration = breakDuration,
+            ShouldHandle = shouldHandle
+        });
     }
 
     private static void AddMinIOClients(IServiceCollection services, IConfiguration configuration)
