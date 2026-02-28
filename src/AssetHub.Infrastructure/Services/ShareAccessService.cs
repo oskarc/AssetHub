@@ -15,7 +15,7 @@ namespace AssetHub.Infrastructure.Services;
 /// <summary>
 /// Handles public share access and protected share management.
 /// </summary>
-public class ShareAccessService : IShareAccessService
+public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShareAccessService
 {
     private readonly IShareRepository _shareRepo;
     private readonly IAssetRepository _assetRepo;
@@ -28,7 +28,7 @@ public class ShareAccessService : IShareAccessService
     private readonly IAuditService _audit;
     private readonly string _bucketName;
     private readonly IDataProtectionProvider _dataProtection;
-    private readonly CurrentUser? _currentUser;
+    private readonly CurrentUser _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<ShareAccessService> _logger;
 
@@ -46,7 +46,7 @@ public class ShareAccessService : IShareAccessService
         IDataProtectionProvider dataProtection,
         IHttpContextAccessor httpContextAccessor,
         ILogger<ShareAccessService> logger,
-        CurrentUser? currentUser = null)
+        CurrentUser currentUser)
     {
         _shareRepo = shareRepo;
         _assetRepo = assetRepo;
@@ -68,7 +68,7 @@ public class ShareAccessService : IShareAccessService
 
     // ── Public operations ────────────────────────────────────────────────────
 
-    public async Task<ServiceResult<object>> GetSharedContentAsync(
+    public async Task<ServiceResult<ISharedContentDto>> GetSharedContentAsync(
         string token, string? password, int skip, int take, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
@@ -82,7 +82,7 @@ public class ShareAccessService : IShareAccessService
             if (asset == null)
                 return ServiceError.NotFound("Asset not found");
 
-            return (object)BuildSharedAssetDto(asset, token, share.PermissionsJson);
+            return BuildSharedAssetDto(asset, token, share.PermissionsJson);
         }
 
         if (share.ScopeType == ShareScopeType.Collection)
@@ -97,7 +97,7 @@ public class ShareAccessService : IShareAccessService
                 .Select(a => BuildSharedAssetDto(a, token, share.PermissionsJson, a.Id))
                 .ToList();
 
-            return (object)new SharedCollectionDto
+            return new SharedCollectionDto
             {
                 Id = collection.Id,
                 Name = collection.Name,
@@ -226,7 +226,7 @@ public class ShareAccessService : IShareAccessService
     public async Task<ServiceResult<ShareResponseDto>> CreateShareAsync(
         CreateShareDto dto, string baseUrl, CancellationToken ct)
     {
-        var userId = _currentUser?.UserId;
+        var userId = _currentUser.UserId;
         if (string.IsNullOrEmpty(userId))
             return ServiceError.Forbidden("Authentication required to create shares");
 
@@ -263,7 +263,7 @@ public class ShareAccessService : IShareAccessService
         if (share == null)
             return ServiceError.NotFound("Share not found");
 
-        var userId = _currentUser?.UserId;
+        var userId = _currentUser.UserId;
         if (share.CreatedByUserId != userId)
             return ServiceError.Forbidden("You don't have permission to revoke this share");
 
@@ -284,8 +284,8 @@ public class ShareAccessService : IShareAccessService
         if (share == null)
             return ServiceError.NotFound("Share not found");
 
-        var userId = _currentUser?.UserId;
-        var isAdmin = _currentUser?.IsSystemAdmin ?? false;
+        var userId = _currentUser.UserId;
+        var isAdmin = _currentUser.IsSystemAdmin;
         if (share.CreatedByUserId != userId && !isAdmin)
             return ServiceError.Forbidden("You don't have permission to update this share");
 

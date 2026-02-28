@@ -41,7 +41,7 @@ public static class ShareEndpoints
 
     private static async Task<IResult> GetSharedAsset(
         string token,
-        [FromServices] IShareAccessService svc,
+        [FromServices] IPublicShareAccessService svc,
         HttpContext httpContext, CancellationToken ct,
         int skip = 0, int take = 50)
     {
@@ -53,7 +53,7 @@ public static class ShareEndpoints
 
     private static async Task<IResult> CreateAccessToken(
         string token,
-        [FromServices] IShareAccessService svc,
+        [FromServices] IPublicShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
         var password = GetSharePassword(httpContext);
@@ -63,7 +63,7 @@ public static class ShareEndpoints
 
     private static async Task<IResult> DownloadSharedAsset(
         string token, Guid? assetId, string? accessToken,
-        [FromServices] IShareAccessService svc,
+        [FromServices] IPublicShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
         var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
@@ -73,7 +73,7 @@ public static class ShareEndpoints
 
     private static async Task<IResult> DownloadAllSharedAssets(
         string token, [FromQuery] string? accessToken,
-        [FromServices] IShareAccessService svc,
+        [FromServices] IPublicShareAccessService svc,
         HttpContext httpContext, CancellationToken ct)
     {
         var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
@@ -85,7 +85,7 @@ public static class ShareEndpoints
 
     private static async Task<IResult> PreviewSharedAsset(
         string token, string? accessToken, string? size, Guid? assetId,
-        [FromServices] IShareAccessService svc,
+        [FromServices] IPublicShareAccessService svc,
         HttpContext httpContext, CancellationToken ct, bool download = false)
     {
         var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
@@ -97,7 +97,7 @@ public static class ShareEndpoints
 
     private static async Task<IResult> CreateShare(
         CreateShareDto dto,
-        [FromServices] IShareAccessService svc,
+        [FromServices] IAuthenticatedShareAccessService svc,
         [FromServices] IOptions<AppSettings> appSettings,
         CancellationToken ct)
     {
@@ -107,7 +107,7 @@ public static class ShareEndpoints
     }
 
     private static async Task<IResult> RevokeShare(
-        Guid id, [FromServices] IShareAccessService svc, CancellationToken ct)
+        Guid id, [FromServices] IAuthenticatedShareAccessService svc, CancellationToken ct)
     {
         var result = await svc.RevokeShareAsync(id, ct);
         return result.ToHttpResult();
@@ -115,7 +115,7 @@ public static class ShareEndpoints
 
     private static async Task<IResult> UpdateSharePassword(
         Guid id, [FromBody] UpdateSharePasswordDto dto,
-        [FromServices] IShareAccessService svc, CancellationToken ct)
+        [FromServices] IAuthenticatedShareAccessService svc, CancellationToken ct)
     {
         var result = await svc.UpdateSharePasswordAsync(id, dto.Password, ct);
         return result.ToHttpResult();

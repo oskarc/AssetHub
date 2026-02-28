@@ -3,16 +3,13 @@ using AssetHub.Application.Dtos;
 namespace AssetHub.Application.Services;
 
 /// <summary>
-/// Handles public share access (anonymous) and protected share management
-/// (revoke, password update). Encapsulates token validation, password
-/// verification (BCrypt), and presigned URL generation.
+/// Public (anonymous) share operations: content retrieval, URL generation, and access tokens.
+/// All methods accept a token and optional password; no authenticated user is required.
 /// </summary>
-public interface IShareAccessService
+public interface IPublicShareAccessService
 {
-    // ── Public (anonymous) operations ────────────────────────────────────────
-
     /// <summary>Get shared content (asset or collection) by token.</summary>
-    Task<ServiceResult<object>> GetSharedContentAsync(
+    Task<ServiceResult<ISharedContentDto>> GetSharedContentAsync(
         string token, string? password, int skip, int take, CancellationToken ct);
 
     /// <summary>Get a presigned download URL for a shared asset.</summary>
@@ -35,9 +32,14 @@ public interface IShareAccessService
     /// </summary>
     Task<ServiceResult<ShareAccessTokenResponse>> CreateAccessTokenAsync(
         string token, string? password, CancellationToken ct);
+}
 
-    // ── Protected (authenticated) operations ─────────────────────────────────
-
+/// <summary>
+/// Authenticated share management operations: create, revoke, and update password.
+/// All methods require an authenticated user in the current scope.
+/// </summary>
+public interface IAuthenticatedShareAccessService
+{
     /// <summary>Create a new share link for an asset or collection.</summary>
     Task<ServiceResult<ShareResponseDto>> CreateShareAsync(
         CreateShareDto dto, string baseUrl, CancellationToken ct);

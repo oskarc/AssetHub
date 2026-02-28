@@ -174,7 +174,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IShareAdminService, ShareAdminService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
         
-        services.AddScoped<IShareAccessService, ShareAccessService>();
+        services.AddScoped<ShareAccessService>();
+        services.AddScoped<IPublicShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
+        services.AddScoped<IAuthenticatedShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
         services.AddScoped<IDashboardService, DashboardService>();
 
         // ── Keycloak Admin API HttpClient ───────────────────────────────────

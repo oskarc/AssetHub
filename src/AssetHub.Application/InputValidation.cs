@@ -78,6 +78,18 @@ public static partial class InputValidation
     }
 
     /// <summary>
+    /// Validates an asset title: required, 1-255 characters.
+    /// </summary>
+    public static string? ValidateAssetTitle(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Title is required";
+        if (value.Length > 255)
+            return "Title must be 255 characters or fewer";
+        return null;
+    }
+
+    /// <summary>
     /// Validates a share password: must not be blank and must meet the minimum length requirement.
     /// Returns null on success, or an error message string on failure.
     /// </summary>

@@ -52,9 +52,19 @@ public class ShareResponseDto
 }
 
 /// <summary>
+/// Marker interface for the two types of shared content responses
+/// (a single asset or a collection). Eliminates the use of <c>object</c>
+/// as a return type in <see cref="IPublicShareAccessService.GetSharedContentAsync"/>.
+/// </summary>
+public interface ISharedContentDto
+{
+    string Type { get; }
+}
+
+/// <summary>
 /// DTO representing a shared asset (used in public share responses).
 /// </summary>
-public class SharedAssetDto
+public class SharedAssetDto : ISharedContentDto
 {
     public string Type { get; set; } = Constants.ScopeTypes.Asset;
     public Guid Id { get; set; }
@@ -73,7 +83,7 @@ public class SharedAssetDto
 /// <summary>
 /// DTO representing a shared collection with its assets.
 /// </summary>
-public class SharedCollectionDto
+public class SharedCollectionDto : ISharedContentDto
 {
     public string Type { get; set; } = Constants.ScopeTypes.Collection;
     public Guid Id { get; set; }

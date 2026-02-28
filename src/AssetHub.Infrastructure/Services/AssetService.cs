@@ -58,8 +58,9 @@ public sealed class AssetService : IAssetService
 
         if (dto.Title != null)
         {
-            if (string.IsNullOrWhiteSpace(dto.Title) || dto.Title.Length > 255)
-                return ServiceError.BadRequest("Title must be 1-255 characters");
+            var titleError = InputValidation.ValidateAssetTitle(dto.Title);
+            if (titleError != null)
+                return ServiceError.BadRequest(titleError);
             asset.Title = dto.Title;
         }
         if (dto.Description != null)
@@ -143,33 +144,45 @@ public sealed class AssetService : IAssetService
 
         // Full permanent delete (no specific collection context)
         var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
-
-        if (!_currentUser.IsSystemAdmin)
-        {
-            var authorizedCollectionIds = await _authService.FilterAccessibleAsync(
-                userId, assetCollections, RoleHierarchy.Roles.Manager, ct);
-            if (authorizedCollectionIds.Count == 0)
-                return ServiceError.Forbidden();
-
-            var unauthorizedRemain = assetCollections.Except(authorizedCollectionIds).Any();
-            if (unauthorizedRemain)
-            {
-                // User can only remove from the collections they manage
-                foreach (var collId in authorizedCollectionIds)
-                    await _assetCollectionRepo.RemoveFromCollectionAsync(id, collId, ct);
-
-                await _audit.LogAsync("asset.removed_from_collections", "asset", id, userId,
-                    new() { ["title"] = asset.Title, ["count"] = authorizedCollectionIds.Count.ToString() },
-                    ct);
-                return ServiceResult.Success;
-            }
-        }
+        var partialDelete = await TryPartialDeleteAsync(id, asset.Title, userId, assetCollections, ct);
+        if (partialDelete != null)
+            return partialDelete;
 
         // Full permanent delete
         await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
         await _audit.LogAsync("asset.deleted", "asset", id, userId,
             new() { ["title"] = asset.Title }, ct);
 
+        return ServiceResult.Success;
+    }
+
+    /// <summary>
+    /// When the user lacks Manager access to all collections, removes the asset only
+    /// from the collections they do manage and returns a success result.
+    /// Returns null when the user can permanently delete the asset (either admin or full access).
+    /// </summary>
+    private async Task<ServiceResult?> TryPartialDeleteAsync(
+        Guid assetId, string assetTitle, string userId,
+        List<Guid> assetCollections, CancellationToken ct)
+    {
+        if (_currentUser.IsSystemAdmin)
+            return null;
+
+        var authorizedCollectionIds = await _authService.FilterAccessibleAsync(
+            userId, assetCollections, RoleHierarchy.Roles.Manager, ct);
+        if (authorizedCollectionIds.Count == 0)
+            return ServiceError.Forbidden();
+
+        if (!assetCollections.Except(authorizedCollectionIds).Any())
+            return null; // user manages all collections → allow permanent delete
+
+        // User can only remove from the collections they manage
+        foreach (var collId in authorizedCollectionIds)
+            await _assetCollectionRepo.RemoveFromCollectionAsync(assetId, collId, ct);
+
+        await _audit.LogAsync("asset.removed_from_collections", "asset", assetId, userId,
+            new() { ["title"] = assetTitle, ["count"] = authorizedCollectionIds.Count.ToString() },
+            ct);
         return ServiceResult.Success;
     }
 

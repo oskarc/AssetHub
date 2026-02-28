@@ -89,7 +89,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
-        Assert.Contains("1-255", result.Error.Message);
+        Assert.Contains("required", result.Error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
