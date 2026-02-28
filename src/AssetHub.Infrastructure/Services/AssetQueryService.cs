@@ -48,7 +48,6 @@ public sealed class AssetQueryService : IAssetQueryService
         _logger = logger;
     }
 
-    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<List<AssetResponseDto>>> GetAssetsByStatusAsync(
         string status, int skip, int take, CancellationToken ct)
@@ -277,7 +276,7 @@ public sealed class AssetQueryService : IAssetQueryService
         try
         {
             presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
-                BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, downloadFileName, ct);
+                _bucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, downloadFileName, ct);
         }
         catch (StorageException ex)
         {

@@ -78,6 +78,19 @@ public static partial class InputValidation
     }
 
     /// <summary>
+    /// Validates a share password: must not be blank and must meet the minimum length requirement.
+    /// Returns null on success, or an error message string on failure.
+    /// </summary>
+    public static string? ValidateSharePassword(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Password cannot be empty";
+        if (value.Length < Constants.Limits.MinSharePasswordLength)
+            return $"Password must be at least {Constants.Limits.MinSharePasswordLength} characters";
+        return null;
+    }
+
+    /// <summary>
     /// Runs multiple field validations and collects errors into a dictionary.
     /// Returns true if all validations pass (no errors).
     /// </summary>

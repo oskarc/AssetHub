@@ -218,11 +218,7 @@ public class DashboardService : IDashboardService
             ExpiresAt = s.ExpiresAt,
             AccessCount = s.AccessCount,
             HasPassword = s.PasswordHash != null,
-            Status = s.RevokedAt != null
-                ? "revoked"
-                : s.ExpiresAt < DateTime.UtcNow
-                    ? "expired"
-                    : "active"
+            Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt).ToLowerInvariant()
         }).ToList();
     }
 

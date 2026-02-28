@@ -56,7 +56,6 @@ public sealed class AssetUploadService : IAssetUploadService
         _logger = logger;
     }
 
-    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<AssetUploadResult>> UploadAsync(
         Stream fileStream, string fileName, string contentType, long fileSize,
@@ -102,7 +101,7 @@ public sealed class AssetUploadService : IAssetUploadService
 
         try
         {
-            await _minioAdapter.UploadAsync(BucketName, asset.OriginalObjectKey, fileStream, contentType, ct);
+            await _minioAdapter.UploadAsync(_bucketName, asset.OriginalObjectKey, fileStream, contentType, ct);
         }
         catch (StorageException ex)
         {
@@ -169,7 +168,7 @@ public sealed class AssetUploadService : IAssetUploadService
         try
         {
             presignedUrl = await _minioAdapter.GetPresignedUploadUrlAsync(
-                BucketName, asset.OriginalObjectKey, Constants.Limits.PresignedUploadExpirySec, ct);
+                _bucketName, asset.OriginalObjectKey, Constants.Limits.PresignedUploadExpirySec, ct);
         }
         catch (StorageException ex)
         {
@@ -199,23 +198,23 @@ public sealed class AssetUploadService : IAssetUploadService
         if (asset.Status != AssetStatus.Uploading)
             return ServiceError.BadRequest("Asset is not in uploading state");
 
-        var stat = await _minioAdapter.StatObjectAsync(BucketName, asset.OriginalObjectKey, ct);
+        var stat = await _minioAdapter.StatObjectAsync(_bucketName, asset.OriginalObjectKey, ct);
         if (stat == null)
             return ServiceError.BadRequest("File not found in storage. Upload may have failed or expired.");
 
         // Validate file magic bytes match claimed content type (prevents Content-Type spoofing)
         var headerBytes = await _minioAdapter.DownloadRangeAsync(
-            BucketName, asset.OriginalObjectKey, 0, FileMagicValidator.MinBytesForValidation, ct);
+            _bucketName, asset.OriginalObjectKey, 0, FileMagicValidator.MinBytesForValidation, ct);
         if (!FileMagicValidator.Validate(headerBytes, asset.ContentType))
         {
             // Delete the spoofed file from storage
-            await _minioAdapter.DeleteAsync(BucketName, asset.OriginalObjectKey, ct);
+            await _minioAdapter.DeleteAsync(_bucketName, asset.OriginalObjectKey, ct);
             await _assetRepo.DeleteAsync(asset.Id, ct);
             return ServiceError.BadRequest($"File content does not match the claimed content type '{asset.ContentType}'.");
         }
 
         // Scan for malware (download file from storage for scanning)
-        await using var fileStream = await _minioAdapter.DownloadAsync(BucketName, asset.OriginalObjectKey, ct);
+        await using var fileStream = await _minioAdapter.DownloadAsync(_bucketName, asset.OriginalObjectKey, ct);
         var scanResult = await _malwareScanner.ScanAsync(fileStream, asset.Title, ct);
         if (!scanResult.ScanCompleted)
         {
@@ -229,7 +228,7 @@ public sealed class AssetUploadService : IAssetUploadService
             await _audit.LogAsync("asset.malware_detected", "asset", asset.Id, userId,
                 new() { ["fileName"] = asset.Title, ["threatName"] = scanResult.ThreatName ?? "unknown" }, ct);
             // Delete the infected file
-            await _minioAdapter.DeleteAsync(BucketName, asset.OriginalObjectKey, ct);
+            await _minioAdapter.DeleteAsync(_bucketName, asset.OriginalObjectKey, ct);
             await _assetRepo.DeleteAsync(asset.Id, ct);
             return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
         }

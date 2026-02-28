@@ -64,7 +64,6 @@ public class ShareAccessService : IShareAccessService
         _currentUser = currentUser;
     }
 
-    private string BucketName => _bucketName;
     private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
 
     // ── Public operations ────────────────────────────────────────────────────
@@ -130,7 +129,7 @@ public class ShareAccessService : IShareAccessService
         await _shareRepo.IncrementAccessAsync(share.Id, ct);
 
         var presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, targetAsset.OriginalObjectKey,
+            _bucketName, targetAsset.OriginalObjectKey,
             Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, null, ct);
 
         return presignedUrl;
@@ -292,8 +291,9 @@ public class ShareAccessService : IShareAccessService
 
         if (string.IsNullOrWhiteSpace(password))
             return ServiceError.BadRequest("Password cannot be empty");
-        if (password.Length < Constants.Limits.MinSharePasswordLength)
-            return ServiceError.BadRequest($"Password must be at least {Constants.Limits.MinSharePasswordLength} characters");
+        var pwError = InputValidation.ValidateSharePassword(password);
+        if (pwError != null)
+            return ServiceError.BadRequest(pwError);
 
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
         await _shareRepo.UpdateAsync(share, ct);
@@ -446,7 +446,7 @@ public class ShareAccessService : IShareAccessService
     private async Task<ServiceResult<string>> GetPresignedUrl(string objectKey, bool forceDownload, CancellationToken ct)
     {
         var url = await _minioAdapter.GetPresignedDownloadUrlAsync(
-            BucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, null, ct);
+            _bucketName, objectKey, Constants.Limits.PresignedDownloadExpirySec, forceDownload, null, ct);
         return url;
     }
 }

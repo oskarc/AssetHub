@@ -53,7 +53,6 @@ public class CollectionService : ICollectionService
         _logger = logger;
     }
 
-    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<List<CollectionResponseDto>>> GetRootCollectionsAsync(CancellationToken ct)
     {
@@ -185,7 +184,7 @@ public class CollectionService : ICollectionService
             return ServiceError.NotFound("Collection not found");
 
         var collectionName = collection.Name;
-        await _deletionService.DeleteCollectionAssetsAsync(id, BucketName, ct);
+        await _deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
         await _shareRepo.DeleteByScopeAsync("collection", id, ct);
         await _collectionRepo.DeleteAsync(id, ct);
 

@@ -98,6 +98,9 @@ public static class AssetEndpoints
         if (file == null || file.Length == 0)
             return Results.BadRequest(new { error = "File is required" });
 
+        if (collectionId == Guid.Empty)
+            return Results.BadRequest(new { error = "collectionId is required" });
+
         if (string.IsNullOrWhiteSpace(title))
             return Results.BadRequest(new { error = "Title is required" });
         if (title.Length > 255)

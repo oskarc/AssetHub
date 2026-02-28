@@ -45,7 +45,6 @@ public sealed class AssetService : IAssetService
         _logger = logger;
     }
 
-    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<AssetResponseDto>> UpdateAsync(
         Guid id, UpdateAssetDto dto, CancellationToken ct)
@@ -123,7 +122,7 @@ public sealed class AssetService : IAssetService
                     return ServiceError.Forbidden();
             }
 
-            var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, BucketName, ct);
+            var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, _bucketName, ct);
             if (!removed)
                 return ServiceError.NotFound("Asset is not linked to this collection");
 
@@ -167,7 +166,7 @@ public sealed class AssetService : IAssetService
         }
 
         // Full permanent delete
-        await _deletionService.PermanentDeleteAsync(asset, BucketName, ct);
+        await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
         await _audit.LogAsync("asset.deleted", "asset", id, userId,
             new() { ["title"] = asset.Title }, ct);
 
@@ -238,7 +237,7 @@ public sealed class AssetService : IAssetService
                 return ServiceError.Forbidden("You don't have permission to manage this asset in this collection");
         }
 
-        var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, BucketName, ct);
+        var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, _bucketName, ct);
         if (!removed)
             return ServiceError.NotFound("Asset is not linked to this collection");
 

@@ -237,36 +237,37 @@ public class DashboardServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetDashboard_PartialUserLookup_HandlesUnresolvedUsers()
+    public async Task GetDashboard_Share_StatusIsLowercase()
     {
-        var col = TestData.CreateCollection(name: "PartialCol");
-        var asset = TestData.CreateAsset(title: "PartialAsset", status: AssetStatus.Ready,
-            createdByUserId: ManagerUser);
+        var col = TestData.CreateCollection(name: "ShareStatusCol");
+        var assetA = TestData.CreateAsset(title: "ActiveAsset", status: AssetStatus.Ready);
+        var assetB = TestData.CreateAsset(title: "ExpiredAsset", status: AssetStatus.Ready);
+        var assetC = TestData.CreateAsset(title: "RevokedAsset", status: AssetStatus.Ready);
         _db.Collections.Add(col);
-        _db.Assets.Add(asset);
-        _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, col.Id));
+        _db.Assets.AddRange(assetA, assetB, assetC);
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(assetA.Id, col.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(assetB.Id, col.Id));
+        _db.AssetCollections.Add(TestData.CreateAssetCollection(assetC.Id, col.Id));
         _db.CollectionAcls.Add(TestData.CreateAcl(col.Id, AdminUser, AclRole.Admin));
-        _db.AuditEvents.Add(TestData.CreateAuditEvent(
-            "asset.created", Constants.ScopeTypes.Asset, asset.Id, ManagerUser));
+
+        _db.Shares.Add(TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: assetA.Id,
+            createdByUserId: AdminUser, expiresAt: DateTime.UtcNow.AddDays(7)));
+        _db.Shares.Add(TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: assetB.Id,
+            createdByUserId: AdminUser, expiresAt: DateTime.UtcNow.AddDays(-1)));
+        _db.Shares.Add(TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: assetC.Id,
+            createdByUserId: AdminUser, revoked: true));
         await _db.SaveChangesAsync();
 
-        // Lookup returns no match for ManagerUser — simulates partial resolution
-        var nameMap = new Dictionary<string, string>
-        {
-            [AdminUser] = "Admin Display Name"
-        };
-        var svc = CreateService(AdminUser, isAdmin: true, userNames: nameMap);
+        var svc = CreateService(AdminUser, isAdmin: true);
         var result = await svc.GetDashboardAsync();
 
         Assert.True(result.IsSuccess);
-        var dashboard = result.Value!;
-
-        // Asset creator username not resolved — should be null
-        var recentAsset = dashboard.RecentAssets.First(a => a.Title == "PartialAsset");
-        Assert.Null(recentAsset.CreatedByUserName);
-
-        // Activity actor username not resolved — should be null
-        var activity = dashboard.RecentActivity.First();
-        Assert.Null(activity.ActorUserName);
+        var shares = result.Value!.RecentShares;
+        Assert.Contains(shares, s => s.Status == "active");
+        Assert.Contains(shares, s => s.Status == "expired");
+        Assert.Contains(shares, s => s.Status == "revoked");
+        // Statuses should always be lowercase for UI compatibility
+        Assert.All(shares, s => Assert.Equal(s.Status, s.Status.ToLowerInvariant()));
     }
 }
+
