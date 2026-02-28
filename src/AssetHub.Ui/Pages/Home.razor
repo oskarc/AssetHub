@@ -19,6 +19,14 @@
     {
         <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
     }
+    else if (_dashboardError)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-4" Icon="@Icons.Material.Filled.CloudOff">
+            <MudText Typo="Typo.body1">@Loc["Dashboard_LoadError"]</MudText>
+        </MudAlert>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="@ReloadAsync">@Loc["Dashboard_Retry"]</MudButton>
+    }
     else if (_dashboard is not null)
     {
         @* ── Welcome header ─────────────────────────────────────────── *@
@@ -183,7 +191,7 @@
                             }
                             else
                             {
-                                <MudList T="DashboardShareDto" Dense="true" Clickable="true">
+                                <MudList T="DashboardShareDto" Dense="true">
                                     @foreach (var share in _dashboard.RecentShares)
                                     {
                                         <MudListItem T="DashboardShareDto" Icon="@Icons.Material.Filled.Link" OnClick="@(() => ShowShareInfo(share))">
@@ -273,6 +281,7 @@
     private DashboardDto? _dashboard;
     private string _displayName = "";
     private bool _loading = true;
+    private bool _dashboardError;
 
     private bool _showShares => _dashboard?.RecentShares.Count > 0
         || RoleHierarchy.GetLevel(_dashboard?.UserRole ?? "") >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager);
@@ -288,8 +297,32 @@
                      ?? user.Identity?.Name
                      ?? "";
 
-        _dashboard = await Api.GetDashboardAsync();
-        _loading = false;
+        await LoadDashboardAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _dashboardError = false;
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        try
+        {
+            _dashboard = await Api.GetDashboardAsync();
+            if (_dashboard is null)
+                _dashboardError = true;
+        }
+        catch
+        {
+            _dashboardError = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private void NavigateToAsset(Guid assetId)

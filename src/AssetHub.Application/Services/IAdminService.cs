@@ -10,8 +10,8 @@ public interface IAdminService
 {
     // ── Share Management ─────────────────────────────────────────────────────
 
-    /// <summary>Get all shares with usage statistics.</summary>
-    Task<ServiceResult<List<AdminShareDto>>> GetAllSharesAsync(CancellationToken ct);
+    /// <summary>Get shares with pagination and usage statistics.</summary>
+    Task<ServiceResult<AdminSharesResponse>> GetAllSharesAsync(int skip, int take, CancellationToken ct);
 
     /// <summary>Retrieve the decrypted plaintext token for a share.</summary>
     Task<ServiceResult<ShareTokenResponse>> GetShareTokenAsync(Guid shareId, CancellationToken ct);

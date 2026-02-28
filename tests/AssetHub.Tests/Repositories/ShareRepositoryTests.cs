@@ -335,4 +335,34 @@ public class ShareRepositoryTests : IAsyncLifetime
         Assert.Equal(middle.Id, results[1].Id);
         Assert.Equal(oldest.Id, results[2].Id);
     }
+
+    // ── CountAllAsync / pagination ────────────────────────────────────────────
+
+    [Fact]
+    public async Task CountAllAsync_ReturnsCorrectCount()
+    {
+        _db.Shares.Add(TestData.CreateShare());
+        _db.Shares.Add(TestData.CreateShare());
+        await _db.SaveChangesAsync();
+
+        var count = await _repo.CountAllAsync();
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_RespectsSkipAndTake()
+    {
+        // Add 5 shares
+        for (var i = 0; i < 5; i++)
+            _db.Shares.Add(TestData.CreateShare());
+        await _db.SaveChangesAsync();
+
+        var page1 = await _repo.GetAllAsync(skip: 0, take: 3);
+        var page2 = await _repo.GetAllAsync(skip: 3, take: 3);
+
+        Assert.Equal(3, page1.Count);
+        Assert.Equal(2, page2.Count);
+        // No overlap
+        Assert.Empty(page1.Select(s => s.Id).Intersect(page2.Select(s => s.Id)));
+    }
 }

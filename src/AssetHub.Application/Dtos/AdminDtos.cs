@@ -3,6 +3,15 @@ using System.ComponentModel.DataAnnotations;
 namespace AssetHub.Application.Dtos;
 
 /// <summary>
+/// Paginated response for the admin shares list endpoint.
+/// </summary>
+public record AdminSharesResponse
+{
+    public int Total { get; init; }
+    public List<AdminShareDto> Items { get; init; } = [];
+}
+
+/// <summary>
 /// Admin view of a share with statistics.
 /// </summary>
 public record AdminShareDto

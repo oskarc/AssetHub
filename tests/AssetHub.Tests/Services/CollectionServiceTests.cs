@@ -253,6 +253,49 @@ public class CollectionServiceTests : IAsyncLifetime
         Assert.Contains("already exists", result.Error.Message);
     }
 
+    [Fact]
+    public async Task CreateAsync_DescriptionTooLong_ReturnsBadRequest()
+    {
+        var dto = new CreateCollectionDto { Name = "Valid", Description = new string('x', 1001) };
+        var result = await _service.CreateAsync(dto, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+        Assert.Contains("1000", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NameTooLong_ReturnsBadRequest()
+    {
+        var col = TestData.CreateCollection(name: "Original");
+        _db.Collections.Add(col);
+        _db.CollectionAcls.Add(TestData.CreateAcl(col.Id, AdminUser, AclRole.Admin));
+        await _db.SaveChangesAsync();
+
+        var dto = new UpdateCollectionDto { Name = new string('a', 256) };
+        var result = await _service.UpdateAsync(col.Id, dto, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+        Assert.Contains("255", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_DescriptionTooLong_ReturnsBadRequest()
+    {
+        var col = TestData.CreateCollection(name: "Original");
+        _db.Collections.Add(col);
+        _db.CollectionAcls.Add(TestData.CreateAcl(col.Id, AdminUser, AclRole.Admin));
+        await _db.SaveChangesAsync();
+
+        var dto = new UpdateCollectionDto { Description = new string('x', 1001) };
+        var result = await _service.UpdateAsync(col.Id, dto, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+        Assert.Contains("1000", result.Error.Message);
+    }
+
     // ── DeleteAsync ─────────────────────────────────────────────────
 
     [Fact]

@@ -15,9 +15,9 @@ public class CreateCollectionDto
     public required string Name { get; set; }
 
     /// <summary>
-    /// Collection description (optional, max 2000 chars).
+    /// Collection description (optional, max 1000 chars).
     /// </summary>
-    [StringLength(2000)]
+    [StringLength(1000)]
     public string? Description { get; set; }
 }
 
@@ -33,9 +33,9 @@ public class UpdateCollectionDto
     public string? Name { get; set; }
 
     /// <summary>
-    /// Collection description.
+    /// Collection description (optional, max 1000 chars).
     /// </summary>
-    [StringLength(2000)]
+    [StringLength(1000)]
     public string? Description { get; set; }
 }
 

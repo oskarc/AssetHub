@@ -56,9 +56,26 @@ public sealed class AssetService : IAssetService
         if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Contributor, ct))
             return ServiceError.Forbidden();
 
-        if (dto.Title != null) asset.Title = dto.Title;
-        if (dto.Description != null) asset.Description = dto.Description;
-        if (dto.Copyright != null) asset.Copyright = dto.Copyright;
+        if (dto.Title != null)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Title) || dto.Title.Length > 255)
+                return ServiceError.BadRequest("Title must be 1-255 characters");
+            asset.Title = dto.Title;
+        }
+        if (dto.Description != null)
+        {
+            var desc = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
+            if (desc != null && desc.Length > 2000)
+                return ServiceError.BadRequest("Description must be 2000 characters or fewer");
+            asset.Description = desc;
+        }
+        if (dto.Copyright != null)
+        {
+            var copyright = string.IsNullOrWhiteSpace(dto.Copyright) ? null : dto.Copyright;
+            if (copyright != null && copyright.Length > 500)
+                return ServiceError.BadRequest("Copyright must be 500 characters or fewer");
+            asset.Copyright = copyright;
+        }
         if (dto.Tags != null)
         {
             if (dto.Tags.Any(t => t.Length > Constants.Limits.MaxTagLength))
