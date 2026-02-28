@@ -39,15 +39,16 @@ public class DashboardServiceTests : IAsyncLifetime
         var collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
         var assetRepo = new AssetRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
             new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), NullLogger<AssetRepository>.Instance);
-        var shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
         var authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         var userLookupMock = new Mock<IUserLookupService>();
         userLookupMock.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(userNames ?? new Dictionary<string, string>());
 
+        var queryService = new DashboardQueryService(_db, userLookupMock.Object);
+
         return new DashboardService(
-            _db, collectionRepo, authService, assetRepo, shareRepo,
-            userLookupMock.Object, currentUser, NullLogger<DashboardService>.Instance);
+            queryService, collectionRepo, authService, assetRepo,
+            userLookupMock.Object, currentUser);
     }
 
     public async Task DisposeAsync()

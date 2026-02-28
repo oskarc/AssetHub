@@ -71,7 +71,7 @@ public static class AdminEndpoints
     // ── Collection Access Management ─────────────────────────────────────────
 
     private static async Task<IResult> GetCollectionAccess(
-        [FromServices] ICollectionAclService svc, CancellationToken ct)
+        [FromServices] IAdminCollectionAclService svc, CancellationToken ct)
     {
         var result = await svc.GetCollectionAccessTreeAsync(ct);
         return result.ToHttpResult();
@@ -79,7 +79,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> SetCollectionAccess(
         Guid collectionId, [FromBody] SetCollectionAccessRequest request,
-        [FromServices] ICollectionAclService svc, CancellationToken ct)
+        [FromServices] IAdminCollectionAclService svc, CancellationToken ct)
     {
         var result = await svc.AdminSetAccessAsync(collectionId, request, ct);
         return result.ToHttpResult();
@@ -87,7 +87,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> RemoveCollectionAccess(
         Guid collectionId, string principalId, [FromQuery] string? principalType,
-        [FromServices] ICollectionAclService svc, CancellationToken ct)
+        [FromServices] IAdminCollectionAclService svc, CancellationToken ct)
     {
         var result = await svc.AdminRevokeAccessAsync(collectionId, principalType ?? "user", principalId, ct);
         return result.ToHttpResult();
@@ -96,14 +96,14 @@ public static class AdminEndpoints
     // ── User Management ──────────────────────────────────────────────────────
 
     private static async Task<IResult> GetUsers(
-        [FromServices] IUserAdminService svc, CancellationToken ct)
+        [FromServices] IUserAdminQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetUsersAsync(ct);
         return result.ToHttpResult();
     }
 
     private static async Task<IResult> GetKeycloakUsers(
-        [FromServices] IUserAdminService svc, CancellationToken ct)
+        [FromServices] IUserAdminQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetKeycloakUsersAsync(ct);
         return result.ToHttpResult();
