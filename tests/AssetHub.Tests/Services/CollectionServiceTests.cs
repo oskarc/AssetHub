@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
@@ -8,8 +9,8 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace AssetHub.Tests.Services;
@@ -56,34 +57,25 @@ public class CollectionServiceTests : IAsyncLifetime
         _zipBuildServiceMock = new Mock<IZipBuildService>();
         _auditMock = new Mock<IAuditService>();
 
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MinIO:BucketName"] = "test-bucket"
-            })
-            .Build();
+        var minioSettings = Options.Create(new MinIOSettings { BucketName = "test-bucket" });
 
         var httpContextAccessor = new Mock<IHttpContextAccessor>();
         httpContextAccessor.Setup(x => x.HttpContext).Returns(new DefaultHttpContext());
 
-        _service = CreateService(AdminUser, isAdmin: true, config, httpContextAccessor.Object);
+        _service = CreateService(AdminUser, isAdmin: true, minioSettings, httpContextAccessor.Object);
     }
 
     private CollectionService CreateService(string userId, bool isAdmin,
-        IConfiguration? config = null, IHttpContextAccessor? httpCtx = null)
+        IOptions<MinIOSettings>? minioSettings = null, IHttpContextAccessor? httpCtx = null)
     {
         var currentUser = new CurrentUser(userId, isAdmin);
-        config ??= new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MinIO:BucketName"] = "test-bucket"
-            }).Build();
+        minioSettings ??= Options.Create(new MinIOSettings { BucketName = "test-bucket" });
         httpCtx ??= Mock.Of<IHttpContextAccessor>(x => x.HttpContext == new DefaultHttpContext());
 
         return new CollectionService(
             _collectionRepo, _aclRepo, _assetRepo, _shareRepo,
             _authService, _deletionServiceMock.Object, _zipBuildServiceMock.Object,
-            _auditMock.Object, config, currentUser, httpCtx,
+            _auditMock.Object, minioSettings, currentUser, httpCtx,
             NullLogger<CollectionService>.Instance);
     }
 

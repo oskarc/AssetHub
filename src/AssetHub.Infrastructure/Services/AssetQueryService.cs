@@ -1,12 +1,13 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -22,7 +23,7 @@ public sealed class AssetQueryService : IAssetQueryService
     private readonly IMinIOAdapter _minioAdapter;
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
-    private readonly IConfiguration _configuration;
+    private readonly string _bucketName;
     private readonly ILogger<AssetQueryService> _logger;
 
     public AssetQueryService(
@@ -33,7 +34,7 @@ public sealed class AssetQueryService : IAssetQueryService
         IMinIOAdapter minioAdapter,
         IAuditService audit,
         CurrentUser currentUser,
-        IConfiguration configuration,
+        IOptions<MinIOSettings> minioSettings,
         ILogger<AssetQueryService> logger)
     {
         _assetRepo = assetRepo;
@@ -43,11 +44,11 @@ public sealed class AssetQueryService : IAssetQueryService
         _minioAdapter = minioAdapter;
         _audit = audit;
         _currentUser = currentUser;
-        _configuration = configuration;
+        _bucketName = minioSettings.Value.BucketName;
         _logger = logger;
     }
 
-    private string BucketName => StorageConfig.GetBucketName(_configuration);
+    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<List<AssetResponseDto>>> GetAssetsByStatusAsync(
         string status, int skip, int take, CancellationToken ct)

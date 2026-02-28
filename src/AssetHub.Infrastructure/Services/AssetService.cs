@@ -1,10 +1,11 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -21,7 +22,7 @@ public sealed class AssetService : IAssetService
     private readonly IAssetDeletionService _deletionService;
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
-    private readonly IConfiguration _configuration;
+    private readonly string _bucketName;
     private readonly ILogger<AssetService> _logger;
 
     public AssetService(
@@ -31,7 +32,7 @@ public sealed class AssetService : IAssetService
         IAssetDeletionService deletionService,
         IAuditService audit,
         CurrentUser currentUser,
-        IConfiguration configuration,
+        IOptions<MinIOSettings> minioSettings,
         ILogger<AssetService> logger)
     {
         _assetRepo = assetRepo;
@@ -40,11 +41,11 @@ public sealed class AssetService : IAssetService
         _deletionService = deletionService;
         _audit = audit;
         _currentUser = currentUser;
-        _configuration = configuration;
+        _bucketName = minioSettings.Value.BucketName;
         _logger = logger;
     }
 
-    private string BucketName => StorageConfig.GetBucketName(_configuration);
+    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<AssetResponseDto>> UpdateAsync(
         Guid id, UpdateAssetDto dto, CancellationToken ct)

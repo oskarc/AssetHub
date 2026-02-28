@@ -1,8 +1,10 @@
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Worker.Jobs;
 
@@ -25,10 +27,9 @@ public class StaleUploadCleanupJob(
         using var scope = scopeFactory.CreateScope();
         var assetRepo = scope.ServiceProvider.GetRequiredService<IAssetRepository>();
         var deletionService = scope.ServiceProvider.GetRequiredService<IAssetDeletionService>();
-        var minioAdapter = scope.ServiceProvider.GetRequiredService<IMinIOAdapter>();
-        var configuration = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
+        var minioSettings = scope.ServiceProvider.GetRequiredService<IOptions<MinIOSettings>>();
 
-        var bucketName = AssetHub.Application.Helpers.StorageConfig.GetBucketName(configuration);
+        var bucketName = minioSettings.Value.BucketName;
         var cutoff = DateTime.UtcNow - StaleThreshold;
 
         logger.LogInformation("Starting stale upload cleanup (threshold: {Threshold})", StaleThreshold);

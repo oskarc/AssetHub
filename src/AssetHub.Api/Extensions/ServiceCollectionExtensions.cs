@@ -153,9 +153,13 @@ public static class ServiceCollectionExtensions
             var hca = sp.GetRequiredService<IHttpContextAccessor>();
             var user = hca.HttpContext?.User;
             var userId = user?.GetUserId();
-            return userId != null
-                ? new CurrentUser(userId, user!.IsGlobalAdmin())
-                : new CurrentUser("", false);
+            if (userId != null)
+                return new CurrentUser(userId, user!.IsGlobalAdmin());
+            
+            // Log when returning anonymous user (background jobs, missing auth, etc.)
+            var logger = sp.GetService<ILogger<CurrentUser>>();
+            logger?.LogDebug("CurrentUser resolved without HttpContext — returning anonymous user");
+            return CurrentUser.Anonymous;
         });
         
         // Asset services split by responsibility (Interface Segregation Principle)
@@ -165,7 +169,12 @@ public static class ServiceCollectionExtensions
         
         services.AddScoped<ICollectionService, CollectionService>();
         services.AddScoped<ICollectionAclService, CollectionAclService>();
-        services.AddScoped<IAdminService, AdminService>();
+        
+        // Admin services split by responsibility (Interface Segregation Principle)
+        services.AddScoped<IShareAdminService, ShareAdminService>();
+        services.AddScoped<IUserAdminService, UserAdminService>();
+        services.AddScoped<IAdminService, AdminService>(); // Kept for backward compatibility
+        
         services.AddScoped<IShareAccessService, ShareAccessService>();
         services.AddScoped<IDashboardService, DashboardService>();
 

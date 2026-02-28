@@ -1,7 +1,8 @@
+using AssetHub.Application.Configuration;
 using AssetHub.Infrastructure.Services;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.Protected;
 using System.Net;
@@ -15,23 +16,21 @@ namespace AssetHub.Tests.Services;
 /// </summary>
 public class KeycloakUserServiceTests
 {
-    private static IConfiguration CreateConfig(
+    private static IOptions<KeycloakSettings> CreateSettings(
         string? adminClientSecret = null,
         string adminClientId = "admin-cli",
         string adminUsername = "admin",
         string adminPassword = "admin123")
     {
-        var configValues = new Dictionary<string, string?>
+        var settings = new KeycloakSettings
         {
-            ["Keycloak:Authority"] = "http://keycloak:8080/realms/media",
-            ["Keycloak:AdminUsername"] = adminUsername,
-            ["Keycloak:AdminPassword"] = adminPassword,
-            ["Keycloak:AdminClientId"] = adminClientId,
-            ["Keycloak:AdminClientSecret"] = adminClientSecret
+            Authority = "http://keycloak:8080/realms/media",
+            AdminUsername = adminUsername,
+            AdminPassword = adminPassword,
+            AdminClientId = adminClientId,
+            AdminClientSecret = adminClientSecret
         };
-        return new ConfigurationBuilder()
-            .AddInMemoryCollection(configValues)
-            .Build();
+        return Options.Create(settings);
     }
 
     private static HttpClient CreateMockHttpClient(HttpStatusCode statusCode, object responseBody)
@@ -75,7 +74,7 @@ public class KeycloakUserServiceTests
     {
         // Arrange
         var loggerMock = new Mock<ILogger<KeycloakUserService>>();
-        var config = CreateConfig(adminClientSecret: "my-secret", adminClientId: "assethub-admin");
+        var config = CreateSettings(adminClientSecret: "my-secret", adminClientId: "assethub-admin");
         var httpClient = new HttpClient();
 
         // Act
@@ -97,7 +96,7 @@ public class KeycloakUserServiceTests
     {
         // Arrange
         var loggerMock = new Mock<ILogger<KeycloakUserService>>();
-        var config = CreateConfig(adminClientSecret: null);
+        var config = CreateSettings(adminClientSecret: null);
         var httpClient = new HttpClient();
 
         // Act
@@ -119,7 +118,7 @@ public class KeycloakUserServiceTests
     {
         // Arrange
         var loggerMock = new Mock<ILogger<KeycloakUserService>>();
-        var config = CreateConfig(adminClientSecret: "");
+        var config = CreateSettings(adminClientSecret: "");
         var httpClient = new HttpClient();
 
         // Act
@@ -140,51 +139,48 @@ public class KeycloakUserServiceTests
     public void Constructor_MissingAuthority_ThrowsInvalidOperationException()
     {
         // Arrange
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Keycloak:AdminUsername"] = "admin",
-                ["Keycloak:AdminPassword"] = "admin123"
-            })
-            .Build();
+        var settings = Options.Create(new KeycloakSettings
+        {
+            Authority = "", // Missing
+            AdminUsername = "admin",
+            AdminPassword = "admin123"
+        });
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>
-            new KeycloakUserService(config, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
+            new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
     }
 
     [Fact]
     public void Constructor_MissingAdminUsername_ThrowsInvalidOperationException()
     {
         // Arrange
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Keycloak:Authority"] = "http://keycloak:8080/realms/media",
-                ["Keycloak:AdminPassword"] = "admin123"
-            })
-            .Build();
+        var settings = Options.Create(new KeycloakSettings
+        {
+            Authority = "http://keycloak:8080/realms/media",
+            AdminUsername = "", // Missing
+            AdminPassword = "admin123"
+        });
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>
-            new KeycloakUserService(config, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
+            new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
     }
 
     [Fact]
     public void Constructor_MissingAdminPassword_ThrowsInvalidOperationException()
     {
         // Arrange
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Keycloak:Authority"] = "http://keycloak:8080/realms/media",
-                ["Keycloak:AdminUsername"] = "admin"
-            })
-            .Build();
+        var settings = Options.Create(new KeycloakSettings
+        {
+            Authority = "http://keycloak:8080/realms/media",
+            AdminUsername = "admin",
+            AdminPassword = "" // Missing
+        });
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>
-            new KeycloakUserService(config, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
+            new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
     }
 
     [Fact]
@@ -192,11 +188,11 @@ public class KeycloakUserServiceTests
     {
         // Arrange - the realm extraction is internal, but we can verify it works
         // by checking that calls go to the correct realm endpoint
-        var config = CreateConfig();
+        var settings = CreateSettings();
         var httpClient = new HttpClient();
 
         // Act - should not throw, meaning parsing succeeded
-        var service = new KeycloakUserService(config, NullLogger<KeycloakUserService>.Instance, httpClient);
+        var service = new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, httpClient);
 
         // Assert - no exception means parsing worked
         Assert.NotNull(service);
@@ -206,18 +202,16 @@ public class KeycloakUserServiceTests
     public void Constructor_DefaultsAdminClientIdToAdminCli()
     {
         // Arrange
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Keycloak:Authority"] = "http://keycloak:8080/realms/media",
-                ["Keycloak:AdminUsername"] = "admin",
-                ["Keycloak:AdminPassword"] = "admin123"
-                // AdminClientId not specified
-            })
-            .Build();
+        var settings = Options.Create(new KeycloakSettings
+        {
+            Authority = "http://keycloak:8080/realms/media",
+            AdminUsername = "admin",
+            AdminPassword = "admin123"
+            // AdminClientId defaults to "admin-cli"
+        });
 
         // Act - should not throw
-        var service = new KeycloakUserService(config, NullLogger<KeycloakUserService>.Instance, new HttpClient());
+        var service = new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, new HttpClient());
 
         // Assert
         Assert.NotNull(service);
@@ -260,7 +254,7 @@ public class KeycloakUserServiceTests
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
             });
 
-        var config = CreateConfig();
+        var config = CreateSettings();
         var httpClient = new HttpClient(handlerMock.Object);
         var service = new KeycloakUserService(config, NullLogger<KeycloakUserService>.Instance, httpClient);
 

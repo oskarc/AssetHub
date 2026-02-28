@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
@@ -10,8 +11,8 @@ using AssetHub.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace AssetHub.Tests.EdgeCases;
@@ -81,12 +82,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
 
     private AssetService CreateSut(CurrentUser currentUser)
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MinIO:BucketName"] = BucketName
-            })
-            .Build();
+        var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
 
         return new AssetService(
             _assetRepo,
@@ -95,18 +91,13 @@ public class SmartDeletionServiceTests : IAsyncLifetime
             _deletionService,
             _auditMock.Object,
             currentUser,
-            config,
+            minioSettings,
             NullLogger<AssetService>.Instance);
     }
 
     private AssetQueryService CreateQuerySut(CurrentUser currentUser)
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MinIO:BucketName"] = BucketName
-            })
-            .Build();
+        var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
 
         return new AssetQueryService(
             _assetRepo,
@@ -116,7 +107,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
             _minioMock.Object,
             _auditMock.Object,
             currentUser,
-            config,
+            minioSettings,
             NullLogger<AssetQueryService>.Instance);
     }
 

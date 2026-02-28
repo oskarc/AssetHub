@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
@@ -6,8 +7,8 @@ using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -25,7 +26,7 @@ public class ShareAccessService : IShareAccessService
     private readonly IMinIOAdapter _minioAdapter;
     private readonly IZipBuildService _zipBuildService;
     private readonly IAuditService _audit;
-    private readonly IConfiguration _configuration;
+    private readonly string _bucketName;
     private readonly IDataProtectionProvider _dataProtection;
     private readonly CurrentUser? _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -41,7 +42,7 @@ public class ShareAccessService : IShareAccessService
         IMinIOAdapter minioAdapter,
         IZipBuildService zipBuildService,
         IAuditService audit,
-        IConfiguration configuration,
+        IOptions<MinIOSettings> minioSettings,
         IDataProtectionProvider dataProtection,
         IHttpContextAccessor httpContextAccessor,
         ILogger<ShareAccessService> logger,
@@ -56,14 +57,14 @@ public class ShareAccessService : IShareAccessService
         _minioAdapter = minioAdapter;
         _zipBuildService = zipBuildService;
         _audit = audit;
-        _configuration = configuration;
+        _bucketName = minioSettings.Value.BucketName;
         _dataProtection = dataProtection;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
         _currentUser = currentUser;
     }
 
-    private string BucketName => StorageConfig.GetBucketName(_configuration);
+    private string BucketName => _bucketName;
     private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
 
     // ── Public operations ────────────────────────────────────────────────────

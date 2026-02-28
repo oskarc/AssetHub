@@ -1,12 +1,13 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -23,7 +24,8 @@ public sealed class AssetUploadService : IAssetUploadService
     private readonly IMalwareScannerService _malwareScanner;
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
-    private readonly IConfiguration _configuration;
+    private readonly string _bucketName;
+    private readonly int _maxUploadSizeMb;
     private readonly ILogger<AssetUploadService> _logger;
 
     public AssetUploadService(
@@ -35,7 +37,8 @@ public sealed class AssetUploadService : IAssetUploadService
         IMalwareScannerService malwareScanner,
         IAuditService audit,
         CurrentUser currentUser,
-        IConfiguration configuration,
+        IOptions<MinIOSettings> minioSettings,
+        IOptions<AppSettings> appSettings,
         ILogger<AssetUploadService> logger)
     {
         _assetRepo = assetRepo;
@@ -46,11 +49,14 @@ public sealed class AssetUploadService : IAssetUploadService
         _malwareScanner = malwareScanner;
         _audit = audit;
         _currentUser = currentUser;
-        _configuration = configuration;
+        _bucketName = minioSettings.Value.BucketName;
+        _maxUploadSizeMb = appSettings.Value.MaxUploadSizeMb > 0 
+            ? appSettings.Value.MaxUploadSizeMb 
+            : Constants.Limits.DefaultMaxUploadSizeMb;
         _logger = logger;
     }
 
-    private string BucketName => StorageConfig.GetBucketName(_configuration);
+    private string BucketName => _bucketName;
 
     public async Task<ServiceResult<AssetUploadResult>> UploadAsync(
         Stream fileStream, string fileName, string contentType, long fileSize,
@@ -252,10 +258,9 @@ public sealed class AssetUploadService : IAssetUploadService
 
     private ServiceError? ValidateFileSize(long fileSize)
     {
-        var maxSizeMb = _configuration.GetValue("App:MaxUploadSizeMb", Constants.Limits.DefaultMaxUploadSizeMb);
-        var maxSizeBytes = (long)maxSizeMb * 1024 * 1024;
+        var maxSizeBytes = (long)_maxUploadSizeMb * 1024 * 1024;
         return fileSize > maxSizeBytes
-            ? ServiceError.BadRequest($"File size exceeds the maximum allowed size of {maxSizeMb} MB")
+            ? ServiceError.BadRequest($"File size exceeds the maximum allowed size of {_maxUploadSizeMb} MB")
             : null;
     }
 

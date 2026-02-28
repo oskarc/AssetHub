@@ -5,21 +5,16 @@ using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
-using AssetHub.Infrastructure.Data;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// Orchestrates admin-only operations: share management, user lifecycle, and sync.
+/// Admin user lifecycle management: listing, creation, password reset, sync, and deletion.
 /// </summary>
-public class AdminService : IAdminService
+public class UserAdminService : IUserAdminService
 {
-    private readonly IShareRepository _shareRepo;
     private readonly ICollectionAclRepository _aclRepo;
     private readonly ICollectionRepository _collectionRepo;
     private readonly IUserLookupService _userLookup;
@@ -28,15 +23,11 @@ public class AdminService : IAdminService
     private readonly IUserCleanupService _cleanupService;
     private readonly IUserSyncService _syncService;
     private readonly IAuditService _audit;
-    private readonly IDataProtectionProvider _dataProtection;
-    private readonly string _adminUsername;
     private readonly CurrentUser _currentUser;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly ILogger<AdminService> _logger;
-    private readonly AssetHubDbContext _db;
+    private readonly string _adminUsername;
+    private readonly ILogger<UserAdminService> _logger;
 
-    public AdminService(
-        IShareRepository shareRepo,
+    public UserAdminService(
         ICollectionAclRepository aclRepo,
         ICollectionRepository collectionRepo,
         IUserLookupService userLookup,
@@ -45,14 +36,10 @@ public class AdminService : IAdminService
         IUserCleanupService cleanupService,
         IUserSyncService syncService,
         IAuditService audit,
-        IDataProtectionProvider dataProtection,
         IOptions<KeycloakSettings> keycloakSettings,
         CurrentUser currentUser,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<AdminService> logger,
-        AssetHubDbContext db)
+        ILogger<UserAdminService> logger)
     {
-        _shareRepo = shareRepo;
         _aclRepo = aclRepo;
         _collectionRepo = collectionRepo;
         _userLookup = userLookup;
@@ -61,109 +48,10 @@ public class AdminService : IAdminService
         _cleanupService = cleanupService;
         _syncService = syncService;
         _audit = audit;
-        _dataProtection = dataProtection;
-        _adminUsername = keycloakSettings.Value.AdminUsername;
         _currentUser = currentUser;
-        _httpContextAccessor = httpContextAccessor;
+        _adminUsername = keycloakSettings.Value.AdminUsername;
         _logger = logger;
-        _db = db;
     }
-
-    private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
-
-    // ── Share Management ─────────────────────────────────────────────────────
-
-    public async Task<ServiceResult<AdminSharesResponse>> GetAllSharesAsync(int skip, int take, CancellationToken ct)
-    {
-        take = Math.Clamp(take, 1, Constants.Limits.AdminShareQueryLimit);
-        var total = await _shareRepo.CountAllAsync(ct);
-        var shares = await _shareRepo.GetAllAsync(includeAsset: true, includeCollection: true, skip: skip, take: take, cancellationToken: ct);
-        var userIds = shares.Select(s => s.CreatedByUserId).Distinct().ToList();
-        var userNames = await _userLookup.GetUserNamesAsync(userIds, ct);
-
-        // Load collection memberships for asset-type shares
-        var assetShares = shares.Where(s => s.ScopeType == ShareScopeType.Asset && s.Asset != null).ToList();
-        var assetCollectionMap = new Dictionary<Guid, List<string>>();
-        if (assetShares.Count > 0)
-        {
-            var assetIds = assetShares.Select(s => s.ScopeId).Distinct().ToList();
-            var assetCollections = await _collectionRepo.GetCollectionNamesForAssetsAsync(assetIds, ct);
-            assetCollectionMap = assetCollections;
-        }
-
-        var result = shares.Select(s => new AdminShareDto
-        {
-            Id = s.Id,
-            ScopeType = s.ScopeType.ToDbString(),
-            ScopeId = s.ScopeId,
-            ScopeName = s.ScopeType == ShareScopeType.Asset
-                ? s.Asset?.Title ?? "Unknown Asset"
-                : s.Collection?.Name ?? "Unknown Collection",
-            CreatedByUserId = s.CreatedByUserId,
-            CreatedByUserName = userNames.TryGetValue(s.CreatedByUserId, out var name) ? name : $"Deleted User ({s.CreatedByUserId[..8]})",
-            CreatedAt = s.CreatedAt,
-            ExpiresAt = s.ExpiresAt,
-            RevokedAt = s.RevokedAt,
-            LastAccessedAt = s.LastAccessedAt,
-            AccessCount = s.AccessCount,
-            HasPassword = !string.IsNullOrEmpty(s.PasswordHash),
-            Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt),
-            CollectionNames = s.ScopeType == ShareScopeType.Asset && assetCollectionMap.TryGetValue(s.ScopeId, out var colNames)
-                ? colNames
-                : new List<string>()
-        }).ToList();
-
-        return new AdminSharesResponse { Total = total, Items = result };
-    }
-
-    public async Task<ServiceResult<ShareTokenResponse>> GetShareTokenAsync(Guid shareId, CancellationToken ct)
-    {
-        var share = await _shareRepo.GetByIdAsync(shareId, ct);
-        if (share == null)
-            return ServiceError.NotFound("Share not found");
-
-        if (string.IsNullOrEmpty(share.TokenEncrypted))
-            return ServiceError.NotFound("Share token not available — this share was created before token encryption was enabled");
-
-        try
-        {
-            var protector = _dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
-            var protectedBytes = Convert.FromBase64String(share.TokenEncrypted);
-            var token = System.Text.Encoding.UTF8.GetString(protector.Unprotect(protectedBytes));
-            return new ShareTokenResponse { Token = token };
-        }
-        catch (System.Security.Cryptography.CryptographicException ex)
-        {
-            _logger.LogError(ex, "Failed to decrypt share token for share {ShareId}. Data Protection keys may have been rotated.", shareId);
-            return ServiceError.Server("Unable to decrypt share token — encryption keys may have changed");
-        }
-        catch (FormatException ex)
-        {
-            _logger.LogError(ex, "Corrupted TokenEncrypted data for share {ShareId}", shareId);
-            return ServiceError.Server("Share token data is corrupted");
-        }
-    }
-
-    public async Task<ServiceResult> AdminRevokeShareAsync(Guid shareId, CancellationToken ct)
-    {
-        var share = await _shareRepo.GetByIdAsync(shareId, ct);
-        if (share == null)
-            return ServiceError.NotFound("Share not found");
-
-        if (share.RevokedAt.HasValue)
-            return ServiceError.BadRequest("Share is already revoked");
-
-        share.RevokedAt = DateTime.UtcNow;
-        await _shareRepo.UpdateAsync(share, ct);
-
-        var adminUserId = _currentUser.UserId;
-        await _audit.LogAsync("share.revoked", "share", shareId, adminUserId,
-            new() { ["admin"] = true }, ct);
-
-        return ServiceResult.Success;
-    }
-
-    // ── User Management ──────────────────────────────────────────────────────
 
     public async Task<ServiceResult<List<UserAccessSummaryDto>>> GetUsersAsync(CancellationToken ct)
     {
@@ -302,9 +190,8 @@ public class AdminService : IAdminService
                 }
             }
 
-            var adminUserId = _currentUser.UserId;
             await _audit.LogAsync("user.created", "user",
-                Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
+                Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
                 new() { ["username"] = username, ["email"] = email },
                 ct);
 
@@ -322,8 +209,7 @@ public class AdminService : IAdminService
         {
             _logger.LogWarning(ex, "Keycloak API error creating user '{Username}'", username);
 
-            var adminUserId = _currentUser.UserId;
-            await _audit.LogAsync("user.create_failed", "user", null, adminUserId,
+            await _audit.LogAsync("user.create_failed", "user", null, _currentUser.UserId,
                 new() { ["username"] = username, ["error"] = ex.Message },
                 ct);
 
@@ -351,9 +237,8 @@ public class AdminService : IAdminService
 
             _logger.LogInformation("Admin sent password reset email for user '{UserId}'", userId);
 
-            var adminUserId = _currentUser.UserId;
             await _audit.LogAsync("user.password_reset_email", "user",
-                Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
+                Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
                 new() { ["targetUserId"] = userId },
                 ct);
 
@@ -381,8 +266,7 @@ public class AdminService : IAdminService
 
             if (!dryRun && result.DeletedUsers > 0)
             {
-                var adminUserId = _currentUser.UserId;
-                await _audit.LogAsync("user.sync.completed", "system", null, adminUserId,
+                await _audit.LogAsync("user.sync.completed", "system", null, _currentUser.UserId,
                     new()
                     {
                         ["deletedUsers"] = result.DeletedUsers,
@@ -405,8 +289,7 @@ public class AdminService : IAdminService
         if (string.IsNullOrWhiteSpace(userId))
             return ServiceError.BadRequest("User ID is required");
 
-        var adminUserId = _currentUser.UserId;
-        if (string.Equals(userId, adminUserId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(userId, _currentUser.UserId, StringComparison.OrdinalIgnoreCase))
             return ServiceError.BadRequest("You cannot delete your own account");
 
         var username = await _userLookup.GetUserNameAsync(userId, ct);
@@ -429,7 +312,7 @@ public class AdminService : IAdminService
                 username, userId, aclsRemoved, sharesRevoked);
 
             await _audit.LogAsync("user.deleted", "user",
-                Guid.TryParse(userId, out var uid) ? uid : null, adminUserId,
+                Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
                 new()
                 {
                     ["username"] = username,

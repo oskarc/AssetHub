@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
@@ -10,8 +11,8 @@ using AssetHub.Tests.Helpers;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace AssetHub.Tests.Services;
@@ -69,12 +70,7 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
 
     private ZipBuildService CreateSut()
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MinIO:BucketName"] = BucketName
-            })
-            .Build();
+        var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
 
         // Mock DbContextFactory to return a fresh context pointing at the same test DB
         var dbFactoryMock = new Mock<IDbContextFactory<AssetHubDbContext>>();
@@ -88,7 +84,7 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
             _minioMock.Object,
             _jobClientMock.Object,
             _auditMock.Object,
-            config,
+            minioSettings,
             NullLogger<ZipBuildService>.Instance);
     }
 

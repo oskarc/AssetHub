@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
@@ -8,8 +9,8 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Helpers;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace AssetHub.Tests.Services;
@@ -32,7 +33,7 @@ public class ShareAccessServiceTests
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
     private readonly Mock<IDataProtectionProvider> _dataProtectionMock;
     private readonly Mock<IDataProtector> _dataProtectorMock;
-    private readonly IConfiguration _configuration;
+    private readonly IOptions<MinIOSettings> _minioSettings;
 
     private const string TestUserId = "test-user-001";
     private const string TestPassword = "secure-password-123";
@@ -61,12 +62,7 @@ public class ShareAccessServiceTests
         httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
         _httpContextAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
 
-        _configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MinIO:BucketName"] = "test-bucket"
-            })
-            .Build();
+        _minioSettings = Options.Create(new MinIOSettings { BucketName = "test-bucket" });
     }
 
     private ShareAccessService CreateService(CurrentUser? currentUser = null)
@@ -81,7 +77,7 @@ public class ShareAccessServiceTests
             _minioAdapterMock.Object,
             _zipBuildServiceMock.Object,
             _auditMock.Object,
-            _configuration,
+            _minioSettings,
             _dataProtectionMock.Object,
             _httpContextAccessorMock.Object,
             NullLogger<ShareAccessService>.Instance,

@@ -2,9 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Services;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 // ReSharper disable InconsistentNaming
 
@@ -33,20 +34,21 @@ public class KeycloakUserService : IKeycloakUserService
     private DateTime _tokenExpiry = DateTime.MinValue;
 
     public KeycloakUserService(
-        IConfiguration configuration,
+        IOptions<KeycloakSettings> keycloakSettings,
         ILogger<KeycloakUserService> logger,
         HttpClient httpClient)
     {
         _logger = logger;
         _httpClient = httpClient;
 
+        var settings = keycloakSettings.Value;
+
         // Parse authority URL to extract base URL and realm
         // Authority is like "http://keycloak:8080/realms/media"
-        var authority = configuration["Keycloak:Authority"];
-        if (string.IsNullOrWhiteSpace(authority))
+        if (string.IsNullOrWhiteSpace(settings.Authority))
             throw new InvalidOperationException("Keycloak:Authority is required. Check appsettings for the current environment.");
         
-        var authorityUri = new Uri(authority);
+        var authorityUri = new Uri(settings.Authority);
         _keycloakBaseUrl = $"{authorityUri.Scheme}://{authorityUri.Authority}";
         
         // Extract realm name from path (e.g., "/realms/media" -> "media")
@@ -54,18 +56,16 @@ public class KeycloakUserService : IKeycloakUserService
         _realm = pathSegments.Length >= 2 ? pathSegments[1] : "master";
 
         // Admin credentials for Keycloak Admin API
-        var adminUsername = configuration["Keycloak:AdminUsername"];
-        if (string.IsNullOrWhiteSpace(adminUsername))
+        if (string.IsNullOrWhiteSpace(settings.AdminUsername))
             throw new InvalidOperationException("Keycloak:AdminUsername is required. Check appsettings for the current environment.");
-        _adminUsername = adminUsername;
-        var adminPassword = configuration["Keycloak:AdminPassword"];
-        if (string.IsNullOrWhiteSpace(adminPassword))
+        _adminUsername = settings.AdminUsername;
+        if (string.IsNullOrWhiteSpace(settings.AdminPassword))
             throw new InvalidOperationException("Keycloak:AdminPassword is required. Check appsettings for the current environment.");
-        _adminPassword = adminPassword;
+        _adminPassword = settings.AdminPassword;
 
         // Service account settings for client_credentials grant (preferred)
-        _adminClientId = configuration["Keycloak:AdminClientId"] ?? "admin-cli";
-        _adminClientSecret = configuration["Keycloak:AdminClientSecret"];
+        _adminClientId = settings.AdminClientId;
+        _adminClientSecret = settings.AdminClientSecret;
         _useClientCredentials = !string.IsNullOrWhiteSpace(_adminClientSecret);
 
         if (_useClientCredentials)

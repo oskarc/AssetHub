@@ -1,12 +1,13 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -23,7 +24,7 @@ public class CollectionService : ICollectionService
     private readonly IAssetDeletionService _deletionService;
     private readonly IZipBuildService _zipBuildService;
     private readonly IAuditService _audit;
-    private readonly IConfiguration _configuration;
+    private readonly string _bucketName;
     private readonly CurrentUser _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<CollectionService> _logger;
@@ -37,7 +38,7 @@ public class CollectionService : ICollectionService
         IAssetDeletionService deletionService,
         IZipBuildService zipBuildService,
         IAuditService audit,
-        IConfiguration configuration,
+        IOptions<MinIOSettings> minioSettings,
         CurrentUser currentUser,
         IHttpContextAccessor httpContextAccessor,
         ILogger<CollectionService> logger)
@@ -50,13 +51,13 @@ public class CollectionService : ICollectionService
         _deletionService = deletionService;
         _zipBuildService = zipBuildService;
         _audit = audit;
-        _configuration = configuration;
+        _bucketName = minioSettings.Value.BucketName;
         _currentUser = currentUser;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
-    private string BucketName => StorageConfig.GetBucketName(_configuration);
+    private string BucketName => _bucketName;
     private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
 
     public async Task<ServiceResult<List<CollectionResponseDto>>> GetRootCollectionsAsync(CancellationToken ct)

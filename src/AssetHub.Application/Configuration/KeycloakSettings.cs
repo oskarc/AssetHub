@@ -46,6 +46,12 @@ public class KeycloakSettings
     public string AdminClientId { get; set; } = "admin-cli";
 
     /// <summary>
+    /// Client secret for admin token requests (optional).
+    /// When set, client_credentials grant is used instead of password grant.
+    /// </summary>
+    public string? AdminClientSecret { get; set; }
+
+    /// <summary>
     /// Whether HTTPS metadata is required for OIDC discovery.
     /// Must be true in production.
     /// </summary>

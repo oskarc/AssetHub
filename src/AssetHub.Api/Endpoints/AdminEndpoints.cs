@@ -46,7 +46,7 @@ public static class AdminEndpoints
     // ── Share Management ─────────────────────────────────────────────────────
 
     private static async Task<IResult> GetAllShares(
-        [FromServices] IAdminService svc, CancellationToken ct,
+        [FromServices] IShareAdminService svc, CancellationToken ct,
         [FromQuery] int skip = 0, [FromQuery] int take = Constants.Limits.DefaultAdminPageSize)
     {
         take = Math.Clamp(take, 1, Constants.Limits.AdminShareQueryLimit);
@@ -55,14 +55,14 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> GetShareToken(
-        Guid id, [FromServices] IAdminService svc, CancellationToken ct)
+        Guid id, [FromServices] IShareAdminService svc, CancellationToken ct)
     {
         var result = await svc.GetShareTokenAsync(id, ct);
         return result.ToHttpResult();
     }
 
     private static async Task<IResult> RevokeShare(
-        Guid id, [FromServices] IAdminService svc, CancellationToken ct)
+        Guid id, [FromServices] IShareAdminService svc, CancellationToken ct)
     {
         var result = await svc.AdminRevokeShareAsync(id, ct);
         return result.ToHttpResult();
@@ -96,14 +96,14 @@ public static class AdminEndpoints
     // ── User Management ──────────────────────────────────────────────────────
 
     private static async Task<IResult> GetUsers(
-        [FromServices] IAdminService svc, CancellationToken ct)
+        [FromServices] IUserAdminService svc, CancellationToken ct)
     {
         var result = await svc.GetUsersAsync(ct);
         return result.ToHttpResult();
     }
 
     private static async Task<IResult> GetKeycloakUsers(
-        [FromServices] IAdminService svc, CancellationToken ct)
+        [FromServices] IUserAdminService svc, CancellationToken ct)
     {
         var result = await svc.GetKeycloakUsersAsync(ct);
         return result.ToHttpResult();
@@ -111,7 +111,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> CreateUser(
         [FromBody] CreateUserRequest request,
-        [FromServices] IAdminService svc,
+        [FromServices] IUserAdminService svc,
         [FromServices] IOptions<AppSettings> appSettings,
         CancellationToken ct)
     {
@@ -122,14 +122,14 @@ public static class AdminEndpoints
 
     private static async Task<IResult> ResetUserPassword(
         [FromRoute] string userId,
-        [FromServices] IAdminService svc, CancellationToken ct)
+        [FromServices] IUserAdminService svc, CancellationToken ct)
     {
         var result = await svc.SendPasswordResetEmailAsync(userId, ct);
         return result.ToHttpResult();
     }
 
     private static async Task<IResult> SyncDeletedUsers(
-        [FromServices] IAdminService svc,
+        [FromServices] IUserAdminService svc,
         CancellationToken ct,
         [FromQuery] bool dryRun = true)
     {
@@ -139,7 +139,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> DeleteUser(
         [FromRoute] string userId,
-        [FromServices] IAdminService svc, CancellationToken ct)
+        [FromServices] IUserAdminService svc, CancellationToken ct)
     {
         var result = await svc.DeleteUserAsync(userId, ct);
         return result.ToHttpResult();

@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
@@ -8,8 +9,8 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace AssetHub.Tests.Services;
@@ -52,9 +53,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
 
     private AssetService CreateSut(string userId = ContributorUser)
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["MinIO:BucketName"] = "test" })
-            .Build();
+        var minioSettings = Options.Create(new MinIOSettings { BucketName = "test" });
 
         return new AssetService(
             _assetRepo,
@@ -63,7 +62,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
             new Mock<IAssetDeletionService>().Object,
             _auditMock.Object,
             new CurrentUser(userId, isSystemAdmin: false),
-            config,
+            minioSettings,
             NullLogger<AssetService>.Instance);
     }
 

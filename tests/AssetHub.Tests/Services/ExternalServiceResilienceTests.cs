@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
@@ -9,8 +10,8 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using System.Net.Sockets;
 
@@ -76,12 +77,8 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
 
     private AssetUploadService CreateSut(CurrentUser currentUser)
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MinIO:BucketName"] = BucketName
-            })
-            .Build();
+        var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
+        var appSettings = Options.Create(new AppSettings { MaxUploadSizeMb = 500 });
 
         return new AssetUploadService(
             _assetRepo,
@@ -92,18 +89,14 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
             _malwareMock.Object,
             _auditMock.Object,
             currentUser,
-            config,
+            minioSettings,
+            appSettings,
             NullLogger<AssetUploadService>.Instance);
     }
 
     private AssetQueryService CreateQuerySut(CurrentUser currentUser)
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MinIO:BucketName"] = BucketName
-            })
-            .Build();
+        var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
 
         return new AssetQueryService(
             _assetRepo,
@@ -113,7 +106,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
             _minioMock.Object,
             _auditMock.Object,
             currentUser,
-            config,
+            minioSettings,
             NullLogger<AssetQueryService>.Instance);
     }
 
