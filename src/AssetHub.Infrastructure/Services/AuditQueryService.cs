@@ -13,11 +13,9 @@ public class AuditQueryService(
     AssetHubDbContext db,
     IUserLookupService userLookup) : IAuditQueryService
 {
-    private const int MaxPageSize = 200;
-
     public async Task<ServiceResult<AuditQueryResponse>> GetAuditEventsAsync(AuditQueryRequest request, CancellationToken ct = default)
     {
-        var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
+        var pageSize = Math.Clamp(request.PageSize, 1, Constants.Limits.MaxPageSize);
 
         var query = db.AuditEvents.AsNoTracking();
 
@@ -62,7 +60,7 @@ public class AuditQueryService(
 
     public async Task<ServiceResult<List<AuditEventDto>>> GetRecentAuditEventsAsync(int take = 200, CancellationToken ct = default)
     {
-        take = Math.Clamp(take, 1, MaxPageSize);
+        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
 
         var events = await db.AuditEvents
             .AsNoTracking()

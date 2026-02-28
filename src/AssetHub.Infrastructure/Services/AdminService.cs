@@ -72,9 +72,11 @@ public class AdminService : IAdminService
 
     // ── Share Management ─────────────────────────────────────────────────────
 
-    public async Task<ServiceResult<List<AdminShareDto>>> GetAllSharesAsync(CancellationToken ct)
+    public async Task<ServiceResult<AdminSharesResponse>> GetAllSharesAsync(int skip, int take, CancellationToken ct)
     {
-        var shares = await _shareRepo.GetAllAsync(includeAsset: true, includeCollection: true, ct);
+        take = Math.Clamp(take, 1, Constants.Limits.AdminShareQueryLimit);
+        var total = await _shareRepo.CountAllAsync(ct);
+        var shares = await _shareRepo.GetAllAsync(includeAsset: true, includeCollection: true, skip: skip, take: take, cancellationToken: ct);
         var userIds = shares.Select(s => s.CreatedByUserId).Distinct().ToList();
         var userNames = await _userLookup.GetUserNamesAsync(userIds, ct);
 
@@ -110,7 +112,7 @@ public class AdminService : IAdminService
                 : new List<string>()
         }).ToList();
 
-        return result;
+        return new AdminSharesResponse { Total = total, Items = result };
     }
 
     public async Task<ServiceResult<ShareTokenResponse>> GetShareTokenAsync(Guid shareId, CancellationToken ct)

@@ -302,6 +302,8 @@
   <data name="Dashboard_MinutesAgo" xml:space="preserve"><value>{0} min sedan</value></data>
   <data name="Dashboard_HoursAgo" xml:space="preserve"><value>{0} tim sedan</value></data>
   <data name="Dashboard_DaysAgo" xml:space="preserve"><value>{0} d sedan</value></data>
+  <data name="Dashboard_LoadError" xml:space="preserve"><value>Instrumentpanelen kunde inte laddas. Tjänsten kan vara tillfälligt otillgänglig.</value></data>
+  <data name="Dashboard_Retry" xml:space="preserve"><value>Försök igen</value></data>
   <data name="Error_UploadModuleNotInit" xml:space="preserve"><value>Uppladdningsmodul ej initierad</value></data>
 
   <!-- Pagination -->

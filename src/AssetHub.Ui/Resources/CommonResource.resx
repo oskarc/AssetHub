@@ -306,6 +306,8 @@
   <data name="Dashboard_MinutesAgo" xml:space="preserve"><value>{0}m ago</value></data>
   <data name="Dashboard_HoursAgo" xml:space="preserve"><value>{0}h ago</value></data>
   <data name="Dashboard_DaysAgo" xml:space="preserve"><value>{0}d ago</value></data>
+  <data name="Dashboard_LoadError" xml:space="preserve"><value>The dashboard could not be loaded. The service may be temporarily unavailable.</value></data>
+  <data name="Dashboard_Retry" xml:space="preserve"><value>Try again</value></data>
   <data name="Error_UploadModuleNotInit" xml:space="preserve"><value>Upload module not initialized</value></data>
 
   <!-- Pagination -->

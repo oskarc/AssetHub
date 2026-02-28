@@ -1,3 +1,4 @@
+@using AssetHub.Application
 @using AssetHub.Application.Helpers
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
@@ -7,11 +8,11 @@
 
 <MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["AllSharedLinks"]</MudText>
 
-@if (_sharesLoading)
+@if (_sharesLoading && _shares == null)
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
 }
-else if (_shares == null || !_shares.Any())
+else if (_shares == null || (!_shares.Any() && _totalCount == 0))
 {
     <EmptyState Title="@AdminLoc["NoSharesYet"]"
                 Description="@AdminLoc["NoSharesDesc"]"
@@ -94,30 +95,65 @@ else
             <MudTablePager />
         </PagerContent>
     </MudTable>
+
+    @* Server-side pagination controls *@
+    <MudPaper Elevation="0" Class="d-flex justify-center align-center pa-3 gap-3">
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            @CommonLoc["Showing"] @_shares.Count @CommonLoc["OfTotal"] @_totalCount
+        </MudText>
+        @if (_hasMore)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                OnClick="LoadMoreAsync" Disabled="@_sharesLoading">
+                @if (_sharesLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @AdminLoc["LoadMore"]
+            </MudButton>
+        }
+    </MudPaper>
 }
 
 @code {
+    private const int PageSize = 50;
+
     private List<AdminShareDto>? _shares;
     private bool _sharesLoading = true;
     private string _shareSearchString = "";
+    private int _totalCount;
+    private bool _hasMore;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAsync();
+        await LoadAsync(reset: true);
     }
 
     public async Task RefreshAsync()
     {
-        await LoadAsync();
+        await LoadAsync(reset: true);
         StateHasChanged();
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool reset = false)
     {
         try
         {
             _sharesLoading = true;
-            _shares = await Api.GetAllSharesAsync();
+
+            if (reset)
+                _shares = null;
+
+            var skip = _shares?.Count ?? 0;
+            var response = await Api.GetAllSharesAsync(skip: skip, take: PageSize);
+            _totalCount = response.Total;
+
+            if (reset || _shares == null)
+                _shares = response.Items;
+            else
+                _shares.AddRange(response.Items);
+
+            _hasMore = _shares.Count < _totalCount;
         }
         catch (Exception ex)
         {
@@ -127,6 +163,11 @@ else
         {
             _sharesLoading = false;
         }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        await LoadAsync(reset: false);
     }
 
     private bool ShareFilter(AdminShareDto share)
@@ -151,7 +192,7 @@ else
 
         if (result != null && !result.Canceled)
         {
-            await LoadAsync();
+            await LoadAsync(reset: true);
         }
     }
 
@@ -172,7 +213,7 @@ else
 
         if (success)
         {
-            await LoadAsync();
+            await LoadAsync(reset: true);
         }
     }
 
@@ -190,7 +231,7 @@ else
 
         if (result != null && !result.Canceled)
         {
-            await LoadAsync();
+            await LoadAsync(reset: true);
         }
     }
 }

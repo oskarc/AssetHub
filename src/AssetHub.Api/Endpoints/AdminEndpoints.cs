@@ -46,9 +46,11 @@ public static class AdminEndpoints
     // ── Share Management ─────────────────────────────────────────────────────
 
     private static async Task<IResult> GetAllShares(
-        [FromServices] IAdminService svc, CancellationToken ct)
+        [FromServices] IAdminService svc, CancellationToken ct,
+        [FromQuery] int skip = 0, [FromQuery] int take = 50)
     {
-        var result = await svc.GetAllSharesAsync(ct);
+        take = Math.Clamp(take, 1, Constants.Limits.AdminShareQueryLimit);
+        var result = await svc.GetAllSharesAsync(skip, take, ct);
         return result.ToHttpResult();
     }
 

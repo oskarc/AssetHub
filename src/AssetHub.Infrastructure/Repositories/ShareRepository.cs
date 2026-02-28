@@ -41,10 +41,17 @@ public class ShareRepository(
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, CancellationToken cancellationToken = default)
+    public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Shares.CountAsync(cancellationToken);
+    }
+
+    public async Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
         var shares = await dbContext.Shares
             .OrderByDescending(s => s.CreatedAt)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync(cancellationToken);
 
         // Asset and Collection are polymorphic (via ScopeType/ScopeId), not FK relationships

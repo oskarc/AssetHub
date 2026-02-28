@@ -487,11 +487,11 @@ public class AssetHubApiClient
     /// <summary>
     /// Gets all shares in the system (admin only).
     /// </summary>
-    public virtual async Task<List<AdminShareDto>> GetAllSharesAsync(CancellationToken ct = default)
+    public virtual async Task<AdminSharesResponse> GetAllSharesAsync(int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/admin/shares", ct);
+        var response = await _http.GetAsync($"/api/admin/shares?skip={skip}&take={take}", ct);
         await EnsureSuccessAsync(response, "Get all shares");
-        return await response.Content.ReadFromJsonAsync<List<AdminShareDto>>(ct) ?? new();
+        return await response.Content.ReadFromJsonAsync<AdminSharesResponse>(ct) ?? new();
     }
 
     /// <summary>
