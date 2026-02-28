@@ -61,7 +61,7 @@ packages/
 node_modules/
 
 # Testing
-TestResults/
+TestResults*/
 .coverage/
 
 # Playwright E2E
