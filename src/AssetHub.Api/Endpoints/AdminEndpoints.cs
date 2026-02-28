@@ -47,7 +47,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetAllShares(
         [FromServices] IAdminService svc, CancellationToken ct,
-        [FromQuery] int skip = 0, [FromQuery] int take = 50)
+        [FromQuery] int skip = 0, [FromQuery] int take = Constants.Limits.DefaultAdminPageSize)
     {
         take = Math.Clamp(take, 1, Constants.Limits.AdminShareQueryLimit);
         var result = await svc.GetAllSharesAsync(skip, take, ct);

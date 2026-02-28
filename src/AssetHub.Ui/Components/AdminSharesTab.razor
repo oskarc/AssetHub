@@ -116,7 +116,7 @@ else
 }
 
 @code {
-    private const int PageSize = 50;
+    private const int PageSize = Constants.Limits.DefaultAdminPageSize;
 
     private List<AdminShareDto>? _shares;
     private bool _sharesLoading = true;

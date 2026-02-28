@@ -1,3 +1,4 @@
+using AssetHub.Application;
 using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
@@ -46,7 +47,7 @@ public class ShareRepository(
         return await dbContext.Shares.CountAsync(cancellationToken);
     }
 
-    public async Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
+    public async Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, int skip = 0, int take = Constants.Limits.DefaultAdminPageSize, CancellationToken cancellationToken = default)
     {
         var shares = await dbContext.Shares
             .OrderByDescending(s => s.CreatedAt)

@@ -12,7 +12,7 @@ public interface IShareRepository
     /// <summary>
     /// Gets all shares with optional navigation properties (admin use).
     /// </summary>
-    Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, int skip = 0, int take = 50, CancellationToken cancellationToken = default);
+    Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, int skip = 0, int take = Constants.Limits.DefaultAdminPageSize, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns the total number of shares (admin use).

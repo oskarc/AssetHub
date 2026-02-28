@@ -233,6 +233,11 @@ public static class Constants
         public const int AdminShareQueryLimit = 500;
 
         /// <summary>
+        /// Default page size for admin list endpoints (shares, audit log).
+        /// </summary>
+        public const int DefaultAdminPageSize = 50;
+
+        /// <summary>
         /// Maximum number of users loaded in a single query from the Keycloak database.
         /// Prevents unbounded memory use in large deployments (CWE-400).
         /// </summary>
