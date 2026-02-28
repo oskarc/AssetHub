@@ -92,6 +92,9 @@ public class CollectionService : ICollectionService
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 255)
             return ServiceError.BadRequest("Name must be 1-255 characters");
 
+        if (dto.Description != null && dto.Description.Length > 1000)
+            return ServiceError.BadRequest("Description must be 1000 characters or fewer");
+
         var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, ct: ct);
         if (nameExists)
             return ServiceError.BadRequest($"A collection named '{dto.Name}' already exists");
@@ -145,6 +148,8 @@ public class CollectionService : ICollectionService
 
         if (!string.IsNullOrWhiteSpace(dto.Name))
         {
+            if (dto.Name.Length > 255)
+                return ServiceError.BadRequest("Name must be 1-255 characters");
             if (!string.Equals(collection.Name, dto.Name, StringComparison.OrdinalIgnoreCase))
             {
                 var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct);
@@ -154,7 +159,11 @@ public class CollectionService : ICollectionService
             collection.Name = dto.Name;
         }
         if (dto.Description != null)
+        {
+            if (dto.Description.Length > 1000)
+                return ServiceError.BadRequest("Description must be 1000 characters or fewer");
             collection.Description = dto.Description;
+        }
 
         await _collectionRepo.UpdateAsync(collection, ct);
         await _audit.LogAsync("collection.updated", "collection", id, userId,
