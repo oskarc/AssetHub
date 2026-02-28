@@ -64,15 +64,17 @@ public sealed class AssetService : IAssetService
         }
         if (dto.Description != null)
         {
-            if (dto.Description.Length > 2000)
+            var desc = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
+            if (desc != null && desc.Length > 2000)
                 return ServiceError.BadRequest("Description must be 2000 characters or fewer");
-            asset.Description = dto.Description;
+            asset.Description = desc;
         }
         if (dto.Copyright != null)
         {
-            if (dto.Copyright.Length > 500)
+            var copyright = string.IsNullOrWhiteSpace(dto.Copyright) ? null : dto.Copyright;
+            if (copyright != null && copyright.Length > 500)
                 return ServiceError.BadRequest("Copyright must be 500 characters or fewer");
-            asset.Copyright = dto.Copyright;
+            asset.Copyright = copyright;
         }
         if (dto.Tags != null)
         {

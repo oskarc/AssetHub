@@ -92,8 +92,10 @@ public class CollectionService : ICollectionService
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 255)
             return ServiceError.BadRequest("Name must be 1-255 characters");
 
-        if (dto.Description != null && dto.Description.Length > 1000)
+        if (dto.Description != null && !string.IsNullOrWhiteSpace(dto.Description) && dto.Description.Length > 1000)
             return ServiceError.BadRequest("Description must be 1000 characters or fewer");
+
+        var descToStore = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
 
         var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, ct: ct);
         if (nameExists)
@@ -110,7 +112,7 @@ public class CollectionService : ICollectionService
         {
             Id = Guid.NewGuid(),
             Name = dto.Name,
-            Description = dto.Description,
+            Description = descToStore,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
         };
@@ -160,9 +162,10 @@ public class CollectionService : ICollectionService
         }
         if (dto.Description != null)
         {
-            if (dto.Description.Length > 1000)
+            var desc = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
+            if (desc != null && desc.Length > 1000)
                 return ServiceError.BadRequest("Description must be 1000 characters or fewer");
-            collection.Description = dto.Description;
+            collection.Description = desc;
         }
 
         await _collectionRepo.UpdateAsync(collection, ct);
