@@ -129,4 +129,17 @@ public class CollectionRepository(
             .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
     }
 
+    public async Task<Dictionary<Guid, int>> GetAssetCountsAsync(IEnumerable<Guid> collectionIds, CancellationToken ct = default)
+    {
+        var idList = collectionIds.ToList();
+        if (idList.Count == 0)
+            return new Dictionary<Guid, int>();
+
+        return await dbContext.AssetCollections
+            .Where(ac => idList.Contains(ac.CollectionId))
+            .GroupBy(ac => ac.CollectionId)
+            .Select(g => new { CollectionId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CollectionId, x => x.Count, ct);
+    }
+
 }

@@ -63,6 +63,11 @@ public interface ICollectionRepository
     /// Missing IDs are simply absent from the result.
     /// </summary>
     Task<Dictionary<Guid, string>> GetNamesByIdsAsync(List<Guid> ids, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets asset counts for a set of collection IDs.
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetAssetCountsAsync(IEnumerable<Guid> collectionIds, CancellationToken ct = default);
 }
 
 /// <summary>

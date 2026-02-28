@@ -54,8 +54,11 @@ public class CollectionService : ICollectionService
     {
         var userId = _currentUser.UserId;
         var collections = await _collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
+        var collectionList = collections.ToList();
+        var collectionIds = collectionList.Select(c => c.Id);
+        var assetCounts = await _collectionRepo.GetAssetCountsAsync(collectionIds, ct);
 
-        var dtos = await CollectionMapper.ToDtoListAsync(collections, userId, _authService, ct);
+        var dtos = await CollectionMapper.ToDtoListAsync(collectionList, userId, _authService, assetCounts, ct);
         return dtos;
     }
 
@@ -71,7 +74,10 @@ public class CollectionService : ICollectionService
         if (collection == null)
             return ServiceError.NotFound("Collection not found");
 
-        var dto = await CollectionMapper.ToDtoAsync(collection, userId, _authService, ct);
+        var assetCounts = await _collectionRepo.GetAssetCountsAsync([id], ct);
+        var assetCount = assetCounts.GetValueOrDefault(id);
+
+        var dto = await CollectionMapper.ToDtoAsync(collection, userId, _authService, assetCount, ct);
         return dto;
     }
 

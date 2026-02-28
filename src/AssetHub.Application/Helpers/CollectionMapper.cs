@@ -17,6 +17,7 @@ public static class CollectionMapper
         Collection collection,
         string userId,
         ICollectionAuthorizationService authService,
+        int assetCount = 0,
         CancellationToken ct = default)
     {
         var role = await authService.GetUserRoleAsync(userId, collection.Id, ct);
@@ -28,7 +29,8 @@ public static class CollectionMapper
             Description = collection.Description,
             CreatedAt = collection.CreatedAt,
             CreatedByUserId = collection.CreatedByUserId,
-            UserRole = role ?? "none"
+            UserRole = role ?? "none",
+            AssetCount = assetCount
         };
     }
 
@@ -40,6 +42,7 @@ public static class CollectionMapper
         IEnumerable<Collection> collections,
         string userId,
         ICollectionAuthorizationService authService,
+        Dictionary<Guid, int>? assetCounts = null,
         CancellationToken ct = default)
     {
         var collectionList = collections.ToList();
@@ -54,6 +57,7 @@ public static class CollectionMapper
         foreach (var c in collectionList)
         {
             var role = roles.GetValueOrDefault(c.Id);
+            var count = assetCounts?.GetValueOrDefault(c.Id) ?? 0;
 
             results.Add(new CollectionResponseDto
             {
@@ -62,7 +66,8 @@ public static class CollectionMapper
                 Description = c.Description,
                 CreatedAt = c.CreatedAt,
                 CreatedByUserId = c.CreatedByUserId,
-                UserRole = role ?? "none"
+                UserRole = role ?? "none",
+                AssetCount = count
             });
         }
         return results;

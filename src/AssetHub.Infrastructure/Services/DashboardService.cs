@@ -128,9 +128,10 @@ public class DashboardService : IDashboardService
             return [];
 
         var topCollections = collectionList.Take(QuickAccessCollectionsLimit).ToList();
-        var dtos = await CollectionMapper.ToDtoListAsync(topCollections, userId, _authService, ct);
-
         var collectionIds = topCollections.Select(c => c.Id).ToList();
+        var assetCounts = await _collectionRepo.GetAssetCountsAsync(collectionIds, ct);
+        var dtos = await CollectionMapper.ToDtoListAsync(topCollections, userId, _authService, assetCounts, ct);
+
         var latestUpdates = await _queryService.GetLatestUpdatesByCollectionAsync(collectionIds, ct);
 
         dtos = dtos.Select(d => d with
