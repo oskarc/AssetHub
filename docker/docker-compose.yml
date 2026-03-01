@@ -121,6 +121,7 @@ services:
       ClamAV__Enabled: "${CLAMAV_ENABLED:-true}"
       ClamAV__Host: "clamav"
       ClamAV__Port: "3310"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
     volumes:
       - ../certs:/app/certs:ro
     ports:
@@ -153,6 +154,7 @@ services:
       MinIO__BucketName: "${MINIO_BUCKET_NAME}"
       MinIO__UseSSL: "false"
       Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
     depends_on:
       postgres:
         condition: service_healthy
@@ -186,10 +188,65 @@ services:
       - assethub-network
     restart: unless-stopped
 
+  # ── Observability Stack ──────────────────────────────────────────────────────
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: assethub-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:16686:16686"   # Jaeger UI
+      - "127.0.0.1:4317:4317"     # OTLP gRPC
+      - "127.0.0.1:4318:4318"     # OTLP HTTP
+    networks:
+      - assethub-network
+    restart: unless-stopped
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: assethub-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - assethub-network
+    restart: unless-stopped
+
+  # Grafana - Visualization & Dashboards
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: assethub-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
+    networks:
+      - assethub-network
+    restart: unless-stopped
+
 volumes:
   pgdata:
   miniodata:
   keycloakdata:
+  prometheusdata:
+  grafanadata:
 
 networks:
   assethub-network:

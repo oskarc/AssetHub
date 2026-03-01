@@ -21,6 +21,13 @@
     <PackageReference Include="Minio" Version="5.0.*" />
     <PackageReference Include="MetadataExtractor" Version="2.8.1" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.*" />
+    <!-- OpenTelemetry (shared by API and Worker) -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.*-*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.*-*" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.*" />
   </ItemGroup>
 
   <ItemGroup>

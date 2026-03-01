@@ -193,6 +193,11 @@ services:
       ImageProcessing__PosterFrameSeconds: "${VIDEO_POSTER_FRAME_SECONDS:-5}"
       ImageProcessing__PosterWidth: "${VIDEO_POSTER_WIDTH:-800}"
       ImageProcessing__PosterQuality: "${VIDEO_POSTER_QUALITY:-5}"
+
+      # OpenTelemetry
+      OpenTelemetry__Enabled: "${OTEL_ENABLED:-true}"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
     ports:
       - "127.0.0.1:7252:7252"
     healthcheck:
@@ -242,6 +247,11 @@ services:
       ImageProcessing__PosterFrameSeconds: "${VIDEO_POSTER_FRAME_SECONDS:-5}"
       ImageProcessing__PosterWidth: "${VIDEO_POSTER_WIDTH:-800}"
       ImageProcessing__PosterQuality: "${VIDEO_POSTER_QUALITY:-5}"
+
+      # OpenTelemetry
+      OpenTelemetry__Enabled: "${OTEL_ENABLED:-true}"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -271,10 +281,88 @@ services:
           memory: 1G
     restart: unless-stopped
 
+  # ── Observability Stack ──────────────────────────────────────────────────────
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: assethub-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: "badger"
+      BADGER_EPHEMERAL: "false"
+      BADGER_DIRECTORY_VALUE: "/badger/data"
+      BADGER_DIRECTORY_KEY: "/badger/key"
+    volumes:
+      - jaegerdata:/badger
+    # Expose only on localhost in production (access via reverse proxy)
+    # ports:
+    #   - "127.0.0.1:16686:16686"
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: assethub-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      # --web.enable-lifecycle intentionally omitted in production.
+      # Use SIGHUP to reload config: docker kill -s HUP assethub-prometheus
+    # Expose only on localhost in production
+    # ports:
+    #   - "127.0.0.1:9090:9090"
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
+
+  # Grafana - Visualization & Dashboards
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: assethub-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "${GRAFANA_ROOT_URL:-http://localhost:3000}"
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    # Expose only on localhost in production
+    # ports:
+    #   - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    restart: unless-stopped
+
 volumes:
   pgdata:
   miniodata:
   keycloakdata:
+  jaegerdata:
+  prometheusdata:
+  grafanadata:
 
 networks:
   internal:

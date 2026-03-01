@@ -31,6 +31,7 @@ try
         builder.Configuration, builder.Environment, builder.WebHost);
     builder.Services.AddAssetHubAuthentication(
         builder.Configuration, builder.Environment);
+    builder.Services.AddAssetHubOpenTelemetry(builder.Configuration);
 
     // -- Build & run startup tasks -------------------------------------------
     var app = builder.Build();

@@ -21,6 +21,9 @@ class Program
                 // Shared infrastructure: DB, Hangfire storage, MinIO, Repos, core services
                 services.AddSharedInfrastructure(hostContext.Configuration);
 
+                // OpenTelemetry for distributed tracing
+                services.AddWorkerOpenTelemetry(hostContext.Configuration);
+
                 // Hangfire server (Worker processes jobs with custom queue/worker config)
                 services.AddHangfireServer(options =>
                 {
