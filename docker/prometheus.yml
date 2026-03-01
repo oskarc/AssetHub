@@ -20,13 +20,15 @@ global:
 scrape_configs:
   # ── AssetHub API ─────────────────────────────────────────────────────────────
   # Production: API runs HTTP internally (reverse proxy terminates TLS)
-  # Development: API runs HTTPS with dev certs
+  # Development: API runs HTTPS with dev certs — CA mounted from /certs
   - job_name: 'assethub-api'
     static_configs:
-      - targets: ['api:7252']
-    # Use HTTP for production (internal network, TLS terminated at reverse proxy)
-    # Change to 'https' and add tls_config for development with self-signed certs
-    scheme: http
+      - targets: ['api.assethub.local:7252']
+    # Development uses HTTPS with proper CA verification
+    # For production (HTTP behind reverse proxy), change scheme to 'http' and remove tls_config
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/certs/dev-cert.crt
     metrics_path: /metrics
     scrape_interval: 15s
     scrape_timeout: 10s

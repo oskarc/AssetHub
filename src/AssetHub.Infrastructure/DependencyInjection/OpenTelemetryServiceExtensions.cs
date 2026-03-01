@@ -108,7 +108,14 @@ public static class OpenTelemetryServiceExtensions
         if (address.Equals(IPAddress.IPv6Loopback))
             return true;
 
-        var bytes = address.GetAddressBytes();
+        // Handle IPv4-mapped IPv6 addresses (e.g., ::ffff:172.19.0.5 from Docker)
+        var checkAddress = address;
+        if (address.IsIPv4MappedToIPv6)
+        {
+            checkAddress = address.MapToIPv4();
+        }
+
+        var bytes = checkAddress.GetAddressBytes();
         if (bytes.Length == 4)
         {
             return bytes[0] switch
@@ -116,6 +123,7 @@ public static class OpenTelemetryServiceExtensions
                 10 => true,                                            // 10.0.0.0/8
                 172 when bytes[1] >= 16 && bytes[1] <= 31 => true,    // 172.16.0.0/12
                 192 when bytes[1] == 168 => true,                     // 192.168.0.0/16
+                127 => true,                                           // 127.0.0.0/8 (redundant with IsLoopback, but explicit)
                 _ => false
             };
         }

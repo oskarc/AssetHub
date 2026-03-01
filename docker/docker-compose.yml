@@ -136,7 +136,10 @@ services:
       clamav:
         condition: service_healthy
     networks:
-      - assethub-network
+      assethub-network:
+        aliases:
+          - api
+          - api.assethub.local
     restart: unless-stopped
 
   worker:
@@ -201,7 +204,9 @@ services:
       - "127.0.0.1:4317:4317"     # OTLP gRPC
       - "127.0.0.1:4318:4318"     # OTLP HTTP
     networks:
-      - assethub-network
+      assethub-network:
+        aliases:
+          - jaeger.assethub.local
     restart: unless-stopped
 
   # Prometheus - Metrics Collection
@@ -211,6 +216,7 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheusdata:/prometheus
+      - ../certs/dev-cert.crt:/etc/prometheus/certs/dev-cert.crt:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -218,7 +224,9 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     networks:
-      - assethub-network
+      assethub-network:
+        aliases:
+          - prometheus.assethub.local
     restart: unless-stopped
 
   # Grafana - Visualization & Dashboards
@@ -238,7 +246,9 @@ services:
       - prometheus
       - jaeger
     networks:
-      - assethub-network
+      assethub-network:
+        aliases:
+          - grafana.assethub.local
     restart: unless-stopped
 
 volumes:

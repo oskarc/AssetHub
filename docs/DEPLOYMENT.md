@@ -68,10 +68,11 @@ Create the certificate with Subject Alternative Names for all local services:
 mkdir -p certs
 
 # Generate a self-signed certificate valid for 365 days
+# Includes all Docker service hostnames for proper TLS verification
 openssl req -x509 -newkey rsa:4096 -sha256 -days 365 \
   -nodes -keyout certs/dev-cert.key -out certs/dev-cert.crt \
   -subj "/CN=assethub.local" \
-  -addext "subjectAltName=DNS:localhost,DNS:assethub.local,DNS:keycloak.assethub.local,DNS:keycloak,IP:127.0.0.1"
+  -addext "subjectAltName=DNS:localhost,DNS:assethub.local,DNS:api,DNS:api.assethub.local,DNS:keycloak,DNS:keycloak.assethub.local,DNS:jaeger.assethub.local,DNS:prometheus.assethub.local,DNS:grafana.assethub.local,IP:127.0.0.1"
 
 # Convert to PFX format (required by Kestrel and Keycloak)
 openssl pkcs12 -export -out certs/dev-cert.pfx \
