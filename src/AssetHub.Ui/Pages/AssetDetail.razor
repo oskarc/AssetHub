@@ -242,40 +242,36 @@ else
                             </MudAlert>
                         }
 
-                        <!-- Advanced Metadata (Expandable) -->
-                        <MudDivider />
-                        <MudStack>
+                        <!-- Metadata (Expandable) -->
+                        @if (_asset.MetadataJson.Where(k => k.Key != "error").Any())
+                        {
                             <MudExpansionPanels Elevation="0" Class="share-panel-reset">
                                 <MudExpansionPanel MaxHeight="400"
                                                    Class="share-panel-header pa-0 ma-0">
                                     <TitleContent>
-                                        <MudText Typo="Typo.subtitle2" Class="share-panel-icon">@CommonLoc["Text_AdvancedMetadata"]</MudText>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudText Typo="Typo.subtitle2">@CommonLoc["Text_Metadata"]</MudText>
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                                @_asset.MetadataJson.Count(k => k.Key != "error")
+                                            </MudChip>
+                                        </MudStack>
                                     </TitleContent>
                                     <ChildContent>
-                                        @if (_asset.MetadataJson.Where(k => k.Key != "error").Any())
-                                        {
-                                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
-                                                <tbody>
-                                                    @foreach (var kvp in _asset.MetadataJson.Where(k => k.Key != "error").OrderBy(k => k.Key))
-                                                    {
-                                                        <tr>
-                                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
-                                                            <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </MudSimpleTable>
-                                        }
-                                        else
-                                        {
-                                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                                @CommonLoc["Text_NoMetadata"]
-                                            </MudText>
-                                        }
+                                        <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                            <tbody>
+                                                @foreach (var kvp in _asset.MetadataJson.Where(k => k.Key != "error").OrderBy(k => k.Key))
+                                                {
+                                                    <tr>
+                                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
+                                                        <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </MudSimpleTable>
                                     </ChildContent>
                                 </MudExpansionPanel>
                             </MudExpansionPanels>
-                        </MudStack>
+                        }
 
                         <MudDivider />
 
@@ -563,7 +559,7 @@ else
 
             if (success)
             {
-                Nav.NavigateTo("/collections");
+                NavigateBackToAssets();
             }
         }
     }

@@ -169,6 +169,12 @@
   <data name="Text_Uploads" xml:space="preserve"><value>Uploads</value></data>
   <data name="Text_FileInformation" xml:space="preserve"><value>File Information</value></data>
   <data name="Text_AdvancedMetadata" xml:space="preserve"><value>Advanced MetaData</value></data>
+  <data name="Text_Metadata" xml:space="preserve"><value>Metadata</value></data>
+  <data name="Label_MetadataKey" xml:space="preserve"><value>Key</value></data>
+  <data name="Label_MetadataValue" xml:space="preserve"><value>Value</value></data>
+  <data name="Text_Fields" xml:space="preserve"><value>fields</value></data>
+  <data name="Text_EmptyFields" xml:space="preserve"><value>Empty fields</value></data>
+  <data name="Text_AddCustomField" xml:space="preserve"><value>Add custom field</value></data>
   <data name="Text_SHA256" xml:space="preserve"><value>SHA256</value></data>
 
   <!-- Confirmation Dialogs -->

@@ -43,6 +43,11 @@ services:
       resources:
         limits:
           memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   # ---------- MinIO (S3-compatible object storage) ----------------------------
   minio:
@@ -70,6 +75,11 @@ services:
       resources:
         limits:
           memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   # ---------- Keycloak (OIDC provider) ----------------------------------------
   keycloak:
@@ -105,6 +115,9 @@ services:
     volumes:
       - keycloakdata:/opt/keycloak/data
       - ../keycloak/import:/opt/keycloak/data/import:ro
+    # Note: --import-realm is idempotent in Keycloak 26+ (skips if realm exists).
+    # This adds minimal startup overhead (~100ms) but simplifies deployment.
+    # For zero-overhead in existing deployments, remove --import-realm after first run.
     command:
       - start
       - --import-realm
@@ -124,6 +137,11 @@ services:
       resources:
         limits:
           memory: 768M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   # ---------- AssetHub API + Blazor UI ----------------------------------------
   api:
@@ -221,6 +239,19 @@ services:
       resources:
         limits:
           memory: 1G
+    # Security hardening
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=100M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   # ---------- Hangfire Background Worker --------------------------------------
   worker:
@@ -263,6 +294,19 @@ services:
       resources:
         limits:
           memory: 1G
+    # Security hardening
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=100M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
   clamav:
@@ -279,6 +323,11 @@ services:
       resources:
         limits:
           memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     restart: unless-stopped
 
   # ── Observability Stack ──────────────────────────────────────────────────────
@@ -304,6 +353,11 @@ services:
       resources:
         limits:
           memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     restart: unless-stopped
 
   # Prometheus - Metrics Collection
@@ -328,6 +382,11 @@ services:
       resources:
         limits:
           memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     restart: unless-stopped
 
   # Grafana - Visualization & Dashboards
@@ -354,6 +413,11 @@ services:
       resources:
         limits:
           memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     restart: unless-stopped
 
 volumes:
@@ -367,3 +431,30 @@ volumes:
 networks:
   internal:
     driver: bridge
+# ============================================================================
+# Docker Secrets (optional, recommended for production)
+# ============================================================================
+# To use secrets instead of environment variables for sensitive credentials:
+#
+# 1. Create secret files (ensure restrictive permissions: chmod 600):
+#    mkdir -p secrets
+#    echo "your-postgres-password" > secrets/postgres_password
+#    echo "your-keycloak-admin-password" > secrets/keycloak_admin_password
+#    echo "your-keycloak-db-password" > secrets/keycloak_db_password
+#
+# 2. Uncomment the secrets section below and update service environment vars
+#    to use _FILE suffix (Postgres) or mount secrets as volumes (Keycloak).
+#
+# secrets:
+#   postgres_password:
+#     file: ./secrets/postgres_password
+#   keycloak_admin_password:
+#     file: ./secrets/keycloak_admin_password
+#   keycloak_db_password:
+#     file: ./secrets/keycloak_db_password
+#
+# For Postgres, replace POSTGRES_PASSWORD with:
+#   POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+#
+# For Keycloak, use an init script or entrypoint to read secrets.
+# ============================================================================

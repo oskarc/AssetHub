@@ -236,12 +236,11 @@
                 // Step 3: Confirm upload — triggers media processing
                 var confirmResult = await Api.ConfirmUploadAsync(initResult.AssetId);
                 upload.Status = UploadStatus.Processing;
+                upload.AssetId = initResult.AssetId;
                 upload.Message = confirmResult.Message;
                 StateHasChanged();
 
-                // Allow backend processing to start, then mark as completed in the UI.
-                // The actual media processing continues asynchronously via Hangfire.
-                await Task.Delay(2000);
+                // Mark as completed in UI (processing continues in background)
                 upload.Status = UploadStatus.Completed;
             }
             catch (Exception ex)
@@ -255,12 +254,66 @@
         }
 
         _isUploading = false;
+        
+        // Collect asset IDs that need processing
+        var processingAssetIds = _uploads
+            .Where(u => u.Status == UploadStatus.Completed && u.AssetId.HasValue)
+            .Select(u => u.AssetId!.Value)
+            .ToList();
+
+        // Trigger initial refresh to show assets (with processing status)
         await OnUploadComplete.InvokeAsync();
+
+        // Poll for processing completion in background, then refresh again
+        if (processingAssetIds.Any())
+        {
+            _ = PollForProcessingCompletion(processingAssetIds);
+        }
 
         // Clean up completed uploads after 5 seconds
         await Task.Delay(5000);
         _uploads.RemoveAll(u => u.Status == UploadStatus.Completed);
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Polls the API until all uploaded assets have finished processing (Ready or Failed),
+    /// then triggers a refresh so thumbnails appear without manual page reload.
+    /// </summary>
+    private async Task PollForProcessingCompletion(List<Guid> assetIds)
+    {
+        const int maxAttempts = 20; // Max 60 seconds of polling (20 * 3s)
+        const int pollIntervalMs = 3000;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            await Task.Delay(pollIntervalMs);
+
+            try
+            {
+                var allReady = true;
+                foreach (var assetId in assetIds)
+                {
+                    var asset = await Api.GetAssetAsync(assetId, CancellationToken.None);
+                    if (asset?.Status == "processing")
+                    {
+                        allReady = false;
+                        break;
+                    }
+                }
+
+                if (allReady)
+                {
+                    // All assets processed - refresh the grid to show thumbnails
+                    await OnUploadComplete.InvokeAsync();
+                    return;
+                }
+            }
+            catch
+            {
+                // Ignore polling errors - worst case user refreshes manually
+            }
+        }
     }
 
     private Color GetStatusColor(UploadStatus status)

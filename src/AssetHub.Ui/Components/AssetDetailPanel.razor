@@ -101,40 +101,38 @@
                     </MudSimpleTable>
                 </MudStack>
 
-                <!-- Advanced Metadata -->
-                <MudDivider />
-                <MudStack>
+                <!-- Metadata (Expandable) -->
+                @if (Asset.MetadataJson.Any())
+                {
+                    <MudDivider />
                     <MudExpansionPanels Elevation="0" Class="share-panel-reset">
                         <MudExpansionPanel MaxHeight="400"
                                            Class="share-panel-header pa-0 ma-0">
                             <TitleContent>
-                                <MudText Typo="Typo.subtitle2" Class="share-panel-icon">@AdvancedMetadataText</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudText Typo="Typo.subtitle2">@MetadataText</MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                        @Asset.MetadataJson.Count
+                                    </MudChip>
+                                </MudStack>
                             </TitleContent>
                             <ChildContent>
-                                @if (Asset.MetadataJson.Any())
-                                {
-                                    <MudSimpleTable Dense="true" Hover="true" Elevation="0">
-                                        <tbody>
-                                            @foreach (var kvp in Asset.MetadataJson.OrderBy(k => k.Key))
-                                            {
-                                                <tr>
-                                                    <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
-                                                    <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </MudSimpleTable>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                        @NoMetadataText
-                                    </MudText>
-                                }
+                                <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                    <tbody>
+                                        @foreach (var kvp in Asset.MetadataJson.OrderBy(k => k.Key))
+                                        {
+                                            <tr>
+                                                <td><MudText Typo="Typo.body2" Color="Color.Secondary">@AssetDisplayHelpers.FormatMetadataKey(kvp.Key)</MudText></td>
+                                                <td><MudText Typo="Typo.body2">@kvp.Value?.ToString()</MudText></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
                             </ChildContent>
                         </MudExpansionPanel>
                     </MudExpansionPanels>
-                </MudStack>
+                }
+                }
 
                 <MudDivider />
 
@@ -194,8 +192,7 @@
     [Parameter] public string FileInformationText { get; set; } = "File Information";
     [Parameter] public string SizeLabel { get; set; } = "Size";
     [Parameter] public string TypeLabel { get; set; } = "Type";
-    [Parameter] public string AdvancedMetadataText { get; set; } = "Advanced Metadata";
-    [Parameter] public string NoMetadataText { get; set; } = "No metadata available";
+    [Parameter] public string MetadataText { get; set; } = "Metadata";
     [Parameter] public string DownloadOriginalText { get; set; } = "Download Original";
     [Parameter] public string DownloadMediumText { get; set; } = "Download Medium";
     [Parameter] public string DownloadThumbnailText { get; set; } = "Download Thumbnail";

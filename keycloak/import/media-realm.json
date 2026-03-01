@@ -16,6 +16,11 @@
   },
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "maxFailureWaitSeconds": 900,
+  "waitIncrementSeconds": 60,
+  "permanentLockout": false,
   "roles": {
     "realm": [
       { "name": "viewer", "description": "Can browse collections and assets" },

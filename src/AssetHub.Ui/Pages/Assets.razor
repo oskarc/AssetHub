@@ -288,9 +288,14 @@
     private bool CanShare => RolePermissions.CanShare(CurrentUserRole);
     private bool CanManageAccess => RolePermissions.CanManageAccess(CurrentUserRole);
 
+    // Track navigation to refresh when returning to this page
+    private string? _lastKnownUri;
+
     protected override async Task OnInitializedAsync()
     {
         _breadcrumbs = new() { new(CommonLoc["Nav_Collections"].Value, "/collections") };
+        _lastKnownUri = Nav.Uri;
+        Nav.LocationChanged += OnLocationChanged;
 
         var loadCollections = LoadAllCollections();
 
@@ -498,6 +503,26 @@
         }
     }
 
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // Check if we navigated away and back to this page
+        var wasOnAssets = _lastKnownUri?.Contains("/collections") == true || _lastKnownUri?.Contains("/assets") == true;
+        var isOnAssets = e.Location.Contains("/collections") || e.Location.Contains("/assets");
+        var leftAndReturned = !wasOnAssets && isOnAssets;
+
+        _lastKnownUri = e.Location;
+
+        // Refresh the asset grid when returning to this page
+        if (leftAndReturned && _assetGrid != null && _selectedCollectionId.HasValue)
+        {
+            await InvokeAsync(async () =>
+            {
+                await _assetGrid.RefreshAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
     private bool _isDownloading;
     private string _downloadStatusText = "";
     private DotNetObjectReference<Assets>? _dotNetRef;
@@ -582,6 +607,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Nav.LocationChanged -= OnLocationChanged;
         _dotNetRef?.Dispose();
         if (_jsModule is not null)
         {

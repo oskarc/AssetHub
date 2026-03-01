@@ -98,7 +98,8 @@ public sealed class AssetService : IAssetService
             new() { ["title"] = asset.Title, ["description"] = asset.Description ?? "", ["tags"] = string.Join(", ", asset.Tags ?? []) },
             ct);
 
-        return AssetMapper.ToDto(asset);
+        var userRole = await GetUserRoleForAssetAsync(id, ct);
+        return AssetMapper.ToDto(asset, userRole);
     }
 
     public async Task<ServiceResult> DeleteAsync(
@@ -274,5 +275,25 @@ public sealed class AssetService : IAssetService
         var collections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(assetId, ct);
         var accessible = await _authService.FilterAccessibleAsync(_currentUser.UserId, collections, requiredRole, ct);
         return accessible.Count > 0;
+    }
+
+    private async Task<string> GetUserRoleForAssetAsync(Guid assetId, CancellationToken ct)
+    {
+        if (_currentUser.IsSystemAdmin)
+            return RoleHierarchy.Roles.Admin;
+
+        var collections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(assetId, ct);
+        var bestRole = RoleHierarchy.Roles.Viewer;
+
+        foreach (var collectionId in collections)
+        {
+            var role = await _authService.GetUserRoleAsync(_currentUser.UserId, collectionId, ct);
+            if (role != null && RoleHierarchy.GetLevel(role) > RoleHierarchy.GetLevel(bestRole))
+            {
+                bestRole = role;
+            }
+        }
+
+        return bestRole;
     }
 }

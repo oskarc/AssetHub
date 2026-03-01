@@ -82,16 +82,36 @@ public class MediaProcessingService(
             // Extract EXIF metadata
             try
             {
+                logger.LogInformation("Starting metadata extraction for asset {AssetId}, file: {FilePath}", assetId, tempOriginal);
                 var metadata = ExtractImageMetadata(tempOriginal);
                 foreach (var kvp in metadata)
                 {
                     asset.MetadataJson[kvp.Key] = kvp.Value;
                 }
-                logger.LogDebug("Extracted {MetadataCount} metadata fields for asset {AssetId}", metadata.Count, assetId);
+                if (metadata.Count > 0)
+                {
+                    logger.LogInformation("Extracted {MetadataCount} metadata fields for asset {AssetId}: {MetadataKeys}",
+                        metadata.Count, assetId, string.Join(", ", metadata.Keys));
+                    
+                    // Auto-populate Copyright field from extracted metadata if not already set
+                    if (string.IsNullOrWhiteSpace(asset.Copyright) && 
+                        metadata.TryGetValue("copyright", out var extractedCopyright) &&
+                        extractedCopyright is string copyrightStr &&
+                        !string.IsNullOrWhiteSpace(copyrightStr))
+                    {
+                        asset.Copyright = copyrightStr;
+                        logger.LogInformation("Auto-populated Copyright field for asset {AssetId} from EXIF: {Copyright}", 
+                            assetId, copyrightStr);
+                    }
+                }
+                else
+                {
+                    logger.LogInformation("No metadata found in image for asset {AssetId}. File may not contain EXIF/IPTC data.", assetId);
+                }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}", assetId);
+                logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}: {ErrorMessage}", assetId, ex.Message);
                 asset.MetadataJson["metadataExtractionError"] = ex.Message;
             }
 
@@ -329,15 +349,24 @@ public class MediaProcessingService(
         try
         {
             var directories = ImageMetadataReader.ReadMetadata(imagePath);
+            
+            logger.LogDebug("Found {DirectoryCount} metadata directories in image: {DirectoryTypes}",
+                directories.Count, string.Join(", ", directories.Select(d => d.Name).Distinct()));
 
             ExtractExifData(directories, result);
+            logger.LogDebug("After EXIF extraction: {FieldCount} fields", result.Count);
+            
             ExtractIptcData(directories, result);
+            logger.LogDebug("After IPTC extraction: {FieldCount} fields", result.Count);
+            
             ExtractGpsData(directories, result);
+            logger.LogDebug("After GPS extraction: {FieldCount} fields", result.Count);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Metadata extraction is non-critical — file may not have EXIF data
-            logger.LogDebug(ex, "Metadata extraction returned no data for {ImagePath}", imagePath);
+            logger.LogWarning(ex, "Metadata extraction failed for {ImagePath}: {ErrorType} - {ErrorMessage}",
+                imagePath, ex.GetType().Name, ex.Message);
         }
 
         return result;

@@ -174,9 +174,13 @@ public static class AuthenticationExtensions
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
+            ValidateIssuer = true,
+            ValidIssuer = keycloakAuthority,
+            ValidateAudience = true,
+            ValidAudiences = new[] { "assethub-app", "account" },
+            ValidateLifetime = true,
             NameClaimType = "preferred_username",
-            RoleClaimType = ClaimTypes.Role,
-            ValidIssuer = keycloakAuthority
+            RoleClaimType = ClaimTypes.Role
         };
 
         options.Events = new OpenIdConnectEvents

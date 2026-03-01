@@ -20,17 +20,21 @@
                           Variant="Variant.Outlined"
                           Required="true"
                           RequiredError="@AssetLoc["Validation_TitleRequired"]"
+                          Immediate="true"
                           Class="mb-3" />
 
             <MudTextField @bind-Value="_description"
                           Label="@AssetLoc["DescriptionOptional"]"
                           Variant="Variant.Outlined"
                           Lines="3"
+                          Immediate="true"
                           Class="mb-3" />
 
             <MudTextField @bind-Value="_copyright"
                           Label="@AssetLoc["CopyrightOptional"]"
                           Variant="Variant.Outlined"
+                          Lines="3"
+                          Immediate="true"
                           Class="mb-3" />
 
             <MudText Typo="Typo.subtitle2" Class="mb-2">@CommonLoc["Label_Tags"]</MudText>
@@ -66,6 +70,88 @@
                     @CommonLoc["Btn_Add"]
                 </MudButton>
             </MudStack>
+
+            <!-- Metadata Section (Expandable) -->
+            <MudDivider Class="my-3" />
+            <MudExpansionPanels Elevation="0" Class="share-panel-reset">
+                <MudExpansionPanel @bind-Expanded="_metadataExpanded"
+                                   Class="share-panel-header pa-0 ma-0">
+                    <TitleContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudText Typo="Typo.subtitle2">@CommonLoc["Text_Metadata"]</MudText>
+                            @if (_metadataFields.Any(f => !f.InitiallyEmpty))
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                    @_metadataFields.Count(f => !f.InitiallyEmpty) @CommonLoc["Text_Fields"]
+                                </MudChip>
+                            }
+                        </MudStack>
+                    </TitleContent>
+                    <ChildContent>
+                        <MudStack Spacing="2" Class="mt-2">
+                            <!-- Fields with values -->
+                            @foreach (var field in _metadataFields.Where(f => !f.InitiallyEmpty))
+                            {
+                                <MudTextField @bind-Value="field.Value"
+                                              Label="@AssetDisplayHelpers.FormatMetadataKey(field.Key)"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Immediate="true" />
+                            }
+
+                            <!-- Empty fields (collapsed by default) -->
+                            @if (_metadataFields.Any(f => f.InitiallyEmpty))
+                            {
+                                <MudExpansionPanels Elevation="0" Class="mt-2">
+                                    <MudExpansionPanel @bind-Expanded="_emptyFieldsExpanded">
+                                        <TitleContent>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                @CommonLoc["Text_EmptyFields"] (@_metadataFields.Count(f => f.InitiallyEmpty))
+                                            </MudText>
+                                        </TitleContent>
+                                        <ChildContent>
+                                            <MudStack Spacing="2" Class="mt-2">
+                                                @foreach (var field in _metadataFields.Where(f => f.InitiallyEmpty))
+                                                {
+                                                    <MudTextField @bind-Value="field.Value"
+                                                                  Label="@AssetDisplayHelpers.FormatMetadataKey(field.Key)"
+                                                                  Variant="Variant.Outlined"
+                                                                  Margin="Margin.Dense"
+                                                                  Immediate="true" />
+                                                }
+                                            </MudStack>
+                                        </ChildContent>
+                                    </MudExpansionPanel>
+                                </MudExpansionPanels>
+                            }
+
+                            <!-- Add Custom Metadata -->
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@CommonLoc["Text_AddCustomField"]</MudText>
+                            <MudStack Row="true" Spacing="2">
+                                <MudTextField @bind-Value="_newMetadataKey"
+                                              Label="@CommonLoc["Label_MetadataKey"]"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                          Immediate="true"
+                                          Class="dialog-flex-fill" />
+                                <MudTextField @bind-Value="_newMetadataValue"
+                                              Label="@CommonLoc["Label_MetadataValue"]"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Immediate="true"
+                                              Class="dialog-flex-fill" />
+                                <MudButton Variant="Variant.Outlined" 
+                                           OnClick="AddMetadataField"
+                                           Disabled="@string.IsNullOrWhiteSpace(_newMetadataKey)"
+                                           Class="mt-1">
+                                    @CommonLoc["Btn_Add"]
+                                </MudButton>
+                            </MudStack>
+                        </MudStack>
+                    </ChildContent>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
         </MudForm>
     </DialogContent>
     <DialogActions>
@@ -96,8 +182,22 @@
     private string _copyright = "";
     private List<string> _tags = new();
     private string _newTag = "";
+    private List<MetadataField> _metadataFields = new();
+    private string _newMetadataKey = "";
+    private string _newMetadataValue = "";
+    private bool _metadataExpanded = false;
+    private bool _emptyFieldsExpanded = false;
     private bool _isValid;
     private bool _isSaving;
+
+    // Standard metadata keys that can be extracted from images
+    private static readonly string[] StandardMetadataKeys = new[]
+    {
+        "artist", "cameraMake", "cameraModel", "dateTaken", "exposureTime",
+        "aperture", "iso", "focalLength", "imageWidth", "imageHeight",
+        "flash", "software", "gpsLatitude", "gpsLongitude", "credit",
+        "caption", "source", "keywords"
+    };
 
     protected override void OnInitialized()
     {
@@ -107,6 +207,36 @@
             _description = Asset.Description ?? "";
             _copyright = Asset.Copyright ?? "";
             _tags = Asset.Tags?.ToList() ?? new();
+
+            // Load existing metadata fields
+            if (Asset.MetadataJson != null)
+            {
+                foreach (var kvp in Asset.MetadataJson.Where(k => k.Key != "error" && k.Key != "metadataExtractionError"))
+                {
+                    var value = kvp.Value?.ToString() ?? "";
+                    _metadataFields.Add(new MetadataField 
+                    { 
+                        Key = kvp.Key, 
+                        Value = value,
+                        InitiallyEmpty = string.IsNullOrWhiteSpace(value)
+                    });
+                }
+            }
+
+            // Add empty standard fields that don't exist yet
+            foreach (var key in StandardMetadataKeys)
+            {
+                if (!_metadataFields.Any(f => f.Key.Equals(key, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _metadataFields.Add(new MetadataField { Key = key, Value = "", InitiallyEmpty = true });
+                }
+            }
+
+            // Sort: fields with values first, then empty fields
+            _metadataFields = _metadataFields
+                .OrderByDescending(f => !string.IsNullOrWhiteSpace(f.Value))
+                .ThenBy(f => f.Key)
+                .ToList();
         }
     }
 
@@ -133,6 +263,17 @@
         }
     }
 
+    private void AddMetadataField()
+    {
+        var key = _newMetadataKey.Trim();
+        if (!string.IsNullOrWhiteSpace(key) && !_metadataFields.Any(f => f.Key.Equals(key, StringComparison.OrdinalIgnoreCase)))
+        {
+            _metadataFields.Insert(0, new MetadataField { Key = key, Value = _newMetadataValue.Trim() });
+            _newMetadataKey = "";
+            _newMetadataValue = "";
+        }
+    }
+
     private void Cancel() => MudDialog.Cancel();
 
     private async Task SaveAsync()
@@ -147,12 +288,24 @@
         {
             _isSaving = true;
 
+            // Build metadata dictionary (only include non-empty values)
+            var metadata = new Dictionary<string, object>();
+            foreach (var field in _metadataFields)
+            {
+                var value = field.Value?.Trim();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    metadata[field.Key] = value;
+                }
+            }
+
             var dto = new UpdateAssetDto
             {
                 Title = _title,
                 Description = InputValidation.NormalizeToNull(_description),
                 Copyright = InputValidation.NormalizeToNull(_copyright),
-                Tags = _tags
+                Tags = _tags,
+                MetadataJson = metadata
             };
 
             var updatedAsset = await Api.UpdateAssetAsync(Asset.Id, dto);
@@ -166,5 +319,12 @@
         {
             _isSaving = false;
         }
+    }
+
+    private class MetadataField
+    {
+        public string Key { get; set; } = "";
+        public string Value { get; set; } = "";
+        public bool InitiallyEmpty { get; set; }
     }
 }

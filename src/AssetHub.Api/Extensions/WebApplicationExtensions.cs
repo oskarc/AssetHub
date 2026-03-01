@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Minio;
@@ -133,6 +134,27 @@ public static class WebApplicationExtensions
         });
 
         app.UseRequestLocalization();
+
+        // Apply BlazorSignalR rate limiting policy to /_blazor connections
+        // to prevent WebSocket exhaustion attacks from anonymous clients
+        app.Use(async (context, next) =>
+        {
+            var path = context.Request.Path.Value;
+            if (path != null && path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase))
+            {
+                var endpoint = context.GetEndpoint();
+                if (endpoint != null)
+                {
+                    context.SetEndpoint(new Endpoint(
+                        endpoint.RequestDelegate,
+                        new EndpointMetadataCollection(
+                            endpoint.Metadata.Append(new EnableRateLimitingAttribute("BlazorSignalR"))),
+                        endpoint.DisplayName));
+                }
+            }
+            await next();
+        });
+
         app.UseRateLimiter();
         app.UseAuthentication();
 
