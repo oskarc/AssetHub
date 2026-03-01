@@ -339,6 +339,9 @@ public interface IMediaProcessingService
 | `assethub-minio` | S3-compatible object storage | 9000/9001 | AWS S3, Azure Blob, GCS |
 | `assethub-keycloak` | OIDC identity provider | 8080/8443 | Azure AD, Okta, Auth0 |
 | `assethub-clamav` | Malware scanning | 3310 | Enterprise AV, Windows Defender ATP |
+| `assethub-jaeger` | Distributed tracing | 16686 | Zipkin, Datadog, Azure Monitor |
+| `assethub-prometheus` | Metrics collection | 9090 | Datadog, New Relic, CloudWatch |
+| `assethub-grafana` | Metrics dashboards | 3000 | Datadog, New Relic |
 | `assethub-mailpit` | Dev email capture | 8025/1025 | SMTP relay, SendGrid, SES |
 
 ### Minimal Production Stack
@@ -394,6 +397,78 @@ Roles are assigned **per collection** through Access Control Lists. Higher roles
 - Assets inherit permissions from their collections — access is never per-asset
 - Assets can belong to multiple collections simultaneously (many-to-many)
 - The role hierarchy is centralised in `RoleHierarchy.cs` for consistency
+
+---
+
+## Security
+
+AssetHub implements defense-in-depth security across multiple layers.
+
+### Authentication & Authorization
+
+| Feature | Implementation |
+|---------|---------------|
+| **OIDC with PKCE** | Authorization Code flow with Proof Key for Code Exchange (no implicit grant) |
+| **Cookie security** | `__Host.` prefix, `SameSite=Strict`, `HttpOnly=true`, `Secure=true` |
+| **JWT Bearer** | For API clients, with explicit issuer, audience, and lifetime validation |
+| **Fallback policy** | All endpoints require authentication by default |
+| **Brute force protection** | Keycloak locks accounts after 5 failed login attempts (15 min lockout) |
+
+### Rate Limiting
+
+| Policy | Scope | Limit |
+|--------|-------|-------|
+| Global (authenticated) | Per user | 200 requests/min |
+| BlazorSignalR | Per IP | 60 connections/min |
+| ShareAnonymous | Per IP | 30 requests/min |
+| SharePassword | Per IP | 10 attempts/5 min |
+
+### Upload Security
+
+| Check | Purpose |
+|-------|---------|
+| **Content-type allowlist** | Only images, videos, audio, documents, and safe file types |
+| **Magic byte validation** | Prevents content-type spoofing (JPEG header must match `image/jpeg` claim) |
+| **ClamAV scanning** | Malware detection before processing |
+| **File size limits** | Configurable max upload size (default 500 MB) |
+
+### Container Hardening (Production)
+
+```yaml
+# Applied to API and Worker containers
+cap_drop: [ALL]
+read_only: true
+security_opt: [no-new-privileges:true]
+tmpfs: [/tmp:size=100M]
+```
+
+### Network Security
+
+| Feature | Implementation |
+|---------|---------------|
+| **X-Forwarded-For protection** | Only trusted from RFC 1918 private networks (Docker bridge) |
+| **Security headers** | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` |
+| **CSP** | Content Security Policy (with `unsafe-inline` for Blazor Server) |
+| **HTTPS enforcement** | HSTS in production, automatic redirect |
+
+### Audit & Observability
+
+| Component | Purpose |
+|-----------|---------|
+| **Audit trail** | Every action logged with user, timestamp, target, and details |
+| **Jaeger** | Distributed tracing via OpenTelemetry |
+| **Prometheus** | Metrics collection (request latency, error rates, etc.) |
+| **Grafana** | Dashboards for monitoring (pre-configured with AssetHub panels) |
+| **Structured logging** | Serilog with request enrichment |
+
+### Infrastructure Security
+
+| Feature | Implementation |
+|---------|---------------|
+| **Docker log rotation** | 50 MB × 5 files per container (prevents disk exhaustion) |
+| **Resource limits** | Memory limits on all containers |
+| **Health checks** | Liveness and readiness probes for orchestration |
+| **Secrets support** | Docker secrets documented for production credentials |
 
 ---
 
@@ -620,9 +695,21 @@ docker exec assethub-postgres pg_dump -U postgres assethub > backup.sql
 |------|-----|---------|
 | Health check | https://assethub.local:7252/health/ready | Readiness probe (PG + MinIO + Keycloak) |
 | Hangfire | https://assethub.local:7252/hangfire | Job queues, processing status |
+| Grafana | http://localhost:3000 | Metrics dashboards (pre-configured) |
+| Prometheus | http://localhost:9090 | Raw metrics, alerting rules |
+| Jaeger | http://localhost:16686 | Distributed tracing |
 | Keycloak Admin | https://keycloak.assethub.local:8443/admin | Users, sessions, clients |
 | MinIO Console | http://localhost:9001 | Storage usage, buckets |
 | Mailpit | http://localhost:8025 | Email capture (dev only) |
+
+### Grafana Dashboards
+
+Pre-configured dashboards include:
+- **AssetHub Overview** — Request rate, error rate, P95 latency, active users
+- **Upload Metrics** — Upload volume, processing queue depth, malware detections
+- **Infrastructure** — PostgreSQL connections, MinIO storage, Keycloak sessions
+
+OpenTelemetry is enabled by default and exports to Jaeger (OTLP endpoint).
 
 ---
 
@@ -669,12 +756,14 @@ See [CREDENTIALS.md](CREDENTIALS.md) for all default passwords, OAuth config, an
 - Health check endpoints (`/health`, `/health/ready`)
 - Custom Keycloak email themes (HTML + text, Swedish/English)
 - CI pipeline with build, test, vulnerability scanning, and container image scanning
-- Comprehensive test coverage (334+ backend + 221+ component + 173+ E2E)
+- Comprehensive test coverage (512+ backend + 221+ component + 173+ E2E)
 - Production Docker Compose with auto-migration, resource limits, and TLS
+- Observability stack (Prometheus metrics, Grafana dashboards, Jaeger tracing, OpenTelemetry)
+- Rate limiting (global, SignalR, anonymous share endpoints)
+- Container security hardening (cap_drop, read_only, no-new-privileges)
 
 ### Roadmap
 
-- Observability (Prometheus metrics, Grafana dashboards)
 - Document preview (PDF, Office documents)
 - Video transcoding (HLS/DASH adaptive streaming)
 - Group-based ACLs (Keycloak groups/roles)
