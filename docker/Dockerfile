@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0.102-bookworm-slim AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0.311-bookworm-slim AS build
 WORKDIR /src
 
 # Copy Directory.Build.props first (affects restore/build behavior)
@@ -25,7 +25,7 @@ FROM build AS publish
 RUN dotnet publish "src/AssetHub.Api/AssetHub.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:9.0.2-bookworm-slim AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0.13-bookworm-slim AS final
 
 # Install ImageMagick for image processing (thumbnails, resizing)
 # Install ffmpeg for video processing (poster frames)
