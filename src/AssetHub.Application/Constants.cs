@@ -267,5 +267,11 @@ public static class Constants
         /// so the UI shows "10 000+" rather than scanning the entire table.
         /// </summary>
         public const int AuditCountDisplayCap = 10_000;
+
+        /// <summary>
+        /// Number of days to retain audit events. Events older than this are deleted
+        /// by the <c>AuditRetentionJob</c> recurring background job.
+        /// </summary>
+        public const int AuditRetentionDays = 365;
     }
 }

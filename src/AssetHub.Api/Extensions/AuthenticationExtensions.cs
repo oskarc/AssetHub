@@ -23,9 +23,21 @@ public static class AuthenticationExtensions
         var keycloakConfig = configuration.GetSection("Keycloak");
         var keycloakAuthority = keycloakConfig["Authority"]
             ?? throw new InvalidOperationException("Keycloak:Authority is required.");
+        var clientId = keycloakConfig["ClientId"]
+            ?? throw new InvalidOperationException("Keycloak:ClientId is required.");
         var clientSecret = keycloakConfig["ClientSecret"]
             ?? throw new InvalidOperationException("Keycloak:ClientSecret is required.");
         var requireHttpsMetadata = keycloakConfig.GetValue("RequireHttpsMetadata", true);
+
+        if (!requireHttpsMetadata && !environment.IsDevelopment())
+        {
+            // Write directly to stderr — DI is not yet built so we cannot use ILogger.
+            // This ensures the warning surfaces in logs even if logging bootstrapping fails.
+            Console.Error.WriteLine(
+                "[SECURITY WARNING] Keycloak:RequireHttpsMetadata is false in a non-development " +
+                "environment. This disables HTTPS validation for the OIDC authority and is a " +
+                "significant security risk. Set RequireHttpsMetadata=true for production deployments.");
+        }
 
         services.AddAuthentication(options =>
         {
@@ -60,7 +72,7 @@ public static class AuthenticationExtensions
                 ValidateIssuer = true,
                 ValidIssuer = keycloakAuthority,
                 ValidateAudience = true,
-                ValidAudiences = new[] { "assethub-app", "account" },
+                ValidAudiences = new[] { clientId, "account" },
                 ValidateLifetime = true,
                 NameClaimType = "preferred_username",
                 RoleClaimType = ClaimTypes.Role
@@ -71,7 +83,7 @@ public static class AuthenticationExtensions
                 {
                     if (context.Principal?.Identity is ClaimsIdentity identity)
                     {
-                        MapKeycloakRoles(identity);
+                        MapKeycloakRoles(identity, clientId);
                     }
                     return Task.CompletedTask;
                 }
@@ -88,7 +100,7 @@ public static class AuthenticationExtensions
         })
         .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
         {
-            ConfigureOpenIdConnect(options, keycloakConfig, keycloakAuthority, clientSecret,
+            ConfigureOpenIdConnect(options, keycloakConfig, keycloakAuthority, clientId, clientSecret,
                 requireHttpsMetadata, environment);
         });
 
@@ -135,6 +147,7 @@ public static class AuthenticationExtensions
         OpenIdConnectOptions options,
         IConfigurationSection keycloakConfig,
         string keycloakAuthority,
+        string clientId,
         string clientSecret,
         bool requireHttpsMetadata,
         IWebHostEnvironment environment)
@@ -142,8 +155,6 @@ public static class AuthenticationExtensions
         options.Authority = keycloakAuthority;
         options.MetadataAddress = keycloakAuthority + "/.well-known/openid-configuration";
 
-        var clientId = keycloakConfig["ClientId"]
-            ?? throw new InvalidOperationException("Keycloak:ClientId is required.");
         options.ClientId = clientId;
         options.ClientSecret = clientSecret;
 
@@ -177,7 +188,7 @@ public static class AuthenticationExtensions
             ValidateIssuer = true,
             ValidIssuer = keycloakAuthority,
             ValidateAudience = true,
-            ValidAudiences = new[] { "assethub-app", "account" },
+            ValidAudiences = new[] { clientId, "account" },
             ValidateLifetime = true,
             NameClaimType = "preferred_username",
             RoleClaimType = ClaimTypes.Role
@@ -214,7 +225,7 @@ public static class AuthenticationExtensions
                 if (context.Principal?.Identity is not ClaimsIdentity identity)
                     return Task.CompletedTask;
 
-                MapKeycloakRoles(identity);
+                MapKeycloakRoles(identity, clientId);
                 return Task.CompletedTask;
             }
         };
@@ -222,7 +233,7 @@ public static class AuthenticationExtensions
 
     // ── Keycloak role mapping ───────────────────────────────────────────────
 
-    private static void MapKeycloakRoles(ClaimsIdentity identity)
+    private static void MapKeycloakRoles(ClaimsIdentity identity, string clientId)
     {
         // Realm roles from "realm_access" claim
         var realmAccess = identity.FindFirst("realm_access")?.Value;
@@ -236,7 +247,7 @@ public static class AuthenticationExtensions
         var resourceAccess = identity.FindFirst("resource_access")?.Value;
         if (!string.IsNullOrWhiteSpace(resourceAccess))
         {
-            foreach (var role in ExtractClientRolesFromJson(resourceAccess, "assethub-app"))
+            foreach (var role in ExtractClientRolesFromJson(resourceAccess, clientId))
                 AddRoleIfMissing(identity, role);
         }
     }
