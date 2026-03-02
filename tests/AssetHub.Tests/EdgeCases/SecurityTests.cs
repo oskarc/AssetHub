@@ -625,8 +625,8 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task CreateShare_WithShortPassword_Returns400()
     {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Contributor);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
+        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Manager);
+        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Manager);
 
         var dto = new CreateShareDto
         {

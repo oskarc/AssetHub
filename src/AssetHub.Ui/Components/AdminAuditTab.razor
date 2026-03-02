@@ -19,11 +19,11 @@ else
 {
     <MudPaper Elevation="0" Class="mb-3">
         <MudGrid Spacing="2">
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="4" Class="d-flex align-end">
                 <MudTextField @bind-Value="_searchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
                     Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                     IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
-                    Immediate="true" DebounceInterval="300" />
+                    Immediate="true" DebounceInterval="300" FullWidth="true" />
             </MudItem>
             <MudItem xs="6" sm="3">
                 <MudSelect @bind-Value="_filterTargetType" Label="@AdminLoc["Header_TargetType"]"
@@ -32,9 +32,9 @@ else
                     <MudSelectItem Value="@("collection")">Collection</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="6" sm="3">
+            <MudItem xs="6" sm="3" Class="d-flex align-end">
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="ApplyFiltersAsync"
-                    Disabled="@_auditLoading" FullWidth="true" Class="mt-1">
+                    Disabled="@_auditLoading" FullWidth="true">
                     @CommonLoc["Btn_ApplyFilters"]
                 </MudButton>
             </MudItem>

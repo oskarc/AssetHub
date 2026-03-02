@@ -38,11 +38,19 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - internal
+      - backend
     deploy:
       resources:
         limits:
+          cpus: '1.0'
           memory: 512M
+          pids: 100
+    # Security hardening
+    user: "70:70"  # postgres user in alpine
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -70,11 +78,18 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - internal
+      - backend
     deploy:
       resources:
         limits:
+          cpus: '1.0'
           memory: 512M
+          pids: 100
+    # Security hardening (minio runs as non-root internally)
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -132,11 +147,19 @@ services:
       retries: 10
       start_period: 120s
     networks:
-      - internal
+      - backend
     deploy:
       resources:
         limits:
+          cpus: '1.0'
           memory: 768M
+          pids: 200
+    # Security hardening
+    user: "1000:1000"  # keycloak runs as UID 1000
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -234,11 +257,14 @@ services:
       clamav:
         condition: service_healthy
     networks:
-      - internal
+      - backend
+      - observability
     deploy:
       resources:
         limits:
+          cpus: '2.0'
           memory: 1G
+          pids: 200
     # Security hardening
     cap_drop:
       - ALL
@@ -246,7 +272,7 @@ services:
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /tmp:size=100M
+      - /tmp:size=2G
     logging:
       driver: json-file
       options:
@@ -289,11 +315,14 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - internal
+      - backend
+      - observability
     deploy:
       resources:
         limits:
+          cpus: '2.0'
           memory: 1G
+          pids: 200
     # Security hardening
     cap_drop:
       - ALL
@@ -301,7 +330,7 @@ services:
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /tmp:size=100M
+      - /tmp:size=2G
     logging:
       driver: json-file
       options:
@@ -311,6 +340,7 @@ services:
   # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
   clamav:
     image: clamav/clamav:1.5.1
+    container_name: assethub-clamav
     healthcheck:
       test: ["CMD", "clamdcheck.sh"]
       interval: 60s
@@ -318,11 +348,24 @@ services:
       retries: 3
       start_period: 300s
     networks:
-      - internal
+      - backend
     deploy:
       resources:
         limits:
+          cpus: '1.0'
           memory: 1G
+          pids: 100
+    # Security hardening (clamav entrypoint needs caps for setup)
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - FOWNER
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -348,11 +391,22 @@ services:
     # ports:
     #   - "127.0.0.1:16686:16686"
     networks:
-      - internal
+      - observability
     deploy:
       resources:
         limits:
+          cpus: '1.0'
           memory: 512M
+          pids: 100
+    # Security hardening
+    user: "10001:10001"  # jaeger user
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=50M
     logging:
       driver: json-file
       options:
@@ -377,11 +431,21 @@ services:
     # ports:
     #   - "127.0.0.1:9090:9090"
     networks:
-      - internal
+      - backend
+      - observability
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 512M
+          pids: 100
+    # Security hardening
+    user: "65534:65534"  # nobody user
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -408,11 +472,19 @@ services:
       - prometheus
       - jaeger
     networks:
-      - internal
+      - observability
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 256M
+          pids: 100
+    # Security hardening
+    user: "472:472"  # grafana user
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -429,8 +501,23 @@ volumes:
   grafanadata:
 
 networks:
-  internal:
+  # Backend network - database and storage services only
+  backend:
     driver: bridge
+  # Observability network - monitoring and tracing
+  observability:
+    driver: bridge
+# ============================================================================
+# Network Segmentation
+# ============================================================================
+# Services are isolated into separate networks for defense-in-depth:
+#   - backend: postgres, minio, clamav, keycloak (internal data stores)
+#   - observability: jaeger, prometheus, grafana (monitoring stack)
+#
+# The api and worker services bridge both networks to access data stores
+# and export telemetry. This limits blast radius if any service is compromised.
+# ============================================================================
+
 # ============================================================================
 # Docker Secrets (optional, recommended for production)
 # ============================================================================

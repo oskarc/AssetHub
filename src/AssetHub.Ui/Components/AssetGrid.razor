@@ -81,10 +81,10 @@ else
         <MudTable Items="@_assets" Hover="true" Dense="true" Elevation="2" Breakpoint="Breakpoint.Sm">
             <HeaderContent>
                 <MudTh></MudTh>
-                <MudTh>@AssetLoc["Column_Title"]</MudTh>
-                <MudTh>@CommonLoc["Label_Type"]</MudTh>
-                <MudTh>@AssetLoc["Column_Size"]</MudTh>
-                <MudTh>@AssetLoc["Column_Created"]</MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.Title)">@AssetLoc["Column_Title"]</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.AssetType)">@CommonLoc["Label_Type"]</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.SizeBytes)">@AssetLoc["Column_Size"]</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<AssetResponseDto, object>(x => x.CreatedAt)">@AssetLoc["Column_Created"]</MudTableSortLabel></MudTh>
                 <MudTh Class="col-text-right">@AssetLoc["Column_Actions"]</MudTh>
             </HeaderContent>
             <RowTemplate>
@@ -112,7 +112,9 @@ else
                     @AssetDisplayHelpers.FormatFileSize(context.SizeBytes)
                 </MudTd>
                 <MudTd DataLabel="@AssetLoc["Column_Created"]">
-                    @context.CreatedAt.ToString("yyyy-MM-dd")
+                    <MudTooltip Text="@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")">
+                        <span>@context.CreatedAt.ToString("yyyy-MM-dd")</span>
+                    </MudTooltip>
                 </MudTd>
                 <MudTd DataLabel="@AssetLoc["Column_Actions"]" Class="col-text-right">
                     @if (CanShare)
@@ -157,8 +159,8 @@ else
     [Parameter]
     public string? FilterType { get; set; }
 
-    [Parameter]
-    public string SortBy { get; set; } = Constants.SortBy.CreatedDesc;
+    // Server-side sort order (client-side sorting via MudTable handles display order)
+    private const string SortBy = Constants.SortBy.CreatedDesc;
 
     /// <summary>
     /// Display mode: Constants.ViewModes.Grid for card view, Constants.ViewModes.List for table view.
@@ -190,7 +192,6 @@ else
     private bool _isLoading = true;
     private Guid? _loadedCollectionId;
     private string? _loadedFilterType;
-    private string _loadedSortBy = "";
     private string _loadedSearchQuery = "";
 
     protected override async Task OnParametersSetAsync()
@@ -199,14 +200,12 @@ else
         {
             var collectionChanged = _loadedCollectionId != CollectionId.Value;
             var filterChanged = _loadedFilterType != FilterType
-                             || _loadedSortBy != SortBy
                              || _loadedSearchQuery != (SearchQuery ?? "");
 
             if (collectionChanged || filterChanged)
             {
                 _loadedCollectionId = CollectionId.Value;
                 _loadedFilterType = FilterType;
-                _loadedSortBy = SortBy;
                 _loadedSearchQuery = SearchQuery ?? "";
                 _skip = 0;
                 _assets.Clear();

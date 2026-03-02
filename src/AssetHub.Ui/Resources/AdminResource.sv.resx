@@ -161,7 +161,8 @@
   <data name="SyncCompleted" xml:space="preserve"><value>Synkronisering klar: rensade {0} borttagen(a) användare, tog bort {1} åtkomstregler och återkallade {2} delningslänkar</value></data>
 
   <!-- Admin Role -->
-  <data name="AdminImplicitAccess" xml:space="preserve"><value>Systemadministratörer har implicit åtkomst till alla samlingar via sin roll</value></data>
+  <data name="MakeAdministrator" xml:space="preserve"><value>Gör till systemadministratör</value></data>
+  <data name="AdminImplicitAccess" xml:space="preserve"><value>Systemadministratörer har full åtkomst till alla samlingar. Inget samlingsval behövs.</value></data>
 
   <!-- Audit Pagination -->
   <data name="LoadMore" xml:space="preserve"><value>Ladda fler</value></data>

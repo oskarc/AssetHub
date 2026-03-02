@@ -1,7 +1,10 @@
+using AssetHub.Application.Services;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.DependencyInjection;
+using AssetHub.Infrastructure.Services;
 using AssetHub.Worker.Jobs;
 using Hangfire;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,6 +23,10 @@ class Program
 
                 // Shared infrastructure: DB, Hangfire storage, MinIO, Repos, core services
                 services.AddSharedInfrastructure(hostContext.Configuration);
+
+                // Worker-specific services needed for job resolution
+                services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // Returns null HttpContext for Worker
+                services.AddScoped<IAuditService, AuditService>();
 
                 // OpenTelemetry for distributed tracing
                 services.AddWorkerOpenTelemetry(hostContext.Configuration);

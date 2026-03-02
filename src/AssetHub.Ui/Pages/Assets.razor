@@ -219,17 +219,6 @@
                                 <MudSelectItem Value="@(Constants.AssetTypeFilters.Document)">@CommonLoc["Filter_Documents"]</MudSelectItem>
                             </MudSelect>
                         </MudItem>
-                        <MudItem xs="12" sm="6" md="3">
-                            <MudSelect @bind-Value="_sortBy"
-                                       Label="@CommonLoc["Label_SortBy"]"
-                                       Variant="Variant.Outlined"
-                                       Margin="Margin.Dense">
-                                <MudSelectItem Value="@(Constants.SortBy.CreatedDesc)">@CommonLoc["Sort_NewestFirst"]</MudSelectItem>
-                                <MudSelectItem Value="@(Constants.SortBy.CreatedAsc)">@CommonLoc["Sort_OldestFirst"]</MudSelectItem>
-                                <MudSelectItem Value="@(Constants.SortBy.TitleAsc)">@CommonLoc["Sort_TitleAZ"]</MudSelectItem>
-                                <MudSelectItem Value="@(Constants.SortBy.SizeDesc)">@CommonLoc["Sort_LargestFirst"]</MudSelectItem>
-                            </MudSelect>
-                        </MudItem>
                         <MudItem xs="12" sm="6" md="2">
                             <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
                                 <MudIconButton Icon="@Icons.Material.Filled.GridView" 
@@ -248,7 +237,6 @@
                            CollectionId="@_selectedCollectionId"
                            SearchQuery="@_searchQuery"
                            FilterType="@_filterType"
-                           SortBy="@_sortBy"
                            ViewMode="@_viewMode"
                            UserRole="@(_selectedCollection?.UserRole ?? RoleHierarchy.Roles.Viewer)"
                            OnAssetsChanged="@OnAssetsChanged" />
@@ -267,7 +255,6 @@
 
     private string _searchQuery = "";
     private string? _filterType;
-    private string _sortBy = Constants.SortBy.CreatedDesc;
     private string _viewMode = Constants.ViewModes.Grid;
 
     // Collection browser state

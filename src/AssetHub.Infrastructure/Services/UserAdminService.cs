@@ -168,8 +168,19 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
 
             _logger.LogInformation("Admin created user '{Username}' (ID: {UserId})", username, userId);
 
-            var role = RoleHierarchy.ResolveRole(request.InitialRole);
-            await _provisioning.GrantCollectionAccessAsync(request.InitialCollectionIds, userId, role, username, ct);
+            // Assign system admin realm role if requested
+            if (request.IsSystemAdmin)
+            {
+                await _keycloakUserService.AssignRealmRoleAsync(userId, "admin", ct);
+                _logger.LogInformation("Assigned 'admin' realm role to user '{Username}'", username);
+            }
+
+            // Grant collection access (skip if system admin since they have implicit access)
+            if (!request.IsSystemAdmin && request.InitialCollectionIds.Count > 0)
+            {
+                var role = RoleHierarchy.ResolveRole(request.InitialRole);
+                await _provisioning.GrantCollectionAccessAsync(request.InitialCollectionIds, userId, role, username, ct);
+            }
 
             // Send password setup email via Keycloak (user sets their own password)
             if (!string.IsNullOrWhiteSpace(email))
@@ -192,17 +203,21 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
 
             await _audit.LogAsync("user.created", "user",
                 Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
-                new() { ["username"] = username, ["email"] = email },
+                new() { ["username"] = username, ["email"] = email, ["isSystemAdmin"] = request.IsSystemAdmin.ToString() },
                 ct);
+
+            var message = request.IsSystemAdmin
+                ? "User created as system administrator"
+                : request.InitialCollectionIds.Count > 0
+                    ? $"User created and granted {RoleHierarchy.ResolveRole(request.InitialRole)} access to {request.InitialCollectionIds.Count} collection(s)"
+                    : "User created successfully";
 
             return new CreateUserResponse
             {
                 UserId = userId,
                 Username = username,
                 Email = email,
-                Message = request.InitialCollectionIds.Count > 0
-                    ? $"User created and granted {role} access to {request.InitialCollectionIds.Count} collection(s)"
-                    : "User created successfully"
+                Message = message
             };
         }
         catch (KeycloakApiException ex)

@@ -69,6 +69,15 @@ public interface IKeycloakUserService
     /// Returns the IDs of all users who have a specific realm role (e.g. "admin").
     /// </summary>
     Task<HashSet<string>> GetRealmRoleMemberIdsAsync(string roleName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Assigns a realm role to a user.
+    /// </summary>
+    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="roleName">The realm role name (e.g., "admin").</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="KeycloakApiException">Thrown when role assignment fails.</exception>
+    Task AssignRealmRoleAsync(string userId, string roleName, CancellationToken ct = default);
 }
 
 /// <summary>

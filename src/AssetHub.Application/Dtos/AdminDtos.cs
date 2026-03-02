@@ -146,6 +146,12 @@ public record CreateUserRequest
     /// </summary>
     [RegularExpression("^(viewer|contributor|manager|admin)$", ErrorMessage = "Invalid role")]
     public string InitialRole { get; init; } = "viewer";
+
+    /// <summary>
+    /// If true, the user will be assigned the global "admin" Keycloak realm role.
+    /// When enabled, collection-level access is not needed as admins have full access.
+    /// </summary>
+    public bool IsSystemAdmin { get; init; }
 }
 
 /// <summary>

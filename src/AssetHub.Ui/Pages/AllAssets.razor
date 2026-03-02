@@ -114,19 +114,6 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="6" md="2">
-                <MudSelect T="string"
-                           Value="_sortBy"
-                           Label="@CommonLoc["Label_SortBy"]"
-                           Variant="Variant.Outlined"
-                           Margin="Margin.Dense"
-                           ValueChanged="@OnSortChanged">
-                    <MudSelectItem Value="@(Constants.SortBy.CreatedDesc)">@CommonLoc["Sort_NewestFirst"]</MudSelectItem>
-                    <MudSelectItem Value="@(Constants.SortBy.CreatedAsc)">@CommonLoc["Sort_OldestFirst"]</MudSelectItem>
-                    <MudSelectItem Value="@(Constants.SortBy.TitleAsc)">@CommonLoc["Sort_TitleAZ"]</MudSelectItem>
-                    <MudSelectItem Value="@(Constants.SortBy.SizeDesc)">@CommonLoc["Sort_LargestFirst"]</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="2">
                 <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
                     <MudIconButton Icon="@Icons.Material.Filled.GridView" 
                                    Color="@(_viewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
@@ -230,10 +217,10 @@
             <MudTable Items="@_assets" Hover="true" Dense="true" Elevation="2" Breakpoint="Breakpoint.Sm">
                 <HeaderContent>
                     <MudTh></MudTh>
-                    <MudTh>@AssetLoc["Column_Title"]</MudTh>
-                    <MudTh>@CommonLoc["Label_Type"]</MudTh>
-                    <MudTh>@AssetLoc["Column_Size"]</MudTh>
-                    <MudTh>@AssetLoc["Column_Created"]</MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.Title)">@AssetLoc["Column_Title"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.AssetType)">@CommonLoc["Label_Type"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.SizeBytes)">@AssetLoc["Column_Size"]</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<AssetResponseDto, object>(x => x.CreatedAt)">@AssetLoc["Column_Created"]</MudTableSortLabel></MudTh>
                     <MudTh Class="col-text-right">@AssetLoc["Column_Actions"]</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -261,7 +248,9 @@
                         @AssetDisplayHelpers.FormatFileSize(context.SizeBytes)
                     </MudTd>
                     <MudTd DataLabel="@AssetLoc["Column_Created"]">
-                        @context.CreatedAt.ToString("yyyy-MM-dd")
+                        <MudTooltip Text="@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")">
+                            <span>@context.CreatedAt.ToString("yyyy-MM-dd")</span>
+                        </MudTooltip>
                     </MudTd>
                     <MudTd DataLabel="@AssetLoc["Column_Actions"]" Class="col-text-right">
                         @if (CanShare(context))
@@ -314,7 +303,6 @@
     private string? _filterType;
     private Guid? _filterCollectionId;
     private Guid? _uploadCollectionId;
-    private string _sortBy = Constants.SortBy.CreatedDesc;
     private string _viewMode = Constants.ViewModes.Grid;
     private bool _showUpload = false;
     
@@ -351,7 +339,7 @@
                 _searchQuery,
                 _filterType,
                 _filterCollectionId,
-                _sortBy,
+                Constants.SortBy.CreatedDesc,
                 _skip,
                 _take);
             
@@ -379,7 +367,7 @@
                 _searchQuery,
                 _filterType,
                 _filterCollectionId,
-                _sortBy,
+                Constants.SortBy.CreatedDesc,
                 _skip,
                 _take);
             
@@ -425,12 +413,6 @@
     private async Task OnCollectionFilterChanged(Guid? value)
     {
         _filterCollectionId = value;
-        await SearchAsync();
-    }
-
-    private async Task OnSortChanged(string value)
-    {
-        _sortBy = value;
         await SearchAsync();
     }
 

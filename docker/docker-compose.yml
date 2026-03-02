@@ -23,7 +23,19 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - assethub-network
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 100
+    # Security hardening
+    user: "70:70"  # postgres user in alpine
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   minio:
     image: minio/minio:RELEASE.2025-01-20T14-49-07Z
@@ -43,7 +55,18 @@ services:
       timeout: 20s
       retries: 3
     networks:
-      - assethub-network
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 100
+    # Security hardening (minio runs as non-root internally)
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.1.0
@@ -79,7 +102,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      assethub-network:
+      backend:
         aliases:
           - keycloak.assethub.local
     healthcheck:
@@ -88,6 +111,18 @@ services:
       timeout: 5s
       retries: 10
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+          pids: 200
+    # Security hardening
+    user: "1000:1000"  # keycloak runs as UID 1000
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   api:
     build:
@@ -136,11 +171,26 @@ services:
       clamav:
         condition: service_healthy
     networks:
-      assethub-network:
+      backend:
         aliases:
           - api
           - api.assethub.local
+      observability:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+          pids: 200
+    # Security hardening
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=2G
 
   worker:
     build:
@@ -164,8 +214,23 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - assethub-network
+      - backend
+      - observability
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+          pids: 200
+    # Security hardening
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=2G
 
   mailpit:
     image: axllent/mailpit:latest
@@ -174,8 +239,19 @@ services:
       - "127.0.0.1:8025:8025"
       - "127.0.0.1:1025:1025"
     networks:
-      - assethub-network
+      - backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+          pids: 50
+    # Security hardening
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
   clamav:
@@ -188,8 +264,25 @@ services:
       retries: 3
       start_period: 300s
     networks:
-      - assethub-network
+      - backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+          pids: 100
+    # Security hardening (clamav entrypoint needs caps for setup)
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - FOWNER
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
 
   # ── Observability Stack ──────────────────────────────────────────────────────
 
@@ -204,10 +297,25 @@ services:
       - "127.0.0.1:4317:4317"     # OTLP gRPC
       - "127.0.0.1:4318:4318"     # OTLP HTTP
     networks:
-      assethub-network:
+      observability:
         aliases:
           - jaeger.assethub.local
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 100
+    # Security hardening
+    user: "10001:10001"  # jaeger user
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=50M
 
   # Prometheus - Metrics Collection
   prometheus:
@@ -224,10 +332,24 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     networks:
-      assethub-network:
+      backend:
         aliases:
           - prometheus.assethub.local
+      observability:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+          pids: 100
+    # Security hardening
+    user: "65534:65534"  # nobody user
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
 
   # Grafana - Visualization & Dashboards
   grafana:
@@ -246,10 +368,22 @@ services:
       - prometheus
       - jaeger
     networks:
-      assethub-network:
+      observability:
         aliases:
           - grafana.assethub.local
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+          pids: 100
+    # Security hardening
+    user: "472:472"  # grafana user
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   pgdata:
@@ -259,5 +393,9 @@ volumes:
   grafanadata:
 
 networks:
-  assethub-network:
+  # Backend network - database and storage services only
+  backend:
+    driver: bridge
+  # Observability network - monitoring and tracing
+  observability:
     driver: bridge

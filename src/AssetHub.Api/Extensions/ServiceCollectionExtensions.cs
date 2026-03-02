@@ -173,7 +173,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IAuditQueryService, AuditQueryService>();
         services.AddScoped<IUserSyncService, UserSyncService>();
-        services.AddScoped<IZipBuildService, ZipBuildService>();
+        // IZipBuildService registered in AddSharedInfrastructure for Worker access
         services.AddScoped<IShareService, ShareService>();
         services.AddScoped<IUserCleanupService, UserCleanupService>();
         services.AddSingleton<IMalwareScannerService, ClamAvScannerService>();

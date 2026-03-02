@@ -315,5 +315,5 @@
   <!-- Pagination -->
   <data name="Showing" xml:space="preserve"><value>Visar</value></data>
   <data name="OfTotal" xml:space="preserve"><value>av</value></data>
-  <data name="Btn_ApplyFilters" xml:space="preserve"><value>Tillämpa filter</value></data>
+  <data name="Btn_ApplyFilters" xml:space="preserve"><value>Använd filter</value></data>
 </root>

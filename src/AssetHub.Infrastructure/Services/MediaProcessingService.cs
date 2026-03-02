@@ -18,6 +18,7 @@ public class MediaProcessingService(
     IAssetRepository assetRepository,
     IMinIOAdapter minioAdapter,
     IBackgroundJobClient backgroundJobClient,
+    IAuditService auditService,
     IOptions<MinIOSettings> minioSettings,
     IOptions<ImageProcessingSettings> imageProcessingSettings,
     ILogger<MediaProcessingService> logger) : IMediaProcessingService
@@ -32,12 +33,12 @@ public class MediaProcessingService(
         if (assetType == Constants.AssetTypeFilters.Image)
         {
             logger.LogInformation("Scheduling image processing for asset {AssetId}", assetId);
-            jobId = backgroundJobClient.Enqueue(() => ProcessImageAsync(assetId, originalObjectKey, CancellationToken.None));
+            jobId = backgroundJobClient.Enqueue<MediaProcessingService>(x => x.ProcessImageAsync(assetId, originalObjectKey, CancellationToken.None));
         }
         else if (assetType == Constants.AssetTypeFilters.Video)
         {
             logger.LogInformation("Scheduling video processing for asset {AssetId}", assetId);
-            jobId = backgroundJobClient.Enqueue(() => ProcessVideoAsync(assetId, originalObjectKey, CancellationToken.None));
+            jobId = backgroundJobClient.Enqueue<MediaProcessingService>(x => x.ProcessVideoAsync(assetId, originalObjectKey, CancellationToken.None));
         }
         else
         {
@@ -141,6 +142,20 @@ public class MediaProcessingService(
         {
             logger.LogError(ex, "Image processing failed for asset {AssetId}: {Error}", assetId, ex.Message);
             
+            // Audit processing failure (critical for production monitoring)
+            await auditService.LogAsync(
+                "asset.processing_failed",
+                "asset",
+                assetId,
+                actorUserId: null, // Background job, no user context
+                new Dictionary<string, object>
+                {
+                    ["assetType"] = "image",
+                    ["error"] = ex.Message,
+                    ["errorType"] = ex.GetType().Name
+                },
+                ct);
+            
             var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset != null)
             {
@@ -197,6 +212,20 @@ public class MediaProcessingService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Video processing failed for asset {AssetId}: {Error}", assetId, ex.Message);
+            
+            // Audit processing failure (critical for production monitoring)
+            await auditService.LogAsync(
+                "asset.processing_failed",
+                "asset",
+                assetId,
+                actorUserId: null, // Background job, no user context
+                new Dictionary<string, object>
+                {
+                    ["assetType"] = "video",
+                    ["error"] = ex.Message,
+                    ["errorType"] = ex.GetType().Name
+                },
+                ct);
             
             var asset = await assetRepository.GetByIdAsync(assetId, ct);
             if (asset != null)

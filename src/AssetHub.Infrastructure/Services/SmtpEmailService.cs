@@ -91,17 +91,22 @@ public class SmtpEmailService : IEmailService
         var message = new MailMessage
         {
             From = new MailAddress(_settings.FromAddress, _settings.FromName),
-            Subject = template.Subject,
-            IsBodyHtml = true,
-            Body = template.GetHtmlBody()
+            Subject = template.Subject
         };
 
-        // Add plain text alternative for email clients that don't support HTML
+        // Add plain text alternative first (lower priority)
         var plainTextView = AlternateView.CreateAlternateViewFromString(
             template.GetPlainTextBody(),
-            null,
+            System.Text.Encoding.UTF8,
             "text/plain");
         message.AlternateViews.Add(plainTextView);
+
+        // Add HTML view (higher priority - will be displayed by clients that support it)
+        var htmlView = AlternateView.CreateAlternateViewFromString(
+            template.GetHtmlBody(),
+            System.Text.Encoding.UTF8,
+            "text/html");
+        message.AlternateViews.Add(htmlView);
 
         foreach (var recipient in recipients)
         {

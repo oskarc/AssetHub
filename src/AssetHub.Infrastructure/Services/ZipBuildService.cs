@@ -74,7 +74,7 @@ public class ZipBuildService : IZipBuildService
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);
 
-        var hangfireJobId = _jobClient.Enqueue<IZipBuildService>(svc => svc.BuildZipAsync(zipDownload.Id, CancellationToken.None));
+        var hangfireJobId = _jobClient.Enqueue<ZipBuildService>(svc => svc.BuildZipAsync(zipDownload.Id, CancellationToken.None));
         zipDownload.HangfireJobId = hangfireJobId;
         await db.SaveChangesAsync(ct);
 
@@ -109,7 +109,7 @@ public class ZipBuildService : IZipBuildService
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);
 
-        var hangfireJobId = _jobClient.Enqueue<IZipBuildService>(svc => svc.BuildZipAsync(zipDownload.Id, CancellationToken.None));
+        var hangfireJobId = _jobClient.Enqueue<ZipBuildService>(svc => svc.BuildZipAsync(zipDownload.Id, CancellationToken.None));
         zipDownload.HangfireJobId = hangfireJobId;
         await db.SaveChangesAsync(ct);
 

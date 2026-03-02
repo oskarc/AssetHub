@@ -35,13 +35,13 @@ public class ShareService(
                 return new ShareScopeValidation { ErrorMessage = "Asset not found", ErrorStatusCode = 404 };
 
             var assetCollections = await assetCollectionRepo.GetCollectionsForAssetAsync(dto.ScopeId, ct);
-            if (assetCollections.Count == 0)
-                return new ShareScopeValidation { ErrorMessage = "Cannot create share for orphan asset. Add asset to a collection first.", ErrorStatusCode = 400 };
 
+            // Allow sharing orphan assets - authorization will check system admin
             return new ShareScopeValidation
             {
                 IsValid = true,
                 CollectionIdsToCheck = assetCollections.Select(c => c.Id).ToList(),
+                IsOrphanAsset = assetCollections.Count == 0,
                 ContentName = asset.Title
             };
         }

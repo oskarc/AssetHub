@@ -548,4 +548,71 @@ public class KeycloakUserService : IKeycloakUserService
 
         return ids;
     }
+
+    /// <inheritdoc />
+    public async Task AssignRealmRoleAsync(string userId, string roleName, CancellationToken ct = default)
+    {
+        try
+        {
+            var token = await GetAdminTokenAsync(ct);
+
+            // First, get the role representation to obtain its ID
+            var getRoleUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles/{Uri.EscapeDataString(roleName)}";
+            using var getRoleRequest = new HttpRequestMessage(HttpMethod.Get, getRoleUrl);
+            getRoleRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var getRoleResponse = await _httpClient.SendAsync(getRoleRequest, ct);
+            if (!getRoleResponse.IsSuccessStatusCode)
+            {
+                var errorBody = await getRoleResponse.Content.ReadAsStringAsync(ct);
+                var error = ExtractKeycloakErrorMessage(errorBody);
+                throw new KeycloakApiException(
+                    $"Failed to get realm role '{roleName}': {error ?? getRoleResponse.ReasonPhrase}",
+                    (int)getRoleResponse.StatusCode);
+            }
+
+            var roleJson = await getRoleResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+            var roleId = roleJson.GetProperty("id").GetString();
+            var roleNameActual = roleJson.GetProperty("name").GetString();
+
+            // Assign the role to the user
+            var assignUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users/{userId}/role-mappings/realm";
+            var rolePayload = new[]
+            {
+                new { id = roleId, name = roleNameActual }
+            };
+
+            using var assignRequest = new HttpRequestMessage(HttpMethod.Post, assignUrl);
+            assignRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            assignRequest.Content = JsonContent.Create(rolePayload);
+
+            using var assignResponse = await _httpClient.SendAsync(assignRequest, ct);
+            if (!assignResponse.IsSuccessStatusCode)
+            {
+                var errorBody = await assignResponse.Content.ReadAsStringAsync(ct);
+                var error = ExtractKeycloakErrorMessage(errorBody);
+                throw new KeycloakApiException(
+                    $"Failed to assign realm role '{roleName}' to user: {error ?? assignResponse.ReasonPhrase}",
+                    (int)assignResponse.StatusCode);
+            }
+
+            _logger.LogInformation("Assigned realm role '{Role}' to user {UserId}", roleName, userId);
+        }
+        catch (KeycloakApiException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new KeycloakApiException($"Network error assigning realm role: {ex.Message}", 0, ex);
+        }
+        catch (SocketException ex)
+        {
+            throw new KeycloakApiException($"Connection error assigning realm role: {ex.Message}", 0, ex);
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            throw new KeycloakApiException($"Timeout assigning realm role: {ex.Message}", 0, ex);
+        }
+    }
 }

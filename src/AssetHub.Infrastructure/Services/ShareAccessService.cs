@@ -238,14 +238,24 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
                 : ServiceError.BadRequest(validation.ErrorMessage!);
         }
 
-        // User must have Contributor access to at least one of the asset's collections
+        // Authorization for sharing:
+        // - Orphan assets: Only system admins (they're the only ones who can access the orphans page)
+        // - Assets in collections / Collections: Require Manager role on at least one collection
         var hasAccess = false;
-        foreach (var collectionId in validation.CollectionIdsToCheck)
+        if (validation.IsOrphanAsset)
         {
-            if (await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct))
+            // Orphan asset: only system admins can share
+            hasAccess = _currentUser.IsSystemAdmin;
+        }
+        else
+        {
+            foreach (var collectionId in validation.CollectionIdsToCheck)
             {
-                hasAccess = true;
-                break;
+                if (await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Manager, ct))
+                {
+                    hasAccess = true;
+                    break;
+                }
             }
         }
         if (!hasAccess)

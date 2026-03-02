@@ -119,7 +119,11 @@ public static class InfrastructureServiceExtensions
             var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
             return new MinIOAdapter(internalClient, publicClient, adapterLogger, cache, pipelineProvider);
         });
-        services.AddScoped<IMediaProcessingService, MediaProcessingService>();
+        // Register concrete type for Hangfire job resolution, then forward the interface to it
+        services.AddScoped<MediaProcessingService>();
+        services.AddScoped<IMediaProcessingService>(sp => sp.GetRequiredService<MediaProcessingService>());
+        services.AddScoped<ZipBuildService>();
+        services.AddScoped<IZipBuildService>(sp => sp.GetRequiredService<ZipBuildService>());
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
 
         return services;

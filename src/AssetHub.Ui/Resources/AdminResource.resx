@@ -161,7 +161,8 @@
   <data name="SyncCompleted" xml:space="preserve"><value>Sync complete: cleaned up {0} deleted user(s), removed {1} ACL(s) and revoked {2} share(s)</value></data>
 
   <!-- Admin Role -->
-  <data name="AdminImplicitAccess" xml:space="preserve"><value>System admins have implicit access to all collections via their role</value></data>
+  <data name="MakeAdministrator" xml:space="preserve"><value>Make system administrator</value></data>
+  <data name="AdminImplicitAccess" xml:space="preserve"><value>System administrators have full access to all collections. No collection selection needed.</value></data>
 
   <!-- Audit Pagination -->
   <data name="LoadMore" xml:space="preserve"><value>Load More</value></data>

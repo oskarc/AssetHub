@@ -31,8 +31,13 @@ public class ShareScopeValidation
     /// <summary>
     /// For asset scope: all collection IDs the asset belongs to (user needs access to ANY).
     /// For collection scope: the single collection ID.
+    /// Empty if asset is orphan (not in any collection).
     /// </summary>
     public List<Guid> CollectionIdsToCheck { get; set; } = new();
+    /// <summary>
+    /// True when the asset is orphan (not in any collection).
+    /// </summary>
+    public bool IsOrphanAsset { get; set; }
     public string? ContentName { get; set; }
     public string? ErrorMessage { get; set; }
     public int? ErrorStatusCode { get; set; }

@@ -33,9 +33,10 @@ public class ShareCreatedEmailTemplate : EmailTemplateBase
 
     protected override string GetContentHtml()
     {
+        var article = StartsWithVowelSound(_contentType) ? "an" : "a";
         var greeting = !string.IsNullOrEmpty(_senderName)
-            ? $"<p><strong>{EscapeHtml(_senderName)}</strong> has shared a {_contentType} with you!</p>"
-            : $"<p>Someone has shared a {_contentType} with you!</p>";
+            ? $"<p><strong>{EscapeHtml(_senderName)}</strong> has shared {article} {_contentType} with you!</p>"
+            : $"<p>Someone has shared {article} {_contentType} with you!</p>";
 
         var expiryInfo = _expiresAt.HasValue
             ? $@"<p style=""color: #666; font-size: 14px;"">
@@ -74,9 +75,10 @@ public class ShareCreatedEmailTemplate : EmailTemplateBase
 
     protected override string GetContentPlainText()
     {
+        var article = StartsWithVowelSound(_contentType) ? "an" : "a";
         var greeting = !string.IsNullOrEmpty(_senderName)
-            ? $"{_senderName} has shared a {_contentType} with you!"
-            : $"Someone has shared a {_contentType} with you!";
+            ? $"{_senderName} has shared {article} {_contentType} with you!"
+            : $"Someone has shared {article} {_contentType} with you!";
 
         var expiryInfo = _expiresAt.HasValue
             ? $"\nNote: This link will expire on {_expiresAt.Value.ToLocalTime():MMMM d, yyyy 'at' h:mm tt}."
@@ -98,5 +100,12 @@ Keep this password secure. You'll need it to access the shared content.
 {expiryInfo}
 
 If you weren't expecting this email, you can safely ignore it.";
+    }
+
+    private static bool StartsWithVowelSound(string word)
+    {
+        if (string.IsNullOrEmpty(word)) return false;
+        var firstChar = char.ToLowerInvariant(word[0]);
+        return firstChar is 'a' or 'e' or 'i' or 'o' or 'u';
     }
 }

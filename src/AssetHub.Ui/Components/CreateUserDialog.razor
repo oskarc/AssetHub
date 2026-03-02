@@ -83,8 +83,19 @@
                         </MudItem>
                     </MudGrid>
 
-                    @* Optional: Initial Collection Access *@
-                    @if (_collections != null && _collections.Any())
+                    @* Global Administrator *@
+                    <MudDivider Class="my-1" />
+                    <MudCheckBox @bind-Value="_model.IsSystemAdmin" Label="@AdminLoc["MakeAdministrator"]"
+                                 Color="Color.Primary" Dense="true" />
+                    @if (_model.IsSystemAdmin)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-n2">
+                            @AdminLoc["AdminImplicitAccess"]
+                        </MudAlert>
+                    }
+
+                    @* Optional: Initial Collection Access (hidden for system admins) *@
+                    @if (!_model.IsSystemAdmin && _collections != null && _collections.Any())
                     {
                         <MudDivider Class="my-1" />
                         <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">
@@ -96,7 +107,6 @@
                             <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
                             <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
                             <MudSelectItem Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
-                            <MudSelectItem Value="@RoleHierarchy.Roles.Admin">@CommonLoc["Role_Admin"]</MudSelectItem>
                         </MudSelect>
 
                         <MudSelect T="Guid" MultiSelection="true" @bind-SelectedValues="_selectedCollectionIds"
@@ -195,8 +205,9 @@
                 Email = _model.Email.Trim(),
                 FirstName = _model.FirstName.Trim(),
                 LastName = _model.LastName.Trim(),
-                InitialCollectionIds = _selectedCollectionIds.ToList(),
-                InitialRole = _model.InitialRole
+                InitialCollectionIds = _model.IsSystemAdmin ? [] : _selectedCollectionIds.ToList(),
+                InitialRole = _model.InitialRole,
+                IsSystemAdmin = _model.IsSystemAdmin
             };
 
             _createdUser = await Api.CreateUserAsync(request);
@@ -232,5 +243,6 @@
         public string FirstName { get; set; } = "";
         public string LastName { get; set; } = "";
         public string InitialRole { get; set; } = "viewer";
+        public bool IsSystemAdmin { get; set; }
     }
 }
