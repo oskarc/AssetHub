@@ -15,6 +15,11 @@ public class Share
     public DateTime ExpiresAt { get; set; }
     public DateTime? RevokedAt { get; set; }
     public string? PasswordHash { get; set; }
+    /// <summary>
+    /// Encrypted plaintext password stored so admins can retrieve it when necessary.
+    /// This is protected using the ASP.NET Core Data Protection APIs and should only be readable by admins.
+    /// </summary>
+    public string? PasswordEncrypted { get; set; }
     public DateTime CreatedAt { get; set; }
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime? LastAccessedAt { get; set; }

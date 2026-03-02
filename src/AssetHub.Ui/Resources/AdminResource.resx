@@ -73,6 +73,7 @@
   <data name="Event_user.access_granted" xml:space="preserve"><value>User Access Granted</value></data>
   <data name="Event_user.cleanup" xml:space="preserve"><value>User Data Cleaned Up</value></data>
   <data name="Event_user.sync.cleanup" xml:space="preserve"><value>User Sync Cleanup</value></data>
+  <data name="Event_user.password_reset_email" xml:space="preserve"><value>Password Reset Email Sent</value></data>
 
   <!-- Share Management -->
   <data name="AllSharedLinks" xml:space="preserve"><value>All Shared Links</value></data>

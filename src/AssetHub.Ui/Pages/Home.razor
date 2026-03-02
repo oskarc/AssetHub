@@ -363,21 +363,15 @@
         await DialogService.ShowAsync<ShareInfoDialog>(Loc["Dashboard_ShareDetails"], parameters);
     }
 
-    private Color GetShareStatusColor(string status) => status switch
-    {
-        "active" => Color.Success,
-        "expired" => Color.Warning,
-        "revoked" => Color.Error,
-        _ => Color.Default
-    };
+    private Color GetShareStatusColor(string status) => status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase) ? Color.Success
+        : status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase) ? Color.Warning
+        : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Color.Error
+        : Color.Default;
 
-    private string GetShareStatusLabel(string status) => status switch
-    {
-        "active" => Loc["Dashboard_ShareActive"].Value,
-        "expired" => Loc["Dashboard_ShareExpired"].Value,
-        "revoked" => Loc["Dashboard_ShareRevoked"].Value,
-        _ => status
-    };
+    private string GetShareStatusLabel(string status) => status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareActive"].Value
+        : status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareExpired"].Value
+        : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareRevoked"].Value
+        : status;
 
     private Color GetAuditEventColor(string eventType)
     {

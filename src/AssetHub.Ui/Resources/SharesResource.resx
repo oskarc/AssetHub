@@ -66,7 +66,8 @@
   <!-- Share Password Dialog -->
   <data name="SharePassword" xml:space="preserve"><value>Share Password</value></data>
   <data name="ManagePasswordDesc" xml:space="preserve"><value>Manage the password for this shared {0}: </value></data>
-  <data name="NewPasswordHelper" xml:space="preserve"><value>Enter a new password for this share.</value></data>
+  <data name="NewPasswordHelper" xml:space="preserve"><value>Enter a password or click Generate New.</value></data>
+  <data name="CurrentPasswordHelperText" xml:space="preserve"><value>Edit to change, or click Generate New.</value></data>
   <data name="PasswordUpdateWarning" xml:space="preserve"><value>Updating the password will require all users to use the new password to access the share.</value></data>
   <data name="UpdatePassword" xml:space="preserve"><value>Update Password</value></data>
 
@@ -78,4 +79,6 @@
   <data name="GenerateShareUrl" xml:space="preserve"><value>Generate Share URL</value></data>
   <data name="SetOrChangePassword" xml:space="preserve"><value>Set or Change Password</value></data>
   <data name="ShareInfoCopyHint" xml:space="preserve"><value>Copy the URL and password before closing this dialog.</value></data>
+  <data name="PasswordSetButHidden" xml:space="preserve"><value>Password exists but cannot be retrieved (legacy share). Click below to set a new one.</value></data>
+  <data name="CurrentPasswordNotAvailable" xml:space="preserve"><value>The current password cannot be retrieved (created before password storage was enabled). Set a new password to continue.</value></data>
 </root>

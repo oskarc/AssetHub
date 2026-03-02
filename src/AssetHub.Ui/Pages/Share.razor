@@ -6,6 +6,7 @@
 
 @using AssetHub.Ui.Services
 @using AssetHub.Ui.Components
+@using AssetHub.Application
 @using System.Net.Http.Json
 @using Microsoft.Extensions.Logging
 
@@ -286,13 +287,13 @@
                 catch { /* not an error response */ }
 
                 // Handle revoked/expired shares before password logic
-                if (errorCode == "SHARE_REVOKED")
+                if (errorCode == Constants.ShareErrorCodes.Revoked)
                 {
                     _errorMessage = ShareLoc["LinkRevoked"].Value;
                     _isLoading = false;
                     return;
                 }
-                if (errorCode == "SHARE_EXPIRED")
+                if (errorCode == Constants.ShareErrorCodes.Expired)
                 {
                     _errorMessage = ShareLoc["LinkExpired"].Value;
                     _isLoading = false;
@@ -346,8 +347,8 @@
 
                 _errorMessage = errorCode switch
                 {
-                    "SHARE_EXPIRED" => ShareLoc["LinkExpired"].Value,
-                    "SHARE_REVOKED" => ShareLoc["LinkRevoked"].Value,
+                    Constants.ShareErrorCodes.Expired => ShareLoc["LinkExpired"].Value,
+                    Constants.ShareErrorCodes.Revoked => ShareLoc["LinkRevoked"].Value,
                     _ when response.StatusCode == System.Net.HttpStatusCode.NotFound => ShareLoc["InvalidOrRemoved"].Value,
                     _ => ShareLoc["ErrorLoading"].Value
                 };

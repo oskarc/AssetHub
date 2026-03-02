@@ -36,22 +36,23 @@ public static class ShareHelpers
     public static string GetShareStatus(DateTime? revokedAt, DateTime? expiresAt)
     {
         if (revokedAt.HasValue)
-            return "Revoked";
+            return Constants.ShareStatus.Revoked;
         if (expiresAt < DateTime.UtcNow)
-            return "Expired";
-        return "Active";
+            return Constants.ShareStatus.Expired;
+        return Constants.ShareStatus.Active;
     }
 
     /// <summary>
-    /// Validates a share's accessibility. Returns an error message or null if valid.
+    /// Validates a share's accessibility. Returns an error code or null if valid.
+    /// Error codes: Constants.ShareErrorCodes.Revoked, Constants.ShareErrorCodes.Expired
     /// Does NOT check password — that must be done separately.
     /// </summary>
     public static string? ValidateShareAccess(DateTime? revokedAt, DateTime? expiresAt)
     {
         if (revokedAt.HasValue)
-            return "This share link has been revoked";
+            return Constants.ShareErrorCodes.Revoked;
         if (expiresAt < DateTime.UtcNow)
-            return "This share link has expired";
+            return Constants.ShareErrorCodes.Expired;
         return null;
     }
 }

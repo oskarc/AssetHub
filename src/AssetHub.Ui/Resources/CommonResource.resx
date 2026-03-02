@@ -114,6 +114,7 @@
   <data name="Label_Expires" xml:space="preserve"><value>Expires</value></data>
   <data name="Label_ShareUrl" xml:space="preserve"><value>Share URL</value></data>
   <data name="Label_NewPassword" xml:space="preserve"><value>New Password</value></data>
+  <data name="Label_CurrentPassword" xml:space="preserve"><value>Current Password</value></data>
   <data name="Label_Build" xml:space="preserve"><value>Build:</value></data>
   <data name="Label_Environment" xml:space="preserve"><value>Environment:</value></data>
 

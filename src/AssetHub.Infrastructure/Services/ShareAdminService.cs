@@ -110,6 +110,34 @@ public class ShareAdminService : IShareAdminService
         }
     }
 
+    public async Task<ServiceResult<SharePasswordResponse>> GetSharePasswordAsync(Guid shareId, CancellationToken ct)
+    {
+        var share = await _shareRepo.GetByIdAsync(shareId, ct);
+        if (share == null)
+            return ServiceError.NotFound("Share not found");
+
+        if (string.IsNullOrEmpty(share.PasswordEncrypted))
+            return ServiceError.NotFound("Share password not available — this share was created before password encryption was enabled, or has no password set");
+
+        try
+        {
+            var protector = _dataProtection.CreateProtector(Constants.DataProtection.SharePasswordProtector);
+            var protectedBytes = Convert.FromBase64String(share.PasswordEncrypted);
+            var password = System.Text.Encoding.UTF8.GetString(protector.Unprotect(protectedBytes));
+            return new SharePasswordResponse { Password = password };
+        }
+        catch (System.Security.Cryptography.CryptographicException ex)
+        {
+            _logger.LogError(ex, "Failed to decrypt share password for share {ShareId}. Data Protection keys may have been rotated.", shareId);
+            return ServiceError.Server("Unable to decrypt share password — encryption keys may have changed");
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogError(ex, "Corrupted PasswordEncrypted data for share {ShareId}", shareId);
+            return ServiceError.Server("Share password data is corrupted");
+        }
+    }
+
     public async Task<ServiceResult> AdminRevokeShareAsync(Guid shareId, CancellationToken ct)
     {
         var share = await _shareRepo.GetByIdAsync(shareId, ct);

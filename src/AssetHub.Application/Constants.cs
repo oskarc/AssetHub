@@ -37,6 +37,7 @@ public static class Constants
     {
         public const string ShareTokenProtector = "ShareTokenProtector";
         public const string ShareAccessTokenProtector = "ShareAccessTokenProtector";
+        public const string SharePasswordProtector = "SharePasswordProtector";
     }
 
     /// <summary>
@@ -90,6 +91,25 @@ public static class Constants
     {
         public const string Pending = "pending";
         public const string Building = "building";
+    }
+
+    /// <summary>
+    /// Share link status values.
+    /// </summary>
+    public static class ShareStatus
+    {
+        public const string Active = "Active";
+        public const string Expired = "Expired";
+        public const string Revoked = "Revoked";
+    }
+
+    /// <summary>
+    /// API error codes for share link access errors.
+    /// </summary>
+    public static class ShareErrorCodes
+    {
+        public const string Expired = "SHARE_EXPIRED";
+        public const string Revoked = "SHARE_REVOKED";
     }
 
     /// <summary>

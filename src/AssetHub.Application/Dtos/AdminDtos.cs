@@ -178,6 +178,14 @@ public record ShareTokenResponse
 }
 
 /// <summary>
+/// Response containing a decrypted share password (admin only).
+/// </summary>
+public record SharePasswordResponse
+{
+    public required string Password { get; init; }
+}
+
+/// <summary>
 /// Response from deleting a user.
 /// </summary>
 public record DeleteUserResponse

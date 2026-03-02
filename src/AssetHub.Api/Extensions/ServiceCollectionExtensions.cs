@@ -257,6 +257,7 @@ public static class ServiceCollectionExtensions
 
         // ── UI Services ─────────────────────────────────────────────────────
         services.AddScoped<AssetHub.Ui.Services.IUserFeedbackService, AssetHub.Ui.Services.UserFeedbackService>();
+        services.AddScoped<AssetHub.Ui.Services.LocalStorageService>();
         services.AddTransient<AssetHub.Ui.Services.CookieForwardingHandler>();
 
         var connectionString = configuration.GetConnectionString("Postgres");

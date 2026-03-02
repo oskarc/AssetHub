@@ -23,6 +23,7 @@ public static class AdminEndpoints
         // ===== SHARE MANAGEMENT =====
         group.MapGet("/shares", GetAllShares).WithName("GetAllShares");
         group.MapGet("/shares/{id:guid}/token", GetShareToken).WithName("AdminGetShareToken");
+        group.MapGet("/shares/{id:guid}/password", GetSharePassword).WithName("AdminGetSharePassword");
         group.MapDelete("/shares/{id:guid}", RevokeShare).DisableAntiforgery().WithName("AdminRevokeShare");
 
         // ===== COLLECTION ACCESS MANAGEMENT =====
@@ -58,6 +59,13 @@ public static class AdminEndpoints
         Guid id, [FromServices] IShareAdminService svc, CancellationToken ct)
     {
         var result = await svc.GetShareTokenAsync(id, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetSharePassword(
+        Guid id, [FromServices] IShareAdminService svc, CancellationToken ct)
+    {
+        var result = await svc.GetSharePasswordAsync(id, ct);
         return result.ToHttpResult();
     }
 

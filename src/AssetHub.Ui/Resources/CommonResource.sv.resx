@@ -111,6 +111,7 @@
   <data name="Label_Expires" xml:space="preserve"><value>Utgår</value></data>
   <data name="Label_ShareUrl" xml:space="preserve"><value>Dellänk</value></data>
   <data name="Label_NewPassword" xml:space="preserve"><value>Nytt lösenord</value></data>
+  <data name="Label_CurrentPassword" xml:space="preserve"><value>Nuvarande lösenord</value></data>
   <data name="Label_Build" xml:space="preserve"><value>Bygge:</value></data>
   <data name="Label_Environment" xml:space="preserve"><value>Miljö:</value></data>
 

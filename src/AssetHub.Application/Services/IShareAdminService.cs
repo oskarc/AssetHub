@@ -13,6 +13,9 @@ public interface IShareAdminService
     /// <summary>Retrieve the decrypted plaintext token for a share.</summary>
     Task<ServiceResult<ShareTokenResponse>> GetShareTokenAsync(Guid shareId, CancellationToken ct);
 
+    /// <summary>Retrieve the decrypted plaintext password for a share (admin only).</summary>
+    Task<ServiceResult<SharePasswordResponse>> GetSharePasswordAsync(Guid shareId, CancellationToken ct);
+
     /// <summary>Revoke a share (admin override — no ownership check).</summary>
     Task<ServiceResult> AdminRevokeShareAsync(Guid shareId, CancellationToken ct);
 }

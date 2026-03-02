@@ -66,7 +66,8 @@
   <!-- Share Password Dialog -->
   <data name="SharePassword" xml:space="preserve"><value>Delningslösenord</value></data>
   <data name="ManagePasswordDesc" xml:space="preserve"><value>Hantera lösenordet för denna delade {0}: </value></data>
-  <data name="NewPasswordHelper" xml:space="preserve"><value>Ange ett nytt lösenord för denna delning.</value></data>
+  <data name="NewPasswordHelper" xml:space="preserve"><value>Ange ett lösenord eller klicka Generera nytt.</value></data>
+  <data name="CurrentPasswordHelperText" xml:space="preserve"><value>Redigera för att ändra, eller klicka Generera nytt.</value></data>
   <data name="PasswordUpdateWarning" xml:space="preserve"><value>Uppdatering av lösenordet kräver att alla användare använder det nya lösenordet för att komma åt delningen.</value></data>
   <data name="UpdatePassword" xml:space="preserve"><value>Uppdatera lösenord</value></data>
 
@@ -78,4 +79,6 @@
   <data name="GenerateShareUrl" xml:space="preserve"><value>Generera dellänk</value></data>
   <data name="SetOrChangePassword" xml:space="preserve"><value>Ange eller ändra lösenord</value></data>
   <data name="ShareInfoCopyHint" xml:space="preserve"><value>Kopiera URL och lösenord innan du stänger denna dialog.</value></data>
+  <data name="PasswordSetButHidden" xml:space="preserve"><value>Lösenord finns men kan inte hämtas (legacy-delning). Klicka nedan för att ange ett nytt.</value></data>
+  <data name="CurrentPasswordNotAvailable" xml:space="preserve"><value>Det nuvarande lösenordet kan inte hämtas (skapat innan lösenordslagring aktiverades). Ange ett nytt lösenord för att fortsätta.</value></data>
 </root>

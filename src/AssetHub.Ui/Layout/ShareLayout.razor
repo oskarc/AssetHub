@@ -1,8 +1,7 @@
 @inherits LayoutComponentBase
 @inject IStringLocalizer<CommonResource> CommonLoc
-@inject IJSRuntime JS
+@inject LocalStorageService LocalStorage
 @inject IHttpContextAccessor HttpContextAccessor
-@implements IAsyncDisposable
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -36,7 +35,6 @@
 @code {
     private bool _isDarkMode = true;
     private MudTheme? _theme = null;
-    private IJSObjectReference? _jsModule;
 
     protected override void OnInitialized()
     {
@@ -61,13 +59,12 @@
     {
         if (firstRender)
         {
-            _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AssetHub.Ui/js/helpers.js");
-            var stored = await _jsModule.InvokeAsync<string?>("getLocalStorage", "darkMode");
+            var stored = await LocalStorage.GetAsync("darkMode");
             if (stored != null)
             {
                 _isDarkMode = stored == "true";
                 // Sync cookie with localStorage value so next SSR uses correct theme
-                await _jsModule.InvokeVoidAsync("setCookie", "darkMode", stored, 31536000);
+                await LocalStorage.SetWithCookieAsync("darkMode", stored);
                 StateHasChanged();
             }
         }
@@ -76,12 +73,7 @@
     private async Task DarkModeToggle()
     {
         _isDarkMode = !_isDarkMode;
-        if (_jsModule != null)
-        {
-            var val = _isDarkMode.ToString().ToLowerInvariant();
-            await _jsModule.InvokeVoidAsync("setLocalStorage", "darkMode", val);
-            await _jsModule.InvokeVoidAsync("setCookie", "darkMode", val, 31536000);
-        }
+        await LocalStorage.SetBoolWithCookieAsync("darkMode", _isDarkMode);
     }
 
     private readonly PaletteLight _lightPalette = new()
@@ -131,12 +123,4 @@
         true => Icons.Material.Rounded.AutoMode,
         false => Icons.Material.Outlined.DarkMode,
     };
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_jsModule != null)
-        {
-            await _jsModule.DisposeAsync();
-        }
-    }
 }

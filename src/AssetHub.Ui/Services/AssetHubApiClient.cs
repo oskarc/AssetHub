@@ -429,6 +429,20 @@ public class AssetHubApiClient
     }
 
     /// <summary>
+    /// Retrieves the plaintext password for a share if available (admin-only).
+    /// Returns empty string when the share predates password encryption or has no password.
+    /// </summary>
+    public virtual async Task<string?> GetSharePasswordAsync(Guid shareId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/admin/shares/{shareId}/password", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+        await EnsureSuccessAsync(response, "Get share password");
+        var dto = await response.Content.ReadFromJsonAsync<SharePasswordResponse>(cancellationToken: ct);
+        return dto?.Password;
+    }
+
+    /// <summary>
     /// Revokes a share link (user-level, for own shares).
     /// </summary>
     public virtual async Task RevokeShareAsync(Guid id, CancellationToken ct = default)

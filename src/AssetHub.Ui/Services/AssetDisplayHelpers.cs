@@ -153,9 +153,9 @@ public static class AssetDisplayHelpers
     {
         return status switch
         {
-            "Active" => MudBlazor.Color.Success,
-            "Expired" => MudBlazor.Color.Warning,
-            "Revoked" => MudBlazor.Color.Error,
+            Constants.ShareStatus.Active => MudBlazor.Color.Success,
+            Constants.ShareStatus.Expired => MudBlazor.Color.Warning,
+            Constants.ShareStatus.Revoked => MudBlazor.Color.Error,
             _ => MudBlazor.Color.Default
         };
     }
@@ -166,9 +166,9 @@ public static class AssetDisplayHelpers
     /// </summary>
     public static string GetShareStatusKey(string? status) => status switch
     {
-        "Active" => "Active",
-        "Expired" => "Expired",
-        "Revoked" => "Revoked",
+        Constants.ShareStatus.Active => Constants.ShareStatus.Active,
+        Constants.ShareStatus.Expired => Constants.ShareStatus.Expired,
+        Constants.ShareStatus.Revoked => Constants.ShareStatus.Revoked,
         _ => status ?? ""
     };
 

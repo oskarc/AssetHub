@@ -5,6 +5,7 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject LocalStorageService LocalStorage
 
 <MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["AllSharedLinks"]</MudText>
 
@@ -26,9 +27,9 @@ else
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                 IconSize="Size.Medium" Class="mt-0" Immediate="true" />
             <MudSpacer />
-            <MudChip T="string" Color="Color.Success" Size="Size.Small">@AdminLoc["Active"]: @_shares.Count(s => s.Status == "Active")</MudChip>
-            <MudChip T="string" Color="Color.Warning" Size="Size.Small">@AdminLoc["Expired"]: @_shares.Count(s => s.Status == "Expired")</MudChip>
-            <MudChip T="string" Color="Color.Error" Size="Size.Small">@AdminLoc["Revoked"]: @_shares.Count(s => s.Status == "Revoked")</MudChip>
+            <MudChip T="string" Color="@(_showActive ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleActive" Style="cursor: pointer;">@AdminLoc["Active"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Active)</MudChip>
+            <MudChip T="string" Color="@(_showExpired ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleExpired" Style="cursor: pointer;">@AdminLoc["Expired"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Expired)</MudChip>
+            <MudChip T="string" Color="@(_showRevoked ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleRevoked" Style="cursor: pointer;">@AdminLoc["Revoked"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Revoked)</MudChip>
         </ToolBarContent>
         <HeaderContent>
             <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeType)">@CommonLoc["Label_Type"]</MudTableSortLabel></MudTh>
@@ -69,20 +70,13 @@ else
                 </MudChip>
             </MudTd>
             <MudTd>
-                @if (context.Status == "Active")
+                @if (context.Status == Constants.ShareStatus.Active)
                 {
                     <MudStack Row="true" Spacing="1">
                         <MudTooltip Text="@AdminLoc["ShowShareInfo"]">
                             <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"
                                 OnClick="@(() => ShowShareInfo(context))" />
                         </MudTooltip>
-                        @if (context.HasPassword)
-                        {
-                            <MudTooltip Text="@AdminLoc["EditPassword"]">
-                                <MudIconButton Icon="@Icons.Material.Filled.Key" Color="Color.Primary" Size="Size.Small"
-                                    OnClick="@(() => EditSharePassword(context))" />
-                            </MudTooltip>
-                        }
                         <MudTooltip Text="@AdminLoc["RevokeShare"]">
                             <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
                                 OnClick="@(() => RevokeShare(context))" />
@@ -123,10 +117,29 @@ else
     private string _shareSearchString = "";
     private int _totalCount;
     private bool _hasMore;
+    private bool _showActive = true;
+    private bool _showExpired = true;
+    private bool _showRevoked = true;
+
+    private const string StorageKeyActive = "adminShares_showActive";
+    private const string StorageKeyExpired = "adminShares_showExpired";
+    private const string StorageKeyRevoked = "adminShares_showRevoked";
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync(reset: true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _showActive = await LocalStorage.GetBoolAsync(StorageKeyActive, true);
+            _showExpired = await LocalStorage.GetBoolAsync(StorageKeyExpired, true);
+            _showRevoked = await LocalStorage.GetBoolAsync(StorageKeyRevoked, true);
+            
+            StateHasChanged();
+        }
     }
 
     public async Task RefreshAsync()
@@ -172,28 +185,23 @@ else
 
     private bool ShareFilter(AdminShareDto share)
     {
+        // Status filter
+        var statusMatch = share.Status switch
+        {
+            Constants.ShareStatus.Active => _showActive,
+            Constants.ShareStatus.Expired => _showExpired,
+            Constants.ShareStatus.Revoked => _showRevoked,
+            _ => true
+        };
+        if (!statusMatch) return false;
+
+        // Text search filter
         if (string.IsNullOrWhiteSpace(_shareSearchString))
             return true;
 
         return share.ScopeName.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase)
             || share.CreatedByUserName.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase)
             || share.Status.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private async Task EditSharePassword(AdminShareDto share)
-    {
-        var parameters = new DialogParameters<SharePasswordDialog>
-        {
-            { x => x.Share, share }
-        };
-
-        var dialog = await DialogService.ShowAsync<SharePasswordDialog>(AdminLoc["EditSharePassword"], parameters);
-        var result = await dialog.Result;
-
-        if (result != null && !result.Canceled)
-        {
-            await LoadAsync(reset: true);
-        }
     }
 
     private async Task RevokeShare(AdminShareDto share)
@@ -233,5 +241,28 @@ else
         {
             await LoadAsync(reset: true);
         }
+    }
+
+    private async Task ToggleActive()
+    {
+        _showActive = !_showActive;
+        await SaveFilterState(StorageKeyActive, _showActive);
+    }
+
+    private async Task ToggleExpired()
+    {
+        _showExpired = !_showExpired;
+        await SaveFilterState(StorageKeyExpired, _showExpired);
+    }
+
+    private async Task ToggleRevoked()
+    {
+        _showRevoked = !_showRevoked;
+        await SaveFilterState(StorageKeyRevoked, _showRevoked);
+    }
+
+    private async Task SaveFilterState(string key, bool value)
+    {
+        await LocalStorage.SetBoolAsync(key, value);
     }
 }

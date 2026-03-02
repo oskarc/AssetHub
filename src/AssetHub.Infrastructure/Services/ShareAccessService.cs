@@ -128,9 +128,13 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
 
         await _shareRepo.IncrementAccessAsync(share.Id, ct);
 
+        // Build friendly download filename from asset title
+        var ext = Path.GetExtension(targetAsset.OriginalObjectKey);
+        var downloadFileName = $"{targetAsset.Title}{ext}";
+
         var presignedUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
             _bucketName, targetAsset.OriginalObjectKey,
-            Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, null, ct);
+            Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, downloadFileName, ct);
 
         return presignedUrl;
     }
@@ -306,6 +310,12 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
             return ServiceError.BadRequest(pwError);
 
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+        
+        // Store encrypted password so admins can retrieve it later
+        var protector = _dataProtection.CreateProtector(Constants.DataProtection.SharePasswordProtector);
+        var protectedBytes = protector.Protect(System.Text.Encoding.UTF8.GetBytes(password));
+        share.PasswordEncrypted = Convert.ToBase64String(protectedBytes);
+        
         await _shareRepo.UpdateAsync(share, ct);
 
         await _audit.LogAsync("share.password_updated", "share", shareId, userId,
@@ -328,9 +338,9 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
         var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
         if (accessError != null)
         {
-            var error = share.RevokedAt.HasValue
-                ? ServiceError.ShareRevoked(accessError)
-                : ServiceError.ShareExpired(accessError);
+            var error = accessError == Constants.ShareErrorCodes.Revoked
+                ? ServiceError.ShareRevoked()
+                : ServiceError.ShareExpired();
             return (null, error);
         }
 

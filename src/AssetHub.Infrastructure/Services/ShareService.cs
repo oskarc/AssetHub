@@ -107,6 +107,11 @@ public class ShareService(
         var protectedBytes = protector.Protect(System.Text.Encoding.UTF8.GetBytes(token));
         var protectedToken = Convert.ToBase64String(protectedBytes);
 
+        // Also encrypt the password so admins can retrieve it later
+        var passwordProtector = dataProtection.CreateProtector(Constants.DataProtection.SharePasswordProtector);
+        var protectedPasswordBytes = passwordProtector.Protect(System.Text.Encoding.UTF8.GetBytes(plainPassword));
+        var protectedPassword = Convert.ToBase64String(protectedPasswordBytes);
+
         var share = new Share
         {
             Id = Guid.NewGuid(),
@@ -118,7 +123,8 @@ public class ShareService(
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = userId,
             PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword)
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
+            PasswordEncrypted = protectedPassword
         };
 
         await shareRepository.CreateAsync(share, ct);

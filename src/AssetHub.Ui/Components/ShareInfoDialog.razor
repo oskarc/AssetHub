@@ -52,7 +52,18 @@
 
             @if (!string.IsNullOrEmpty(SharePassword))
             {
-                <MudTextField @bind-Value="SharePassword" Label="@ShareLoc["SharePassword"]" ReadOnly="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy" OnAdornmentClick="CopyPassword" />
+                <MudTextField T="string" Value="@SharePassword" 
+                              Label="@ShareLoc["SharePassword"]" 
+                              ReadOnly="true" 
+                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                              Adornment="Adornment.End" 
+                              AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" 
+                              OnAdornmentClick="TogglePasswordVisibility" />
+                <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyPassword">@CommonLoc["Btn_CopyPassword"]</MudButton>
+            }
+            else if (Share.HasPassword)
+            {
+                <MudTextField T="string" Value="@_passwordPlaceholder" Label="@ShareLoc["SharePassword"]" ReadOnly="true" HelperText="@ShareLoc["PasswordSetButHidden"]" />
             }
 
             <MudStack Row="true" Spacing="2">
@@ -83,6 +94,10 @@
     public string SharePassword { get; set; } = string.Empty;
 
     private bool _isLoading = true;
+    private bool _showPassword = false;
+    private const string _passwordPlaceholder = "********";
+
+    private void TogglePasswordVisibility() => _showPassword = !_showPassword;
 
     protected override async Task OnInitializedAsync()
     {
@@ -93,10 +108,20 @@
             {
                 ShareUrl = $"{Navigation.BaseUri.TrimEnd('/')}/share/{Uri.EscapeDataString(token)}";
             }
+            
+            // Also fetch the password if the share has one
+            if (Share.HasPassword && string.IsNullOrEmpty(SharePassword))
+            {
+                var password = await Api.GetSharePasswordAsync(Share.Id);
+                if (!string.IsNullOrEmpty(password))
+                {
+                    SharePassword = password;
+                }
+            }
         }
         catch (Exception ex)
         {
-            Feedback.HandleError(ex, "retrieve share token");
+            Feedback.HandleError(ex, "retrieve share details");
         }
         finally
         {
@@ -155,16 +180,22 @@
     {
         var parameters = new DialogParameters<SharePasswordDialog>
         {
-            { x => x.Share, Share }
+            { x => x.Share, Share },
+            { x => x.InitialPassword, SharePassword }
         };
 
         var dialog = await DialogService.ShowAsync<SharePasswordDialog>(AdminLoc["EditSharePassword"], parameters);
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: string pwd } && !string.IsNullOrEmpty(pwd))
+        
+        if (result != null && !result.Canceled && result.Data != null)
         {
-            SharePassword = pwd;
-            Share = Share with { HasPassword = true };
-            StateHasChanged();
+            var pwd = result.Data.ToString();
+            if (!string.IsNullOrEmpty(pwd))
+            {
+                SharePassword = pwd;
+                Share = Share with { HasPassword = true };
+                StateHasChanged();
+            }
         }
     }
 }
