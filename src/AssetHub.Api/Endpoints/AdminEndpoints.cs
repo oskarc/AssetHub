@@ -97,7 +97,7 @@ public static class AdminEndpoints
         Guid collectionId, string principalId, [FromQuery] string? principalType,
         [FromServices] IAdminCollectionAclService svc, CancellationToken ct)
     {
-        var result = await svc.AdminRevokeAccessAsync(collectionId, principalType ?? "user", principalId, ct);
+        var result = await svc.AdminRevokeAccessAsync(collectionId, principalType ?? Constants.PrincipalTypes.User, principalId, ct);
         return result.ToHttpResult();
     }
 

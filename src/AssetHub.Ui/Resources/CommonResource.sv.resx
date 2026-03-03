@@ -132,6 +132,12 @@
   <data name="AssetType_Document" xml:space="preserve"><value>Dokument</value></data>
   <data name="AssetType_Audio" xml:space="preserve"><value>Ljud</value></data>
 
+  <!-- Scope Types (for shares, audit logs, etc.) -->
+  <data name="ScopeType_Asset" xml:space="preserve"><value>Resurs</value></data>
+  <data name="ScopeType_Collection" xml:space="preserve"><value>Samling</value></data>
+  <data name="ScopeType_Share" xml:space="preserve"><value>Delning</value></data>
+  <data name="ScopeType_User" xml:space="preserve"><value>Användare</value></data>
+
   <!-- Sort Options -->
   <data name="Sort_NewestFirst" xml:space="preserve"><value>Nyast först</value></data>
   <data name="Sort_OldestFirst" xml:space="preserve"><value>Äldst först</value></data>

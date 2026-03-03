@@ -145,7 +145,7 @@ public class MediaProcessingService(
             // Audit processing failure (critical for production monitoring)
             await auditService.LogAsync(
                 "asset.processing_failed",
-                "asset",
+                Constants.ScopeTypes.Asset,
                 assetId,
                 actorUserId: null, // Background job, no user context
                 new Dictionary<string, object>
@@ -216,7 +216,7 @@ public class MediaProcessingService(
             // Audit processing failure (critical for production monitoring)
             await auditService.LogAsync(
                 "asset.processing_failed",
-                "asset",
+                Constants.ScopeTypes.Asset,
                 assetId,
                 actorUserId: null, // Background job, no user context
                 new Dictionary<string, object>

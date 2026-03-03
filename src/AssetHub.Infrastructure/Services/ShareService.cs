@@ -129,10 +129,10 @@ public class ShareService(
 
         await shareRepository.CreateAsync(share, ct);
 
-        await audit.LogAsync("share.created", "share", share.Id, userId,
+        await audit.LogAsync("share.created", Constants.ScopeTypes.Share, share.Id, userId,
             new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, ct);
 
-        var shareUrl = $"{baseUrl}/share/{token}";
+        var shareUrl = $"{baseUrl}/{Constants.Routes.Share}/{token}";
         var emailFailed = false;
 
         // Send notification emails if recipients are provided

@@ -1,3 +1,4 @@
+@using AssetHub.Application
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
 @inject IStringLocalizer<CommonResource> CommonLoc
@@ -28,13 +29,13 @@ else
             <MudItem xs="6" sm="3">
                 <MudSelect @bind-Value="_filterTargetType" Label="@AdminLoc["Header_TargetType"]"
                     Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                    <MudSelectItem Value="@("asset")">Asset</MudSelectItem>
-                    <MudSelectItem Value="@("collection")">Collection</MudSelectItem>
+                    <MudSelectItem Value="@Constants.ScopeTypes.Asset">@CommonLoc["ScopeType_Asset"]</MudSelectItem>
+                    <MudSelectItem Value="@Constants.ScopeTypes.Collection">@CommonLoc["ScopeType_Collection"]</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="6" sm="3" Class="d-flex align-end">
+            <MudItem xs="6" sm="3" Class="d-flex align-items-end">
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="ApplyFiltersAsync"
-                    Disabled="@_auditLoading" FullWidth="true">
+                    Disabled="@_auditLoading" FullWidth="true" Style="height: 40px;">
                     @CommonLoc["Btn_ApplyFilters"]
                 </MudButton>
             </MudItem>

@@ -22,12 +22,14 @@ public static class Constants
     }
 
     /// <summary>
-    /// Scope types for share links.
+    /// Scope types for share links and audit log target types.
     /// </summary>
     public static class ScopeTypes
     {
         public const string Asset = "asset";
         public const string Collection = "collection";
+        public const string Share = "share";
+        public const string User = "user";
     }
 
     /// <summary>
@@ -287,5 +289,17 @@ public static class Constants
         /// so the UI shows "10 000+" rather than scanning the entire table.
         /// </summary>
         public const int AuditCountDisplayCap = 10_000;
+    }
+
+    /// <summary>
+    /// Client-side route paths.
+    /// </summary>
+    public static class Routes
+    {
+        /// <summary>
+        /// Public share page route prefix (without leading slash).
+        /// Full path: /share/{token}
+        /// </summary>
+        public const string Share = "share";
     }
 }

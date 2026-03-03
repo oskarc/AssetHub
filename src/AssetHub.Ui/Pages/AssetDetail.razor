@@ -1,6 +1,7 @@
 @page "/assets/{AssetId:guid}"
 @attribute [Authorize]
 
+@using AssetHub.Application
 @using AssetHub.Application.Dtos
 @using AssetHub.Application.Helpers
 @using AssetHub.Ui.Components
@@ -490,7 +491,7 @@ else
         var createParams = new DialogParameters<CreateShareDialog>
         {
             { x => x.ScopeId, _asset.Id },
-            { x => x.ScopeType, "asset" },
+            { x => x.ScopeType, Constants.ScopeTypes.Asset },
             { x => x.ContentName, _asset.Title }
         };
 

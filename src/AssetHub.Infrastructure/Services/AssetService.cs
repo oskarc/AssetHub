@@ -94,7 +94,7 @@ public sealed class AssetService : IAssetService
         asset.UpdatedAt = DateTime.UtcNow;
 
         await _assetRepo.UpdateAsync(asset, ct);
-        await _audit.LogAsync("asset.updated", "asset", id, _currentUser.UserId,
+        await _audit.LogAsync("asset.updated", Constants.ScopeTypes.Asset, id, _currentUser.UserId,
             new() { ["title"] = asset.Title, ["description"] = asset.Description ?? "", ["tags"] = string.Join(", ", asset.Tags ?? []) },
             ct);
 
@@ -126,13 +126,13 @@ public sealed class AssetService : IAssetService
 
             if (permanentlyDeleted)
             {
-                await _audit.LogAsync("asset.deleted", "asset", id, userId,
+                await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
                     new() { ["title"] = asset.Title, ["reason"] = "last_collection" },
                     ct);
             }
             else
             {
-                await _audit.LogAsync("asset.removed_from_collection", "asset", id, userId,
+                await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, id, userId,
                     new() { ["title"] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() },
                     ct);
             }
@@ -146,7 +146,7 @@ public sealed class AssetService : IAssetService
             return partialDelete;
 
         await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
-        await _audit.LogAsync("asset.deleted", "asset", id, userId,
+        await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
             new() { ["title"] = asset.Title }, ct);
 
         return ServiceResult.Success;
@@ -176,7 +176,7 @@ public sealed class AssetService : IAssetService
         foreach (var collId in authorizedCollectionIds)
             await _assetCollectionRepo.RemoveFromCollectionAsync(assetId, collId, ct);
 
-        await _audit.LogAsync("asset.removed_from_collections", "asset", assetId, userId,
+        await _audit.LogAsync("asset.removed_from_collections", Constants.ScopeTypes.Asset, assetId, userId,
             new() { ["title"] = assetTitle, ["count"] = authorizedCollectionIds.Count.ToString() },
             ct);
         return ServiceResult.Success;
@@ -219,7 +219,7 @@ public sealed class AssetService : IAssetService
         if (result == null)
             return ServiceError.BadRequest("Asset is already linked to this collection or collection not found");
 
-        await _audit.LogAsync("asset.added_to_collection", "asset", assetId, userId,
+        await _audit.LogAsync("asset.added_to_collection", Constants.ScopeTypes.Asset, assetId, userId,
             new() { ["title"] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
 
         return new AssetAddedToCollectionResponse
@@ -252,12 +252,12 @@ public sealed class AssetService : IAssetService
 
         if (permanentlyDeleted)
         {
-            await _audit.LogAsync("asset.deleted", "asset", assetId, userId,
+            await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, assetId, userId,
                 new() { ["title"] = asset.Title, ["reason"] = "orphaned" }, ct);
         }
         else
         {
-            await _audit.LogAsync("asset.removed_from_collection", "asset", assetId, userId,
+            await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, assetId, userId,
                 new() { ["title"] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
         }
 

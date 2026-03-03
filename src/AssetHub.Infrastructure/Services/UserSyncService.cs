@@ -1,3 +1,4 @@
+using AssetHub.Application;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
@@ -91,7 +92,7 @@ public class UserSyncService(
             result.AclsRemoved += aclsRemoved;
             result.SharesRevoked += sharesRevoked;
 
-            await audit.LogAsync("user.sync.cleanup", "user",
+            await audit.LogAsync("user.sync.cleanup", Constants.ScopeTypes.User,
                 Guid.TryParse(userId, out var uid) ? uid : null, null,
                 new Dictionary<string, object>
                 {

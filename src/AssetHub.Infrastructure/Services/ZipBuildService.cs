@@ -69,7 +69,7 @@ public class ZipBuildService : IZipBuildService
             return ServiceError.NotFound("Collection not found");
 
         var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
-        var zipDownload = CreateZipDownloadRecord(collectionId, "collection", zipFileName, userId: userId);
+        var zipDownload = CreateZipDownloadRecord(collectionId, Constants.ScopeTypes.Collection, zipFileName, userId: userId);
 
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);
@@ -104,7 +104,7 @@ public class ZipBuildService : IZipBuildService
                 "Too many ZIP downloads in progress for this share. Please wait.");
 
         var zipFileName = $"{collectionName.Replace(" ", "_")}_assets.zip";
-        var zipDownload = CreateZipDownloadRecord(collectionId, "collection", zipFileName, shareTokenHash: shareTokenHash);
+        var zipDownload = CreateZipDownloadRecord(collectionId, Constants.ScopeTypes.Collection, zipFileName, shareTokenHash: shareTokenHash);
 
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);
@@ -269,7 +269,7 @@ public class ZipBuildService : IZipBuildService
                 zip.CompletedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
 
-                await _audit.LogAsync("collection.downloaded", "collection", zip.ScopeId,
+                await _audit.LogAsync("collection.downloaded", Constants.ScopeTypes.Collection, zip.ScopeId,
                     zip.RequestedByUserId,
                     new() { ["assetCount"] = zip.AssetCount, ["sizeBytes"] = zip.SizeBytes },
                     ct);

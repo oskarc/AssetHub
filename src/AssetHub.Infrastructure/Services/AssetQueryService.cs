@@ -286,7 +286,7 @@ public sealed class AssetQueryService : IAssetQueryService
 
         if (forceDownload)
         {
-            await _audit.LogAsync("asset.downloaded", "asset", id, _currentUser.UserId,
+            await _audit.LogAsync("asset.downloaded", Constants.ScopeTypes.Asset, id, _currentUser.UserId,
                 new() { ["title"] = asset.Title, ["size"] = size },
                 ct);
         }

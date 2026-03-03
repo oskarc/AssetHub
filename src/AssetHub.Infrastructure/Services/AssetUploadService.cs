@@ -112,7 +112,7 @@ public sealed class AssetUploadService : IAssetUploadService
         await _assetRepo.CreateAsync(asset, ct);
         await _assetCollectionRepo.AddToCollectionAsync(asset.Id, collectionId, userId, ct);
 
-        await _audit.LogAsync("asset.created", "asset", asset.Id, userId,
+        await _audit.LogAsync("asset.created", Constants.ScopeTypes.Asset, asset.Id, userId,
             new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
             ct);
 
@@ -160,7 +160,7 @@ public sealed class AssetUploadService : IAssetUploadService
         if (request.CollectionId.HasValue)
             await _assetCollectionRepo.AddToCollectionAsync(asset.Id, request.CollectionId.Value, userId, ct);
 
-        await _audit.LogAsync("asset.upload_initiated", "asset", asset.Id, userId,
+        await _audit.LogAsync("asset.upload_initiated", Constants.ScopeTypes.Asset, asset.Id, userId,
             new() { ["title"] = request.Title ?? "", ["fileName"] = request.FileName, ["contentType"] = request.ContentType, ["fileSize"] = request.FileSize, ["collectionId"] = request.CollectionId?.ToString() ?? "" },
             ct);
 
@@ -225,7 +225,7 @@ public sealed class AssetUploadService : IAssetUploadService
         {
             _logger.LogWarning("Malware detected in upload {AssetId}/{FileName}: {ThreatName}",
                 asset.Id, asset.Title, scanResult.ThreatName);
-            await _audit.LogAsync("asset.malware_detected", "asset", asset.Id, userId,
+            await _audit.LogAsync("asset.malware_detected", Constants.ScopeTypes.Asset, asset.Id, userId,
                 new() { ["fileName"] = asset.Title, ["threatName"] = scanResult.ThreatName ?? "unknown" }, ct);
             // Delete the infected file
             await _minioAdapter.DeleteAsync(_bucketName, asset.OriginalObjectKey, ct);
@@ -238,7 +238,7 @@ public sealed class AssetUploadService : IAssetUploadService
         asset.UpdatedAt = DateTime.UtcNow;
         await _assetRepo.UpdateAsync(asset, ct);
 
-        await _audit.LogAsync("asset.upload_confirmed", "asset", asset.Id, userId,
+        await _audit.LogAsync("asset.upload_confirmed", Constants.ScopeTypes.Asset, asset.Id, userId,
             new() { ["title"] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);

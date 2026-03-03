@@ -201,7 +201,7 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
                 }
             }
 
-            await _audit.LogAsync("user.created", "user",
+            await _audit.LogAsync("user.created", Constants.ScopeTypes.User,
                 Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
                 new() { ["username"] = username, ["email"] = email, ["isSystemAdmin"] = request.IsSystemAdmin.ToString() },
                 ct);
@@ -224,7 +224,7 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         {
             _logger.LogWarning(ex, "Keycloak API error creating user '{Username}'", username);
 
-            await _audit.LogAsync("user.create_failed", "user", null, _currentUser.UserId,
+            await _audit.LogAsync("user.create_failed", Constants.ScopeTypes.User, null, _currentUser.UserId,
                 new() { ["username"] = username, ["error"] = ex.Message },
                 ct);
 
@@ -252,7 +252,7 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
 
             _logger.LogInformation("Admin sent password reset email for user '{UserId}'", userId);
 
-            await _audit.LogAsync("user.password_reset_email", "user",
+            await _audit.LogAsync("user.password_reset_email", Constants.ScopeTypes.User,
                 Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
                 new() { ["targetUserId"] = userId },
                 ct);
@@ -326,7 +326,7 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
             _logger.LogInformation("Admin deleted user '{Username}' ({UserId}): removed {Acls} ACLs, revoked {Shares} shares",
                 username, userId, aclsRemoved, sharesRevoked);
 
-            await _audit.LogAsync("user.deleted", "user",
+            await _audit.LogAsync("user.deleted", Constants.ScopeTypes.User,
                 Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
                 new()
                 {

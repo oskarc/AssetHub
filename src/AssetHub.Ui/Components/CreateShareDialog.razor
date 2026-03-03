@@ -1,4 +1,5 @@
 @using MudBlazor
+@using AssetHub.Application
 @using AssetHub.Application.Helpers
 @using AssetHub.Ui.Services
 @using System.ComponentModel.DataAnnotations
@@ -125,7 +126,7 @@
     /// "asset" or "collection"
     /// </summary>
     [Parameter]
-    public string ScopeType { get; set; } = "asset";
+    public string ScopeType { get; set; } = Constants.ScopeTypes.Asset;
 
     /// <summary>
     /// Display name of the content being shared.

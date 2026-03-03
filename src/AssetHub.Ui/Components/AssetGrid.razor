@@ -1,3 +1,4 @@
+@using AssetHub.Application
 @using AssetHub.Application.Dtos
 @using AssetHub.Ui.Services
 
@@ -278,7 +279,7 @@ else
         var createParams = new DialogParameters<CreateShareDialog>
         {
             { x => x.ScopeId, asset.Id },
-            { x => x.ScopeType, "asset" },
+            { x => x.ScopeType, Constants.ScopeTypes.Asset },
             { x => x.ContentName, asset.Title }
         };
 

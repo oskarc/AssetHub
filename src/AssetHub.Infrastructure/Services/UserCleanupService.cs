@@ -1,3 +1,4 @@
+using AssetHub.Application;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
@@ -33,7 +34,7 @@ public class UserCleanupService(
         logger.LogInformation("Cleaned up user {UserId}: removed {AclCount} ACLs, revoked {ShareCount} shares",
             userId, userAcls.Count, userShares.Count);
 
-        await audit.LogAsync("user.cleanup", "user", null, userId,
+        await audit.LogAsync("user.cleanup", Constants.ScopeTypes.User, null, userId,
             new() { ["aclsRemoved"] = userAcls.Count, ["sharesRevoked"] = userShares.Count }, ct);
 
         return (userAcls.Count, userShares.Count);

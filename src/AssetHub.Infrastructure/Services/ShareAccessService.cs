@@ -284,7 +284,7 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
         share.RevokedAt = DateTime.UtcNow;
         await _shareRepo.UpdateAsync(share, ct);
 
-        await _audit.LogAsync("share.revoked", "share", shareId, userId,
+        await _audit.LogAsync("share.revoked", Constants.ScopeTypes.Share, shareId, userId,
             new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId },
             ct);
 
@@ -318,7 +318,7 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
         
         await _shareRepo.UpdateAsync(share, ct);
 
-        await _audit.LogAsync("share.password_updated", "share", shareId, userId,
+        await _audit.LogAsync("share.password_updated", Constants.ScopeTypes.Share, shareId, userId,
             new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId },
             ct);
 
@@ -359,7 +359,7 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
                 var ip = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
                 _logger.LogWarning("Failed share password attempt for token hash {TokenHashPrefix}... from IP {IP}",
                     tokenHash[..Math.Min(8, tokenHash.Length)], ip ?? "unknown");
-                await _audit.LogAsync("share.password_failed", "share", share.Id, null,
+                await _audit.LogAsync("share.password_failed", Constants.ScopeTypes.Share, share.Id, null,
                     new() { ["ip"] = ip ?? "unknown", ["tokenHashPrefix"] = tokenHash[..Math.Min(8, tokenHash.Length)] },
                     ct);
                 return (null, new ServiceError(401, "UNAUTHORIZED", "Invalid password"));

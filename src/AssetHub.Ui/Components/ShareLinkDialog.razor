@@ -2,7 +2,7 @@
 @using AssetHub.Ui.Services
 
 @inject IUserFeedbackService Feedback
-@inject IJSRuntime JS
+@inject IClipboardService Clipboard
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<SharesResource> ShareLoc
 
@@ -106,12 +106,11 @@
 
     private async Task CopyUrlToClipboard()
     {
-        try
+        if (await Clipboard.CopyTextAsync(ShareUrl))
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
             Feedback.ShowSuccess(CommonLoc["Success_LinkCopied"].Value);
         }
-        catch
+        else
         {
             Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }
@@ -119,12 +118,11 @@
 
     private async Task CopyPasswordToClipboard()
     {
-        try
+        if (await Clipboard.CopyTextAsync(Password))
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Password);
             Feedback.ShowSuccess(CommonLoc["Success_PasswordCopied"].Value);
         }
-        catch
+        else
         {
             Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }
@@ -132,13 +130,12 @@
 
     private async Task CopyAllToClipboard()
     {
-        try
+        var text = string.Format(ShareLoc["Text_CopyAllTemplate"].Value, ShareUrl, Password);
+        if (await Clipboard.CopyTextAsync(text))
         {
-            var text = string.Format(ShareLoc["Text_CopyAllTemplate"].Value, ShareUrl, Password);
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
             Feedback.ShowSuccess(CommonLoc["Success_LinkAndPasswordCopied"].Value);
         }
-        catch
+        else
         {
             Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }

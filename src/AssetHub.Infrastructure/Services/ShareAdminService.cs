@@ -150,7 +150,7 @@ public class ShareAdminService : IShareAdminService
         share.RevokedAt = DateTime.UtcNow;
         await _shareRepo.UpdateAsync(share, ct);
 
-        await _audit.LogAsync("share.revoked", "share", shareId, _currentUser.UserId,
+        await _audit.LogAsync("share.revoked", Constants.ScopeTypes.Share, shareId, _currentUser.UserId,
             new() { ["admin"] = true }, ct);
 
         return ServiceResult.Success;

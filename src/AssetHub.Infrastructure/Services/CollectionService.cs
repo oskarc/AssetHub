@@ -115,9 +115,9 @@ public class CollectionService : ICollectionService
         };
 
         await _collectionRepo.CreateAsync(collection, ct);
-        await _aclRepo.SetAccessAsync(collection.Id, "user", userId, RoleHierarchy.Roles.Admin, ct);
+        await _aclRepo.SetAccessAsync(collection.Id, Constants.PrincipalTypes.User, userId, RoleHierarchy.Roles.Admin, ct);
 
-        await _audit.LogAsync("collection.created", "collection", collection.Id, userId,
+        await _audit.LogAsync("collection.created", Constants.ScopeTypes.Collection, collection.Id, userId,
             new() { ["name"] = collection.Name },
             ct);
 
@@ -166,7 +166,7 @@ public class CollectionService : ICollectionService
         }
 
         await _collectionRepo.UpdateAsync(collection, ct);
-        await _audit.LogAsync("collection.updated", "collection", id, userId,
+        await _audit.LogAsync("collection.updated", Constants.ScopeTypes.Collection, id, userId,
             new() { ["name"] = collection.Name, ["description"] = collection.Description ?? "" },
             ct);
 
@@ -187,10 +187,10 @@ public class CollectionService : ICollectionService
 
         var collectionName = collection.Name;
         await _deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
-        await _shareRepo.DeleteByScopeAsync("collection", id, ct);
+        await _shareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, ct);
         await _collectionRepo.DeleteAsync(id, ct);
 
-        await _audit.LogAsync("collection.deleted", "collection", id, userId,
+        await _audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
             new() { ["name"] = collectionName },
             ct);
 
@@ -210,7 +210,7 @@ public class CollectionService : ICollectionService
         if (!exists)
             return ServiceError.NotFound("Collection not found");
 
-        await _audit.LogAsync("collection.download_requested", "collection", id, userId, ct: ct);
+        await _audit.LogAsync("collection.download_requested", Constants.ScopeTypes.Collection, id, userId, ct: ct);
 
         return await _zipBuildService.EnqueueCollectionZipAsync(id, userId, ct);
     }

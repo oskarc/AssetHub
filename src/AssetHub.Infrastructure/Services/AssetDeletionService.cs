@@ -1,3 +1,4 @@
+using AssetHub.Application;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
@@ -14,7 +15,7 @@ public class AssetDeletionService(
 {
     public async Task PermanentDeleteAsync(Asset asset, string bucketName, CancellationToken ct = default)
     {
-        await shareRepository.DeleteByScopeAsync("asset", asset.Id, ct);
+        await shareRepository.DeleteByScopeAsync(Constants.ScopeTypes.Asset, asset.Id, ct);
         await minioAdapter.DeleteAssetObjectsAsync(bucketName, asset, ct);
         await assetRepository.DeleteAsync(asset.Id, ct);
     }
@@ -41,7 +42,7 @@ public class AssetDeletionService(
     {
         var deletedAssets = await assetRepository.DeleteByCollectionAsync(collectionId, ct);
         foreach (var asset in deletedAssets)
-            await shareRepository.DeleteByScopeAsync("asset", asset.Id, ct);
+            await shareRepository.DeleteByScopeAsync(Constants.ScopeTypes.Asset, asset.Id, ct);
         await minioAdapter.DeleteAssetObjectsBatchAsync(bucketName, deletedAssets, ct);
         return deletedAssets;
     }

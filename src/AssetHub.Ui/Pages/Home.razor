@@ -192,7 +192,7 @@
                             else
                             {
                                 <MudList T="DashboardShareDto" Dense="true">
-                                    @foreach (var share in _dashboard.RecentShares)
+                                    @foreach (var share in _dashboard.RecentShares.Take(5))
                                     {
                                         <MudListItem T="DashboardShareDto" Icon="@Icons.Material.Filled.Link" OnClick="@(() => ShowShareInfo(share))">
                                             <div class="d-flex justify-space-between align-center" style="width: 100%;">

@@ -106,13 +106,13 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
 
         var acl = await _aclRepo.SetAccessAsync(collectionId, principalType, principalId, role, ct);
 
-        await _audit.LogAsync("acl.set", "collection", collectionId, userId,
+        await _audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, userId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = role },
             ct);
 
         string? principalName = null;
         string? principalEmail = null;
-        if (principalType == "user")
+        if (principalType == Constants.PrincipalTypes.User)
         {
             principalName = await _userLookup.GetUserNameAsync(principalId, ct);
             var emailMap = await _userLookup.GetUserEmailsAsync(new[] { principalId }, ct);
@@ -148,7 +148,7 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
 
         await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
 
-        await _audit.LogAsync("acl.revoked", "collection", collectionId, userId,
+        await _audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, userId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId },
             ct);
 
@@ -202,10 +202,10 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         if (string.IsNullOrWhiteSpace(request.PrincipalId))
             return ServiceError.BadRequest("PrincipalId is required");
 
-        var principalType = request.PrincipalType ?? "user";
+        var principalType = request.PrincipalType ?? Constants.PrincipalTypes.User;
         var principalId = request.PrincipalId;
 
-        if (principalType == "user")
+        if (principalType == Constants.PrincipalTypes.User)
         {
             if (!Guid.TryParse(request.PrincipalId, out _))
             {
@@ -229,7 +229,7 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         var acl = await _aclRepo.SetAccessAsync(collectionId, principalType, principalId, targetRole, ct);
 
         var adminUserId = _currentUser.UserId;
-        await _audit.LogAsync("acl.set", "collection", collectionId, adminUserId,
+        await _audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, adminUserId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = targetRole, ["admin"] = true },
             ct);
 
@@ -251,7 +251,7 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
 
         var adminUserId = _currentUser.UserId;
-        await _audit.LogAsync("acl.revoked", "collection", collectionId, adminUserId,
+        await _audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, adminUserId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["admin"] = true },
             ct);
 

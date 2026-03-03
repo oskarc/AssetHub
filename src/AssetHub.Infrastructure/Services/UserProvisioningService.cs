@@ -1,3 +1,4 @@
+using AssetHub.Application;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Application.Services.Email.Templates;
@@ -52,8 +53,8 @@ public class UserProvisioningService : IUserProvisioningService
         {
             try
             {
-                await _aclRepo.SetAccessAsync(collectionId, "user", userId, role, ct);
-                await _audit.LogAsync("user.access_granted", "collection", collectionId, userId,
+                await _aclRepo.SetAccessAsync(collectionId, Constants.PrincipalTypes.User, userId, role, ct);
+                await _audit.LogAsync("user.access_granted", Constants.ScopeTypes.Collection, collectionId, userId,
                     new() { ["role"] = role, ["username"] = username }, ct);
                 _logger.LogInformation("Granted '{Role}' access on collection {CollectionId} to new user '{Username}'",
                     role, collectionId, username);

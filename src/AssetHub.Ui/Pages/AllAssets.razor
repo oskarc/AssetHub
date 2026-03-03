@@ -1,6 +1,7 @@
 @page "/all-assets"
 @attribute [Authorize(Policy = "RequireAdmin")]
 
+@using AssetHub.Application
 @using AssetHub.Application.Dtos
 @using AssetHub.Ui.Components
 @using AssetHub.Ui.Services
@@ -435,7 +436,7 @@
         var createParams = new DialogParameters<CreateShareDialog>
         {
             { x => x.ScopeId, asset.Id },
-            { x => x.ScopeType, "asset" },
+            { x => x.ScopeType, Constants.ScopeTypes.Asset },
             { x => x.ContentName, asset.Title }
         };
 

@@ -1,13 +1,14 @@
 @using MudBlazor
+@using AssetHub.Application
 @using AssetHub.Application.Dtos
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<SharesResource> ShareLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 @inject AssetHubApiClient Api
 @inject IDialogService DialogService
 @inject IUserFeedbackService Feedback
+@inject IClipboardService Clipboard
 
 <MudDialog>
     <TitleContent>
@@ -23,7 +24,7 @@
             </MudText>
             <MudDivider />
 
-            @if (Share.ScopeType == "asset" && Share.CollectionNames.Count > 0)
+            @if (Share.ScopeType == Constants.ScopeTypes.Asset && Share.CollectionNames.Count > 0)
             {
                 <MudText Typo="Typo.subtitle2">@AdminLoc["Label_MemberOfCollections"]</MudText>
                 <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
@@ -50,9 +51,9 @@
                 </MudAlert>
             }
 
-            @if (!string.IsNullOrEmpty(SharePassword))
+            @if (!string.IsNullOrEmpty(_displayPassword))
             {
-                <MudTextField T="string" Value="@SharePassword" 
+                <MudTextField T="string" Value="@_displayPassword" 
                               Label="@ShareLoc["SharePassword"]" 
                               ReadOnly="true" 
                               InputType="@(_showPassword ? InputType.Text : InputType.Password)"
@@ -96,26 +97,30 @@
     private bool _isLoading = true;
     private bool _showPassword = false;
     private const string _passwordPlaceholder = "********";
+    private string _displayPassword = string.Empty;
 
     private void TogglePasswordVisibility() => _showPassword = !_showPassword;
 
     protected override async Task OnInitializedAsync()
     {
+        // Initialize local display password from parameter
+        _displayPassword = SharePassword;
+        
         try
         {
             var token = await Api.GetShareTokenAsync(Share.Id);
             if (!string.IsNullOrEmpty(token))
             {
-                ShareUrl = $"{Navigation.BaseUri.TrimEnd('/')}/share/{Uri.EscapeDataString(token)}";
+                ShareUrl = $"{Navigation.BaseUri.TrimEnd('/')}/{Constants.Routes.Share}/{Uri.EscapeDataString(token)}";
             }
             
             // Also fetch the password if the share has one
-            if (Share.HasPassword && string.IsNullOrEmpty(SharePassword))
+            if (Share.HasPassword && string.IsNullOrEmpty(_displayPassword))
             {
                 var password = await Api.GetSharePasswordAsync(Share.Id);
                 if (!string.IsNullOrEmpty(password))
                 {
-                    SharePassword = password;
+                    _displayPassword = password;
                 }
             }
         }
@@ -134,12 +139,11 @@
     private async Task CopyUrl()
     {
         if (string.IsNullOrEmpty(ShareUrl)) return;
-        try
+        if (await Clipboard.CopyTextAsync(ShareUrl))
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
             Feedback.ShowSuccess(CommonLoc["Success_LinkCopied"].Value);
         }
-        catch (Exception)
+        else
         {
             Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }
@@ -147,13 +151,12 @@
 
     private async Task CopyPassword()
     {
-        if (string.IsNullOrEmpty(SharePassword)) return;
-        try
+        if (string.IsNullOrEmpty(_displayPassword)) return;
+        if (await Clipboard.CopyTextAsync(_displayPassword))
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", SharePassword);
             Feedback.ShowSuccess(CommonLoc["Success_PasswordCopied"].Value);
         }
-        catch (Exception)
+        else
         {
             Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }
@@ -163,14 +166,13 @@
     {
         var parts = new List<string>();
         if (!string.IsNullOrEmpty(ShareUrl)) parts.Add(ShareUrl);
-        if (!string.IsNullOrEmpty(SharePassword)) parts.Add(SharePassword);
-        try
+        if (!string.IsNullOrEmpty(_displayPassword)) parts.Add(_displayPassword);
+        if (await Clipboard.CopyTextAsync(string.Join("\n", parts)))
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", string.Join("\n", parts));
             Feedback.ShowSuccess(CommonLoc["Success_LinkAndPasswordCopied"].Value);
             MudDialog.Close(DialogResult.Ok(true));
         }
-        catch (Exception)
+        else
         {
             Feedback.ShowWarning(CommonLoc["Warning_CopyFailed"].Value);
         }
@@ -181,21 +183,17 @@
         var parameters = new DialogParameters<SharePasswordDialog>
         {
             { x => x.Share, Share },
-            { x => x.InitialPassword, SharePassword }
+            { x => x.InitialPassword, _displayPassword }
         };
 
         var dialog = await DialogService.ShowAsync<SharePasswordDialog>(AdminLoc["EditSharePassword"], parameters);
         var result = await dialog.Result;
         
-        if (result != null && !result.Canceled && result.Data != null)
+        if (result != null && !result.Canceled && result.Data is string pwd && !string.IsNullOrEmpty(pwd))
         {
-            var pwd = result.Data.ToString();
-            if (!string.IsNullOrEmpty(pwd))
-            {
-                SharePassword = pwd;
-                Share = Share with { HasPassword = true };
-                StateHasChanged();
-            }
+            _displayPassword = pwd;
+            Share = Share with { HasPassword = true };
+            StateHasChanged();
         }
     }
 }

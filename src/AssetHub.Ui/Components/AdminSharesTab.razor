@@ -44,8 +44,8 @@ else
         </HeaderContent>
         <RowTemplate>
             <MudTd>
-                <MudChip T="string" Size="Size.Small" Color="@(context.ScopeType == "asset" ? Color.Info : Color.Default)" Variant="Variant.Outlined">
-                    @context.ScopeType
+                <MudChip T="string" Size="Size.Small" Color="@(context.ScopeType == Constants.ScopeTypes.Asset ? Color.Info : Color.Default)" Variant="Variant.Outlined">
+                    @GetLocalizedScopeType(context.ScopeType)
                 </MudChip>
             </MudTd>
             <MudTd>
@@ -265,4 +265,11 @@ else
     {
         await LocalStorage.SetBoolAsync(key, value);
     }
+
+    private string GetLocalizedScopeType(string scopeType) => scopeType switch
+    {
+        Constants.ScopeTypes.Asset => CommonLoc["ScopeType_Asset"].Value,
+        Constants.ScopeTypes.Collection => CommonLoc["ScopeType_Collection"].Value,
+        _ => scopeType
+    };
 }
