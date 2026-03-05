@@ -19,6 +19,19 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
 | **Security-Conscious Orgs** | Audit trail for every action. ClamAV malware scanning. Role-based access control. Self-hosted = your data never leaves your premises. |
 
 ---
+## TLDR Features
+┌─────────────────────────────────────────────────────────┐
+│  🎯 Smart Collections    │  🔐 Fine-grained Access     │
+│  Multi-collection assets │  Viewer/Contributor/Manager │
+├─────────────────────────────────────────────────────────┤
+│  🔗 Secure Sharing       │  📦 Background Processing   │
+│  Password + expiration   │  Thumbnails, previews, zips │
+├─────────────────────────────────────────────────────────┤
+│  🛡️ Enterprise Security   │  🔧 Fully Modular          │
+│  ClamAV, audit, RBAC     │  Swap S3, Auth, DB, Email   │
+└─────────────────────────────────────────────────────────┘
+
+---
 
 ## Features
 
