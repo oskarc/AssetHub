@@ -83,12 +83,12 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       test.skip(!hasSearch, 'Search input not available on this page');
       
       // Type rapidly
-      await searchInput.type('abcdefghijklmnop', { delay: 50 });
+      await searchInput.pressSequentially('abcdefghijklmnop', { delay: 50 });
       await page.waitForTimeout(env.timeouts.debounce);
       
       // Clear and type again
       await searchInput.clear();
-      await searchInput.type('test', { delay: 100 });
+      await searchInput.pressSequentially('test', { delay: 100 });
       await page.waitForTimeout(env.timeouts.debounce);
 
       // App should still be functional

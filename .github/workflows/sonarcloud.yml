@@ -9,6 +9,10 @@ jobs:
   build:
     name: Build and analyze
     runs-on: ubuntu-latest
+    # Only run when SONAR_TOKEN is configured (skips fork PRs where secrets aren't available)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
@@ -32,7 +36,6 @@ jobs:
       - name: Build and analyze
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           dotnet-sonarscanner begin /k:"oskarc_AssetHub" /o:"oskarc" \
             /d:sonar.token="$SONAR_TOKEN" \

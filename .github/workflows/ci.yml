@@ -123,7 +123,7 @@ jobs:
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3
       
       - name: Build API image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198634e50d2932 # v5
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: docker/Dockerfile
@@ -134,7 +134,7 @@ jobs:
           cache-to: type=gha,mode=max
       
       - name: Build Worker image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198634e50d2932 # v5
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: docker/Dockerfile.Worker
@@ -145,7 +145,7 @@ jobs:
           cache-to: type=gha,mode=max
       
       - name: Scan API image for vulnerabilities
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e795f5d09e5e42a3 # v0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: 'assethub-api:${{ github.sha }}'
           format: 'table'
@@ -156,7 +156,7 @@ jobs:
           output: 'trivy-api-results.txt'
       
       - name: Scan Worker image for vulnerabilities
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e795f5d09e5e42a3 # v0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         if: success() || failure()
         with:
           image-ref: 'assethub-worker:${{ github.sha }}'
