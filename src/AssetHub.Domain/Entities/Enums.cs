@@ -74,6 +74,9 @@ public enum ZipDownloadStatus
 /// </summary>
 public static class DomainEnumExtensions
 {
+    private const string Failed = "failed";
+    private const string Unknown = "unknown";
+
     // ── AssetStatus ─────────────────────────────────────────────────────
 
     public static string ToDbString(this AssetStatus status) => status switch
@@ -81,9 +84,9 @@ public static class DomainEnumExtensions
         AssetStatus.Uploading => "uploading",
         AssetStatus.Processing => "processing",
         AssetStatus.Ready => "ready",
-        AssetStatus.Failed => "failed",
-        AssetStatus.Unknown => "unknown",
-        _ => "unknown" // Fallback for future values
+        AssetStatus.Failed => Failed,
+        AssetStatus.Unknown => Unknown,
+        _ => Unknown // Fallback for future values
     };
 
     public static AssetStatus ToAssetStatus(this string value) => value switch
@@ -91,7 +94,7 @@ public static class DomainEnumExtensions
         "uploading" => AssetStatus.Uploading,
         "processing" => AssetStatus.Processing,
         "ready" => AssetStatus.Ready,
-        "failed" => AssetStatus.Failed,
+        Failed => AssetStatus.Failed,
         _ => AssetStatus.Unknown // Graceful fallback for unknown database values
     };
 
@@ -102,8 +105,8 @@ public static class DomainEnumExtensions
         AssetType.Image => "image",
         AssetType.Video => "video",
         AssetType.Document => "document",
-        AssetType.Unknown => "unknown",
-        _ => "unknown" // Fallback for future values
+        AssetType.Unknown => Unknown,
+        _ => Unknown // Fallback for future values
     };
 
     public static AssetType ToAssetType(this string value) => value switch
@@ -171,9 +174,9 @@ public static class DomainEnumExtensions
         ZipDownloadStatus.Pending => "pending",
         ZipDownloadStatus.Building => "building",
         ZipDownloadStatus.Completed => "completed",
-        ZipDownloadStatus.Failed => "failed",
-        ZipDownloadStatus.Unknown => "unknown",
-        _ => "unknown" // Fallback for future values
+        ZipDownloadStatus.Failed => Failed,
+        ZipDownloadStatus.Unknown => Unknown,
+        _ => Unknown // Fallback for future values
     };
 
     public static ZipDownloadStatus ToZipDownloadStatus(this string value) => value switch
@@ -181,7 +184,7 @@ public static class DomainEnumExtensions
         "pending" => ZipDownloadStatus.Pending,
         "building" => ZipDownloadStatus.Building,
         "completed" => ZipDownloadStatus.Completed,
-        "failed" => ZipDownloadStatus.Failed,
+        Failed => ZipDownloadStatus.Failed,
         _ => ZipDownloadStatus.Unknown // Graceful fallback for unknown database values
     };
 }

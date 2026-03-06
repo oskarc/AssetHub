@@ -139,9 +139,9 @@ public static class InfrastructureServiceExtensions
 
         services.AddResiliencePipeline("minio", builder =>
         {
-            builder.AddRetryWithCircuitBreaker(minioShouldHandle,
-                retryAttempts: 3, retryDelay: TimeSpan.FromSeconds(1), retryBackoff: DelayBackoffType.Exponential,
-                breakDuration: TimeSpan.FromSeconds(30), samplingDuration: TimeSpan.FromSeconds(30), minimumThroughput: 5);
+            builder.AddRetryWithCircuitBreaker(minioShouldHandle, new(
+                RetryAttempts: 3, RetryDelay: TimeSpan.FromSeconds(1), RetryBackoff: DelayBackoffType.Exponential,
+                BreakDuration: TimeSpan.FromSeconds(30), SamplingDuration: TimeSpan.FromSeconds(30), MinimumThroughput: 5));
         });
 
         // ClamAV: lighter retry for TCP socket connections
@@ -150,9 +150,9 @@ public static class InfrastructureServiceExtensions
 
         services.AddResiliencePipeline("clamav", builder =>
         {
-            builder.AddRetryWithCircuitBreaker(clamavShouldHandle,
-                retryAttempts: 2, retryDelay: TimeSpan.FromMilliseconds(500), retryBackoff: DelayBackoffType.Constant,
-                breakDuration: TimeSpan.FromSeconds(60), samplingDuration: TimeSpan.FromSeconds(60), minimumThroughput: 3);
+            builder.AddRetryWithCircuitBreaker(clamavShouldHandle, new(
+                RetryAttempts: 2, RetryDelay: TimeSpan.FromMilliseconds(500), RetryBackoff: DelayBackoffType.Constant,
+                BreakDuration: TimeSpan.FromSeconds(60), SamplingDuration: TimeSpan.FromSeconds(60), MinimumThroughput: 3));
         });
 
         // SMTP: retry transient email failures (no circuit breaker — low volume)
@@ -180,30 +180,33 @@ public static class InfrastructureServiceExtensions
     private static void AddRetryWithCircuitBreaker(
         this ResiliencePipelineBuilder builder,
         PredicateBuilder<object> shouldHandle,
-        int retryAttempts,
-        TimeSpan retryDelay,
-        DelayBackoffType retryBackoff,
-        TimeSpan breakDuration,
-        TimeSpan samplingDuration,
-        int minimumThroughput,
-        double failureRatio = 0.5)
+        RetryWithCircuitBreakerOptions opts)
     {
         builder.AddRetry(new Polly.Retry.RetryStrategyOptions
         {
-            MaxRetryAttempts = retryAttempts,
-            BackoffType = retryBackoff,
-            Delay = retryDelay,
+            MaxRetryAttempts = opts.RetryAttempts,
+            BackoffType = opts.RetryBackoff,
+            Delay = opts.RetryDelay,
             ShouldHandle = shouldHandle
         });
         builder.AddCircuitBreaker(new Polly.CircuitBreaker.CircuitBreakerStrategyOptions
         {
-            SamplingDuration = samplingDuration,
-            FailureRatio = failureRatio,
-            MinimumThroughput = minimumThroughput,
-            BreakDuration = breakDuration,
+            SamplingDuration = opts.SamplingDuration,
+            FailureRatio = opts.FailureRatio,
+            MinimumThroughput = opts.MinimumThroughput,
+            BreakDuration = opts.BreakDuration,
             ShouldHandle = shouldHandle
         });
     }
+
+    private record RetryWithCircuitBreakerOptions(
+        int RetryAttempts,
+        TimeSpan RetryDelay,
+        DelayBackoffType RetryBackoff,
+        TimeSpan BreakDuration,
+        TimeSpan SamplingDuration,
+        int MinimumThroughput,
+        double FailureRatio = 0.5);
 
     private static void AddMinIOClients(IServiceCollection services, IConfiguration configuration)
     {

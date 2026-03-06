@@ -8,6 +8,8 @@ namespace AssetHub.Infrastructure.Data;
 
 public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
 {
+    private const string Jsonb = "jsonb";
+
     public AssetHubDbContext(DbContextOptions<AssetHubDbContext> options) : base(options)
     {
     }
@@ -87,7 +89,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.Tags).HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                 v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
-                .HasColumnType("jsonb")
+                .HasColumnType(Jsonb)
                 .Metadata.SetValueComparer(new ValueComparer<List<string>>(
                     (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
@@ -97,7 +99,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
-                .HasColumnType("jsonb")
+                .HasColumnType(Jsonb)
                 .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
                     (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
                     c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
@@ -143,7 +145,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<Dictionary<string, bool>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, bool>())
-                .HasColumnType("jsonb")
+                .HasColumnType(Jsonb)
                 .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, bool>>(
                     (c1, c2) => c1 != null && c2 != null && c1.Count == c2.Count && !c1.Except(c2).Any(),
                     c => c.Aggregate(0, (a, kv) => HashCode.Combine(a, kv.Key.GetHashCode(), kv.Value.GetHashCode())),
@@ -169,7 +171,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
-                .HasColumnType("jsonb")
+                .HasColumnType(Jsonb)
                 .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
                     (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
                     c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
