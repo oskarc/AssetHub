@@ -14,8 +14,8 @@ COPY ["src/AssetHub.Ui/AssetHub.Ui.csproj", "src/AssetHub.Ui/"]
 # Restore dependencies
 RUN dotnet restore "src/AssetHub.Api/AssetHub.Api.csproj"
 
-# Copy source code
-COPY . .
+# Copy source code (explicit path to avoid copying sensitive files - S6470)
+COPY src/ src/
 
 # Build
 RUN dotnet build "src/AssetHub.Api/AssetHub.Api.csproj" -c Release -o /app/build

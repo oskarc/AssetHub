@@ -51,23 +51,15 @@ public class SmtpEmailService : IEmailService
             return;
         }
 
-        try
+        await _pipeline.ExecuteAsync(async ct =>
         {
-            await _pipeline.ExecuteAsync(async ct =>
-            {
-                using var client = CreateSmtpClient();
-                using var message = CreateMailMessage(recipientList, template);
+            using var client = CreateSmtpClient();
+            using var message = CreateMailMessage(recipientList, template);
 
-                await client.SendMailAsync(message, ct);
-            }, cancellationToken);
+            await client.SendMailAsync(message, ct);
+        }, cancellationToken);
 
-            _logger.LogInformation("Successfully sent email '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send email '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
-            throw;
-        }
+        _logger.LogInformation("Successfully sent email '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
     }
 
     private SmtpClient CreateSmtpClient()

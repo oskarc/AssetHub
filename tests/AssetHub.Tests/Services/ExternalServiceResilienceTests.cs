@@ -29,9 +29,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
     private AssetRepository _assetRepo = null!;
     private AssetCollectionRepository _acRepo = null!;
     private ICollectionRepository _colRepo = null!;
-    private ShareRepository _shareRepo = null!;
     private CollectionAuthorizationService _authService = null!;
-    private AssetDeletionService _deletionService = null!;
     private Mock<IMinIOAdapter> _minioMock = null!;
     private Mock<IAuditService> _auditMock = null!;
     private Mock<IMediaProcessingService> _mediaMock = null!;
@@ -51,7 +49,6 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         _acRepo = new AssetCollectionRepository(_db, cache,
             NullLogger<AssetCollectionRepository>.Instance);
         _colRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
-        _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
             _db, NullLogger<CollectionAuthorizationService>.Instance);
@@ -60,9 +57,6 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         _auditMock = new Mock<IAuditService>();
         _mediaMock = new Mock<IMediaProcessingService>();
         _malwareMock = new Mock<IMalwareScannerService>();
-
-        _deletionService = new AssetDeletionService(
-            _assetRepo, _acRepo, _shareRepo, _minioMock.Object);
 
         // Default: malware scanner returns clean
         _malwareMock.Setup(m => m.ScanAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))

@@ -129,7 +129,6 @@ public class AssetGridTests : BunitTestBase
             .Add(x => x.UserRole, "viewer"));
 
         // Share icon should not be present for viewer
-        var shareButtons = cut.FindAll("button").Where(b => b.OuterHtml.Contains("Share")).ToList();
         // Viewer = no share, no delete
         var deleteButtons = cut.FindAll("button").Where(b =>
             b.ClassList.Contains("mud-icon-button") &&
@@ -219,7 +218,7 @@ public class AssetGridTests : BunitTestBase
                 It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Server error"));
 
-        var cut = Render<AssetGrid>(p => p
+        Render<AssetGrid>(p => p
             .Add(x => x.CollectionId, _collectionId)
             .Add(x => x.UserRole, "viewer"));
 

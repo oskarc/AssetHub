@@ -131,7 +131,7 @@ public class CreateShareDialogTests : BunitTestBase
         var cut = await RenderDialogAsync();
 
         // Open the expiration MudSelect dropdown (MudBlazor 8 uses mousedown)
-        cut.Find("div.mud-select div.mud-input-control").MouseDown();
+        await cut.Find("div.mud-select div.mud-input-control").MouseDownAsync();
 
         // MudSelectItem contents now render inside MudPopoverProvider
         Assert.Contains("Expiry_7Days", PopoverProvider!.Markup);

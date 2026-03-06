@@ -146,7 +146,8 @@ public class KeycloakUserService : IKeycloakUserService
         var location = response.Headers.Location?.ToString();
         if (!string.IsNullOrEmpty(location))
         {
-            var userId = location.Split('/').Last();
+            var parts = location.Split('/');
+            var userId = parts[^1];
             _logger.LogInformation("Successfully created Keycloak user '{Username}' with ID '{UserId}'", username, userId);
             return userId;
         }
@@ -171,10 +172,6 @@ public class KeycloakUserService : IKeycloakUserService
         }
 
         throw new KeycloakApiException("User was created but could not determine the user ID");
-        }
-        catch (KeycloakApiException)
-        {
-            throw; // Already a Keycloak exception, rethrow as-is
         }
         catch (HttpRequestException ex)
         {
@@ -237,10 +234,6 @@ public class KeycloakUserService : IKeycloakUserService
 
             _logger.LogInformation("Successfully reset password for Keycloak user '{UserId}'", userId);
         }
-        catch (KeycloakApiException)
-        {
-            throw;
-        }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error while resetting password for Keycloak user '{UserId}'", userId);
@@ -300,10 +293,6 @@ public class KeycloakUserService : IKeycloakUserService
                 "Sent execute-actions-email to Keycloak user '{UserId}' with actions: {Actions}",
                 userId, string.Join(", ", actions));
         }
-        catch (KeycloakApiException)
-        {
-            throw;
-        }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error while sending actions email for Keycloak user '{UserId}'", userId);
@@ -352,10 +341,6 @@ public class KeycloakUserService : IKeycloakUserService
             }
 
             _logger.LogInformation("Successfully deleted Keycloak user '{UserId}'", userId);
-        }
-        catch (KeycloakApiException)
-        {
-            throw;
         }
         catch (HttpRequestException ex)
         {
@@ -607,10 +592,6 @@ public class KeycloakUserService : IKeycloakUserService
             }
 
             _logger.LogInformation("Assigned realm role '{Role}' to user {UserId}", roleName, userId);
-        }
-        catch (KeycloakApiException)
-        {
-            throw;
         }
         catch (HttpRequestException ex)
         {

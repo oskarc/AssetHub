@@ -334,7 +334,7 @@ public class MediaProcessingService(
     /// <summary>
     /// Runs an external process with a timeout guard.
     /// </summary>
-    private async Task RunProcessAsync(string toolName, ProcessStartInfo startInfo, CancellationToken ct)
+    private static async Task RunProcessAsync(string toolName, ProcessStartInfo startInfo, CancellationToken ct)
     {
         using var process = Process.Start(startInfo);
         if (process == null)
@@ -407,63 +407,62 @@ public class MediaProcessingService(
     private static void ExtractExifData(IReadOnlyList<MetadataExtractor.Directory> directories, Dictionary<string, object> result)
     {
         var exifIfd0 = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-        var exifSubIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+        if (exifIfd0 != null)
+            ExtractExifIfd0Data(exifIfd0, result);
 
-        // Artist / Photographer
-        var artist = exifIfd0?.GetString(ExifDirectoryBase.TagArtist);
+        var exifSubIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+        if (exifSubIfd != null)
+            ExtractExifSubIfdData(exifSubIfd, result);
+    }
+
+    private static void ExtractExifIfd0Data(ExifIfd0Directory exifIfd0, Dictionary<string, object> result)
+    {
+        var artist = exifIfd0.GetString(ExifDirectoryBase.TagArtist);
         if (!string.IsNullOrWhiteSpace(artist))
             result["artist"] = artist;
 
-        // Copyright
-        var copyright = exifIfd0?.GetString(ExifDirectoryBase.TagCopyright);
+        var copyright = exifIfd0.GetString(ExifDirectoryBase.TagCopyright);
         if (!string.IsNullOrWhiteSpace(copyright))
             result["copyright"] = copyright;
 
-        // Camera Make
-        var make = exifIfd0?.GetString(ExifDirectoryBase.TagMake);
+        var make = exifIfd0.GetString(ExifDirectoryBase.TagMake);
         if (!string.IsNullOrWhiteSpace(make))
             result["cameraMake"] = make;
 
-        // Camera Model
-        var model = exifIfd0?.GetString(ExifDirectoryBase.TagModel);
+        var model = exifIfd0.GetString(ExifDirectoryBase.TagModel);
         if (!string.IsNullOrWhiteSpace(model))
             result["cameraModel"] = model;
 
-        // Software used
-        var software = exifIfd0?.GetString(ExifDirectoryBase.TagSoftware);
+        var software = exifIfd0.GetString(ExifDirectoryBase.TagSoftware);
         if (!string.IsNullOrWhiteSpace(software))
             result["software"] = software;
+    }
 
-        // Date/Time Original
-        if (exifSubIfd?.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out var dateTimeOriginal) == true)
+    private static void ExtractExifSubIfdData(ExifSubIfdDirectory exifSubIfd, Dictionary<string, object> result)
+    {
+        if (exifSubIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out var dateTimeOriginal))
             result["dateTaken"] = dateTimeOriginal.ToString("yyyy-MM-dd HH:mm:ss");
 
-        // Exposure Time
-        if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagExposureTime, out var exposureTime) == true)
+        if (exifSubIfd.TryGetRational(ExifDirectoryBase.TagExposureTime, out var exposureTime))
             result["exposureTime"] = exposureTime.Denominator > 1 
                 ? $"1/{(int)(exposureTime.Denominator / exposureTime.Numerator)}s" 
                 : $"{exposureTime.ToDouble():F1}s";
 
-        // F-Number (Aperture)
-        if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagFNumber, out var fNumber) == true)
+        if (exifSubIfd.TryGetRational(ExifDirectoryBase.TagFNumber, out var fNumber))
             result["aperture"] = $"f/{fNumber.ToDouble():F1}";
 
-        // ISO
-        if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagIsoEquivalent, out var iso) == true)
+        if (exifSubIfd.TryGetInt32(ExifDirectoryBase.TagIsoEquivalent, out var iso))
             result["iso"] = iso;
 
-        // Focal Length
-        if (exifSubIfd?.TryGetRational(ExifDirectoryBase.TagFocalLength, out var focalLength) == true)
+        if (exifSubIfd.TryGetRational(ExifDirectoryBase.TagFocalLength, out var focalLength))
             result["focalLength"] = $"{focalLength.ToDouble():F0}mm";
 
-        // Image Dimensions
-        if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagExifImageWidth, out var width) == true)
+        if (exifSubIfd.TryGetInt32(ExifDirectoryBase.TagExifImageWidth, out var width))
             result["imageWidth"] = width;
-        if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagExifImageHeight, out var height) == true)
+        if (exifSubIfd.TryGetInt32(ExifDirectoryBase.TagExifImageHeight, out var height))
             result["imageHeight"] = height;
 
-        // Flash
-        if (exifSubIfd?.TryGetInt32(ExifDirectoryBase.TagFlash, out var flash) == true)
+        if (exifSubIfd.TryGetInt32(ExifDirectoryBase.TagFlash, out var flash))
             result["flash"] = (flash & 1) == 1 ? "Fired" : "Did not fire";
     }
 

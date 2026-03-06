@@ -151,6 +151,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserAdminQueryService>(sp => sp.GetRequiredService<UserAdminService>());
         services.AddScoped<IUserAdminService>(sp => sp.GetRequiredService<UserAdminService>());
         
+        services.AddScoped<ShareAccessDependencies>();
         services.AddScoped<ShareAccessService>();
         services.AddScoped<IPublicShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
         services.AddScoped<IAuthenticatedShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
@@ -321,8 +322,11 @@ public static class ServiceCollectionExtensions
         var handler = new HttpClientHandler();
         if (environment.IsDevelopment())
         {
+            // Development only: self-signed certs for local Keycloak/MinIO
+#pragma warning disable S4830 // Server certificates should be verified during SSL/TLS connections
             handler.ServerCertificateCustomValidationCallback =
                 HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+#pragma warning restore S4830
         }
         return handler;
     }

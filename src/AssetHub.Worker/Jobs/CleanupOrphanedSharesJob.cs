@@ -22,23 +22,15 @@ public class CleanupOrphanedSharesJob(
         using var scope = scopeFactory.CreateScope();
         var shareRepo = scope.ServiceProvider.GetRequiredService<IShareRepository>();
 
-        try
-        {
-            var deleted = await shareRepo.DeleteOrphanedAsync(CancellationToken.None);
+        var deleted = await shareRepo.DeleteOrphanedAsync(CancellationToken.None);
             
-            if (deleted > 0)
-            {
-                logger.LogInformation("Orphaned shares cleanup complete: {Deleted} shares removed", deleted);
-            }
-            else
-            {
-                logger.LogDebug("Orphaned shares cleanup complete: no orphaned shares found");
-            }
-        }
-        catch (Exception ex)
+        if (deleted > 0)
         {
-            logger.LogError(ex, "Error during orphaned shares cleanup");
-            throw;
+            logger.LogInformation("Orphaned shares cleanup complete: {Deleted} shares removed", deleted);
+        }
+        else
+        {
+            logger.LogDebug("Orphaned shares cleanup complete: no orphaned shares found");
         }
     }
 }

@@ -138,7 +138,7 @@ public class AssetDeletionServiceTests : IAsyncLifetime
         // Only the col1 link is gone
         var remainingIds = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(asset.Id);
         Assert.Single(remainingIds);
-        Assert.Equal(col2.Id, remainingIds.First());
+        Assert.Equal(col2.Id, remainingIds[0]);
     }
 
     [Fact]

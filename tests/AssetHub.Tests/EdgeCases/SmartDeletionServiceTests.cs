@@ -35,7 +35,6 @@ public class SmartDeletionServiceTests : IAsyncLifetime
     private AssetDeletionService _deletionService = null!;
     private Mock<IMinIOAdapter> _minioMock = null!;
     private Mock<IAuditService> _auditMock = null!;
-    private Mock<IMalwareScannerService> _malwareMock = null!;
 
     private const string BucketName = "test-bucket";
 
@@ -62,11 +61,6 @@ public class SmartDeletionServiceTests : IAsyncLifetime
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
-        _malwareMock = new Mock<IMalwareScannerService>();
-
-        // Default: malware scanner returns clean
-        _malwareMock.Setup(m => m.ScanAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(MalwareScanResult.Clean());
 
         _deletionService = new AssetDeletionService(
             _assetRepo, _acRepo, _shareRepo, _minioMock.Object);
@@ -186,7 +180,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         Assert.NotNull(found);
         var remaining = await _acRepo.GetCollectionIdsForAssetAsync(asset.Id);
         Assert.Single(remaining);
-        Assert.Equal(col2.Id, remaining.First());
+        Assert.Equal(col2.Id, remaining[0]);
     }
 
     // ── §10.6 Edge Case 3: asset in 2 collections, user lacks access to one ──
@@ -221,7 +215,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         // Link to col1 is removed, link to col2 is preserved
         var remaining = await _acRepo.GetCollectionIdsForAssetAsync(asset.Id);
         Assert.Single(remaining);
-        Assert.Equal(col2.Id, remaining.First());
+        Assert.Equal(col2.Id, remaining[0]);
     }
 
     // ── §10.6 Edge Case 4: verify asset still accessible from unauthorized collection ──
@@ -271,7 +265,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         // Asset is still linked to col2
         var linkedCollections = await acRepo2.GetCollectionIdsForAssetAsync(asset.Id);
         Assert.Single(linkedCollections);
-        Assert.Equal(col2.Id, linkedCollections.First());
+        Assert.Equal(col2.Id, linkedCollections[0]);
 
         await db2.DisposeAsync();
     }

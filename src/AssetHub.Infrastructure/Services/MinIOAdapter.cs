@@ -136,14 +136,14 @@ public class MinIOAdapter(
                 await minioClient.RemoveObjectAsync(removeObjectArgs, ct);
             }, cancellationToken);
         }
-        catch (ObjectNotFoundException)
+        catch (ObjectNotFoundException ex)
         {
             // Object already deleted – nothing to do.
-            logger.LogDebug("Object {BucketName}/{ObjectKey} not found during delete – ignoring", bucketName, objectKey);
+            logger.LogDebug(ex, "Object {BucketName}/{ObjectKey} not found during delete – ignoring", bucketName, objectKey);
         }
-        catch (BucketNotFoundException)
+        catch (BucketNotFoundException ex)
         {
-            logger.LogWarning("Bucket {BucketName} not found during delete of {ObjectKey} – ignoring", bucketName, objectKey);
+            logger.LogWarning(ex, "Bucket {BucketName} not found during delete of {ObjectKey} – ignoring", bucketName, objectKey);
         }
         catch (MinioException ex)
         {
@@ -341,10 +341,6 @@ public class MinIOAdapter(
                 return await publicMinioClient.PresignedPutObjectAsync(presignedPutObjectArgs);
             }, cancellationToken);
             return url;
-        }
-        catch (StorageException)
-        {
-            throw; // Already wrapped
         }
         catch (MinioException ex)
         {

@@ -13,6 +13,20 @@ using Microsoft.Extensions.Options;
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
+/// Groups repository and domain-service dependencies for <see cref="ShareAccessService"/>
+/// to keep the constructor parameter count manageable.
+/// </summary>
+public sealed record ShareAccessDependencies(
+    IShareRepository ShareRepo,
+    IAssetRepository AssetRepo,
+    IAssetCollectionRepository AssetCollectionRepo,
+    ICollectionRepository CollectionRepo,
+    ICollectionAuthorizationService AuthService,
+    IShareService ShareService,
+    IZipBuildService ZipBuildService,
+    IAuditService Audit);
+
+/// <summary>
 /// Handles public share access and authenticated share management.
 /// </summary>
 public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShareAccessService
@@ -33,30 +47,23 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
     private readonly ILogger<ShareAccessService> _logger;
 
     public ShareAccessService(
-        IShareRepository shareRepo,
-        IAssetRepository assetRepo,
-        IAssetCollectionRepository assetCollectionRepo,
-        ICollectionRepository collectionRepo,
-        ICollectionAuthorizationService authService,
-        IShareService shareService,
+        ShareAccessDependencies deps,
         IMinIOAdapter minioAdapter,
-        IZipBuildService zipBuildService,
-        IAuditService audit,
         IOptions<MinIOSettings> minioSettings,
         IDataProtectionProvider dataProtection,
         IHttpContextAccessor httpContextAccessor,
         ILogger<ShareAccessService> logger,
         CurrentUser currentUser)
     {
-        _shareRepo = shareRepo;
-        _assetRepo = assetRepo;
-        _assetCollectionRepo = assetCollectionRepo;
-        _collectionRepo = collectionRepo;
-        _authService = authService;
-        _shareService = shareService;
+        _shareRepo = deps.ShareRepo;
+        _assetRepo = deps.AssetRepo;
+        _assetCollectionRepo = deps.AssetCollectionRepo;
+        _collectionRepo = deps.CollectionRepo;
+        _authService = deps.AuthService;
+        _shareService = deps.ShareService;
+        _zipBuildService = deps.ZipBuildService;
+        _audit = deps.Audit;
         _minioAdapter = minioAdapter;
-        _zipBuildService = zipBuildService;
-        _audit = audit;
         _bucketName = minioSettings.Value.BucketName;
         _dataProtection = dataProtection;
         _httpContextAccessor = httpContextAccessor;

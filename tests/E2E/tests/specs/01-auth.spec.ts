@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 import { KeycloakLoginPage } from '../pages/keycloak-login.page';
 import { LoginPage } from '../pages/login.page';
 import { LayoutPage } from '../pages/layout.page';
-import { env } from '../config/env';
 
 test.describe('Authentication & Login @auth @smoke', () => {
   test.describe('Login page', () => {
@@ -25,7 +24,7 @@ test.describe('Authentication & Login @auth @smoke', () => {
       // Navigate directly to auth endpoint (bypasses Blazor button which requires circuit)
       await page.goto('/auth/login?returnUrl=%2F');
       // Should redirect to Keycloak login
-      await page.waitForURL(/.*keycloak.*|.*8443.*/, { timeout: 15_000 });
+      await page.waitForURL(/keycloak|8443/, { timeout: 15_000 });
       await expect(page.locator('#username')).toBeVisible();
       await expect(page.locator('#password')).toBeVisible();
     });
@@ -49,7 +48,7 @@ test.describe('Authentication & Login @auth @smoke', () => {
     test('rejects invalid credentials at Keycloak', async ({ page }) => {
       // Navigate directly to auth endpoint to reach Keycloak
       await page.goto('/auth/login?returnUrl=%2F');
-      await page.waitForURL(/.*keycloak.*|.*8443.*/);
+      await page.waitForURL(/keycloak|8443/);
 
       const keycloak = new KeycloakLoginPage(page);
       await keycloak.login('baduser', 'badpassword');
@@ -61,7 +60,7 @@ test.describe('Authentication & Login @auth @smoke', () => {
     test('unauthenticated user redirected from protected pages', async ({ page }) => {
       await page.goto('/assets');
       // Should redirect to login
-      await page.waitForURL(/\/login|.*keycloak.*|.*8443.*/, { timeout: 15_000 });
+      await page.waitForURL(/\/login|keycloak|8443/, { timeout: 15_000 });
     });
   });
 
@@ -73,7 +72,7 @@ test.describe('Authentication & Login @auth @smoke', () => {
 
       await layout.signOut();
       // Should redirect to login or Keycloak logout
-      await page.waitForURL(/\/login|.*keycloak.*/, { timeout: 15_000 });
+      await page.waitForURL(/\/login|keycloak/, { timeout: 15_000 });
     });
   });
 });

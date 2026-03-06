@@ -65,7 +65,7 @@ public class UserFeedbackService : IUserFeedbackService
     public void HandleError(Exception ex, string operationName)
     {
         // Log the full exception for debugging
-        _logger.LogError(ex, $"Error during operation: {operationName}");
+        _logger.LogError(ex, "Error during operation: {OperationName}", operationName);
 
         // Show user-friendly message
         var userMessage = GetUserFriendlyMessage(ex, operationName);
@@ -75,7 +75,8 @@ public class UserFeedbackService : IUserFeedbackService
     public void HandleApiError(ApiException ex, string operationName)
     {
         // Log with context
-        _logger.LogError($"API error during '{operationName}': {ex.Message} (Status: {ex.StatusCode})");
+        _logger.LogError(ex, "API error during '{OperationName}': {Message} (Status: {StatusCode})",
+            operationName, ex.Message, ex.StatusCode);
 
         // For API exceptions, we can often use the message directly as it's already sanitized
         var userMessage = GetApiErrorMessage(ex, operationName);
@@ -135,7 +136,7 @@ public class UserFeedbackService : IUserFeedbackService
     /// <summary>
     /// Converts exceptions to user-friendly messages.
     /// </summary>
-    private string GetUserFriendlyMessage(Exception ex, string operationName)
+    private static string GetUserFriendlyMessage(Exception ex, string operationName)
     {
         // Handle specific exception types
         return ex switch
@@ -153,7 +154,7 @@ public class UserFeedbackService : IUserFeedbackService
     /// <summary>
     /// Converts API exceptions to user-friendly messages based on status code.
     /// </summary>
-    private string GetApiErrorMessage(ApiException ex, string operationName)
+    private static string GetApiErrorMessage(ApiException ex, string operationName)
     {
         // If the API returned a specific error message, use it (already sanitized by API)
         if (!string.IsNullOrWhiteSpace(ex.Message) && ex.Message != "null")
@@ -182,7 +183,7 @@ public class UserFeedbackService : IUserFeedbackService
     /// <summary>
     /// Converts HTTP request exceptions to user-friendly messages.
     /// </summary>
-    private string GetHttpErrorMessage(HttpRequestException ex, string operationName)
+    private static string GetHttpErrorMessage(HttpRequestException ex, string operationName)
     {
         if (ex.Message.Contains("No connection could be made", StringComparison.OrdinalIgnoreCase) ||
             ex.Message.Contains("Connection refused", StringComparison.OrdinalIgnoreCase))

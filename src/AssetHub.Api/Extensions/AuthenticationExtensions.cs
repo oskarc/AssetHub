@@ -93,11 +93,14 @@ public static class AuthenticationExtensions
         options.RequireHttpsMetadata = requireHttpsMetadata;
         if (environment.IsDevelopment())
         {
+            // Development only: self-signed certs for local Keycloak
+#pragma warning disable S4830 // Server certificates should be verified during SSL/TLS connections
             options.BackchannelHttpHandler = new HttpClientHandler
             {
                 ServerCertificateCustomValidationCallback =
                     HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
             };
+#pragma warning restore S4830
         }
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -175,11 +178,14 @@ public static class AuthenticationExtensions
         options.RequireHttpsMetadata = requireHttpsMetadata;
         if (environment.IsDevelopment())
         {
+            // Development only: self-signed certs for local Keycloak
+#pragma warning disable S4830 // Server certificates should be verified during SSL/TLS connections
             options.BackchannelHttpHandler = new HttpClientHandler
             {
                 ServerCertificateCustomValidationCallback =
                     HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
             };
+#pragma warning restore S4830
         }
 
         options.CallbackPath = "/signin-oidc";
@@ -229,7 +235,7 @@ public static class AuthenticationExtensions
             OnAuthenticationFailed = context =>
             {
                 var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                logger.LogError("OIDC authentication failed: {Message}", context.Exception?.Message ?? "Unknown");
+                logger.LogError(context.Exception, "OIDC authentication failed: {Message}", context.Exception?.Message ?? "Unknown");
                 context.HandleResponse();
                 context.Response.Redirect("/?authError=authentication_failed");
                 return Task.CompletedTask;

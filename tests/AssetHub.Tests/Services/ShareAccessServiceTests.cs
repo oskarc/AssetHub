@@ -67,16 +67,19 @@ public class ShareAccessServiceTests
 
     private ShareAccessService CreateService(CurrentUser? currentUser = null)
     {
-        return new ShareAccessService(
+        var deps = new ShareAccessDependencies(
             _shareRepoMock.Object,
             _assetRepoMock.Object,
             _assetCollectionRepoMock.Object,
             _collectionRepoMock.Object,
             _authServiceMock.Object,
             _shareServiceMock.Object,
-            _minioAdapterMock.Object,
             _zipBuildServiceMock.Object,
-            _auditMock.Object,
+            _auditMock.Object);
+
+        return new ShareAccessService(
+            deps,
+            _minioAdapterMock.Object,
             _minioSettings,
             _dataProtectionMock.Object,
             _httpContextAccessorMock.Object,
@@ -142,7 +145,7 @@ public class ShareAccessServiceTests
     {
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(TestPassword);
         var (share, token) = TestData.CreateShareWithToken(passwordHash: passwordHash);
-        var asset = TestData.CreateAsset(id: share.ScopeId);
+        TestData.CreateAsset(id: share.ScopeId);
 
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);

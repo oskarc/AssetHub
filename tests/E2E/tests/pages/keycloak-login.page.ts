@@ -38,7 +38,7 @@ export class KeycloakLoginPage {
     await this.login(username, password);
     
     // Wait for redirect back to the app
-    await this.page.waitForURL(/.*assethub\.local.*/, { timeout: env.timeouts.navigation });
+    await this.page.waitForURL(/assethub\.local/, { timeout: env.timeouts.navigation });
   }
 
   /** Login as the pre-seeded admin user */

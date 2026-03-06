@@ -10,7 +10,7 @@ namespace AssetHub.Api.HealthChecks;
 internal sealed class ClamAvHealthCheck(IMalwareScannerService scanner, IConfiguration config) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext context, CancellationToken ct = default)
+        HealthCheckContext context, CancellationToken cancellationToken = default)
     {
         var enabled = config.GetValue("ClamAV:Enabled", false);
         
@@ -19,7 +19,7 @@ internal sealed class ClamAvHealthCheck(IMalwareScannerService scanner, IConfigu
 
         try
         {
-            var available = await scanner.IsAvailableAsync(ct);
+            var available = await scanner.IsAvailableAsync(cancellationToken);
             return available
                 ? HealthCheckResult.Healthy("ClamAV is responding to PING.")
                 : HealthCheckResult.Unhealthy("ClamAV is not responding.");

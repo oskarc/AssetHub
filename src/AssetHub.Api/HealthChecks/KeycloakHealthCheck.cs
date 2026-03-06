@@ -9,7 +9,7 @@ internal sealed class KeycloakHealthCheck(
     IConfiguration config, IHttpClientFactory httpClientFactory) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext context, CancellationToken ct = default)
+        HealthCheckContext context, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -20,7 +20,7 @@ internal sealed class KeycloakHealthCheck(
             var discoveryUrl = authority.TrimEnd('/') + "/.well-known/openid-configuration";
             using var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(5);
-            var response = await client.GetAsync(discoveryUrl, ct);
+            var response = await client.GetAsync(discoveryUrl, cancellationToken);
 
             return response.IsSuccessStatusCode
                 ? HealthCheckResult.Healthy(

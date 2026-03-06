@@ -79,10 +79,10 @@ internal sealed class OidcCallbackDiagnosticsMiddleware(RequestDelegate next)
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,
-                "Unhandled exception during /signin-oidc pipeline: {Message}", ex.Message);
             if (!context.Response.HasStarted)
             {
+                logger.LogError(ex,
+                    "Unhandled exception during /signin-oidc pipeline: {Message}", ex.Message);
                 context.Response.Redirect("/?authError=signin_oidc_exception");
                 return;
             }

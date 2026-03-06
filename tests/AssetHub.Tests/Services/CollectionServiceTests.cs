@@ -26,7 +26,6 @@ public class CollectionServiceTests : IAsyncLifetime
     private CollectionRepository _collectionRepo = null!;
     private CollectionAclRepository _aclRepo = null!;
     private AssetRepository _assetRepo = null!;
-    private AssetCollectionRepository _assetCollectionRepo = null!;
     private ShareRepository _shareRepo = null!;
     private CollectionAuthorizationService _authService = null!;
     private Mock<IAssetDeletionService> _deletionServiceMock = null!;
@@ -47,9 +46,6 @@ public class CollectionServiceTests : IAsyncLifetime
         _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
         _assetRepo = new AssetRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
             new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), NullLogger<AssetRepository>.Instance);
-        _assetCollectionRepo = new AssetCollectionRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
-            NullLogger<AssetCollectionRepository>.Instance);
         _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         _deletionServiceMock = new Mock<IAssetDeletionService>();

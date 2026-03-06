@@ -78,9 +78,7 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
             .ReturnsAsync(() => _fixture.CreateDbContextForExistingDb(_dbName));
 
         return new ZipBuildService(
-            dbFactoryMock.Object,
-            _assetRepo,
-            _colRepo,
+            new ZipBuildDataDependencies(dbFactoryMock.Object, _assetRepo, _colRepo),
             _minioMock.Object,
             _jobClientMock.Object,
             _auditMock.Object,

@@ -122,7 +122,7 @@ public class CollectionTreeTests : BunitTestBase
         MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Network error"));
 
-        var cut = Render<CollectionTree>();
+        Render<CollectionTree>();
 
         VerifyHandleErrorCalled();
     }

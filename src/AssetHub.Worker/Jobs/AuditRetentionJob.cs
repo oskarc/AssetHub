@@ -49,15 +49,9 @@ public class AuditRetentionJob(
                 logger.LogDebug("Audit retention cleanup complete: no events older than {Days} days found",
                     retentionDays);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogWarning("Audit retention cleanup cancelled after deleting {Deleted} events", totalDeleted);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error during audit retention cleanup (deleted {Deleted} events before failure)", totalDeleted);
-            throw;
+            logger.LogWarning(ex, "Audit retention cleanup cancelled after deleting {Deleted} events", totalDeleted);
         }
     }
 }

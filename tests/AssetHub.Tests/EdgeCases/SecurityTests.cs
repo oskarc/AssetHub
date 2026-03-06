@@ -28,7 +28,6 @@ public class SecurityTests : IAsyncLifetime
     // Different user contexts for testing
     private const string UserAId = "user-a-001";
     private const string UserBId = "user-b-002";
-    private const string ViewerUserId = "viewer-user-003";
     private const string ContributorUserId = "contributor-user-004";
     private const string ManagerUserId = "manager-user-005";
 
@@ -108,7 +107,7 @@ public class SecurityTests : IAsyncLifetime
     public async Task Viewer_CannotUpdateAssetMetadata()
     {
         // Seed a collection with Viewer role for User A
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Viewer);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Viewer);
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Viewer);
 
         var patchContent = JsonContent.Create(new { Title = "Hacked Title" });
@@ -144,7 +143,7 @@ public class SecurityTests : IAsyncLifetime
     public async Task UserA_CannotAccess_UserBs_Asset()
     {
         // User B creates a collection and asset
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         // User A tries to access it
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
@@ -180,7 +179,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task UserA_CannotDownload_UserBs_Asset()
     {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         var response = await clientA.GetAsync($"/api/assets/{assetId}/download");
@@ -191,7 +190,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task UserA_CannotView_UserBs_Thumbnail()
     {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         var response = await clientA.GetAsync($"/api/assets/{assetId}/thumb");
@@ -202,7 +201,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task UserA_CannotCreateShare_For_UserBs_Asset()
     {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
 
         var dto = new CreateShareDto
@@ -221,7 +220,7 @@ public class SecurityTests : IAsyncLifetime
         // User B creates a collection
         var (colIdB, _) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         // User A creates their own asset (via their own collection)
-        var (colIdA, assetIdA) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
+        var (_, assetIdA) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         // User A tries to add their asset to User B's collection
@@ -253,16 +252,10 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task Random_AssetId_Guessing_Returns403_Not_AssetDetails()
     {
-        // Create a real asset for User B
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        // User A tries various GUIDs - should get 403 (forbidden) not 404 (not found)
-        // This prevents enumeration attacks where attacker learns which IDs exist
-        var response = await clientA.GetAsync($"/api/assets/{assetId}");
-
-        // Should return 403 to prevent information leakage about existence
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        // This test validates the same behavior as UserA_CannotAccess_UserBs_Asset
+        // but from the perspective of enumeration attack prevention:
+        // the API must return 403 (not 404) to avoid leaking resource existence.
+        await UserA_CannotAccess_UserBs_Asset();
     }
 
     [Fact]
@@ -287,7 +280,7 @@ public class SecurityTests : IAsyncLifetime
     public async Task ExpiredShare_ReturnsUnauthorized()
     {
         // Create a share that expired yesterday
-        var (colId, assetId, shareId, token) = await SeedShareAsync(
+        var (_, _, _, token) = await SeedShareAsync(
             userId: UserAId,
             scopeType: ShareScopeType.Asset,
             expiresAt: DateTime.UtcNow.AddDays(-1));
@@ -305,7 +298,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task RevokedShare_ReturnsUnauthorized()
     {
-        var (colId, assetId, shareId, token) = await SeedShareAsync(
+        var (_, _, _, token) = await SeedShareAsync(
             userId: UserAId,
             scopeType: ShareScopeType.Asset,
             revoked: true);
@@ -323,7 +316,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task PasswordProtectedShare_WithoutPassword_ReturnsUnauthorized()
     {
-        var (colId, assetId, shareId, token) = await SeedShareAsync(
+        var (_, _, _, token) = await SeedShareAsync(
             userId: UserAId,
             scopeType: ShareScopeType.Asset,
             passwordHash: "$argon2id$v=19$m=65536,t=3,p=4$somesalt$somehash");  // Fake hash
@@ -420,7 +413,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task UpdateAsset_WithHtmlInTitle_DoesNotBreak()
     {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
 
         var patchContent = JsonContent.Create(new
@@ -605,7 +598,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task UpdateAsset_WithOversizedMetadata_Returns400()
     {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
 
         // Build a metadata dictionary exceeding the allowed limit
@@ -625,7 +618,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task CreateShare_WithShortPassword_Returns400()
     {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Manager);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Manager);
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Manager);
 
         var dto = new CreateShareDto
@@ -656,7 +649,7 @@ public class SecurityTests : IAsyncLifetime
     [Fact]
     public async Task UpdateAsset_WithOversizedMetadataValue_Returns400()
     {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
+        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
 
         // Single metadata value that exceeds the per-value length limit

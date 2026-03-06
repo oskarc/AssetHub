@@ -161,7 +161,7 @@ public class ManageAccessDialogTests : BunitTestBase
 
         // Open the role MudSelect dropdown (MudBlazor 8 uses mousedown)
         var selects = cut.FindAll("div.mud-select div.mud-input-control");
-        selects.Last().MouseDown();
+        await selects[^1].MouseDownAsync();
 
         // MudSelectItem contents render inside MudPopoverProvider
         Assert.Contains("Role_Viewer", PopoverProvider!.Markup);
@@ -172,7 +172,7 @@ public class ManageAccessDialogTests : BunitTestBase
     [Fact]
     public async Task Loads_ACLs_On_Init()
     {
-        var cut = await RenderDialogAsync();
+        await RenderDialogAsync();
 
         MockApi.Verify(a => a.GetCollectionAclsAsync(_collectionId, It.IsAny<CancellationToken>()), Times.Once());
     }
@@ -189,7 +189,7 @@ public class ManageAccessDialogTests : BunitTestBase
             { x => x.CollectionName, "Test" },
             { x => x.CurrentUserRole, "manager" }
         };
-        var cut = await ShowDialogAsync<ManageAccessDialog>(parameters);
+        await ShowDialogAsync<ManageAccessDialog>(parameters);
 
         VerifyHandleErrorCalled();
     }

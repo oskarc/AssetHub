@@ -27,11 +27,9 @@ public class AssetServiceAuditTests : IAsyncLifetime
     private AssetRepository _assetRepo = null!;
     private AssetCollectionRepository _acRepo = null!;
     private ICollectionRepository _colRepo = null!;
-    private ShareRepository _shareRepo = null!;
     private CollectionAuthorizationService _authService = null!;
     private Mock<IMinIOAdapter> _minioMock = null!;
     private Mock<IAuditService> _auditMock = null!;
-    private Mock<IMalwareScannerService> _malwareMock = null!;
 
     private const string BucketName = "test-bucket";
     private const string TestUser = "audit-test-user-001";
@@ -47,18 +45,12 @@ public class AssetServiceAuditTests : IAsyncLifetime
         _acRepo = new AssetCollectionRepository(_db, cache,
             NullLogger<AssetCollectionRepository>.Instance);
         _colRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
-        _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
             _db, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
-        _malwareMock = new Mock<IMalwareScannerService>();
-
-        // Default: malware scanner returns clean
-        _malwareMock.Setup(m => m.ScanAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(MalwareScanResult.Clean());
 
         _minioMock.Setup(m => m.GetPresignedDownloadUrlAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(),

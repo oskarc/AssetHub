@@ -15,6 +15,14 @@ using Microsoft.Extensions.Options;
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
+/// Groups data-access dependencies for <see cref="ZipBuildService"/>.
+/// </summary>
+public sealed record ZipBuildDataDependencies(
+    IDbContextFactory<AssetHubDbContext> DbFactory,
+    IAssetRepository AssetRepo,
+    ICollectionRepository CollectionRepo);
+
+/// <summary>
 /// Manages queued ZIP download builds via Hangfire.
 /// Builds ZIP files in the background and stores them as temporary MinIO objects.
 /// </summary>
@@ -30,18 +38,16 @@ public class ZipBuildService : IZipBuildService
     private readonly ILogger<ZipBuildService> _logger;
 
     public ZipBuildService(
-        IDbContextFactory<AssetHubDbContext> dbFactory,
-        IAssetRepository assetRepo,
-        ICollectionRepository collectionRepo,
+        ZipBuildDataDependencies data,
         IMinIOAdapter minioAdapter,
         IBackgroundJobClient jobClient,
         IAuditService audit,
         IOptions<MinIOSettings> minioSettings,
         ILogger<ZipBuildService> logger)
     {
-        _dbFactory = dbFactory;
-        _assetRepo = assetRepo;
-        _collectionRepo = collectionRepo;
+        _dbFactory = data.DbFactory;
+        _assetRepo = data.AssetRepo;
+        _collectionRepo = data.CollectionRepo;
         _minioAdapter = minioAdapter;
         _jobClient = jobClient;
         _audit = audit;
@@ -321,18 +327,17 @@ public class ZipBuildService : IZipBuildService
 
         _logger.LogInformation("Cleaning up {Count} expired ZIP downloads", expired.Count);
 
-        foreach (var zip in expired)
+        foreach (var objectKey in expired
+            .Select(z => z.ZipObjectKey)
+            .Where(key => !string.IsNullOrEmpty(key)))
         {
-            if (!string.IsNullOrEmpty(zip.ZipObjectKey))
+            try
             {
-                try
-                {
-                    await _minioAdapter.DeleteAsync(_bucketName, zip.ZipObjectKey, ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to delete ZIP object {ObjectKey}", zip.ZipObjectKey);
-                }
+                await _minioAdapter.DeleteAsync(_bucketName, objectKey, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete ZIP object {ObjectKey}", objectKey);
             }
         }
 

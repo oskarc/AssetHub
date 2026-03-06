@@ -122,6 +122,7 @@ public static class InfrastructureServiceExtensions
         // Register concrete type for Hangfire job resolution, then forward the interface to it
         services.AddScoped<MediaProcessingService>();
         services.AddScoped<IMediaProcessingService>(sp => sp.GetRequiredService<MediaProcessingService>());
+        services.AddScoped<ZipBuildDataDependencies>();
         services.AddScoped<ZipBuildService>();
         services.AddScoped<IZipBuildService>(sp => sp.GetRequiredService<ZipBuildService>());
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
@@ -199,7 +200,7 @@ public static class InfrastructureServiceExtensions
         });
     }
 
-    private record RetryWithCircuitBreakerOptions(
+    private sealed record RetryWithCircuitBreakerOptions(
         int RetryAttempts,
         TimeSpan RetryDelay,
         DelayBackoffType RetryBackoff,

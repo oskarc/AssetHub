@@ -110,7 +110,7 @@ public class AddToCollectionDialogTests : BunitTestBase
         MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("API Error"));
 
-        var cut = await RenderDialogAsync();
+        await RenderDialogAsync();
 
         VerifyHandleErrorCalled();
     }
@@ -125,7 +125,7 @@ public class AddToCollectionDialogTests : BunitTestBase
         var cut = await RenderDialogAsync();
 
         // Open the MudSelect dropdown (MudBlazor 8 uses mousedown)
-        cut.Find("div.mud-select div.mud-input-control").MouseDown();
+        await cut.Find("div.mud-select div.mud-input-control").MouseDownAsync();
 
         // MudSelectItem contents now render inside MudPopoverProvider
         foreach (var col in collections)
@@ -150,14 +150,14 @@ public class AddToCollectionDialogTests : BunitTestBase
         var cut = await RenderDialogAsync();
 
         // Open the MudSelect dropdown and select the collection
-        cut.Find("div.mud-select div.mud-input-control").MouseDown();
+        await cut.Find("div.mud-select div.mud-input-control").MouseDownAsync();
         var items = PopoverProvider!.FindAll(".mud-list-item");
         var targetItem = items.First(i => i.TextContent.Contains("Target Collection"));
-        targetItem.Click();
+        await targetItem.ClickAsync();
 
         // Click the Add button
         var addButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Add"));
-        addButton.Click();
+        await addButton.ClickAsync();
 
         // Verify API was called with correct IDs
         MockApi.Verify(a => a.AddAssetToCollectionAsync(
@@ -180,13 +180,13 @@ public class AddToCollectionDialogTests : BunitTestBase
         var cut = await RenderDialogAsync();
 
         // Select a collection
-        cut.Find("div.mud-select div.mud-input-control").MouseDown();
+        await cut.Find("div.mud-select div.mud-input-control").MouseDownAsync();
         var items = PopoverProvider!.FindAll(".mud-list-item");
-        items.First(i => i.TextContent.Contains("Failing Collection")).Click();
+        await items.First(i => i.TextContent.Contains("Failing Collection")).ClickAsync();
 
         // Click Add
         var addButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Add"));
-        addButton.Click();
+        await addButton.ClickAsync();
 
         VerifyHandleErrorCalled();
     }
