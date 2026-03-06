@@ -29,16 +29,6 @@ public static class ClaimsPrincipalExtensions
     }
 
     /// <summary>
-    /// Gets the user ID from the claims principal, or a fallback value if not found.
-    /// Prefer <see cref="GetRequiredUserId"/> in authenticated endpoints.
-    /// </summary>
-    [Obsolete("Use GetRequiredUserId() in authenticated endpoints. This overload masks missing claims.")]
-    public static string GetUserIdOrDefault(this ClaimsPrincipal user, string fallback = "unknown")
-    {
-        return user.GetUserId() ?? fallback;
-    }
-
-    /// <summary>
     /// Checks if the user has the global admin role (Keycloak realm role).
     /// </summary>
     public static bool IsGlobalAdmin(this ClaimsPrincipal user)
