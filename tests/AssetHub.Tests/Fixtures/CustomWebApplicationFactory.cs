@@ -3,6 +3,7 @@ using AssetHub.Application.Services;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -79,7 +80,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Postgres"] = _connectionString
+                ["ConnectionStrings:Postgres"] = _connectionString,
+                ["Keycloak:RequireHttpsMetadata"] = "true"
             });
         });
 
@@ -139,6 +141,13 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
                 .Setup(m => m.BucketExistsAsync(It.IsAny<Minio.BucketExistsArgs>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             services.AddSingleton(mockMinioClient.Object);
+
+            // Disable rate limiting in tests to avoid TooManyRequests interference
+            services.Configure<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>(options =>
+            {
+                options.GlobalLimiter = null;
+                options.OnRejected = null;
+            });
         });
     }
 

@@ -75,7 +75,7 @@ export class ApiHelper {
         }
 
         this.token = data.access_token;
-        return this.token;
+        return data.access_token;
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
       }
@@ -177,8 +177,8 @@ export class ApiHelper {
   // --- Assets ---
 
   async uploadAsset(collectionId: string, filePath: string, title: string) {
-    const fs = await import('fs');
-    const path = await import('path');
+    const fs = await import('node:fs');
+    const path = await import('node:path');
     const fileBuffer = fs.readFileSync(filePath);
     const fileName = path.basename(filePath);
 

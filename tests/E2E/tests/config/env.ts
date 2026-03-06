@@ -10,25 +10,31 @@ const processEnv =
     }
   ).process?.env ?? {};
 
+function required(name: string): string {
+  const value = processEnv[name];
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
 export const env = {
   baseUrl: processEnv.BASE_URL || 'https://assethub.local:7252',
   keycloakUrl: processEnv.KC_URL || 'https://keycloak.assethub.local:8443',
   keycloakRealm: 'media',
   keycloakClientId: 'assethub-app',
-  keycloakClientSecret: processEnv.KEYCLOAK_CLIENT_SECRET,
+  keycloakClientSecret: required('KEYCLOAK_CLIENT_SECRET'),
 
   /** Pre-seeded admin user */
   adminUser: {
-    username: processEnv.ADMIN_USERNAME,
-    password: processEnv.ADMIN_PASSWORD,
+    username: required('ADMIN_USERNAME'),
+    password: required('ADMIN_PASSWORD'),
     displayName: 'Media Admin',
     email: 'admin@media.local',
   },
 
   /** Pre-seeded viewer user */
   viewerUser: {
-    username: processEnv.VIEWER_USERNAME,
-    password: processEnv.VIEWER_PASSWORD,
+    username: required('VIEWER_USERNAME'),
+    password: required('VIEWER_PASSWORD'),
     displayName: 'Test User',
     email: 'test@example.com',
   },
@@ -46,6 +52,6 @@ export const env = {
   testData: {
     collectionPrefix: 'E2E-Test',
     assetTitlePrefix: 'E2E-Asset',
-    sharePasswordDefault: processEnv.SHARE_PASSWORD,
+    sharePasswordDefault: required('SHARE_PASSWORD'),
   },
 } as const;
