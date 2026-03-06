@@ -77,7 +77,7 @@ Domain  <-  Application  <-  Infrastructure  <-  Api / Worker
 | `AssetHub.Ui` | Blazor Server components, pages, layouts (Razor Class Library) |
 | `AssetHub.Worker` | Hangfire background processor (separate container) |
 
-For the full architecture diagram, layer details, modular component interfaces, and resilience patterns, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+For the full architecture diagram, layer details, modular component interfaces, and resilience patterns, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ---
 
@@ -95,7 +95,7 @@ Every external dependency can be swapped by implementing a clean interface:
 | **Jobs** | Hangfire + PostgreSQL | Hangfire abstraction | MassTransit, NServiceBus |
 | **Tracing** | Jaeger (OTLP) | OpenTelemetry | Datadog, Honeycomb, Grafana Cloud |
 
-Full interface definitions, implementation details, and replacement guides in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#modular-components)**.
+Full interface definitions, implementation details, and replacement guides in **[ARCHITECTURE.md](ARCHITECTURE.md#modular-components)**.
 
 ---
 
@@ -110,7 +110,7 @@ Full interface definitions, implementation details, and replacement guides in **
 - **Network segmentation** — Isolated Docker networks for backend and observability services
 - **CSP + security headers** — HSTS, X-Frame-Options, referrer policy, permissions policy
 
-Full security documentation, RBAC matrix, and API reference in **[docs/SECURITY.md](docs/SECURITY.md)**.
+Full security documentation, RBAC matrix, and API reference in **[SECURITY.md](SECURITY.md)**.
 
 ---
 
@@ -123,7 +123,7 @@ cp .env.template .env
 docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
-Certificates, reverse proxy setup, Keycloak configuration, backup/restore, CI/CD pipeline, monitoring, testing, and troubleshooting are covered in **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+Certificates, reverse proxy setup, Keycloak configuration, backup/restore, CI/CD pipeline, monitoring, testing, and troubleshooting are covered in **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
 ---
 
@@ -135,7 +135,7 @@ Certificates, reverse proxy setup, Keycloak configuration, backup/restore, CI/CD
 | **Components** (Blazor) | bUnit | 12 test files — dialogs, grids, helpers |
 | **E2E** (browser) | Playwright (TypeScript) | 15 spec files — auth, CRUD, shares, admin, accessibility |
 
-650+ .NET test methods across 47 files + 15 E2E spec files. See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#testing)** for commands and details.
+650+ .NET test methods across 47 files + 15 E2E spec files. See **[DEPLOYMENT.md](DEPLOYMENT.md#testing)** for commands and details.
 
 ---
 
@@ -155,9 +155,9 @@ Certificates, reverse proxy setup, Keycloak configuration, backup/restore, CI/CD
 
 | Document | Contents |
 |----------|----------|
-| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System overview, project structure, layer dependencies, modular component interfaces, service reference, resilience patterns |
-| **[docs/SECURITY.md](docs/SECURITY.md)** | Authentication, RBAC, rate limiting, upload security, data protection, container hardening, network security, audit, API reference |
-| **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** | Quick start, certificates, environment config, container reference, production deployment, CI/CD, testing, monitoring, backups, troubleshooting |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System overview, project structure, layer dependencies, modular component interfaces, service reference, resilience patterns |
+| **[SECURITY.md](SECURITY.md)** | Authentication, RBAC, rate limiting, upload security, data protection, container hardening, network security, audit, API reference |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Quick start, certificates, environment config, container reference, production deployment, CI/CD, testing, monitoring, backups, troubleshooting |
 | **[CREDENTIALS.md](CREDENTIALS.md)** | Default passwords, OAuth config, connection strings |
 | **[CONTRIBUTING.md](CONTRIBUTING.md)** | Development setup, code style, PR guidelines |
 
