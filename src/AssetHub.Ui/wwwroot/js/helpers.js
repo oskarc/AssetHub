@@ -72,7 +72,7 @@ async function enqueueZipBuild(enqueueUrl, headers) {
     const resp = await fetch(enqueueUrl, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', ...(headers || {}) }
+        headers: { 'Content-Type': 'application/json', ...headers }
     });
 
     if (!resp.ok) {
