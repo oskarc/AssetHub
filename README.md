@@ -21,14 +21,14 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
 ---
 ## TLDR Features
 ┌─────────────────────────────────────────────────────────┐
-│  🎯 Smart Collections    │  🔐 Fine-grained Access     │
-│  Multi-collection assets │  Viewer/Contributor/Manager  │
+│   🎯 Smart Collections    │  🔐 Fine-grained Access     │
+│   Multi-collection assets │  Viewer/Contributor/Manager  │
 ├─────────────────────────────────────────────────────────┤
-│  🔗 Secure Sharing       │  📦 Background Processing   │
-│  Password + expiration   │  Thumbnails, previews, zips  │
+│   🔗 Secure Sharing       │  📦 Background Processing   │
+│   Password + expiration   │  Thumbnails, previews, zips  │
 ├─────────────────────────────────────────────────────────┤
-│  🛡️ Enterprise Security   │  🔧 Fully Modular          │
-│  ClamAV, audit, RBAC     │  Swap S3, Auth, DB, Email    │
+│   🛡️ Enterprise Security   │  🔧 Fully Modular          │
+│   ClamAV, audit, RBAC      │  Swap S3, Auth, DB, Email    │
 └─────────────────────────────────────────────────────────┘
 
 ---
