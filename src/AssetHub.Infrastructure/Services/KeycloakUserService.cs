@@ -29,8 +29,8 @@ public class KeycloakUserService : IKeycloakUserService
     private readonly bool _useClientCredentials;
 
     private const string BearerScheme = "Bearer";
-    private const string ServiceUnavailableMessage = ServiceUnavailableMessage;
-    private const string ServiceTimeoutMessage = ServiceTimeoutMessage;
+    private const string ServiceUnavailableMessage = "Authentication service is temporarily unavailable. Please try again.";
+    private const string ServiceTimeoutMessage = "Authentication service request timed out. Please try again.";
 
     // Token cache — guarded by _tokenLock for thread safety
     private readonly SemaphoreSlim _tokenLock = new(1, 1);

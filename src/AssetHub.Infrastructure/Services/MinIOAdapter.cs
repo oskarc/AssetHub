@@ -22,7 +22,7 @@ public class MinIOAdapter(
     IMemoryCache cache,
     ResiliencePipelineProvider<string> pipelineProvider) : IMinIOAdapter
 {
-    private const string StorageUnavailableMessage = StorageUnavailableMessage;
+    private const string StorageUnavailableMessage = "Storage service is temporarily unavailable. Please try again.";
     private readonly ResiliencePipeline _pipeline = pipelineProvider.GetPipeline("minio");
     public async Task UploadAsync(string bucketName, string objectKey, Stream data, string contentType, CancellationToken cancellationToken = default)
     {

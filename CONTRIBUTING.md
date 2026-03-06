@@ -55,7 +55,7 @@ Thank you for your interest in contributing to AssetHub! This guide will help yo
    dotnet run --project src/AssetHub.Api
    ```
 
-See [CREDENTIALS.md](CREDENTIALS.md) for default service passwords and [DEPLOYMENT.md](DEPLOYMENT.md) for full deployment details.
+See [CREDENTIALS.md](CREDENTIALS.md) for default service passwords and [DEPLOYMENT.md](docs/DEPLOYMENT.md) for full deployment details.
 
 ## Project Structure
 

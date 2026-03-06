@@ -50,7 +50,7 @@ Open https://assethub.local:7252 and log in:
 | `mediaadmin` | `mediaadmin123` | Admin |
 | `testuser` | `testuser123` | Viewer |
 
-See [CREDENTIALS.md](CREDENTIALS.md) for all default passwords, OAuth config, and connection strings.
+See [CREDENTIALS.md](../CREDENTIALS.md) for all default passwords, OAuth config, and connection strings.
 
 ---
 

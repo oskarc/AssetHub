@@ -22,7 +22,7 @@ namespace AssetHub.Api.Extensions;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    private const string ReadyTag = ReadyTag;
+    private const string ReadyTag = "ready";
 
     public static IServiceCollection AddAssetHubServices(
         this IServiceCollection services,

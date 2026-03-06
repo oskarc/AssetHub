@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Claims;
 using AssetHub.Api.Endpoints;
 using AssetHub.Api.Middleware;
+using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using AssetHub.Ui;
@@ -54,6 +55,62 @@ public static class WebApplicationExtensions
     /// </summary>
     public static void UseAssetHubMiddleware(this WebApplication app)
     {
+        UseForwardedHeaders(app);
+
+        // Defense-in-depth: reject /metrics requests from non-private IPs
+        // even if the reverse proxy accidentally forwards the path.
+        app.UseMiddleware<MetricsIpRestrictionMiddleware>();
+
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHttpsRedirection();
+            app.UseHsts();
+        }
+
+        UseSecurityHeaders(app);
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseMiddleware<OidcCallbackDiagnosticsMiddleware>();
+        }
+
+        app.UseGlobalExceptionHandler();
+        app.UseStaticFiles();
+
+        app.UseSerilogRequestLogging(options =>
+        {
+            options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+            {
+                diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value ?? "-");
+                diagnosticContext.Set("UserAgent",
+                    httpContext.Request.Headers.UserAgent.FirstOrDefault() ?? "-");
+                if (httpContext.User.Identity?.IsAuthenticated == true)
+                {
+                    diagnosticContext.Set("UserId",
+                        httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "-");
+                }
+            };
+        });
+
+        app.UseRequestLocalization();
+        UseBlazorRateLimiting(app);
+        app.UseRateLimiter();
+        app.UseAuthentication();
+        UseBlazorAnonymousAccess(app);
+        app.UseAuthorization();
+
+        // Required for Blazor Server interactive rendering. Does NOT blanket-enforce
+        // on Minimal API endpoints that use [FromBody] JSON — only on endpoints using
+        // [FromForm] or Razor Component form handling. API endpoints designed for
+        // external (JWT Bearer) or anonymous consumers explicitly call .DisableAntiforgery().
+        app.UseAntiforgery();
+    }
+
+    /// <summary>
+    /// Configures forwarded headers with RFC 1918 trusted networks for reverse proxy support.
+    /// </summary>
+    private static void UseForwardedHeaders(WebApplication app)
+    {
         // Process X-Forwarded-* headers from reverse proxy (must be first).
         // Restricted to RFC 1918 private ranges so only the Docker reverse proxy
         // (which lives on the internal bridge network) can influence the client IP.
@@ -71,18 +128,13 @@ public static class WebApplicationExtensions
         forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
         forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
         app.UseForwardedHeaders(forwardedOptions);
+    }
 
-        // Defense-in-depth: reject /metrics requests from non-private IPs
-        // even if the reverse proxy accidentally forwards the path.
-        app.UseMiddleware<MetricsIpRestrictionMiddleware>();
-
-        if (!app.Environment.IsDevelopment())
-        {
-            app.UseHttpsRedirection();
-            app.UseHsts();
-        }
-
-        // Security headers
+    /// <summary>
+    /// Adds security response headers (X-Content-Type-Options, CSP, etc.).
+    /// </summary>
+    private static void UseSecurityHeaders(WebApplication app)
+    {
         app.Use(async (context, next) =>
         {
             var headers = context.Response.Headers;
@@ -109,62 +161,32 @@ public static class WebApplicationExtensions
 
             await next();
         });
+    }
 
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseMiddleware<OidcCallbackDiagnosticsMiddleware>();
-        }
-
-        app.UseGlobalExceptionHandler();
-        app.UseStaticFiles();
-
-        app.UseSerilogRequestLogging(options =>
-        {
-            options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
-            {
-                diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value ?? "-");
-                diagnosticContext.Set("UserAgent",
-                    httpContext.Request.Headers.UserAgent.FirstOrDefault() ?? "-");
-                if (httpContext.User.Identity?.IsAuthenticated == true)
-                {
-                    diagnosticContext.Set("UserId",
-                        httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "-");
-                }
-            };
-        });
-
-        app.UseRequestLocalization();
-
-        // Apply BlazorSignalR rate limiting policy to /_blazor connections
-        // to prevent WebSocket exhaustion attacks from anonymous clients
+    /// <summary>
+    /// Applies BlazorSignalR rate limiting policy to /_blazor connections
+    /// to prevent WebSocket exhaustion attacks from anonymous clients.
+    /// </summary>
+    private static void UseBlazorRateLimiting(WebApplication app)
+    {
         app.Use(async (context, next) =>
         {
             var path = context.Request.Path.Value;
             if (path != null && path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase))
             {
-                var endpoint = context.GetEndpoint();
-                if (endpoint != null)
-                {
-                    context.SetEndpoint(new Endpoint(
-                        endpoint.RequestDelegate,
-                        new EndpointMetadataCollection(
-                            endpoint.Metadata.Append(new EnableRateLimitingAttribute(Constants.RateLimitPolicies.BlazorSignalR))),
-                        endpoint.DisplayName));
-                }
+                AddEndpointMetadata(context, new EnableRateLimitingAttribute(Constants.RateLimitPolicies.BlazorSignalR));
             }
             await next();
         });
+    }
 
-        app.UseRateLimiter();
-        app.UseAuthentication();
-
-        // Allow anonymous access to Blazor framework files and the SignalR hub.
-        // Required for anonymous pages like /share/{token} to load and establish
-        // an interactive Blazor circuit without triggering an OIDC auth redirect.
-        // We add AllowAnonymous (rather than stripping IAuthorizeData) because the
-        // FallbackPolicy requires authentication on endpoints with no auth metadata.
-        // Page-level authorization is still enforced by individual Blazor components
-        // via [Authorize]/[AllowAnonymous] attributes — the hub is just the transport.
+    /// <summary>
+    /// Allows anonymous access to Blazor framework files and the SignalR hub.
+    /// Required for anonymous pages like /share/{token} to load and establish
+    /// an interactive Blazor circuit without triggering an OIDC auth redirect.
+    /// </summary>
+    private static void UseBlazorAnonymousAccess(WebApplication app)
+    {
         app.Use(async (context, next) =>
         {
             var path = context.Request.Path.Value;
@@ -172,26 +194,22 @@ public static class WebApplicationExtensions
                 (path.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase) ||
                  path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)))
             {
-                var endpoint = context.GetEndpoint();
-                if (endpoint != null)
-                {
-                    context.SetEndpoint(new Endpoint(
-                        endpoint.RequestDelegate,
-                        new EndpointMetadataCollection(
-                            endpoint.Metadata.Append(new AllowAnonymousAttribute())),
-                        endpoint.DisplayName));
-                }
+                AddEndpointMetadata(context, new AllowAnonymousAttribute());
             }
             await next();
         });
+    }
 
-        app.UseAuthorization();
-
-        // Required for Blazor Server interactive rendering. Does NOT blanket-enforce
-        // on Minimal API endpoints that use [FromBody] JSON — only on endpoints using
-        // [FromForm] or Razor Component form handling. API endpoints designed for
-        // external (JWT Bearer) or anonymous consumers explicitly call .DisableAntiforgery().
-        app.UseAntiforgery();
+    private static void AddEndpointMetadata(HttpContext context, object metadata)
+    {
+        var endpoint = context.GetEndpoint();
+        if (endpoint != null)
+        {
+            context.SetEndpoint(new Endpoint(
+                endpoint.RequestDelegate,
+                new EndpointMetadataCollection(endpoint.Metadata.Append(metadata)),
+                endpoint.DisplayName));
+        }
     }
 
     // ── Endpoint mapping ────────────────────────────────────────────────────
@@ -357,107 +375,60 @@ public static class WebApplicationExtensions
             }
             catch (UnauthorizedAccessException)
             {
-                if (!context.Response.HasStarted)
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsJsonAsync(new ApiError
-                    {
-                        Code = "UNAUTHORIZED",
-                        Message = "Authentication required"
-                    });
-                }
+                await WriteErrorResponseAsync(context, StatusCodes.Status401Unauthorized,
+                    "UNAUTHORIZED", "Authentication required");
             }
             catch (StorageException storageEx) when (context.Request.Path.StartsWithSegments("/api"))
             {
-                var logger = context.RequestServices
-                    .GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("ApiExceptionHandler");
-                
-                var correlationId = context.TraceIdentifier;
-                logger.LogError(storageEx, "Storage service error on {Method} {Path} [CorrelationId: {CorrelationId}]",
-                    context.Request.Method, context.Request.Path, correlationId);
-
-                if (!context.Response.HasStarted)
-                {
-                    context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsJsonAsync(new ApiError
-                    {
-                        Code = "SERVICE_UNAVAILABLE",
-                        Message = storageEx.Message,
-                        Details = new Dictionary<string, string> { ["correlationId"] = correlationId }
-                    });
-                }
+                LogApiException(context, storageEx, LogLevel.Error, "Storage service error");
+                await WriteErrorResponseAsync(context, StatusCodes.Status503ServiceUnavailable,
+                    "SERVICE_UNAVAILABLE", storageEx.Message);
             }
             catch (Microsoft.AspNetCore.Http.BadHttpRequestException badEx) when (context.Request.Path.StartsWithSegments("/api"))
             {
-                var logger = context.RequestServices
-                    .GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("ApiExceptionHandler");
-                
-                var correlationId = context.TraceIdentifier;
-                logger.LogWarning(badEx, "Bad request on {Method} {Path} [CorrelationId: {CorrelationId}]",
-                    context.Request.Method, context.Request.Path, correlationId);
-
-                if (!context.Response.HasStarted)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsJsonAsync(new ApiError
-                    {
-                        Code = "BAD_REQUEST",
-                        Message = "The request was invalid. Please check your input and try again.",
-                        Details = new Dictionary<string, string> { ["correlationId"] = correlationId }
-                    });
-                }
+                LogApiException(context, badEx, LogLevel.Warning, "Bad request");
+                await WriteErrorResponseAsync(context, StatusCodes.Status400BadRequest,
+                    "BAD_REQUEST", "The request was invalid. Please check your input and try again.");
             }
             catch (InvalidOperationException configEx) when (
                 context.Request.Path.StartsWithSegments("/api") && 
                 configEx.Message.Contains("configuration", StringComparison.OrdinalIgnoreCase))
             {
-                var logger = context.RequestServices
-                    .GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("ApiExceptionHandler");
-                
-                var correlationId = context.TraceIdentifier;
-                logger.LogCritical(configEx, "Configuration error on {Method} {Path} [CorrelationId: {CorrelationId}]",
-                    context.Request.Method, context.Request.Path, correlationId);
-
-                if (!context.Response.HasStarted)
-                {
-                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsJsonAsync(new ApiError
-                    {
-                        Code = "CONFIGURATION_ERROR",
-                        Message = "The service is misconfigured. Please contact support.",
-                        Details = new Dictionary<string, string> { ["correlationId"] = correlationId }
-                    });
-                }
+                LogApiException(context, configEx, LogLevel.Critical, "Configuration error");
+                await WriteErrorResponseAsync(context, StatusCodes.Status500InternalServerError,
+                    "CONFIGURATION_ERROR", "The service is misconfigured. Please contact support.");
             }
             catch (Exception ex) when (context.Request.Path.StartsWithSegments("/api"))
             {
-                var logger = context.RequestServices
-                    .GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("ApiExceptionHandler");
-                
-                var correlationId = context.TraceIdentifier;
-                logger.LogError(ex, "Unhandled exception on {Method} {Path} [CorrelationId: {CorrelationId}]",
-                    context.Request.Method, context.Request.Path, correlationId);
-
-                if (!context.Response.HasStarted)
-                {
-                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsJsonAsync(new ApiError
-                    {
-                        Code = "SERVER_ERROR",
-                        Message = "An unexpected error occurred. Please try again or contact support.",
-                        Details = new Dictionary<string, string> { ["correlationId"] = correlationId }
-                    });
-                }
+                LogApiException(context, ex, LogLevel.Error, "Unhandled exception");
+                await WriteErrorResponseAsync(context, StatusCodes.Status500InternalServerError,
+                    "SERVER_ERROR", "An unexpected error occurred. Please try again or contact support.");
             }
+        });
+    }
+
+    private static void LogApiException(HttpContext context, Exception ex, LogLevel level, string description)
+    {
+        var logger = context.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("ApiExceptionHandler");
+        
+        logger.Log(level, ex, "{Description} on {Method} {Path} [CorrelationId: {CorrelationId}]",
+            description, context.Request.Method, context.Request.Path, context.TraceIdentifier);
+    }
+
+    private static async Task WriteErrorResponseAsync(
+        HttpContext context, int statusCode, string code, string message)
+    {
+        if (context.Response.HasStarted) return;
+
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new ApiError
+        {
+            Code = code,
+            Message = message,
+            Details = new Dictionary<string, string> { ["correlationId"] = context.TraceIdentifier }
         });
     }
 

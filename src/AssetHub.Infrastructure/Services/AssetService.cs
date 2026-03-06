@@ -22,7 +22,7 @@ public sealed class AssetService : IAssetService
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
     private readonly string _bucketName;
-    private const string AssetNotFoundMessage = AssetNotFoundMessage;
+    private const string AssetNotFoundMessage = "Asset not found";
     private const string AuditKeyTitle = "title";
 
     public AssetService(
