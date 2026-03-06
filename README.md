@@ -112,9 +112,9 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │                        ▲ INTERFACES — SWAP IMPLEMENTATIONS ▲                │
 └────────────────────────┼────────────────────────────────────────────────────┘
               ┌──────────┘
-│  DOMAIN (AssetHub.Domain) — Entities: Asset, Collection, CollectionAcl,      │
-│  AssetCollection, Share, AuditEvent, ZipDownload + enums + value objects     │
-└──────────────────────────────────────────────────────────────────────────────┘
+│  DOMAIN (AssetHub.Domain) — Entities: Asset, Collection, CollectionAcl,     │
+│  AssetCollection, Share, AuditEvent, ZipDownload + enums + value objects    │
+└─────────────────────────────────────────────────────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────────────────────────────┐
 │  INFRASTRUCTURE LAYER  (AssetHub.Infrastructure)                            │
