@@ -14,6 +14,16 @@ public static class Constants
     }
 
     /// <summary>
+    /// Rate-limiting policy names used in endpoint configuration and middleware.
+    /// </summary>
+    public static class RateLimitPolicies
+    {
+        public const string BlazorSignalR = nameof(BlazorSignalR);
+        public const string ShareAnonymous = nameof(ShareAnonymous);
+        public const string SharePassword = nameof(SharePassword);
+    }
+
+    /// <summary>
     /// Principal types for ACL entries.
     /// </summary>
     public static class PrincipalTypes

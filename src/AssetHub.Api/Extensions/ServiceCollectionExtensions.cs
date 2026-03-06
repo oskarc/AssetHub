@@ -143,7 +143,7 @@ public static class ServiceCollectionExtensions
             });
 
             // Policy for SignalR/Blazor hub connections (prevents WebSocket exhaustion)
-            options.AddPolicy("BlazorSignalR", context =>
+            options.AddPolicy(Constants.RateLimitPolicies.BlazorSignalR, context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
                     partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
                     factory: _ => new SlidingWindowRateLimiterOptions
@@ -156,7 +156,7 @@ public static class ServiceCollectionExtensions
                     }));
 
             // Policy for anonymous share endpoints (brute-force protection)
-            options.AddPolicy("ShareAnonymous", context =>
+            options.AddPolicy(Constants.RateLimitPolicies.ShareAnonymous, context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
                     partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
                     factory: _ => new SlidingWindowRateLimiterOptions
@@ -169,7 +169,7 @@ public static class ServiceCollectionExtensions
                     }));
 
             // Stricter policy for share password attempts
-            options.AddPolicy("SharePassword", context =>
+            options.AddPolicy(Constants.RateLimitPolicies.SharePassword, context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
                     partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
                     factory: _ => new SlidingWindowRateLimiterOptions

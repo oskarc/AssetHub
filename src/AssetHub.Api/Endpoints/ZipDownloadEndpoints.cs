@@ -25,7 +25,7 @@ public static class ZipDownloadEndpoints
         group.MapGet("{jobId:guid}/share", GetShareZipStatus)
             .WithName("GetShareZipDownloadStatus")
             .AllowAnonymous()
-            .RequireRateLimiting("ShareAnonymous");
+            .RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous);
     }
 
     private static async Task<IResult> GetZipStatus(

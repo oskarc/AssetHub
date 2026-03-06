@@ -148,7 +148,7 @@ public static class WebApplicationExtensions
                     context.SetEndpoint(new Endpoint(
                         endpoint.RequestDelegate,
                         new EndpointMetadataCollection(
-                            endpoint.Metadata.Append(new EnableRateLimitingAttribute("BlazorSignalR"))),
+                            endpoint.Metadata.Append(new EnableRateLimitingAttribute(Constants.RateLimitPolicies.BlazorSignalR))),
                         endpoint.DisplayName));
                 }
             }

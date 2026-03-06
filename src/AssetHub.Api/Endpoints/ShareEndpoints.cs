@@ -20,15 +20,15 @@ public static class ShareEndpoints
         // non-browser clients and share link consumers that cannot provide
         // antiforgery tokens. GET endpoints are exempt from antiforgery by default.
         group.MapGet("{token}", GetSharedAsset).WithName("GetSharedAsset")
-            .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
+            .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous);
         group.MapPost("{token}/access-token", CreateAccessToken).WithName("CreateAccessToken")
-            .AllowAnonymous().RequireRateLimiting("SharePassword").DisableAntiforgery();
+            .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.SharePassword).DisableAntiforgery();
         group.MapGet("{token}/download", DownloadSharedAsset).WithName("DownloadSharedAsset")
-            .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
+            .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous);
         group.MapPost("{token}/download-all", DownloadAllSharedAssets).WithName("DownloadAllSharedAssets")
-            .AllowAnonymous().RequireRateLimiting("ShareAnonymous").DisableAntiforgery();
+            .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous).DisableAntiforgery();
         group.MapGet("{token}/preview", PreviewSharedAsset).WithName("PreviewSharedAsset")
-            .AllowAnonymous().RequireRateLimiting("ShareAnonymous");
+            .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous);
 
         // Protected endpoints
         var authGroup = group.RequireAuthorization();
