@@ -77,7 +77,7 @@ public static class DomainEnumExtensions
     private const string Failed = "failed";
     private const string Unknown = "unknown";
 
-    // ── AssetStatus ─────────────────────────────────────────────────────
+    // ── ToDbString overloads ────────────────────────────────────────────
 
     public static string ToDbString(this AssetStatus status) => status switch
     {
@@ -89,17 +89,6 @@ public static class DomainEnumExtensions
         _ => Unknown // Fallback for future values
     };
 
-    public static AssetStatus ToAssetStatus(this string value) => value switch
-    {
-        "uploading" => AssetStatus.Uploading,
-        "processing" => AssetStatus.Processing,
-        "ready" => AssetStatus.Ready,
-        Failed => AssetStatus.Failed,
-        _ => AssetStatus.Unknown // Graceful fallback for unknown database values
-    };
-
-    // ── AssetType ───────────────────────────────────────────────────────
-
     public static string ToDbString(this AssetType type) => type switch
     {
         AssetType.Image => "image",
@@ -109,16 +98,6 @@ public static class DomainEnumExtensions
         _ => Unknown // Fallback for future values
     };
 
-    public static AssetType ToAssetType(this string value) => value switch
-    {
-        "image" => AssetType.Image,
-        "video" => AssetType.Video,
-        "document" => AssetType.Document,
-        _ => AssetType.Unknown // Graceful fallback for unknown database values
-    };
-
-    // ── AclRole ─────────────────────────────────────────────────────────
-
     public static string ToDbString(this AclRole role) => role switch
     {
         AclRole.Viewer => "viewer",
@@ -126,6 +105,48 @@ public static class DomainEnumExtensions
         AclRole.Manager => "manager",
         AclRole.Admin => "admin",
         _ => throw new ArgumentOutOfRangeException(nameof(role))
+    };
+
+    public static string ToDbString(this ShareScopeType scope) => scope switch
+    {
+        ShareScopeType.Asset => "asset",
+        ShareScopeType.Collection => "collection",
+        _ => throw new ArgumentOutOfRangeException(nameof(scope))
+    };
+
+    public static string ToDbString(this PrincipalType type) => type switch
+    {
+        PrincipalType.User => "user",
+        _ => throw new ArgumentOutOfRangeException(nameof(type))
+    };
+
+    public static string ToDbString(this ZipDownloadStatus status) => status switch
+    {
+        ZipDownloadStatus.Pending => "pending",
+        ZipDownloadStatus.Building => "building",
+        ZipDownloadStatus.Completed => "completed",
+        ZipDownloadStatus.Failed => Failed,
+        ZipDownloadStatus.Unknown => Unknown,
+        _ => Unknown // Fallback for future values
+    };
+
+    // ── String → Enum conversions ───────────────────────────────────────
+
+    public static AssetStatus ToAssetStatus(this string value) => value switch
+    {
+        "uploading" => AssetStatus.Uploading,
+        "processing" => AssetStatus.Processing,
+        "ready" => AssetStatus.Ready,
+        Failed => AssetStatus.Failed,
+        _ => AssetStatus.Unknown // Graceful fallback for unknown database values
+    };
+
+    public static AssetType ToAssetType(this string value) => value switch
+    {
+        "image" => AssetType.Image,
+        "video" => AssetType.Video,
+        "document" => AssetType.Document,
+        _ => AssetType.Unknown // Graceful fallback for unknown database values
     };
 
     public static AclRole ToAclRole(this string value) => value switch
@@ -137,15 +158,6 @@ public static class DomainEnumExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown ACL role: {value}")
     };
 
-    // ── ShareScopeType ──────────────────────────────────────────────────
-
-    public static string ToDbString(this ShareScopeType scope) => scope switch
-    {
-        ShareScopeType.Asset => "asset",
-        ShareScopeType.Collection => "collection",
-        _ => throw new ArgumentOutOfRangeException(nameof(scope))
-    };
-
     public static ShareScopeType ToShareScopeType(this string value) => value switch
     {
         "asset" => ShareScopeType.Asset,
@@ -153,30 +165,10 @@ public static class DomainEnumExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown share scope type: {value}")
     };
 
-    // ── PrincipalType ───────────────────────────────────────────────────
-
-    public static string ToDbString(this PrincipalType type) => type switch
-    {
-        PrincipalType.User => "user",
-        _ => throw new ArgumentOutOfRangeException(nameof(type))
-    };
-
     public static PrincipalType ToPrincipalType(this string value) => value switch
     {
         "user" => PrincipalType.User,
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown principal type: {value}")
-    };
-
-    // ── ZipDownloadStatus ───────────────────────────────────────────────
-
-    public static string ToDbString(this ZipDownloadStatus status) => status switch
-    {
-        ZipDownloadStatus.Pending => "pending",
-        ZipDownloadStatus.Building => "building",
-        ZipDownloadStatus.Completed => "completed",
-        ZipDownloadStatus.Failed => Failed,
-        ZipDownloadStatus.Unknown => Unknown,
-        _ => Unknown // Fallback for future values
     };
 
     public static ZipDownloadStatus ToZipDownloadStatus(this string value) => value switch

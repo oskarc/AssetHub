@@ -62,6 +62,11 @@ public static class FileHelpers
         return $"{len:0.##} {sizes[order]}";
     }
 
+    private static readonly System.Text.RegularExpressions.Regex CamelCaseBoundary =
+        new(@"([a-z])([A-Z])", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+    private static readonly System.Text.RegularExpressions.Regex AcronymBoundary =
+        new(@"([A-Z]+)([A-Z][a-z])", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+
     /// <summary>
     /// Converts a camelCase or PascalCase key into a readable "Title Case" string.
     /// e.g. "cameraModel" → "Camera Model", "GPSLatitude" → "GPS Latitude".
@@ -70,8 +75,8 @@ public static class FileHelpers
     {
         if (string.IsNullOrEmpty(key)) return key;
 
-        var result = System.Text.RegularExpressions.Regex.Replace(key, "([a-z])([A-Z])", "$1 $2");
-        result = System.Text.RegularExpressions.Regex.Replace(result, "([A-Z]+)([A-Z][a-z])", "$1 $2");
+        var result = CamelCaseBoundary.Replace(key, "$1 $2");
+        result = AcronymBoundary.Replace(result, "$1 $2");
         return char.ToUpper(result[0]) + result[1..];
     }
 

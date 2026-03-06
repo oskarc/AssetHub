@@ -8,14 +8,16 @@ namespace AssetHub.Application.Helpers;
 /// </summary>
 public sealed class NaturalSortComparer : IComparer<string>
 {
+    private static readonly Regex DigitPattern = new(@"(\d+)", RegexOptions.None, TimeSpan.FromSeconds(1));
+
     public int Compare(string? x, string? y)
     {
         if (x == null && y == null) return 0;
         if (x == null) return -1;
         if (y == null) return 1;
 
-        var xParts = Regex.Split(x, @"(\d+)");
-        var yParts = Regex.Split(y, @"(\d+)");
+        var xParts = DigitPattern.Split(x);
+        var yParts = DigitPattern.Split(y);
 
         for (int i = 0; i < Math.Min(xParts.Length, yParts.Length); i++)
         {

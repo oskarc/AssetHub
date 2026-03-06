@@ -267,11 +267,11 @@ public class MediaProcessingService(
 
     /// <summary>
     /// Resize image using ImageMagick command-line tool.
-    /// Assumes 'magick' or 'convert' is in PATH.
+    /// Uses absolute path on Linux to avoid PATH manipulation (S4036).
     /// </summary>
     private async Task ResizeImageAsync(string inputPath, string outputPath, int maxWidth, int maxHeight, CancellationToken ct = default)
     {
-        var executable = OperatingSystem.IsWindows() ? "magick" : "convert";
+        var executable = OperatingSystem.IsWindows() ? "magick" : "/usr/bin/convert";
         var command = new ProcessStartInfo(executable)
         {
             RedirectStandardOutput = true,
@@ -308,7 +308,8 @@ public class MediaProcessingService(
     /// </summary>
     private async Task ExtractPosterAsync(string inputPath, string outputPath, int atSecond, CancellationToken ct = default)
     {
-        var command = new ProcessStartInfo("ffmpeg")
+        var ffmpegPath = OperatingSystem.IsWindows() ? "ffmpeg" : "/usr/bin/ffmpeg";
+        var command = new ProcessStartInfo(ffmpegPath)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -328,7 +329,7 @@ public class MediaProcessingService(
         command.ArgumentList.Add(outputPath);
         command.ArgumentList.Add("-y");
 
-        await RunProcessAsync("ffmpeg", command, ct);
+        await RunProcessAsync(ffmpegPath, command, ct);
     }
 
     /// <summary>

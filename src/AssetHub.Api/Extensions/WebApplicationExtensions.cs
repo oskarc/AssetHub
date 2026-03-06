@@ -123,10 +123,13 @@ public static class WebApplicationExtensions
         // Trust only RFC 1918 private ranges — Docker bridge (172.16.0.0/12),
         // loopback (127.0.0.0/8), class-A private (10.0.0.0/8), and
         // class-C private (192.168.0.0/16).
+        // These are intentional well-known network addresses for proxy trust, not secrets.
+#pragma warning disable S1313 // Hardcoded IPs are RFC 1918 private network ranges for reverse proxy trust
         forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("10.0.0.0"), 8));
         forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("172.16.0.0"), 12));
         forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
         forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
+#pragma warning restore S1313
         app.UseForwardedHeaders(forwardedOptions);
     }
 

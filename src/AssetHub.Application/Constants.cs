@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace AssetHub.Application;
 
 /// <summary>
@@ -145,7 +147,7 @@ public static class Constants
     public static class AllowedUploadTypes
     {
         /// <summary>MIME type prefixes that are allowed (e.g. "image/" matches all image/* types).</summary>
-        public static readonly string[] AllowedPrefixes =
+        private static readonly string[] AllowedPrefixes =
         [
             "image/",
             "video/",
@@ -153,7 +155,7 @@ public static class Constants
         ];
 
         /// <summary>Specific MIME types allowed in addition to prefix matches.</summary>
-        public static readonly HashSet<string> AllowedExact = new(StringComparer.OrdinalIgnoreCase)
+        public static readonly FrozenSet<string> AllowedExact = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "application/pdf",
             "application/zip",
@@ -177,7 +179,7 @@ public static class Constants
             "application/x-font-woff",
             "model/gltf-binary",
             "model/gltf+json",
-        };
+        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Returns true if the given content type is allowed for upload.
@@ -187,16 +189,8 @@ public static class Constants
             if (string.IsNullOrWhiteSpace(contentType))
                 return false;
 
-            if (AllowedExact.Contains(contentType))
-                return true;
-
-            foreach (var prefix in AllowedPrefixes)
-            {
-                if (contentType.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-
-            return false;
+            return AllowedExact.Contains(contentType)
+                || AllowedPrefixes.Any(prefix => contentType.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
         }
     }
 

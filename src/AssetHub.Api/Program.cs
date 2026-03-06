@@ -43,7 +43,7 @@ try
     // -- Endpoints -----------------------------------------------------------
     app.MapAssetHubEndpoints();
 
-    app.Run();
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
@@ -51,8 +51,8 @@ catch (Exception ex)
 }
 finally
 {
-    Log.CloseAndFlush();
+    await Log.CloseAndFlushAsync();
 }
 
 // Make the auto-generated Program class visible for WebApplicationFactory<Program> in integration tests
-public partial class Program { }
+public partial class Program { private Program() { } }
