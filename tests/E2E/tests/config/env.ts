@@ -15,20 +15,20 @@ export const env = {
   keycloakUrl: processEnv.KC_URL || 'https://keycloak.assethub.local:8443',
   keycloakRealm: 'media',
   keycloakClientId: 'assethub-app',
-  keycloakClientSecret: processEnv.KEYCLOAK_CLIENT_SECRET || 'dev_client_secret_replace_this',
+  keycloakClientSecret: processEnv.KEYCLOAK_CLIENT_SECRET,
 
   /** Pre-seeded admin user */
   adminUser: {
-    username: 'mediaadmin',
-    password: 'mediaadmin123',
+    username: processEnv.ADMIN_USERNAME,
+    password: processEnv.ADMIN_PASSWORD,
     displayName: 'Media Admin',
     email: 'admin@media.local',
   },
 
   /** Pre-seeded viewer user */
   viewerUser: {
-    username: 'testuser',
-    password: 'testuser123',
+    username: processEnv.VIEWER_USERNAME,
+    password: processEnv.VIEWER_PASSWORD,
     displayName: 'Test User',
     email: 'test@example.com',
   },
@@ -46,6 +46,6 @@ export const env = {
   testData: {
     collectionPrefix: 'E2E-Test',
     assetTitlePrefix: 'E2E-Asset',
-    sharePasswordDefault: 'TestShare123!',
+    sharePasswordDefault: processEnv.SHARE_PASSWORD,
   },
 } as const;

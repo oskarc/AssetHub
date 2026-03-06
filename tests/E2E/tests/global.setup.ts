@@ -2,8 +2,8 @@ import { test as setup, expect } from '@playwright/test';
 import { env } from './config/env';
 import { KeycloakLoginPage } from './pages/keycloak-login.page';
 import { ensureTestFixtures } from './helpers/test-fixtures';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const AUTH_DIR = path.join(__dirname, '.auth');
 

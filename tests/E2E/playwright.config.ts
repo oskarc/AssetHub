@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import { defineConfig, devices } from '@playwright/test';
-import * as path from 'path';
+import * as path from 'node:path';
 
 /**
  * AssetHub E2E Test Configuration

@@ -32,9 +32,21 @@ public class AssetUploadResult
 }
 
 /// <summary>
-/// Query parameters shared by collection and all-assets list endpoints.
+/// Query parameters for the all-assets endpoint (includes optional collection filter).
 /// </summary>
-public record AssetListQuery(
+public record AllAssetsQuery(
+    Guid? CollectionId = null,
+    string? Query = null,
+    string? Type = null,
+    string SortBy = "created_desc",
+    int Skip = 0,
+    int Take = 50);
+
+/// <summary>
+/// Query parameters for the collection-scoped asset list endpoint.
+/// </summary>
+public record CollectionAssetsQuery(
+    Guid CollectionId,
     string? Query = null,
     string? Type = null,
     string SortBy = "created_desc",

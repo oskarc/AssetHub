@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, request as playwrightRequest } from '@playwright/test';
 import { env } from '../config/env';
-import * as path from 'path';
-import * as fs from 'fs';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 
 const AUTH_DIR = path.join(__dirname, '..', '.auth');
 
@@ -10,9 +10,9 @@ const AUTH_DIR = path.join(__dirname, '..', '.auth');
  * Supports both cookie-based auth (from browser session) and Bearer token auth.
  */
 export class ApiHelper {
-  private request: APIRequestContext;
+  private readonly request: APIRequestContext;
   private token: string | null = null;
-  private useCookieAuth: boolean = false;
+  private readonly useCookieAuth: boolean = false;
 
   constructor(request: APIRequestContext, useCookieAuth: boolean = false) {
     this.request = request;
@@ -75,7 +75,7 @@ export class ApiHelper {
         }
 
         this.token = data.access_token;
-        return this.token as string;
+        return this.token;
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
       }
