@@ -22,4 +22,10 @@ public interface IAuditEventRepository
     /// Returns the <paramref name="take"/> most-recent audit events.
     /// </summary>
     Task<List<AuditEvent>> GetRecentAsync(int take, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes all audit events created before <paramref name="cutoff"/>.
+    /// Returns the number of rows deleted.
+    /// </summary>
+    Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken ct = default);
 }

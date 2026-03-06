@@ -387,9 +387,12 @@ public class MediaProcessingService(
             
             ExtractIptcData(directories, result);
             logger.LogDebug("After IPTC extraction: {FieldCount} fields", result.Count);
-            
-            ExtractGpsData(directories, result);
-            logger.LogDebug("After GPS extraction: {FieldCount} fields", result.Count);
+
+            if (_imageSettings.IncludeGpsData)
+            {
+                ExtractGpsData(directories, result);
+                logger.LogDebug("After GPS extraction: {FieldCount} fields", result.Count);
+            }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
