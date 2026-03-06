@@ -88,17 +88,17 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  ┌─────────────────────────────────────────┐  ┌──────────────────────────┐  │
 │  │  AssetHub.Api                           │  │  AssetHub.Worker         │  │
 │  │  ┌───────────────┐ ┌─────────────────┐  │  │  Hangfire job processor  │  │
-│  │  │ Blazor Server │ │ Minimal APIs    │  │  │  ImageMagick + ffmpeg   │  │
-│  │  │ (MudBlazor 8) │ │ Smart auth:     │  │  │                        │  │
-│  │  │               │ │ Cookie/JWT/OIDC │  │  │                        │  │
+│  │  │ Blazor Server │ │ Minimal APIs    │  │  │  ImageMagick + ffmpeg    │  │
+│  │  │ (MudBlazor 8) │ │ Smart auth:     │  │  │                          │  │
+│  │  │               │ │ Cookie/JWT/OIDC │  │  │                          │  │
 │  │  └───────────────┘ └─────────────────┘  │  └──────────────────────────┘  │
 │  └─────────────────────────────────────────┘                                │
 └─────────────────────────────────────────────────────────────────────────────┘
               │                                    │
 ┌─────────────▼────────────────────────────────────▼──────────────────────────┐
-│  APPLICATION LAYER  (AssetHub.Application)                                   │
-│                                                                              │
-│  Service interfaces (26 interfaces):                                         │
+│  APPLICATION LAYER  (AssetHub.Application)                                  │
+│                                                                             │
+│  Service interfaces (26 interfaces):                                        │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
 │  │ Assets       │ │ Collections  │ │ Shares       │ │ Users                ││
 │  │ Query,Upload │ │ CRUD, ACL,   │ │ Public,Auth, │ │ Admin, Lookup,       ││
@@ -109,15 +109,15 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  │ IMediaProc.  │ │ IAuditService│ │ ScannerSvc   │ │ IUserLookupService   ││
 │  │ IZipBuildSvc │ │ IDashboardSvc│ │              │ │ IUserSyncService     ││
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
-│                        ▲ INTERFACES — SWAP IMPLEMENTATIONS ▲                 │
+│                        ▲ INTERFACES — SWAP IMPLEMENTATIONS ▲                │
 └────────────────────────┼────────────────────────────────────────────────────┘
               ┌──────────┘
 │  DOMAIN (AssetHub.Domain) — Entities: Asset, Collection, CollectionAcl,      │
-│  AssetCollection, Share, AuditEvent, ZipDownload + enums + value objects      │
+│  AssetCollection, Share, AuditEvent, ZipDownload + enums + value objects     │
 └──────────────────────────────────────────────────────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────────────────────────────┐
-│  INFRASTRUCTURE LAYER  (AssetHub.Infrastructure)                             │
+│  INFRASTRUCTURE LAYER  (AssetHub.Infrastructure)                            │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
 │  │ MinIOAdapter │ │ SmtpEmail    │ │ ClamAv       │ │ KeycloakUser         ││
 │  │ (dual client)│ │ Service      │ │ ScannerSvc   │ │ Service              ││
@@ -125,19 +125,19 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                         │
 │  │ EF Core +    │ │ MediaProc.   │ │ Polly        │  All external calls     │
 │  │ Repositories │ │ Service      │ │ Pipelines    │  wrapped in resilience  │
-│  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘  pipelines             │
+│  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘  pipelines              │
 └─────────┼────────────────┼────────────────┼─────────────────────────────────┘
           │                │                │
 ┌─────────▼────────────────▼────────────────▼─────────────────────────────────┐
 │  EXTERNAL SERVICES (Docker containers)                                      │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
 │  │  PostgreSQL  │ │    MinIO     │ │   Keycloak   │ │      ClamAV          ││
-│  │  16 (+ EF    │ │  (S3 API)   │ │  (OIDC +     │ │   (clamd TCP)        ││
+│  │  16 (+ EF    │ │  (S3 API)   │ │  (OIDC +     │ │   (clamd TCP)         ││
 │  │   + Hangfire)│ │              │ │  Admin API)  │ │                      ││
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
 │  │   Mailpit    │ │    Jaeger    │ │  Prometheus  │ │      Grafana         ││
-│  │ (SMTP, dev)  │ │  (OTLP)     │ │  (metrics)   │ │   (dashboards)       ││
+│  │ (SMTP, dev)  │ │  (OTLP)     │ │  (metrics)   │ │   (dashboards)        ││
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
