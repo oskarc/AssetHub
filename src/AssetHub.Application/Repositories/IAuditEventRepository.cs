@@ -28,4 +28,10 @@ public interface IAuditEventRepository
     /// Returns the number of rows deleted.
     /// </summary>
     Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes up to <paramref name="batchSize"/> audit events created before <paramref name="cutoff"/>.
+    /// Returns the number of rows actually deleted (0 when no more rows match).
+    /// </summary>
+    Task<int> DeleteOlderThanBatchAsync(DateTime cutoff, int batchSize, CancellationToken ct = default);
 }

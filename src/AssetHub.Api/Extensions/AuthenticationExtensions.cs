@@ -31,12 +31,10 @@ public static class AuthenticationExtensions
 
         if (!requireHttpsMetadata && !environment.IsDevelopment())
         {
-            // Write directly to stderr — DI is not yet built so we cannot use ILogger.
-            // This ensures the warning surfaces in logs even if logging bootstrapping fails.
-            Console.Error.WriteLine(
-                "[SECURITY WARNING] Keycloak:RequireHttpsMetadata is false in a non-development " +
-                "environment. This disables HTTPS validation for the OIDC authority and is a " +
-                "significant security risk. Set RequireHttpsMetadata=true for production deployments.");
+            throw new InvalidOperationException(
+                "Keycloak:RequireHttpsMetadata is false in a non-development environment. " +
+                "This disables HTTPS validation for the OIDC authority and is a significant security risk. " +
+                "Set Keycloak:RequireHttpsMetadata=true for production deployments, or use the Development environment.");
         }
 
         services.AddAuthentication(options =>

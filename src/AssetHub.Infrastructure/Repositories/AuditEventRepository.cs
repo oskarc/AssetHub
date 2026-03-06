@@ -62,4 +62,14 @@ public class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEventRepo
             .Where(e => e.CreatedAt < cutoff)
             .ExecuteDeleteAsync(ct);
     }
+
+    /// <inheritdoc/>
+    public async Task<int> DeleteOlderThanBatchAsync(DateTime cutoff, int batchSize, CancellationToken ct = default)
+    {
+        return await dbContext.AuditEvents
+            .Where(e => e.CreatedAt < cutoff)
+            .OrderBy(e => e.CreatedAt)
+            .Take(batchSize)
+            .ExecuteDeleteAsync(ct);
+    }
 }

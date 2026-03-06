@@ -69,7 +69,7 @@ class Program
 
         recurringJobs.AddOrUpdate<AuditRetentionJob>(
             "audit-retention",
-            job => job.ExecuteAsync(),
+            job => job.ExecuteAsync(CancellationToken.None),
             Cron.Weekly(DayOfWeek.Sunday, 5, 0), // Run weekly on Sunday at 5:00 AM UTC
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
