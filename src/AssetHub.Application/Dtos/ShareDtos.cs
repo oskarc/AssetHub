@@ -122,3 +122,12 @@ public class ShareAccessTokenResponse
     public required string AccessToken { get; set; }
     public required int ExpiresInSeconds { get; set; }
 }
+
+/// <summary>
+/// Query parameters for the public share preview endpoint.
+/// </summary>
+public record SharePreviewQuery(
+    string? AccessToken = null,
+    string? Size = null,
+    Guid? AssetId = null,
+    bool Download = false);

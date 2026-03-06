@@ -3,6 +3,7 @@ using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -84,12 +85,12 @@ public static class ShareEndpoints
     }
 
     private static async Task<IResult> PreviewSharedAsset(
-        string token, string? accessToken, string? size, Guid? assetId,
+        string token, [AsParameters] SharePreviewQuery q,
         [FromServices] IPublicShareAccessService svc,
-        HttpContext httpContext, CancellationToken ct, bool download = false)
+        HttpContext httpContext, CancellationToken ct)
     {
-        var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
-        var result = await svc.GetPreviewUrlAsync(token, effectiveCredential, size, assetId, download, ct);
+        var effectiveCredential = GetSharePassword(httpContext) ?? q.AccessToken;
+        var result = await svc.GetPreviewUrlAsync(token, effectiveCredential, q.Size, q.AssetId, q.Download, ct);
         return HandleShareResult(result, url => Results.Redirect(url));
     }
 

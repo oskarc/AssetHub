@@ -3,6 +3,7 @@ using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssetHub.Api.Endpoints;
@@ -73,12 +74,11 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> GetAssetsByCollection(
-        Guid collectionId, [FromServices] IAssetQueryService svc, CancellationToken ct,
-        string? query = null, string? type = null,
-        string sortBy = "created_desc", int skip = 0, int take = 50)
+        Guid collectionId, [AsParameters] AssetListQuery q,
+        [FromServices] IAssetQueryService svc, CancellationToken ct)
     {
-        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
-        var result = await svc.GetAssetsByCollectionAsync(collectionId, query, type, sortBy, skip, take, ct);
+        var take = Math.Clamp(q.Take, 1, Constants.Limits.MaxPageSize);
+        var result = await svc.GetAssetsByCollectionAsync(collectionId, q.Query, q.Type, q.SortBy, q.Skip, take, ct);
         return result.ToHttpResult();
     }
 

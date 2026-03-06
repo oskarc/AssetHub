@@ -30,3 +30,13 @@ public class AssetUploadResult
     public string? JobId { get; set; }
     public string? Message { get; set; }
 }
+
+/// <summary>
+/// Query parameters shared by collection and all-assets list endpoints.
+/// </summary>
+public record AssetListQuery(
+    string? Query = null,
+    string? Type = null,
+    string SortBy = "created_desc",
+    int Skip = 0,
+    int Take = 50);
