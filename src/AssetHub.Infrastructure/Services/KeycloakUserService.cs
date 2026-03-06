@@ -28,6 +28,10 @@ public class KeycloakUserService : IKeycloakUserService
     private readonly string? _adminClientSecret;
     private readonly bool _useClientCredentials;
 
+    private const string BearerScheme = "Bearer";
+    private const string ServiceUnavailableMessage = ServiceUnavailableMessage;
+    private const string ServiceTimeoutMessage = ServiceTimeoutMessage;
+
     // Token cache — guarded by _tokenLock for thread safety
     private readonly SemaphoreSlim _tokenLock = new(1, 1);
     private string? _cachedToken;
@@ -110,7 +114,7 @@ public class KeycloakUserService : IKeycloakUserService
             var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users";
 
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
             request.Content = JsonContent.Create(userPayload);
 
             using var response = await _httpClient.SendAsync(request, ct);
@@ -152,7 +156,7 @@ public class KeycloakUserService : IKeycloakUserService
         var lookupUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users?username={Uri.EscapeDataString(username)}&exact=true";
         
         using var lookupRequest = new HttpRequestMessage(HttpMethod.Get, lookupUrl);
-        lookupRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        lookupRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
         
         using var lookupResponse = await _httpClient.SendAsync(lookupRequest, ct);
         if (lookupResponse.IsSuccessStatusCode)
@@ -175,17 +179,17 @@ public class KeycloakUserService : IKeycloakUserService
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error while creating Keycloak user '{Username}'", username);
-            throw new KeycloakApiException("Authentication service is temporarily unavailable. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
         }
         catch (SocketException ex)
         {
             _logger.LogError(ex, "Connection error while creating Keycloak user '{Username}'", username);
-            throw new KeycloakApiException("Authentication service is temporarily unavailable. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
         }
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
         {
             _logger.LogError(ex, "Timeout while creating Keycloak user '{Username}'", username);
-            throw new KeycloakApiException("Authentication service request timed out. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceTimeoutMessage, 0, ex);
         }
     }
 
@@ -210,7 +214,7 @@ public class KeycloakUserService : IKeycloakUserService
             var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users/{Uri.EscapeDataString(userId)}/reset-password";
 
             using var request = new HttpRequestMessage(HttpMethod.Put, url);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
             request.Content = JsonContent.Create(credentialPayload);
 
             using var response = await _httpClient.SendAsync(request, ct);
@@ -240,17 +244,17 @@ public class KeycloakUserService : IKeycloakUserService
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error while resetting password for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service is temporarily unavailable. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
         }
         catch (SocketException ex)
         {
             _logger.LogError(ex, "Connection error while resetting password for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service is temporarily unavailable. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
         }
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
         {
             _logger.LogError(ex, "Timeout while resetting password for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service request timed out. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceTimeoutMessage, 0, ex);
         }
     }
 
@@ -270,7 +274,7 @@ public class KeycloakUserService : IKeycloakUserService
                 url += $"?lifespan={lifespan.Value}";
 
             using var request = new HttpRequestMessage(HttpMethod.Put, url);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
             request.Content = JsonContent.Create(actions);
 
             using var response = await _httpClient.SendAsync(request, ct);
@@ -303,17 +307,17 @@ public class KeycloakUserService : IKeycloakUserService
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error while sending actions email for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service is temporarily unavailable. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
         }
         catch (SocketException ex)
         {
             _logger.LogError(ex, "Connection error while sending actions email for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service is temporarily unavailable. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
         }
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
         {
             _logger.LogError(ex, "Timeout while sending actions email for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service request timed out. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceTimeoutMessage, 0, ex);
         }
     }
 
@@ -327,7 +331,7 @@ public class KeycloakUserService : IKeycloakUserService
             var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users/{Uri.EscapeDataString(userId)}";
 
             using var request = new HttpRequestMessage(HttpMethod.Delete, url);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
 
             using var response = await _httpClient.SendAsync(request, ct);
 
@@ -356,17 +360,17 @@ public class KeycloakUserService : IKeycloakUserService
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error while deleting Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service is temporarily unavailable. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
         }
         catch (SocketException ex)
         {
             _logger.LogError(ex, "Connection error while deleting Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service is temporarily unavailable. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
         }
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
         {
             _logger.LogError(ex, "Timeout while deleting Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException("Authentication service request timed out. Please try again.", 0, ex);
+            throw new KeycloakApiException(ServiceTimeoutMessage, 0, ex);
         }
     }
 
@@ -494,40 +498,7 @@ public class KeycloakUserService : IKeycloakUserService
         try
         {
             var token = await GetAdminTokenAsync(ct);
-            var pageSize = 100;
-            var first = 0;
-
-            while (true)
-            {
-                var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles/{Uri.EscapeDataString(roleName)}/users?first={first}&max={pageSize}";
-
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-                using var response = await _httpClient.SendAsync(request, ct);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("Failed to get realm role members for '{Role}'. Status: {Status}", roleName, response.StatusCode);
-                    return ids;
-                }
-
-                var users = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-
-                if (users.ValueKind != JsonValueKind.Array || users.GetArrayLength() == 0)
-                    break;
-
-                foreach (var user in users.EnumerateArray())
-                {
-                    if (user.TryGetProperty("id", out var idProp) && idProp.GetString() is { } id)
-                        ids.Add(id);
-                }
-
-                if (users.GetArrayLength() < pageSize)
-                    break;
-
-                first += pageSize;
-            }
+            await FetchAllRoleMemberPages(ids, roleName, token, ct);
         }
         catch (KeycloakApiException ex)
         {
@@ -549,6 +520,45 @@ public class KeycloakUserService : IKeycloakUserService
         return ids;
     }
 
+    private async Task FetchAllRoleMemberPages(
+        HashSet<string> ids, string roleName, string token, CancellationToken ct)
+    {
+        var pageSize = 100;
+        var first = 0;
+
+        while (true)
+        {
+            var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles/{Uri.EscapeDataString(roleName)}/users?first={first}&max={pageSize}";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
+
+            using var response = await _httpClient.SendAsync(request, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to get realm role members for '{Role}'. Status: {Status}", roleName, response.StatusCode);
+                return;
+            }
+
+            var users = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+
+            if (users.ValueKind != JsonValueKind.Array || users.GetArrayLength() == 0)
+                break;
+
+            foreach (var user in users.EnumerateArray())
+            {
+                if (user.TryGetProperty("id", out var idProp) && idProp.GetString() is { } id)
+                    ids.Add(id);
+            }
+
+            if (users.GetArrayLength() < pageSize)
+                break;
+
+            first += pageSize;
+        }
+    }
+
     /// <inheritdoc />
     public async Task AssignRealmRoleAsync(string userId, string roleName, CancellationToken ct = default)
     {
@@ -559,7 +569,7 @@ public class KeycloakUserService : IKeycloakUserService
             // First, get the role representation to obtain its ID
             var getRoleUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles/{Uri.EscapeDataString(roleName)}";
             using var getRoleRequest = new HttpRequestMessage(HttpMethod.Get, getRoleUrl);
-            getRoleRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            getRoleRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
 
             using var getRoleResponse = await _httpClient.SendAsync(getRoleRequest, ct);
             if (!getRoleResponse.IsSuccessStatusCode)
@@ -583,7 +593,7 @@ public class KeycloakUserService : IKeycloakUserService
             };
 
             using var assignRequest = new HttpRequestMessage(HttpMethod.Post, assignUrl);
-            assignRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            assignRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
             assignRequest.Content = JsonContent.Create(rolePayload);
 
             using var assignResponse = await _httpClient.SendAsync(assignRequest, ct);

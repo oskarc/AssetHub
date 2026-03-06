@@ -64,8 +64,6 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
         _currentUser = currentUser;
     }
 
-    private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
-
     // ── Public operations ────────────────────────────────────────────────────
 
     public async Task<ServiceResult<ISharedContentDto>> GetSharedContentAsync(

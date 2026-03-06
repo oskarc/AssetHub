@@ -153,17 +153,4 @@ public static class ShareEndpoints
         };
     }
 
-    private static IResult HandleShareResult(ServiceResult result)
-    {
-        if (result.IsSuccess)
-            return Results.NoContent();
-
-        return result.Error!.Code switch
-        {
-            "PASSWORD_REQUIRED" => Results.Json(
-                new PasswordRequiredResponse { RequiresPassword = true }, statusCode: 401),
-            "UNAUTHORIZED" => Results.Unauthorized(),
-            _ => result.ToHttpResult()
-        };
-    }
 }

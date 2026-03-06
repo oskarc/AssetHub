@@ -22,6 +22,7 @@ public class MinIOAdapter(
     IMemoryCache cache,
     ResiliencePipelineProvider<string> pipelineProvider) : IMinIOAdapter
 {
+    private const string StorageUnavailableMessage = StorageUnavailableMessage;
     private readonly ResiliencePipeline _pipeline = pipelineProvider.GetPipeline("minio");
     public async Task UploadAsync(string bucketName, string objectKey, Stream data, string contentType, CancellationToken cancellationToken = default)
     {
@@ -50,12 +51,12 @@ public class MinIOAdapter(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Network error during MinIO upload for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
         catch (SocketException ex)
         {
             logger.LogError(ex, "Connection error during MinIO upload for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
     }
 
@@ -113,12 +114,12 @@ public class MinIOAdapter(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Network error during MinIO download range for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
         catch (SocketException ex)
         {
             logger.LogError(ex, "Connection error during MinIO download range for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
     }
 
@@ -152,12 +153,12 @@ public class MinIOAdapter(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Network error during MinIO delete for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
         catch (SocketException ex)
         {
             logger.LogError(ex, "Connection error during MinIO delete for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
     }
 
@@ -191,12 +192,12 @@ public class MinIOAdapter(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Network error during MinIO exists check for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
         catch (SocketException ex)
         {
             logger.LogError(ex, "Connection error during MinIO exists check for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
     }
 
@@ -230,12 +231,12 @@ public class MinIOAdapter(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Network error during MinIO stat for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
         catch (SocketException ex)
         {
             logger.LogError(ex, "Connection error during MinIO stat for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
     }
 
@@ -294,12 +295,12 @@ public class MinIOAdapter(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Network error during MinIO presigned URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
         catch (SocketException ex)
         {
             logger.LogError(ex, "Connection error during MinIO presigned URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
     }
 
@@ -353,12 +354,12 @@ public class MinIOAdapter(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Network error during MinIO presigned upload URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
         catch (SocketException ex)
         {
             logger.LogError(ex, "Connection error during MinIO presigned upload URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
     }
 
@@ -391,12 +392,12 @@ public class MinIOAdapter(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Network error during MinIO bucket check for {BucketName}", bucketName);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
         catch (SocketException ex)
         {
             logger.LogError(ex, "Connection error during MinIO bucket check for {BucketName}", bucketName);
-            throw new StorageException("Storage service is temporarily unavailable. Please try again.", ex);
+            throw new StorageException(StorageUnavailableMessage, ex);
         }
     }
 }

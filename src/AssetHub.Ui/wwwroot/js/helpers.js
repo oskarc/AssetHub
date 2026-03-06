@@ -9,7 +9,7 @@ export function downloadViaAnchor(url) {
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
 }
 
 /**
@@ -64,6 +64,48 @@ export async function downloadWithErrorCheck(url, headers) {
     }
 }
 
+function zipResult(success, error) {
+    return JSON.stringify(error ? { success: false, error } : { success: true });
+}
+
+async function enqueueZipBuild(enqueueUrl, headers) {
+    const resp = await fetch(enqueueUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...(headers || {}) }
+    });
+
+    if (!resp.ok) {
+        const errText = await resp.text();
+        return { error: `Failed to start download: ${resp.status} ${errText}` };
+    }
+
+    const data = await resp.json();
+    return data.statusUrl ? { statusUrl: data.statusUrl } : { error: 'No status URL returned' };
+}
+
+async function handlePollStatus(status, dotNetRef) {
+    if (dotNetRef) {
+        try {
+            await dotNetRef.invokeMethodAsync('UpdateZipProgress', status.status, status.fileName || '');
+        } catch { /* Blazor ref may be disposed */ }
+    }
+
+    if (status.status === 'completed') {
+        if (status.downloadUrl) {
+            downloadViaAnchor(status.downloadUrl);
+            return zipResult(true);
+        }
+        return zipResult(false, 'Completed but no download URL');
+    }
+
+    if (status.status === 'failed' || status.status === 'expired') {
+        return zipResult(false, status.error || 'Download failed');
+    }
+
+    return null; // still in progress
+}
+
 /**
  * Enqueues a ZIP download, polls for completion, then triggers the download.
  * Returns a JSON string with { success, error } so Blazor can handle feedback.
@@ -75,69 +117,29 @@ export async function downloadWithErrorCheck(url, headers) {
  */
 export async function enqueueAndPollZipDownload(enqueueUrl, headers, dotNetRef) {
     try {
-        // Step 1: Enqueue
-        const enqueueResp = await fetch(enqueueUrl, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(headers || {})
-            }
-        });
+        const enqueue = await enqueueZipBuild(enqueueUrl, headers);
+        if (enqueue.error) return zipResult(false, enqueue.error);
 
-        if (!enqueueResp.ok) {
-            const errText = await enqueueResp.text();
-            return JSON.stringify({ success: false, error: `Failed to start download: ${enqueueResp.status} ${errText}` });
-        }
-
-        const enqueueData = await enqueueResp.json();
-        const statusUrl = enqueueData.statusUrl;
-
-        if (!statusUrl) {
-            return JSON.stringify({ success: false, error: 'No status URL returned' });
-        }
-
-        // Step 2: Poll for completion
         const pollHeaders = headers || {};
         const maxAttempts = 360; // 30 minutes max (5s intervals)
         for (let i = 0; i < maxAttempts; i++) {
             await new Promise(resolve => setTimeout(resolve, 5000));
 
-            const pollResp = await fetch(statusUrl, {
+            const pollResp = await fetch(enqueue.statusUrl, {
                 method: 'GET',
                 credentials: 'same-origin',
                 headers: pollHeaders
             });
 
-            if (!pollResp.ok) {
-                return JSON.stringify({ success: false, error: `Status check failed: ${pollResp.status}` });
-            }
+            if (!pollResp.ok) return zipResult(false, `Status check failed: ${pollResp.status}`);
 
-            const status = await pollResp.json();
-
-            // Notify Blazor of progress
-            if (dotNetRef) {
-                try {
-                    await dotNetRef.invokeMethodAsync('UpdateZipProgress', status.status, status.fileName || '');
-                } catch { /* Blazor ref may be disposed */ }
-            }
-
-            if (status.status === 'completed') {
-                if (status.downloadUrl) {
-                    downloadViaAnchor(status.downloadUrl);
-                    return JSON.stringify({ success: true });
-                }
-                return JSON.stringify({ success: false, error: 'Completed but no download URL' });
-            }
-
-            if (status.status === 'failed' || status.status === 'expired') {
-                return JSON.stringify({ success: false, error: status.error || 'Download failed' });
-            }
+            const result = await handlePollStatus(await pollResp.json(), dotNetRef);
+            if (result) return result;
         }
 
-        return JSON.stringify({ success: false, error: 'Download timed out' });
+        return zipResult(false, 'Download timed out');
     } catch (ex) {
-        return JSON.stringify({ success: false, error: ex.message || 'Unknown error' });
+        return zipResult(false, ex.message || 'Unknown error');
     }
 }
 

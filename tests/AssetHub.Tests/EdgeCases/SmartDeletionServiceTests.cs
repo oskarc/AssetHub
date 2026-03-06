@@ -35,7 +35,6 @@ public class SmartDeletionServiceTests : IAsyncLifetime
     private AssetDeletionService _deletionService = null!;
     private Mock<IMinIOAdapter> _minioMock = null!;
     private Mock<IAuditService> _auditMock = null!;
-    private Mock<IMediaProcessingService> _mediaMock = null!;
     private Mock<IMalwareScannerService> _malwareMock = null!;
 
     private const string BucketName = "test-bucket";
@@ -63,7 +62,6 @@ public class SmartDeletionServiceTests : IAsyncLifetime
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
-        _mediaMock = new Mock<IMediaProcessingService>();
         _malwareMock = new Mock<IMalwareScannerService>();
 
         // Default: malware scanner returns clean

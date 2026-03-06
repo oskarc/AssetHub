@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { ApiHelper } from '../helpers/api-helper';
-import { AssetsPage } from '../pages/assets.page';
-import { DialogHelper, SnackbarHelper } from '../helpers/dialog-helper';
+import { DialogHelper } from '../helpers/dialog-helper';
 import { SharePage } from '../pages/share.page';
 import { ensureTestFixtures } from '../helpers/test-fixtures';
 import { env } from '../config/env';
@@ -9,11 +8,9 @@ import { env } from '../config/env';
 test.describe('Share Management @shares', () => {
   let api: ApiHelper;
   let dialog: DialogHelper;
-  let snackbar: SnackbarHelper;
   let testCollectionId: string;
   let testAssetId: string;
   let shareToken: string;
-  let shareId: string;
   let sharePassword: string;
 
   const timestamp = Date.now();
@@ -43,7 +40,6 @@ test.describe('Share Management @shares', () => {
   test.describe('Share Creation (via UI)', () => {
     test('create asset share from detail page @smoke', async ({ page }) => {
       dialog = new DialogHelper(page);
-      snackbar = new SnackbarHelper(page);
 
       // Navigate to collection, then click asset to open detail view
       await page.goto(`/assets?collection=${testCollectionId}`);
@@ -143,7 +139,6 @@ test.describe('Share Management @shares', () => {
           30
         );
         shareToken = shareResult.token;
-        shareId = shareResult.id;
         sharePassword = shareResult.password || env.testData.sharePasswordDefault;
       } finally {
         await apiForShare.dispose();

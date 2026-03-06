@@ -33,42 +33,6 @@ public class KeycloakUserServiceTests
         return Options.Create(settings);
     }
 
-    private static HttpClient CreateMockHttpClient(HttpStatusCode statusCode, object responseBody)
-    {
-        var handlerMock = new Mock<HttpMessageHandler>();
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = statusCode,
-                Content = new StringContent(JsonSerializer.Serialize(responseBody))
-            });
-
-        return new HttpClient(handlerMock.Object);
-    }
-
-    private static (HttpClient client, Mock<HttpMessageHandler> mock) CreateVerifiableHttpClient(
-        HttpStatusCode statusCode, object responseBody)
-    {
-        var handlerMock = new Mock<HttpMessageHandler>();
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = statusCode,
-                Content = new StringContent(JsonSerializer.Serialize(responseBody))
-            })
-            .Verifiable();
-
-        return (new HttpClient(handlerMock.Object), handlerMock);
-    }
-
     [Fact]
     public void Constructor_WithClientSecret_UsesClientCredentialsGrant()
     {
@@ -78,7 +42,7 @@ public class KeycloakUserServiceTests
         var httpClient = new HttpClient();
 
         // Act
-        var service = new KeycloakUserService(config, loggerMock.Object, httpClient);
+        _ = new KeycloakUserService(config, loggerMock.Object, httpClient);
 
         // Assert - verify log message indicates client_credentials
         loggerMock.Verify(
@@ -100,7 +64,7 @@ public class KeycloakUserServiceTests
         var httpClient = new HttpClient();
 
         // Act
-        var service = new KeycloakUserService(config, loggerMock.Object, httpClient);
+        _ = new KeycloakUserService(config, loggerMock.Object, httpClient);
 
         // Assert - verify log message indicates password grant
         loggerMock.Verify(
@@ -122,7 +86,7 @@ public class KeycloakUserServiceTests
         var httpClient = new HttpClient();
 
         // Act
-        var service = new KeycloakUserService(config, loggerMock.Object, httpClient);
+        _ = new KeycloakUserService(config, loggerMock.Object, httpClient);
 
         // Assert
         loggerMock.Verify(

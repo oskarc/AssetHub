@@ -22,6 +22,8 @@ namespace AssetHub.Api.Extensions;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    private const string ReadyTag = ReadyTag;
+
     public static IServiceCollection AddAssetHubServices(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -81,106 +83,7 @@ public static class ServiceCollectionExtensions
         });
 
         // ── Rate Limiting ───────────────────────────────────────────────────
-        services.AddRateLimiter(options =>
-        {
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-            // Return Retry-After header on 429 responses (RFC 6585)
-            options.OnRejected = async (context, cancellationToken) =>
-            {
-                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-                {
-                    context.HttpContext.Response.Headers.RetryAfter =
-                        ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                }
-
-                context.HttpContext.Response.ContentType = "text/plain";
-                await context.HttpContext.Response.WriteAsync(
-                    "Too many requests. Please try again later.", cancellationToken);
-            };
-
-            // Global rate limiter: per-user for authenticated, per-IP for anonymous
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-            {
-                if (context.User.Identity?.IsAuthenticated != true)
-                {
-                    // Rate-limit anonymous traffic per IP to prevent DoS
-                    var anonIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
-                    return RateLimitPartition.GetSlidingWindowLimiter($"anon_{anonIp}", _ => new SlidingWindowRateLimiterOptions
-                    {
-                        PermitLimit = 100,
-                        Window = TimeSpan.FromMinutes(1),
-                        SegmentsPerWindow = 6,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 0
-                    });
-                }
-
-                var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (userId is null)
-                {
-                    // Authenticated but missing NameIdentifier — likely a misconfiguration.
-                    // Fall back to per-IP with stricter limits to avoid shared-bucket abuse.
-                    var fallbackIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
-                    return RateLimitPartition.GetSlidingWindowLimiter($"nosubject_{fallbackIp}", _ => new SlidingWindowRateLimiterOptions
-                    {
-                        PermitLimit = 50,
-                        Window = TimeSpan.FromMinutes(1),
-                        SegmentsPerWindow = 6,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 0
-                    });
-                }
-
-                return RateLimitPartition.GetSlidingWindowLimiter(userId, _ => new SlidingWindowRateLimiterOptions
-                {
-                    PermitLimit = 200,
-                    Window = TimeSpan.FromMinutes(1),
-                    SegmentsPerWindow = 6,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit = 0
-                });
-            });
-
-            // Policy for SignalR/Blazor hub connections (prevents WebSocket exhaustion)
-            options.AddPolicy(Constants.RateLimitPolicies.BlazorSignalR, context =>
-                RateLimitPartition.GetSlidingWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
-                    factory: _ => new SlidingWindowRateLimiterOptions
-                    {
-                        PermitLimit = 60,
-                        Window = TimeSpan.FromMinutes(1),
-                        SegmentsPerWindow = 6,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 0
-                    }));
-
-            // Policy for anonymous share endpoints (brute-force protection)
-            options.AddPolicy(Constants.RateLimitPolicies.ShareAnonymous, context =>
-                RateLimitPartition.GetSlidingWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
-                    factory: _ => new SlidingWindowRateLimiterOptions
-                    {
-                        PermitLimit = 30,
-                        Window = TimeSpan.FromMinutes(1),
-                        SegmentsPerWindow = 6,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 0
-                    }));
-
-            // Stricter policy for share password attempts
-            options.AddPolicy(Constants.RateLimitPolicies.SharePassword, context =>
-                RateLimitPartition.GetSlidingWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
-                    factory: _ => new SlidingWindowRateLimiterOptions
-                    {
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(5),
-                        SegmentsPerWindow = 5,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 0
-                    }));
-        });
+        ConfigureRateLimiting(services);
 
         // ── MudBlazor ───────────────────────────────────────────────────────
         services.AddMudServices();
@@ -328,13 +231,85 @@ public static class ServiceCollectionExtensions
             .AddNpgSql(
                 connectionString ?? throw new InvalidOperationException("ConnectionStrings:Postgres required"),
                 name: "postgresql",
-                tags: ["db", "ready"])
-            .AddCheck<MinioHealthCheck>("minio", tags: ["storage", "ready"])
-            .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", "ready"])
-            .AddCheck<ClamAvHealthCheck>("clamav", tags: ["security", "ready"]);
+                tags: ["db", ReadyTag])
+            .AddCheck<MinioHealthCheck>("minio", tags: ["storage", ReadyTag])
+            .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", ReadyTag])
+            .AddCheck<ClamAvHealthCheck>("clamav", tags: ["security", ReadyTag]);
 
         return services;
     }
+
+    /// <summary>
+    /// Configures rate limiting with global per-user/per-IP partitioning
+    /// and named policies for Blazor SignalR, share endpoints, and password attempts.
+    /// </summary>
+    private static void ConfigureRateLimiting(IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                context.HttpContext.Response.ContentType = "text/plain";
+                await context.HttpContext.Response.WriteAsync(
+                    "Too many requests. Please try again later.", cancellationToken);
+            };
+
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(GetGlobalRateLimitPartition);
+
+            options.AddPolicy(Constants.RateLimitPolicies.BlazorSignalR, context =>
+                IpSlidingWindowPartition(context, "blazor", permitLimit: 60, window: TimeSpan.FromMinutes(1)));
+
+            options.AddPolicy(Constants.RateLimitPolicies.ShareAnonymous, context =>
+                IpSlidingWindowPartition(context, "share", permitLimit: 30, window: TimeSpan.FromMinutes(1)));
+
+            options.AddPolicy(Constants.RateLimitPolicies.SharePassword, context =>
+                IpSlidingWindowPartition(context, "sharepw", permitLimit: 10, window: TimeSpan.FromMinutes(5), segments: 5));
+        });
+    }
+
+    private static RateLimitPartition<string> GetGlobalRateLimitPartition(HttpContext context)
+    {
+        if (context.User.Identity?.IsAuthenticated != true)
+        {
+            var anonIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+            return SlidingWindowPartition($"anon_{anonIp}", permitLimit: 100, window: TimeSpan.FromMinutes(1));
+        }
+
+        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId is null)
+        {
+            var fallbackIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+            return SlidingWindowPartition($"nosubject_{fallbackIp}", permitLimit: 50, window: TimeSpan.FromMinutes(1));
+        }
+
+        return SlidingWindowPartition(userId, permitLimit: 200, window: TimeSpan.FromMinutes(1));
+    }
+
+    private static RateLimitPartition<string> IpSlidingWindowPartition(
+        HttpContext context, string prefix, int permitLimit, TimeSpan window, int segments = 6)
+    {
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+        return SlidingWindowPartition($"{prefix}_{ip}", permitLimit, window, segments);
+    }
+
+    private static RateLimitPartition<string> SlidingWindowPartition(
+        string key, int permitLimit, TimeSpan window, int segments = 6) =>
+        RateLimitPartition.GetSlidingWindowLimiter(key, _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = window,
+            SegmentsPerWindow = segments,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        });
 
     /// <summary>
     /// Creates an HttpClientHandler that bypasses TLS certificate validation in

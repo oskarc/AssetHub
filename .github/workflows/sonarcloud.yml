@@ -10,17 +10,17 @@ jobs:
     name: Build and analyze
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 0  # Shallow clones disabled for analysis
           
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 9.0.x
           
       - name: Cache SonarCloud packages
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar-${{ hashFiles('**/*.csproj') }}

@@ -43,8 +43,4 @@ public static class RolePermissions
     /// </summary>
     public static bool CanManageAccess(string? role) => RoleHierarchy.CanManageAccess(role);
 
-    /// <summary>
-    /// Gets the numeric level for a role. Returns 0 for unknown roles.
-    /// </summary>
-    private static int GetRoleLevel(string? role) => RoleHierarchy.GetLevel(role);
 }

@@ -57,12 +57,11 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> GetAllAssets(
-        [FromServices] IAssetQueryService svc, CancellationToken ct,
-        string? query = null, string? type = null, Guid? collectionId = null,
-        string sortBy = "created_desc", int skip = 0, int take = 50)
+        [AsParameters] AssetListQuery q, Guid? collectionId,
+        [FromServices] IAssetQueryService svc, CancellationToken ct)
     {
-        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
-        var result = await svc.GetAllAssetsAsync(query, type, collectionId, sortBy, skip, take, ct);
+        var take = Math.Clamp(q.Take, 1, Constants.Limits.MaxPageSize);
+        var result = await svc.GetAllAssetsAsync(q.Query, q.Type, collectionId, q.SortBy, q.Skip, take, ct);
         return result.ToHttpResult();
     }
 

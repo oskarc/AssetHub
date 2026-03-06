@@ -41,8 +41,6 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
-      // Should show empty state or error
-      const result = page.getByText(/no.*asset|empty|not found|error/i);
       // Page should not crash
       await expect(page.locator('.mud-container, .mud-main-content, body').first()).toBeVisible();
     });

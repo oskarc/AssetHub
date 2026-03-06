@@ -1,17 +1,14 @@
 import { test, expect } from '@playwright/test';
-import { AssetsPage } from '../pages/assets.page';
 import { AssetDetailPage } from '../pages/asset-detail.page';
 import { ApiHelper } from '../helpers/api-helper';
-import { DialogHelper, SnackbarHelper } from '../helpers/dialog-helper';
+import { DialogHelper } from '../helpers/dialog-helper';
 import { ensureTestFixtures } from '../helpers/test-fixtures';
 import { env } from '../config/env';
 import { waitForBlazorInteractive, clickAndWaitForPopover } from '../helpers/blazor-helper';
 
 test.describe('Asset Management @assets', () => {
-  let assetsPage: AssetsPage;
   let detailPage: AssetDetailPage;
   let dialog: DialogHelper;
-  let snackbar: SnackbarHelper;
   let api: ApiHelper;
   let testCollectionId: string;
   let testAssetId: string;
@@ -41,9 +38,7 @@ test.describe('Asset Management @assets', () => {
 
   test.describe('Asset Upload', () => {
     test.beforeEach(async ({ page }) => {
-      assetsPage = new AssetsPage(page);
       dialog = new DialogHelper(page);
-      snackbar = new SnackbarHelper(page);
       await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
     });
@@ -70,7 +65,6 @@ test.describe('Asset Management @assets', () => {
     test('upload a PNG image and verify it appears @smoke', async ({ page }) => {
       const fixtures = ensureTestFixtures();
       const fileInput = page.locator('#fileInput');
-      const uploadTitle = `Upload-Test-${timestamp}`;
 
       // Count existing cards
       const cardsBefore = await page.locator('.asset-card').count();
@@ -120,7 +114,6 @@ test.describe('Asset Management @assets', () => {
     });
 
     test.beforeEach(async ({ page }) => {
-      assetsPage = new AssetsPage(page);
       await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
@@ -224,7 +217,6 @@ test.describe('Asset Management @assets', () => {
     test.beforeEach(async ({ page }) => {
       detailPage = new AssetDetailPage(page);
       dialog = new DialogHelper(page);
-      snackbar = new SnackbarHelper(page);
 
       if (testAssetId) {
         await detailPage.goto(testAssetId);

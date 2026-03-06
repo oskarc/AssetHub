@@ -29,13 +29,7 @@ public static class AuthenticationExtensions
             ?? throw new InvalidOperationException("Keycloak:ClientSecret is required.");
         var requireHttpsMetadata = keycloakConfig.GetValue("RequireHttpsMetadata", true);
 
-        if (!requireHttpsMetadata && !environment.IsDevelopment())
-        {
-            throw new InvalidOperationException(
-                "Keycloak:RequireHttpsMetadata is false in a non-development environment. " +
-                "This disables HTTPS validation for the OIDC authority and is a significant security risk. " +
-                "Set Keycloak:RequireHttpsMetadata=true for production deployments, or use the Development environment.");
-        }
+        ValidateHttpsMetadata(requireHttpsMetadata, environment);
 
         services.AddAuthentication(options =>
         {
@@ -55,37 +49,7 @@ public static class AuthenticationExtensions
         })
         .AddJwtBearer(options =>
         {
-            options.Authority = keycloakAuthority;
-            options.RequireHttpsMetadata = requireHttpsMetadata;
-            if (environment.IsDevelopment())
-            {
-                options.BackchannelHttpHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback =
-                        HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                };
-            }
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = keycloakAuthority,
-                ValidateAudience = true,
-                ValidAudiences = new[] { clientId, "account" },
-                ValidateLifetime = true,
-                NameClaimType = "preferred_username",
-                RoleClaimType = ClaimTypes.Role
-            };
-            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
-            {
-                OnTokenValidated = context =>
-                {
-                    if (context.Principal?.Identity is ClaimsIdentity identity)
-                    {
-                        MapKeycloakRoles(identity, clientId);
-                    }
-                    return Task.CompletedTask;
-                }
-            };
+            ConfigureJwtBearer(options, keycloakAuthority, clientId, requireHttpsMetadata, environment);
         })
         .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
         {
@@ -98,15 +62,70 @@ public static class AuthenticationExtensions
         })
         .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
         {
-            ConfigureOpenIdConnect(options, keycloakConfig, keycloakAuthority, clientId, clientSecret,
+            ConfigureOpenIdConnect(options, keycloakAuthority, clientId, clientSecret,
                 requireHttpsMetadata, environment);
         });
 
-        // ── Authorization policies ──────────────────────────────────────────
+        ConfigureAuthorizationPolicies(services);
+
+        return services;
+    }
+
+    private static void ValidateHttpsMetadata(bool requireHttpsMetadata, IWebHostEnvironment environment)
+    {
+        if (!requireHttpsMetadata && !environment.IsDevelopment())
+        {
+            throw new InvalidOperationException(
+                "Keycloak:RequireHttpsMetadata is false in a non-development environment. " +
+                "This disables HTTPS validation for the OIDC authority and is a significant security risk. " +
+                "Set Keycloak:RequireHttpsMetadata=true for production deployments, or use the Development environment.");
+        }
+    }
+
+    private static void ConfigureJwtBearer(
+        Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions options,
+        string keycloakAuthority,
+        string clientId,
+        bool requireHttpsMetadata,
+        IWebHostEnvironment environment)
+    {
+        options.Authority = keycloakAuthority;
+        options.RequireHttpsMetadata = requireHttpsMetadata;
+        if (environment.IsDevelopment())
+        {
+            options.BackchannelHttpHandler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            };
+        }
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = keycloakAuthority,
+            ValidateAudience = true,
+            ValidAudiences = new[] { clientId, "account" },
+            ValidateLifetime = true,
+            NameClaimType = "preferred_username",
+            RoleClaimType = ClaimTypes.Role
+        };
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                if (context.Principal?.Identity is ClaimsIdentity identity)
+                {
+                    MapKeycloakRoles(identity, clientId);
+                }
+                return Task.CompletedTask;
+            }
+        };
+    }
+
+    private static void ConfigureAuthorizationPolicies(IServiceCollection services)
+    {
         services.AddAuthorization(options =>
         {
-            // Fallback: require authentication by default for all endpoints
-            // Endpoints that should be anonymous must use .AllowAnonymous()
             options.FallbackPolicy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .Build();
@@ -135,15 +154,12 @@ public static class AuthenticationExtensions
             options.AddPolicy("RequireAdmin", policy =>
                 policy.RequireRole(RoleHierarchy.Roles.Admin));
         });
-
-        return services;
     }
 
     // ── OpenID Connect configuration ────────────────────────────────────────
 
     private static void ConfigureOpenIdConnect(
         OpenIdConnectOptions options,
-        IConfigurationSection keycloakConfig,
         string keycloakAuthority,
         string clientId,
         string clientSecret,

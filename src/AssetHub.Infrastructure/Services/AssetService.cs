@@ -22,6 +22,8 @@ public sealed class AssetService : IAssetService
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
     private readonly string _bucketName;
+    private const string AssetNotFoundMessage = AssetNotFoundMessage;
+    private const string AuditKeyTitle = "title";
 
     public AssetService(
         IAssetRepository assetRepo,
@@ -47,59 +49,86 @@ public sealed class AssetService : IAssetService
     {
         var asset = await _assetRepo.GetByIdAsync(id, ct);
         if (asset == null)
-            return ServiceError.NotFound("Asset not found");
+            return ServiceError.NotFound(AssetNotFoundMessage);
 
         if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Contributor, ct))
             return ServiceError.Forbidden();
 
-        if (dto.Title != null)
-        {
-            var titleError = InputValidation.ValidateAssetTitle(dto.Title);
-            if (titleError != null)
-                return ServiceError.BadRequest(titleError);
-            asset.Title = dto.Title;
-        }
-        if (dto.Description != null)
-        {
-            var desc = InputValidation.NormalizeToNull(dto.Description);
-            if (desc != null && desc.Length > 2000)
-                return ServiceError.BadRequest("Description must be 2000 characters or fewer");
-            asset.Description = desc;
-        }
-        if (dto.Copyright != null)
-        {
-            var copyright = InputValidation.NormalizeToNull(dto.Copyright);
-            if (copyright != null && copyright.Length > 500)
-                return ServiceError.BadRequest("Copyright must be 500 characters or fewer");
-            asset.Copyright = copyright;
-        }
-        if (dto.Tags != null)
-        {
-            if (dto.Tags.Count > Constants.Limits.MaxTagsPerAsset)
-                return ServiceError.BadRequest($"Cannot have more than {Constants.Limits.MaxTagsPerAsset} tags");
-            if (dto.Tags.Any(t => t.Length > Constants.Limits.MaxTagLength))
-                return ServiceError.BadRequest($"Each tag must be {Constants.Limits.MaxTagLength} characters or fewer");
-            asset.Tags = dto.Tags;
-        }
-        if (dto.MetadataJson != null)
-        {
-            if (dto.MetadataJson.Count > Constants.Limits.MaxMetadataEntries)
-                return ServiceError.BadRequest($"Metadata cannot exceed {Constants.Limits.MaxMetadataEntries} entries");
-            if (dto.MetadataJson.Keys.Any(k => k.Length > Constants.Limits.MaxMetadataKeyLength))
-                return ServiceError.BadRequest($"Each metadata key must be {Constants.Limits.MaxMetadataKeyLength} characters or fewer");
-            if (dto.MetadataJson.Values.Any(v => v?.ToString()?.Length > Constants.Limits.MaxMetadataValueLength))
-                return ServiceError.BadRequest($"Each metadata value must be {Constants.Limits.MaxMetadataValueLength} characters or fewer");
-            asset.MetadataJson = dto.MetadataJson;
-        }
+        var validationError = ApplyFieldUpdates(asset, dto);
+        if (validationError != null)
+            return validationError;
+
         asset.UpdatedAt = DateTime.UtcNow;
 
         await _assetRepo.UpdateAsync(asset, ct);
         await _audit.LogAsync("asset.updated", Constants.ScopeTypes.Asset, id, _currentUser.UserId,
-            new() { ["title"] = asset.Title, ["description"] = asset.Description ?? "", ["tags"] = string.Join(", ", asset.Tags ?? []) },
+            new() { [AuditKeyTitle] = asset.Title, ["description"] = asset.Description ?? "", ["tags"] = string.Join(", ", asset.Tags ?? []) },
             ct);
 
         var userRole = await GetUserRoleForAssetAsync(id, ct);
         return AssetMapper.ToDto(asset, userRole);
+    }
+
+    private static ServiceError? ApplyFieldUpdates(Domain.Entities.Asset asset, UpdateAssetDto dto)
+    {
+        return ApplyTitle(asset, dto)
+            ?? ApplyDescription(asset, dto)
+            ?? ApplyCopyright(asset, dto)
+            ?? ApplyTags(asset, dto)
+            ?? ApplyMetadata(asset, dto);
+    }
+
+    private static ServiceError? ApplyTitle(Domain.Entities.Asset asset, UpdateAssetDto dto)
+    {
+        if (dto.Title == null) return null;
+        var error = InputValidation.ValidateAssetTitle(dto.Title);
+        if (error != null) return ServiceError.BadRequest(error);
+        asset.Title = dto.Title;
+        return null;
+    }
+
+    private static ServiceError? ApplyDescription(Domain.Entities.Asset asset, UpdateAssetDto dto)
+    {
+        if (dto.Description == null) return null;
+        var desc = InputValidation.NormalizeToNull(dto.Description);
+        if (desc != null && desc.Length > 2000)
+            return ServiceError.BadRequest("Description must be 2000 characters or fewer");
+        asset.Description = desc;
+        return null;
+    }
+
+    private static ServiceError? ApplyCopyright(Domain.Entities.Asset asset, UpdateAssetDto dto)
+    {
+        if (dto.Copyright == null) return null;
+        var copyright = InputValidation.NormalizeToNull(dto.Copyright);
+        if (copyright != null && copyright.Length > 500)
+            return ServiceError.BadRequest("Copyright must be 500 characters or fewer");
+        asset.Copyright = copyright;
+        return null;
+    }
+
+    private static ServiceError? ApplyTags(Domain.Entities.Asset asset, UpdateAssetDto dto)
+    {
+        if (dto.Tags == null) return null;
+        if (dto.Tags.Count > Constants.Limits.MaxTagsPerAsset)
+            return ServiceError.BadRequest($"Cannot have more than {Constants.Limits.MaxTagsPerAsset} tags");
+        if (dto.Tags.Any(t => t.Length > Constants.Limits.MaxTagLength))
+            return ServiceError.BadRequest($"Each tag must be {Constants.Limits.MaxTagLength} characters or fewer");
+        asset.Tags = dto.Tags;
+        return null;
+    }
+
+    private static ServiceError? ApplyMetadata(Domain.Entities.Asset asset, UpdateAssetDto dto)
+    {
+        if (dto.MetadataJson == null) return null;
+        if (dto.MetadataJson.Count > Constants.Limits.MaxMetadataEntries)
+            return ServiceError.BadRequest($"Metadata cannot exceed {Constants.Limits.MaxMetadataEntries} entries");
+        if (dto.MetadataJson.Keys.Any(k => k.Length > Constants.Limits.MaxMetadataKeyLength))
+            return ServiceError.BadRequest($"Each metadata key must be {Constants.Limits.MaxMetadataKeyLength} characters or fewer");
+        if (dto.MetadataJson.Values.Any(v => v?.ToString()?.Length > Constants.Limits.MaxMetadataValueLength))
+            return ServiceError.BadRequest($"Each metadata value must be {Constants.Limits.MaxMetadataValueLength} characters or fewer");
+        asset.MetadataJson = dto.MetadataJson;
+        return null;
     }
 
     public async Task<ServiceResult> DeleteAsync(
@@ -108,7 +137,7 @@ public sealed class AssetService : IAssetService
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(id, ct);
         if (asset == null)
-            return ServiceError.NotFound("Asset not found");
+            return ServiceError.NotFound(AssetNotFoundMessage);
 
         // "Remove from this collection" mode — backend decides if it becomes a permanent delete
         if (fromCollectionId.HasValue)
@@ -127,13 +156,13 @@ public sealed class AssetService : IAssetService
             if (permanentlyDeleted)
             {
                 await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
-                    new() { ["title"] = asset.Title, ["reason"] = "last_collection" },
+                    new() { [AuditKeyTitle] = asset.Title, ["reason"] = "last_collection" },
                     ct);
             }
             else
             {
                 await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, id, userId,
-                    new() { ["title"] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() },
+                    new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() },
                     ct);
             }
             return ServiceResult.Success;
@@ -147,7 +176,7 @@ public sealed class AssetService : IAssetService
 
         await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
         await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
-            new() { ["title"] = asset.Title }, ct);
+            new() { [AuditKeyTitle] = asset.Title }, ct);
 
         return ServiceResult.Success;
     }
@@ -177,7 +206,7 @@ public sealed class AssetService : IAssetService
             await _assetCollectionRepo.RemoveFromCollectionAsync(assetId, collId, ct);
 
         await _audit.LogAsync("asset.removed_from_collections", Constants.ScopeTypes.Asset, assetId, userId,
-            new() { ["title"] = assetTitle, ["count"] = authorizedCollectionIds.Count.ToString() },
+            new() { [AuditKeyTitle] = assetTitle, ["count"] = authorizedCollectionIds.Count.ToString() },
             ct);
         return ServiceResult.Success;
     }
@@ -188,7 +217,7 @@ public sealed class AssetService : IAssetService
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(assetId, ct);
         if (asset == null)
-            return ServiceError.NotFound("Asset not found");
+            return ServiceError.NotFound(AssetNotFoundMessage);
 
         if (!_currentUser.IsSystemAdmin)
         {
@@ -220,7 +249,7 @@ public sealed class AssetService : IAssetService
             return ServiceError.BadRequest("Asset is already linked to this collection or collection not found");
 
         await _audit.LogAsync("asset.added_to_collection", Constants.ScopeTypes.Asset, assetId, userId,
-            new() { ["title"] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
+            new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
 
         return new AssetAddedToCollectionResponse
         {
@@ -237,7 +266,7 @@ public sealed class AssetService : IAssetService
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(assetId, ct);
         if (asset == null)
-            return ServiceError.NotFound("Asset not found");
+            return ServiceError.NotFound(AssetNotFoundMessage);
 
         if (!_currentUser.IsSystemAdmin)
         {
@@ -253,12 +282,12 @@ public sealed class AssetService : IAssetService
         if (permanentlyDeleted)
         {
             await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, assetId, userId,
-                new() { ["title"] = asset.Title, ["reason"] = "orphaned" }, ct);
+                new() { [AuditKeyTitle] = asset.Title, ["reason"] = "orphaned" }, ct);
         }
         else
         {
             await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, assetId, userId,
-                new() { ["title"] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
+                new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
         }
 
         return ServiceResult.Success;
