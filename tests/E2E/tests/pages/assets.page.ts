@@ -1,5 +1,6 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 import { env } from '../config/env';
+import { waitForBlazorInteractive } from '../helpers/blazor-helper';
 
 /**
  * Page Object for the Assets / Collections page (/assets).
@@ -79,6 +80,8 @@ export class AssetsPage {
     const url = collectionId ? `/assets?collection=${collectionId}` : '/assets';
     await this.page.goto(url);
     await this.page.waitForLoadState('networkidle');
+    // Wait for Blazor Server to become interactive
+    await waitForBlazorInteractive(this.page);
   }
 
   /** Select a collection by clicking its card */

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { env } from '../config/env';
+import { waitForBlazorInteractive } from '../helpers/blazor-helper';
 
 test.describe('Responsive & Accessibility @ui', () => {
   test.describe('Responsive Design', () => {
@@ -163,22 +164,26 @@ test.describe('Responsive & Accessibility @ui', () => {
     test('dark mode toggle changes theme', async ({ page }) => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
+      await waitForBlazorInteractive(page);
 
-      // Get initial body styles
-      const initialBgColor = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+      // Clear any pre-existing darkMode value so we can detect a fresh write
+      await page.evaluate(() => localStorage.removeItem('darkMode'));
 
-      // Toggle dark mode
-      const darkModeBtn = page.locator('.mud-appbar .mud-icon-button').last();
-      await darkModeBtn.click();
-      await page.waitForTimeout(env.timeouts.animation);
+      // The dark mode button is the last standalone icon button in the appbar
+      // (MudMenu activators have mud-menu-activator class, not mud-icon-button)
+      const darkModeBtn = page.locator('.mud-appbar > .mud-icon-button, .mud-appbar .mud-icon-button:not(.mud-menu-activator)').last();
+      await expect(darkModeBtn).toBeVisible();
 
-      // Background should have changed OR darkMode localStorage should be set
-      const darkModeSetting = await page.evaluate(() => localStorage.getItem('darkMode'));
-      const newBgColor = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-      
-      // Either the background color changed or darkMode setting exists
-      const themeChanged = initialBgColor !== newBgColor || darkModeSetting !== null;
-      expect(themeChanged, 'Theme should change when dark mode is toggled').toBeTruthy();
+      // Retry clicking until Blazor interactivity is ready and localStorage is written
+      await expect(async () => {
+        const before = await page.evaluate(() => localStorage.getItem('darkMode'));
+        await darkModeBtn.click();
+        await page.waitForTimeout(500);
+        const after = await page.evaluate(() => localStorage.getItem('darkMode'));
+        // Verify the value actually changed (proves the click handler fired)
+        expect(after, 'darkMode should be persisted in localStorage').not.toBeNull();
+        expect(after).not.toBe(before);
+      }).toPass({ timeout: 15_000 });
     });
 
     test('MudBlazor snackbar infrastructure is present', async ({ page }) => {

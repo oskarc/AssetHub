@@ -3,6 +3,7 @@ import { ApiHelper } from '../helpers/api-helper';
 import { DialogHelper, SnackbarHelper } from '../helpers/dialog-helper';
 import { ensureTestFixtures } from '../helpers/test-fixtures';
 import { env } from '../config/env';
+import { waitForBlazorInteractive } from '../helpers/blazor-helper';
 
 test.describe('Access Control & Permissions @acl', () => {
   let api: ApiHelper;
@@ -88,6 +89,7 @@ test.describe('Access Control & Permissions @acl', () => {
     test('admin sees all nav items', async ({ page }) => {
       await page.goto('/');
       await page.waitForLoadState('networkidle');
+      await waitForBlazorInteractive(page);
 
       // Admin should see All Assets and Admin nav
       await expect(page.getByText(/all assets/i)).toBeVisible();
@@ -99,7 +101,7 @@ test.describe('Access Control & Permissions @acl', () => {
 
       await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(env.timeouts.animation);
+      await waitForBlazorInteractive(page);
 
       const uploadArea = page.locator('.upload-area');
       await expect(uploadArea).toBeVisible({ timeout: 10_000 });
@@ -110,7 +112,7 @@ test.describe('Access Control & Permissions @acl', () => {
 
       await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(env.timeouts.animation);
+      await waitForBlazorInteractive(page);
 
       const manageAccessBtn = page.getByRole('button', { name: /manage access/i });
       await expect(manageAccessBtn).toBeVisible({ timeout: 10_000 });
@@ -127,7 +129,8 @@ test.describe('Access Control & Permissions @acl', () => {
 
       await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(env.timeouts.animation * 3);
+      await waitForBlazorInteractive(page);
+      await page.waitForTimeout(env.timeouts.animation * 2);
 
       const cards = page.locator('.asset-card');
       await expect(cards.first()).toBeVisible({ timeout: 15_000 });
@@ -150,15 +153,13 @@ test.describe('Access Control & Permissions @acl', () => {
 
       await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(env.timeouts.animation);
+      await waitForBlazorInteractive(page);
 
       const manageAccessBtn = page.getByRole('button', { name: /manage access/i });
       await expect(manageAccessBtn).toBeVisible({ timeout: 10_000 });
       
-      await manageAccessBtn.click();
-
       const dialog = new DialogHelper(page);
-      await dialog.waitForDialog();
+      await dialog.clickAndWaitForDialog(manageAccessBtn);
 
       // Should have user search input
       await expect(dialog.dialog.locator('input').first()).toBeVisible();
@@ -171,15 +172,13 @@ test.describe('Access Control & Permissions @acl', () => {
 
       await page.goto(`/assets?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(env.timeouts.animation);
+      await waitForBlazorInteractive(page);
 
       const manageAccessBtn = page.getByRole('button', { name: /manage access/i });
       await expect(manageAccessBtn).toBeVisible({ timeout: 10_000 });
-      
-      await manageAccessBtn.click();
 
       const dialog = new DialogHelper(page);
-      await dialog.waitForDialog();
+      await dialog.clickAndWaitForDialog(manageAccessBtn);
 
       // Should have a role select dropdown
       const roleSelect = dialog.dialog.locator('.mud-select');

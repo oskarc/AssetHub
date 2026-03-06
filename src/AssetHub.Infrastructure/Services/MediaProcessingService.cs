@@ -58,7 +58,7 @@ public class MediaProcessingService(
 
     public async Task ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
-        var tempOriginal = Path.GetTempFileName();
+        var tempOriginal = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         var mediumPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         
@@ -174,7 +174,7 @@ public class MediaProcessingService(
 
     public async Task ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
-        var tempOriginal = Path.GetTempFileName();
+        var tempOriginal = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var posterPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         
         try

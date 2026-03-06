@@ -1,5 +1,6 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 import { env } from '../config/env';
+import { waitForBlazorInteractive } from '../helpers/blazor-helper';
 
 /**
  * Page Object for the Asset Detail page (/assets/{guid}).
@@ -68,6 +69,7 @@ export class AssetDetailPage {
   async goto(assetId: string) {
     await this.page.goto(`/assets/${assetId}`);
     await this.page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(this.page);
   }
 
   async expectLoaded() {

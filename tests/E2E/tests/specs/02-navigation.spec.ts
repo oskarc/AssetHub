@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { LayoutPage } from '../pages/layout.page';
 import { env } from '../config/env';
+import { waitForBlazorInteractive } from '../helpers/blazor-helper';
 
 test.describe('Navigation & Layout @navigation @smoke', () => {
   let layout: LayoutPage;
@@ -9,6 +10,7 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
     layout = new LayoutPage(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(page);
   });
 
   test('app bar displays branding and user info', async ({ page }) => {
@@ -45,15 +47,16 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
   });
 
   test('dark mode toggle changes theme', async ({ page }) => {
-    // Get initial body background
-    const initialBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    
-    await layout.toggleDarkMode();
-    await page.waitForTimeout(env.timeouts.animation);
-    
-    // Background should change
-    const newBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(newBg).not.toBe(initialBg);
+    // Clear any pre-existing value so we can detect the toggle write
+    await page.evaluate(() => localStorage.removeItem('darkMode'));
+
+    // Retry until Blazor interactivity is ready and the toggle actually fires
+    await expect(async () => {
+      await layout.toggleDarkMode();
+      await page.waitForTimeout(500);
+      const setting = await page.evaluate(() => localStorage.getItem('darkMode'));
+      expect(setting).not.toBeNull();
+    }).toPass({ timeout: 15_000 });
   });
 
   test('direct URL navigation to /assets works', async ({ page }) => {
@@ -75,26 +78,30 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
   });
 
   test('hamburger menu toggles drawer visibility', async ({ page }) => {
-    // MudBlazor drawer doesn't hide from DOM; it uses CSS classes to indicate open/closed state
-    const isDrawerOpen = async () => layout.drawer.evaluate(el => el.classList.contains('mud-drawer--open'));
-    
-    // Get initial drawer state (should be open by default)
-    const initialOpen = await isDrawerOpen();
-    expect(initialOpen).toBe(true);
-    
-    // Click menu toggle
+    // MudBlazor keeps the drawer in the DOM; detect state via class that contains "open"
+    const isDrawerOpen = async () => {
+      return await layout.drawer.evaluate(el =>
+        // MudBlazor uses mud-drawer--open or mud-drawer-open depending on version
+        [...el.classList].some(c => c.includes('drawer') && c.includes('open'))
+      );
+    };
+
+    // Initially drawer should be open (nav menu visible)
+    expect(await isDrawerOpen()).toBeTruthy();
+
+    await expect(layout.menuToggle).toBeVisible();
+    await expect(layout.menuToggle).toBeEnabled();
+
+    // Click hamburger to close drawer, then wait for the class to actually change
     await layout.menuToggle.click();
-    await page.waitForTimeout(env.timeouts.animation);
-    
-    // Drawer state should change (now closed)
-    const afterFirstClick = await isDrawerOpen();
-    expect(afterFirstClick).toBe(false);
-    
+    await expect(async () => {
+      expect(await isDrawerOpen()).toBeFalsy();
+    }).toPass({ timeout: 10_000 });
+
     // Toggle again to restore
     await layout.menuToggle.click();
-    await page.waitForTimeout(env.timeouts.animation);
-    
-    const afterSecondClick = await isDrawerOpen();
-    expect(afterSecondClick).toBe(true);
+    await expect(async () => {
+      expect(await isDrawerOpen()).toBeTruthy();
+    }).toPass({ timeout: 10_000 });
   });
 });

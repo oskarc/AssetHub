@@ -255,7 +255,19 @@ export class ApiHelper {
       return [];
     }
     try {
-      return JSON.parse(text);
+      const data = JSON.parse(text);
+      // API returns paginated response with items array
+      if (Array.isArray(data)) {
+        return data;
+      }
+      // Try both camelCase and PascalCase property names
+      if (Array.isArray(data.items)) {
+        return data.items;
+      }
+      if (Array.isArray(data.Items)) {
+        return data.Items;
+      }
+      return [];
     } catch {
       console.warn(`getAdminShares returned invalid JSON: ${text.substring(0, 200)}`);
       return [];

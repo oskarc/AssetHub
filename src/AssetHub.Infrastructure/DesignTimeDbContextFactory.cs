@@ -11,8 +11,9 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AssetHubDb
         var conn = Environment.GetEnvironmentVariable("EF_CONNECTION");
         if (string.IsNullOrWhiteSpace(conn))
         {
-            // Fallback to a sensible local default (development)
-            conn = "Server=localhost;Port=5432;Database=assethub;User Id=postgres;Password=postgres_dev_password;";
+            throw new InvalidOperationException(
+                "EF_CONNECTION environment variable is not set. " +
+                "Set it to a valid PostgreSQL connection string before running EF migrations.");
         }
 
         var optionsBuilder = new DbContextOptionsBuilder<AssetHubDbContext>();

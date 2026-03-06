@@ -83,7 +83,7 @@ test.describe('Admin Panel @admin', () => {
     });
 
     test('share table has search functionality', async ({ page }) => {
-      const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
+      const searchInput = page.locator('.mud-table .mud-input-slot input, .mud-table .mud-input input, .mud-toolbar input').first();
       await expect(searchInput).toBeVisible({ timeout: 10_000 });
       
       await searchInput.fill('test');
@@ -108,15 +108,10 @@ test.describe('Admin Panel @admin', () => {
         const firstRow = rows.first();
         const infoBtn = firstRow.locator('.mud-icon-button').first();
         if (await infoBtn.isVisible()) {
-          await infoBtn.click();
-          await page.waitForTimeout(env.timeouts.animation);
-          // Dialog should appear
-          const dlg = page.locator('.mud-dialog');
-          if (await dlg.isVisible()) {
-            await dlg.getByRole('button', { name: /close|ok/i }).first().click().catch(() => {
-              page.keyboard.press('Escape');
-            });
-          }
+          await dialog.clickAndWaitForDialog(infoBtn);
+          await dialog.dialog.getByRole('button', { name: /close|ok/i }).first().click().catch(() => {
+            page.keyboard.press('Escape');
+          });
         }
       }
     });
@@ -126,17 +121,19 @@ test.describe('Admin Panel @admin', () => {
       const rowCount = await rows.count();
       if (rowCount > 0) {
         const firstRow = rows.first();
-        const editBtn = firstRow.locator('[title*="assword"], [title*="dit"], .mud-icon-button').nth(1);
-        if (await editBtn.isVisible()) {
-          await editBtn.click();
-          await page.waitForTimeout(env.timeouts.animation);
-          const dlg = page.locator('.mud-dialog');
-          if (await dlg.isVisible()) {
-            // Should have password input
-            await expect(dlg.locator('input')).toBeVisible();
-            await page.keyboard.press('Escape');
-          }
+        // Password edit is accessed via the Info button (first icon button) which opens ShareInfoDialog
+        const infoBtn = firstRow.locator('.mud-icon-button').first();
+        if (await infoBtn.isVisible()) {
+          await dialog.clickAndWaitForDialog(infoBtn);
+          // ShareInfoDialog contains a "Set or Change Password" button
+          const setPasswordBtn = dialog.dialog.getByRole('button', { name: /set or change password/i });
+          await expect(setPasswordBtn).toBeVisible({ timeout: 10_000 });
+          await page.keyboard.press('Escape');
+        } else {
+          test.skip(true, 'Info button not found in table row');
         }
+      } else {
+        test.skip(true, 'No shares in table to test');
       }
     });
 
@@ -147,15 +144,11 @@ test.describe('Admin Panel @admin', () => {
         const firstRow = rows.first();
         const revokeBtn = firstRow.locator('[title*="evoke"], .mud-icon-button').last();
         if (await revokeBtn.isVisible()) {
-          await revokeBtn.click();
-          await page.waitForTimeout(env.timeouts.animation);
-          const dlg = page.locator('.mud-dialog');
-          if (await dlg.isVisible()) {
-            // Cancel to avoid revoking
-            await dlg.getByRole('button', { name: /cancel|no/i }).first().click().catch(() => {
-              page.keyboard.press('Escape');
-            });
-          }
+          await dialog.clickAndWaitForDialog(revokeBtn);
+          // Cancel to avoid revoking
+          await dialog.dialog.getByRole('button', { name: /cancel|no/i }).first().click().catch(() => {
+            page.keyboard.press('Escape');
+          });
         }
       }
     });
@@ -251,7 +244,7 @@ test.describe('Admin Panel @admin', () => {
 
     test('user search filters results', async ({ page }) => {
       await page.waitForTimeout(env.timeouts.animation * 2);
-      const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
+      const searchInput = page.locator('.mud-table .mud-input-slot input, .mud-table .mud-input input, .mud-toolbar input').first();
       await expect(searchInput).toBeVisible({ timeout: 10_000 });
       
       await searchInput.fill('mediaadmin');
@@ -274,8 +267,7 @@ test.describe('Admin Panel @admin', () => {
       const createBtn = page.getByRole('button', { name: /create user/i });
       await expect(createBtn).toBeVisible({ timeout: 10_000 });
       
-      await createBtn.click();
-      await dialog.waitForDialog();
+      await dialog.clickAndWaitForDialog(createBtn);
 
       // Dialog should have form fields
       const inputs = dialog.dialog.locator('input');
@@ -289,9 +281,8 @@ test.describe('Admin Panel @admin', () => {
       await page.waitForTimeout(env.timeouts.animation);
       const createBtn = page.getByRole('button', { name: /create user/i });
       await expect(createBtn).toBeVisible({ timeout: 10_000 });
-      
-      await createBtn.click();
-      await dialog.waitForDialog();
+
+      await dialog.clickAndWaitForDialog(createBtn);
 
       // Try to submit empty form - should stay disabled or show validation
       const submitBtn = dialog.dialog.getByRole('button', { name: /create user/i });
@@ -308,9 +299,7 @@ test.describe('Admin Panel @admin', () => {
       if (rowCount > 0) {
         const manageBtn = rows.first().getByRole('button', { name: /manage/i });
         if (await manageBtn.isVisible()) {
-          await manageBtn.click();
-          await dialog.waitForDialog();
-          await expect(dialog.dialog).toBeVisible();
+          await dialog.clickAndWaitForDialog(manageBtn);
           await dialog.closeDialog();
         }
       }
@@ -345,13 +334,19 @@ test.describe('Admin Panel @admin', () => {
     });
 
     test('audit table has search functionality', async ({ page }) => {
-      const searchInput = page.locator('.mud-table .mud-input-root input, .mud-toolbar input').first();
+      // Search/filter UI only renders when audit events exist
+      const table = page.locator('.mud-table');
+      if (!(await table.isVisible({ timeout: 5_000 }).catch(() => false))) {
+        test.skip(true, 'No audit events - search UI not rendered');
+        return;
+      }
+      const searchInput = page.locator('.mud-input-slot input, .mud-input input').first();
       await expect(searchInput).toBeVisible({ timeout: 10_000 });
-      
+
       await searchInput.fill('test');
       await page.waitForTimeout(env.timeouts.debounce);
       // Page should still be functional
-      await expect(page.locator('.mud-table')).toBeVisible();
+      await expect(table).toBeVisible();
     });
 
   });

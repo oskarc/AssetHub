@@ -308,7 +308,7 @@ public class ShareAccessServiceTests
         _assetRepoMock.Setup(x => x.GetByIdAsync(asset.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(asset);
         _minioAdapterMock.Setup(x => x.GetPresignedDownloadUrlAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), true, null, It.IsAny<CancellationToken>()))
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), true, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("https://minio/presigned-url");
 
         var service = CreateService();
@@ -358,7 +358,7 @@ public class ShareAccessServiceTests
         _assetCollectionRepoMock.Setup(x => x.BelongsToCollectionAsync(asset.Id, collection.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true); // Asset belongs to the shared collection
         _minioAdapterMock.Setup(x => x.GetPresignedDownloadUrlAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), true, null, It.IsAny<CancellationToken>()))
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), true, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("https://minio/presigned-url");
 
         var service = CreateService();

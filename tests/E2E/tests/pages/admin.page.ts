@@ -1,5 +1,6 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 import { env } from '../config/env';
+import { waitForBlazorInteractive } from '../helpers/blazor-helper';
 
 /**
  * Page Object for the Admin page (/admin).
@@ -33,6 +34,7 @@ export class AdminPage {
   async goto() {
     await this.page.goto('/admin');
     await this.page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(this.page);
   }
 
   async expectLoaded() {

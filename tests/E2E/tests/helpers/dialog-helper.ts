@@ -17,8 +17,19 @@ export class DialogHelper {
   }
 
   /** Wait for a dialog to appear */
-  async waitForDialog() {
-    await expect(this.dialog).toBeVisible({ timeout: 10_000 });
+  async waitForDialog(timeout = 10_000) {
+    await expect(this.dialog).toBeVisible({ timeout });
+  }
+
+  /**
+   * Click a button and wait for a dialog to appear, retrying if Blazor
+   * interactivity isn't ready yet. Use this instead of `btn.click()` + `waitForDialog()`.
+   */
+  async clickAndWaitForDialog(button: Locator, timeout = 15_000) {
+    await expect(async () => {
+      await button.click();
+      await expect(this.dialog).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout });
   }
 
   /** Close dialog via cancel/close button */

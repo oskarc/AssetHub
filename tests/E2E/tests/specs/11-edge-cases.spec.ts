@@ -109,10 +109,9 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
 
       const openTarget = card.locator('.clickable').first();
       await expect(openTarget).toBeVisible();
-      await Promise.all([
-        page.waitForURL(/\/assets\/[0-9a-f-]+/),
-        openTarget.click()
-      ]);
+      await openTarget.click();
+      // Blazor uses client-side navigation (history.pushState), so use toHaveURL which polls
+      await expect(page).toHaveURL(/\/assets\/[0-9a-f-]+/, { timeout: 15_000 });
 
       // Go back
       await page.goBack();

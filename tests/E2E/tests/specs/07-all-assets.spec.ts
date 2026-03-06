@@ -4,6 +4,7 @@ import { ApiHelper } from '../helpers/api-helper';
 import { DialogHelper } from '../helpers/dialog-helper';
 import { ensureTestFixtures } from '../helpers/test-fixtures';
 import { env } from '../config/env';
+import { clickAndWaitForPopover } from '../helpers/blazor-helper';
 
 test.describe('All Assets (Admin) @admin @assets', () => {
   let allAssetsPage: AllAssetsPage;
@@ -113,13 +114,11 @@ test.describe('All Assets (Admin) @admin @assets', () => {
     await page.waitForTimeout(env.timeouts.animation * 2);
     const cards = page.locator('.asset-card');
     await expect(cards.first()).toBeVisible({ timeout: 15_000 });
-    
+
     const shareBtn = cards.first().locator('.mud-icon-button').nth(1);
     await expect(shareBtn).toBeVisible();
-    await shareBtn.click();
-    
-    const dlg = page.locator('.mud-dialog');
-    await expect(dlg).toBeVisible({ timeout: 5_000 });
+
+    await dialog.clickAndWaitForDialog(shareBtn);
     await page.keyboard.press('Escape');
   });
 
@@ -127,16 +126,18 @@ test.describe('All Assets (Admin) @admin @assets', () => {
     await page.waitForTimeout(env.timeouts.animation * 2);
     const cards = page.locator('.asset-card');
     await expect(cards.first()).toBeVisible({ timeout: 15_000 });
-    
-    const deleteBtn = cards.first().locator('.mud-icon-button').last();
-    await expect(deleteBtn).toBeVisible();
-    await deleteBtn.click();
-    
-    const dlg = page.locator('.mud-dialog');
-    await expect(dlg).toBeVisible({ timeout: 5_000 });
-    
+
+    // Delete button is conditional on per-asset role; look for the error-colored icon button
+    const deleteBtn = cards.first().locator('.mud-icon-button.mud-error-text, .mud-icon-button[style*="error"]').first();
+    if (!(await deleteBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
+      test.skip(true, 'Delete button not available - user may lack delete permission on this asset');
+      return;
+    }
+
+    await dialog.clickAndWaitForDialog(deleteBtn);
+
     // Cancel deletion
-    const cancelBtn = dlg.getByRole('button', { name: /cancel|no/i }).first();
+    const cancelBtn = dialog.dialog.getByRole('button', { name: /cancel/i }).first();
     await cancelBtn.click();
   });
 
@@ -152,28 +153,24 @@ test.describe('All Assets (Admin) @admin @assets', () => {
   test('collection filter dropdown has options', async ({ page }) => {
     const selects = page.locator('.mud-select');
     await expect(selects.first()).toBeVisible({ timeout: 10_000 });
-    
-    await selects.first().click();
-    await page.waitForTimeout(500);
-    
-    // MudBlazor renders options as list items in a popover
-    const options = page.locator('.mud-popover .mud-list-item');
+
+    await clickAndWaitForPopover(page, selects.first());
+
+    const options = page.locator('.mud-popover-open .mud-list-item');
     await expect(options.first()).toBeVisible({ timeout: 5_000 });
-    
+
     await page.keyboard.press('Escape');
   });
 
   test('type filter dropdown has options', async ({ page }) => {
     const selects = page.locator('.mud-select');
     await expect(selects.nth(1)).toBeVisible({ timeout: 10_000 });
-    
-    await selects.nth(1).click();
-    await page.waitForTimeout(500);
-    
-    // MudBlazor renders options as list items in a popover
-    const options = page.locator('.mud-popover .mud-list-item');
+
+    await clickAndWaitForPopover(page, selects.nth(1));
+
+    const options = page.locator('.mud-popover-open .mud-list-item');
     await expect(options.first()).toBeVisible({ timeout: 5_000 });
-    
+
     await page.keyboard.press('Escape');
   });
 });

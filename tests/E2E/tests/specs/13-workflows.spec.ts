@@ -3,6 +3,7 @@ import { ApiHelper } from '../helpers/api-helper';
 import { ensureTestFixtures } from '../helpers/test-fixtures';
 import { DialogHelper } from '../helpers/dialog-helper';
 import { env } from '../config/env';
+import { waitForBlazorInteractive } from '../helpers/blazor-helper';
 
 test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
   let api: ApiHelper;
@@ -29,14 +30,13 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     const collectionName = `Workflow-${timestamp}`;
     await page.goto('/assets');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(env.timeouts.animation);
+    await waitForBlazorInteractive(page);
 
     // Click create collection
     const createBtn = page.getByRole('button', { name: /create collection/i })
       .or(page.locator('[title*="reate"]').first());
     if (await createBtn.first().isVisible()) {
-      await createBtn.first().click();
-      await dialog.waitForDialog();
+      await dialog.clickAndWaitForDialog(createBtn.first());
       await dialog.fillInput(0, collectionName);
       await dialog.confirmDialog(/create|save|ok/i);
       await page.waitForTimeout(env.timeouts.animation * 2);
@@ -64,7 +64,7 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     // === STEP 3: Navigate to All Assets to verify the asset appears ===
     await page.goto('/all-assets');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(env.timeouts.animation * 2);
+    await waitForBlazorInteractive(page);
 
     // Should see at least one asset card
     await expect(page.locator('.asset-card, .mud-card').first()).toBeVisible({ timeout: 15_000 });
@@ -72,6 +72,7 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     // === STEP 4: View in admin panel ===
     await page.goto('/admin');
     await page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(page);
     await expect(page.locator('.mud-typography-h4')).toBeVisible();
 
     // Check share management tab
@@ -101,6 +102,7 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     // === STEP 5: Return to the collection and verify everything is stable ===
     await page.goto('/assets');
     await page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(page);
     await expect(page.getByText(collectionName)).toBeVisible({ timeout: 10_000 });
 
     // === Cleanup: delete collection via API ===

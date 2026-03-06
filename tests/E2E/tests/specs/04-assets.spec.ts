@@ -5,6 +5,7 @@ import { ApiHelper } from '../helpers/api-helper';
 import { DialogHelper, SnackbarHelper } from '../helpers/dialog-helper';
 import { ensureTestFixtures } from '../helpers/test-fixtures';
 import { env } from '../config/env';
+import { waitForBlazorInteractive, clickAndWaitForPopover } from '../helpers/blazor-helper';
 
 test.describe('Asset Management @assets', () => {
   let assetsPage: AssetsPage;
@@ -161,28 +162,24 @@ test.describe('Asset Management @assets', () => {
     test('type filter dropdown has options', async ({ page }) => {
       const typeSelect = page.locator('.mud-select').first();
       await expect(typeSelect).toBeVisible({ timeout: 10_000 });
-      
-      await typeSelect.click();
-      await page.waitForTimeout(500);
-      
-      // MudBlazor renders options as list items in a popover
-      const options = page.locator('.mud-popover .mud-list-item');
+
+      await clickAndWaitForPopover(page, typeSelect);
+
+      const options = page.locator('.mud-popover-open .mud-list-item');
       await expect(options.first()).toBeVisible({ timeout: 5_000 });
-      
+
       await page.keyboard.press('Escape');
     });
 
     test('sort dropdown has options', async ({ page }) => {
       const sortSelect = page.locator('.mud-select').nth(1);
       await expect(sortSelect).toBeVisible({ timeout: 10_000 });
-      
-      await sortSelect.click();
-      await page.waitForTimeout(500);
-      
-      // MudBlazor renders options as list items in a popover
-      const options = page.locator('.mud-popover .mud-list-item');
+
+      await clickAndWaitForPopover(page, sortSelect);
+
+      const options = page.locator('.mud-popover-open .mud-list-item');
       await expect(options.first()).toBeVisible({ timeout: 5_000 });
-      
+
       await page.keyboard.press('Escape');
     });
 
@@ -235,7 +232,7 @@ test.describe('Asset Management @assets', () => {
         // Navigate via collection
         await page.goto(`/assets?collection=${testCollectionId}`);
         await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(env.timeouts.animation);
+        await waitForBlazorInteractive(page);
         const card = page.locator('.asset-card').first();
         if (await card.isVisible()) {
           const openTarget = card.locator('.clickable').first();
@@ -244,6 +241,8 @@ test.describe('Asset Management @assets', () => {
             page.waitForURL(/\/assets\/[0-9a-f-]+/),
             openTarget.click()
           ]);
+          // Wait for Blazor on the new page
+          await waitForBlazorInteractive(page);
         }
       }
     });
@@ -287,9 +286,8 @@ test.describe('Asset Management @assets', () => {
       const editBtn = page.getByRole('button', { name: /edit/i });
       await expect(editBtn).toBeVisible({ timeout: 10_000 });
       
-      await editBtn.click();
-      await dialog.waitForDialog();
-      
+      await dialog.clickAndWaitForDialog(editBtn);
+
       // Dialog should have title input
       await expect(dialog.dialog.locator('input').first()).toBeVisible();
       await dialog.closeDialog();
@@ -299,14 +297,15 @@ test.describe('Asset Management @assets', () => {
       const editBtn = page.getByRole('button', { name: /edit/i });
       await expect(editBtn).toBeVisible({ timeout: 10_000 });
 
-      await editBtn.click();
-      await dialog.waitForDialog();
+      await dialog.clickAndWaitForDialog(editBtn);
 
       const newTitle = `Updated-${timestamp}`;
-      const titleInput = dialog.dialog.locator('input').first();
-      await titleInput.clear();
+      // Target the title input specifically (first MudTextField input in the dialog)
+      const titleInput = dialog.dialog.locator('.mud-input-slot input, .mud-input input').first();
+      await expect(titleInput).toBeVisible({ timeout: 5_000 });
+      await titleInput.fill('');
       await titleInput.fill(newTitle);
-      // Trigger MudBlazor validation by moving focus away from the input
+      // Move focus to trigger MudBlazor validation/binding
       await titleInput.press('Tab');
       await page.waitForTimeout(env.timeouts.animation);
 
@@ -315,19 +314,18 @@ test.describe('Asset Management @assets', () => {
       await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
 
       await saveBtn.click();
-      await page.waitForTimeout(env.timeouts.animation);
 
-      // Title should update — use getByRole to find the asset heading (not the app title)
-      await expect(page.getByRole('heading', { name: newTitle, level: 5 })).toBeVisible({ timeout: 5_000 });
+      // Wait for dialog to close, then verify title updated
+      await expect(dialog.dialog).not.toBeVisible({ timeout: 15_000 });
+      await expect(page.locator('.mud-typography-h5', { hasText: newTitle })).toBeVisible({ timeout: 10_000 });
     });
 
     test('share button opens share dialog with password field', async ({ page }) => {
       const shareBtn = page.getByRole('button', { name: /share/i }).first();
       await expect(shareBtn).toBeVisible({ timeout: 10_000 });
       
-      await shareBtn.click();
-      await dialog.waitForDialog();
-      
+      await dialog.clickAndWaitForDialog(shareBtn);
+
       // Should have password field
       await expect(dialog.dialog.locator('input').first()).toBeVisible();
       await dialog.closeDialog();
@@ -337,14 +335,10 @@ test.describe('Asset Management @assets', () => {
       const deleteBtn = page.getByRole('button', { name: /delete/i });
       await expect(deleteBtn).toBeVisible({ timeout: 10_000 });
       
-      await deleteBtn.click();
-      
-      // Confirmation dialog
-      const confirmDialog = page.locator('.mud-dialog');
-      await expect(confirmDialog).toBeVisible({ timeout: 5_000 });
+      await dialog.clickAndWaitForDialog(deleteBtn);
       
       // Should have cancel button
-      const cancelBtn = confirmDialog.getByRole('button', { name: /cancel|no/i });
+      const cancelBtn = dialog.dialog.getByRole('button', { name: /cancel|no/i });
       await expect(cancelBtn).toBeVisible();
       await cancelBtn.click();
     });

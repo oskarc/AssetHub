@@ -64,10 +64,7 @@ test.describe('Share Management @shares', () => {
       const shareBtn = page.getByRole('button', { name: /^share$/i }).first();
       await expect(shareBtn).toBeVisible({ timeout: 10_000 });
 
-      await shareBtn.click();
-      await page.waitForTimeout(env.timeouts.animation);
-
-      await dialog.waitForDialog();
+      await dialog.clickAndWaitForDialog(shareBtn);
 
       // Dialog should have password field
       const passwordInput = dialog.dialog.locator('input[type="password"], input').first();
@@ -108,8 +105,7 @@ test.describe('Share Management @shares', () => {
         return;
       }
 
-      await shareCollBtn.click();
-      await dialog.waitForDialog();
+      await dialog.clickAndWaitForDialog(shareCollBtn);
 
       // Set password
       const passwordInput = dialog.dialog.locator('input[type="password"], input').first();

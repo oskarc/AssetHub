@@ -85,14 +85,53 @@ public static class ServiceCollectionExtensions
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // Global rate limiter for authenticated users (200 req/min per user)
+            // Return Retry-After header on 429 responses (RFC 6585)
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                context.HttpContext.Response.ContentType = "text/plain";
+                await context.HttpContext.Response.WriteAsync(
+                    "Too many requests. Please try again later.", cancellationToken);
+            };
+
+            // Global rate limiter: per-user for authenticated, per-IP for anonymous
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
             {
-                // Only apply to authenticated users
                 if (context.User.Identity?.IsAuthenticated != true)
-                    return RateLimitPartition.GetNoLimiter("anonymous");
+                {
+                    // Rate-limit anonymous traffic per IP to prevent DoS
+                    var anonIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+                    return RateLimitPartition.GetSlidingWindowLimiter($"anon_{anonIp}", _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 100,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    });
+                }
 
-                var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (userId is null)
+                {
+                    // Authenticated but missing NameIdentifier — likely a misconfiguration.
+                    // Fall back to per-IP with stricter limits to avoid shared-bucket abuse.
+                    var fallbackIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+                    return RateLimitPartition.GetSlidingWindowLimiter($"nosubject_{fallbackIp}", _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 50,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    });
+                }
+
                 return RateLimitPartition.GetSlidingWindowLimiter(userId, _ => new SlidingWindowRateLimiterOptions
                 {
                     PermitLimit = 200,
@@ -106,7 +145,7 @@ public static class ServiceCollectionExtensions
             // Policy for SignalR/Blazor hub connections (prevents WebSocket exhaustion)
             options.AddPolicy("BlazorSignalR", context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
                     factory: _ => new SlidingWindowRateLimiterOptions
                     {
                         PermitLimit = 60,
@@ -119,7 +158,7 @@ public static class ServiceCollectionExtensions
             // Policy for anonymous share endpoints (brute-force protection)
             options.AddPolicy("ShareAnonymous", context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
                     factory: _ => new SlidingWindowRateLimiterOptions
                     {
                         PermitLimit = 30,
@@ -132,7 +171,7 @@ public static class ServiceCollectionExtensions
             // Stricter policy for share password attempts
             options.AddPolicy("SharePassword", context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
                     factory: _ => new SlidingWindowRateLimiterOptions
                     {
                         PermitLimit = 10,

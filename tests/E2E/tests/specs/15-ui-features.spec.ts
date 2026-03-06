@@ -73,9 +73,7 @@ test.describe('UI Feature Tests @ui', () => {
 
     test('"Edit Collection" button opens edit dialog', async ({ page }) => {
       const editBtn = page.getByRole('button', { name: /edit collection/i });
-      await editBtn.click();
-
-      await dialog.waitForDialog();
+      await dialog.clickAndWaitForDialog(editBtn);
       // Dialog should have an input pre-filled with the collection name
       const nameInput = dialog.dialog.locator('input').first();
       await expect(nameInput).toBeVisible();
@@ -86,15 +84,12 @@ test.describe('UI Feature Tests @ui', () => {
 
     test('"Delete Collection" button opens confirmation dialog', async ({ page }) => {
       const deleteBtn = page.getByRole('button', { name: /delete collection/i });
-      await deleteBtn.click();
 
-      // Confirmation dialog should appear with collection name
-      const confirmDialog = page.locator('.mud-dialog');
-      await expect(confirmDialog).toBeVisible({ timeout: 10_000 });
-      await expect(confirmDialog).toContainText(collectionName);
+      await dialog.clickAndWaitForDialog(deleteBtn);
+      await expect(dialog.dialog).toContainText(collectionName);
 
       // Cancel the deletion
-      const cancelBtn = confirmDialog.getByRole('button', { name: /cancel/i });
+      const cancelBtn = dialog.dialog.getByRole('button', { name: /cancel/i });
       await cancelBtn.click();
       await page.waitForTimeout(env.timeouts.animation);
     });
@@ -174,9 +169,9 @@ test.describe('UI Feature Tests @ui', () => {
       await collectionNameElement.hover();
       await page.waitForTimeout(env.timeouts.animation);
 
-      // Tooltip should appear with the full collection name
-      const tooltip = page.locator('.mud-tooltip').filter({ hasText: collectionName });
-      await expect(tooltip).toBeVisible({ timeout: 5_000 });
+      // MudTooltip renders into a popover — check for tooltip content in popover or tooltip containers
+      const tooltip = page.locator('.mud-tooltip, .mud-popover').filter({ hasText: collectionName });
+      await expect(tooltip.first()).toBeVisible({ timeout: 5_000 });
     });
   });
 

@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { env } from '../config/env';
+import { waitForBlazorInteractive } from '../helpers/blazor-helper';
 
 test.describe('Language Switching @language', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(page);
     await expect(page.locator('.mud-appbar')).toBeVisible({ timeout: 15_000 });
   });
 
@@ -57,7 +60,8 @@ test.describe('Language Switching @language', () => {
 
     // Clicking Svenska triggers forceLoad: true → full page reload
     await svenskaOption.click();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(page);
 
     // After reload, Swedish UI text should be visible
     await expect(page.getByRole('link', { name: 'Hem' })).toBeVisible({ timeout: 10_000 });
@@ -70,13 +74,15 @@ test.describe('Language Switching @language', () => {
     const svenskaOption = page.getByText('Svenska');
     await expect(svenskaOption).toBeVisible();
     await svenskaOption.click();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(page);
 
     // Verify Swedish is active
     await expect(page.getByRole('link', { name: 'Hem' })).toBeVisible({ timeout: 10_000 });
 
     // Navigate via full reload to verify language state is retained
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.reload({ waitUntil: 'networkidle' });
+    await waitForBlazorInteractive(page);
 
     // Swedish UI should persist after navigation
     await expect(page.getByRole('link', { name: 'Hem' })).toBeVisible({ timeout: 10_000 });
@@ -91,6 +97,7 @@ test.describe('Language Switching @language', () => {
       path: '/',
     }]);
     await page.reload({ waitUntil: 'networkidle' });
+    await waitForBlazorInteractive(page);
 
     // Verify Swedish is showing
     await expect(page.getByRole('link', { name: 'Hem' })).toBeVisible({ timeout: 10_000 });
@@ -101,7 +108,8 @@ test.describe('Language Switching @language', () => {
     const englishOption = page.getByText('English').last();
     await expect(englishOption).toBeVisible({ timeout: 10_000 });
     await englishOption.click();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(page);
 
     // English UI should now be visible
     await expect(page.getByRole('link', { name: 'Home' })).toBeVisible({ timeout: 10_000 });
