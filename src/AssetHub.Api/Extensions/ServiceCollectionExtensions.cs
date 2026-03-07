@@ -83,7 +83,7 @@ public static class ServiceCollectionExtensions
         });
 
         // ── Rate Limiting ───────────────────────────────────────────────────
-        ConfigureRateLimiting(services);
+        ConfigureRateLimiting(services, environment);
 
         // ── MudBlazor ───────────────────────────────────────────────────────
         services.AddMudServices();
@@ -244,8 +244,11 @@ public static class ServiceCollectionExtensions
     /// Configures rate limiting with global per-user/per-IP partitioning
     /// and named policies for Blazor SignalR, share endpoints, and password attempts.
     /// </summary>
-    private static void ConfigureRateLimiting(IServiceCollection services)
+    private static void ConfigureRateLimiting(IServiceCollection services, IWebHostEnvironment environment)
     {
+        // Development: relax limits for E2E/manual testing (Blazor pages generate many requests per navigation)
+        var isDev = environment.IsDevelopment();
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -263,17 +266,28 @@ public static class ServiceCollectionExtensions
                     "Too many requests. Please try again later.", cancellationToken);
             };
 
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(GetGlobalRateLimitPartition);
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+                isDev ? GetDevRateLimitPartition : GetGlobalRateLimitPartition);
 
             options.AddPolicy(Constants.RateLimitPolicies.BlazorSignalR, context =>
-                IpSlidingWindowPartition(context, "blazor", permitLimit: 60, window: TimeSpan.FromMinutes(1)));
+                IpSlidingWindowPartition(context, "blazor",
+                    permitLimit: isDev ? 600 : 60, window: TimeSpan.FromMinutes(1)));
 
             options.AddPolicy(Constants.RateLimitPolicies.ShareAnonymous, context =>
-                IpSlidingWindowPartition(context, "share", permitLimit: 30, window: TimeSpan.FromMinutes(1)));
+                IpSlidingWindowPartition(context, "share",
+                    permitLimit: isDev ? 300 : 30, window: TimeSpan.FromMinutes(1)));
 
             options.AddPolicy(Constants.RateLimitPolicies.SharePassword, context =>
                 IpSlidingWindowPartition(context, "sharepw", permitLimit: 10, window: TimeSpan.FromMinutes(5), segments: 5));
         });
+    }
+
+    private static RateLimitPartition<string> GetDevRateLimitPartition(HttpContext context)
+    {
+        var key = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown";
+        return SlidingWindowPartition($"dev_{key}", permitLimit: 2000, window: TimeSpan.FromMinutes(1));
     }
 
     private static RateLimitPartition<string> GetGlobalRateLimitPartition(HttpContext context)

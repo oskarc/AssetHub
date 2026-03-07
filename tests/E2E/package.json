@@ -19,6 +19,7 @@
     "setup": "npx playwright install chromium"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0"
+    "@playwright/test": "^1.49.0",
+    "dotenv": "^17.3.1"
   }
 }

@@ -1,7 +1,10 @@
 /// <reference types="node" />
 
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
 import * as path from 'node:path';
+
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 /**
  * AssetHub E2E Test Configuration
