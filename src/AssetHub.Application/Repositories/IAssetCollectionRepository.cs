@@ -48,4 +48,9 @@ public interface IAssetCollectionRepository
     /// Returns a dictionary mapping each asset ID to its collection IDs.
     /// </summary>
     Task<Dictionary<Guid, List<Guid>>> GetCollectionIdsForAssetsAsync(IEnumerable<Guid> assetIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes all asset-collection links for a collection without deleting assets.
+    /// </summary>
+    Task UnlinkAllFromCollectionAsync(Guid collectionId, CancellationToken ct = default);
 }

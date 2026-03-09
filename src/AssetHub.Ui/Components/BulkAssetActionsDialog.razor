@@ -1,0 +1,136 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Application.Helpers
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AssetsResource> AssetLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Error" />
+            <MudText Typo="Typo.h6">@AssetLoc["BulkAssetActions"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width: 500px;">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+                @string.Format(AssetLoc["BulkAssetSelectedCount"], SelectedAssets.Count)
+            </MudAlert>
+
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                @AssetLoc["BulkAssetDeleteWarning"]
+            </MudAlert>
+
+            @if (CollectionId.HasValue)
+            {
+                <MudSwitch T="bool" @bind-Value="_permanentDelete" Color="Color.Error"
+                           Label="@AssetLoc["BulkAssetPermanentDeleteSwitch"]" />
+                <MudAlert Severity="@(_permanentDelete ? Severity.Error : Severity.Info)" Variant="Variant.Text" Dense="true">
+                    @(_permanentDelete ? AssetLoc["BulkAssetPermanentDeleteOn"] : AssetLoc["BulkAssetPermanentDeleteOff"])
+                </MudAlert>
+            }
+
+            <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Class="table-outlined">
+                <thead>
+                    <tr>
+                        <th>@AssetLoc["Column_Title"]</th>
+                        <th style="width: 100px;">@CommonLoc["Label_Type"]</th>
+                        <th style="width: 100px; text-align: right;">@AssetLoc["Column_Size"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var asset in SelectedAssets)
+                    {
+                        <tr>
+                            <td>@asset.Title</td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
+                                         Variant="Variant.Outlined">
+                                    @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
+                                </MudChip>
+                            </td>
+                            <td style="text-align: right;">@AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.DeleteForever"
+                       OnClick="BulkDeleteAsync"
+                       Disabled="_isProcessing"
+                       FullWidth="true">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @string.Format(AssetLoc["BulkAssetDeleteConfirmBtn"], SelectedAssets.Count)
+            </MudButton>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public List<AssetResponseDto> SelectedAssets { get; set; } = new();
+    [Parameter] public Guid? CollectionId { get; set; }
+
+    private bool _isProcessing;
+    private bool _permanentDelete;
+
+    private async Task BulkDeleteAsync()
+    {
+        var confirmMessage = _permanentDelete || !CollectionId.HasValue
+            ? string.Format(AssetLoc["BulkAssetDeleteFinalConfirm"], SelectedAssets.Count)
+            : string.Format(AssetLoc["BulkAssetRemoveFinalConfirm"], SelectedAssets.Count);
+
+        var confirmed = await DialogService.ShowMessageBox(
+            AssetLoc["BulkAssetDeleteTitle"],
+            confirmMessage,
+            yesText: CommonLoc["Btn_Delete"],
+            cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true) return;
+
+        _isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            var ids = SelectedAssets.Select(a => a.Id).ToList();
+            Guid? fromCollectionId = _permanentDelete ? null : CollectionId;
+
+            var result = await Api.BulkDeleteAssetsAsync(ids, fromCollectionId);
+
+            if (result.Failed > 0)
+                Feedback.ShowWarning(string.Format(AssetLoc["BulkAssetDeletePartial"], result.Deleted, result.Failed));
+            else
+                Feedback.ShowSuccess(string.Format(AssetLoc["BulkAssetDeleteSuccess"], result.Deleted));
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "bulk delete assets");
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Close() => MudDialog.Cancel();
+}

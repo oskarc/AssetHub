@@ -223,6 +223,486 @@
         { "type": "password", "value": "${KEYCLOAK_ADMIN_USER_PASSWORD}", "temporary": false }
       ],
       "realmRoles": ["admin"]
+    },
+    {
+      "username": "anna.lindberg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Anna",
+      "lastName": "Lindberg",
+      "email": "anna.lindberg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "erik.johansson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Erik",
+      "lastName": "Johansson",
+      "email": "erik.johansson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "maria.svensson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Maria",
+      "lastName": "Svensson",
+      "email": "maria.svensson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "karl.nilsson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Karl",
+      "lastName": "Nilsson",
+      "email": "karl.nilsson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "sofia.andersson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Sofia",
+      "lastName": "Andersson",
+      "email": "sofia.andersson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "lars.pettersson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Lars",
+      "lastName": "Pettersson",
+      "email": "lars.pettersson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "eva.gustafsson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Eva",
+      "lastName": "Gustafsson",
+      "email": "eva.gustafsson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "oscar.larsson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Oscar",
+      "lastName": "Larsson",
+      "email": "oscar.larsson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "hanna.eriksson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Hanna",
+      "lastName": "Eriksson",
+      "email": "hanna.eriksson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "anders.olsson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Anders",
+      "lastName": "Olsson",
+      "email": "anders.olsson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "emma.persson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Emma",
+      "lastName": "Persson",
+      "email": "emma.persson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "nils.magnusson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Nils",
+      "lastName": "Magnusson",
+      "email": "nils.magnusson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "ida.berglund",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ida",
+      "lastName": "Berglund",
+      "email": "ida.berglund@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "johan.holm",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Johan",
+      "lastName": "Holm",
+      "email": "johan.holm@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "lena.berg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Lena",
+      "lastName": "Berg",
+      "email": "lena.berg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "viktor.strand",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Viktor",
+      "lastName": "Strand",
+      "email": "viktor.strand@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "klara.lund",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Klara",
+      "lastName": "Lund",
+      "email": "klara.lund@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "gustav.lindqvist",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Gustav",
+      "lastName": "Lindqvist",
+      "email": "gustav.lindqvist@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "sara.hedlund",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Sara",
+      "lastName": "Hedlund",
+      "email": "sara.hedlund@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "david.sandberg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "David",
+      "lastName": "Sandberg",
+      "email": "david.sandberg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "frida.nystrom",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Frida",
+      "lastName": "Nyström",
+      "email": "frida.nystrom@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "axel.ekman",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Axel",
+      "lastName": "Ekman",
+      "email": "axel.ekman@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "maja.dahlgren",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Maja",
+      "lastName": "Dahlgren",
+      "email": "maja.dahlgren@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "simon.forsberg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Simon",
+      "lastName": "Forsberg",
+      "email": "simon.forsberg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "alva.holmberg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alva",
+      "lastName": "Holmberg",
+      "email": "alva.holmberg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "lucas.engstrom",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Lucas",
+      "lastName": "Engström",
+      "email": "lucas.engstrom@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "elin.fransson",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Elin",
+      "lastName": "Fransson",
+      "email": "elin.fransson@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["contributor"]
+    },
+    {
+      "username": "hugo.wikstrom",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Hugo",
+      "lastName": "Wikström",
+      "email": "hugo.wikstrom@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "wilma.sjoblom",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Wilma",
+      "lastName": "Sjöblom",
+      "email": "wilma.sjoblom@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "oliver.sundberg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Oliver",
+      "lastName": "Sundberg",
+      "email": "oliver.sundberg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "astrid.bjork",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Astrid",
+      "lastName": "Björk",
+      "email": "astrid.bjork@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "isak.wallin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Isak",
+      "lastName": "Wallin",
+      "email": "isak.wallin@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "ella.sjostrom",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ella",
+      "lastName": "Sjöström",
+      "email": "ella.sjostrom@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "leo.nordstrom",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Leo",
+      "lastName": "Nordström",
+      "email": "leo.nordstrom@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "saga.aberg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Saga",
+      "lastName": "Åberg",
+      "email": "saga.aberg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "filip.linden",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Filip",
+      "lastName": "Lindén",
+      "email": "filip.linden@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "ebba.nordin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ebba",
+      "lastName": "Nordin",
+      "email": "ebba.nordin@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "william.soderberg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "William",
+      "lastName": "Söderberg",
+      "email": "william.soderberg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "agnes.viklund",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Agnes",
+      "lastName": "Viklund",
+      "email": "agnes.viklund@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "alexander.engberg",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alexander",
+      "lastName": "Engberg",
+      "email": "alexander.engberg@example.com",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_SEED_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
     }
   ]
 }

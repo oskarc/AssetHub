@@ -26,6 +26,7 @@ public static class AssetEndpoints
         group.MapPost("", UploadAsset).DisableAntiforgery().WithName("UploadAsset");
         group.MapPatch("{id:guid}", UpdateAsset).DisableAntiforgery().WithName("UpdateAsset");
         group.MapDelete("{id:guid}", DeleteAsset).DisableAntiforgery().WithName("DeleteAsset");
+        group.MapPost("bulk-delete", BulkDeleteAssets).DisableAntiforgery().WithName("BulkDeleteAssets");
         group.MapGet("collection/{collectionId:guid}", GetAssetsByCollection).WithName("GetAssetsByCollection");
 
         group.MapGet("{id:guid}/collections", GetAssetCollections).WithName("GetAssetCollections");
@@ -122,6 +123,14 @@ public static class AssetEndpoints
         [FromServices] IAssetService svc, CancellationToken ct)
     {
         var result = await svc.DeleteAsync(id, fromCollectionId, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> BulkDeleteAssets(
+        [FromBody] BulkDeleteAssetsRequest request,
+        [FromServices] IAssetService svc, CancellationToken ct)
+    {
+        var result = await svc.BulkDeleteAsync(request, ct);
         return result.ToHttpResult();
     }
 

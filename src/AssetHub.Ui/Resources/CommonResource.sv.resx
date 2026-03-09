@@ -180,6 +180,7 @@
   <data name="Text_EmptyFields" xml:space="preserve"><value>Tomma fält</value></data>
   <data name="Text_AddCustomField" xml:space="preserve"><value>Lägg till eget fält</value></data>
   <data name="Text_SHA256" xml:space="preserve"><value>SHA256</value></data>
+  <data name="Text_CountAssetsHeader" xml:space="preserve"><value>Tillgångar</value></data>
 
   <!-- Confirmation Dialogs -->
   <data name="Confirm_Delete" xml:space="preserve"><value>Bekräfta borttagning</value></data>

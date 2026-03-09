@@ -249,8 +249,8 @@
                         @AssetDisplayHelpers.FormatFileSize(context.SizeBytes)
                     </MudTd>
                     <MudTd DataLabel="@AssetLoc["Column_Created"]">
-                        <MudTooltip Text="@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")">
-                            <span>@context.CreatedAt.ToString("yyyy-MM-dd")</span>
+                        <MudTooltip Text="@context.CreatedAt.ToLocalTime().ToString("G")">
+                            <span>@context.CreatedAt.ToLocalTime().ToString("g")</span>
                         </MudTooltip>
                     </MudTd>
                     <MudTd DataLabel="@AssetLoc["Column_Actions"]" Class="col-text-right">

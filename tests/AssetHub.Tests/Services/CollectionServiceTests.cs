@@ -1,6 +1,7 @@
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
+using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
@@ -29,6 +30,7 @@ public class CollectionServiceTests : IAsyncLifetime
     private ShareRepository _shareRepo = null!;
     private CollectionAuthorizationService _authService = null!;
     private Mock<IAssetDeletionService> _deletionServiceMock = null!;
+    private Mock<IAssetCollectionRepository> _assetCollectionRepoMock = null!;
     private Mock<IZipBuildService> _zipBuildServiceMock = null!;
     private Mock<IAuditService> _auditMock = null!;
 
@@ -49,6 +51,7 @@ public class CollectionServiceTests : IAsyncLifetime
         _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         _deletionServiceMock = new Mock<IAssetDeletionService>();
+        _assetCollectionRepoMock = new Mock<IAssetCollectionRepository>();
         _zipBuildServiceMock = new Mock<IZipBuildService>();
         _auditMock = new Mock<IAuditService>();
 
@@ -64,7 +67,7 @@ public class CollectionServiceTests : IAsyncLifetime
         minioSettings ??= Options.Create(new MinIOSettings { BucketName = "test-bucket" });
 
         return new CollectionService(
-            _collectionRepo, _aclRepo, _assetRepo, _shareRepo,
+            _collectionRepo, _aclRepo, _assetRepo, _assetCollectionRepoMock.Object, _shareRepo,
             _authService, _deletionServiceMock.Object, _zipBuildServiceMock.Object,
             _auditMock.Object, minioSettings, currentUser);
     }

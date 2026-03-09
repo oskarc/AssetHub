@@ -127,6 +127,7 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       KEYCLOAK_TESTUSER_PASSWORD: ${KEYCLOAK_TESTUSER_PASSWORD}
       KEYCLOAK_ADMIN_USER_PASSWORD: ${KEYCLOAK_ADMIN_USER_PASSWORD}
+      KEYCLOAK_SEED_PASSWORD: ${KEYCLOAK_SEED_PASSWORD}
     volumes:
       - keycloakdata:/opt/keycloak/data
       - ../keycloak/import:/opt/keycloak/data/import:ro

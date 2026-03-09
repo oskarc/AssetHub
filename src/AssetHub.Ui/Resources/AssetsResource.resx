@@ -105,4 +105,21 @@
   <data name="UploadToCollection" xml:space="preserve"><value>Upload to collection</value></data>
   <data name="NoCollection" xml:space="preserve"><value>No collection (orphaned)</value></data>
   <data name="UploadNoCollectionWarning" xml:space="preserve"><value>Asset will be orphaned until added to a collection</value></data>
+
+  <!-- Bulk Asset Actions -->
+  <data name="SelectManyAssets" xml:space="preserve"><value>Select Many</value></data>
+  <data name="CancelAssetSelection" xml:space="preserve"><value>Cancel Selection</value></data>
+  <data name="BulkAssetActionsBtn" xml:space="preserve"><value>Bulk Actions ({0})</value></data>
+  <data name="BulkAssetActions" xml:space="preserve"><value>Bulk Asset Actions</value></data>
+  <data name="BulkAssetSelectedCount" xml:space="preserve"><value>{0} asset(s) selected</value></data>
+  <data name="BulkAssetDeleteWarning" xml:space="preserve"><value>You are about to delete multiple assets. This action may be irreversible.</value></data>
+  <data name="BulkAssetPermanentDeleteSwitch" xml:space="preserve"><value>Permanently delete assets (not just remove from collection)</value></data>
+  <data name="BulkAssetPermanentDeleteOn" xml:space="preserve"><value>Assets will be permanently deleted from all collections and storage.</value></data>
+  <data name="BulkAssetPermanentDeleteOff" xml:space="preserve"><value>Assets will be removed from this collection. If an asset has no other collections, it will be permanently deleted.</value></data>
+  <data name="BulkAssetDeleteConfirmBtn" xml:space="preserve"><value>Delete {0} Asset(s)</value></data>
+  <data name="BulkAssetDeleteTitle" xml:space="preserve"><value>Confirm Bulk Delete</value></data>
+  <data name="BulkAssetDeleteFinalConfirm" xml:space="preserve"><value>Are you absolutely sure you want to permanently delete {0} asset(s)? This cannot be undone.</value></data>
+  <data name="BulkAssetRemoveFinalConfirm" xml:space="preserve"><value>Are you sure you want to remove {0} asset(s) from this collection? Orphaned assets will be permanently deleted.</value></data>
+  <data name="BulkAssetDeletePartial" xml:space="preserve"><value>Deleted {0} asset(s), {1} failed</value></data>
+  <data name="BulkAssetDeleteSuccess" xml:space="preserve"><value>Successfully deleted {0} asset(s)</value></data>
 </root>

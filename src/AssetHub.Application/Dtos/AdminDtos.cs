@@ -194,3 +194,103 @@ public record DeleteUserResponse
     public int AclsRemoved { get; init; }
     public int SharesRevoked { get; init; }
 }
+
+/// <summary>
+/// Request to delete multiple collections at once (admin only).
+/// </summary>
+public record BulkDeleteCollectionsRequest
+{
+    [Required]
+    public List<Guid> CollectionIds { get; init; } = [];
+
+    /// <summary>
+    /// When true, assets exclusive to the deleted collections are permanently removed.
+    /// When false, assets are unlinked but kept in the system.
+    /// </summary>
+    public bool DeleteAssets { get; init; } = true;
+}
+
+/// <summary>
+/// Response from bulk-deleting collections.
+/// </summary>
+public record BulkDeleteCollectionsResponse
+{
+    public required string Message { get; init; }
+    public int Deleted { get; init; }
+    public int Failed { get; init; }
+    public List<BulkOperationError> Errors { get; init; } = [];
+}
+
+/// <summary>
+/// Request to set access on multiple collections at once (admin only).
+/// </summary>
+public record BulkSetCollectionAccessRequest
+{
+    [Required]
+    public List<Guid> CollectionIds { get; init; } = [];
+
+    [Required]
+    public string? PrincipalId { get; init; }
+
+    [RegularExpression("^(user)$")]
+    public string PrincipalType { get; init; } = Constants.PrincipalTypes.User;
+
+    [Required]
+    [RegularExpression("^(viewer|contributor|manager|admin)$")]
+    public string? Role { get; init; }
+}
+
+/// <summary>
+/// Response from bulk setting collection access.
+/// </summary>
+public record BulkSetCollectionAccessResponse
+{
+    public required string Message { get; init; }
+    public int Updated { get; init; }
+    public int Failed { get; init; }
+    public List<BulkOperationError> Errors { get; init; } = [];
+}
+
+/// <summary>
+/// Describes a single failure in a bulk operation.
+/// </summary>
+public record BulkOperationError
+{
+    public Guid CollectionId { get; init; }
+    public required string Error { get; init; }
+}
+
+/// <summary>
+/// Request to delete multiple assets at once from a collection.
+/// </summary>
+public record BulkDeleteAssetsRequest
+{
+    [Required]
+    public List<Guid> AssetIds { get; init; } = [];
+
+    /// <summary>
+    /// When set, assets are removed from this collection (and auto-deleted if orphaned).
+    /// When null, a full permanent delete is performed.
+    /// </summary>
+    public Guid? FromCollectionId { get; init; }
+}
+
+/// <summary>
+/// Response from bulk-deleting assets.
+/// </summary>
+public record BulkDeleteAssetsResponse
+{
+    public required string Message { get; init; }
+    public int Deleted { get; init; }
+    public int Failed { get; init; }
+    public List<BulkAssetError> Errors { get; init; } = [];
+}
+
+/// <summary>
+/// Describes a single asset failure in a bulk operation.
+/// </summary>
+public record BulkAssetError
+{
+    public Guid AssetId { get; init; }
+    public required string Error { get; init; }
+}

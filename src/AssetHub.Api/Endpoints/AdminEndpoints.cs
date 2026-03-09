@@ -31,6 +31,10 @@ public static class AdminEndpoints
         group.MapPost("/collections/{collectionId:guid}/acl", SetCollectionAccess).DisableAntiforgery().WithName("AdminSetCollectionAccess");
         group.MapDelete("/collections/{collectionId:guid}/acl/{principalId}", RemoveCollectionAccess).DisableAntiforgery().WithName("RemoveCollectionAccess");
 
+        // ===== BULK COLLECTION OPERATIONS =====
+        group.MapPost("/collections/bulk-delete", BulkDeleteCollections).DisableAntiforgery().WithName("BulkDeleteCollections");
+        group.MapPost("/collections/bulk-set-access", BulkSetCollectionAccess).DisableAntiforgery().WithName("BulkSetCollectionAccess");
+
         // ===== USER MANAGEMENT =====
         group.MapGet("/users", GetUsers).WithName("GetUsers");
         group.MapGet("/keycloak-users", GetKeycloakUsers).WithName("GetKeycloakUsers");
@@ -98,6 +102,24 @@ public static class AdminEndpoints
         [FromServices] IAdminCollectionAclService svc, CancellationToken ct)
     {
         var result = await svc.AdminRevokeAccessAsync(collectionId, principalType ?? Constants.PrincipalTypes.User, principalId, ct);
+        return result.ToHttpResult();
+    }
+
+    // ── Bulk Collection Operations ───────────────────────────────────────────
+
+    private static async Task<IResult> BulkDeleteCollections(
+        [FromBody] BulkDeleteCollectionsRequest request,
+        [FromServices] ICollectionService svc, CancellationToken ct)
+    {
+        var result = await svc.BulkDeleteAsync(request.CollectionIds, request.DeleteAssets, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> BulkSetCollectionAccess(
+        [FromBody] BulkSetCollectionAccessRequest request,
+        [FromServices] ICollectionService svc, CancellationToken ct)
+    {
+        var result = await svc.BulkSetAccessAsync(request, ct);
         return result.ToHttpResult();
     }
 

@@ -1,0 +1,245 @@
+@using AssetHub.Application.Helpers
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<CollectionsResource> CollLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Checklist" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@CollLoc["BulkActions"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width: 500px;">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+                @string.Format(CollLoc["BulkSelectedCount"], SelectedCollections.Count)
+            </MudAlert>
+
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
+                <!-- Bulk Delete Tab -->
+                <MudTabPanel Text="@CollLoc["BulkDelete"]" Icon="@Icons.Material.Filled.DeleteSweep">
+                    <MudStack Spacing="3">
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                            @CollLoc["BulkDeleteWarning"]
+                        </MudAlert>
+
+                        <MudSwitch T="bool" @bind-Value="_deleteAssets" Color="Color.Error" Label="@CollLoc["BulkDeleteAssetsSwitch"]" />
+                        <MudAlert Severity="@(_deleteAssets ? Severity.Error : Severity.Info)" Variant="Variant.Text" Dense="true">
+                            @(_deleteAssets ? CollLoc["BulkDeleteAssetsOn"] : CollLoc["BulkDeleteAssetsOff"])
+                        </MudAlert>
+
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Class="table-outlined">
+                            <thead>
+                                <tr>
+                                    <th>@CollLoc["CollectionName"]</th>
+                                    <th style="width: 100px; text-align: right;">@CommonLoc["Text_CountAssetsHeader"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in SelectedCollections)
+                                {
+                                    <tr>
+                                        <td>@c.Name</td>
+                                        <td style="text-align: right;">@c.AssetCount</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.DeleteForever"
+                                   OnClick="BulkDeleteAsync"
+                                   Disabled="_isProcessing"
+                                   FullWidth="true">
+                            @if (_isProcessing)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            }
+                            @string.Format(CollLoc["BulkDeleteConfirmBtn"], SelectedCollections.Count)
+                        </MudButton>
+                    </MudStack>
+                </MudTabPanel>
+
+                <!-- Bulk Add Access Tab -->
+                <MudTabPanel Text="@CollLoc["BulkAddAccess"]" Icon="@Icons.Material.Filled.GroupAdd">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.body2" Style="opacity: 0.7;">
+                            @CollLoc["BulkAddAccessDesc"]
+                        </MudText>
+
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
+                            <MudAutocomplete T="KeycloakUserDto"
+                                             @bind-Value="_selectedUser"
+                                             SearchFunc="SearchUsersAsync"
+                                             ToStringFunc="@(u => u?.Username ?? "")"
+                                             Label="@CollLoc["SearchUser"]"
+                                             Variant="Variant.Outlined"
+                                             Dense="true"
+                                             ResetValueOnEmptyText="true"
+                                             DebounceInterval="300"
+                                             MinCharacters="1"
+                                             MaxItems="20"
+                                             Class="dialog-flex-fill">
+                                <ItemTemplate Context="user">
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body2">@user.Username</MudText>
+                                        @if (!string.IsNullOrEmpty(user.Email))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@user.Email</MudText>
+                                        }
+                                    </MudStack>
+                                </ItemTemplate>
+                            </MudAutocomplete>
+                            <MudSelect T="string"
+                                       @bind-Value="_selectedRole"
+                                       Label="@CommonLoc["Label_Role"]"
+                                       Variant="Variant.Outlined"
+                                       Dense="true"
+                                       Class="dialog-role-select-wide">
+                                <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                            </MudSelect>
+                        </MudStack>
+
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.GroupAdd"
+                                   OnClick="BulkAddAccessAsync"
+                                   Disabled="@(_selectedUser == null || _isProcessing)"
+                                   FullWidth="true">
+                            @if (_isProcessing)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            }
+                            @string.Format(CollLoc["BulkAddAccessConfirmBtn"], SelectedCollections.Count)
+                        </MudButton>
+                    </MudStack>
+                </MudTabPanel>
+            </MudTabs>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public List<CollectionResponseDto> SelectedCollections { get; set; } = new();
+
+    private bool _isProcessing;
+    private bool _deleteAssets = true;
+    private List<KeycloakUserDto>? _allUsers;
+    private KeycloakUserDto? _selectedUser;
+    private string _selectedRole = RoleHierarchy.Roles.Viewer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            _allUsers = await Api.GetKeycloakUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load users");
+        }
+    }
+
+    private Task<IEnumerable<KeycloakUserDto>> SearchUsersAsync(string? value, CancellationToken ct)
+    {
+        var users = _allUsers ?? new List<KeycloakUserDto>();
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(users.AsEnumerable());
+
+        var filtered = users.Where(u =>
+            u.Username.Contains(value, StringComparison.OrdinalIgnoreCase)
+            || (u.Email?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        return Task.FromResult(filtered);
+    }
+
+    private async Task BulkDeleteAsync()
+    {
+        var confirmMessage = _deleteAssets
+            ? string.Format(CollLoc["BulkDeleteFinalConfirm"], SelectedCollections.Count)
+            : string.Format(CollLoc["BulkDeleteFinalConfirmKeepAssets"], SelectedCollections.Count);
+
+        var confirmed = await DialogService.ShowMessageBox(
+            CollLoc["BulkDelete"],
+            confirmMessage,
+            yesText: CommonLoc["Btn_Delete"],
+            cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true) return;
+
+        _isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            var ids = SelectedCollections.Select(c => c.Id).ToList();
+            var result = await Api.BulkDeleteCollectionsAsync(ids, _deleteAssets);
+
+            if (result.Failed > 0)
+                Feedback.ShowWarning(string.Format(CollLoc["BulkDeletePartial"], result.Deleted, result.Failed));
+            else
+                Feedback.ShowSuccess(string.Format(CollLoc["BulkDeleteSuccess"], result.Deleted));
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "bulk delete collections");
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task BulkAddAccessAsync()
+    {
+        if (_selectedUser == null) return;
+
+        _isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            var ids = SelectedCollections.Select(c => c.Id).ToList();
+            var result = await Api.BulkSetCollectionAccessAsync(ids, _selectedUser.Id, _selectedRole);
+
+            if (result.Failed > 0)
+                Feedback.ShowWarning(string.Format(CollLoc["BulkAccessPartial"], result.Updated, result.Failed));
+            else
+                Feedback.ShowSuccess(string.Format(CollLoc["BulkAccessSuccess"], _selectedUser.Username, result.Updated));
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "bulk set collection access");
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Close() => MudDialog.Cancel();
+}

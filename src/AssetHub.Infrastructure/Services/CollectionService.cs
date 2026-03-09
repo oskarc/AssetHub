@@ -17,6 +17,7 @@ public class CollectionService : ICollectionService
     private readonly ICollectionRepository _collectionRepo;
     private readonly ICollectionAclRepository _aclRepo;
     private readonly IAssetRepository _assetRepo;
+    private readonly IAssetCollectionRepository _assetCollectionRepo;
     private readonly IShareRepository _shareRepo;
     private readonly ICollectionAuthorizationService _authService;
     private readonly IAssetDeletionService _deletionService;
@@ -29,6 +30,7 @@ public class CollectionService : ICollectionService
         ICollectionRepository collectionRepo,
         ICollectionAclRepository aclRepo,
         IAssetRepository assetRepo,
+        IAssetCollectionRepository assetCollectionRepo,
         IShareRepository shareRepo,
         ICollectionAuthorizationService authService,
         IAssetDeletionService deletionService,
@@ -40,6 +42,7 @@ public class CollectionService : ICollectionService
         _collectionRepo = collectionRepo;
         _aclRepo = aclRepo;
         _assetRepo = assetRepo;
+        _assetCollectionRepo = assetCollectionRepo;
         _shareRepo = shareRepo;
         _authService = authService;
         _deletionService = deletionService;
@@ -195,6 +198,108 @@ public class CollectionService : ICollectionService
             ct);
 
         return ServiceResult.Success;
+    }
+
+    public async Task<ServiceResult<BulkDeleteCollectionsResponse>> BulkDeleteAsync(
+        List<Guid> collectionIds, bool deleteAssets, CancellationToken ct)
+    {
+        if (!_currentUser.IsSystemAdmin)
+            return ServiceError.Forbidden("Only system administrators can perform bulk operations");
+
+        if (collectionIds.Count == 0)
+            return ServiceError.BadRequest("No collections specified");
+
+        var userId = _currentUser.UserId;
+        var deleted = 0;
+        var errors = new List<BulkOperationError>();
+
+        foreach (var id in collectionIds.Distinct())
+        {
+            try
+            {
+                var collection = await _collectionRepo.GetByIdAsync(id, ct: ct);
+                if (collection == null)
+                {
+                    errors.Add(new BulkOperationError { CollectionId = id, Error = "Collection not found" });
+                    continue;
+                }
+
+                var collectionName = collection.Name;
+
+                if (deleteAssets)
+                    await _deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
+                else
+                    await _assetCollectionRepo.UnlinkAllFromCollectionAsync(id, ct);
+
+                await _shareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, ct);
+                await _collectionRepo.DeleteAsync(id, ct);
+
+                await _audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
+                    new() { ["name"] = collectionName, ["bulk"] = "true", ["deleteAssets"] = deleteAssets.ToString() }, ct);
+                deleted++;
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new BulkOperationError { CollectionId = id, Error = ex.Message });
+            }
+        }
+
+        return new BulkDeleteCollectionsResponse
+        {
+            Message = $"Deleted {deleted} collection(s)",
+            Deleted = deleted,
+            Failed = errors.Count,
+            Errors = errors
+        };
+    }
+
+    public async Task<ServiceResult<BulkSetCollectionAccessResponse>> BulkSetAccessAsync(
+        BulkSetCollectionAccessRequest request, CancellationToken ct)
+    {
+        if (!_currentUser.IsSystemAdmin)
+            return ServiceError.Forbidden("Only system administrators can perform bulk operations");
+
+        if (request.CollectionIds.Count == 0)
+            return ServiceError.BadRequest("No collections specified");
+        if (string.IsNullOrWhiteSpace(request.PrincipalId))
+            return ServiceError.BadRequest("Principal ID is required");
+        if (string.IsNullOrWhiteSpace(request.Role))
+            return ServiceError.BadRequest("Role is required");
+
+        var userId = _currentUser.UserId;
+        var updated = 0;
+        var errors = new List<BulkOperationError>();
+
+        foreach (var collectionId in request.CollectionIds.Distinct())
+        {
+            try
+            {
+                var collection = await _collectionRepo.GetByIdAsync(collectionId, ct: ct);
+                if (collection == null)
+                {
+                    errors.Add(new BulkOperationError { CollectionId = collectionId, Error = "Collection not found" });
+                    continue;
+                }
+
+                await _aclRepo.SetAccessAsync(collectionId, request.PrincipalType, request.PrincipalId, request.Role, ct);
+
+                await _audit.LogAsync("collection.access_set", Constants.ScopeTypes.Collection, collectionId, userId,
+                    new() { ["principalId"] = request.PrincipalId, ["role"] = request.Role, ["bulk"] = "true" }, ct);
+                updated++;
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new BulkOperationError { CollectionId = collectionId, Error = ex.Message });
+            }
+        }
+
+        return new BulkSetCollectionAccessResponse
+        {
+            Message = $"Updated access on {updated} collection(s)",
+            Updated = updated,
+            Failed = errors.Count,
+            Errors = errors
+        };
     }
 
     public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> DownloadAllAssetsAsync(

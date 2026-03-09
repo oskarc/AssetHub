@@ -183,6 +183,7 @@
   <data name="Text_EmptyFields" xml:space="preserve"><value>Empty fields</value></data>
   <data name="Text_AddCustomField" xml:space="preserve"><value>Add custom field</value></data>
   <data name="Text_SHA256" xml:space="preserve"><value>SHA256</value></data>
+  <data name="Text_CountAssetsHeader" xml:space="preserve"><value>Assets</value></data>
 
   <!-- Confirmation Dialogs -->
   <data name="Confirm_Delete" xml:space="preserve"><value>Confirm Delete</value></data>

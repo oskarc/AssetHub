@@ -73,4 +73,26 @@
   <data name="AccessGrantedSuccess" xml:space="preserve"><value>Granted {1} access to {0}</value></data>
   <data name="RoleUpdatedSuccess" xml:space="preserve"><value>Role updated successfully</value></data>
   <data name="AccessRevokedSuccess" xml:space="preserve"><value>Revoked access for {0}</value></data>
+
+  <!-- Bulk Actions -->
+  <data name="BulkActions" xml:space="preserve"><value>Bulk Actions</value></data>
+  <data name="BulkActionsBtn" xml:space="preserve"><value>Bulk Actions ({0})</value></data>
+  <data name="SelectMany" xml:space="preserve"><value>Select Many</value></data>
+  <data name="CancelSelection" xml:space="preserve"><value>Cancel Selection</value></data>
+  <data name="BulkSelectedCount" xml:space="preserve"><value>{0} collection(s) selected</value></data>
+  <data name="BulkDelete" xml:space="preserve"><value>Bulk Delete</value></data>
+  <data name="BulkDeleteWarning" xml:space="preserve"><value>This will permanently delete the selected collections. This action cannot be undone.</value></data>
+  <data name="BulkDeleteAssetsSwitch" xml:space="preserve"><value>Also delete all assets in these collections</value></data>
+  <data name="BulkDeleteAssetsOn" xml:space="preserve"><value>Assets exclusive to the deleted collections will be permanently removed from storage.</value></data>
+  <data name="BulkDeleteAssetsOff" xml:space="preserve"><value>Assets will be kept and can still be found in other collections or via search.</value></data>
+  <data name="BulkDeleteConfirmBtn" xml:space="preserve"><value>Delete {0} Collection(s)</value></data>
+  <data name="BulkDeleteFinalConfirm" xml:space="preserve"><value>Are you absolutely sure you want to delete {0} collection(s) and all their exclusive assets? This cannot be undone.</value></data>
+  <data name="BulkDeleteFinalConfirmKeepAssets" xml:space="preserve"><value>Are you sure you want to delete {0} collection(s)? Assets will be kept.</value></data>
+  <data name="BulkDeleteSuccess" xml:space="preserve"><value>Successfully deleted {0} collection(s)</value></data>
+  <data name="BulkDeletePartial" xml:space="preserve"><value>Deleted {0} collection(s), {1} failed</value></data>
+  <data name="BulkAddAccess" xml:space="preserve"><value>Add Access</value></data>
+  <data name="BulkAddAccessDesc" xml:space="preserve"><value>Grant a user access to all selected collections with the specified role.</value></data>
+  <data name="BulkAddAccessConfirmBtn" xml:space="preserve"><value>Grant Access to {0} Collection(s)</value></data>
+  <data name="BulkAccessSuccess" xml:space="preserve"><value>Granted {0} access to {1} collection(s)</value></data>
+  <data name="BulkAccessPartial" xml:space="preserve"><value>Updated {0} collection(s), {1} failed</value></data>
 </root>

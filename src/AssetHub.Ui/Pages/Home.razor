@@ -404,6 +404,6 @@
         if (diff.TotalMinutes < 60) return string.Format(Loc["Dashboard_MinutesAgo"].Value, (int)diff.TotalMinutes);
         if (diff.TotalHours < 24) return string.Format(Loc["Dashboard_HoursAgo"].Value, (int)diff.TotalHours);
         if (diff.TotalDays < 7) return string.Format(Loc["Dashboard_DaysAgo"].Value, (int)diff.TotalDays);
-        return utcTime.ToString("yyyy-MM-dd");
+        return utcTime.ToLocalTime().ToString("d");
     }
 }

@@ -23,6 +23,12 @@ public interface ICollectionService
     /// <summary>Delete a collection and handle its assets (orphan cleanup).</summary>
     Task<ServiceResult> DeleteAsync(Guid id, CancellationToken ct);
 
+    /// <summary>Delete multiple collections at once (admin only).</summary>
+    Task<ServiceResult<BulkDeleteCollectionsResponse>> BulkDeleteAsync(List<Guid> collectionIds, bool deleteAssets, CancellationToken ct);
+
+    /// <summary>Set access on multiple collections at once (admin only).</summary>
+    Task<ServiceResult<BulkSetCollectionAccessResponse>> BulkSetAccessAsync(BulkSetCollectionAccessRequest request, CancellationToken ct);
+
     /// <summary>Enqueue a background ZIP build for all assets in a collection.</summary>
     Task<ServiceResult<ZipDownloadEnqueuedResponse>> DownloadAllAssetsAsync(Guid id, CancellationToken ct);
 }

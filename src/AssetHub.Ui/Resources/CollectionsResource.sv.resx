@@ -73,4 +73,26 @@
   <data name="AccessGrantedSuccess" xml:space="preserve"><value>Beviljat {1}-åtkomst till {0}</value></data>
   <data name="RoleUpdatedSuccess" xml:space="preserve"><value>Roll uppdaterad</value></data>
   <data name="AccessRevokedSuccess" xml:space="preserve"><value>Åtkomst återkallad för {0}</value></data>
+
+  <!-- Bulk Actions -->
+  <data name="BulkActions" xml:space="preserve"><value>Massåtgärder</value></data>
+  <data name="BulkActionsBtn" xml:space="preserve"><value>Massåtgärder ({0})</value></data>
+  <data name="SelectMany" xml:space="preserve"><value>Välj flera</value></data>
+  <data name="CancelSelection" xml:space="preserve"><value>Avbryt val</value></data>
+  <data name="BulkSelectedCount" xml:space="preserve"><value>{0} samling(ar) valda</value></data>
+  <data name="BulkDelete" xml:space="preserve"><value>Massborttagning</value></data>
+  <data name="BulkDeleteWarning" xml:space="preserve"><value>Detta tar permanent bort de valda samlingarna. Denna åtgärd kan inte ångras.</value></data>
+  <data name="BulkDeleteAssetsSwitch" xml:space="preserve"><value>Ta även bort alla tillgångar i dessa samlingar</value></data>
+  <data name="BulkDeleteAssetsOn" xml:space="preserve"><value>Tillgångar som är exklusiva för de borttagna samlingarna kommer att tas bort permanent från lagringen.</value></data>
+  <data name="BulkDeleteAssetsOff" xml:space="preserve"><value>Tillgångar behålls och kan fortfarande hittas i andra samlingar eller via sökning.</value></data>
+  <data name="BulkDeleteConfirmBtn" xml:space="preserve"><value>Ta bort {0} samling(ar)</value></data>
+  <data name="BulkDeleteFinalConfirm" xml:space="preserve"><value>Är du helt säker på att du vill ta bort {0} samling(ar) och alla deras exklusiva tillgångar? Detta kan inte ångras.</value></data>
+  <data name="BulkDeleteFinalConfirmKeepAssets" xml:space="preserve"><value>Är du säker på att du vill ta bort {0} samling(ar)? Tillgångar kommer att behållas.</value></data>
+  <data name="BulkDeleteSuccess" xml:space="preserve"><value>{0} samling(ar) har tagits bort</value></data>
+  <data name="BulkDeletePartial" xml:space="preserve"><value>{0} samling(ar) borttagna, {1} misslyckades</value></data>
+  <data name="BulkAddAccess" xml:space="preserve"><value>Lägg till åtkomst</value></data>
+  <data name="BulkAddAccessDesc" xml:space="preserve"><value>Ge en användare åtkomst till alla valda samlingar med angiven roll.</value></data>
+  <data name="BulkAddAccessConfirmBtn" xml:space="preserve"><value>Ge åtkomst till {0} samling(ar)</value></data>
+  <data name="BulkAccessSuccess" xml:space="preserve"><value>Gav {0} åtkomst till {1} samling(ar)</value></data>
+  <data name="BulkAccessPartial" xml:space="preserve"><value>{0} samling(ar) uppdaterade, {1} misslyckades</value></data>
 </root>

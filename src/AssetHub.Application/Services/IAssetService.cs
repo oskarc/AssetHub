@@ -25,4 +25,8 @@ public interface IAssetService
     /// <summary>Remove an asset from a collection (auto-deletes if orphaned).</summary>
     Task<ServiceResult> RemoveFromCollectionAsync(
         Guid assetId, Guid collectionId, CancellationToken ct);
+
+    /// <summary>Bulk delete or unlink multiple assets. Delegates to <see cref="DeleteAsync"/> per asset.</summary>
+    Task<ServiceResult<BulkDeleteAssetsResponse>> BulkDeleteAsync(
+        BulkDeleteAssetsRequest request, CancellationToken ct);
 }

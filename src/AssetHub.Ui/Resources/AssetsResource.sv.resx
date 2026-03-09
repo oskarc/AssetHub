@@ -105,4 +105,21 @@
   <data name="UploadToCollection" xml:space="preserve"><value>Ladda upp till samling</value></data>
   <data name="NoCollection" xml:space="preserve"><value>Ingen samling (föräldralös)</value></data>
   <data name="UploadNoCollectionWarning" xml:space="preserve"><value>Tillgången blir föräldralös tills den läggs till i en samling</value></data>
+
+  <!-- Bulk Asset Actions -->
+  <data name="SelectManyAssets" xml:space="preserve"><value>Välj flera</value></data>
+  <data name="CancelAssetSelection" xml:space="preserve"><value>Avbryt val</value></data>
+  <data name="BulkAssetActionsBtn" xml:space="preserve"><value>Massåtgärder ({0})</value></data>
+  <data name="BulkAssetActions" xml:space="preserve"><value>Massåtgärder för tillgångar</value></data>
+  <data name="BulkAssetSelectedCount" xml:space="preserve"><value>{0} tillgång(ar) valda</value></data>
+  <data name="BulkAssetDeleteWarning" xml:space="preserve"><value>Du håller på att ta bort flera tillgångar. Denna åtgärd kan vara oåterkallelig.</value></data>
+  <data name="BulkAssetPermanentDeleteSwitch" xml:space="preserve"><value>Ta bort tillgångar permanent (inte bara från samling)</value></data>
+  <data name="BulkAssetPermanentDeleteOn" xml:space="preserve"><value>Tillgångar kommer att tas bort permanent från alla samlingar och lagring.</value></data>
+  <data name="BulkAssetPermanentDeleteOff" xml:space="preserve"><value>Tillgångar tas bort från denna samling. Om en tillgång inte finns i andra samlingar tas den bort permanent.</value></data>
+  <data name="BulkAssetDeleteConfirmBtn" xml:space="preserve"><value>Ta bort {0} tillgång(ar)</value></data>
+  <data name="BulkAssetDeleteTitle" xml:space="preserve"><value>Bekräfta massborttagning</value></data>
+  <data name="BulkAssetDeleteFinalConfirm" xml:space="preserve"><value>Är du helt säker på att du vill ta bort {0} tillgång(ar) permanent? Detta kan inte ångras.</value></data>
+  <data name="BulkAssetRemoveFinalConfirm" xml:space="preserve"><value>Är du säker på att du vill ta bort {0} tillgång(ar) från denna samling? Föräldralösa tillgångar tas bort permanent.</value></data>
+  <data name="BulkAssetDeletePartial" xml:space="preserve"><value>Tog bort {0} tillgång(ar), {1} misslyckades</value></data>
+  <data name="BulkAssetDeleteSuccess" xml:space="preserve"><value>Tog bort {0} tillgång(ar) framgångsrikt</value></data>
 </root>

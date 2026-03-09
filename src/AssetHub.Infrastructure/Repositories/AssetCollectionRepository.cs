@@ -128,6 +128,22 @@ public class AssetCollectionRepository : IAssetCollectionRepository
             .AnyAsync(ac => ac.AssetId == assetId && ac.CollectionId == collectionId, ct);
     }
 
+    public async Task UnlinkAllFromCollectionAsync(Guid collectionId, CancellationToken ct = default)
+    {
+        var links = await _context.AssetCollections
+            .Where(ac => ac.CollectionId == collectionId)
+            .ToListAsync(ct);
+
+        if (links.Count == 0) return;
+
+        var assetIds = links.Select(l => l.AssetId).ToList();
+        _context.AssetCollections.RemoveRange(links);
+        await _context.SaveChangesAsync(ct);
+
+        foreach (var assetId in assetIds)
+            CacheKeys.InvalidateAssetCollectionIds(_cache, assetId);
+    }
+
     public async Task<List<Guid>> GetCollectionIdsForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
         var cacheKey = CacheKeys.AssetCollectionIds(assetId);

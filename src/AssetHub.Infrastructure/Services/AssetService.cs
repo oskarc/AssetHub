@@ -295,6 +295,46 @@ public sealed class AssetService : IAssetService
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
+    public async Task<ServiceResult<BulkDeleteAssetsResponse>> BulkDeleteAsync(
+        BulkDeleteAssetsRequest request, CancellationToken ct)
+    {
+        if (request.AssetIds.Count == 0)
+            return ServiceError.BadRequest("No asset IDs provided");
+
+        if (request.AssetIds.Count > Constants.Limits.MaxPageSize)
+            return ServiceError.BadRequest($"Cannot bulk-delete more than {Constants.Limits.MaxPageSize} assets at once");
+
+        var deleted = 0;
+        var errors = new List<BulkAssetError>();
+
+        foreach (var assetId in request.AssetIds.Distinct())
+        {
+            var result = await DeleteAsync(assetId, request.FromCollectionId, ct);
+            if (result.IsSuccess)
+            {
+                deleted++;
+            }
+            else
+            {
+                errors.Add(new BulkAssetError
+                {
+                    AssetId = assetId,
+                    Error = result.Error?.Message ?? "Unknown error"
+                });
+            }
+        }
+
+        return new BulkDeleteAssetsResponse
+        {
+            Message = errors.Count == 0
+                ? $"Successfully deleted {deleted} asset(s)"
+                : $"Deleted {deleted} asset(s), {errors.Count} failed",
+            Deleted = deleted,
+            Failed = errors.Count,
+            Errors = errors
+        };
+    }
+
     private async Task<bool> CanAccessAssetAsync(
         Guid assetId, string requiredRole, CancellationToken ct)
     {

@@ -361,6 +361,18 @@ public class AssetHubApiClient
     }
 
     /// <summary>
+    /// Bulk-deletes multiple assets, optionally from a specific collection.
+    /// </summary>
+    public virtual async Task<BulkDeleteAssetsResponse> BulkDeleteAssetsAsync(
+        List<Guid> assetIds, Guid? fromCollectionId = null, CancellationToken ct = default)
+    {
+        var request = new { assetIds, fromCollectionId };
+        var response = await _http.PostAsJsonAsync("/api/assets/bulk-delete", request, ct);
+        await EnsureSuccessAsync(response, "Bulk delete assets");
+        return await ReadRequiredJsonAsync<BulkDeleteAssetsResponse>(response, "Bulk delete assets");
+    }
+
+    /// <summary>
     /// Returns deletion context for an asset: how many collections it belongs to
     /// and whether the current user can permanently delete it.
     /// </summary>
@@ -565,6 +577,29 @@ public class AssetHubApiClient
         var url = $"/api/admin/collections/{collectionId}/acl/{Uri.EscapeDataString(principalId)}?principalType={principalType}";
         var response = await _http.DeleteAsync(url, ct);
         await EnsureSuccessAsync(response, "Remove collection access");
+    }
+
+    /// <summary>
+    /// Bulk-deletes multiple collections (admin only).
+    /// </summary>
+    public virtual async Task<BulkDeleteCollectionsResponse> BulkDeleteCollectionsAsync(List<Guid> collectionIds, bool deleteAssets = true, CancellationToken ct = default)
+    {
+        var request = new { collectionIds, deleteAssets };
+        var response = await _http.PostAsJsonAsync("/api/admin/collections/bulk-delete", request, ct);
+        await EnsureSuccessAsync(response, "Bulk delete collections");
+        return await ReadRequiredJsonAsync<BulkDeleteCollectionsResponse>(response, "Bulk delete collections");
+    }
+
+    /// <summary>
+    /// Bulk sets access on multiple collections (admin only).
+    /// </summary>
+    public virtual async Task<BulkSetCollectionAccessResponse> BulkSetCollectionAccessAsync(
+        List<Guid> collectionIds, string principalId, string role, CancellationToken ct = default)
+    {
+        var request = new { collectionIds, principalType = Constants.PrincipalTypes.User, principalId, role };
+        var response = await _http.PostAsJsonAsync("/api/admin/collections/bulk-set-access", request, ct);
+        await EnsureSuccessAsync(response, "Bulk set collection access");
+        return await ReadRequiredJsonAsync<BulkSetCollectionAccessResponse>(response, "Bulk set collection access");
     }
 
     /// <summary>
