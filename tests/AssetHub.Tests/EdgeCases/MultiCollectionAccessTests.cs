@@ -1,3 +1,4 @@
+using AssetHub.Application.Dtos;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
@@ -221,8 +222,10 @@ public class MultiCollectionAccessTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         // Search filtered to allowed collections — orphan is excluded
-        var (results, total) = await _assetRepo.SearchAllAsync(
-            allowedCollectionIds: new List<Guid> { collection.Id });
+        var (results, total) = await _assetRepo.SearchAllAsync(new AssetSearchFilter
+        {
+            AllowedCollectionIds = new List<Guid> { collection.Id }
+        });
 
         Assert.Equal(1, total);
         Assert.Equal("Visible", results[0].Title);

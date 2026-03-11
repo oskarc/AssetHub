@@ -1,3 +1,4 @@
+using AssetHub.Application.Dtos;
 using AssetHub.Domain.Entities;
 
 namespace AssetHub.Application.Repositories;
@@ -37,15 +38,8 @@ public interface IAssetRepository
     /// <summary>
     /// Search all assets with optional filters, restricted to specific collections.
     /// </summary>
-    /// <param name="allowedCollectionIds">If non-null, only return assets in these collections. Pass null for unfiltered (admin).</param>
     Task<(List<Asset> Assets, int Total)> SearchAllAsync(
-        string? query = null,
-        string? assetType = null,
-        string sortBy = Constants.SortBy.CreatedDesc,
-        int skip = 0,
-        int take = 50,
-        List<Guid>? allowedCollectionIds = null,
-        bool includeAllStatuses = false,
+        AssetSearchFilter filter,
         CancellationToken cancellationToken = default);
 
     /// <summary>

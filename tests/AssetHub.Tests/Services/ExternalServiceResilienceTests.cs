@@ -93,9 +93,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
 
         return new AssetQueryService(
-            _assetRepo,
-            _acRepo,
-            _colRepo,
+            new AssetQueryRepositories(_assetRepo, _acRepo, _colRepo),
             _authService,
             _minioMock.Object,
             _auditMock.Object,

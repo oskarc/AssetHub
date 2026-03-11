@@ -88,11 +88,12 @@ public class DashboardService : IDashboardService
 
         if (isAdmin)
         {
-            var (items, _) = await _assetRepo.SearchAllAsync(
-                sortBy: Constants.SortBy.CreatedDesc,
-                take: RecentAssetsLimit,
-                includeAllStatuses: false,
-                cancellationToken: ct);
+            var (items, _) = await _assetRepo.SearchAllAsync(new AssetSearchFilter
+            {
+                SortBy = Constants.SortBy.CreatedDesc,
+                Take = RecentAssetsLimit,
+                IncludeAllStatuses = false
+            }, ct);
             assets = items;
         }
         else
@@ -103,12 +104,13 @@ public class DashboardService : IDashboardService
             if (collectionIds.Count == 0)
                 return [];
 
-            var (items, _) = await _assetRepo.SearchAllAsync(
-                sortBy: Constants.SortBy.CreatedDesc,
-                take: RecentAssetsLimit,
-                allowedCollectionIds: collectionIds,
-                includeAllStatuses: false,
-                cancellationToken: ct);
+            var (items, _) = await _assetRepo.SearchAllAsync(new AssetSearchFilter
+            {
+                SortBy = Constants.SortBy.CreatedDesc,
+                Take = RecentAssetsLimit,
+                AllowedCollectionIds = collectionIds,
+                IncludeAllStatuses = false
+            }, ct);
             assets = items;
         }
 

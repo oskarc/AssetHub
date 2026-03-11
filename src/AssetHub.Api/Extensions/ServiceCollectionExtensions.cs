@@ -136,6 +136,7 @@ public static class ServiceCollectionExtensions
         });
         
         // Asset services split by responsibility (Interface Segregation Principle)
+        services.AddScoped<AssetQueryRepositories>();
         services.AddScoped<IAssetService, AssetService>();           // Commands: update, delete, collection membership
         services.AddScoped<IAssetQueryService, AssetQueryService>(); // Queries: get, list, rendition URLs
         services.AddScoped<IAssetUploadService, AssetUploadService>(); // Uploads: streaming and presigned

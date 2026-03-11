@@ -22,17 +22,26 @@ public static class CollectionTreeHelper
             Id = collection.Id,
             Name = collection.Name,
             Description = collection.Description,
-            Acls = collection.Acls.Select(a => new CollectionAclResponseDto
+            Acls = collection.Acls.Select(a =>
             {
-                Id = a.Id,
-                PrincipalType = a.PrincipalType.ToDbString(),
-                PrincipalId = a.PrincipalId,
-                PrincipalName = a.PrincipalType == PrincipalType.User && userNames.TryGetValue(a.PrincipalId, out var name)
-                    ? name
-                    : a.PrincipalType == PrincipalType.User ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : a.PrincipalId,
-                PrincipalEmail = a.PrincipalType == PrincipalType.User && userEmails != null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
-                Role = a.Role.ToDbString(),
-                IsSystemAdmin = a.PrincipalType == PrincipalType.User && adminUserIds != null && adminUserIds.Contains(a.PrincipalId)
+                var principalName = a.PrincipalId;
+                if (a.PrincipalType == PrincipalType.User)
+                {
+                    principalName = userNames.TryGetValue(a.PrincipalId, out var name)
+                        ? name
+                        : $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})";
+                }
+
+                return new CollectionAclResponseDto
+                {
+                    Id = a.Id,
+                    PrincipalType = a.PrincipalType.ToDbString(),
+                    PrincipalId = a.PrincipalId,
+                    PrincipalName = principalName,
+                    PrincipalEmail = a.PrincipalType == PrincipalType.User && userEmails != null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
+                    Role = a.Role.ToDbString(),
+                    IsSystemAdmin = a.PrincipalType == PrincipalType.User && adminUserIds != null && adminUserIds.Contains(a.PrincipalId)
+                };
             }).ToList()
         };
     }

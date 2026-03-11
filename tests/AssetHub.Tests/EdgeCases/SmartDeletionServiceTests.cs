@@ -89,11 +89,10 @@ public class SmartDeletionServiceTests : IAsyncLifetime
     private AssetQueryService CreateQuerySut(CurrentUser currentUser)
     {
         var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
+        var repos = new AssetQueryRepositories(_assetRepo, _acRepo, _colRepo);
 
         return new AssetQueryService(
-            _assetRepo,
-            _acRepo,
-            _colRepo,
+            repos,
             _authService,
             _minioMock.Object,
             _auditMock.Object,

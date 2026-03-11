@@ -40,11 +40,8 @@ public static class UrlSafetyHelper
             return fallback;
 
         // Must start with a known internal route prefix
-        foreach (var prefix in AllowedPrefixes)
-        {
-            if (returnUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                return returnUrl;
-        }
+        if (AllowedPrefixes.Any(prefix => returnUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            return returnUrl;
 
         // Allow bare root
         if (returnUrl == "/")

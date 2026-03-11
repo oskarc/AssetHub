@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Dtos;
 using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
@@ -228,26 +229,20 @@ public class AssetRepository(
     }
 
     public async Task<(List<Asset> Assets, int Total)> SearchAllAsync(
-        string? query = null,
-        string? assetType = null,
-        string sortBy = Constants.SortBy.CreatedDesc,
-        int skip = 0,
-        int take = 50,
-        List<Guid>? allowedCollectionIds = null,
-        bool includeAllStatuses = false,
+        AssetSearchFilter filter,
         CancellationToken cancellationToken = default)
     {
-        var queryable = includeAllStatuses
+        var queryable = filter.IncludeAllStatuses
             ? dbContext.Assets.Where(a => a.Status != AssetStatus.Uploading)
             : dbContext.Assets.Where(a => a.Status == AssetStatus.Ready);
 
         // Filter to assets in allowed collections (ACL enforcement)
         // Use explicit join for more predictable query plans on large datasets
-        if (allowedCollectionIds != null)
+        if (filter.AllowedCollectionIds != null)
         {
             queryable = queryable
                 .Join(
-                    dbContext.AssetCollections.Where(ac => allowedCollectionIds.Contains(ac.CollectionId)),
+                    dbContext.AssetCollections.Where(ac => filter.AllowedCollectionIds.Contains(ac.CollectionId)),
                     a => a.Id,
                     ac => ac.AssetId,
                     (a, ac) => a)
@@ -255,18 +250,18 @@ public class AssetRepository(
         }
 
         // Apply text search filter
-        if (!string.IsNullOrWhiteSpace(query))
+        if (!string.IsNullOrWhiteSpace(filter.Query))
         {
-            var searchPattern = $"%{query}%";
+            var searchPattern = $"%{filter.Query}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
                 (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)));
         }
 
         // Apply asset type filter
-        if (!string.IsNullOrWhiteSpace(assetType))
+        if (!string.IsNullOrWhiteSpace(filter.AssetType))
         {
-            if (!Enum.TryParse<AssetType>(assetType, ignoreCase: true, out var type))
+            if (!Enum.TryParse<AssetType>(filter.AssetType, ignoreCase: true, out var type))
                 return (new List<Asset>(), 0);
             queryable = queryable.Where(a => a.AssetType == type);
         }
@@ -275,9 +270,9 @@ public class AssetRepository(
         var total = await queryable.CountAsync(cancellationToken);
 
         // Apply sorting and pagination
-        var assets = await ApplySorting(queryable, sortBy)
-            .Skip(skip)
-            .Take(take)
+        var assets = await ApplySorting(queryable, filter.SortBy)
+            .Skip(filter.Skip)
+            .Take(filter.Take)
             .ToListAsync(cancellationToken);
 
         return (assets, total);

@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Dtos;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
@@ -316,8 +317,10 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(hidden.Id, forbidden.Id));
         await _db.SaveChangesAsync();
 
-        var (results, total) = await _repo.SearchAllAsync(
-            allowedCollectionIds: new List<Guid> { allowed.Id });
+        var (results, total) = await _repo.SearchAllAsync(new AssetSearchFilter
+        {
+            AllowedCollectionIds = new List<Guid> { allowed.Id }
+        });
 
         Assert.Equal(1, total);
         Assert.Equal("Visible", results[0].Title);
@@ -336,8 +339,10 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(processing.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, total) = await _repo.SearchAllAsync(
-            allowedCollectionIds: new List<Guid> { collection.Id });
+        var (results, total) = await _repo.SearchAllAsync(new AssetSearchFilter
+        {
+            AllowedCollectionIds = new List<Guid> { collection.Id }
+        });
 
         Assert.Equal(1, total);
         Assert.Equal("Ready", results[0].Title);
@@ -473,9 +478,11 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(noMatch.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, total) = await _repo.SearchAllAsync(
-            query: "marketing",
-            allowedCollectionIds: new List<Guid> { collection.Id });
+        var (results, total) = await _repo.SearchAllAsync(new AssetSearchFilter
+        {
+            Query = "marketing",
+            AllowedCollectionIds = new List<Guid> { collection.Id }
+        });
 
         Assert.Equal(1, total);
         Assert.Equal("Marketing Campaign", results[0].Title);
@@ -494,9 +501,11 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(video.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, total) = await _repo.SearchAllAsync(
-            assetType: AssetType.Video.ToDbString(),
-            allowedCollectionIds: new List<Guid> { collection.Id });
+        var (results, total) = await _repo.SearchAllAsync(new AssetSearchFilter
+        {
+            AssetType = AssetType.Video.ToDbString(),
+            AllowedCollectionIds = new List<Guid> { collection.Id }
+        });
 
         Assert.Equal(1, total);
         Assert.Equal("Clip", results[0].Title);
@@ -517,9 +526,11 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(b.Id, collection.Id));
         await _db.SaveChangesAsync();
 
-        var (results, _) = await _repo.SearchAllAsync(
-            sortBy: Constants.SortBy.TitleAsc,
-            allowedCollectionIds: new List<Guid> { collection.Id });
+        var (results, _) = await _repo.SearchAllAsync(new AssetSearchFilter
+        {
+            SortBy = Constants.SortBy.TitleAsc,
+            AllowedCollectionIds = new List<Guid> { collection.Id }
+        });
 
         Assert.Equal("Alpha", results[0].Title);
         Assert.Equal("Beta", results[1].Title);
@@ -540,7 +551,7 @@ public class AssetRepositoryTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         // Null = admin (no collection filter), but still filters by Ready status
-        var (results, total) = await _repo.SearchAllAsync(allowedCollectionIds: null);
+        var (results, total) = await _repo.SearchAllAsync(new AssetSearchFilter());
 
         Assert.Equal(1, total);
         Assert.Equal("Visible", results[0].Title);
@@ -556,8 +567,10 @@ public class AssetRepositoryTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         // Empty list (non-null) = user has access to zero collections
-        var (results, total) = await _repo.SearchAllAsync(
-            allowedCollectionIds: new List<Guid>());
+        var (results, total) = await _repo.SearchAllAsync(new AssetSearchFilter
+        {
+            AllowedCollectionIds = new List<Guid>()
+        });
 
         Assert.Equal(0, total);
         Assert.Empty(results);
@@ -577,9 +590,12 @@ public class AssetRepositoryTests : IAsyncLifetime
         }
         await _db.SaveChangesAsync();
 
-        var (results, total) = await _repo.SearchAllAsync(
-            skip: 3, take: 4,
-            allowedCollectionIds: new List<Guid> { collection.Id });
+        var (results, total) = await _repo.SearchAllAsync(new AssetSearchFilter
+        {
+            Skip = 3,
+            Take = 4,
+            AllowedCollectionIds = new List<Guid> { collection.Id }
+        });
 
         Assert.Equal(10, total);
         Assert.Equal(4, results.Count);
