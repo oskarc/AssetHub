@@ -45,7 +45,7 @@ else
                                 <MudSpacer />
                             </div>
                         }
-                        <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType)" 
+                        <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)" 
                                       Height="160" 
                                       Class="asset-thumbnail" />
                         <MudCardContent Class="pa-2">
@@ -125,7 +125,7 @@ else
                 }
                 <MudTd DataLabel="" Class="col-icon">
                     <MudAvatar Rounded="true" Size="Size.Medium" Class="clickable" @onclick="() => OnAssetCardClick(context)">
-                        <MudImage Src="@AssetDisplayHelpers.GetThumbnailUrl(context.Id, context.ThumbObjectKey, context.AssetType)" 
+                        <MudImage Src="@AssetDisplayHelpers.GetThumbnailUrl(context.Id, context.ThumbObjectKey, context.AssetType, context.PosterObjectKey)" 
                                   Alt="@context.Title"
                                   ObjectFit="ObjectFit.Cover"
                                   Width="40" Height="40" />

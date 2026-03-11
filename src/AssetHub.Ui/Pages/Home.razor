@@ -34,46 +34,81 @@
             @string.Format(Loc["Dashboard_Welcome"].Value, _displayName)
         </MudText>
 
-        @* ── Admin: Platform stats cards ────────────────────────────── *@
+        @* ── Admin: Platform stats + storage chart ──────────────────── *@
         @if (_dashboard.Stats is not null)
         {
             <MudText Typo="Typo.h6" Class="mb-2">@Loc["Dashboard_PlatformStats"]</MudText>
             <MudGrid Class="mb-6">
-                <MudItem xs="6" sm="4" md="2">
-                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
-                        <MudIcon Icon="@Icons.Material.Filled.Photo" Color="Color.Primary" Size="Size.Large" />
-                        <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalAssets</MudText>
-                        <MudText Typo="Typo.caption">@Loc["Dashboard_TotalAssets"]</MudText>
-                    </MudPaper>
+                <MudItem xs="12" md="8">
+                    <MudGrid>
+                        <MudItem xs="6" sm="4">
+                            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Photo" Color="Color.Primary" Size="Size.Large" />
+                                <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalAssets</MudText>
+                                <MudText Typo="Typo.caption">@Loc["Dashboard_TotalAssets"]</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" sm="4">
+                            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Secondary" Size="Size.Large" />
+                                <MudText Typo="Typo.h5" Class="mt-2">@AssetDisplayHelpers.FormatFileSize(_dashboard.Stats.TotalStorageBytes)</MudText>
+                                <MudText Typo="Typo.caption">@Loc["Dashboard_StorageUsed"]</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" sm="4">
+                            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                                <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Color="Color.Tertiary" Size="Size.Large" />
+                                <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalCollections</MudText>
+                                <MudText Typo="Typo.caption">@Loc["Dashboard_TotalCollections"]</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" sm="4">
+                            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
+                                <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalUsers</MudText>
+                                <MudText Typo="Typo.caption">@Loc["Dashboard_TotalUsers"]</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" sm="4">
+                            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Warning" Size="Size.Large" />
+                                <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.ActiveShares / @_dashboard.Stats.TotalShares</MudText>
+                                <MudText Typo="Typo.caption">@Loc["Dashboard_SharesActive"]</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" sm="4">
+                            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+                                <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Dark" Size="Size.Large" />
+                                <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalAuditEvents</MudText>
+                                <MudText Typo="Typo.caption">@Loc["Dashboard_AuditEvents"]</MudText>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
                 </MudItem>
-                <MudItem xs="6" sm="4" md="2">
-                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
-                        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Secondary" Size="Size.Large" />
-                        <MudText Typo="Typo.h5" Class="mt-2">@AssetDisplayHelpers.FormatFileSize(_dashboard.Stats.TotalStorageBytes)</MudText>
-                        <MudText Typo="Typo.caption">@Loc["Dashboard_StorageUsed"]</MudText>
-                    </MudPaper>
-                </MudItem>
-                <MudItem xs="6" sm="4" md="2">
-                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
-                        <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Color="Color.Tertiary" Size="Size.Large" />
-                        <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalCollections</MudText>
-                        <MudText Typo="Typo.caption">@Loc["Dashboard_TotalCollections"]</MudText>
-                    </MudPaper>
-                </MudItem>
-                <MudItem xs="6" sm="4" md="2">
-                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
-                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
-                        <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalUsers</MudText>
-                        <MudText Typo="Typo.caption">@Loc["Dashboard_TotalUsers"]</MudText>
-                    </MudPaper>
-                </MudItem>
-                <MudItem xs="6" sm="4" md="2">
-                    <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
-                        <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Warning" Size="Size.Large" />
-                        <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.ActiveShares / @_dashboard.Stats.TotalShares</MudText>
-                        <MudText Typo="Typo.caption">@Loc["Dashboard_SharesActive"]</MudText>
-                    </MudPaper>
-                </MudItem>
+
+                @if (_dashboard.Stats.StorageByType.Count > 0)
+                {
+                    <MudItem xs="12" md="4">
+                        <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2" Style="height: 100%;">
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">@Loc["Dashboard_StorageByType"]</MudText>
+                            <MudChart ChartType="ChartType.Pie"
+                                      InputData="@_storageChartData"
+                                      InputLabels="@_storageChartLabels"
+                                      Width="200px" Height="200px"
+                                      ChartOptions="@(new ChartOptions { ChartPalette = _storageChartColors })" />
+                            <div class="d-flex flex-wrap gap-3 mt-3 justify-center">
+                                @for (var i = 0; i < _dashboard.Stats.StorageByType.Count; i++)
+                                {
+                                    var item = _dashboard.Stats.StorageByType[i];
+                                    <div class="d-flex align-center gap-1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Style="@($"color: {_storageChartColors[i % _storageChartColors.Length]}")" />
+                                        <MudText Typo="Typo.caption">@GetAssetTypeLabel(item.AssetType): @AssetDisplayHelpers.FormatFileSize(item.TotalBytes) (@item.Count)</MudText>
+                                    </div>
+                                }
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                }
             </MudGrid>
         }
 
@@ -103,7 +138,7 @@
                             {
                                 <MudItem xs="6" sm="4" md="3" lg="2">
                                     <MudCard Class="cursor-pointer" @onclick="() => NavigateToAsset(asset.Id)">
-                                        <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType)"
+                                        <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)"
                                                        Height="120" />
                                         <MudCardContent Class="pa-2">
                                             <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
@@ -282,6 +317,9 @@
     private string _displayName = "";
     private bool _loading = true;
     private bool _dashboardError;
+    private double[] _storageChartData = [];
+    private string[] _storageChartLabels = [];
+    private static readonly string[] _storageChartColors = ["#4caf50", "#2196f3", "#ff9800", "#9c27b0"];
 
     private bool _showShares => _dashboard?.RecentShares.Count > 0
         || RoleHierarchy.GetLevel(_dashboard?.UserRole ?? "") >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager);
@@ -314,6 +352,8 @@
             _dashboard = await Api.GetDashboardAsync();
             if (_dashboard is null)
                 _dashboardError = true;
+            else
+                BuildStorageChart();
         }
         catch
         {
@@ -405,5 +445,21 @@
         if (diff.TotalHours < 24) return string.Format(Loc["Dashboard_HoursAgo"].Value, (int)diff.TotalHours);
         if (diff.TotalDays < 7) return string.Format(Loc["Dashboard_DaysAgo"].Value, (int)diff.TotalDays);
         return utcTime.ToLocalTime().ToString("d");
+    }
+
+    private void BuildStorageChart()
+    {
+        if (_dashboard?.Stats?.StorageByType is not { Count: > 0 })
+            return;
+
+        _storageChartData = _dashboard.Stats.StorageByType.Select(s => (double)s.TotalBytes).ToArray();
+        _storageChartLabels = _dashboard.Stats.StorageByType.Select(s => GetAssetTypeLabel(s.AssetType)).ToArray();
+    }
+
+    private string GetAssetTypeLabel(string assetType)
+    {
+        var key = AssetDisplayHelpers.GetAssetTypeKey(assetType);
+        var localized = Loc[key];
+        return localized.ResourceNotFound ? assetType : localized.Value;
     }
 }

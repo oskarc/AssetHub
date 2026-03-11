@@ -1,6 +1,7 @@
 @using AssetHub.Application
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject LocalStorageService LocalStorage
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 
@@ -18,36 +19,25 @@ else if (_auditEvents == null || (!_auditEvents.Any() && !_hasMore))
 }
 else
 {
-    <MudPaper Elevation="0" Class="mb-3">
-        <MudGrid Spacing="2">
-            <MudItem xs="12" sm="4" Class="d-flex align-end">
-                <MudTextField @bind-Value="_searchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
-                    Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                    IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
-                    Immediate="true" DebounceInterval="300" FullWidth="true" />
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <MudSelect @bind-Value="_filterTargetType" Label="@AdminLoc["Header_TargetType"]"
-                    Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                    <MudSelectItem Value="@Constants.ScopeTypes.Asset">@CommonLoc["ScopeType_Asset"]</MudSelectItem>
-                    <MudSelectItem Value="@Constants.ScopeTypes.Collection">@CommonLoc["ScopeType_Collection"]</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="6" sm="3" Class="d-flex align-items-end">
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="ApplyFiltersAsync"
-                    Disabled="@_auditLoading" FullWidth="true" Style="height: 40px;">
-                    @CommonLoc["Btn_ApplyFilters"]
-                </MudButton>
-            </MudItem>
-            <MudItem xs="12" sm="2" Class="d-flex align-center justify-end">
-                <MudChip T="string" Color="Color.Info" Size="Size.Small">@AdminLoc["Total"]: @_totalCount</MudChip>
-            </MudItem>
-        </MudGrid>
-    </MudPaper>
-
     <MudTable Items="@_auditEvents" Hover="true" Dense="true" Striped="true"
               Filter="new Func<AuditEventDto, bool>(AuditFilter)" SortLabel="Sort By"
               FixedHeader="true" Height="550px" Loading="@_auditLoading">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
+                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000" />
+            <MudSpacer />
+            <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Style="cursor: pointer;">@CommonLoc["ScopeType_Collection"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Collection, StringComparison.OrdinalIgnoreCase))</MudChip>
+            <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Style="cursor: pointer;">@CommonLoc["ScopeType_Asset"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Asset, StringComparison.OrdinalIgnoreCase))</MudChip>
+            <MudChip T="string" Color="@(_showShares ? Color.Primary : Color.Default)" Size="Size.Small" OnClick="ToggleShares" Style="cursor: pointer;">@CommonLoc["ScopeType_Share"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Share, StringComparison.OrdinalIgnoreCase))</MudChip>
+            <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
+            <MudChip T="string" Color="@(_showCreate ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleCreate" Style="cursor: pointer;">@AdminLoc["AuditAction_Create"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "create")</MudChip>
+            <MudChip T="string" Color="@(_showUpdate ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleUpdate" Style="cursor: pointer;">@AdminLoc["AuditAction_Update"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "update")</MudChip>
+            <MudChip T="string" Color="@(_showDelete ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleDelete" Style="cursor: pointer;">@AdminLoc["AuditAction_Delete"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "delete")</MudChip>
+            <MudChip T="string" Color="@(_showAccessGranted ? Color.Secondary : Color.Default)" Size="Size.Small" OnClick="ToggleAccessGranted" Style="cursor: pointer;">@AdminLoc["AuditAction_AccessGranted"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "access")</MudChip>
+            <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
+            <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">@AdminLoc["Total"]: @_totalCount</MudChip>
+        </ToolBarContent>
         <HeaderContent>
             <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<AuditEventDto, object>(x => x.CreatedAt)">@AdminLoc["Header_Timestamp"]</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortBy="new Func<AuditEventDto, object>(x => x.EventType)">@AdminLoc["Header_EventType"]</MudTableSortLabel></MudTh>
@@ -135,14 +125,44 @@ else
     private List<AuditEventDto>? _auditEvents;
     private bool _auditLoading = true;
     private string _searchString = "";
-    private string? _filterTargetType;
     private DateTime? _nextCursor;
     private bool _hasMore;
     private int _totalCount;
 
+    private bool _showCollections = true;
+    private bool _showAssets = true;
+    private bool _showShares = true;
+    private bool _showCreate = true;
+    private bool _showUpdate = true;
+    private bool _showDelete = true;
+    private bool _showAccessGranted = true;
+
+    private const string StorageKeyShowCollections = "auditLog_showCollections";
+    private const string StorageKeyShowAssets = "auditLog_showAssets";
+    private const string StorageKeyShowShares = "auditLog_showShares";
+    private const string StorageKeyShowCreate = "auditLog_showCreate";
+    private const string StorageKeyShowUpdate = "auditLog_showUpdate";
+    private const string StorageKeyShowDelete = "auditLog_showDelete";
+    private const string StorageKeyShowAccessGranted = "auditLog_showAccessGranted";
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync(reset: true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _showCollections = await LocalStorage.GetBoolAsync(StorageKeyShowCollections, true);
+            _showAssets = await LocalStorage.GetBoolAsync(StorageKeyShowAssets, true);
+            _showShares = await LocalStorage.GetBoolAsync(StorageKeyShowShares, true);
+            _showCreate = await LocalStorage.GetBoolAsync(StorageKeyShowCreate, true);
+            _showUpdate = await LocalStorage.GetBoolAsync(StorageKeyShowUpdate, true);
+            _showDelete = await LocalStorage.GetBoolAsync(StorageKeyShowDelete, true);
+            _showAccessGranted = await LocalStorage.GetBoolAsync(StorageKeyShowAccessGranted, true);
+            StateHasChanged();
+        }
     }
 
     private async Task LoadAsync(bool reset = false)
@@ -159,8 +179,7 @@ else
 
             var response = await Api.GetAuditEventsPaginatedAsync(
                 pageSize: 50,
-                cursor: _nextCursor,
-                targetType: _filterTargetType);
+                cursor: _nextCursor);
 
             if (reset || _auditEvents == null)
             {
@@ -190,14 +209,23 @@ else
         await LoadAsync(reset: false);
     }
 
-    private async Task ApplyFiltersAsync()
-    {
-        await LoadAsync(reset: true);
-    }
-
     private bool AuditFilter(AuditEventDto evt)
     {
-        if (string.IsNullOrWhiteSpace(_searchString))
+        // Target type filter
+        var targetType = evt.TargetType.ToLowerInvariant();
+        if (targetType == Constants.ScopeTypes.Collection && !_showCollections) return false;
+        if (targetType == Constants.ScopeTypes.Asset && !_showAssets) return false;
+        if (targetType == Constants.ScopeTypes.Share && !_showShares) return false;
+
+        // Action type filter
+        var action = GetActionCategory(evt.EventType);
+        if (action == "create" && !_showCreate) return false;
+        if (action == "update" && !_showUpdate) return false;
+        if (action == "delete" && !_showDelete) return false;
+        if (action == "access" && !_showAccessGranted) return false;
+
+        // Text search filter (minimum 4 characters)
+        if (string.IsNullOrWhiteSpace(_searchString) || _searchString.Trim().Length < 4)
             return true;
 
         var localizedEventType = GetLocalizedEventType(evt.EventType);
@@ -207,6 +235,58 @@ else
             || (evt.TargetName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
             || (evt.ActorUserName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
             || (evt.ActorUserId?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private static string GetActionCategory(string eventType)
+    {
+        var et = eventType.ToLowerInvariant();
+        if (et.Contains("acl.set") || et.Contains("access_granted")) return "access";
+        if (et.Contains("created") || et.Contains("upload")) return "create";
+        if (et.Contains("updated")) return "update";
+        if (et.Contains("deleted") || et.Contains("removed") || et.Contains("revoked")) return "delete";
+        return "other";
+    }
+
+    private async Task ToggleCollections()
+    {
+        _showCollections = !_showCollections;
+        await LocalStorage.SetBoolAsync(StorageKeyShowCollections, _showCollections);
+    }
+
+    private async Task ToggleAssets()
+    {
+        _showAssets = !_showAssets;
+        await LocalStorage.SetBoolAsync(StorageKeyShowAssets, _showAssets);
+    }
+
+    private async Task ToggleShares()
+    {
+        _showShares = !_showShares;
+        await LocalStorage.SetBoolAsync(StorageKeyShowShares, _showShares);
+    }
+
+    private async Task ToggleCreate()
+    {
+        _showCreate = !_showCreate;
+        await LocalStorage.SetBoolAsync(StorageKeyShowCreate, _showCreate);
+    }
+
+    private async Task ToggleUpdate()
+    {
+        _showUpdate = !_showUpdate;
+        await LocalStorage.SetBoolAsync(StorageKeyShowUpdate, _showUpdate);
+    }
+
+    private async Task ToggleDelete()
+    {
+        _showDelete = !_showDelete;
+        await LocalStorage.SetBoolAsync(StorageKeyShowDelete, _showDelete);
+    }
+
+    private async Task ToggleAccessGranted()
+    {
+        _showAccessGranted = !_showAccessGranted;
+        await LocalStorage.SetBoolAsync(StorageKeyShowAccessGranted, _showAccessGranted);
     }
 
     private static Color GetEventColor(string eventType) => eventType.ToLowerInvariant() switch

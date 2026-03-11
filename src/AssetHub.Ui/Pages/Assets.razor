@@ -17,6 +17,7 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
 @inject IStringLocalizer<CollectionsResource> CollectionLoc
+@inject LocalStorageService LocalStorage
 
 <PageTitle>@AssetLoc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
@@ -166,10 +167,10 @@
                 <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
                     <MudIconButton Icon="@Icons.Material.Filled.GridView"
                                    Color="@(_collectionViewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => _collectionViewMode = Constants.ViewModes.Grid)" />
+                                   OnClick="@(() => SetCollectionViewModeAsync(Constants.ViewModes.Grid))" />
                     <MudIconButton Icon="@Icons.Material.Filled.ViewList"
                                    Color="@(_collectionViewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => _collectionViewMode = Constants.ViewModes.List)" />
+                                   OnClick="@(() => SetCollectionViewModeAsync(Constants.ViewModes.List))" />
                 </MudButtonGroup>
             </MudStack>
 
@@ -359,10 +360,10 @@
                             <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
                                 <MudIconButton Icon="@Icons.Material.Filled.GridView" 
                                                Color="@(_viewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
-                                               OnClick="@(() => _viewMode = Constants.ViewModes.Grid)" />
+                                               OnClick="@(() => SetAssetViewModeAsync(Constants.ViewModes.Grid))" />
                                 <MudIconButton Icon="@Icons.Material.Filled.ViewList"
                                                Color="@(_viewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
-                                               OnClick="@(() => _viewMode = Constants.ViewModes.List)" />
+                                               OnClick="@(() => SetAssetViewModeAsync(Constants.ViewModes.List))" />
                     </MudButtonGroup>
                 </MudItem>
             </MudGrid>
@@ -395,6 +396,9 @@
     private string _searchQuery = "";
     private string? _filterType;
     private string _viewMode = Constants.ViewModes.Grid;
+
+    private const string ViewModeStorageKeyCollections = "viewMode_collections";
+    private const string ViewModeStorageKeyAssets = "viewMode_collectionAssets";
 
     // Collection browser state
     private List<CollectionResponseDto>? _allCollections;
@@ -444,6 +448,41 @@
         {
             await loadCollections;
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var storedCollectionView = await LocalStorage.GetAsync(ViewModeStorageKeyCollections);
+            var storedAssetView = await LocalStorage.GetAsync(ViewModeStorageKeyAssets);
+            var changed = false;
+
+            if (!string.IsNullOrEmpty(storedCollectionView))
+            {
+                _collectionViewMode = storedCollectionView;
+                changed = true;
+            }
+            if (!string.IsNullOrEmpty(storedAssetView))
+            {
+                _viewMode = storedAssetView;
+                changed = true;
+            }
+
+            if (changed) StateHasChanged();
+        }
+    }
+
+    private async Task SetCollectionViewModeAsync(string mode)
+    {
+        _collectionViewMode = mode;
+        await LocalStorage.SetAsync(ViewModeStorageKeyCollections, mode);
+    }
+
+    private async Task SetAssetViewModeAsync(string mode)
+    {
+        _viewMode = mode;
+        await LocalStorage.SetAsync(ViewModeStorageKeyAssets, mode);
     }
 
     private async Task LoadAllCollections()

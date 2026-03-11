@@ -303,6 +303,8 @@
   <data name="Dashboard_TotalCollections" xml:space="preserve"><value>Collections</value></data>
   <data name="Dashboard_TotalUsers" xml:space="preserve"><value>Users</value></data>
   <data name="Dashboard_SharesActive" xml:space="preserve"><value>Active / Total Shares</value></data>
+  <data name="Dashboard_AuditEvents" xml:space="preserve"><value>Audit Events</value></data>
+  <data name="Dashboard_StorageByType" xml:space="preserve"><value>Storage by Asset Type</value></data>
   <data name="Dashboard_NoRecentAssets" xml:space="preserve"><value>No recent assets</value></data>
   <data name="Dashboard_AddedBy" xml:space="preserve"><value>By {0}</value></data>
   <data name="Dashboard_Updated" xml:space="preserve"><value>Updated</value></data>

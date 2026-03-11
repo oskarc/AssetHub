@@ -300,6 +300,8 @@
   <data name="Dashboard_TotalCollections" xml:space="preserve"><value>Samlingar</value></data>
   <data name="Dashboard_TotalUsers" xml:space="preserve"><value>Användare</value></data>
   <data name="Dashboard_SharesActive" xml:space="preserve"><value>Aktiva / Totala delningar</value></data>
+  <data name="Dashboard_AuditEvents" xml:space="preserve"><value>Granskningshändelser</value></data>
+  <data name="Dashboard_StorageByType" xml:space="preserve"><value>Lagring per tillgångstyp</value></data>
   <data name="Dashboard_NoRecentAssets" xml:space="preserve"><value>Inga senaste tillgångar</value></data>
   <data name="Dashboard_AddedBy" xml:space="preserve"><value>Av {0}</value></data>
   <data name="Dashboard_Updated" xml:space="preserve"><value>Uppdaterad</value></data>

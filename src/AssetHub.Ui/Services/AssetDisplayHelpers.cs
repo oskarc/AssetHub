@@ -13,12 +13,18 @@ public static class AssetDisplayHelpers
 
     /// <summary>
     /// Gets the thumbnail URL for an asset, or generates a placeholder SVG.
+    /// For videos, falls back to poster (first frame) when no thumbnail exists.
     /// </summary>
-    public static string GetThumbnailUrl(Guid assetId, string? thumbObjectKey, string assetType)
+    public static string GetThumbnailUrl(Guid assetId, string? thumbObjectKey, string assetType, string? posterObjectKey = null)
     {
         if (!string.IsNullOrEmpty(thumbObjectKey))
         {
             return $"/api/assets/{assetId}/thumb";
+        }
+
+        if (!string.IsNullOrEmpty(posterObjectKey))
+        {
+            return $"/api/assets/{assetId}/poster";
         }
 
         return GetPlaceholderForType(assetType);

@@ -39,6 +39,10 @@
 
   <!-- Audit Log -->
   <data name="AllAuditEvents" xml:space="preserve"><value>Alla granskningshändelser</value></data>
+  <data name="AuditAction_Create" xml:space="preserve"><value>Skapande</value></data>
+  <data name="AuditAction_Update" xml:space="preserve"><value>Uppdatering</value></data>
+  <data name="AuditAction_Delete" xml:space="preserve"><value>Radering</value></data>
+  <data name="AuditAction_AccessGranted" xml:space="preserve"><value>Åtkomst beviljad</value></data>
   <data name="NoAuditEventsYet" xml:space="preserve"><value>Inga granskningshändelser ännu</value></data>
   <data name="NoAuditEventsDesc" xml:space="preserve"><value>När användare utför åtgärder registreras granskningshändelser här.</value></data>
   <data name="SearchAuditPlaceholder" xml:space="preserve"><value>Sök granskningshändelser...</value></data>
@@ -111,6 +115,8 @@
   <data name="SearchUsersPlaceholder" xml:space="preserve"><value>Sök användare...</value></data>
   <data name="Total" xml:space="preserve"><value>Totalt</value></data>
   <data name="WithAccess" xml:space="preserve"><value>Med åtkomst</value></data>
+  <data name="Admins" xml:space="preserve"><value>Administratörer</value></data>
+  <data name="NoAssignedAccess" xml:space="preserve"><value>Ingen tilldelad åtkomst</value></data>
   <data name="Header_Username" xml:space="preserve"><value>Användarnamn</value></data>
   <data name="Header_Email" xml:space="preserve"><value>E-post</value></data>
   <data name="Header_Created" xml:space="preserve"><value>Skapad</value></data>

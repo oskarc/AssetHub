@@ -35,6 +35,15 @@ public class DashboardStatsDto
     public int TotalUsers { get; set; }
     public int ActiveShares { get; set; }
     public int TotalShares { get; set; }
+    public int TotalAuditEvents { get; set; }
+    public List<StorageByTypeDto> StorageByType { get; set; } = [];
+}
+
+public class StorageByTypeDto
+{
+    public string AssetType { get; set; } = string.Empty;
+    public long TotalBytes { get; set; }
+    public int Count { get; set; }
 }
 
 /// <summary>

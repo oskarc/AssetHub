@@ -39,6 +39,10 @@
 
   <!-- Audit Log -->
   <data name="AllAuditEvents" xml:space="preserve"><value>All Audit Events</value></data>
+  <data name="AuditAction_Create" xml:space="preserve"><value>Create</value></data>
+  <data name="AuditAction_Update" xml:space="preserve"><value>Update</value></data>
+  <data name="AuditAction_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="AuditAction_AccessGranted" xml:space="preserve"><value>Access Granted</value></data>
   <data name="NoAuditEventsYet" xml:space="preserve"><value>No audit events yet</value></data>
   <data name="NoAuditEventsDesc" xml:space="preserve"><value>When users perform actions, audit events will be recorded here.</value></data>
   <data name="SearchAuditPlaceholder" xml:space="preserve"><value>Search audit events...</value></data>
@@ -111,6 +115,8 @@
   <data name="SearchUsersPlaceholder" xml:space="preserve"><value>Search users...</value></data>
   <data name="Total" xml:space="preserve"><value>Total</value></data>
   <data name="WithAccess" xml:space="preserve"><value>With Access</value></data>
+  <data name="Admins" xml:space="preserve"><value>Admins</value></data>
+  <data name="NoAssignedAccess" xml:space="preserve"><value>No Assigned Access</value></data>
   <data name="Header_Username" xml:space="preserve"><value>Username</value></data>
   <data name="Header_Email" xml:space="preserve"><value>Email</value></data>
   <data name="Header_Created" xml:space="preserve"><value>Created</value></data>

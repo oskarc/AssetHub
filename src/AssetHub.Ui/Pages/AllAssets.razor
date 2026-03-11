@@ -14,6 +14,7 @@
 @inject IJSRuntime JS
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
+@inject LocalStorageService LocalStorage
 
 <PageTitle>@AssetLoc["AllAssetsTitle"] - @CommonLoc["AppName"]</PageTitle>
 
@@ -27,19 +28,48 @@
             </MudText>
         </MudStack>
         <MudStack Row="true" Spacing="2">
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Upload"
-                       OnClick="@(() => _showUpload = !_showUpload)">
-                @CommonLoc["Btn_Upload"]
-            </MudButton>
-            <MudButton Variant="Variant.Outlined"
-                       Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="RefreshAsync">
-                @CommonLoc["Btn_Refresh"]
-            </MudButton>
+            @if (_selectionMode)
+            {
+                @if (_selectedAssetIds.Count > 0)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Size="Size.Small"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Checklist"
+                               OnClick="OpenBulkDeleteAsync">
+                        @string.Format(AssetLoc["BulkAssetActionsBtn"], _selectedAssetIds.Count)
+                    </MudButton>
+                }
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.Close"
+                           OnClick="ExitSelectionMode">
+                    @AssetLoc["CancelAssetSelection"]
+                </MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.CheckBox"
+                           OnClick="EnterSelectionMode">
+                    @AssetLoc["SelectManyAssets"]
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Upload"
+                           OnClick="@(() => _showUpload = !_showUpload)">
+                    @CommonLoc["Btn_Upload"]
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="RefreshAsync">
+                    @CommonLoc["Btn_Refresh"]
+                </MudButton>
+            }
         </MudStack>
     </MudStack>
 
@@ -118,10 +148,10 @@
                 <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
                     <MudIconButton Icon="@Icons.Material.Filled.GridView" 
                                    Color="@(_viewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => _viewMode = Constants.ViewModes.Grid)" />
+                                   OnClick="@(() => SetViewModeAsync(Constants.ViewModes.Grid))" />
                     <MudIconButton Icon="@Icons.Material.Filled.ViewList"
                                    Color="@(_viewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => _viewMode = Constants.ViewModes.List)" />
+                                   OnClick="@(() => SetViewModeAsync(Constants.ViewModes.List))" />
                 </MudButtonGroup>
             </MudItem>
         </MudGrid>
@@ -166,9 +196,15 @@
                 @foreach (var asset in _assets)
                 {
                     <MudItem xs="12" sm="6" md="4" lg="3" xl="2">
-                        <MudCard Class="asset-card" Elevation="2">
-                            <div @onclick="() => ViewAsset(asset.Id)" class="clickable">
-                                <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType)" 
+                        <MudCard Class="@GetCardClass(asset.Id)" Elevation="2">
+                            <div @onclick="() => OnCardClick(asset)" class="clickable">
+                                @if (_selectionMode)
+                                {
+                                    <MudCheckBox T="bool" Class="asset-select-checkbox"
+                                                 Value="@_selectedAssetIds.Contains(asset.Id)"
+                                                 ValueChanged="@(val => ToggleSelection(asset.Id, val))" />
+                                }
+                                <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)" 
                                               Height="160" 
                                               Class="asset-thumbnail" />
                                 <MudCardContent Class="pa-2">
@@ -217,6 +253,10 @@
         {
             <MudTable Items="@_assets" Hover="true" Dense="true" Elevation="2" Breakpoint="Breakpoint.Sm">
                 <HeaderContent>
+                    @if (_selectionMode)
+                    {
+                        <MudTh Style="width: 50px;"></MudTh>
+                    }
                     <MudTh></MudTh>
                     <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.Title)">@AssetLoc["Column_Title"]</MudTableSortLabel></MudTh>
                     <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.AssetType)">@CommonLoc["Label_Type"]</MudTableSortLabel></MudTh>
@@ -225,9 +265,17 @@
                     <MudTh Class="col-text-right">@AssetLoc["Column_Actions"]</MudTh>
                 </HeaderContent>
                 <RowTemplate>
+                    @if (_selectionMode)
+                    {
+                        <MudTd>
+                            <MudCheckBox T="bool"
+                                         Value="@_selectedAssetIds.Contains(context.Id)"
+                                         ValueChanged="@(val => ToggleSelection(context.Id, val))" />
+                        </MudTd>
+                    }
                     <MudTd DataLabel="" Class="col-icon">
                         <MudAvatar Rounded="true" Size="Size.Medium" Class="clickable" @onclick="() => ViewAsset(context.Id)">
-                            <MudImage Src="@AssetDisplayHelpers.GetThumbnailUrl(context.Id, context.ThumbObjectKey, context.AssetType)" 
+                            <MudImage Src="@AssetDisplayHelpers.GetThumbnailUrl(context.Id, context.ThumbObjectKey, context.AssetType, context.PosterObjectKey)" 
                                       Alt="@context.Title"
                                       ObjectFit="ObjectFit.Cover"
                                       Width="40" Height="40" />
@@ -306,6 +354,12 @@
     private Guid? _uploadCollectionId;
     private string _viewMode = Constants.ViewModes.Grid;
     private bool _showUpload = false;
+
+    private const string ViewModeStorageKey = "viewMode_allAssets";
+
+    // Bulk selection state
+    private bool _selectionMode;
+    private HashSet<Guid> _selectedAssetIds = new();
     
     // Role-based UI visibility using centralized permissions
     private bool CanShare(AssetResponseDto asset) => RolePermissions.CanShare(asset.UserRole);
@@ -315,6 +369,25 @@
     {
         await LoadCollectionsAsync();
         await LoadAssetsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var stored = await LocalStorage.GetAsync(ViewModeStorageKey);
+            if (!string.IsNullOrEmpty(stored))
+            {
+                _viewMode = stored;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task SetViewModeAsync(string mode)
+    {
+        _viewMode = mode;
+        await LocalStorage.SetAsync(ViewModeStorageKey, mode);
     }
 
     private async Task LoadCollectionsAsync()
@@ -476,6 +549,75 @@
                 _assets.Remove(asset);
                 _total--;
             }
+        }
+    }
+
+    // ── Bulk Selection ───────────────────────────────────────────
+
+    private void EnterSelectionMode()
+    {
+        _selectionMode = true;
+        _selectedAssetIds.Clear();
+    }
+
+    private void ExitSelectionMode()
+    {
+        _selectionMode = false;
+        _selectedAssetIds.Clear();
+    }
+
+    private void ToggleSelection(Guid id, bool selected)
+    {
+        if (selected)
+            _selectedAssetIds.Add(id);
+        else
+            _selectedAssetIds.Remove(id);
+    }
+
+    private void OnCardClick(AssetResponseDto asset)
+    {
+        if (_selectionMode)
+        {
+            ToggleSelection(asset.Id, !_selectedAssetIds.Contains(asset.Id));
+            return;
+        }
+        ViewAsset(asset.Id);
+    }
+
+    private string GetCardClass(Guid id) =>
+        _selectedAssetIds.Contains(id)
+            ? "asset-card mud-border-primary"
+            : "asset-card";
+
+    private async Task OpenBulkDeleteAsync()
+    {
+        if (_selectedAssetIds.Count == 0) return;
+
+        var selectedAssets = _assets.Where(a => _selectedAssetIds.Contains(a.Id)).ToList();
+        if (selectedAssets.Count == 0) return;
+
+        var parameters = new DialogParameters<BulkAssetActionsDialog>
+        {
+            { x => x.SelectedAssets, selectedAssets },
+            { x => x.CollectionId, null }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<BulkAssetActionsDialog>(
+            AssetLoc["BulkAssetActions"], parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            _selectionMode = false;
+            _selectedAssetIds.Clear();
+            await RefreshAsync();
         }
     }
 }

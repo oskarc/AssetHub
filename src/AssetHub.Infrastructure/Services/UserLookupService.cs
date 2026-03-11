@@ -143,10 +143,10 @@ public class UserLookupService(
         {
             var id = reader.GetString(0);
             var username = reader.GetString(1);
-            var email = reader.IsDBNull(2) ? null : reader.GetString(2);
-            var firstName = reader.IsDBNull(3) ? null : reader.GetString(3);
-            var lastName = reader.IsDBNull(4) ? null : reader.GetString(4);
-            var createdTimestamp = reader.IsDBNull(5) ? (DateTime?)null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(5)).UtcDateTime;
+            var email = await reader.IsDBNullAsync(2, ct) ? null : reader.GetString(2);
+            var firstName = await reader.IsDBNullAsync(3, ct) ? null : reader.GetString(3);
+            var lastName = await reader.IsDBNullAsync(4, ct) ? null : reader.GetString(4);
+            var createdTimestamp = await reader.IsDBNullAsync(5, ct) ? (DateTime?)null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(5)).UtcDateTime;
             result.Add((id, username, email, firstName, lastName, createdTimestamp));
             
             // Also populate the individual username cache

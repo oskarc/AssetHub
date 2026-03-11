@@ -157,6 +157,7 @@ public class DashboardQueryService : IDashboardQueryService
             .Select(a => a.PrincipalId)
             .Distinct()
             .CountAsync(ct);
+        var totalAuditEvents = await _db.AuditEvents.CountAsync(ct);
 
         return new DashboardStatsDto
         {
@@ -165,7 +166,18 @@ public class DashboardQueryService : IDashboardQueryService
             TotalCollections = totalCollections,
             TotalShares = totalShares,
             ActiveShares = activeShares,
-            TotalUsers = totalUsers
+            TotalUsers = totalUsers,
+            TotalAuditEvents = totalAuditEvents,
+            StorageByType = await _db.Assets
+                .Where(a => a.Status == AssetStatus.Ready)
+                .GroupBy(a => a.AssetType)
+                .Select(g => new StorageByTypeDto
+                {
+                    AssetType = g.Key.ToString().ToLowerInvariant(),
+                    TotalBytes = g.Sum(a => a.SizeBytes),
+                    Count = g.Count()
+                })
+                .ToListAsync(ct)
         };
     }
 
