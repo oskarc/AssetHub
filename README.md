@@ -33,6 +33,70 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
 
 ---
 
+## Screenshots
+
+### Dashboard
+
+<p>
+  <img src="docs/screen%20shots/dashboard%201.png" alt="Dashboard overview" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/dashboard%202.png" alt="Dashboard storage chart" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/dashboard%203.png" alt="Dashboard activity" width="720" />
+</p>
+
+### Collections & Assets
+
+<p>
+  <img src="docs/screen%20shots/Collections.png" alt="Collections view" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Collections%202.png" alt="Collection detail" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Collection%203.png" alt="Collection management" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/All%20assets.png" alt="All assets" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Asset%201.png" alt="Asset detail" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Asset%202.png" alt="Asset preview" width="720" />
+</p>
+
+### Sharing
+
+<p>
+  <img src="docs/screen%20shots/Access%20share%201.png" alt="Share link creation" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Access%20share%202.png" alt="Share access view" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Access%20share%203.png" alt="Share download" width="720" />
+</p>
+
+### Administration
+
+<p>
+  <img src="docs/screen%20shots/Admin%201.png" alt="Admin panel" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Admin%202.png" alt="User management" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Admin%203.png" alt="Share management" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Admin%204.png" alt="Audit log" width="720" />
+</p>
+
+---
+
 ## Quick Start
 
 ```bash
