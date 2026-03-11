@@ -10,7 +10,7 @@ jobs:
     name: Build and analyze
     runs-on: ubuntu-latest
     # Only run when SONAR_TOKEN is configured (skips fork PRs where secrets aren't available)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && secrets.SONAR_TOKEN != ''
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
