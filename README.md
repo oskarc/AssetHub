@@ -47,10 +47,10 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
   <img src="docs/screen%20shots/dashboard%203.png" alt="Dashboard activity" width="720" />
 </p>
 
-### Collections & Assets
+### Collections
 
 <p>
-  <img src="docs/screen%20shots/Collections.png" alt="Collections view" width="720" />
+  <img src="docs/screen%20shots/Collections.png" alt="Collections overview" width="720" />
 </p>
 <p>
   <img src="docs/screen%20shots/Collections%202.png" alt="Collection detail" width="720" />
@@ -58,6 +58,9 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
 <p>
   <img src="docs/screen%20shots/Collection%203.png" alt="Collection management" width="720" />
 </p>
+
+### Assets
+
 <p>
   <img src="docs/screen%20shots/All%20assets.png" alt="All assets" width="720" />
 </p>
@@ -83,7 +86,7 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
 ### Administration
 
 <p>
-  <img src="docs/screen%20shots/Admin%201.png" alt="Admin panel" width="720" />
+  <img src="docs/screen%20shots/Admin%201.png" alt="Admin dashboard" width="720" />
 </p>
 <p>
   <img src="docs/screen%20shots/Admin%202.png" alt="User management" width="720" />
@@ -93,6 +96,9 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
 </p>
 <p>
   <img src="docs/screen%20shots/Admin%204.png" alt="Audit log" width="720" />
+</p>
+<p>
+  <img src="docs/screen%20shots/Admin%205.png" alt="Admin settings" width="720" />
 </p>
 
 ---
