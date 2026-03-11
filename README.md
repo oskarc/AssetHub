@@ -247,4 +247,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 ## License
 
-MIT — see LICENSE for details.
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
