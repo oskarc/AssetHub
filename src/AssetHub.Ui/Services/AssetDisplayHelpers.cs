@@ -55,9 +55,9 @@ public static class AssetDisplayHelpers
     {
         return assetType switch
         {
-            "image" => GetPlaceholderSvg("Image", "#4CAF50", "M21,19V5c0-1.1-0.9-2-2-2H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14C20.1,21,21,20.1,21,19z M8.5,13.5l2.5,3.01L14.5,12l4.5,6H5L8.5,13.5z"),
-            "video" => GetPlaceholderSvg("Video", "#2196F3", "M17,10.5V7c0-0.55-0.45-1-1-1H4C3.45,6,3,6.45,3,7v10c0,0.55,0.45,1,1,1h12c0.55,0,1-0.45,1-1v-3.5l4,4v-11L17,10.5z"),
-            "document" => GetPlaceholderSvg("Document", "#FF9800", "M14,2H6C4.9,2,4.01,2.9,4.01,4L4,20c0,1.1,0.89,2,1.99,2H18c1.1,0,2-0.9,2-2V8L14,2z M16,18H8v-2h8V18z M16,14H8v-2h8V14z M13,9V3.5L18.5,9H13z"),
+            Constants.AssetTypeFilters.Image => GetPlaceholderSvg("Image", "#4CAF50", "M21,19V5c0-1.1-0.9-2-2-2H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14C20.1,21,21,20.1,21,19z M8.5,13.5l2.5,3.01L14.5,12l4.5,6H5L8.5,13.5z"),
+            Constants.AssetTypeFilters.Video => GetPlaceholderSvg("Video", "#2196F3", "M17,10.5V7c0-0.55-0.45-1-1-1H4C3.45,6,3,6.45,3,7v10c0,0.55,0.45,1,1,1h12c0.55,0,1-0.45,1-1v-3.5l4,4v-11L17,10.5z"),
+            Constants.AssetTypeFilters.Document => GetPlaceholderSvg("Document", "#FF9800", "M14,2H6C4.9,2,4.01,2.9,4.01,4L4,20c0,1.1,0.89,2,1.99,2H18c1.1,0,2-0.9,2-2V8L14,2z M16,18H8v-2h8V18z M16,14H8v-2h8V14z M13,9V3.5L18.5,9H13z"),
             _ => GetPlaceholderSvg("Asset", "#9E9E9E", "M6,2C4.89,2,4,2.9,4,4v16c0,1.1,0.89,2,2,2h12c1.1,0,2-0.9,2-2V8l-6-6H6z M13,9V3.5L18.5,9H13z")
         };
     }
@@ -71,9 +71,9 @@ public static class AssetDisplayHelpers
     {
         return assetType switch
         {
-            "image" => MudBlazor.Color.Success,
-            "video" => MudBlazor.Color.Info,
-            "document" => MudBlazor.Color.Warning,
+            Constants.AssetTypeFilters.Image => MudBlazor.Color.Success,
+            Constants.AssetTypeFilters.Video => MudBlazor.Color.Info,
+            Constants.AssetTypeFilters.Document => MudBlazor.Color.Warning,
             _ => MudBlazor.Color.Default
         };
     }
@@ -84,9 +84,9 @@ public static class AssetDisplayHelpers
     /// </summary>
     public static string GetAssetTypeKey(string? assetType) => (assetType?.ToLowerInvariant()) switch
     {
-        "image" => "AssetType_Image",
-        "video" => "AssetType_Video",
-        "document" => "AssetType_Document",
+        Constants.AssetTypeFilters.Image => "AssetType_Image",
+        Constants.AssetTypeFilters.Video => "AssetType_Video",
+        Constants.AssetTypeFilters.Document => "AssetType_Document",
         "audio" => "AssetType_Audio",
         _ => assetType ?? ""
     };
@@ -98,9 +98,9 @@ public static class AssetDisplayHelpers
     {
         return assetType switch
         {
-            "image" => MudBlazor.Icons.Material.Filled.Image,
-            "video" => MudBlazor.Icons.Material.Filled.VideoFile,
-            "document" => MudBlazor.Icons.Material.Filled.Description,
+            Constants.AssetTypeFilters.Image => MudBlazor.Icons.Material.Filled.Image,
+            Constants.AssetTypeFilters.Video => MudBlazor.Icons.Material.Filled.VideoFile,
+            Constants.AssetTypeFilters.Document => MudBlazor.Icons.Material.Filled.Description,
             _ => MudBlazor.Icons.Material.Filled.InsertDriveFile
         };
     }

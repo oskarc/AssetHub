@@ -80,19 +80,26 @@ public class DashboardQueryService : IDashboardQueryService
                 .ToDictionaryAsync(c => c.Id, c => c.Name, ct)
             : new Dictionary<Guid, string>();
 
-        return shares.Select(s => new DashboardShareDto
+        return shares.Select(s =>
         {
-            Id = s.Id,
-            ScopeType = s.ScopeType.ToDbString(),
-            ScopeId = s.ScopeId,
-            ScopeName = s.ScopeType == ShareScopeType.Asset
-                ? (assetNames.TryGetValue(s.ScopeId, out var aName) ? aName : null)
-                : (collectionNames.TryGetValue(s.ScopeId, out var cName) ? cName : null),
-            CreatedAt = s.CreatedAt,
-            ExpiresAt = s.ExpiresAt,
-            AccessCount = s.AccessCount,
-            HasPassword = s.PasswordHash != null,
-            Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt).ToLowerInvariant()
+            string? scopeName = null;
+            if (s.ScopeType == ShareScopeType.Asset)
+                assetNames.TryGetValue(s.ScopeId, out scopeName);
+            else
+                collectionNames.TryGetValue(s.ScopeId, out scopeName);
+
+            return new DashboardShareDto
+            {
+                Id = s.Id,
+                ScopeType = s.ScopeType.ToDbString(),
+                ScopeId = s.ScopeId,
+                ScopeName = scopeName,
+                CreatedAt = s.CreatedAt,
+                ExpiresAt = s.ExpiresAt,
+                AccessCount = s.AccessCount,
+                HasPassword = s.PasswordHash != null,
+                Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt).ToLowerInvariant()
+            };
         }).ToList();
     }
 
