@@ -28,11 +28,6 @@ public class EmailSettings
     public string? SmtpPassword { get; set; }
 
     /// <summary>
-    /// Whether to use SSL/TLS for the SMTP connection.
-    /// </summary>
-    public bool UseSsl { get; set; } = true;
-
-    /// <summary>
     /// The sender's email address.
     /// </summary>
     public string FromAddress { get; set; } = "";

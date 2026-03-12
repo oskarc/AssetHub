@@ -66,7 +66,7 @@ public class SmtpEmailService : IEmailService
     {
         var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
         {
-            EnableSsl = _settings.UseSsl,
+            EnableSsl = true,
             DeliveryMethod = SmtpDeliveryMethod.Network
         };
 

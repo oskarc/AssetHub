@@ -222,7 +222,6 @@ services:
       Email__SmtpPort: "${EMAIL_SMTP_PORT:-587}"
       Email__SmtpUsername: "${EMAIL_SMTP_USERNAME:-}"
       Email__SmtpPassword: "${EMAIL_SMTP_PASSWORD:-}"
-      Email__UseSsl: "${EMAIL_USE_SSL:-true}"
       Email__FromAddress: "${EMAIL_FROM_ADDRESS:-}"
       Email__FromName: "${EMAIL_FROM_NAME:-AssetHub}"
 
