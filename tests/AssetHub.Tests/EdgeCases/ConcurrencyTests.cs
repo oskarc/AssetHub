@@ -388,7 +388,13 @@ public class ConcurrencyTests : IAsyncLifetime
         await Task.WhenAll(deleteTask, readTask);
 
         // Read result may be the asset or null (depends on timing)
-        // The important thing is no exception was thrown
+        var readResult = await readTask;
+        Assert.True(readResult is null || readResult.Id == assetId);
+
+        // After completion, the asset should be deleted
+        _db.ChangeTracker.Clear();
+        var exists = await _db.Assets.AnyAsync(a => a.Id == assetId);
+        Assert.False(exists);
     }
 
     [Fact]

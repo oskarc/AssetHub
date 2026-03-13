@@ -48,7 +48,6 @@ public class CollectionServiceTests : IAsyncLifetime
         _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         _deletionServiceMock = new Mock<IAssetDeletionService>();
-        _assetCollectionRepoMock = new Mock<IAssetCollectionRepository>();
         _zipBuildServiceMock = new Mock<IZipBuildService>();
         _auditMock = new Mock<IAuditService>();
 
