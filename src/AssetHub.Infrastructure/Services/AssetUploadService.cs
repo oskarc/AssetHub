@@ -11,6 +11,24 @@ using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
+public sealed record AssetUploadRepositories(
+    IAssetRepository AssetRepo,
+    IAssetCollectionRepository AssetCollectionRepo);
+
+public sealed record AssetUploadPipeline(
+    IMinIOAdapter MinioAdapter,
+    IMalwareScannerService MalwareScanner,
+    IMediaProcessingService MediaProcessing,
+    string BucketName)
+{
+    public AssetUploadPipeline(
+        IMinIOAdapter minioAdapter,
+        IMalwareScannerService malwareScanner,
+        IMediaProcessingService mediaProcessing,
+        IOptions<MinIOSettings> minioSettings)
+        : this(minioAdapter, malwareScanner, mediaProcessing, minioSettings.Value.BucketName) { }
+}
+
 /// <summary>
 /// Upload operations: streaming upload, presigned upload init/confirm.
 /// </summary>
@@ -29,27 +47,23 @@ public sealed class AssetUploadService : IAssetUploadService
     private readonly ILogger<AssetUploadService> _logger;
 
     public AssetUploadService(
-        IAssetRepository assetRepo,
-        IAssetCollectionRepository assetCollectionRepo,
+        AssetUploadRepositories repos,
+        AssetUploadPipeline pipeline,
         ICollectionAuthorizationService authService,
-        IMinIOAdapter minioAdapter,
-        IMediaProcessingService mediaProcessing,
-        IMalwareScannerService malwareScanner,
         IAuditService audit,
         CurrentUser currentUser,
-        IOptions<MinIOSettings> minioSettings,
         IOptions<AppSettings> appSettings,
         ILogger<AssetUploadService> logger)
     {
-        _assetRepo = assetRepo;
-        _assetCollectionRepo = assetCollectionRepo;
+        _assetRepo = repos.AssetRepo;
+        _assetCollectionRepo = repos.AssetCollectionRepo;
         _authService = authService;
-        _minioAdapter = minioAdapter;
-        _mediaProcessing = mediaProcessing;
-        _malwareScanner = malwareScanner;
+        _minioAdapter = pipeline.MinioAdapter;
+        _mediaProcessing = pipeline.MediaProcessing;
+        _malwareScanner = pipeline.MalwareScanner;
         _audit = audit;
         _currentUser = currentUser;
-        _bucketName = minioSettings.Value.BucketName;
+        _bucketName = pipeline.BucketName;
         _maxUploadSizeMb = appSettings.Value.MaxUploadSizeMb > 0 
             ? appSettings.Value.MaxUploadSizeMb 
             : Constants.Limits.DefaultMaxUploadSizeMb;

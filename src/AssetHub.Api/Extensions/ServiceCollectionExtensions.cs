@@ -116,6 +116,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuditQueryService, AuditQueryService>();
         services.AddScoped<IUserSyncService, UserSyncService>();
         // IZipBuildService registered in AddSharedInfrastructure for Worker access
+        services.AddScoped<ShareServiceRepositories>();
         services.AddScoped<IShareService, ShareService>();
         services.AddScoped<IUserCleanupService, UserCleanupService>();
         services.AddSingleton<IMalwareScannerService, ClamAvScannerService>();
@@ -137,17 +138,25 @@ public static class ServiceCollectionExtensions
         
         // Asset services split by responsibility (Interface Segregation Principle)
         services.AddScoped<AssetQueryRepositories>();
+        services.AddScoped<AssetUploadRepositories>();
+        services.AddScoped<AssetUploadPipeline>();
         services.AddScoped<IAssetService, AssetService>();           // Commands: update, delete, collection membership
         services.AddScoped<IAssetQueryService, AssetQueryService>(); // Queries: get, list, rendition URLs
         services.AddScoped<IAssetUploadService, AssetUploadService>(); // Uploads: streaming and presigned
         
-        services.AddScoped<ICollectionService, CollectionService>();
+        // Collection services split by responsibility (Interface Segregation Principle)
+        services.AddScoped<CollectionServiceRepositories>();
+        services.AddScoped<ICollectionQueryService, CollectionQueryService>(); // Queries: list, get by ID
+        services.AddScoped<ICollectionService, CollectionService>();           // Commands: create, update, delete, download
+        services.AddScoped<CollectionAdminRepositories>();
+        services.AddScoped<ICollectionAdminService, CollectionAdminService>(); // Admin: bulk delete, bulk set access
         services.AddScoped<CollectionAclService>();
         services.AddScoped<ICollectionAclService>(sp => sp.GetRequiredService<CollectionAclService>());
         services.AddScoped<IAdminCollectionAclService>(sp => sp.GetRequiredService<CollectionAclService>());
         
         // Admin services split by responsibility (Interface Segregation Principle)
         services.AddScoped<IShareAdminService, ShareAdminService>();
+        services.AddScoped<UserLifecycleServices>();
         services.AddScoped<UserAdminService>();
         services.AddScoped<IUserAdminQueryService>(sp => sp.GetRequiredService<UserAdminService>());
         services.AddScoped<IUserAdminService>(sp => sp.GetRequiredService<UserAdminService>());

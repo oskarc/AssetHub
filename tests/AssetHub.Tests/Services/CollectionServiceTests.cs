@@ -16,7 +16,8 @@ using Moq;
 namespace AssetHub.Tests.Services;
 
 /// <summary>
-/// Integration tests for CollectionService — real DB + mocked external services.
+/// Integration tests for CollectionService, CollectionQueryService, and CollectionAdminService
+/// — real DB + mocked external services.
 /// </summary>
 [Collection("Database")]
 public class CollectionServiceTests : IAsyncLifetime
@@ -26,11 +27,9 @@ public class CollectionServiceTests : IAsyncLifetime
     private CollectionService _service = null!;
     private CollectionRepository _collectionRepo = null!;
     private CollectionAclRepository _aclRepo = null!;
-    private AssetRepository _assetRepo = null!;
     private ShareRepository _shareRepo = null!;
     private CollectionAuthorizationService _authService = null!;
     private Mock<IAssetDeletionService> _deletionServiceMock = null!;
-    private Mock<IAssetCollectionRepository> _assetCollectionRepoMock = null!;
     private Mock<IZipBuildService> _zipBuildServiceMock = null!;
     private Mock<IAuditService> _auditMock = null!;
 
@@ -46,8 +45,6 @@ public class CollectionServiceTests : IAsyncLifetime
         _db = await _fixture.CreateDbContextAsync();
         _collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
         _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
-        _assetRepo = new AssetRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), NullLogger<AssetRepository>.Instance);
         _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         _deletionServiceMock = new Mock<IAssetDeletionService>();
@@ -55,21 +52,25 @@ public class CollectionServiceTests : IAsyncLifetime
         _zipBuildServiceMock = new Mock<IZipBuildService>();
         _auditMock = new Mock<IAuditService>();
 
-        var minioSettings = Options.Create(new MinIOSettings { BucketName = "test-bucket" });
-
-        _service = CreateService(AdminUser, isAdmin: true, minioSettings);
+        _service = CreateService(AdminUser, isAdmin: true);
     }
 
-    private CollectionService CreateService(string userId, bool isAdmin,
-        IOptions<MinIOSettings>? minioSettings = null)
+    private CollectionService CreateService(string userId, bool isAdmin)
     {
         var currentUser = new CurrentUser(userId, isAdmin);
-        minioSettings ??= Options.Create(new MinIOSettings { BucketName = "test-bucket" });
+        var minioSettings = Options.Create(new MinIOSettings { BucketName = "test-bucket" });
+        var repos = new CollectionServiceRepositories(_collectionRepo, _aclRepo, _shareRepo);
 
         return new CollectionService(
-            _collectionRepo, _aclRepo, _assetRepo, _assetCollectionRepoMock.Object, _shareRepo,
+            repos,
             _authService, _deletionServiceMock.Object, _zipBuildServiceMock.Object,
             _auditMock.Object, minioSettings, currentUser);
+    }
+
+    private CollectionQueryService CreateQueryService(string userId, bool isAdmin = false)
+    {
+        var currentUser = new CurrentUser(userId, isAdmin);
+        return new CollectionQueryService(_collectionRepo, _authService, currentUser);
     }
 
     public async Task DisposeAsync()
@@ -160,7 +161,8 @@ public class CollectionServiceTests : IAsyncLifetime
         _db.CollectionAcls.Add(TestData.CreateAcl(col.Id, AdminUser, AclRole.Admin));
         await _db.SaveChangesAsync();
 
-        var result = await _service.GetByIdAsync(col.Id, CancellationToken.None);
+        var querySvc = CreateQueryService(AdminUser, isAdmin: true);
+        var result = await querySvc.GetByIdAsync(col.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Visible", result.Value!.Name);
@@ -173,8 +175,8 @@ public class CollectionServiceTests : IAsyncLifetime
         _db.Collections.Add(col);
         await _db.SaveChangesAsync();
 
-        var noAccessService = CreateService(NoAccessUser, isAdmin: false);
-        var result = await noAccessService.GetByIdAsync(col.Id, CancellationToken.None);
+        var querySvc = CreateQueryService(NoAccessUser);
+        var result = await querySvc.GetByIdAsync(col.Id, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(403, result.Error!.StatusCode);
@@ -335,8 +337,8 @@ public class CollectionServiceTests : IAsyncLifetime
         _db.CollectionAcls.Add(TestData.CreateAcl(accessible.Id, ManagerUser, AclRole.Manager));
         await _db.SaveChangesAsync();
 
-        var managerService = CreateService(ManagerUser, isAdmin: false);
-        var result = await managerService.GetRootCollectionsAsync(CancellationToken.None);
+        var querySvc = CreateQueryService(ManagerUser);
+        var result = await querySvc.GetRootCollectionsAsync(CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value!);

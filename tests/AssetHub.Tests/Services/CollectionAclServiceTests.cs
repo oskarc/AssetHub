@@ -7,7 +7,6 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -59,12 +58,10 @@ public class CollectionAclServiceTests : IAsyncLifetime
     private CollectionAclService CreateService(string userId, bool isAdmin = false)
     {
         var currentUser = new CurrentUser(userId, isAdmin);
-        var httpCtx = Mock.Of<IHttpContextAccessor>(x => x.HttpContext == new DefaultHttpContext());
 
         return new CollectionAclService(
             _collectionRepo, _aclRepo, _authService, _userLookupMock.Object,
-            _keycloakMock.Object, _auditMock.Object, currentUser, httpCtx,
-            NullLogger<CollectionAclService>.Instance);
+            _keycloakMock.Object, _auditMock.Object, currentUser);
     }
 
     public async Task DisposeAsync()

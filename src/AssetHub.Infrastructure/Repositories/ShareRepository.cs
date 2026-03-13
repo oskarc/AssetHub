@@ -47,51 +47,61 @@ public class ShareRepository(
         return await dbContext.Shares.CountAsync(cancellationToken);
     }
 
-    public async Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, int skip = 0, int take = Constants.Limits.DefaultAdminPageSize, CancellationToken cancellationToken = default)
+    public async Task<List<Share>> GetAllAsync(ShareQueryOptions? options = null, CancellationToken cancellationToken = default)
     {
+        options ??= new ShareQueryOptions();
+
         var shares = await dbContext.Shares
             .OrderByDescending(s => s.CreatedAt)
-            .Skip(skip)
-            .Take(take)
+            .Skip(options.Skip)
+            .Take(options.Take)
             .ToListAsync(cancellationToken);
 
         // Asset and Collection are polymorphic (via ScopeType/ScopeId), not FK relationships
         // so we need to manually load them
-        if (includeAsset || includeCollection)
-        {
-            var assetShares = shares.Where(s => s.ScopeType == ShareScopeType.Asset).ToList();
-            var collectionShares = shares.Where(s => s.ScopeType == ShareScopeType.Collection).ToList();
+        if (options.IncludeAsset)
+            await LoadAssetsAsync(shares, cancellationToken);
 
-            if (includeAsset && assetShares.Count > 0)
-            {
-                var assetIds = assetShares.Select(s => s.ScopeId).Distinct().ToList();
-                var assets = await dbContext.Assets
-                    .Where(a => assetIds.Contains(a.Id))
-                    .ToDictionaryAsync(a => a.Id, cancellationToken);
-
-                foreach (var share in assetShares)
-                {
-                    if (assets.TryGetValue(share.ScopeId, out var asset))
-                        share.Asset = asset;
-                }
-            }
-
-            if (includeCollection && collectionShares.Count > 0)
-            {
-                var collectionIds = collectionShares.Select(s => s.ScopeId).Distinct().ToList();
-                var collections = await dbContext.Collections
-                    .Where(c => collectionIds.Contains(c.Id))
-                    .ToDictionaryAsync(c => c.Id, cancellationToken);
-
-                foreach (var share in collectionShares)
-                {
-                    if (collections.TryGetValue(share.ScopeId, out var collection))
-                        share.Collection = collection;
-                }
-            }
-        }
+        if (options.IncludeCollection)
+            await LoadCollectionsAsync(shares, cancellationToken);
 
         return shares;
+    }
+
+    private async Task LoadAssetsAsync(List<Share> shares, CancellationToken cancellationToken)
+    {
+        var assetShares = shares.Where(s => s.ScopeType == ShareScopeType.Asset).ToList();
+        if (assetShares.Count == 0)
+            return;
+
+        var assetIds = assetShares.Select(s => s.ScopeId).Distinct().ToList();
+        var assets = await dbContext.Assets
+            .Where(a => assetIds.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, cancellationToken);
+
+        foreach (var share in assetShares)
+        {
+            if (assets.TryGetValue(share.ScopeId, out var asset))
+                share.Asset = asset;
+        }
+    }
+
+    private async Task LoadCollectionsAsync(List<Share> shares, CancellationToken cancellationToken)
+    {
+        var collectionShares = shares.Where(s => s.ScopeType == ShareScopeType.Collection).ToList();
+        if (collectionShares.Count == 0)
+            return;
+
+        var collectionIds = collectionShares.Select(s => s.ScopeId).Distinct().ToList();
+        var collections = await dbContext.Collections
+            .Where(c => collectionIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, cancellationToken);
+
+        foreach (var share in collectionShares)
+        {
+            if (collections.TryGetValue(share.ScopeId, out var collection))
+                share.Collection = collection;
+        }
     }
 
     public async Task CreateAsync(Share share, CancellationToken cancellationToken = default)
@@ -166,7 +176,7 @@ public class ShareRepository(
             .ExecuteDeleteAsync(cancellationToken);
 
         logger.LogInformation(
-            "Deleted {Count} orphaned shares ({AssetShares} asset, {CollectionShares} collection)",
+            "Deleted {Deleted} orphaned shares ({AssetShareCount} asset, {CollectionShareCount} collection)",
             deleted, orphanedAssetShares.Count, orphanedCollectionShares.Count);
 
         return deleted;

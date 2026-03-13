@@ -34,14 +34,14 @@ public static class CollectionEndpoints
     // ── Collection CRUD ──────────────────────────────────────────────────────
 
     private static async Task<IResult> GetRootCollections(
-        [FromServices] ICollectionService svc, CancellationToken ct)
+        [FromServices] ICollectionQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetRootCollectionsAsync(ct);
         return result.ToHttpResult();
     }
 
     private static async Task<IResult> GetCollectionById(
-        Guid id, [FromServices] ICollectionService svc, CancellationToken ct)
+        Guid id, [FromServices] ICollectionQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetByIdAsync(id, ct);
         return result.ToHttpResult();

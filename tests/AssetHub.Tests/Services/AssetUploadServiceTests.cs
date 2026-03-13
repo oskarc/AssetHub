@@ -83,19 +83,16 @@ public class AssetUploadServiceTests : IAsyncLifetime
 
     private AssetUploadService CreateSut(string userId, bool isSystemAdmin = false)
     {
-        var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
         var appSettings = Options.Create(new AppSettings { MaxUploadSizeMb = MaxUploadSizeMb });
+        var repos = new AssetUploadRepositories(_assetRepo, _acRepo);
+        var pipeline = new AssetUploadPipeline(_minioMock.Object, _malwareMock.Object, _mediaMock.Object, BucketName);
 
         return new AssetUploadService(
-            _assetRepo,
-            _acRepo,
+            repos,
+            pipeline,
             _authService,
-            _minioMock.Object,
-            _mediaMock.Object,
-            _malwareMock.Object,
             _auditMock.Object,
             new CurrentUser(userId, isSystemAdmin),
-            minioSettings,
             appSettings,
             NullLogger<AssetUploadService>.Instance);
     }

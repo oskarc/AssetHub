@@ -2,6 +2,12 @@ using AssetHub.Domain.Entities;
 
 namespace AssetHub.Application.Repositories;
 
+public sealed record ShareQueryOptions(
+    bool IncludeAsset = false,
+    bool IncludeCollection = false,
+    int Skip = 0,
+    int Take = Constants.Limits.DefaultAdminPageSize);
+
 public interface IShareRepository
 {
     Task<Share?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
@@ -12,7 +18,7 @@ public interface IShareRepository
     /// <summary>
     /// Gets all shares with optional navigation properties (admin use).
     /// </summary>
-    Task<List<Share>> GetAllAsync(bool includeAsset = false, bool includeCollection = false, int skip = 0, int take = Constants.Limits.DefaultAdminPageSize, CancellationToken cancellationToken = default);
+    Task<List<Share>> GetAllAsync(ShareQueryOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns the total number of shares (admin use).

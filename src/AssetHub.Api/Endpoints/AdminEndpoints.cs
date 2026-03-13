@@ -109,7 +109,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> BulkDeleteCollections(
         [FromBody] BulkDeleteCollectionsRequest request,
-        [FromServices] ICollectionService svc, CancellationToken ct)
+        [FromServices] ICollectionAdminService svc, CancellationToken ct)
     {
         var result = await svc.BulkDeleteAsync(request.CollectionIds, request.DeleteAssets, ct);
         return result.ToHttpResult();
@@ -117,7 +117,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> BulkSetCollectionAccess(
         [FromBody] BulkSetCollectionAccessRequest request,
-        [FromServices] ICollectionService svc, CancellationToken ct)
+        [FromServices] ICollectionAdminService svc, CancellationToken ct)
     {
         var result = await svc.BulkSetAccessAsync(request, ct);
         return result.ToHttpResult();

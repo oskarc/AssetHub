@@ -4,8 +4,6 @@ using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -22,8 +20,6 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
     private readonly IKeycloakUserService _keycloakUserService;
     private readonly IAuditService _audit;
     private readonly CurrentUser _currentUser;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly ILogger<CollectionAclService> _logger;
 
     public CollectionAclService(
         ICollectionRepository collectionRepo,
@@ -32,9 +28,7 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         IUserLookupService userLookup,
         IKeycloakUserService keycloakUserService,
         IAuditService audit,
-        CurrentUser currentUser,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<CollectionAclService> logger)
+        CurrentUser currentUser)
     {
         _collectionRepo = collectionRepo;
         _aclRepo = aclRepo;
@@ -43,11 +37,7 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         _keycloakUserService = keycloakUserService;
         _audit = audit;
         _currentUser = currentUser;
-        _httpContextAccessor = httpContextAccessor;
-        _logger = logger;
     }
-
-    private HttpContext? HttpCtx => _httpContextAccessor.HttpContext;
 
     // ── Manager self-service (used by CollectionEndpoints) ───────────────────
 
@@ -71,9 +61,7 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
             Id = a.Id,
             PrincipalType = a.PrincipalType.ToDbString(),
             PrincipalId = a.PrincipalId,
-            PrincipalName = a.PrincipalType == PrincipalType.User && nameMap.TryGetValue(a.PrincipalId, out var name)
-                ? name
-                : a.PrincipalType == PrincipalType.User ? $"Deleted User ({a.PrincipalId[..Math.Min(8, a.PrincipalId.Length)]})" : null,
+            PrincipalName = ResolvePrincipalName(a, nameMap),
             PrincipalEmail = a.PrincipalType == PrincipalType.User && emailMap.TryGetValue(a.PrincipalId, out var email) ? email : null,
             Role = a.Role.ToDbString(),
             CreatedAt = a.CreatedAt,
@@ -281,5 +269,15 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
             .ToList();
 
         return result;
+    }
+
+    private static string? ResolvePrincipalName(CollectionAcl acl, Dictionary<string, string> nameMap)
+    {
+        if (acl.PrincipalType != PrincipalType.User)
+            return null;
+
+        return nameMap.TryGetValue(acl.PrincipalId, out var name)
+            ? name
+            : $"Deleted User ({acl.PrincipalId[..Math.Min(8, acl.PrincipalId.Length)]})";
     }
 }

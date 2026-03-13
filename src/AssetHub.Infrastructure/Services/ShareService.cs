@@ -10,12 +10,19 @@ using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Services;
 
+/// <summary>
+/// Groups repository dependencies for <see cref="ShareService"/>
+/// to keep the constructor parameter count manageable.
+/// </summary>
+public sealed record ShareServiceRepositories(
+    IAssetRepository AssetRepo,
+    IAssetCollectionRepository AssetCollectionRepo,
+    ICollectionRepository CollectionRepo,
+    IShareRepository ShareRepo);
+
 /// <inheritdoc />
 public class ShareService(
-    IAssetRepository assetRepository,
-    IAssetCollectionRepository assetCollectionRepo,
-    ICollectionRepository collectionRepository,
-    IShareRepository shareRepository,
+    ShareServiceRepositories repos,
     IEmailService emailService,
     IUserLookupService userLookupService,
     IAuditService audit,
@@ -30,11 +37,11 @@ public class ShareService(
 
         if (dto.ScopeType == Constants.ScopeTypes.Asset)
         {
-            var asset = await assetRepository.GetByIdAsync(dto.ScopeId, ct);
+            var asset = await repos.AssetRepo.GetByIdAsync(dto.ScopeId, ct);
             if (asset == null)
                 return new ShareScopeValidation { ErrorMessage = "Asset not found", ErrorStatusCode = 404 };
 
-            var assetCollections = await assetCollectionRepo.GetCollectionsForAssetAsync(dto.ScopeId, ct);
+            var assetCollections = await repos.AssetCollectionRepo.GetCollectionsForAssetAsync(dto.ScopeId, ct);
 
             // Allow sharing orphan assets - authorization will check system admin
             return new ShareScopeValidation
@@ -47,7 +54,7 @@ public class ShareService(
         }
 
         // Collection scope
-        var collection = await collectionRepository.GetByIdAsync(dto.ScopeId, ct: ct);
+        var collection = await repos.CollectionRepo.GetByIdAsync(dto.ScopeId, ct: ct);
         if (collection == null)
             return new ShareScopeValidation { ErrorMessage = "Collection not found", ErrorStatusCode = 404 };
 
@@ -67,26 +74,9 @@ public class ShareService(
         if (!validation.IsValid)
             return ShareCreationResult.Error(validation.ErrorMessage!);
 
-        // Validate expiry: must be in the future and at most 90 days out
-        if (dto.ExpiresAt.HasValue)
-        {
-            var expiryUtc = dto.ExpiresAt.Value.ToUniversalTime();
-            if (expiryUtc <= DateTime.UtcNow)
-                return ShareCreationResult.Error("Expiry date must be in the future");
-            if (expiryUtc > DateTime.UtcNow.AddDays(Constants.Limits.MaxShareExpiryDays))
-                return ShareCreationResult.Error($"Expiry date cannot be more than {Constants.Limits.MaxShareExpiryDays} days in the future");
-        }
-
-        // Validate notification email addresses up-front so the caller receives
-        // a 400 rather than a silent email failure (CWE-20)
-        if (dto.NotifyEmails?.Count > 0)
-        {
-            var invalidEmails = dto.NotifyEmails
-                .Where(e => InputValidation.ValidateEmail(e) != null)
-                .ToList();
-            if (invalidEmails.Count > 0)
-                return ShareCreationResult.Error("One or more notification email addresses are invalid");
-        }
+        var inputError = ValidateShareInputs(dto);
+        if (inputError != null)
+            return ShareCreationResult.Error(inputError);
 
         // Generate secure token
         var token = ShareHelpers.GenerateToken();
@@ -127,7 +117,7 @@ public class ShareService(
             PasswordEncrypted = protectedPassword
         };
 
-        await shareRepository.CreateAsync(share, ct);
+        await repos.ShareRepo.CreateAsync(share, ct);
 
         await audit.LogAsync("share.created", Constants.ScopeTypes.Share, share.Id, userId,
             new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, ct);
@@ -176,5 +166,28 @@ public class ShareService(
             },
             EmailFailed = emailFailed
         };
+    }
+
+    private static string? ValidateShareInputs(CreateShareDto dto)
+    {
+        if (dto.ExpiresAt.HasValue)
+        {
+            var expiryUtc = dto.ExpiresAt.Value.ToUniversalTime();
+            if (expiryUtc <= DateTime.UtcNow)
+                return "Expiry date must be in the future";
+            if (expiryUtc > DateTime.UtcNow.AddDays(Constants.Limits.MaxShareExpiryDays))
+                return $"Expiry date cannot be more than {Constants.Limits.MaxShareExpiryDays} days in the future";
+        }
+
+        if (dto.NotifyEmails?.Count > 0)
+        {
+            var invalidEmails = dto.NotifyEmails
+                .Where(e => InputValidation.ValidateEmail(e) != null)
+                .ToList();
+            if (invalidEmails.Count > 0)
+                return "One or more notification email addresses are invalid";
+        }
+
+        return null;
     }
 }

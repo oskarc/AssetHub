@@ -3,17 +3,11 @@ using AssetHub.Application.Dtos;
 namespace AssetHub.Application.Services;
 
 /// <summary>
-/// Orchestrates collection CRUD and bulk download.
+/// Collection commands: create, update, delete, and download.
 /// Authorization and auditing belong here — not in endpoints.
 /// </summary>
 public interface ICollectionService
 {
-    /// <summary>Get all collections accessible to the current user.</summary>
-    Task<ServiceResult<List<CollectionResponseDto>>> GetRootCollectionsAsync(CancellationToken ct);
-
-    /// <summary>Get a single collection by ID.</summary>
-    Task<ServiceResult<CollectionResponseDto>> GetByIdAsync(Guid id, CancellationToken ct);
-
     /// <summary>Create a new collection.</summary>
     Task<ServiceResult<CollectionResponseDto>> CreateAsync(CreateCollectionDto dto, CancellationToken ct);
 
@@ -22,12 +16,6 @@ public interface ICollectionService
 
     /// <summary>Delete a collection and handle its assets (orphan cleanup).</summary>
     Task<ServiceResult> DeleteAsync(Guid id, CancellationToken ct);
-
-    /// <summary>Delete multiple collections at once (admin only).</summary>
-    Task<ServiceResult<BulkDeleteCollectionsResponse>> BulkDeleteAsync(List<Guid> collectionIds, bool deleteAssets, CancellationToken ct);
-
-    /// <summary>Set access on multiple collections at once (admin only).</summary>
-    Task<ServiceResult<BulkSetCollectionAccessResponse>> BulkSetAccessAsync(BulkSetCollectionAccessRequest request, CancellationToken ct);
 
     /// <summary>Enqueue a background ZIP build for all assets in a collection.</summary>
     Task<ServiceResult<ZipDownloadEnqueuedResponse>> DownloadAllAssetsAsync(Guid id, CancellationToken ct);

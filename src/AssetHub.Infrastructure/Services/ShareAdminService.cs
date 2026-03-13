@@ -44,7 +44,7 @@ public class ShareAdminService : IShareAdminService
     {
         take = Math.Clamp(take, 1, Constants.Limits.AdminShareQueryLimit);
         var total = await _shareRepo.CountAllAsync(ct);
-        var shares = await _shareRepo.GetAllAsync(includeAsset: true, includeCollection: true, skip: skip, take: take, cancellationToken: ct);
+        var shares = await _shareRepo.GetAllAsync(new ShareQueryOptions(IncludeAsset: true, IncludeCollection: true, Skip: skip, Take: take), ct);
         var userIds = shares.Select(s => s.CreatedByUserId).Distinct().ToList();
         var userNames = await _userLookup.GetUserNamesAsync(userIds, ct);
 

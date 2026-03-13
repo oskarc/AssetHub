@@ -1,7 +1,6 @@
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
-using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
@@ -10,84 +9,32 @@ using Microsoft.Extensions.Options;
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// Orchestrates collection CRUD and bulk download.
+/// Groups repository dependencies for <see cref="CollectionService"/>
+/// to keep the constructor parameter count manageable.
 /// </summary>
-public class CollectionService : ICollectionService
+public sealed record CollectionServiceRepositories(
+    ICollectionRepository CollectionRepo,
+    ICollectionAclRepository AclRepo,
+    IShareRepository ShareRepo);
+
+/// <summary>
+/// Collection commands: create, update, delete, and download.
+/// </summary>
+public sealed class CollectionService(
+    CollectionServiceRepositories repos,
+    ICollectionAuthorizationService authService,
+    IAssetDeletionService deletionService,
+    IZipBuildService zipBuildService,
+    IAuditService audit,
+    IOptions<MinIOSettings> minioSettings,
+    CurrentUser currentUser) : ICollectionService
 {
-    private readonly ICollectionRepository _collectionRepo;
-    private readonly ICollectionAclRepository _aclRepo;
-    private readonly IAssetRepository _assetRepo;
-    private readonly IAssetCollectionRepository _assetCollectionRepo;
-    private readonly IShareRepository _shareRepo;
-    private readonly ICollectionAuthorizationService _authService;
-    private readonly IAssetDeletionService _deletionService;
-    private readonly IZipBuildService _zipBuildService;
-    private readonly IAuditService _audit;
-    private readonly string _bucketName;
-    private readonly CurrentUser _currentUser;
-
-    public CollectionService(
-        ICollectionRepository collectionRepo,
-        ICollectionAclRepository aclRepo,
-        IAssetRepository assetRepo,
-        IAssetCollectionRepository assetCollectionRepo,
-        IShareRepository shareRepo,
-        ICollectionAuthorizationService authService,
-        IAssetDeletionService deletionService,
-        IZipBuildService zipBuildService,
-        IAuditService audit,
-        IOptions<MinIOSettings> minioSettings,
-        CurrentUser currentUser)
-    {
-        _collectionRepo = collectionRepo;
-        _aclRepo = aclRepo;
-        _assetRepo = assetRepo;
-        _assetCollectionRepo = assetCollectionRepo;
-        _shareRepo = shareRepo;
-        _authService = authService;
-        _deletionService = deletionService;
-        _zipBuildService = zipBuildService;
-        _audit = audit;
-        _bucketName = minioSettings.Value.BucketName;
-        _currentUser = currentUser;
-    }
-
-
-    public async Task<ServiceResult<List<CollectionResponseDto>>> GetRootCollectionsAsync(CancellationToken ct)
-    {
-        var userId = _currentUser.UserId;
-        var collections = await _collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
-        var collectionList = collections.ToList();
-        var collectionIds = collectionList.Select(c => c.Id);
-        var assetCounts = await _collectionRepo.GetAssetCountsAsync(collectionIds, ct);
-
-        var dtos = await CollectionMapper.ToDtoListAsync(collectionList, userId, _authService, assetCounts, ct);
-        return dtos;
-    }
-
-    public async Task<ServiceResult<CollectionResponseDto>> GetByIdAsync(Guid id, CancellationToken ct)
-    {
-        var userId = _currentUser.UserId;
-
-        var hasAccess = await _authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
-        if (!hasAccess)
-            return ServiceError.Forbidden();
-
-        var collection = await _collectionRepo.GetByIdAsync(id, ct: ct);
-        if (collection == null)
-            return ServiceError.NotFound("Collection not found");
-
-        var assetCounts = await _collectionRepo.GetAssetCountsAsync([id], ct);
-        var assetCount = assetCounts.GetValueOrDefault(id);
-
-        var dto = await CollectionMapper.ToDtoAsync(collection, userId, _authService, assetCount, ct);
-        return dto;
-    }
+    private readonly string _bucketName = minioSettings.Value.BucketName;
 
     public async Task<ServiceResult<CollectionResponseDto>> CreateAsync(
         CreateCollectionDto dto, CancellationToken ct)
     {
-        var userId = _currentUser.UserId;
+        var userId = currentUser.UserId;
 
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 255)
             return ServiceError.BadRequest("Name must be 1-255 characters");
@@ -97,13 +44,13 @@ public class CollectionService : ICollectionService
 
         var descToStore = InputValidation.NormalizeToNull(dto.Description);
 
-        var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, ct: ct);
+        var nameExists = await repos.CollectionRepo.ExistsByNameAsync(dto.Name, ct: ct);
         if (nameExists)
             return ServiceError.BadRequest($"A collection named '{dto.Name}' already exists");
 
-        if (!_currentUser.IsSystemAdmin)
+        if (!currentUser.IsSystemAdmin)
         {
-            var canCreate = await _authService.CanCreateRootCollectionAsync(userId);
+            var canCreate = await authService.CanCreateRootCollectionAsync(userId);
             if (!canCreate)
                 return ServiceError.Forbidden();
         }
@@ -117,10 +64,10 @@ public class CollectionService : ICollectionService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _collectionRepo.CreateAsync(collection, ct);
-        await _aclRepo.SetAccessAsync(collection.Id, Constants.PrincipalTypes.User, userId, RoleHierarchy.Roles.Admin, ct);
+        await repos.CollectionRepo.CreateAsync(collection, ct);
+        await repos.AclRepo.SetAccessAsync(collection.Id, Constants.PrincipalTypes.User, userId, RoleHierarchy.Roles.Admin, ct);
 
-        await _audit.LogAsync("collection.created", Constants.ScopeTypes.Collection, collection.Id, userId,
+        await audit.LogAsync("collection.created", Constants.ScopeTypes.Collection, collection.Id, userId,
             new() { ["name"] = collection.Name },
             ct);
 
@@ -138,13 +85,13 @@ public class CollectionService : ICollectionService
     public async Task<ServiceResult<MessageResponse>> UpdateAsync(
         Guid id, UpdateCollectionDto dto, CancellationToken ct)
     {
-        var userId = _currentUser.UserId;
+        var userId = currentUser.UserId;
 
-        var canUpdate = await _authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Manager, ct);
+        var canUpdate = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Manager, ct);
         if (!canUpdate)
             return ServiceError.Forbidden();
 
-        var collection = await _collectionRepo.GetByIdAsync(id, ct: ct);
+        var collection = await repos.CollectionRepo.GetByIdAsync(id, ct: ct);
         if (collection == null)
             return ServiceError.NotFound("Collection not found");
 
@@ -154,7 +101,7 @@ public class CollectionService : ICollectionService
                 return ServiceError.BadRequest("Name must be 1-255 characters");
             if (!string.Equals(collection.Name, dto.Name, StringComparison.OrdinalIgnoreCase))
             {
-                var nameExists = await _collectionRepo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct);
+                var nameExists = await repos.CollectionRepo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct);
                 if (nameExists)
                     return ServiceError.BadRequest($"A collection named '{dto.Name}' already exists");
             }
@@ -168,8 +115,8 @@ public class CollectionService : ICollectionService
             collection.Description = desc;
         }
 
-        await _collectionRepo.UpdateAsync(collection, ct);
-        await _audit.LogAsync("collection.updated", Constants.ScopeTypes.Collection, id, userId,
+        await repos.CollectionRepo.UpdateAsync(collection, ct);
+        await audit.LogAsync("collection.updated", Constants.ScopeTypes.Collection, id, userId,
             new() { ["name"] = collection.Name, ["description"] = collection.Description ?? "" },
             ct);
 
@@ -178,145 +125,43 @@ public class CollectionService : ICollectionService
 
     public async Task<ServiceResult> DeleteAsync(Guid id, CancellationToken ct)
     {
-        var userId = _currentUser.UserId;
+        var userId = currentUser.UserId;
 
-        var canDelete = await _authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Admin, ct);
+        var canDelete = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Admin, ct);
         if (!canDelete)
             return ServiceError.Forbidden();
 
-        var collection = await _collectionRepo.GetByIdAsync(id, ct: ct);
+        var collection = await repos.CollectionRepo.GetByIdAsync(id, ct: ct);
         if (collection == null)
             return ServiceError.NotFound("Collection not found");
 
         var collectionName = collection.Name;
-        await _deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
-        await _shareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, ct);
-        await _collectionRepo.DeleteAsync(id, ct);
+        await deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
+        await repos.ShareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, ct);
+        await repos.CollectionRepo.DeleteAsync(id, ct);
 
-        await _audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
+        await audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
             new() { ["name"] = collectionName },
             ct);
 
         return ServiceResult.Success;
     }
 
-    public async Task<ServiceResult<BulkDeleteCollectionsResponse>> BulkDeleteAsync(
-        List<Guid> collectionIds, bool deleteAssets, CancellationToken ct)
-    {
-        if (!_currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only system administrators can perform bulk operations");
-
-        if (collectionIds.Count == 0)
-            return ServiceError.BadRequest("No collections specified");
-
-        var userId = _currentUser.UserId;
-        var deleted = 0;
-        var errors = new List<BulkOperationError>();
-
-        foreach (var id in collectionIds.Distinct())
-        {
-            try
-            {
-                var collection = await _collectionRepo.GetByIdAsync(id, ct: ct);
-                if (collection == null)
-                {
-                    errors.Add(new BulkOperationError { CollectionId = id, Error = "Collection not found" });
-                    continue;
-                }
-
-                var collectionName = collection.Name;
-
-                if (deleteAssets)
-                    await _deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
-                else
-                    await _assetCollectionRepo.UnlinkAllFromCollectionAsync(id, ct);
-
-                await _shareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, ct);
-                await _collectionRepo.DeleteAsync(id, ct);
-
-                await _audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
-                    new() { ["name"] = collectionName, ["bulk"] = "true", ["deleteAssets"] = deleteAssets.ToString() }, ct);
-                deleted++;
-            }
-            catch (Exception ex)
-            {
-                errors.Add(new BulkOperationError { CollectionId = id, Error = ex.Message });
-            }
-        }
-
-        return new BulkDeleteCollectionsResponse
-        {
-            Message = $"Deleted {deleted} collection(s)",
-            Deleted = deleted,
-            Failed = errors.Count,
-            Errors = errors
-        };
-    }
-
-    public async Task<ServiceResult<BulkSetCollectionAccessResponse>> BulkSetAccessAsync(
-        BulkSetCollectionAccessRequest request, CancellationToken ct)
-    {
-        if (!_currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only system administrators can perform bulk operations");
-
-        if (request.CollectionIds.Count == 0)
-            return ServiceError.BadRequest("No collections specified");
-        if (string.IsNullOrWhiteSpace(request.PrincipalId))
-            return ServiceError.BadRequest("Principal ID is required");
-        if (string.IsNullOrWhiteSpace(request.Role))
-            return ServiceError.BadRequest("Role is required");
-
-        var userId = _currentUser.UserId;
-        var updated = 0;
-        var errors = new List<BulkOperationError>();
-
-        foreach (var collectionId in request.CollectionIds.Distinct())
-        {
-            try
-            {
-                var collection = await _collectionRepo.GetByIdAsync(collectionId, ct: ct);
-                if (collection == null)
-                {
-                    errors.Add(new BulkOperationError { CollectionId = collectionId, Error = "Collection not found" });
-                    continue;
-                }
-
-                await _aclRepo.SetAccessAsync(collectionId, request.PrincipalType, request.PrincipalId, request.Role, ct);
-
-                await _audit.LogAsync("collection.access_set", Constants.ScopeTypes.Collection, collectionId, userId,
-                    new() { ["principalId"] = request.PrincipalId, ["role"] = request.Role, ["bulk"] = "true" }, ct);
-                updated++;
-            }
-            catch (Exception ex)
-            {
-                errors.Add(new BulkOperationError { CollectionId = collectionId, Error = ex.Message });
-            }
-        }
-
-        return new BulkSetCollectionAccessResponse
-        {
-            Message = $"Updated access on {updated} collection(s)",
-            Updated = updated,
-            Failed = errors.Count,
-            Errors = errors
-        };
-    }
-
     public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> DownloadAllAssetsAsync(
         Guid id, CancellationToken ct)
     {
-        var userId = _currentUser.UserId;
+        var userId = currentUser.UserId;
 
-        var canView = await _authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
+        var canView = await authService.CheckAccessAsync(userId, id, RoleHierarchy.Roles.Viewer, ct);
         if (!canView)
             return ServiceError.Forbidden();
 
-        var exists = await _collectionRepo.ExistsAsync(id, ct);
+        var exists = await repos.CollectionRepo.ExistsAsync(id, ct);
         if (!exists)
             return ServiceError.NotFound("Collection not found");
 
-        await _audit.LogAsync("collection.download_requested", Constants.ScopeTypes.Collection, id, userId, ct: ct);
+        await audit.LogAsync("collection.download_requested", Constants.ScopeTypes.Collection, id, userId, ct: ct);
 
-        return await _zipBuildService.EnqueueCollectionZipAsync(id, userId, ct);
+        return await zipBuildService.EnqueueCollectionZipAsync(id, userId, ct);
     }
 }

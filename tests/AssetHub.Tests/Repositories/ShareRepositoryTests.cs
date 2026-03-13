@@ -1,3 +1,4 @@
+using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
@@ -235,7 +236,7 @@ public class ShareRepositoryTests : IAsyncLifetime
         _db.Shares.Add(share);
         await _db.SaveChangesAsync();
 
-        var results = await _repo.GetAllAsync(includeAsset: true);
+        var results = await _repo.GetAllAsync(new ShareQueryOptions(IncludeAsset: true));
 
         Assert.Single(results);
         Assert.NotNull(results[0].Asset);
@@ -251,7 +252,7 @@ public class ShareRepositoryTests : IAsyncLifetime
         _db.Shares.Add(share);
         await _db.SaveChangesAsync();
 
-        var results = await _repo.GetAllAsync(includeCollection: true);
+        var results = await _repo.GetAllAsync(new ShareQueryOptions(IncludeCollection: true));
 
         Assert.Single(results);
         Assert.NotNull(results[0].Collection);
@@ -357,8 +358,8 @@ public class ShareRepositoryTests : IAsyncLifetime
             _db.Shares.Add(TestData.CreateShare());
         await _db.SaveChangesAsync();
 
-        var page1 = await _repo.GetAllAsync(skip: 0, take: 3);
-        var page2 = await _repo.GetAllAsync(skip: 3, take: 3);
+        var page1 = await _repo.GetAllAsync(new ShareQueryOptions(Skip: 0, Take: 3));
+        var page2 = await _repo.GetAllAsync(new ShareQueryOptions(Skip: 3, Take: 3));
 
         Assert.Equal(3, page1.Count);
         Assert.Equal(2, page2.Count);
