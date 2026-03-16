@@ -292,7 +292,7 @@ else
                                 <MudButton Variant="Variant.Outlined"
                                            StartIcon="@Icons.Material.Filled.Photo"
                                            FullWidth="true"
-                                           Href="@($"/api/assets/{AssetId}/medium/download")"
+                                           Href="@($"/api/v1/assets/{AssetId}/medium/download")"
                                            Target="_blank">
                                     @CommonLoc["Btn_DownloadMedium"]
                                 </MudButton>
@@ -303,7 +303,7 @@ else
                                 <MudButton Variant="Variant.Outlined"
                                            StartIcon="@Icons.Material.Filled.PhotoSizeSelectSmall"
                                            FullWidth="true"
-                                           Href="@($"/api/assets/{AssetId}/thumb/download")"
+                                           Href="@($"/api/v1/assets/{AssetId}/thumb/download")"
                                            Target="_blank">
                                     @CommonLoc["Btn_DownloadThumbnail"]
                                 </MudButton>
@@ -453,35 +453,35 @@ else
         // Use medium rendition for images
         if (_asset.AssetType == Constants.AssetTypeFilters.Image && !string.IsNullOrEmpty(_asset.MediumObjectKey))
         {
-            return $"/api/assets/{_asset.Id}/medium";
+            return $"/api/v1/assets/{_asset.Id}/medium";
         }
 
         // Fallback to original
-        return $"/api/assets/{_asset.Id}/download";
+        return $"/api/v1/assets/{_asset.Id}/download";
     }
 
     private string GetVideoUrl()
     {
         if (_asset == null) return "";
-        return $"/api/assets/{_asset.Id}/preview";
+        return $"/api/v1/assets/{_asset.Id}/preview";
     }
 
     private string GetPosterUrl()
     {
         if (_asset == null) return "";
         if (!string.IsNullOrEmpty(_asset.PosterObjectKey))
-            return $"/api/assets/{_asset.Id}/poster";
+            return $"/api/v1/assets/{_asset.Id}/poster";
         return "";
     }
 
     private string GetDownloadUrl()
     {
-        return $"/api/assets/{AssetId}/download";
+        return $"/api/v1/assets/{AssetId}/download";
     }
 
     private string GetInlinePreviewUrl()
     {
-        return $"/api/assets/{AssetId}/preview";
+        return $"/api/v1/assets/{AssetId}/preview";
     }
 
     private async Task ShareAssetAsync()

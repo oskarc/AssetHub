@@ -249,10 +249,10 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 | Entity | PostgreSQL-Specific Features | Notes |
 |--------|----------------------------|-------|
 | `Assets` | `Tags` (jsonb), `MetadataJson` (jsonb) | Custom ValueComparers for change tracking on JSON columns |
-| `Collections` | — | Indexed on Name |
+| `Collections` | — | Case-insensitive unique index on Name (`lower("Name")`) |
 | `CollectionAcls` | — | Unique composite index on (CollectionId, PrincipalType, PrincipalId) |
 | `AssetCollections` | — | Many-to-many join table with unique (AssetId, CollectionId) |
-| `Shares` | `PermissionsJson` (jsonb), `TokenHash` (unique index) | Polymorphic scope via ScopeType/ScopeId (no FK, enforced at app level) |
+| `Shares` | `PermissionsJson` (jsonb), `TokenHash` (unique index) | Polymorphic scope via ScopeType/ScopeId (referential integrity enforced by database trigger) |
 | `AuditEvents` | `DetailsJson` (jsonb) | Composite index on (EventType, CreatedAt) for filtered pagination |
 | `ZipDownloads` | — | Indexed on Status and ExpiresAt for cleanup jobs |
 | `DataProtectionKeys` | — | ASP.NET Data Protection key ring (via `IDataProtectionKeyContext`) |
@@ -260,6 +260,7 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 #### PostgreSQL-Specific Dependencies
 
 - **4 jsonb columns** with serialization/deserialization converters and custom `ValueComparer` implementations
+- **GIN index on Tags** — enables efficient JSONB tag search via `@>` operator
 - **`pg_trgm` extension** — installed via migration, enables trigram-based fuzzy search
 - **`EF.Functions.ILike()`** — case-insensitive pattern matching for asset search (title and description)
 - **`EnableDynamicJson()`** — NpgsqlDataSource configuration for JSON column support
@@ -267,7 +268,7 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 
 #### Migrations
 
-Code-first, auto-applied on startup by both the API and Worker hosts via `Database.MigrateAsync()`. Currently 11 migrations from initial schema through to share password encryption.
+Code-first, conditionally applied on startup. Both the API and Worker hosts call `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. Currently 14 migrations from initial schema through to tags GIN indexing.
 
 #### Replacing PostgreSQL
 

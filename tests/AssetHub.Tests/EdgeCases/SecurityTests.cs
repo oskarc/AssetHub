@@ -63,7 +63,7 @@ public class SecurityTests : IAsyncLifetime
     {
         var client = ViewerClient();
 
-        var response = await client.GetAsync("/api/assets");
+        var response = await client.GetAsync("/api/v1/assets");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -74,7 +74,7 @@ public class SecurityTests : IAsyncLifetime
         var client = ViewerClient();
 
         // Admin-only endpoints should return 403
-        var healthResponse = await client.GetAsync("/api/admin/audit");
+        var healthResponse = await client.GetAsync("/api/v1/admin/audit");
 
         Assert.Equal(HttpStatusCode.Forbidden, healthResponse.StatusCode);
     }
@@ -85,7 +85,7 @@ public class SecurityTests : IAsyncLifetime
         var client = ViewerClient();
         var dto = new CreateCollectionDto { Name = "Unauthorized Collection" };
 
-        var response = await client.PostAsJsonAsync("/api/collections", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/collections", dto);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -97,7 +97,7 @@ public class SecurityTests : IAsyncLifetime
         var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Contributor);
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        var response = await client.DeleteAsync($"/api/assets/{assetId}?fromCollectionId={colId}");
+        var response = await client.DeleteAsync($"/api/v1/assets/{assetId}?fromCollectionId={colId}");
 
         // Contributor can upload/edit but cannot delete - requires Manager+
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -111,7 +111,7 @@ public class SecurityTests : IAsyncLifetime
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Viewer);
 
         var patchContent = JsonContent.Create(new { Title = "Hacked Title" });
-        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
 
         // Viewer cannot edit - requires Contributor+
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -129,7 +129,7 @@ public class SecurityTests : IAsyncLifetime
             PrincipalId = "some-user-id",
             Role = RoleHierarchy.Roles.Viewer
         };
-        var response = await client.PostAsJsonAsync($"/api/collections/{colId}/acl", dto);
+        var response = await client.PostAsJsonAsync($"/api/v1/collections/{colId}/acl", dto);
 
         // ACL management requires Manager+
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -147,7 +147,7 @@ public class SecurityTests : IAsyncLifetime
         // User A tries to access it
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        var response = await clientA.GetAsync($"/api/assets/{assetId}");
+        var response = await clientA.GetAsync($"/api/v1/assets/{assetId}");
 
         // User A has no ACL entry for User B's collection
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -159,7 +159,7 @@ public class SecurityTests : IAsyncLifetime
         var (colId, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        var response = await clientA.DeleteAsync($"/api/assets/{assetId}?fromCollectionId={colId}");
+        var response = await clientA.DeleteAsync($"/api/v1/assets/{assetId}?fromCollectionId={colId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -171,7 +171,7 @@ public class SecurityTests : IAsyncLifetime
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
 
         var patchContent = JsonContent.Create(new { Name = "Stolen Collection" });
-        var response = await clientA.PatchAsync($"/api/collections/{colId}", patchContent);
+        var response = await clientA.PatchAsync($"/api/v1/collections/{colId}", patchContent);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -182,7 +182,7 @@ public class SecurityTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        var response = await clientA.GetAsync($"/api/assets/{assetId}/download");
+        var response = await clientA.GetAsync($"/api/v1/assets/{assetId}/download");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -193,7 +193,7 @@ public class SecurityTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        var response = await clientA.GetAsync($"/api/assets/{assetId}/thumb");
+        var response = await clientA.GetAsync($"/api/v1/assets/{assetId}/thumb");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -209,7 +209,7 @@ public class SecurityTests : IAsyncLifetime
             ScopeId = assetId,
             ScopeType = Constants.ScopeTypes.Asset
         };
-        var response = await clientA.PostAsJsonAsync("/api/shares", dto);
+        var response = await clientA.PostAsJsonAsync("/api/v1/shares", dto);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -224,7 +224,7 @@ public class SecurityTests : IAsyncLifetime
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         // User A tries to add their asset to User B's collection
-        var response = await clientA.PostAsync($"/api/assets/{assetIdA}/collections/{colIdB}", null);
+        var response = await clientA.PostAsync($"/api/v1/assets/{assetIdA}/collections/{colIdB}", null);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -240,7 +240,7 @@ public class SecurityTests : IAsyncLifetime
             PrincipalId = UserAId, // Trying to give themselves access
             Role = RoleHierarchy.Roles.Admin
         };
-        var response = await clientA.PostAsJsonAsync($"/api/collections/{colId}/acl", dto);
+        var response = await clientA.PostAsJsonAsync($"/api/v1/collections/{colId}/acl", dto);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -264,7 +264,7 @@ public class SecurityTests : IAsyncLifetime
         var (colId, _) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
 
-        var response = await clientA.GetAsync($"/api/collections/{colId}");
+        var response = await clientA.GetAsync($"/api/v1/collections/{colId}");
 
         // Either 403 or 404 is acceptable but must not leak data
         Assert.True(
@@ -287,7 +287,7 @@ public class SecurityTests : IAsyncLifetime
 
         // Use the real token - the share lookup will succeed but validation will fail
         var client = AnonymousClient();
-        var response = await client.GetAsync($"/api/shares/{token}");
+        var response = await client.GetAsync($"/api/v1/shares/{token}");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.Unauthorized ||
@@ -305,7 +305,7 @@ public class SecurityTests : IAsyncLifetime
 
         // Use the real token - revoked share should be rejected
         var client = AnonymousClient();
-        var response = await client.GetAsync($"/api/shares/{token}");
+        var response = await client.GetAsync($"/api/v1/shares/{token}");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.Unauthorized ||
@@ -323,7 +323,7 @@ public class SecurityTests : IAsyncLifetime
 
         // Use the real token - password-protected share should require password
         var client = AnonymousClient();
-        var response = await client.GetAsync($"/api/shares/{token}");
+        var response = await client.GetAsync($"/api/v1/shares/{token}");
 
         // Should require password - returns 401 (PasswordRequired) or similar
         Assert.True(
@@ -337,7 +337,7 @@ public class SecurityTests : IAsyncLifetime
     {
         // Verify download endpoint rejects invalid tokens
         var client = AnonymousClient();
-        var response = await client.GetAsync("/api/shares/invalid-token-for-download/download");
+        var response = await client.GetAsync("/api/v1/shares/invalid-token-for-download/download");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.Unauthorized ||
@@ -349,7 +349,7 @@ public class SecurityTests : IAsyncLifetime
     {
         // Verify preview endpoint rejects invalid tokens
         var client = AnonymousClient();
-        var response = await client.GetAsync("/api/shares/invalid-token-for-preview/preview");
+        var response = await client.GetAsync("/api/v1/shares/invalid-token-for-preview/preview");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.Unauthorized ||
@@ -366,7 +366,7 @@ public class SecurityTests : IAsyncLifetime
 
         // Viewer tries to revoke it
         var client = ViewerClient();
-        var response = await client.DeleteAsync($"/api/shares/{shareId}");
+        var response = await client.DeleteAsync($"/api/v1/shares/{shareId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -381,7 +381,7 @@ public class SecurityTests : IAsyncLifetime
 
         // User A tries to revoke it
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
-        var response = await clientA.DeleteAsync($"/api/shares/{shareId}");
+        var response = await clientA.DeleteAsync($"/api/v1/shares/{shareId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -400,7 +400,7 @@ public class SecurityTests : IAsyncLifetime
             Description = "Normal description"
         };
 
-        var response = await client.PostAsJsonAsync("/api/collections", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/collections", dto);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<CollectionResponseDto>();
@@ -421,7 +421,7 @@ public class SecurityTests : IAsyncLifetime
             Title = "<img src=x onerror=alert('xss')>",
             Description = "Test"
         });
-        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -431,7 +431,7 @@ public class SecurityTests : IAsyncLifetime
     {
         var client = AdminClient();
 
-        var response = await client.GetAsync("/api/assets/not-a-valid-guid");
+        var response = await client.GetAsync("/api/v1/assets/not-a-valid-guid");
 
         // Should handle gracefully - not crash with 500
         Assert.True(
@@ -456,7 +456,7 @@ public class SecurityTests : IAsyncLifetime
 
         foreach (var attempt in injectionAttempts)
         {
-            var response = await client.GetAsync($"/api/assets?search={Uri.EscapeDataString(attempt)}");
+            var response = await client.GetAsync($"/api/v1/assets?search={Uri.EscapeDataString(attempt)}");
             // Should not crash - return 200 (empty results) or 400
             Assert.True(
                 response.StatusCode == HttpStatusCode.OK ||
@@ -478,12 +478,12 @@ public class SecurityTests : IAsyncLifetime
         // Anonymous requests should return 401 Unauthorized.
         var endpoints = new[]
         {
-            "/api/collections",     // Viewer+ required
-            "/api/dashboard",       // Viewer+ required
-            "/api/assets",          // Admin required
-            "/api/admin/audit",     // Admin required
-            "/api/admin/shares",    // Admin required
-            "/api/admin/users"      // Admin required
+            "/api/v1/collections",     // Viewer+ required
+            "/api/v1/dashboard",       // Viewer+ required
+            "/api/v1/assets",          // Admin required
+            "/api/v1/admin/audit",     // Admin required
+            "/api/v1/admin/shares",    // Admin required
+            "/api/v1/admin/users"      // Admin required
         };
 
         foreach (var endpoint in endpoints)
@@ -501,7 +501,7 @@ public class SecurityTests : IAsyncLifetime
     {
         var client = AnonymousClient();
 
-        var response = await client.GetAsync("/api/collections");
+        var response = await client.GetAsync("/api/v1/collections");
 
         // Critical security test: unauthenticated access to collections MUST be blocked
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -513,7 +513,7 @@ public class SecurityTests : IAsyncLifetime
         var client = AnonymousClient();
 
         // Public share endpoints should be accessible (even if token is invalid)
-        var response = await client.GetAsync("/api/shares/some-token");
+        var response = await client.GetAsync("/api/v1/shares/some-token");
 
         // Should get 401/404 for invalid token, not redirect to login
         Assert.True(
@@ -538,7 +538,7 @@ public class SecurityTests : IAsyncLifetime
             PrincipalId = ManagerUserId,
             Role = RoleHierarchy.Roles.Admin
         };
-        var response = await client.PostAsJsonAsync($"/api/collections/{colId}/acl", dto);
+        var response = await client.PostAsJsonAsync($"/api/v1/collections/{colId}/acl", dto);
 
         // Should be denied - Manager cannot grant Admin role
         Assert.True(
@@ -558,7 +558,7 @@ public class SecurityTests : IAsyncLifetime
             PrincipalId = "some-other-user",
             Role = RoleHierarchy.Roles.Manager
         };
-        var response = await client.PostAsJsonAsync($"/api/collections/{colId}/acl", dto);
+        var response = await client.PostAsJsonAsync($"/api/v1/collections/{colId}/acl", dto);
 
         // Contributor cannot manage ACLs
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -576,7 +576,7 @@ public class SecurityTests : IAsyncLifetime
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         // Contributor should not be able to remove an asset from a collection — requires Manager+
-        var response = await client.DeleteAsync($"/api/assets/{assetId}/collections/{colId}");
+        var response = await client.DeleteAsync($"/api/v1/assets/{assetId}/collections/{colId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -589,7 +589,7 @@ public class SecurityTests : IAsyncLifetime
         // User A has no access to User B's asset
         var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        var response = await clientA.GetAsync($"/api/assets/{assetId}/deletion-context");
+        var response = await clientA.GetAsync($"/api/v1/assets/{assetId}/deletion-context");
 
         // Should be 403, not 200 with collection count disclosure
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -606,7 +606,7 @@ public class SecurityTests : IAsyncLifetime
             .ToDictionary(i => $"key_{i}", i => (object)$"value_{i}");
 
         var patchContent = JsonContent.Create(new { MetadataJson = oversizedMetadata });
-        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -627,7 +627,7 @@ public class SecurityTests : IAsyncLifetime
             ScopeType = Constants.ScopeTypes.Asset,
             Password = "abc1234"  // Only 7 chars — below the 8-char minimum
         };
-        var response = await client.PostAsJsonAsync("/api/shares", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
 
         // Should be rejected: password too short
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -640,7 +640,7 @@ public class SecurityTests : IAsyncLifetime
         var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         var dto = new UpdateSharePasswordDto { Password = "abc123" }; // 6 chars — below minimum
-        var response = await client.PutAsJsonAsync($"/api/shares/{shareId}/password", dto);
+        var response = await client.PutAsJsonAsync($"/api/v1/shares/{shareId}/password", dto);
 
         // Should be rejected: password too short
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -657,7 +657,7 @@ public class SecurityTests : IAsyncLifetime
         var metadata = new Dictionary<string, object> { ["key"] = oversizedValue };
 
         var patchContent = JsonContent.Create(new { MetadataJson = metadata });
-        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

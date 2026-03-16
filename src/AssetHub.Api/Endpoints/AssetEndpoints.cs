@@ -1,4 +1,5 @@
 using AssetHub.Api.Extensions;
+using AssetHub.Api.Filters;
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
@@ -12,7 +13,7 @@ public static class AssetEndpoints
 {
     public static void MapAssetEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/assets")
+        var group = app.MapGroup("/api/v1/assets")
             .RequireAuthorization()
             .WithTags("Assets");
 
@@ -24,9 +25,9 @@ public static class AssetEndpoints
         // same-origin only) or external JWT Bearer clients (inherently CSRF-immune
         // since the token must be explicitly attached to each request).
         group.MapPost("", UploadAsset).DisableAntiforgery().WithName("UploadAsset");
-        group.MapPatch("{id:guid}", UpdateAsset).DisableAntiforgery().WithName("UpdateAsset");
+        group.MapPatch("{id:guid}", UpdateAsset).AddEndpointFilter<ValidationFilter<UpdateAssetDto>>().DisableAntiforgery().WithName("UpdateAsset");
         group.MapDelete("{id:guid}", DeleteAsset).DisableAntiforgery().WithName("DeleteAsset");
-        group.MapPost("bulk-delete", BulkDeleteAssets).DisableAntiforgery().WithName("BulkDeleteAssets");
+        group.MapPost("bulk-delete", BulkDeleteAssets).AddEndpointFilter<ValidationFilter<BulkDeleteAssetsRequest>>().DisableAntiforgery().WithName("BulkDeleteAssets");
         group.MapGet("collection/{collectionId:guid}", GetAssetsByCollection).WithName("GetAssetsByCollection");
 
         group.MapGet("{id:guid}/collections", GetAssetCollections).WithName("GetAssetCollections");
@@ -34,7 +35,7 @@ public static class AssetEndpoints
         group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).DisableAntiforgery().WithName("RemoveAssetFromCollection");
         group.MapGet("{id:guid}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
 
-        group.MapPost("init-upload", InitUpload).DisableAntiforgery().WithName("InitUpload");
+        group.MapPost("init-upload", InitUpload).AddEndpointFilter<ValidationFilter<InitUploadRequest>>().DisableAntiforgery().WithName("InitUpload");
         group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).DisableAntiforgery().WithName("ConfirmUpload");
 
         group.MapGet("{id:guid}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
@@ -107,7 +108,7 @@ public static class AssetEndpoints
 
         using var stream = file.OpenReadStream();
         var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, ct);
-        return result.ToHttpResult(v => Results.Accepted($"/api/assets/{v.Id}", v));
+        return result.ToHttpResult(v => Results.Accepted($"/api/v1/assets/{v.Id}", v));
     }
 
     private static async Task<IResult> UpdateAsset(
@@ -165,7 +166,7 @@ public static class AssetEndpoints
         [FromServices] IAssetService svc, CancellationToken ct)
     {
         var result = await svc.AddToCollectionAsync(id, collectionId, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/assets/{id}/collections/{collectionId}", v));
+        return result.ToHttpResult(v => Results.Created($"/api/v1/assets/{id}/collections/{collectionId}", v));
     }
 
     private static async Task<IResult> RemoveAssetFromCollection(

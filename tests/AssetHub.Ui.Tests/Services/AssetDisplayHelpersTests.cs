@@ -14,7 +14,7 @@ public class AssetDisplayHelpersTests
         var id = Guid.NewGuid();
         var url = AssetDisplayHelpers.GetThumbnailUrl(id, "thumbs/abc.jpg", "image");
 
-        Assert.Equal($"/api/assets/{id}/thumb", url);
+        Assert.Equal($"/api/v1/assets/{id}/thumb", url);
     }
 
     [Fact]

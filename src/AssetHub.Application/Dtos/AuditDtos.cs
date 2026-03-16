@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace AssetHub.Application.Dtos;
 
 /// <summary>
@@ -21,6 +23,7 @@ public class AuditEventDto
 public class AuditQueryRequest
 {
     /// <summary>Number of items per page (default: 50, max: 200).</summary>
+    [Range(1, 200)]
     public int PageSize { get; set; } = 50;
 
     /// <summary>Cursor for pagination (CreatedAt of last item from previous page).</summary>
@@ -46,6 +49,9 @@ public class AuditQueryResponse
 
     /// <summary>Total count of matching events (for display only, may be approximate for large datasets).</summary>
     public int TotalCount { get; set; }
+
+    /// <summary>True when TotalCount has been capped at the display limit (actual count may be higher).</summary>
+    public bool IsCapped { get; set; }
 
     /// <summary>Cursor for the next page (null if no more pages).</summary>
     public DateTime? NextCursor { get; set; }

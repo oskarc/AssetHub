@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AssetHub.Tests.Endpoints;
 
 /// <summary>
-/// API integration tests for /api/shares/**
+/// API integration tests for /api/v1/shares/**
 /// Covers both anonymous public endpoints and authenticated share management.
 /// </summary>
 [Collection("Api")]
@@ -75,13 +75,13 @@ public class ShareEndpointTests : IAsyncLifetime
     //  ANONYMOUS PUBLIC ENDPOINTS — NEGATIVE TESTS
     // ═══════════════════════════════════════════════════════════════
 
-    // ── GET /api/shares/{token} ─────────────────────────────────────
+    // ── GET /api/v1/shares/{token} ─────────────────────────────────────
 
     [Fact]
     public async Task GetSharedAsset_NonExistentToken_Returns401Or404()
     {
         var client = AnonymousClient();
-        var response = await client.GetAsync("/api/shares/non-existent-token-xyz");
+        var response = await client.GetAsync("/api/v1/shares/non-existent-token-xyz");
 
         // Token lookup will fail → service returns NOT_FOUND or UNAUTHORIZED
         Assert.True(
@@ -96,17 +96,17 @@ public class ShareEndpointTests : IAsyncLifetime
         var client = AnonymousClient();
         // A trailing slash with no token segment: the FallbackPolicy (RequireAuthenticatedUser)
         // runs before routing resolves to a share handler, so anonymous callers get 401.
-        var response = await client.GetAsync("/api/shares/");
+        var response = await client.GetAsync("/api/v1/shares/");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    // ── POST /api/shares/{token}/access-token ───────────────────────
+    // ── POST /api/v1/shares/{token}/access-token ───────────────────────
 
     [Fact]
     public async Task CreateAccessToken_NonExistentToken_Returns401Or404()
     {
         var client = AnonymousClient();
-        var response = await client.PostAsync("/api/shares/fake-token/access-token", null);
+        var response = await client.PostAsync("/api/v1/shares/fake-token/access-token", null);
 
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||
@@ -120,7 +120,7 @@ public class ShareEndpointTests : IAsyncLifetime
         // Seed a password-protected share — the service should reject without password
         // We can't directly test with real encrypted tokens, but we verify the route works
         var client = AnonymousClient();
-        var response = await client.PostAsync("/api/shares/some-token/access-token", null);
+        var response = await client.PostAsync("/api/v1/shares/some-token/access-token", null);
 
         // Without password header on a non-existent/password-protected share
         Assert.True(
@@ -129,13 +129,13 @@ public class ShareEndpointTests : IAsyncLifetime
             $"Expected 401 or 404 but got {response.StatusCode}");
     }
 
-    // ── GET /api/shares/{token}/download ────────────────────────────
+    // ── GET /api/v1/shares/{token}/download ────────────────────────────
 
     [Fact]
     public async Task DownloadSharedAsset_NonExistentToken_Returns401Or404()
     {
         var client = AnonymousClient();
-        var response = await client.GetAsync("/api/shares/bad-token/download");
+        var response = await client.GetAsync("/api/v1/shares/bad-token/download");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||
@@ -143,13 +143,13 @@ public class ShareEndpointTests : IAsyncLifetime
             $"Expected 404 or 401 but got {response.StatusCode}");
     }
 
-    // ── POST /api/shares/{token}/download-all ───────────────────────
+    // ── POST /api/v1/shares/{token}/download-all ───────────────────────
 
     [Fact]
     public async Task DownloadAllSharedAssets_NonExistentToken_Returns401Or404()
     {
         var client = AnonymousClient();
-        var response = await client.PostAsync("/api/shares/bad-token/download-all", null);
+        var response = await client.PostAsync("/api/v1/shares/bad-token/download-all", null);
 
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||
@@ -157,13 +157,13 @@ public class ShareEndpointTests : IAsyncLifetime
             $"Expected 404 or 401 but got {response.StatusCode}");
     }
 
-    // ── GET /api/shares/{token}/preview ─────────────────────────────
+    // ── GET /api/v1/shares/{token}/preview ─────────────────────────────
 
     [Fact]
     public async Task PreviewSharedAsset_NonExistentToken_Returns401Or404()
     {
         var client = AnonymousClient();
-        var response = await client.GetAsync("/api/shares/bad-token/preview");
+        var response = await client.GetAsync("/api/v1/shares/bad-token/preview");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||
@@ -175,7 +175,7 @@ public class ShareEndpointTests : IAsyncLifetime
     //  AUTHENTICATED ENDPOINTS — NEGATIVE TESTS
     // ═══════════════════════════════════════════════════════════════
 
-    // ── POST /api/shares (CreateShare) ──────────────────────────────
+    // ── POST /api/v1/shares (CreateShare) ──────────────────────────────
 
     [Fact]
     public async Task CreateShare_ViewerNoAccess_NonExistentScope_Returns404Or403()
@@ -187,7 +187,7 @@ public class ShareEndpointTests : IAsyncLifetime
             ScopeId = Guid.NewGuid(),
             ScopeType = Constants.ScopeTypes.Asset
         };
-        var response = await client.PostAsJsonAsync("/api/shares", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||
             response.StatusCode == HttpStatusCode.Forbidden,
@@ -203,7 +203,7 @@ public class ShareEndpointTests : IAsyncLifetime
             ScopeId = Guid.NewGuid(),  // Doesn't exist
             ScopeType = Constants.ScopeTypes.Asset
         };
-        var response = await client.PostAsJsonAsync("/api/shares", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
 
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||
@@ -220,7 +220,7 @@ public class ShareEndpointTests : IAsyncLifetime
             ScopeId = Guid.NewGuid(),
             ScopeType = "invalid-scope-type"
         };
-        var response = await client.PostAsJsonAsync("/api/shares", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
 
         Assert.True(
             response.StatusCode == HttpStatusCode.BadRequest ||
@@ -240,7 +240,7 @@ public class ShareEndpointTests : IAsyncLifetime
             ScopeId = assetId,
             ScopeType = Constants.ScopeTypes.Asset
         };
-        var response = await client.PostAsJsonAsync("/api/shares", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -257,7 +257,7 @@ public class ShareEndpointTests : IAsyncLifetime
             ScopeType = Constants.ScopeTypes.Asset,
             ExpiresAt = DateTime.UtcNow.AddDays(-1)  // Already expired
         };
-        var response = await client.PostAsJsonAsync("/api/shares", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
 
         // Service should reject past expiry dates
         Assert.True(
@@ -278,7 +278,7 @@ public class ShareEndpointTests : IAsyncLifetime
             ScopeId = colId,
             ScopeType = Constants.ScopeTypes.Collection
         };
-        var response = await client.PostAsJsonAsync("/api/shares", dto);
+        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ShareResponseDto>();
@@ -286,13 +286,13 @@ public class ShareEndpointTests : IAsyncLifetime
         Assert.Equal(colId, body!.ScopeId);
     }
 
-    // ── DELETE /api/shares/{id} (RevokeShare) ───────────────────────
+    // ── DELETE /api/v1/shares/{id} (RevokeShare) ───────────────────────
 
     [Fact]
     public async Task RevokeShare_NonExistentShare_AsViewer_Returns404()
     {
         var client = ViewerClient();
-        var response = await client.DeleteAsync($"/api/shares/{Guid.NewGuid()}");
+        var response = await client.DeleteAsync($"/api/v1/shares/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -300,7 +300,7 @@ public class ShareEndpointTests : IAsyncLifetime
     public async Task RevokeShare_NonExistentShare_Returns404()
     {
         var client = AdminClient();
-        var response = await client.DeleteAsync($"/api/shares/{Guid.NewGuid()}");
+        var response = await client.DeleteAsync($"/api/v1/shares/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -311,18 +311,18 @@ public class ShareEndpointTests : IAsyncLifetime
         var (_, _, shareId) = await SeedShareAsync(userId: TestAuthHandler.AdminUserId);
         var client = ViewerClient();
 
-        var response = await client.DeleteAsync($"/api/shares/{shareId}");
+        var response = await client.DeleteAsync($"/api/v1/shares/{shareId}");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    // ── PUT /api/shares/{id}/password (UpdateSharePassword) ─────────
+    // ── PUT /api/v1/shares/{id}/password (UpdateSharePassword) ─────────
 
     [Fact]
     public async Task UpdateSharePassword_NonExistentShare_AsViewer_Returns404()
     {
         var client = ViewerClient();
         var dto = new UpdateSharePasswordDto { Password = "newpassword123" };
-        var response = await client.PutAsJsonAsync($"/api/shares/{Guid.NewGuid()}/password", dto);
+        var response = await client.PutAsJsonAsync($"/api/v1/shares/{Guid.NewGuid()}/password", dto);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -331,7 +331,7 @@ public class ShareEndpointTests : IAsyncLifetime
     {
         var client = AdminClient();
         var dto = new UpdateSharePasswordDto { Password = "newpassword123" };
-        var response = await client.PutAsJsonAsync($"/api/shares/{Guid.NewGuid()}/password", dto);
+        var response = await client.PutAsJsonAsync($"/api/v1/shares/{Guid.NewGuid()}/password", dto);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -342,7 +342,7 @@ public class ShareEndpointTests : IAsyncLifetime
         var client = ViewerClient();
 
         var dto = new UpdateSharePasswordDto { Password = "newpassword123" };
-        var response = await client.PutAsJsonAsync($"/api/shares/{shareId}/password", dto);
+        var response = await client.PutAsJsonAsync($"/api/v1/shares/{shareId}/password", dto);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }

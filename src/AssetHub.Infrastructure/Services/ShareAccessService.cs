@@ -436,7 +436,7 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
         if (string.IsNullOrEmpty(objectKey))
             return null;
         var assetIdQuery = assetId.HasValue ? $"&assetId={assetId.Value}" : "";
-        return $"/api/shares/{token}/preview?size={size}{assetIdQuery}";
+        return $"/api/v1/shares/{token}/preview?size={size}{assetIdQuery}";
     }
 
     private async Task<(Asset? asset, ServiceError? error)> ResolveTargetAssetAsync(

@@ -17,7 +17,7 @@ internal class RedirectHandler : DelegatingHandler
 }
 
 /// <summary>
-/// API integration tests for /api/assets/**
+/// API integration tests for /api/v1/assets/**
 /// Uses CustomWebApplicationFactory with real PostgreSQL + mocked MinIO.
 /// </summary>
 [Collection("Api")]
@@ -64,7 +64,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetAssets_AdminOnly_Returns200()
     {
         var client = AdminClient();
-        var response = await client.GetAsync("/api/assets");
+        var response = await client.GetAsync("/api/v1/assets");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -72,7 +72,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetAssets_Viewer_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.GetAsync("/api/assets");
+        var response = await client.GetAsync("/api/v1/assets");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -80,7 +80,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetAllAssets_AdminOnly_Returns200()
     {
         var client = AdminClient();
-        var response = await client.GetAsync("/api/assets/all");
+        var response = await client.GetAsync("/api/v1/assets/all");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -88,7 +88,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetAllAssets_Viewer_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.GetAsync("/api/assets/all");
+        var response = await client.GetAsync("/api/v1/assets/all");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -100,7 +100,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync();
         var client = AdminClient();
 
-        var response = await client.GetAsync($"/api/assets/{assetId}");
+        var response = await client.GetAsync($"/api/v1/assets/{assetId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<AssetResponseDto>();
@@ -111,7 +111,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetAsset_NotFound_Returns404()
     {
         var client = AdminClient();
-        var response = await client.GetAsync($"/api/assets/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"/api/v1/assets/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -122,7 +122,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync();
         var client = ViewerClient();
 
-        var response = await client.GetAsync($"/api/assets/{assetId}");
+        var response = await client.GetAsync($"/api/v1/assets/{assetId}");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -134,7 +134,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (colId, _) = await SeedCollectionWithAssetAsync();
         var client = AdminClient();
 
-        var response = await client.GetAsync($"/api/assets/collection/{colId}");
+        var response = await client.GetAsync($"/api/v1/assets/collection/{colId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -148,7 +148,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var client = AdminClient();
 
         var patchContent = JsonContent.Create(new { Title = "Updated Title" });
-        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -161,7 +161,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (colId, assetId) = await SeedCollectionWithAssetAsync();
         var client = AdminClient();
 
-        var response = await client.DeleteAsync($"/api/assets/{assetId}?fromCollectionId={colId}");
+        var response = await client.DeleteAsync($"/api/v1/assets/{assetId}?fromCollectionId={colId}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
@@ -170,7 +170,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task DeleteAsset_NotFound_Returns404()
     {
         var client = AdminClient();
-        var response = await client.DeleteAsync($"/api/assets/{Guid.NewGuid()}");
+        var response = await client.DeleteAsync($"/api/v1/assets/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -185,7 +185,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var noRedirectClient = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Admin();
 
-        var response = await noRedirectClient.GetAsync($"/api/assets/{assetId}/thumb");
+        var response = await noRedirectClient.GetAsync($"/api/v1/assets/{assetId}/thumb");
 
         // Should redirect to presigned URL
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
@@ -198,7 +198,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var client = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Admin();
 
-        var response = await client.GetAsync($"/api/assets/{assetId}/download");
+        var response = await client.GetAsync($"/api/v1/assets/{assetId}/download");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
@@ -210,7 +210,7 @@ public class AssetEndpointTests : IAsyncLifetime
     {
         // Create a collection first for the upload target
         var adminClient = AdminClient();
-        var colResp = await adminClient.PostAsJsonAsync("/api/collections",
+        var colResp = await adminClient.PostAsJsonAsync("/api/v1/collections",
             new CreateCollectionDto { Name = $"Upload-{Guid.NewGuid():N}" });
         var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
 
@@ -223,7 +223,7 @@ public class AssetEndpointTests : IAsyncLifetime
             Title = "Test Upload"
         };
 
-        var response = await adminClient.PostAsJsonAsync("/api/assets/init-upload", request);
+        var response = await adminClient.PostAsJsonAsync("/api/v1/assets/init-upload", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<InitUploadResponse>();
@@ -240,7 +240,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync();
         var client = AdminClient();
 
-        var response = await client.GetAsync($"/api/assets/{assetId}/collections");
+        var response = await client.GetAsync($"/api/v1/assets/{assetId}/collections");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -252,11 +252,11 @@ public class AssetEndpointTests : IAsyncLifetime
         var client = AdminClient();
 
         // Create second collection
-        var col2Resp = await client.PostAsJsonAsync("/api/collections",
+        var col2Resp = await client.PostAsJsonAsync("/api/v1/collections",
             new CreateCollectionDto { Name = $"Second-{Guid.NewGuid():N}" });
         var col2 = await col2Resp.Content.ReadFromJsonAsync<CollectionResponseDto>();
 
-        var response = await client.PostAsync($"/api/assets/{assetId}/collections/{col2!.Id}", null);
+        var response = await client.PostAsync($"/api/v1/assets/{assetId}/collections/{col2!.Id}", null);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
@@ -269,7 +269,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync();
         var client = AdminClient();
 
-        var response = await client.GetAsync($"/api/assets/{assetId}/deletion-context");
+        var response = await client.GetAsync($"/api/v1/assets/{assetId}/deletion-context");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<AssetDeletionContextDto>();
@@ -289,8 +289,8 @@ public class AssetEndpointTests : IAsyncLifetime
     {
         var client = _factory.CreateClient();
         TestAuthHandler.ClaimsOverride = null;
-        var response = await client.GetAsync("/api/assets");
-        // All /api/assets/** require auth; the TestAuthHandler always succeeds
+        var response = await client.GetAsync("/api/v1/assets");
+        // All /api/v1/assets/** require auth; the TestAuthHandler always succeeds
         // so we test by role instead. This is covered by Viewer_Returns403 tests.
         // Keeping this commented — auth is always present in test harness.
         Assert.True(true);
@@ -303,7 +303,7 @@ public class AssetEndpointTests : IAsyncLifetime
     {
         var client = AdminClient();
         var patchContent = JsonContent.Create(new { Title = "No such asset" });
-        var response = await client.PatchAsync($"/api/assets/{Guid.NewGuid()}", patchContent);
+        var response = await client.PatchAsync($"/api/v1/assets/{Guid.NewGuid()}", patchContent);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -314,7 +314,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var client = ViewerClient();
 
         var patchContent = JsonContent.Create(new { Title = "Viewer update" });
-        var response = await client.PatchAsync($"/api/assets/{assetId}", patchContent);
+        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -326,7 +326,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (colId, assetId) = await SeedCollectionWithAssetAsync();
         var client = ViewerClient();
 
-        var response = await client.DeleteAsync($"/api/assets/{assetId}?fromCollectionId={colId}");
+        var response = await client.DeleteAsync($"/api/v1/assets/{assetId}?fromCollectionId={colId}");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -336,7 +336,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetAssetsByCollection_NonExistentCollection_AdminGetsEmptyList()
     {
         var client = AdminClient();
-        var response = await client.GetAsync($"/api/assets/collection/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"/api/v1/assets/collection/{Guid.NewGuid()}");
 
         // Admin gets an empty result set for non-existent collections
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -348,7 +348,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (colId, _) = await SeedCollectionWithAssetAsync();
         var client = ViewerClient();
 
-        var response = await client.GetAsync($"/api/assets/collection/{colId}");
+        var response = await client.GetAsync($"/api/v1/assets/collection/{colId}");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -358,7 +358,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetAssetCollections_NotFound_Returns404()
     {
         var client = AdminClient();
-        var response = await client.GetAsync($"/api/assets/{Guid.NewGuid()}/collections");
+        var response = await client.GetAsync($"/api/v1/assets/{Guid.NewGuid()}/collections");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -368,7 +368,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync();
         var client = ViewerClient();
 
-        var response = await client.GetAsync($"/api/assets/{assetId}/collections");
+        var response = await client.GetAsync($"/api/v1/assets/{assetId}/collections");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -378,11 +378,11 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task AddAssetToCollection_NonExistentAsset_Returns404()
     {
         var client = AdminClient();
-        var colResp = await client.PostAsJsonAsync("/api/collections",
+        var colResp = await client.PostAsJsonAsync("/api/v1/collections",
             new CreateCollectionDto { Name = $"Add-{Guid.NewGuid():N}" });
         var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
 
-        var response = await client.PostAsync($"/api/assets/{Guid.NewGuid()}/collections/{col!.Id}", null);
+        var response = await client.PostAsync($"/api/v1/assets/{Guid.NewGuid()}/collections/{col!.Id}", null);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -392,7 +392,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync();
         var client = AdminClient();
 
-        var response = await client.PostAsync($"/api/assets/{assetId}/collections/{Guid.NewGuid()}", null);
+        var response = await client.PostAsync($"/api/v1/assets/{assetId}/collections/{Guid.NewGuid()}", null);
         Assert.True(
             response.StatusCode == HttpStatusCode.BadRequest ||
             response.StatusCode == HttpStatusCode.Forbidden ||
@@ -406,7 +406,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync();
         var client = ViewerClient();
 
-        var response = await client.PostAsync($"/api/assets/{assetId}/collections/{Guid.NewGuid()}", null);
+        var response = await client.PostAsync($"/api/v1/assets/{assetId}/collections/{Guid.NewGuid()}", null);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -416,7 +416,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task RemoveAssetFromCollection_NonExistent_Returns404()
     {
         var client = AdminClient();
-        var response = await client.DeleteAsync($"/api/assets/{Guid.NewGuid()}/collections/{Guid.NewGuid()}");
+        var response = await client.DeleteAsync($"/api/v1/assets/{Guid.NewGuid()}/collections/{Guid.NewGuid()}");
 
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||
@@ -430,7 +430,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetDeletionContext_NotFound_Returns404()
     {
         var client = AdminClient();
-        var response = await client.GetAsync($"/api/assets/{Guid.NewGuid()}/deletion-context");
+        var response = await client.GetAsync($"/api/v1/assets/{Guid.NewGuid()}/deletion-context");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -440,7 +440,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var (_, assetId) = await SeedCollectionWithAssetAsync();
         var client = ViewerClient();
 
-        var response = await client.GetAsync($"/api/assets/{assetId}/deletion-context");
+        var response = await client.GetAsync($"/api/v1/assets/{assetId}/deletion-context");
         // Deletion context may not enforce ACL checks — verifying actual behavior
         Assert.True(
             response.StatusCode == HttpStatusCode.Forbidden ||
@@ -456,7 +456,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var noRedirectClient = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Admin();
 
-        var response = await noRedirectClient.GetAsync($"/api/assets/{Guid.NewGuid()}/thumb");
+        var response = await noRedirectClient.GetAsync($"/api/v1/assets/{Guid.NewGuid()}/thumb");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -467,7 +467,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var noRedirectClient = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Default();
 
-        var response = await noRedirectClient.GetAsync($"/api/assets/{assetId}/thumb");
+        var response = await noRedirectClient.GetAsync($"/api/v1/assets/{assetId}/thumb");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -477,7 +477,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var noRedirectClient = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Admin();
 
-        var response = await noRedirectClient.GetAsync($"/api/assets/{Guid.NewGuid()}/download");
+        var response = await noRedirectClient.GetAsync($"/api/v1/assets/{Guid.NewGuid()}/download");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -487,7 +487,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var noRedirectClient = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Admin();
 
-        var response = await noRedirectClient.GetAsync($"/api/assets/{Guid.NewGuid()}/preview");
+        var response = await noRedirectClient.GetAsync($"/api/v1/assets/{Guid.NewGuid()}/preview");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -497,7 +497,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var noRedirectClient = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Admin();
 
-        var response = await noRedirectClient.GetAsync($"/api/assets/{Guid.NewGuid()}/medium");
+        var response = await noRedirectClient.GetAsync($"/api/v1/assets/{Guid.NewGuid()}/medium");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -507,7 +507,7 @@ public class AssetEndpointTests : IAsyncLifetime
         var noRedirectClient = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Admin();
 
-        var response = await noRedirectClient.GetAsync($"/api/assets/{Guid.NewGuid()}/poster");
+        var response = await noRedirectClient.GetAsync($"/api/v1/assets/{Guid.NewGuid()}/poster");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -525,7 +525,7 @@ public class AssetEndpointTests : IAsyncLifetime
             FileSize = 1024,
             Title = "Test"
         };
-        var response = await client.PostAsJsonAsync("/api/assets/init-upload", request);
+        var response = await client.PostAsJsonAsync("/api/v1/assets/init-upload", request);
 
         Assert.True(
             response.StatusCode == HttpStatusCode.Forbidden ||
@@ -547,7 +547,7 @@ public class AssetEndpointTests : IAsyncLifetime
             FileSize = 1024,
             Title = "Test"
         };
-        var response = await client.PostAsJsonAsync("/api/assets/init-upload", request);
+        var response = await client.PostAsJsonAsync("/api/v1/assets/init-upload", request);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -557,7 +557,7 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task ConfirmUpload_NonExistentAsset_Returns404()
     {
         var client = AdminClient();
-        var response = await client.PostAsync($"/api/assets/{Guid.NewGuid()}/confirm-upload", null);
+        var response = await client.PostAsync($"/api/v1/assets/{Guid.NewGuid()}/confirm-upload", null);
 
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||

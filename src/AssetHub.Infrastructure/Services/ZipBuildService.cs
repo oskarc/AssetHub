@@ -90,7 +90,7 @@ public class ZipBuildService : IZipBuildService
         return new ZipDownloadEnqueuedResponse
         {
             JobId = zipDownload.Id,
-            StatusUrl = $"/api/zip-downloads/{zipDownload.Id}",
+            StatusUrl = $"/api/v1/zip-downloads/{zipDownload.Id}",
             Message = "ZIP download queued. Poll the status URL for progress."
         };
     }
@@ -125,7 +125,7 @@ public class ZipBuildService : IZipBuildService
         return new ZipDownloadEnqueuedResponse
         {
             JobId = zipDownload.Id,
-            StatusUrl = $"/api/zip-downloads/{zipDownload.Id}/share",
+            StatusUrl = $"/api/v1/zip-downloads/{zipDownload.Id}/share",
             Message = "ZIP download queued. Poll the status URL for progress."
         };
     }

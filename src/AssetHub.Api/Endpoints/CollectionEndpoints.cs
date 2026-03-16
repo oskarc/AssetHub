@@ -1,4 +1,5 @@
 using AssetHub.Api.Extensions;
+using AssetHub.Api.Filters;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -9,24 +10,24 @@ public static class CollectionEndpoints
 {
     public static void MapCollectionEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/collections")
+        var group = app.MapGroup("/api/v1/collections")
             .WithTags("Collections")
             .RequireAuthorization();
 
         group.MapGet("", GetRootCollections).WithName("GetRootCollections");
         group.MapGet("{id:guid}", GetCollectionById).WithName("GetCollectionById");
-        group.MapPost("", CreateCollection).DisableAntiforgery().RequireAuthorization("RequireContributor").WithName("CreateCollection");
-        group.MapPatch("{id:guid}", UpdateCollection).DisableAntiforgery().WithName("UpdateCollection");
+        group.MapPost("", CreateCollection).AddEndpointFilter<ValidationFilter<CreateCollectionDto>>().DisableAntiforgery().RequireAuthorization("RequireContributor").WithName("CreateCollection");
+        group.MapPatch("{id:guid}", UpdateCollection).AddEndpointFilter<ValidationFilter<UpdateCollectionDto>>().DisableAntiforgery().WithName("UpdateCollection");
         group.MapDelete("{id:guid}", DeleteCollection).DisableAntiforgery().WithName("DeleteCollection");
         group.MapPost("{id:guid}/download-all", DownloadAllAssets).DisableAntiforgery().WithName("DownloadAllAssets");
 
         // ACL Management
-        var aclGroup = app.MapGroup("/api/collections/{collectionId:guid}/acl")
+        var aclGroup = app.MapGroup("/api/v1/collections/{collectionId:guid}/acl")
             .WithTags("CollectionACL")
             .RequireAuthorization();
 
         aclGroup.MapGet("", GetCollectionAcls).WithName("GetCollectionAcls");
-        aclGroup.MapPost("", SetCollectionAccess).DisableAntiforgery().WithName("SetCollectionAccess");
+        aclGroup.MapPost("", SetCollectionAccess).AddEndpointFilter<ValidationFilter<SetCollectionAccessDto>>().DisableAntiforgery().WithName("SetCollectionAccess");
         aclGroup.MapDelete("{principalType}/{principalId}", RevokeCollectionAccess).DisableAntiforgery().WithName("RevokeCollectionAccess");
         aclGroup.MapGet("/users/search", SearchUsersForAcl).WithName("SearchUsersForAcl");
     }
@@ -52,7 +53,7 @@ public static class CollectionEndpoints
         [FromServices] ICollectionService svc, CancellationToken ct)
     {
         var result = await svc.CreateAsync(dto, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/collections/{v.Id}", v));
+        return result.ToHttpResult(v => Results.Created($"/api/v1/collections/{v.Id}", v));
     }
 
     private static async Task<IResult> UpdateCollection(
@@ -92,7 +93,7 @@ public static class CollectionEndpoints
         [FromServices] ICollectionAclService svc, CancellationToken ct)
     {
         var result = await svc.SetAccessAsync(collectionId, dto.PrincipalType, dto.PrincipalId, dto.Role, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/collections/{collectionId}/acl/{v.Id}", v));
+        return result.ToHttpResult(v => Results.Created($"/api/v1/collections/{collectionId}/acl/{v.Id}", v));
     }
 
     private static async Task<IResult> RevokeCollectionAccess(

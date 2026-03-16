@@ -322,8 +322,20 @@
   <data name="Dashboard_Retry" xml:space="preserve"><value>Försök igen</value></data>
   <data name="Error_UploadModuleNotInit" xml:space="preserve"><value>Uppladdningsmodul ej initierad</value></data>
 
+  <!-- Upload validation -->
+  <data name="Error_FileTypeNotAllowed" xml:space="preserve"><value>Filtypen stöds inte: {0}</value></data>
+  <data name="Error_FileTooLarge" xml:space="preserve"><value>{0} överskrider maxstorleken på {1} MB</value></data>
+  <data name="Warning_FilesRejected" xml:space="preserve"><value>{0} fil(er) hoppades över på grund av valideringsfel</value></data>
+
   <!-- Pagination -->
   <data name="Showing" xml:space="preserve"><value>Visar</value></data>
   <data name="OfTotal" xml:space="preserve"><value>av</value></data>
   <data name="Btn_ApplyFilters" xml:space="preserve"><value>Använd filter</value></data>
+
+  <!-- Accessibility -->
+  <data name="Link_SkipToContent" xml:space="preserve"><value>Hoppa till huvudinnehåll</value></data>
+  <data name="Aria_ToggleNavigation" xml:space="preserve"><value>Växla navigeringsmeny</value></data>
+  <data name="Aria_AccountMenu" xml:space="preserve"><value>Kontomeny</value></data>
+  <data name="Aria_ToggleDarkMode" xml:space="preserve"><value>Växla mörkt läge</value></data>
+  <data name="Aria_MainNavigation" xml:space="preserve"><value>Huvudnavigering</value></data>
 </root>

@@ -82,6 +82,14 @@ dotnet ef migrations add <Name> --project src/AssetHub.Infrastructure --startup-
 
 Notable: JSONB columns for `Tags`/`MetadataJson`, `pg_trgm` for trigram search, string-stored enums via value converters.
 
+## Domain Entities
+
+- **No base entity class** — each entity is independent.
+- **Audit fields**: `CreatedAt` (UTC), `CreatedByUserId` on all entities; `UpdatedAt` on mutable ones.
+- **No soft delete** — deletion is hard delete or status-based (`AssetStatus.Failed`, `.Uploading`).
+- **JSONB fields**: `List<string> Tags`, `Dictionary<string, object> MetadataJson`, `PermissionsJson`.
+- **Enums**: `AssetType`, `AssetStatus`, `ShareScopeType`, roles — stored as strings via value converters.
+
 ## Code Patterns
 
 ### Service Result pattern
@@ -98,6 +106,18 @@ Error factories: `ServiceError.NotFound()`, `.Forbidden()`, `.BadRequest()`, `.C
 
 ### Minimal API endpoints
 Static extension classes with `Map*Endpoints(this WebApplication app)`, registered in `WebApplicationExtensions.MapAssetHubEndpoints()`. Use `MapGroup()` for route prefixes and `.RequireAuthorization("PolicyName")`.
+
+**ServiceResult → HTTP mapping** — call `.ToHttpResult()` (from `ServiceResultExtensions`):
+- Success (void) → `204 No Content`
+- Success with value → `200 OK`
+- Custom success → pass `onSuccess` callback (e.g., `201 Created`)
+- Errors → mapped via `ServiceError.StatusCode` + `ApiError` body; `403` uses `Results.Forbid()`
+
+**Validation** — apply `ValidationFilter<T>` per-endpoint: `.AddEndpointFilter<ValidationFilter<CreateAssetDto>>()`. Uses DataAnnotations — not FluentValidation.
+
+**Request binding**: route `{id:guid}`, query `[AsParameters] QueryDto`, form `[FromForm]` (uploads), JSON body by convention, services via `[FromServices]`.
+
+**Anti-forgery**: `.DisableAntiforgery()` on API endpoints (JWT clients are CSRF-immune). Blazor forms enforce antiforgery via middleware.
 
 ### Infrastructure services
 - `sealed class` with primary constructors
@@ -143,6 +163,28 @@ Settings classes in `Application/Configuration/` with `const string SectionName`
 - **Upload pipeline**: Content-type allowlist → magic byte validation → ClamAV scan (fail-closed) → size/batch limits → filename sanitization
 - **Data protection**: Share tokens encrypted via ASP.NET Data Protection; passwords BCrypt-hashed
 - **Rate limiting**: Per-user (200/min), SignalR (60 conn/min), anonymous shares (30/min), password attempts (10/5min)
+
+## Error Handling
+
+- Business errors → `ServiceResult` (never throw).
+- Unhandled exceptions → global exception middleware in `WebApplicationExtensions` catches for `/api/*` paths:
+  - `UnauthorizedAccessException` → 401, `StorageException` → 503, `BadHttpRequestException` → 400, unhandled → 500.
+- Error response body is always `ApiError { Code, Message, Details }` (defined in `Application/Dtos/ApiError.cs`).
+
+## DI Registration
+
+- Shared infrastructure registered via `AddSharedInfrastructure()` (used by both Api and Worker).
+- API-specific services registered in `ServiceCollectionExtensions.AddAssetHubServices()`.
+- **Keyed services**: MinIO has internal + public clients (`AddKeyedSingleton<IMinioClient>("public", ...)`).
+- **Hangfire jobs**: register concrete type first, then interface forwarding: `AddScoped<MediaProcessingService>()` + `AddScoped<IMediaProcessingService>(sp => sp.GetRequiredService<...>())`.
+- **Options validation**: critical settings use `.ValidateOnStart()`; optional settings (Email, ImageProcessing) do not.
+
+## CI Pipeline (`.github/workflows/ci.yml`)
+
+1. **Build** — `dotnet build --configuration Release` must pass with **zero warnings**.
+2. **Test** — `dotnet test` with XPlat Code Coverage (Cobertura); results uploaded as artifacts.
+3. **Security audit** — `dotnet list package --vulnerable --include-transitive`; fails if any found.
+4. **Docker build** (main branch only) — builds API + Worker images, scans with Trivy.
 
 ## Conventions
 

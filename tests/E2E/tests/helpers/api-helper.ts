@@ -147,7 +147,7 @@ export class ApiHelper {
   // --- Collections ---
 
   async createCollection(name: string, description?: string) {
-    const res = await this.request.post(`${env.baseUrl}/api/collections`, {
+    const res = await this.request.post(`${env.baseUrl}/api/v1/collections`, {
       headers: this.authHeaders(),
       data: { name, description: description || '' },
       maxRedirects: 0,
@@ -160,7 +160,7 @@ export class ApiHelper {
   }
 
   async getCollections() {
-    const res = await this.request.get(`${env.baseUrl}/api/collections`, {
+    const res = await this.request.get(`${env.baseUrl}/api/v1/collections`, {
       headers: this.authHeaders(),
     });
     expect(res.ok()).toBeTruthy();
@@ -168,7 +168,7 @@ export class ApiHelper {
   }
 
   async deleteCollection(id: string) {
-    const res = await this.request.delete(`${env.baseUrl}/api/collections/${id}`, {
+    const res = await this.request.delete(`${env.baseUrl}/api/v1/collections/${id}`, {
       headers: this.authHeaders(),
     });
     return res;
@@ -182,7 +182,7 @@ export class ApiHelper {
     const fileBuffer = fs.readFileSync(filePath);
     const fileName = path.basename(filePath);
 
-    const res = await this.request.post(`${env.baseUrl}/api/assets`, {
+    const res = await this.request.post(`${env.baseUrl}/api/v1/assets`, {
       headers: this.authHeaders(),
       multipart: {
         file: { name: fileName, mimeType: 'image/png', buffer: fileBuffer },
@@ -195,28 +195,28 @@ export class ApiHelper {
   }
 
   async getAssets(collectionId: string) {
-    const res = await this.request.get(`${env.baseUrl}/api/assets/collection/${collectionId}?skip=0&take=100`, {
+    const res = await this.request.get(`${env.baseUrl}/api/v1/assets/collection/${collectionId}?skip=0&take=100`, {
       headers: this.authHeaders(),
     });
     return await res.json();
   }
 
   async getAsset(id: string) {
-    const res = await this.request.get(`${env.baseUrl}/api/assets/${id}`, {
+    const res = await this.request.get(`${env.baseUrl}/api/v1/assets/${id}`, {
       headers: this.authHeaders(),
     });
     return await res.json();
   }
 
   async deleteAsset(id: string) {
-    const res = await this.request.delete(`${env.baseUrl}/api/assets/${id}`, {
+    const res = await this.request.delete(`${env.baseUrl}/api/v1/assets/${id}`, {
       headers: this.authHeaders(),
     });
     return res;
   }
 
   async updateAsset(id: string, data: { title?: string; description?: string; tags?: string[] }) {
-    const res = await this.request.patch(`${env.baseUrl}/api/assets/${id}`, {
+    const res = await this.request.patch(`${env.baseUrl}/api/v1/assets/${id}`, {
       headers: this.authHeaders(),
       data,
     });
@@ -229,7 +229,7 @@ export class ApiHelper {
     const expiresAt = expiresInDays
       ? new Date(Date.now() + expiresInDays * 86400000).toISOString()
       : undefined;
-    const res = await this.request.post(`${env.baseUrl}/api/shares`, {
+    const res = await this.request.post(`${env.baseUrl}/api/v1/shares`, {
       headers: this.authHeaders(),
       data: {
         scopeId,
@@ -243,7 +243,7 @@ export class ApiHelper {
   }
 
   async getAdminShares() {
-    const res = await this.request.get(`${env.baseUrl}/api/admin/shares`, {
+    const res = await this.request.get(`${env.baseUrl}/api/v1/admin/shares`, {
       headers: this.authHeaders(),
     });
     if (!res.ok()) {
@@ -275,7 +275,7 @@ export class ApiHelper {
   }
 
   async revokeShare(id: string) {
-    const res = await this.request.delete(`${env.baseUrl}/api/admin/shares/${id}`, {
+    const res = await this.request.delete(`${env.baseUrl}/api/v1/admin/shares/${id}`, {
       headers: this.authHeaders(),
     });
     return res;
@@ -284,7 +284,7 @@ export class ApiHelper {
   // --- ACL ---
 
   async setCollectionAccess(collectionId: string, principalId: string, role: string) {
-    const res = await this.request.post(`${env.baseUrl}/api/collections/${collectionId}/acl`, {
+    const res = await this.request.post(`${env.baseUrl}/api/v1/collections/${collectionId}/acl`, {
       headers: this.authHeaders(),
       data: { principalType: 'user', principalId, role },
     });
@@ -292,7 +292,7 @@ export class ApiHelper {
   }
 
   async getCollectionAcl(collectionId: string) {
-    const res = await this.request.get(`${env.baseUrl}/api/collections/${collectionId}/acl`, {
+    const res = await this.request.get(`${env.baseUrl}/api/v1/collections/${collectionId}/acl`, {
       headers: this.authHeaders(),
     });
     return await res.json();
@@ -301,7 +301,7 @@ export class ApiHelper {
   // --- Admin Users ---
 
   async getKeycloakUsers() {
-    const res = await this.request.get(`${env.baseUrl}/api/admin/keycloak-users`, {
+    const res = await this.request.get(`${env.baseUrl}/api/v1/admin/keycloak-users`, {
       headers: this.authHeaders(),
     });
     if (!res.ok()) {

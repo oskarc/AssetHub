@@ -50,7 +50,7 @@ On `OnTokenValidated`, roles are extracted from both `realm_access.roles` and `r
 | `RequireViewer` | viewer, contributor, manager, admin | General resource access |
 | `RequireContributor` | contributor, manager, admin | Collection creation, uploads |
 | `RequireManager` | manager, admin | Management operations |
-| `RequireAdmin` | admin only | All `/api/admin/*` endpoints |
+| `RequireAdmin` | admin only | All `/api/v1/admin/*` endpoints |
 
 ### Error Handling
 
@@ -106,7 +106,8 @@ Multiple validation layers protect against malicious uploads:
 | **Content-type allowlist** | Block dangerous file types | Only images, videos, audio, documents, and safe archive types. SVGs are blocked due to embedded script/XSS risk. |
 | **Magic byte validation** | Prevent content-type spoofing | The first bytes of the uploaded file are compared against known signatures. A file claiming to be `image/jpeg` must have JPEG magic bytes. Uses `DownloadRangeAsync` to read only the header, not the entire file. |
 | **ClamAV scanning** | Malware detection | Scans run synchronously *before* any processing. Infected files are rejected and deleted. Scan failures also reject the upload (fail-closed). |
-| **File size limits** | Resource protection | Configurable max upload size (default 500 MB). Enforced at both the Kestrel and application layers. |
+| **Client-side pre-validation** | Early rejection | Files are validated for type and size in the browser before upload, providing instant user feedback and reducing unnecessary server load. |
+| **File size limits** | Resource protection | Configurable max upload size (default 1500 MB). Enforced at client-side, Kestrel, and application layers. |
 | **Batch limits** | Resource protection | Maximum 10 files per upload request to prevent resource exhaustion. |
 | **Filename sanitisation** | Header injection prevention | Filenames in Content-Disposition headers have control characters and quotes stripped. |
 
@@ -129,7 +130,7 @@ For large files, the client requests a presigned upload URL from the API, upload
 
 1. **Share creation** — A cryptographically random token is generated, encrypted, and stored. The plain token is returned to the creator and included in the share URL.
 2. **Share access** — The token from the URL is matched against stored encrypted tokens using the Data Protection API for decryption.
-3. **Password authentication** — If the share has a password, the visitor must authenticate via `POST /api/shares/{token}/access-token`. On success, a short-lived signed access token is issued.
+3. **Password authentication** — If the share has a password, the visitor must authenticate via `POST /api/v1/shares/{token}/access-token`. On success, a short-lived signed access token is issued.
 4. **Asset access** — Rendition URLs include the access token as a query parameter, allowing the browser to load images and videos without additional authentication prompts.
 
 ---
@@ -226,8 +227,9 @@ Each event includes structured JSON details with context-specific data (e.g., as
 | **Resource limits** | CPU, memory, and PID limits on all containers in production |
 | **Health checks** | Liveness and readiness probes with start periods for slow services (ClamAV: 5 min, Keycloak: 2 min) |
 | **Network segmentation** | Two isolated Docker networks (`backend` + `observability`); only API/Worker bridge both |
-| **Credentials management** | Environment variables via `.env.template`; Docker file-based secrets documented as opt-in alternative |
+| **Credentials management** | File-based Docker secrets for all sensitive credentials in production; environment variables via `.env.template` for development |
 | **ImageMagick policy** | Restrictive `policy.xml` disables SVG, MVG, MSL, Ghostscript, and network coders to prevent SSRF and server-side XSS |
+| **Request validation** | Server-side `ValidationFilter` enforces DataAnnotation constraints on all endpoint DTOs, returning structured 400 errors |
 | **Query limits** | Hard caps on admin queries to prevent unbounded memory use (CWE-400) |
 | **Process timeouts** | ImageMagick and ffmpeg have 5-minute hard timeouts — process trees are killed if exceeded |
 
@@ -240,102 +242,102 @@ All endpoints require authentication unless marked *(anonymous)*.
 ### Collections
 
 ```http
-GET    /api/collections                           # List root collections the user can access
-GET    /api/collections/{id}                      # Collection details with ACLs
-POST   /api/collections                           # Create collection (Contributor+)
-PATCH  /api/collections/{id}                      # Update name, description
-DELETE /api/collections/{id}                      # Delete collection (cascades relationships)
-POST   /api/collections/{id}/download-all         # Queue zip download of all assets
+GET    /api/v1/collections                           # List root collections the user can access
+GET    /api/v1/collections/{id}                      # Collection details with ACLs
+POST   /api/v1/collections                           # Create collection (Contributor+)
+PATCH  /api/v1/collections/{id}                      # Update name, description
+DELETE /api/v1/collections/{id}                      # Delete collection (cascades relationships)
+POST   /api/v1/collections/{id}/download-all         # Queue zip download of all assets
 ```
 
 ### Collection ACLs
 
 ```http
-GET    /api/collections/{collectionId}/acl                         # List access entries
-POST   /api/collections/{collectionId}/acl                         # Grant or update role for user
-DELETE /api/collections/{collectionId}/acl/{principalType}/{principalId}  # Revoke access
-GET    /api/collections/{collectionId}/acl/users/search            # Search users for ACL assignment
+GET    /api/v1/collections/{collectionId}/acl                         # List access entries
+POST   /api/v1/collections/{collectionId}/acl                         # Grant or update role for user
+DELETE /api/v1/collections/{collectionId}/acl/{principalType}/{principalId}  # Revoke access
+GET    /api/v1/collections/{collectionId}/acl/users/search            # Search users for ACL assignment
 ```
 
 ### Assets
 
 ```http
-GET    /api/assets                                # List ready assets with pagination (Admin)
-GET    /api/assets/all                            # Search all assets with filters (Admin)
-GET    /api/assets/{id}                           # Asset details
-POST   /api/assets                                # Upload (multipart form)
-POST   /api/assets/init-upload                    # Initiate presigned upload
-POST   /api/assets/{id}/confirm-upload            # Confirm presigned upload completed
-PATCH  /api/assets/{id}                           # Update title, description, copyright, tags
-DELETE /api/assets/{id}                           # Delete asset (with optional collection scope)
-GET    /api/assets/collection/{collectionId}      # Assets in collection (search, sort, filter)
-GET    /api/assets/{id}/deletion-context          # Get deletion impact info
+GET    /api/v1/assets                                # List ready assets with pagination (Admin)
+GET    /api/v1/assets/all                            # Search all assets with filters (Admin)
+GET    /api/v1/assets/{id}                           # Asset details
+POST   /api/v1/assets                                # Upload (multipart form)
+POST   /api/v1/assets/init-upload                    # Initiate presigned upload
+POST   /api/v1/assets/{id}/confirm-upload            # Confirm presigned upload completed
+PATCH  /api/v1/assets/{id}                           # Update title, description, copyright, tags
+DELETE /api/v1/assets/{id}                           # Delete asset (with optional collection scope)
+GET    /api/v1/assets/collection/{collectionId}      # Assets in collection (search, sort, filter)
+GET    /api/v1/assets/{id}/deletion-context          # Get deletion impact info
 ```
 
 ### Asset Collections
 
 ```http
-GET    /api/assets/{id}/collections               # Collections containing asset
-POST   /api/assets/{id}/collections/{collectionId}  # Add asset to collection
-DELETE /api/assets/{id}/collections/{collectionId}  # Remove from collection
+GET    /api/v1/assets/{id}/collections               # Collections containing asset
+POST   /api/v1/assets/{id}/collections/{collectionId}  # Add asset to collection
+DELETE /api/v1/assets/{id}/collections/{collectionId}  # Remove from collection
 ```
 
 ### Renditions
 
 ```http
-GET    /api/assets/{id}/download                  # Original file (presigned redirect)
-GET    /api/assets/{id}/preview                   # Original inline preview
-GET    /api/assets/{id}/thumb                     # Thumbnail (200x200)
-GET    /api/assets/{id}/thumb/download            # Thumbnail download
-GET    /api/assets/{id}/medium                    # Medium rendition (800x800)
-GET    /api/assets/{id}/medium/download           # Medium rendition download
-GET    /api/assets/{id}/poster                    # Video poster frame
+GET    /api/v1/assets/{id}/download                  # Original file (presigned redirect)
+GET    /api/v1/assets/{id}/preview                   # Original inline preview
+GET    /api/v1/assets/{id}/thumb                     # Thumbnail (200x200)
+GET    /api/v1/assets/{id}/thumb/download            # Thumbnail download
+GET    /api/v1/assets/{id}/medium                    # Medium rendition (800x800)
+GET    /api/v1/assets/{id}/medium/download           # Medium rendition download
+GET    /api/v1/assets/{id}/poster                    # Video poster frame
 ```
 
 ### Shares
 
 ```http
-POST   /api/shares                                # Create share link
-DELETE /api/shares/{id}                           # Revoke share (creator or admin)
-PUT    /api/shares/{id}/password                  # Set, change, or remove password
-GET    /api/shares/{token}                        # View shared content (anonymous)
-POST   /api/shares/{token}/access-token           # Authenticate with password (anonymous)
-GET    /api/shares/{token}/download               # Download via share (anonymous)
-POST   /api/shares/{token}/download-all           # Zip download of shared collection (anonymous)
-GET    /api/shares/{token}/preview                # Preview shared asset (anonymous)
+POST   /api/v1/shares                                # Create share link
+DELETE /api/v1/shares/{id}                           # Revoke share (creator or admin)
+PUT    /api/v1/shares/{id}/password                  # Set, change, or remove password
+GET    /api/v1/shares/{token}                        # View shared content (anonymous)
+POST   /api/v1/shares/{token}/access-token           # Authenticate with password (anonymous)
+GET    /api/v1/shares/{token}/download               # Download via share (anonymous)
+POST   /api/v1/shares/{token}/download-all           # Zip download of shared collection (anonymous)
+GET    /api/v1/shares/{token}/preview                # Preview shared asset (anonymous)
 ```
 
 ### Zip Downloads
 
 ```http
-GET    /api/zip-downloads/{jobId}                 # Poll build progress (authenticated)
-GET    /api/zip-downloads/{jobId}/share           # Poll build progress (anonymous, X-Share-Token header)
+GET    /api/v1/zip-downloads/{jobId}                 # Poll build progress (authenticated)
+GET    /api/v1/zip-downloads/{jobId}/share           # Poll build progress (anonymous, X-Share-Token header)
 ```
 
 ### Admin *(admin role required)*
 
 ```http
-GET    /api/admin/shares                          # All shares (paginated, filterable)
-GET    /api/admin/shares/{id}/token               # Retrieve share token (encrypted storage)
-GET    /api/admin/shares/{id}/password            # Retrieve share password (encrypted storage)
-DELETE /api/admin/shares/{id}                     # Revoke share
-GET    /api/admin/collections/access              # All collection access (hierarchical tree)
-POST   /api/admin/collections/{collectionId}/acl            # Grant access
-DELETE /api/admin/collections/{collectionId}/acl/{principalId}  # Revoke access (?principalType=)
-GET    /api/admin/users                           # Users with access
-GET    /api/admin/keycloak-users                  # All Keycloak users
-POST   /api/admin/users                           # Create user in Keycloak
-POST   /api/admin/users/{userId}/reset-password   # Reset password
-POST   /api/admin/users/sync                      # Sync deleted users (supports dry-run)
-DELETE /api/admin/users/{userId}                  # Delete user
-GET    /api/admin/audit                           # Recent audit events (default 200, max 200)
-GET    /api/admin/audit/paginated                 # Paginated audit log
+GET    /api/v1/admin/shares                          # All shares (paginated, filterable)
+GET    /api/v1/admin/shares/{id}/token               # Retrieve share token (encrypted storage)
+GET    /api/v1/admin/shares/{id}/password            # Retrieve share password (encrypted storage)
+DELETE /api/v1/admin/shares/{id}                     # Revoke share
+GET    /api/v1/admin/collections/access              # All collection access (hierarchical tree)
+POST   /api/v1/admin/collections/{collectionId}/acl            # Grant access
+DELETE /api/v1/admin/collections/{collectionId}/acl/{principalId}  # Revoke access (?principalType=)
+GET    /api/v1/admin/users                           # Users with access
+GET    /api/v1/admin/keycloak-users                  # All Keycloak users
+POST   /api/v1/admin/users                           # Create user in Keycloak
+POST   /api/v1/admin/users/{userId}/reset-password   # Reset password
+POST   /api/v1/admin/users/sync                      # Sync deleted users (supports dry-run)
+DELETE /api/v1/admin/users/{userId}                  # Delete user
+GET    /api/v1/admin/audit                           # Recent audit events (default 200, max 200)
+GET    /api/v1/admin/audit/paginated                 # Paginated audit log
 ```
 
 ### Dashboard
 
 ```http
-GET    /api/dashboard                             # Stats: assets, collections, shares (active/total), audit count
+GET    /api/v1/dashboard                             # Stats: assets, collections, shares (active/total), audit count
 ```
 
 ### Health

@@ -1,3 +1,21 @@
+/* Accessibility */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--mud-palette-primary);
+    color: #fff;
+    padding: 8px 16px;
+    z-index: 10000;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: top 0.2s;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
 /* AssetHub Component Styles */
 
 /* Asset Card Grid */

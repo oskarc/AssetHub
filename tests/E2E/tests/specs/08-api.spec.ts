@@ -91,7 +91,7 @@ test.describe('API Endpoint Tests @api', () => {
     });
 
     test('get collection by ID returns full DTO', async () => {
-      const res = await api.get(`${env.baseUrl}/api/collections/${testCollectionId}`);
+      const res = await api.get(`${env.baseUrl}/api/v1/collections/${testCollectionId}`);
       expect(res.status()).toBe(200);
       const data = await res.json();
       expect(data.id).toBe(testCollectionId);
@@ -104,20 +104,20 @@ test.describe('API Endpoint Tests @api', () => {
 
     test('update collection persists changes', async () => {
       const updatedName = `${testCollectionName}-Updated`;
-      const res = await api.patch(`${env.baseUrl}/api/collections/${testCollectionId}`, {
+      const res = await api.patch(`${env.baseUrl}/api/v1/collections/${testCollectionId}`, {
         name: updatedName,
         description: 'Updated description',
       });
       expect(res.ok()).toBeTruthy();
 
       // Verify the update persisted
-      const getRes = await api.get(`${env.baseUrl}/api/collections/${testCollectionId}`);
+      const getRes = await api.get(`${env.baseUrl}/api/v1/collections/${testCollectionId}`);
       const data = await getRes.json();
       expect(data.name).toBe(updatedName);
       expect(data.description).toBe('Updated description');
 
       // Restore original name so other tests aren't affected
-      await api.patch(`${env.baseUrl}/api/collections/${testCollectionId}`, {
+      await api.patch(`${env.baseUrl}/api/v1/collections/${testCollectionId}`, {
         name: testCollectionName,
         description: 'API test collection',
       });
@@ -138,7 +138,7 @@ test.describe('API Endpoint Tests @api', () => {
 
     test('search users for ACL returns array', async () => {
       const res = await api.get(
-        `${env.baseUrl}/api/collections/${testCollectionId}/acl/users/search?q=test`
+        `${env.baseUrl}/api/v1/collections/${testCollectionId}/acl/users/search?q=test`
       );
       expect(res.status()).toBe(200);
       const data = await res.json();
@@ -191,7 +191,7 @@ test.describe('API Endpoint Tests @api', () => {
     });
 
     test('get asset collections returns lightweight collection DTOs', async () => {
-      const res = await api.get(`${env.baseUrl}/api/assets/${testAssetId}/collections`);
+      const res = await api.get(`${env.baseUrl}/api/v1/assets/${testAssetId}/collections`);
       expect(res.status()).toBe(200);
       const data = await res.json();
       expect(Array.isArray(data)).toBe(true);
@@ -202,7 +202,7 @@ test.describe('API Endpoint Tests @api', () => {
     });
 
     test('asset thumbnail returns image or not-yet-processed', async () => {
-      const res = await api.get(`${env.baseUrl}/api/assets/${testAssetId}/thumb`);
+      const res = await api.get(`${env.baseUrl}/api/v1/assets/${testAssetId}/thumb`);
       // 200 = served directly, 3xx = redirect to object storage, 404 = not yet processed
       expect([200, 301, 302, 307, 404]).toContain(res.status());
       if (res.status() === 200) {
@@ -212,7 +212,7 @@ test.describe('API Endpoint Tests @api', () => {
     });
 
     test('asset download redirects to presigned URL', async () => {
-      const res = await api.get(`${env.baseUrl}/api/assets/${testAssetId}/download`, { maxRedirects: 0 });
+      const res = await api.get(`${env.baseUrl}/api/v1/assets/${testAssetId}/download`, { maxRedirects: 0 });
       expect([200, 301, 302, 307]).toContain(res.status());
       if ([301, 302, 307].includes(res.status())) {
         expect(res.headers()['location']).toBeTruthy();
@@ -222,20 +222,20 @@ test.describe('API Endpoint Tests @api', () => {
     test('add and remove asset from another collection', async () => {
       const col2 = await api.createCollection(`${testCollectionName}-Link`, 'Link test');
       try {
-        const addRes = await api.post(`${env.baseUrl}/api/assets/${testAssetId}/collections/${col2.id}`);
+        const addRes = await api.post(`${env.baseUrl}/api/v1/assets/${testAssetId}/collections/${col2.id}`);
         expect(addRes.ok()).toBeTruthy();
 
         // Verify asset appears in the second collection
-        const collectionsRes = await api.get(`${env.baseUrl}/api/assets/${testAssetId}/collections`);
+        const collectionsRes = await api.get(`${env.baseUrl}/api/v1/assets/${testAssetId}/collections`);
         const collections = await collectionsRes.json();
         const ids = collections.map((c: { id: string }) => c.id);
         expect(ids).toContain(col2.id);
 
         // Remove and verify
-        const removeRes = await api.delete(`${env.baseUrl}/api/assets/${testAssetId}/collections/${col2.id}`);
+        const removeRes = await api.delete(`${env.baseUrl}/api/v1/assets/${testAssetId}/collections/${col2.id}`);
         expect(removeRes.ok()).toBeTruthy();
 
-        const afterRes = await api.get(`${env.baseUrl}/api/assets/${testAssetId}/collections`);
+        const afterRes = await api.get(`${env.baseUrl}/api/v1/assets/${testAssetId}/collections`);
         const afterIds = (await afterRes.json()).map((c: { id: string }) => c.id);
         expect(afterIds).not.toContain(col2.id);
       } finally {
@@ -253,7 +253,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('access share with correct password returns shared asset DTO', async ({ browser }) => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       try {
-        const res = await ctx.request.get(`${env.baseUrl}/api/shares/${shareToken}`, {
+        const res = await ctx.request.get(`${env.baseUrl}/api/v1/shares/${shareToken}`, {
           headers: { 'X-Share-Password': 'test-password-123' },
         });
         expect(res.status()).toBe(200);
@@ -273,7 +273,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('access share without password returns 401 with requiresPassword', async ({ browser }) => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       try {
-        const res = await ctx.request.get(`${env.baseUrl}/api/shares/${shareToken}`);
+        const res = await ctx.request.get(`${env.baseUrl}/api/v1/shares/${shareToken}`);
         expect(res.status()).toBe(401);
         const data = await res.json();
         expect(data.requiresPassword).toBe(true);
@@ -285,7 +285,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('access share with wrong password returns 401', async ({ browser }) => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       try {
-        const res = await ctx.request.get(`${env.baseUrl}/api/shares/${shareToken}`, {
+        const res = await ctx.request.get(`${env.baseUrl}/api/v1/shares/${shareToken}`, {
           headers: { 'X-Share-Password': 'wrong-password' },
         });
         expect(res.status()).toBe(401);
@@ -297,7 +297,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('share download redirects to presigned URL', async ({ browser }) => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       try {
-        const res = await ctx.request.get(`${env.baseUrl}/api/shares/${shareToken}/download`, {
+        const res = await ctx.request.get(`${env.baseUrl}/api/v1/shares/${shareToken}/download`, {
           headers: { 'X-Share-Password': 'test-password-123' },
           maxRedirects: 0,
         });
@@ -325,7 +325,7 @@ test.describe('API Endpoint Tests @api', () => {
     });
 
     test('admin get share token returns token string', async () => {
-      const res = await api.get(`${env.baseUrl}/api/admin/shares/${shareId}/token`);
+      const res = await api.get(`${env.baseUrl}/api/v1/admin/shares/${shareId}/token`);
       expect(res.status()).toBe(200);
       const data = await res.json();
       expect(typeof data.token).toBe('string');
@@ -333,7 +333,7 @@ test.describe('API Endpoint Tests @api', () => {
     });
 
     test('update share password succeeds', async () => {
-      const res = await api.put(`${env.baseUrl}/api/shares/${shareId}/password`, { password: 'new-password-456' });
+      const res = await api.put(`${env.baseUrl}/api/v1/shares/${shareId}/password`, { password: 'new-password-456' });
       expect(res.ok()).toBeTruthy();
     });
 
@@ -347,7 +347,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('revoked share returns 401 SHARE_REVOKED', async ({ browser }) => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       try {
-        const res = await ctx.request.get(`${env.baseUrl}/api/shares/${shareToken}`, {
+        const res = await ctx.request.get(`${env.baseUrl}/api/v1/shares/${shareToken}`, {
           headers: { 'X-Share-Password': 'new-password-456' },
         });
         // Backend checks revocation BEFORE password validation (prevents password enumeration)
@@ -362,7 +362,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('invalid share token returns 404', async ({ browser }) => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       try {
-        const res = await ctx.request.get(`${env.baseUrl}/api/shares/invalid-token-xyz`);
+        const res = await ctx.request.get(`${env.baseUrl}/api/v1/shares/invalid-token-xyz`);
         expect(res.status()).toBe(404);
       } finally {
         await ctx.close();
@@ -374,7 +374,7 @@ test.describe('API Endpoint Tests @api', () => {
 
   test.describe('Admin API', () => {
     test('admin collections access returns collection tree with ACLs', async () => {
-      const res = await api.get(`${env.baseUrl}/api/admin/collections/access`);
+      const res = await api.get(`${env.baseUrl}/api/v1/admin/collections/access`);
       expect(res.status()).toBe(200);
       const data = await res.json();
       expect(Array.isArray(data)).toBe(true);
@@ -386,7 +386,7 @@ test.describe('API Endpoint Tests @api', () => {
     });
 
     test('admin users returns user access summaries', async () => {
-      const res = await api.get(`${env.baseUrl}/api/admin/users`);
+      const res = await api.get(`${env.baseUrl}/api/v1/admin/users`);
       expect(res.status()).toBe(200);
       const data = await res.json();
       expect(Array.isArray(data)).toBe(true);
@@ -410,7 +410,7 @@ test.describe('API Endpoint Tests @api', () => {
     });
 
     test('admin all assets returns paginated response', async () => {
-      const res = await api.get(`${env.baseUrl}/api/assets/all?skip=0&take=10`);
+      const res = await api.get(`${env.baseUrl}/api/v1/assets/all?skip=0&take=10`);
       expect(res.status()).toBe(200);
       const data = await res.json();
       expect(data).toHaveProperty('items');
@@ -447,7 +447,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('viewer cannot access admin shares endpoint', async () => {
       const viewerApi = await ApiHelper.withCookieAuth('viewer');
       try {
-        const res = await viewerApi.get(`${env.baseUrl}/api/admin/shares`, { maxRedirects: 0 });
+        const res = await viewerApi.get(`${env.baseUrl}/api/v1/admin/shares`, { maxRedirects: 0 });
         // Cookie auth returns 302 redirect to AccessDenied for forbidden, or 401/403 directly
         expect([302, 401, 403]).toContain(res.status());
       } finally {
@@ -458,7 +458,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('viewer cannot access admin users endpoint', async () => {
       const viewerApi = await ApiHelper.withCookieAuth('viewer');
       try {
-        const res = await viewerApi.get(`${env.baseUrl}/api/admin/users`, { maxRedirects: 0 });
+        const res = await viewerApi.get(`${env.baseUrl}/api/v1/admin/users`, { maxRedirects: 0 });
         expect([302, 401, 403]).toContain(res.status());
       } finally {
         await viewerApi.dispose();
@@ -468,7 +468,7 @@ test.describe('API Endpoint Tests @api', () => {
     test('viewer cannot delete assets', async () => {
       const viewerApi = await ApiHelper.withCookieAuth('viewer');
       try {
-        const res = await viewerApi.delete(`${env.baseUrl}/api/assets/${testAssetId}`, { maxRedirects: 0 });
+        const res = await viewerApi.delete(`${env.baseUrl}/api/v1/assets/${testAssetId}`, { maxRedirects: 0 });
         expect([302, 401, 403]).toContain(res.status());
       } finally {
         await viewerApi.dispose();

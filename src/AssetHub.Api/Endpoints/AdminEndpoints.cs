@@ -1,4 +1,5 @@
 using AssetHub.Api.Extensions;
+using AssetHub.Api.Filters;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
@@ -16,7 +17,7 @@ public static class AdminEndpoints
 {
     public static void MapAdminEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/admin")
+        var group = app.MapGroup("/api/v1/admin")
             .RequireAuthorization("RequireAdmin")
             .WithTags("Admin");
 
@@ -28,17 +29,17 @@ public static class AdminEndpoints
 
         // ===== COLLECTION ACCESS MANAGEMENT =====
         group.MapGet("/collections/access", GetCollectionAccess).WithName("GetCollectionAccess");
-        group.MapPost("/collections/{collectionId:guid}/acl", SetCollectionAccess).DisableAntiforgery().WithName("AdminSetCollectionAccess");
+        group.MapPost("/collections/{collectionId:guid}/acl", SetCollectionAccess).AddEndpointFilter<ValidationFilter<SetCollectionAccessRequest>>().DisableAntiforgery().WithName("AdminSetCollectionAccess");
         group.MapDelete("/collections/{collectionId:guid}/acl/{principalId}", RemoveCollectionAccess).DisableAntiforgery().WithName("RemoveCollectionAccess");
 
         // ===== BULK COLLECTION OPERATIONS =====
-        group.MapPost("/collections/bulk-delete", BulkDeleteCollections).DisableAntiforgery().WithName("BulkDeleteCollections");
-        group.MapPost("/collections/bulk-set-access", BulkSetCollectionAccess).DisableAntiforgery().WithName("BulkSetCollectionAccess");
+        group.MapPost("/collections/bulk-delete", BulkDeleteCollections).AddEndpointFilter<ValidationFilter<BulkDeleteCollectionsRequest>>().DisableAntiforgery().WithName("BulkDeleteCollections");
+        group.MapPost("/collections/bulk-set-access", BulkSetCollectionAccess).AddEndpointFilter<ValidationFilter<BulkSetCollectionAccessRequest>>().DisableAntiforgery().WithName("BulkSetCollectionAccess");
 
         // ===== USER MANAGEMENT =====
         group.MapGet("/users", GetUsers).WithName("GetUsers");
         group.MapGet("/keycloak-users", GetKeycloakUsers).WithName("GetKeycloakUsers");
-        group.MapPost("/users", CreateUser).DisableAntiforgery().WithName("CreateUser");
+        group.MapPost("/users", CreateUser).AddEndpointFilter<ValidationFilter<CreateUserRequest>>().DisableAntiforgery().WithName("CreateUser");
         group.MapPost("/users/{userId}/reset-password", ResetUserPassword).DisableAntiforgery().WithName("ResetUserPassword");
         group.MapPost("/users/sync", SyncDeletedUsers).DisableAntiforgery().WithName("SyncDeletedUsers");
         group.MapDelete("/users/{userId}", DeleteUser).DisableAntiforgery().WithName("DeleteUser");
@@ -147,7 +148,7 @@ public static class AdminEndpoints
     {
         var baseUrl = (appSettings.Value.BaseUrl ?? "").TrimEnd('/');
         var result = await svc.CreateUserAsync(request, baseUrl, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/admin/users/{v.UserId}", v));
+        return result.ToHttpResult(v => Results.Created($"/api/v1/admin/users/{v.UserId}", v));
     }
 
     private static async Task<IResult> ResetUserPassword(

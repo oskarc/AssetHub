@@ -1,4 +1,5 @@
 using AssetHub.Api.Extensions;
+using AssetHub.Api.Filters;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
@@ -13,7 +14,7 @@ public static class ShareEndpoints
 {
     public static void MapShareEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/shares")
+        var group = app.MapGroup("/api/v1/shares")
             .WithTags("Shares");
 
         // Public endpoints (no auth required, rate-limited).
@@ -33,9 +34,9 @@ public static class ShareEndpoints
 
         // Protected endpoints
         var authGroup = group.RequireAuthorization();
-        authGroup.MapPost("", CreateShare).DisableAntiforgery().WithName("CreateShare");
+        authGroup.MapPost("", CreateShare).AddEndpointFilter<ValidationFilter<CreateShareDto>>().DisableAntiforgery().WithName("CreateShare");
         authGroup.MapDelete("{id:guid}", RevokeShare).DisableAntiforgery().WithName("RevokeShare");
-        authGroup.MapPut("{id:guid}/password", UpdateSharePassword).DisableAntiforgery().WithName("UpdateSharePassword");
+        authGroup.MapPut("{id:guid}/password", UpdateSharePassword).AddEndpointFilter<ValidationFilter<UpdateSharePasswordDto>>().DisableAntiforgery().WithName("UpdateSharePassword");
     }
 
     // ── Public endpoints ─────────────────────────────────────────────────────
@@ -104,7 +105,7 @@ public static class ShareEndpoints
     {
         var baseUrl = (appSettings.Value.BaseUrl ?? "").TrimEnd('/');
         var result = await svc.CreateShareAsync(dto, baseUrl, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/shares/{v.Id}", v));
+        return result.ToHttpResult(v => Results.Created($"/api/v1/shares/{v.Id}", v));
     }
 
     private static async Task<IResult> RevokeShare(

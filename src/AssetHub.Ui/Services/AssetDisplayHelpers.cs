@@ -19,12 +19,12 @@ public static class AssetDisplayHelpers
     {
         if (!string.IsNullOrEmpty(thumbObjectKey))
         {
-            return $"/api/assets/{assetId}/thumb";
+            return $"/api/v1/assets/{assetId}/thumb";
         }
 
         if (!string.IsNullOrEmpty(posterObjectKey))
         {
-            return $"/api/assets/{assetId}/poster";
+            return $"/api/v1/assets/{assetId}/poster";
         }
 
         return GetPlaceholderForType(assetType);

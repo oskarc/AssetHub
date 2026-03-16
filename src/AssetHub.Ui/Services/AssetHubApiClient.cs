@@ -104,7 +104,7 @@ public class AssetHubApiClient
     /// </summary>
     public async Task<DashboardDto?> GetDashboardAsync()
     {
-        var response = await _http.GetAsync("/api/dashboard");
+        var response = await _http.GetAsync("/api/v1/dashboard");
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadFromJsonAsync<DashboardDto>();
     }
@@ -119,7 +119,7 @@ public class AssetHubApiClient
     /// <returns>List of collections (empty if none found).</returns>
     public virtual async Task<List<CollectionResponseDto>> GetCollectionsAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/collections", ct);
+        var response = await _http.GetAsync("/api/v1/collections", ct);
         await EnsureSuccessAsync(response, "Get collections");
         return await response.Content.ReadFromJsonAsync<List<CollectionResponseDto>>(ct) ?? new();
     }
@@ -130,7 +130,7 @@ public class AssetHubApiClient
     /// <returns>The collection, or null if not found.</returns>
     public virtual async Task<CollectionResponseDto?> GetCollectionAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/collections/{id}", ct);
+        var response = await _http.GetAsync($"/api/v1/collections/{id}", ct);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
         await EnsureSuccessAsync(response, "Get collection");
@@ -142,7 +142,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<CollectionResponseDto> CreateCollectionAsync(CreateCollectionDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/collections", dto, ct);
+        var response = await _http.PostAsJsonAsync("/api/v1/collections", dto, ct);
         await EnsureSuccessAsync(response, "Create collection");
         return await ReadRequiredJsonAsync<CollectionResponseDto>(response, "Create collection");
     }
@@ -152,7 +152,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task UpdateCollectionAsync(Guid id, UpdateCollectionDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/collections/{id}", dto, ct);
+        var response = await _http.PatchAsJsonAsync($"/api/v1/collections/{id}", dto, ct);
         await EnsureSuccessAsync(response, "Update collection");
     }
 
@@ -161,7 +161,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task DeleteCollectionAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/collections/{id}", ct);
+        var response = await _http.DeleteAsync($"/api/v1/collections/{id}", ct);
         await EnsureSuccessAsync(response, "Delete collection");
     }
 
@@ -170,7 +170,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/collections/{collectionId}/acl", ct);
+        var response = await _http.GetAsync($"/api/v1/collections/{collectionId}/acl", ct);
         await EnsureSuccessAsync(response, "Get collection ACLs");
         return await response.Content.ReadFromJsonAsync<List<CollectionAclResponseDto>>(ct) ?? new();
     }
@@ -181,7 +181,7 @@ public class AssetHubApiClient
     public virtual async Task SetCollectionAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default)
     {
         var request = new { principalType, principalId, role };
-        var response = await _http.PostAsJsonAsync($"/api/collections/{collectionId}/acl", request, ct);
+        var response = await _http.PostAsJsonAsync($"/api/v1/collections/{collectionId}/acl", request, ct);
         await EnsureSuccessAsync(response, "Set collection access");
     }
 
@@ -190,7 +190,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task RevokeCollectionAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
-        var url = $"/api/collections/{collectionId}/acl/{Uri.EscapeDataString(principalType)}/{Uri.EscapeDataString(principalId)}";
+        var url = $"/api/v1/collections/{collectionId}/acl/{Uri.EscapeDataString(principalType)}/{Uri.EscapeDataString(principalId)}";
         var response = await _http.DeleteAsync(url, ct);
         await EnsureSuccessAsync(response, "Revoke collection access");
     }
@@ -201,7 +201,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<List<UserSearchResultDto>> SearchUsersForAclAsync(Guid collectionId, string? query = null, CancellationToken ct = default)
     {
-        var url = $"/api/collections/{collectionId}/acl/users/search";
+        var url = $"/api/v1/collections/{collectionId}/acl/users/search";
         if (!string.IsNullOrWhiteSpace(query))
             url += $"?q={Uri.EscapeDataString(query)}";
         var response = await _http.GetAsync(url, ct);
@@ -225,7 +225,7 @@ public class AssetHubApiClient
         int take = 50,
         CancellationToken ct = default)
     {
-        var url = $"/api/assets/collection/{collectionId}?skip={skip}&take={take}&sortBy={sortBy}";
+        var url = $"/api/v1/assets/collection/{collectionId}?skip={skip}&take={take}&sortBy={sortBy}";
         if (!string.IsNullOrWhiteSpace(query))
             url += $"&query={Uri.EscapeDataString(query)}";
         if (!string.IsNullOrWhiteSpace(type))
@@ -249,7 +249,7 @@ public class AssetHubApiClient
         int take = 50,
         CancellationToken ct = default)
     {
-        var url = $"/api/assets/all?skip={skip}&take={take}&sortBy={sortBy}";
+        var url = $"/api/v1/assets/all?skip={skip}&take={take}&sortBy={sortBy}";
         if (!string.IsNullOrWhiteSpace(query))
             url += $"&query={Uri.EscapeDataString(query)}";
         if (!string.IsNullOrWhiteSpace(type))
@@ -269,7 +269,7 @@ public class AssetHubApiClient
     /// <returns>The asset, or null if not found.</returns>
     public virtual async Task<AssetResponseDto?> GetAssetAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/assets/{id}", ct);
+        var response = await _http.GetAsync($"/api/v1/assets/{id}", ct);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
         await EnsureSuccessAsync(response, "Get asset");
@@ -281,7 +281,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<AssetResponseDto> UpdateAssetAsync(Guid id, UpdateAssetDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/assets/{id}", dto, ct);
+        var response = await _http.PatchAsJsonAsync($"/api/v1/assets/{id}", dto, ct);
         await EnsureSuccessAsync(response, "Update asset");
         return await ReadRequiredJsonAsync<AssetResponseDto>(response, "Update asset");
     }
@@ -304,7 +304,7 @@ public class AssetHubApiClient
         content.Add(new StringContent(collectionId.ToString()), "collectionId");
         content.Add(new StringContent(title), "title");
 
-        var response = await _http.PostAsync("/api/assets", content, ct);
+        var response = await _http.PostAsync("/api/v1/assets", content, ct);
         await EnsureSuccessAsync(response, "Upload asset");
         return await ReadRequiredJsonAsync<AssetUploadResult>(response, "Upload asset");
     }
@@ -330,7 +330,7 @@ public class AssetHubApiClient
             title = title ?? Path.GetFileNameWithoutExtension(fileName)
         };
 
-        var response = await _http.PostAsJsonAsync("/api/assets/init-upload", request, ct);
+        var response = await _http.PostAsJsonAsync("/api/v1/assets/init-upload", request, ct);
         await EnsureSuccessAsync(response, "Init upload");
         return await ReadRequiredJsonAsync<InitUploadResponse>(response, "Init upload");
     }
@@ -340,7 +340,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/assets/{assetId}/confirm-upload", null, ct);
+        var response = await _http.PostAsync($"/api/v1/assets/{assetId}/confirm-upload", null, ct);
         await EnsureSuccessAsync(response, "Confirm upload");
         return await ReadRequiredJsonAsync<AssetUploadResult>(response, "Confirm upload");
     }
@@ -352,7 +352,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, CancellationToken ct = default)
     {
-        var url = $"/api/assets/{id}";
+        var url = $"/api/v1/assets/{id}";
         if (fromCollectionId.HasValue)
             url += $"?fromCollectionId={fromCollectionId.Value}";
 
@@ -367,7 +367,7 @@ public class AssetHubApiClient
         List<Guid> assetIds, Guid? fromCollectionId = null, CancellationToken ct = default)
     {
         var request = new { assetIds, fromCollectionId };
-        var response = await _http.PostAsJsonAsync("/api/assets/bulk-delete", request, ct);
+        var response = await _http.PostAsJsonAsync("/api/v1/assets/bulk-delete", request, ct);
         await EnsureSuccessAsync(response, "Bulk delete assets");
         return await ReadRequiredJsonAsync<BulkDeleteAssetsResponse>(response, "Bulk delete assets");
     }
@@ -378,7 +378,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<AssetDeletionContextDto> GetAssetDeletionContextAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/assets/{id}/deletion-context", ct);
+        var response = await _http.GetAsync($"/api/v1/assets/{id}/deletion-context", ct);
         await EnsureSuccessAsync(response, "Get asset deletion context");
         return await ReadRequiredJsonAsync<AssetDeletionContextDto>(response, "Get asset deletion context");
     }
@@ -412,7 +412,7 @@ public class AssetHubApiClient
             NotifyEmails = notifyEmails
         };
 
-        var response = await _http.PostAsJsonAsync("/api/shares", dto, ct);
+        var response = await _http.PostAsJsonAsync("/api/v1/shares", dto, ct);
         await EnsureSuccessAsync(response, "Create share");
         return await ReadRequiredJsonAsync<ShareResponseDto>(response, "Create share");
     }
@@ -422,7 +422,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task UpdateSharePasswordAsync(Guid shareId, string newPassword, CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync($"/api/shares/{shareId}/password", new { Password = newPassword }, ct);
+        var response = await _http.PutAsJsonAsync($"/api/v1/shares/{shareId}/password", new { Password = newPassword }, ct);
         await EnsureSuccessAsync(response, "Update share password");
     }
 
@@ -432,7 +432,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<string> GetShareTokenAsync(Guid shareId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/admin/shares/{shareId}/token", ct);
+        var response = await _http.GetAsync($"/api/v1/admin/shares/{shareId}/token", ct);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return string.Empty;
         await EnsureSuccessAsync(response, "Get share token");
@@ -446,7 +446,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<string?> GetSharePasswordAsync(Guid shareId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/admin/shares/{shareId}/password", ct);
+        var response = await _http.GetAsync($"/api/v1/admin/shares/{shareId}/password", ct);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
         await EnsureSuccessAsync(response, "Get share password");
@@ -459,7 +459,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task RevokeShareAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/shares/{id}", ct);
+        var response = await _http.DeleteAsync($"/api/v1/shares/{id}", ct);
         await EnsureSuccessAsync(response, "Revoke share");
     }
 
@@ -471,7 +471,7 @@ public class AssetHubApiClient
     /// </remarks>
     public virtual async Task<HttpResponseMessage> GetSharedContentAsync(string token, string? password = null, CancellationToken ct = default)
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(token)}";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(token)}";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         if (!string.IsNullOrEmpty(password))
             request.Headers.TryAddWithoutValidation("X-Share-Password", password);
@@ -486,7 +486,7 @@ public class AssetHubApiClient
     public virtual async Task<ShareAccessTokenResponse?> GetShareAccessTokenAsync(
         string token, string password, CancellationToken ct = default)
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(token)}/access-token";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(token)}/access-token";
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Headers.TryAddWithoutValidation("X-Share-Password", password);
         var response = await _http.SendAsync(request, ct);
@@ -503,7 +503,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual Task<string> GetPresignedDownloadUrlAsync(Guid assetId, string objectKey, CancellationToken ct = default)
     {
-        return Task.FromResult($"/api/assets/{assetId}/download");
+        return Task.FromResult($"/api/v1/assets/{assetId}/download");
     }
 
     #endregion
@@ -515,7 +515,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<AdminSharesResponse> GetAllSharesAsync(int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/admin/shares?skip={skip}&take={take}", ct);
+        var response = await _http.GetAsync($"/api/v1/admin/shares?skip={skip}&take={take}", ct);
         await EnsureSuccessAsync(response, "Get all shares");
         return await response.Content.ReadFromJsonAsync<AdminSharesResponse>(ct) ?? new();
     }
@@ -525,7 +525,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task RevokeShareAdminAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/admin/shares/{id}", ct);
+        var response = await _http.DeleteAsync($"/api/v1/admin/shares/{id}", ct);
         await EnsureSuccessAsync(response, "Revoke share");
     }
 
@@ -534,7 +534,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<List<CollectionAccessDto>> GetCollectionAccessAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/admin/collections/access", ct);
+        var response = await _http.GetAsync("/api/v1/admin/collections/access", ct);
         await EnsureSuccessAsync(response, "Get collection access");
         return await response.Content.ReadFromJsonAsync<List<CollectionAccessDto>>(ct) ?? new();
     }
@@ -550,7 +550,7 @@ public class AssetHubApiClient
         CancellationToken ct = default)
     {
         var request = new { principalType, principalId, role };
-        var response = await _http.PostAsJsonAsync($"/api/admin/collections/{collectionId}/acl", request, ct);
+        var response = await _http.PostAsJsonAsync($"/api/v1/admin/collections/{collectionId}/acl", request, ct);
         await EnsureSuccessAsync(response, "Add collection access");
     }
 
@@ -565,7 +565,7 @@ public class AssetHubApiClient
         CancellationToken ct = default)
     {
         var request = new { principalType, principalId, role };
-        var response = await _http.PostAsJsonAsync($"/api/admin/collections/{collectionId}/acl", request, ct);
+        var response = await _http.PostAsJsonAsync($"/api/v1/admin/collections/{collectionId}/acl", request, ct);
         await EnsureSuccessAsync(response, "Update collection access");
     }
 
@@ -574,7 +574,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task RemoveCollectionAclAsync(Guid collectionId, string principalId, string principalType, CancellationToken ct = default)
     {
-        var url = $"/api/admin/collections/{collectionId}/acl/{Uri.EscapeDataString(principalId)}?principalType={principalType}";
+        var url = $"/api/v1/admin/collections/{collectionId}/acl/{Uri.EscapeDataString(principalId)}?principalType={principalType}";
         var response = await _http.DeleteAsync(url, ct);
         await EnsureSuccessAsync(response, "Remove collection access");
     }
@@ -585,7 +585,7 @@ public class AssetHubApiClient
     public virtual async Task<BulkDeleteCollectionsResponse> BulkDeleteCollectionsAsync(List<Guid> collectionIds, bool deleteAssets = true, CancellationToken ct = default)
     {
         var request = new { collectionIds, deleteAssets };
-        var response = await _http.PostAsJsonAsync("/api/admin/collections/bulk-delete", request, ct);
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/collections/bulk-delete", request, ct);
         await EnsureSuccessAsync(response, "Bulk delete collections");
         return await ReadRequiredJsonAsync<BulkDeleteCollectionsResponse>(response, "Bulk delete collections");
     }
@@ -597,7 +597,7 @@ public class AssetHubApiClient
         List<Guid> collectionIds, string principalId, string role, CancellationToken ct = default)
     {
         var request = new { collectionIds, principalType = Constants.PrincipalTypes.User, principalId, role };
-        var response = await _http.PostAsJsonAsync("/api/admin/collections/bulk-set-access", request, ct);
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/collections/bulk-set-access", request, ct);
         await EnsureSuccessAsync(response, "Bulk set collection access");
         return await ReadRequiredJsonAsync<BulkSetCollectionAccessResponse>(response, "Bulk set collection access");
     }
@@ -607,7 +607,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<List<UserAccessSummaryDto>> GetUsersAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/admin/users", ct);
+        var response = await _http.GetAsync("/api/v1/admin/users", ct);
         await EnsureSuccessAsync(response, "Get users");
         return await response.Content.ReadFromJsonAsync<List<UserAccessSummaryDto>>(ct) ?? new();
     }
@@ -617,7 +617,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<List<KeycloakUserDto>> GetKeycloakUsersAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/admin/keycloak-users", ct);
+        var response = await _http.GetAsync("/api/v1/admin/keycloak-users", ct);
         await EnsureSuccessAsync(response, "Get Keycloak users");
         return await response.Content.ReadFromJsonAsync<List<KeycloakUserDto>>(ct) ?? new();
     }
@@ -627,7 +627,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/admin/users", request, ct);
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/users", request, ct);
         await EnsureSuccessAsync(response, "Create user");
         return await ReadRequiredJsonAsync<CreateUserResponse>(response, "Create user");
     }
@@ -637,7 +637,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task SendPasswordResetEmailAsync(string userId, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/admin/users/{userId}/reset-password", null, ct);
+        var response = await _http.PostAsync($"/api/v1/admin/users/{userId}/reset-password", null, ct);
         await EnsureSuccessAsync(response, "Send password reset email");
     }
 
@@ -646,7 +646,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<DeleteUserResponse> DeleteUserAsync(string userId, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/admin/users/{userId}", ct);
+        var response = await _http.DeleteAsync($"/api/v1/admin/users/{userId}", ct);
         await EnsureSuccessAsync(response, "Delete user");
         return await ReadRequiredJsonAsync<DeleteUserResponse>(response, "Delete user");
     }
@@ -656,7 +656,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/admin/users/sync?dryRun={dryRun.ToString().ToLowerInvariant()}", null, ct);
+        var response = await _http.PostAsync($"/api/v1/admin/users/sync?dryRun={dryRun.ToString().ToLowerInvariant()}", null, ct);
         await EnsureSuccessAsync(response, "Sync deleted users");
         return await ReadRequiredJsonAsync<UserSyncResult>(response, "Sync deleted users");
     }
@@ -666,7 +666,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/admin/audit?take={take}", ct);
+        var response = await _http.GetAsync($"/api/v1/admin/audit?take={take}", ct);
         await EnsureSuccessAsync(response, "Get audit events");
         return await response.Content.ReadFromJsonAsync<List<AuditEventDto>>(ct) ?? new();
     }
@@ -692,7 +692,7 @@ public class AssetHubApiClient
         if (!string.IsNullOrWhiteSpace(actorUserId))
             queryParams.Add($"actorUserId={Uri.EscapeDataString(actorUserId)}");
 
-        var url = $"/api/admin/audit/paginated?{string.Join("&", queryParams)}";
+        var url = $"/api/v1/admin/audit/paginated?{string.Join("&", queryParams)}";
         var response = await _http.GetAsync(url, ct);
         await EnsureSuccessAsync(response, "Get audit events paginated");
         return await response.Content.ReadFromJsonAsync<AuditQueryResponse>(ct) ?? new();
@@ -707,7 +707,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task<List<AssetCollectionDto>> GetAssetCollectionsAsync(Guid assetId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/assets/{assetId}/collections", ct);
+        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/collections", ct);
         await EnsureSuccessAsync(response, "Get asset collections");
         return await response.Content.ReadFromJsonAsync<List<AssetCollectionDto>>(ct) ?? new();
     }
@@ -717,7 +717,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task AddAssetToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/assets/{assetId}/collections/{collectionId}", null, ct);
+        var response = await _http.PostAsync($"/api/v1/assets/{assetId}/collections/{collectionId}", null, ct);
         await EnsureSuccessAsync(response, "Add asset to collection");
     }
 
@@ -726,7 +726,7 @@ public class AssetHubApiClient
     /// </summary>
     public virtual async Task RemoveAssetFromCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/assets/{assetId}/collections/{collectionId}", ct);
+        var response = await _http.DeleteAsync($"/api/v1/assets/{assetId}/collections/{collectionId}", ct);
         await EnsureSuccessAsync(response, "Remove asset from collection");
     }
 

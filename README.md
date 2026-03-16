@@ -26,9 +26,10 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
 |---|---|
 | **Smart Collections** — Multi-collection assets with drag-and-drop upload | **Fine-grained Access** — Viewer / Contributor / Manager / Admin per collection |
 | **Secure Sharing** — Password-protected, time-limited share links | **Background Processing** — Auto-generated thumbnails, previews, and video posters |
-| **Enterprise Security** — ClamAV scanning, audit trail, RBAC, container hardening | **Fully Modular** — Swap S3, Auth, DB, Email via clean interfaces |
-| **Video Support** — Poster extraction via ffmpeg, inline playback | **Search** — Full-text trigram search across names, descriptions, and tags |
-| **Localisation** — Swedish and English, extensible via `.resx` files | **Observability** — Prometheus, Grafana, Jaeger, structured logging |
+| **Enterprise Security** — ClamAV scanning, audit trail, RBAC, container hardening, Docker secrets | **Fully Modular** — Swap S3, Auth, DB, Email via clean interfaces |
+| **Video Support** — Poster extraction via ffmpeg, inline playback | **Search** — Full-text trigram search across names, descriptions, and tags (GIN-indexed) |
+| **Accessibility** — Skip-to-content, ARIA labels, keyboard navigation, multi-viewport | **Observability** — Prometheus, Grafana, Jaeger, structured logging |
+| **Localisation** — Swedish and English, extensible via `.resx` files | **API Versioning** — Versioned API (`/api/v1/`) with request validation filters |
 | **Zip Downloads** — Download collections or shared content as archives | **Admin Dashboard** — User management, share admin, paginated audit log |
 
 ---
@@ -174,9 +175,10 @@ Full interface definitions, implementation details, and replacement guides in **
 - **OIDC with PKCE** — Authorization Code flow, no implicit grant
 - **Per-collection RBAC** — Viewer, Contributor, Manager, Admin roles
 - **Rate limiting** — Global, SignalR, anonymous shares, password brute force
-- **Upload validation** — Content-type allowlist, magic byte verification, ClamAV scanning
+- **Upload validation** — Content-type allowlist, magic byte verification, ClamAV scanning, client-side pre-validation
 - **Data encryption** — Share tokens and passwords encrypted at rest via ASP.NET Data Protection
 - **Container hardening** — `cap_drop: ALL`, `no-new-privileges`, non-root users, read-only filesystems, PID limits
+- **Docker secrets** — File-based secrets for all sensitive credentials in production
 - **Network segmentation** — Isolated Docker networks for backend and observability services
 - **CSP + security headers** — HSTS, X-Frame-Options, referrer policy, permissions policy
 
@@ -193,7 +195,7 @@ cp .env.template .env
 docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
-Certificates, reverse proxy setup, Keycloak configuration, backup/restore, CI/CD pipeline, monitoring, testing, and troubleshooting are covered in **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+Included reverse proxy configurations (Caddy and Nginx), backup/restore scripts, certificates, Keycloak configuration, CI/CD pipeline, monitoring, testing, and troubleshooting are covered in **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 ---
 
@@ -202,10 +204,10 @@ Certificates, reverse proxy setup, Keycloak configuration, backup/restore, CI/CD
 | Layer | Framework | Coverage |
 |-------|-----------|----------|
 | **Backend** (unit + integration) | xUnit, Testcontainers, Moq | 29 test files — repositories, endpoints, services, edge cases |
-| **Components** (Blazor) | bUnit | 12 test files — dialogs, grids, helpers |
-| **E2E** (browser) | Playwright (TypeScript) | 15 spec files — auth, CRUD, shares, admin, accessibility |
+| **Components** (Blazor) | bUnit | 18 test files — dialogs, grids, helpers |
+| **E2E** (browser) | Playwright (TypeScript) | 15 spec files — auth, CRUD, shares, admin, accessibility (Chromium, Firefox, WebKit, mobile) |
 
-650+ .NET test methods across 47 files + 15 E2E spec files. See **[DEPLOYMENT.md](docs/DEPLOYMENT.md#testing)** for commands and details.
+700+ .NET test methods across 53 files + 15 E2E spec files (x4 browsers). See **[DEPLOYMENT.md](docs/DEPLOYMENT.md#testing)** for commands and details.
 
 ---
 

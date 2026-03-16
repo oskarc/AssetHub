@@ -13,7 +13,7 @@ public static class ZipDownloadEndpoints
 {
     public static void MapZipDownloadEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/zip-downloads")
+        var group = app.MapGroup("/api/v1/zip-downloads")
             .WithTags("ZipDownloads");
 
         // Authenticated status check (collection downloads)

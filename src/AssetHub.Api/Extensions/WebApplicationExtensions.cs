@@ -41,7 +41,8 @@ public static class WebApplicationExtensions
             .GetRequiredService<ILoggerFactory>()
             .CreateLogger("Startup");
 
-        await MigrateDatabaseAsync(scope.ServiceProvider, logger);
+        var autoMigrate = app.Configuration.GetValue("Database:AutoMigrate", true);
+        await MigrateDatabaseAsync(scope.ServiceProvider, logger, autoMigrate);
         await EnsureMinioBucketAsync(scope.ServiceProvider, app.Configuration, logger);
 
         LogBuildStamp(app);
@@ -305,7 +306,7 @@ public static class WebApplicationExtensions
 
     // ── Private helpers ─────────────────────────────────────────────────────
 
-    private static async Task MigrateDatabaseAsync(IServiceProvider services, Microsoft.Extensions.Logging.ILogger logger)
+    private static async Task MigrateDatabaseAsync(IServiceProvider services, Microsoft.Extensions.Logging.ILogger logger, bool autoMigrate)
     {
         try
         {
@@ -313,10 +314,20 @@ public static class WebApplicationExtensions
             var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
             if (pending.Count > 0)
             {
-                logger.LogInformation("Applying {Count} pending migration(s): {Migrations}",
-                    pending.Count, string.Join(", ", pending));
-                await db.Database.MigrateAsync();
-                logger.LogInformation("Database migrations applied successfully.");
+                if (autoMigrate)
+                {
+                    logger.LogInformation("Applying {Count} pending migration(s): {Migrations}",
+                        pending.Count, string.Join(", ", pending));
+                    await db.Database.MigrateAsync();
+                    logger.LogInformation("Database migrations applied successfully.");
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Database has {Count} pending migration(s) but auto-migration is disabled (Database:AutoMigrate=false). " +
+                        "Pending: {Migrations}. Run migrations manually before deploying.",
+                        pending.Count, string.Join(", ", pending));
+                }
             }
             else
             {

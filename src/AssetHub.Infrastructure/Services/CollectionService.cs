@@ -4,6 +4,7 @@ using AssetHub.Application.Dtos;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
@@ -64,7 +65,15 @@ public sealed class CollectionService(
             CreatedAt = DateTime.UtcNow
         };
 
-        await repos.CollectionRepo.CreateAsync(collection, ct);
+        try
+        {
+            await repos.CollectionRepo.CreateAsync(collection, ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            return ServiceError.Conflict($"A collection named '{dto.Name}' already exists");
+        }
+
         await repos.AclRepo.SetAccessAsync(collection.Id, Constants.PrincipalTypes.User, userId, RoleHierarchy.Roles.Admin, ct);
 
         await audit.LogAsync("collection.created", Constants.ScopeTypes.Collection, collection.Id, userId,
@@ -115,7 +124,15 @@ public sealed class CollectionService(
             collection.Description = desc;
         }
 
-        await repos.CollectionRepo.UpdateAsync(collection, ct);
+        try
+        {
+            await repos.CollectionRepo.UpdateAsync(collection, ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            return ServiceError.Conflict($"A collection named '{dto.Name}' already exists");
+        }
+
         await audit.LogAsync("collection.updated", Constants.ScopeTypes.Collection, id, userId,
             new() { ["name"] = collection.Name, ["description"] = collection.Description ?? "" },
             ct);
@@ -163,5 +180,13 @@ public sealed class CollectionService(
         await audit.LogAsync("collection.download_requested", Constants.ScopeTypes.Collection, id, userId, ct: ct);
 
         return await zipBuildService.EnqueueCollectionZipAsync(id, userId, ct);
+    }
+
+    /// <summary>
+    /// Detects PostgreSQL unique constraint violations (error code 23505).
+    /// </summary>
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        return ex.InnerException is Npgsql.PostgresException pg && pg.SqlState == "23505";
     }
 }

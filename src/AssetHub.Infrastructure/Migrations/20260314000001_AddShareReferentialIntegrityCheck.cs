@@ -1,0 +1,49 @@
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations;
+
+/// <inheritdoc />
+public partial class AddShareReferentialIntegrityCheck : Migration
+{
+    /// <inheritdoc />
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        // Add a check constraint that validates Share.ScopeId references an existing
+        // Asset or Collection depending on ScopeType. Since the relationship is
+        // polymorphic (ScopeType + ScopeId), traditional FK constraints cannot be used.
+        // This trigger enforces referential integrity at the database level.
+        migrationBuilder.Sql("""
+            CREATE OR REPLACE FUNCTION check_share_scope_reference()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                IF NEW."ScopeType" = 'asset' THEN
+                    IF NOT EXISTS (SELECT 1 FROM "Assets" WHERE "Id" = NEW."ScopeId") THEN
+                        RAISE EXCEPTION 'Share references non-existent asset: %', NEW."ScopeId";
+                    END IF;
+                ELSIF NEW."ScopeType" = 'collection' THEN
+                    IF NOT EXISTS (SELECT 1 FROM "Collections" WHERE "Id" = NEW."ScopeId") THEN
+                        RAISE EXCEPTION 'Share references non-existent collection: %', NEW."ScopeId";
+                    END IF;
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER trg_share_scope_reference
+                BEFORE INSERT OR UPDATE ON "Shares"
+                FOR EACH ROW
+                EXECUTE FUNCTION check_share_scope_reference();
+            """);
+    }
+
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.Sql("""
+            DROP TRIGGER IF EXISTS trg_share_scope_reference ON "Shares";
+            DROP FUNCTION IF EXISTS check_share_scope_reference();
+            """);
+    }
+}

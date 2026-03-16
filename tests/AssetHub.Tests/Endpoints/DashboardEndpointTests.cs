@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AssetHub.Tests.Endpoints;
 
 /// <summary>
-/// API integration tests for /api/dashboard.
+/// API integration tests for /api/v1/dashboard.
 /// </summary>
 [Collection("Api")]
 public class DashboardEndpointTests : IAsyncLifetime
@@ -32,7 +32,7 @@ public class DashboardEndpointTests : IAsyncLifetime
     {
         var client = _factory.CreateAuthenticatedClient(TestClaimsProvider.Admin());
 
-        var response = await client.GetAsync("/api/dashboard");
+        var response = await client.GetAsync("/api/v1/dashboard");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<DashboardDto>();
@@ -44,7 +44,7 @@ public class DashboardEndpointTests : IAsyncLifetime
     {
         var client = _factory.CreateAuthenticatedClient(TestClaimsProvider.Admin());
 
-        var response = await client.GetAsync("/api/dashboard");
+        var response = await client.GetAsync("/api/v1/dashboard");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<DashboardDto>();
@@ -57,7 +57,7 @@ public class DashboardEndpointTests : IAsyncLifetime
     {
         var client = _factory.CreateAuthenticatedClient(TestClaimsProvider.Default());
 
-        var response = await client.GetAsync("/api/dashboard");
+        var response = await client.GetAsync("/api/v1/dashboard");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<DashboardDto>();

@@ -197,15 +197,14 @@ public class AssetRepository(
                 a => a.Id,
                 (ac, a) => a);
 
-        // Apply text search filter
+        // Apply text search filter (title, description, and tags)
         if (!string.IsNullOrWhiteSpace(query))
         {
             var searchPattern = $"%{query}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
-                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)));
-            // Search is limited to title and description. Tag search could use PostgreSQL
-            // JSONB operators but would require different query construction per filter.
+                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)) ||
+                a.Tags.Any(t => EF.Functions.ILike(t, searchPattern)));
         }
 
         // Apply asset type filter
@@ -249,13 +248,14 @@ public class AssetRepository(
                 .Distinct();
         }
 
-        // Apply text search filter
+        // Apply text search filter (title, description, and tags)
         if (!string.IsNullOrWhiteSpace(filter.Query))
         {
             var searchPattern = $"%{filter.Query}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
-                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)));
+                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)) ||
+                a.Tags.Any(t => EF.Functions.ILike(t, searchPattern)));
         }
 
         // Apply asset type filter

@@ -78,7 +78,7 @@ test.describe('Access Control & Permissions @acl', () => {
       if (!viewerUserId) test.skip();
       api = await ApiHelper.withCookieAuth();
       const res = await api.delete(
-        `${env.baseUrl}/api/collections/${testCollectionId}/acl/user/${viewerUserId}`
+        `${env.baseUrl}/api/v1/collections/${testCollectionId}/acl/user/${viewerUserId}`
       );
       expect(res.ok()).toBeTruthy();
       await api.dispose();

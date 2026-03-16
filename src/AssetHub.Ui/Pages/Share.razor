@@ -453,7 +453,7 @@
             || _sharedAsset.AssetType == Constants.AssetTypeFilters.Video
             || _sharedAsset.AssetType == "audio")
         {
-            var url = $"/api/shares/{escapedToken}/preview";
+            var url = $"/api/v1/shares/{escapedToken}/preview";
             if (!string.IsNullOrEmpty(_accessToken))
                 url += $"?accessToken={Uri.EscapeDataString(_accessToken)}";
             return url;
@@ -461,7 +461,7 @@
 
         // For images / other types, use the rendition URL (medium → thumb → download)
         var previewUrl = _sharedAsset.MediumUrl ?? _sharedAsset.ThumbnailUrl
-                         ?? $"/api/shares/{escapedToken}/download";
+                         ?? $"/api/v1/shares/{escapedToken}/download";
         return AppendAccessToken(previewUrl);
     }
 
@@ -475,7 +475,7 @@
 
     private string GetAssetPreviewUrl(Guid assetId)
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}";
         if (!string.IsNullOrEmpty(_accessToken))
             url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
@@ -484,7 +484,7 @@
     /// <summary>Returns a poster/thumbnail URL for a collection-asset video element.</summary>
     private string GetAssetPosterUrl(Guid assetId)
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}&size=medium";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}&size=medium";
         if (!string.IsNullOrEmpty(_accessToken))
             url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
@@ -509,7 +509,7 @@
 
     private string GetDownloadUrl()
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/download";
         if (!string.IsNullOrEmpty(_accessToken))
             url += $"?accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
@@ -517,7 +517,7 @@
 
     private string GetAssetDownloadUrl(Guid assetId)
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download?assetId={assetId}";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/download?assetId={assetId}";
         if (!string.IsNullOrEmpty(_accessToken))
             url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
@@ -538,7 +538,7 @@
 
         try
         {
-            var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download-all";
+            var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/download-all";
             if (!string.IsNullOrEmpty(_accessToken))
                 url += $"?accessToken={Uri.EscapeDataString(_accessToken)}";
 
@@ -594,7 +594,7 @@
 
     private async Task DownloadAsset(Guid? assetId)
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/download";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/download";
         var queryParams = new List<string>();
         
         if (assetId.HasValue)
@@ -617,7 +617,7 @@
 
     private async Task DownloadSpecificSize(Guid? assetId, string size)
     {
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?size={size}&download=true";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?size={size}&download=true";
         if (assetId.HasValue)
             url += $"&assetId={assetId.Value}";
         if (!string.IsNullOrEmpty(_accessToken))
@@ -640,7 +640,7 @@
         if (_selectedAsset != null && string.IsNullOrEmpty(_selectedAsset.MediumUrl))
             return null;
         
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?size=medium";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?size=medium";
         if (assetId.HasValue)
             url += $"&assetId={assetId.Value}";
         if (!string.IsNullOrEmpty(_accessToken))
@@ -655,7 +655,7 @@
         if (_selectedAsset != null && string.IsNullOrEmpty(_selectedAsset.ThumbnailUrl))
             return null;
         
-        var url = $"/api/shares/{Uri.EscapeDataString(Token)}/preview?size=thumb";
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?size=thumb";
         if (assetId.HasValue)
             url += $"&assetId={assetId.Value}";
         if (!string.IsNullOrEmpty(_accessToken))

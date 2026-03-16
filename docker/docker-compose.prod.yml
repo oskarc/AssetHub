@@ -21,10 +21,13 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       # Keycloak DB credentials (used by init-keycloak-db.sh)
       KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
-      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_DB_PASSWORD_FILE: /run/secrets/keycloak_db_password
+    secrets:
+      - postgres_password
+      - keycloak_db_password
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
@@ -64,7 +67,9 @@ services:
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_password
     volumes:
       - miniodata:/data
     command: server /data --console-address ":9001"
@@ -107,11 +112,11 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_DB_PASSWORD_FILE: /run/secrets/keycloak_db_password
 
       # Admin bootstrap (KC_BOOTSTRAP_* is the non-deprecated form for Keycloak 26+)
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_admin_password
 
       # Production hostname — must match the URL users see in the browser.
       # Keycloak embeds this in tokens; the app validates it.
@@ -128,6 +133,10 @@ services:
       KEYCLOAK_TESTUSER_PASSWORD: ${KEYCLOAK_TESTUSER_PASSWORD}
       KEYCLOAK_ADMIN_USER_PASSWORD: ${KEYCLOAK_ADMIN_USER_PASSWORD}
       KEYCLOAK_SEED_PASSWORD: ${KEYCLOAK_SEED_PASSWORD}
+    secrets:
+      - keycloak_admin_password
+      - keycloak_db_password
+      - keycloak_client_secret
     volumes:
       - keycloakdata:/opt/keycloak/data
       - ../keycloak/import:/opt/keycloak/data/import:ro
@@ -519,29 +528,32 @@ networks:
 # ============================================================================
 
 # ============================================================================
-# Docker Secrets (optional, recommended for production)
+# Docker Secrets
 # ============================================================================
-# To use secrets instead of environment variables for sensitive credentials:
+# Store sensitive credentials as Docker secrets instead of environment variables.
 #
-# 1. Create secret files (ensure restrictive permissions: chmod 600):
-#    mkdir -p secrets
-#    echo "your-postgres-password" > secrets/postgres_password
-#    echo "your-keycloak-admin-password" > secrets/keycloak_admin_password
-#    echo "your-keycloak-db-password" > secrets/keycloak_db_password
+# Setup:
+#   mkdir -p secrets && chmod 700 secrets
+#   echo "your-postgres-password" > secrets/postgres_password
+#   echo "your-keycloak-admin-password" > secrets/keycloak_admin_password
+#   echo "your-keycloak-db-password" > secrets/keycloak_db_password
+#   echo "your-minio-root-password" > secrets/minio_root_password
+#   echo "your-keycloak-client-secret" > secrets/keycloak_client_secret
+#   chmod 600 secrets/*
 #
-# 2. Uncomment the secrets section below and update service environment vars
-#    to use _FILE suffix (Postgres) or mount secrets as volumes (Keycloak).
-#
-# secrets:
-#   postgres_password:
-#     file: ./secrets/postgres_password
-#   keycloak_admin_password:
-#     file: ./secrets/keycloak_admin_password
-#   keycloak_db_password:
-#     file: ./secrets/keycloak_db_password
-#
-# For Postgres, replace POSTGRES_PASSWORD with:
-#   POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-#
-# For Keycloak, use an init script or entrypoint to read secrets.
+# Services that support _FILE suffix (Postgres, MinIO) will automatically
+# read the secret from the file. For others, secrets are mounted at
+# /run/secrets/<name> and read by the application or entrypoint script.
 # ============================================================================
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password
+  keycloak_admin_password:
+    file: ./secrets/keycloak_admin_password
+  keycloak_db_password:
+    file: ./secrets/keycloak_db_password
+  minio_root_password:
+    file: ./secrets/minio_root_password
+  keycloak_client_secret:
+    file: ./secrets/keycloak_client_secret

@@ -10,6 +10,8 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
+<a href="#main-content" class="skip-link">@CommonLoc["Link_SkipToContent"]</a>
+
 <MudLayout>
     <MudAppBar Elevation="1">
         <AuthorizeView>
@@ -17,6 +19,7 @@
                 <MudIconButton Icon="@Icons.Material.Filled.Menu"
                                Color="Color.Inherit"
                                Edge="Edge.Start"
+                               aria-label="@CommonLoc["Aria_ToggleNavigation"]"
                                OnClick="@((e) => DrawerToggle())" />
             </Authorized>
         </AuthorizeView>
@@ -32,7 +35,7 @@
                     @DisplayName(auth.User)
                 </MudText>
 
-                <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomCenter">
+                <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomCenter" aria-label="@CommonLoc["Aria_AccountMenu"]">
                     <MudMenuItem Icon="@Icons.Material.Filled.Lock" OnClick="@ChangePassword">
                         @CommonLoc["Btn_ChangePassword"]
                     </MudMenuItem>
@@ -56,18 +59,21 @@
 
         <MudIconButton Icon="@(DarkLightModeButtonIcon)"
                        Color="Color.Inherit"
+                       aria-label="@CommonLoc["Aria_ToggleDarkMode"]"
                        OnClick="@DarkModeToggle" />
     </MudAppBar>
 
     <AuthorizeView>
         <Authorized>
             <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-                <NavMenu />
+                <nav aria-label="@CommonLoc["Aria_MainNavigation"]">
+                    <NavMenu />
+                </nav>
             </MudDrawer>
         </Authorized>
     </AuthorizeView>
 
-    <MudMainContent Class="pt-16 pa-4">
+    <MudMainContent Class="pt-16 pa-4" id="main-content" role="main">
         @Body
     </MudMainContent>
 </MudLayout>

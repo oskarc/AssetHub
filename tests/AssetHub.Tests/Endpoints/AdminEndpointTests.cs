@@ -12,7 +12,7 @@ using Moq;
 namespace AssetHub.Tests.Endpoints;
 
 /// <summary>
-/// API integration tests for /api/admin/** (admin-only endpoints).
+/// API integration tests for /api/v1/admin/** (admin-only endpoints).
 /// </summary>
 [Collection("Api")]
 public class AdminEndpointTests : IAsyncLifetime
@@ -39,7 +39,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task AdminEndpoints_ViewerForbidden_Shares()
     {
         var client = ViewerClient();
-        var response = await client.GetAsync("/api/admin/shares");
+        var response = await client.GetAsync("/api/v1/admin/shares");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -47,7 +47,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task AdminEndpoints_ViewerForbidden_Users()
     {
         var client = ViewerClient();
-        var response = await client.GetAsync("/api/admin/users");
+        var response = await client.GetAsync("/api/v1/admin/users");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -55,7 +55,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task AdminEndpoints_ViewerForbidden_CollectionAccess()
     {
         var client = ViewerClient();
-        var response = await client.GetAsync("/api/admin/collections/access");
+        var response = await client.GetAsync("/api/v1/admin/collections/access");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -65,7 +65,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task GetAllShares_Admin_Returns200()
     {
         var client = AdminClient();
-        var response = await client.GetAsync("/api/admin/shares");
+        var response = await client.GetAsync("/api/v1/admin/shares");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -73,7 +73,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task RevokeShare_NotFound_Returns404()
     {
         var client = AdminClient();
-        var response = await client.DeleteAsync($"/api/admin/shares/{Guid.NewGuid()}");
+        var response = await client.DeleteAsync($"/api/v1/admin/shares/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -83,7 +83,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task GetCollectionAccessTree_Admin_Returns200()
     {
         var client = AdminClient();
-        var response = await client.GetAsync("/api/admin/collections/access");
+        var response = await client.GetAsync("/api/v1/admin/collections/access");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -108,7 +108,7 @@ public class AdminEndpointTests : IAsyncLifetime
             Role = RoleHierarchy.Roles.Viewer
         };
 
-        var response = await client.PostAsJsonAsync($"/api/admin/collections/{col.Id}/acl", request);
+        var response = await client.PostAsJsonAsync($"/api/v1/admin/collections/{col.Id}/acl", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -119,7 +119,7 @@ public class AdminEndpointTests : IAsyncLifetime
         var client = AdminClient();
         var request = new SetCollectionAccessRequest { PrincipalId = "user-001", Role = RoleHierarchy.Roles.Viewer };
 
-        var response = await client.PostAsJsonAsync($"/api/admin/collections/{Guid.NewGuid()}/acl", request);
+        var response = await client.PostAsJsonAsync($"/api/v1/admin/collections/{Guid.NewGuid()}/acl", request);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -128,7 +128,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task AdminRemoveCollectionAccess_NonExistentCollection_Returns404()
     {
         var client = AdminClient();
-        var response = await client.DeleteAsync($"/api/admin/collections/{Guid.NewGuid()}/acl/user-001");
+        var response = await client.DeleteAsync($"/api/v1/admin/collections/{Guid.NewGuid()}/acl/user-001");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -138,7 +138,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task GetUsers_Admin_Returns200()
     {
         var client = AdminClient();
-        var response = await client.GetAsync("/api/admin/users");
+        var response = await client.GetAsync("/api/v1/admin/users");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -152,7 +152,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task Viewer_CannotGetShareToken_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.GetAsync($"/api/admin/shares/{Guid.NewGuid()}/token");
+        var response = await client.GetAsync($"/api/v1/admin/shares/{Guid.NewGuid()}/token");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -160,7 +160,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task Viewer_CannotRevokeShare_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.DeleteAsync($"/api/admin/shares/{Guid.NewGuid()}");
+        var response = await client.DeleteAsync($"/api/v1/admin/shares/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -175,7 +175,7 @@ public class AdminEndpointTests : IAsyncLifetime
             FirstName = "Forbidden",
             LastName = "User"
         };
-        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        var response = await client.PostAsJsonAsync("/api/v1/admin/users", request);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -183,7 +183,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task Viewer_CannotDeleteUser_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.DeleteAsync("/api/admin/users/some-user-id");
+        var response = await client.DeleteAsync("/api/v1/admin/users/some-user-id");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -191,7 +191,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task Viewer_CannotResetPassword_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.PostAsync("/api/admin/users/some-user-id/reset-password", null);
+        var response = await client.PostAsync("/api/v1/admin/users/some-user-id/reset-password", null);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -199,7 +199,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task Viewer_CannotSyncUsers_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.PostAsync("/api/admin/users/sync?dryRun=true", null);
+        var response = await client.PostAsync("/api/v1/admin/users/sync?dryRun=true", null);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -208,7 +208,7 @@ public class AdminEndpointTests : IAsyncLifetime
     {
         var client = ViewerClient();
         var request = new SetCollectionAccessRequest { PrincipalId = "user-001", Role = RoleHierarchy.Roles.Viewer };
-        var response = await client.PostAsJsonAsync($"/api/admin/collections/{Guid.NewGuid()}/acl", request);
+        var response = await client.PostAsJsonAsync($"/api/v1/admin/collections/{Guid.NewGuid()}/acl", request);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -216,7 +216,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task Viewer_CannotRemoveCollectionAccess_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.DeleteAsync($"/api/admin/collections/{Guid.NewGuid()}/acl/user-001");
+        var response = await client.DeleteAsync($"/api/v1/admin/collections/{Guid.NewGuid()}/acl/user-001");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -224,7 +224,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task Viewer_CannotGetKeycloakUsers_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.GetAsync("/api/admin/keycloak-users");
+        var response = await client.GetAsync("/api/v1/admin/keycloak-users");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -234,7 +234,7 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task GetShareToken_NonExistentShare_Returns404()
     {
         var client = AdminClient();
-        var response = await client.GetAsync($"/api/admin/shares/{Guid.NewGuid()}/token");
+        var response = await client.GetAsync($"/api/v1/admin/shares/{Guid.NewGuid()}/token");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -257,7 +257,7 @@ public class AdminEndpointTests : IAsyncLifetime
             FirstName = "Test",
             LastName = "User"
         };
-        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        var response = await client.PostAsJsonAsync("/api/v1/admin/users", request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -272,7 +272,7 @@ public class AdminEndpointTests : IAsyncLifetime
             FirstName = "Test",
             LastName = "User"
         };
-        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        var response = await client.PostAsJsonAsync("/api/v1/admin/users", request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -287,7 +287,7 @@ public class AdminEndpointTests : IAsyncLifetime
             FirstName = "",         // Empty → required
             LastName = "User"
         };
-        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        var response = await client.PostAsJsonAsync("/api/v1/admin/users", request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -302,7 +302,7 @@ public class AdminEndpointTests : IAsyncLifetime
             FirstName = "Test",
             LastName = "User"
         };
-        var response = await client.PostAsJsonAsync("/api/admin/users", request);
+        var response = await client.PostAsJsonAsync("/api/v1/admin/users", request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -314,7 +314,7 @@ public class AdminEndpointTests : IAsyncLifetime
             .Setup(x => x.DeleteUserAsync("non-existent-uid", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new AssetHub.Application.Services.KeycloakApiException("User not found", 404));
 
-        var response = await client.DeleteAsync("/api/admin/users/non-existent-uid");
+        var response = await client.DeleteAsync("/api/v1/admin/users/non-existent-uid");
 
         // Depends on how the service handles the exception
         Assert.True(
@@ -331,7 +331,7 @@ public class AdminEndpointTests : IAsyncLifetime
             .Setup(x => x.SendExecuteActionsEmailAsync("non-existent-uid", It.IsAny<IEnumerable<string>>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new AssetHub.Application.Services.KeycloakApiException("User not found", 404));
 
-        var response = await client.PostAsync("/api/admin/users/non-existent-uid/reset-password", null);
+        var response = await client.PostAsync("/api/v1/admin/users/non-existent-uid/reset-password", null);
 
         Assert.True(
             response.StatusCode == HttpStatusCode.NotFound ||

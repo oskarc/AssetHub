@@ -209,7 +209,7 @@ public static class Constants
         public const int MaxDownloadableAssets = 1000;
 
         /// <summary>Default maximum upload size in MB.</summary>
-        public const int DefaultMaxUploadSizeMb = 500;
+        public const int DefaultMaxUploadSizeMb = 1500;
 
         /// <summary>Maximum page size for paginated list endpoints.</summary>
         public const int MaxPageSize = 200;

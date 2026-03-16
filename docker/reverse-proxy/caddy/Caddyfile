@@ -1,0 +1,59 @@
+# ============================================================================
+# AssetHub — Caddy Reverse Proxy Configuration
+# ============================================================================
+# Caddy automatically provisions and renews TLS certificates via Let's Encrypt.
+#
+# Usage:
+#   1. Replace {YOUR_DOMAIN} with your actual domain
+#   2. Run: docker compose -f docker/reverse-proxy/caddy/docker-compose.caddy.yml up -d
+#
+# Caddy handles: TLS termination, HTTP→HTTPS redirect, security headers,
+# WebSocket upgrade (for Blazor Server SignalR), and request proxying.
+# ============================================================================
+
+{$APP_DOMAIN:localhost} {
+    # ── AssetHub API + Blazor UI ──
+    reverse_proxy api:7252 {
+        # WebSocket support for Blazor Server SignalR
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Real-IP {remote_host}
+    }
+
+    # ── Keycloak ──
+    handle /realms/* {
+        reverse_proxy keycloak:8080
+    }
+    handle /resources/* {
+        reverse_proxy keycloak:8080
+    }
+    handle /js/* {
+        reverse_proxy keycloak:8080
+    }
+
+    # ── Keycloak Admin Console (restrict to internal IPs) ──
+    handle /admin/* {
+        @blocked not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.1
+        respond @blocked 403
+        reverse_proxy keycloak:8080
+    }
+
+    # ── Security headers (supplement ASP.NET headers) ──
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # Request size limit (match App__MaxUploadSizeMb)
+    request_body {
+        max_size 500MB
+    }
+
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 100mb
+            roll_keep 5
+        }
+    }
+}

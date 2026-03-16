@@ -165,30 +165,69 @@
         var fileMetadata = await _jsModule.InvokeAsync<FileMetadata[]>(
             "getFileMetadata", _inputFile.Element);
 
-        // Pre-populate all uploads with Queued status so user sees them immediately
-        var uploadItems = new List<UploadItem>();
+        // --- Client-side validation: reject disallowed types and oversized files early ---
+        long maxSizeBytes = (long)Constants.Limits.DefaultMaxUploadSizeMb * 1024 * 1024;
+        var validFiles = new List<(IBrowserFile File, FileMetadata? Meta, int Index)>();
+        int rejectedCount = 0;
+
         for (var i = 0; i < files.Count; i++)
         {
             var file = files[i];
             var metadata = i < fileMetadata.Length ? fileMetadata[i] : null;
+            var contentType = metadata?.Type ?? file.ContentType;
+            var fileSize = metadata?.Size ?? file.Size;
 
+            if (!Constants.AllowedUploadTypes.IsAllowed(contentType))
+            {
+                Feedback.ShowError(string.Format(CommonLoc["Error_FileTypeNotAllowed"].Value, file.Name));
+                rejectedCount++;
+                continue;
+            }
+
+            if (fileSize > maxSizeBytes)
+            {
+                Feedback.ShowError(string.Format(CommonLoc["Error_FileTooLarge"].Value,
+                    file.Name, Constants.Limits.DefaultMaxUploadSizeMb));
+                rejectedCount++;
+                continue;
+            }
+
+            validFiles.Add((file, metadata, i));
+        }
+
+        if (rejectedCount > 0 && validFiles.Count > 0)
+        {
+            Feedback.ShowWarning(string.Format(CommonLoc["Warning_FilesRejected"].Value, rejectedCount));
+        }
+
+        if (validFiles.Count == 0)
+        {
+            _isUploading = false;
+            StateHasChanged();
+            return;
+        }
+
+        // Pre-populate all uploads with Queued status so user sees them immediately
+        var uploadItems = new List<UploadItem>();
+        foreach (var (file, metadata, fileIndex) in validFiles)
+        {
             var upload = new UploadItem
             {
                 FileName = file.Name,
                 Size = metadata?.Size ?? file.Size,
                 ContentType = metadata?.Type ?? file.ContentType,
                 Status = UploadStatus.Queued,
-                FileIndex = i
+                FileIndex = fileIndex
             };
             uploadItems.Add(upload);
-            _uploads.Insert(i, upload);
+            _uploads.Add(upload);
         }
         StateHasChanged();
 
         // Process each file sequentially
-        for (var i = 0; i < files.Count; i++)
+        for (var i = 0; i < validFiles.Count; i++)
         {
-            var file = files[i];
+            var file = validFiles[i].File;
             var upload = uploadItems[i];
             upload.Status = UploadStatus.Uploading;
             StateHasChanged();
@@ -216,7 +255,7 @@
                         "uploadFile",
                         initResult.UploadUrl,
                         _inputFile.Element,
-                        i,
+                        upload.FileIndex,
                         dotNetRef);
                 }
                 finally

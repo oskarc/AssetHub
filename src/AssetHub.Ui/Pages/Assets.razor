@@ -714,7 +714,7 @@
 
         try
         {
-            var url = $"/api/collections/{_selectedCollectionId.Value}/download-all";
+            var url = $"/api/v1/collections/{_selectedCollectionId.Value}/download-all";
             _dotNetRef?.Dispose();
             _dotNetRef = DotNetObjectReference.Create(this);
 

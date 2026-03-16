@@ -31,7 +31,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<Collection>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.Name }).HasDatabaseName("idx_collections_name");
+            entity.HasIndex(e => new { e.Name }).IsUnique().HasDatabaseName("idx_collections_name_unique");
 
             entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(1000);

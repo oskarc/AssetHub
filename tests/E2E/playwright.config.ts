@@ -58,6 +58,31 @@ export default defineConfig({
       },
       dependencies: ['auth-setup'],
     },
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: path.join(__dirname, 'tests', '.auth', 'admin.json'),
+      },
+      dependencies: ['auth-setup'],
+    },
+    {
+      name: 'webkit',
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: path.join(__dirname, 'tests', '.auth', 'admin.json'),
+      },
+      dependencies: ['auth-setup'],
+    },
+    // Mobile viewport
+    {
+      name: 'mobile-chrome',
+      use: {
+        ...devices['Pixel 5'],
+        storageState: path.join(__dirname, 'tests', '.auth', 'admin.json'),
+      },
+      dependencies: ['auth-setup'],
+    },
   ],
   // Web server — optionally start the app via docker-compose
   // Uncomment if you want Playwright to manage the app lifecycle:

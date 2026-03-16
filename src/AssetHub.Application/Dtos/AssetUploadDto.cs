@@ -17,6 +17,7 @@ public class AssetUploadDto
     [StringLength(2000)]
     public string? Description { get; set; }
     
+    [MaxLength(Constants.Limits.MaxTagsPerAsset, ErrorMessage = "Maximum 50 tags allowed")]
     public List<string> Tags { get; set; } = [];
     
     public Dictionary<string, object>? MetadataJson { get; set; }

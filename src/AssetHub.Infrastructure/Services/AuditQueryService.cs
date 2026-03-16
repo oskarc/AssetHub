@@ -30,7 +30,8 @@ public class AuditQueryService(
         return new AuditQueryResponse
         {
             Items = items,
-            TotalCount = Math.Min(totalCount, Constants.Limits.AuditCountDisplayCap), // Cap displayed count
+            TotalCount = Math.Min(totalCount, Constants.Limits.AuditCountDisplayCap),
+            IsCapped = totalCount > Constants.Limits.AuditCountDisplayCap,
             NextCursor = hasMore && events.Count > 0 ? events[^1].CreatedAt : null,
             HasMore = hasMore
         };
