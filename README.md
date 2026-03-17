@@ -144,7 +144,7 @@ Domain  <-  Application  <-  Infrastructure  <-  Api / Worker
 | `AssetHub.Domain` | Entities, enums, value objects — zero dependencies |
 | `AssetHub.Application` | Service interfaces, DTOs, constants, business rules |
 | `AssetHub.Infrastructure` | EF Core, MinIO, SMTP, ClamAV, Keycloak implementations |
-| `AssetHub.Api` | ASP.NET Core host — Minimal APIs, auth, DI wiring, Blazor hosting |
+| `AssetHub.Api` | ASP.NET Core host — Versioned Minimal APIs (`/api/v1/`), auth, validation filters, DI wiring, Blazor hosting |
 | `AssetHub.Ui` | Blazor Server components, pages, layouts (Razor Class Library) |
 | `AssetHub.Worker` | Hangfire background processor (separate container) |
 

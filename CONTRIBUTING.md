@@ -64,7 +64,7 @@ src/
 ├── AssetHub.Domain/           # Entities and domain logic (zero dependencies)
 ├── AssetHub.Application/      # Interfaces, DTOs, configuration, services
 ├── AssetHub.Infrastructure/   # EF Core, repositories, service implementations
-├── AssetHub.Api/              # ASP.NET Core host, minimal APIs, Blazor UI host
+├── AssetHub.Api/              # ASP.NET Core host, versioned minimal APIs (/api/v1/), validation filters, Blazor UI host
 ├── AssetHub.Ui/               # Blazor Server components (Razor Class Library)
 └── AssetHub.Worker/           # Hangfire background job processor
 

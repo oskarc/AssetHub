@@ -30,7 +30,7 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  ┌─────────────────────────────────────────┐  ┌──────────────────────────┐  │
 │  │  AssetHub.Api                           │  │  AssetHub.Worker         │  │
 │  │  ┌───────────────┐ ┌─────────────────┐  │  │  Hangfire job processor  │  │
-│  │  │ Blazor Server │ │ Minimal APIs    │  │  │  ImageMagick + ffmpeg    │  │
+│  │  │ Blazor Server │ │ Minimal APIs v1 │  │  │  ImageMagick + ffmpeg    │  │
 │  │  │ (MudBlazor 8) │ │ Smart auth:     │  │  │                          │  │
 │  │  │               │ │ Cookie/JWT/OIDC │  │  │                          │  │
 │  │  └───────────────┘ └─────────────────┘  │  └──────────────────────────┘  │
@@ -97,7 +97,7 @@ AssetHub.sln
 │   ├── AssetHub.Domain/            # Entities, enums, value objects — zero dependencies
 │   ├── AssetHub.Application/       # Service interfaces, DTOs, constants, config, business rules
 │   ├── AssetHub.Infrastructure/    # EF Core, MinIO, SMTP, ClamAV, Keycloak implementations
-│   ├── AssetHub.Api/               # ASP.NET Core host — Minimal API endpoints, auth, DI wiring
+│   ├── AssetHub.Api/               # ASP.NET Core host — Versioned Minimal APIs (/api/v1/), auth, DI wiring, validation filters
 │   ├── AssetHub.Ui/                # Blazor Server components, pages, layouts (Razor Class Library)
 │   └── AssetHub.Worker/            # Hangfire background job processor (separate container)
 │
@@ -113,7 +113,12 @@ AssetHub.sln
 │   ├── Dockerfile.Worker           # Worker multi-stage build (includes ImageMagick + ffmpeg)
 │   ├── imagemagick-policy.xml      # Restrictive ImageMagick security policy
 │   ├── init-keycloak-db.sh         # Creates Keycloak database on first PostgreSQL start
+│   ├── backup.sh                   # Full backup script (PostgreSQL, MinIO, Keycloak)
+│   ├── restore.sh                  # Companion restore script with confirmation
 │   ├── prometheus.yml              # Prometheus scrape targets
+│   ├── reverse-proxy/
+│   │   ├── caddy/Caddyfile         # Production Caddy config (auto-TLS, WebSocket, security headers)
+│   │   └── nginx/nginx.conf        # Production Nginx config (manual TLS, WebSocket, security headers)
 │   └── grafana/provisioning/       # Pre-configured Grafana datasources and dashboards
 │
 ├── keycloak/
@@ -143,7 +148,7 @@ Domain  ←  Application  ←  Infrastructure  ←  Api
 - **Application** — depends on Domain. Defines all service interfaces, DTOs, constants, and configuration models. This is the contract layer that outer layers implement or consume.
 - **Infrastructure** — depends on Application + Domain. Contains all concrete implementations: EF Core repositories, MinIO adapter, SMTP email, ClamAV scanner, Keycloak client, media processing, and Polly resilience pipelines.
 - **Ui** — depends on Application only (no Infrastructure reference). A Razor Class Library containing all Blazor Server components, pages, and layouts. Communicates with infrastructure exclusively through Application interfaces.
-- **Api** — composition root, references all projects including Ui. Wires up dependency injection, configures authentication, defines Minimal API endpoints, and hosts the Blazor Server app.
+- **Api** — composition root, references all projects including Ui. Wires up dependency injection, configures authentication, defines versioned Minimal API endpoints (`/api/v1/`) with a `ValidationFilter` for request DTO validation, and hosts the Blazor Server app.
 - **Worker** — composition root, references Infrastructure + Application (no Ui). Runs Hangfire background jobs for media processing, zip building, cleanup tasks, and email sending.
 
 ---

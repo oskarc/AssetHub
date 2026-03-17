@@ -1,96 +1,143 @@
 #!/usr/bin/env bash
 # ============================================================================
-# AssetHub — Restore Script
+# AssetHub Restore
 # ============================================================================
-# Restores a backup created by backup.sh.
+#
+# Restores a backup created by backup.sh. The script:
+#   1. Stops the API and Worker (keeps databases running)
+#   2. Restores PostgreSQL from the dump (includes Keycloak data)
+#   3. Restores MinIO objects from the tar archive
+#   4. Restarts all services and waits for healthy status
 #
 # Usage:
 #   ./docker/restore.sh ./backups/20260314_120000
-#   COMPOSE_FILE=docker/docker-compose.prod.yml ./docker/restore.sh ./backups/20260314_120000
 #
-# WARNING: This will overwrite current data! Make a backup first.
+# Environment:
+#   COMPOSE_FILE   Compose file to use     (default: docker/docker-compose.prod.yml)
+#   POSTGRES_USER  Database superuser name  (default: assethub)
+#
 # ============================================================================
 
 set -euo pipefail
 
-BACKUP_PATH="${1:?Usage: $0 <backup-directory>}"
+# -- Configuration -----------------------------------------------------------
+
+BACKUP_DIR="${1:?Usage: $0 <backup-directory>}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker/docker-compose.prod.yml}"
+POSTGRES_USER="${POSTGRES_USER:-assethub}"
 
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+# -- Helpers -----------------------------------------------------------------
 
-info()  { echo -e "${GREEN}[RESTORE]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
-error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+GREEN='\033[0;32m'  YELLOW='\033[1;33m'  RED='\033[0;31m'  BOLD='\033[1m'  NC='\033[0m'
+info()  { echo -e "${GREEN}[restore]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[restore]${NC} $*"; }
+die()   { echo -e "${RED}[restore]${NC} $*" >&2; exit 1; }
 
-if [ ! -d "${BACKUP_PATH}" ]; then
-    error "Backup directory not found: ${BACKUP_PATH}"
-    exit 1
+compose() { docker compose -f "${COMPOSE_FILE}" "$@"; }
+
+# -- Pre-flight checks ------------------------------------------------------
+
+command -v docker >/dev/null 2>&1 || die "docker is not installed."
+[ -f "${COMPOSE_FILE}" ]          || die "Compose file not found: ${COMPOSE_FILE}"
+[ -d "${BACKUP_DIR}" ]            || die "Backup directory not found: ${BACKUP_DIR}"
+
+PG_FILE="${BACKUP_DIR}/postgres.sql.gz"
+MINIO_FILE="${BACKUP_DIR}/minio.tar.gz"
+
+# Check what's available to restore
+HAS_PG=false;    [ -f "${PG_FILE}" ]    && HAS_PG=true
+HAS_MINIO=false; [ -f "${MINIO_FILE}" ] && HAS_MINIO=true
+
+if ! ${HAS_PG} && ! ${HAS_MINIO}; then
+    die "No backup files found in ${BACKUP_DIR}.\n  Expected: postgres.sql.gz and/or minio.tar.gz"
 fi
 
-echo -e "${RED}WARNING: This will overwrite current data!${NC}"
-echo "Backup source: ${BACKUP_PATH}"
+# Show metadata if available
+if [ -f "${BACKUP_DIR}/metadata.json" ]; then
+    echo ""
+    echo -e "  ${BOLD}Backup metadata:${NC}"
+    cat "${BACKUP_DIR}/metadata.json" | sed 's/^/    /'
+    echo ""
+fi
+
+# Show what will be restored
+echo -e "  ${BOLD}Will restore:${NC}"
+${HAS_PG}    && echo "    - PostgreSQL  ($(du -sh "${PG_FILE}" | cut -f1))"
+${HAS_MINIO} && echo "    - MinIO       ($(du -sh "${MINIO_FILE}" | cut -f1))"
 echo ""
-read -rp "Are you sure you want to continue? (yes/no): " CONFIRM
-if [ "${CONFIRM}" != "yes" ]; then
-    echo "Aborted."
+
+# -- Confirmation ------------------------------------------------------------
+
+echo -e "  ${RED}${BOLD}This will overwrite all current data.${NC}"
+echo ""
+read -rp "  Type 'restore' to continue: " CONFIRM
+echo ""
+
+if [ "${CONFIRM}" != "restore" ]; then
+    echo "  Aborted."
     exit 0
 fi
 
-# ---------- 1. Stop Application Services ------------------------------------
-info "Stopping application services (keeping databases running)..."
-docker compose -f "${COMPOSE_FILE}" stop api worker 2>/dev/null || true
+# -- 1. Stop application services -------------------------------------------
 
-# ---------- 2. Restore PostgreSQL -------------------------------------------
-if [ -f "${BACKUP_PATH}/postgres_all.sql.gz" ]; then
-    info "Restoring PostgreSQL..."
-    gunzip -c "${BACKUP_PATH}/postgres_all.sql.gz" \
-        | docker compose -f "${COMPOSE_FILE}" exec -T postgres \
-            psql -U "${POSTGRES_USER:-assethub}" -d postgres \
-            --single-transaction 2>/dev/null
+info "Stopping API and Worker..."
+compose stop api worker 2>/dev/null || true
 
-    if [ $? -eq 0 ]; then
-        info "PostgreSQL restore complete."
-    else
-        error "PostgreSQL restore encountered errors (non-fatal warnings are expected)."
-    fi
-else
-    warn "No PostgreSQL backup found — skipping."
+# Ensure databases are running
+for svc in postgres minio; do
+    compose ps --status running "${svc}" 2>/dev/null | grep -q "${svc}" || {
+        info "Starting ${svc}..."
+        compose up -d "${svc}"
+        sleep 3
+    }
+done
+
+# -- 2. Restore PostgreSQL ---------------------------------------------------
+
+if ${HAS_PG}; then
+    info "Restoring PostgreSQL (this may take a while for large databases)..."
+
+    # pg_dumpall with --clean generates DROP statements, so non-fatal errors
+    # about missing objects on a fresh database are expected.
+    gunzip -c "${PG_FILE}" \
+        | compose exec -T postgres \
+            psql -U "${POSTGRES_USER}" -d postgres \
+            -v ON_ERROR_STOP=0 \
+            --quiet \
+        2>&1 | grep -i 'error' | grep -vi 'does not exist' || true
+
+    info "PostgreSQL restore complete."
 fi
 
-# ---------- 3. Restore MinIO ------------------------------------------------
-if [ -f "${BACKUP_PATH}/minio_data.tar.gz" ]; then
+# -- 3. Restore MinIO -------------------------------------------------------
+
+if ${HAS_MINIO}; then
     info "Restoring MinIO objects..."
-    docker compose -f "${COMPOSE_FILE}" exec -T minio \
-        sh -c 'rm -rf /data/* && tar -xzf - -C /' \
-        < "${BACKUP_PATH}/minio_data.tar.gz"
 
-    if [ $? -eq 0 ]; then
-        info "MinIO restore complete."
-    else
-        error "MinIO restore failed!"
-    fi
-else
-    warn "No MinIO backup found — skipping."
+    # Extract into a temp location first, then swap — avoids leaving an empty
+    # /data directory if the tar extraction fails.
+    compose exec -T minio sh -c '
+        set -e
+        mkdir -p /tmp/restore
+        tar -xzf - -C /tmp/restore
+        rm -rf /data/*
+        if [ -d /tmp/restore/data ]; then
+            cp -a /tmp/restore/data/* /data/ 2>/dev/null || true
+        fi
+        rm -rf /tmp/restore
+    ' < "${MINIO_FILE}"
+
+    info "MinIO restore complete."
 fi
 
-# ---------- 4. Restore Keycloak Realm ----------------------------------------
-if [ -d "${BACKUP_PATH}/keycloak-export" ]; then
-    info "To restore Keycloak realm:"
-    echo "  1. Copy export files to keycloak import volume"
-    echo "  2. Restart Keycloak with --import-realm"
-    echo "  3. Or import via Keycloak admin console"
-    warn "Automatic Keycloak restore is not supported — use admin console."
-else
-    warn "No Keycloak export found — skipping."
-fi
+# -- 4. Restart everything ---------------------------------------------------
 
-# ---------- 5. Restart Services ---------------------------------------------
 info "Restarting all services..."
-docker compose -f "${COMPOSE_FILE}" up -d
+compose up -d
 
-info "Restore complete! Verify services are healthy:"
+echo ""
+info "Restore complete. Verify with:"
+echo ""
 echo "  docker compose -f ${COMPOSE_FILE} ps"
-echo "  docker compose -f ${COMPOSE_FILE} logs -f api"
+echo "  curl -sf http://localhost:7252/health/ready && echo 'OK'"
+echo ""

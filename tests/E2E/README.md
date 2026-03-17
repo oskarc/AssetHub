@@ -6,7 +6,7 @@ Comprehensive end-to-end test suite for the AssetHub Digital Asset Management ap
 
 - **Node.js** 18+ 
 - **Docker Compose** (to run the app stack)
-- The AssetHub application running at `http://localhost:7252`
+- The AssetHub application running at `http://localhost:7252` (API at `/api/v1/`)
 
 ## Quick Start
 
@@ -135,3 +135,14 @@ Tests are tagged for selective execution:
 - `@edge-cases` — Error handling
 
 Run tagged tests: `npx playwright test --grep @smoke`
+
+## Browser Targets
+
+Tests run across 4 browser configurations:
+
+| Project | Browser | Viewport |
+|---------|---------|----------|
+| `chromium` | Desktop Chrome | 1280x720 |
+| `firefox` | Desktop Firefox | 1280x720 |
+| `webkit` | Desktop Safari | 1280x720 |
+| `mobile-chrome` | Mobile Chrome | Pixel 5 (393x851) |

@@ -257,62 +257,35 @@ The production compose file includes:
 - **Container hardening** — cap_drop ALL, no-new-privileges, non-root users, read-only root filesystem, PID limits
 - **Log rotation** — `json-file` driver with 50 MB x 5 files on every container
 - **Keycloak production mode** — `KC_HOSTNAME_STRICT`, `KC_PROXY_HEADERS: xforwarded`, HTTPS required
-- **Docker secrets support** — Commented-out template for file-based secrets as an alternative to environment variables
+- **Docker secrets** — File-based secrets for all sensitive credentials (`postgres_password`, `keycloak_admin_password`, `keycloak_db_password`, `minio_root_password`, `keycloak_client_secret`). Services use `_FILE` suffix environment variables (e.g., `POSTGRES_PASSWORD_FILE`)
 - **Prometheus** — 30-day retention, `--web.enable-lifecycle` omitted (use `SIGHUP` to reload config)
 
 ### Reverse Proxy Setup
 
-The production docker-compose does not include a reverse proxy. You must provide one externally.
+The production docker-compose does not include a reverse proxy. You must provide one externally. Ready-to-use configurations are included in the repository:
 
-#### Nginx Example
+- **Caddy** (recommended): `docker/reverse-proxy/caddy/Caddyfile` — automatic TLS via Let's Encrypt, WebSocket support for Blazor SignalR, Keycloak proxying, admin console IP restriction, security headers, 500 MB upload limit
+- **Nginx**: `docker/reverse-proxy/nginx/nginx.conf` — manual TLS setup, WebSocket upgrade for `/_blazor`, Keycloak proxying, admin IP restriction, security headers, 300s upload timeout
 
-```nginx
-upstream assethub {
-    server 127.0.0.1:7252;
-}
+#### Using the Caddy Config
 
-server {
-    listen 80;
-    server_name assethub.example.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name assethub.example.com;
-
-    ssl_certificate /etc/letsencrypt/live/assethub.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/assethub.example.com/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
-    ssl_prefer_server_ciphers off;
-
-    client_max_body_size 500M;
-
-    location / {
-        proxy_pass http://assethub;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
-    }
-}
-```
-
-#### Caddy Example (Auto-HTTPS)
-
-```caddy
-assethub.example.com {
-    reverse_proxy 127.0.0.1:7252
-}
+```bash
+cp docker/reverse-proxy/caddy/Caddyfile /etc/caddy/Caddyfile
+# Edit hostnames: assethub.example.com, keycloak.example.com
+# Edit admin IP restrictions
+caddy reload
 ```
 
 Caddy automatically obtains and renews Let's Encrypt certificates.
+
+#### Using the Nginx Config
+
+```bash
+cp docker/reverse-proxy/nginx/nginx.conf /etc/nginx/sites-available/assethub
+ln -s /etc/nginx/sites-available/assethub /etc/nginx/sites-enabled/
+# Edit hostnames, certificate paths, admin IP restrictions
+nginx -t && systemctl reload nginx
+```
 
 ### Initial Keycloak Configuration
 
@@ -454,8 +427,8 @@ Coverage across 29 test files:
 dotnet test tests/AssetHub.Ui.Tests/
 ```
 
-12 test files covering:
-- **bUnit component tests** (9 files) — AssetGrid, AssetUpload, CollectionTree, CreateShareDialog, EditAssetDialog, ManageAccessDialog, AddToCollectionDialog, CreateCollectionDialog, LanguageSwitcher, EmptyState
+18 test files covering:
+- **bUnit component tests** (15 files) — AssetGrid, AssetUpload, CollectionTree, CreateShareDialog, EditAssetDialog, ManageAccessDialog, AddToCollectionDialog, CreateCollectionDialog, LanguageSwitcher, EmptyState, BulkAssetActionsDialog, BulkCollectionActionsDialog, CreateUserDialog, DeleteAssetDialog, ShareInfoDialog, SharePasswordDialog
 - **Unit tests** (3 files) — AssetDisplayHelpers, RolePermissions, UserFeedbackService
 
 ### E2E Tests (Playwright)
@@ -473,7 +446,7 @@ npm run test:headed   # Run with visible browser
 npm run test:ui       # Playwright UI mode
 ```
 
-15 spec files running against a full Docker Compose stack:
+15 spec files running against a full Docker Compose stack across 4 browser targets (Chromium, Firefox, WebKit, mobile Chrome):
 
 | Spec | Coverage |
 |------|----------|
@@ -499,7 +472,7 @@ npm run test:ui       # Playwright UI mode
 - Place Blazor component tests in `tests/AssetHub.Ui.Tests/`
 - Place E2E tests in `tests/E2E/tests/specs/`
 - All new features should include appropriate test coverage
-- Total: 650+ .NET test methods across 47 files + 15 E2E spec files
+- Total: 700+ .NET test methods across 53 files + 15 E2E spec files (x4 browsers)
 
 ---
 
@@ -617,7 +590,24 @@ docker compose down && docker compose up --build
 
 ## Backup Strategy
 
-### PostgreSQL
+### Automated Backup & Restore Scripts
+
+Ready-to-use scripts are included in `docker/`:
+
+```bash
+# Full backup (PostgreSQL + MinIO, gzipped, timestamped)
+./docker/backup.sh                          # -> ./backups/<timestamp>/
+./docker/backup.sh /mnt/nfs/assethub        # -> custom destination
+
+# Restore from backup (shows metadata, asks for confirmation)
+./docker/restore.sh ./backups/20260314_120000
+```
+
+The backup script dumps all PostgreSQL databases (which includes Keycloak data) and archives the MinIO `/data` volume. Both scripts validate that required containers are running before starting and provide clear progress output. The restore script extracts MinIO to a temp location before swapping, so a failed extraction won't leave you with an empty volume.
+
+### Manual Backup
+
+#### PostgreSQL
 
 ```bash
 # Full database dump
@@ -627,7 +617,7 @@ docker exec assethub-postgres pg_dumpall -U assethub > backup_$(date +%Y%m%d).sq
 cat backup.sql | docker exec -i assethub-postgres psql -U assethub
 ```
 
-### MinIO Data
+#### MinIO Data
 
 MinIO data is stored in the `miniodata` Docker volume. Back up the volume or use MinIO's `mc mirror`:
 
@@ -636,7 +626,7 @@ mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
 mc mirror local/assethub-assets /path/to/backup/
 ```
 
-### Keycloak
+#### Keycloak
 
 Keycloak data is stored in PostgreSQL (in the `keycloak` database). It's included in the PostgreSQL backup above.
 
@@ -653,7 +643,14 @@ Keycloak data is stored in PostgreSQL (in the `keycloak` database). It's include
 7. Monitor logs: `docker compose logs -f api`
 8. Verify health: `curl -f http://127.0.0.1:7252/health`
 
-Database migrations run automatically on startup. If a migration fails, restore from backup.
+Database migrations are controlled by the `Database:AutoMigrate` setting. In development (default `true`), migrations run automatically on startup. In production (default `false`), pending migrations are logged as warnings and must be applied manually:
+
+```bash
+# Apply migrations manually before starting the production stack
+docker exec assethub-api dotnet ef database update
+```
+
+If a migration fails, restore from backup.
 
 ### Rollback
 
