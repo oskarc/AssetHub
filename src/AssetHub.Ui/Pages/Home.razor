@@ -9,6 +9,7 @@
 @inject AssetHubApiClient Api
 @inject NavigationManager Nav
 @inject IStringLocalizer<AssetHub.Ui.Resources.CommonResource> Loc
+@inject IStringLocalizer<AssetHub.Ui.Resources.AdminResource> AdminLoc
 @inject AuthenticationStateProvider AuthState
 @inject IDialogService DialogService
 
@@ -282,7 +283,7 @@
                                     {
                                         <MudTimelineItem Color="@GetAuditEventColor(evt.EventType)" Size="Size.Small">
                                             <div>
-                                                <MudText Typo="Typo.body2">@FormatEventType(evt.EventType)</MudText>
+                                                <MudText Typo="Typo.body2">@GetLocalizedEventType(evt.EventType)</MudText>
                                                 @if (!string.IsNullOrEmpty(evt.ActorUserName))
                                                 {
                                                     <MudText Typo="Typo.caption" Style="opacity: 0.8; display: block;">
@@ -290,7 +291,7 @@
                                                     </MudText>
                                                 }
                                                 <MudText Typo="Typo.caption" Style="display: block;">
-                                                    @evt.TargetType
+                                                    @GetLocalizedTargetType(evt.TargetType)
                                                     @if (!string.IsNullOrEmpty(evt.TargetName))
                                                     {
                                                         @:&middot; @evt.TargetName
@@ -413,28 +414,31 @@
         : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareRevoked"].Value
         : status;
 
-    private Color GetAuditEventColor(string eventType)
+    private static Color GetAuditEventColor(string eventType) => eventType.ToLowerInvariant() switch
     {
-        if (eventType.Contains("delete", StringComparison.OrdinalIgnoreCase)
-            || eventType.Contains("revoke", StringComparison.OrdinalIgnoreCase))
-            return Color.Error;
-        if (eventType.Contains("create", StringComparison.OrdinalIgnoreCase)
-            || eventType.Contains("upload", StringComparison.OrdinalIgnoreCase))
-            return Color.Success;
-        if (eventType.Contains("update", StringComparison.OrdinalIgnoreCase)
-            || eventType.Contains("share", StringComparison.OrdinalIgnoreCase))
-            return Color.Info;
-        return Color.Default;
+        var e when e.Contains("malware") || e.Contains("processing_failed") || e.Contains("password_failed") => Color.Error,
+        var e when e.Contains("create") || e.Contains("upload") => Color.Success,
+        var e when e.Contains("delete") || e.Contains("revoke") || e.Contains("removed") || e.Contains("cleanup") => Color.Error,
+        var e when e.Contains("update") => Color.Warning,
+        var e when e.Contains("download") => Color.Info,
+        var e when e.Contains("share") => Color.Info,
+        var e when e.Contains("access") || e.Contains("acl") => Color.Secondary,
+        _ => Color.Default
+    };
+
+    private string GetLocalizedEventType(string eventType)
+    {
+        var key = $"Event_{eventType}";
+        var localized = AdminLoc[key];
+        return localized.ResourceNotFound ? eventType : localized.Value;
     }
 
-    private static string FormatEventType(string eventType)
+    private string GetLocalizedTargetType(string targetType)
     {
-        // Convert "asset.created" or "AssetCreated" to "Asset Created"
-        return string.Join(' ', eventType
-            .Replace('.', ' ')
-            .Replace('_', ' ')
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(w => char.ToUpper(w[0]) + w[1..]));
+        if (string.IsNullOrEmpty(targetType)) return targetType;
+        var key = $"ScopeType_{char.ToUpper(targetType[0])}{targetType[1..]}";
+        var localized = Loc[key];
+        return localized.ResourceNotFound ? targetType : localized.Value;
     }
 
     private string FormatTimeAgo(DateTime utcTime)

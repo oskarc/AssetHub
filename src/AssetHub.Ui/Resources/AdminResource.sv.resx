@@ -63,11 +63,14 @@
   <data name="Event_asset.upload_initiated" xml:space="preserve"><value>Uppladdning startad</value></data>
   <data name="Event_asset.upload_confirmed" xml:space="preserve"><value>Uppladdning slutförd</value></data>
   <data name="Event_asset.malware_detected" xml:space="preserve"><value>Skadlig kod upptäckt</value></data>
+  <data name="Event_asset.downloaded" xml:space="preserve"><value>Tillgång nedladdad</value></data>
+  <data name="Event_asset.processing_failed" xml:space="preserve"><value>Bearbetning misslyckades</value></data>
   <data name="Event_collection.created" xml:space="preserve"><value>Samling skapad</value></data>
   <data name="Event_collection.updated" xml:space="preserve"><value>Samling uppdaterad</value></data>
   <data name="Event_collection.deleted" xml:space="preserve"><value>Samling raderad</value></data>
   <data name="Event_collection.download_requested" xml:space="preserve"><value>Samlingsnedladdning begärd</value></data>
   <data name="Event_collection.downloaded" xml:space="preserve"><value>Samling nedladdad</value></data>
+  <data name="Event_collection.access_set" xml:space="preserve"><value>Samlingsåtkomst beviljad</value></data>
   <data name="Event_share.created" xml:space="preserve"><value>Dellänk skapad</value></data>
   <data name="Event_share.revoked" xml:space="preserve"><value>Dellänk återkallad</value></data>
   <data name="Event_share.password_updated" xml:space="preserve"><value>Delningslösenord ändrat</value></data>
@@ -78,6 +81,50 @@
   <data name="Event_user.cleanup" xml:space="preserve"><value>Användardata rensad</value></data>
   <data name="Event_user.sync.cleanup" xml:space="preserve"><value>Användarsynk rensning</value></data>
   <data name="Event_user.password_reset_email" xml:space="preserve"><value>Lösenordsåterställning skickad</value></data>
+  <data name="Event_user.created" xml:space="preserve"><value>Användare skapad</value></data>
+  <data name="Event_user.create_failed" xml:space="preserve"><value>Användarskapande misslyckades</value></data>
+  <data name="Event_user.deleted" xml:space="preserve"><value>Användare raderad</value></data>
+  <data name="Event_user.sync.completed" xml:space="preserve"><value>Användarsynk slutförd</value></data>
+
+  <!-- Audit Detail Keys -->
+  <data name="Detail_title" xml:space="preserve"><value>Titel</value></data>
+  <data name="Detail_fileName" xml:space="preserve"><value>Filnamn</value></data>
+  <data name="Detail_fileSize" xml:space="preserve"><value>Filstorlek</value></data>
+  <data name="Detail_size" xml:space="preserve"><value>Storlek</value></data>
+  <data name="Detail_sizeBytes" xml:space="preserve"><value>Storlek (byte)</value></data>
+  <data name="Detail_contentType" xml:space="preserve"><value>Innehållstyp</value></data>
+  <data name="Detail_assetType" xml:space="preserve"><value>Tillgångstyp</value></data>
+  <data name="Detail_description" xml:space="preserve"><value>Beskrivning</value></data>
+  <data name="Detail_tags" xml:space="preserve"><value>Taggar</value></data>
+  <data name="Detail_name" xml:space="preserve"><value>Namn</value></data>
+  <data name="Detail_collectionId" xml:space="preserve"><value>Samling</value></data>
+  <data name="Detail_scopeType" xml:space="preserve"><value>Omfång</value></data>
+  <data name="Detail_scopeId" xml:space="preserve"><value>Omfångs-ID</value></data>
+  <data name="Detail_role" xml:space="preserve"><value>Roll</value></data>
+  <data name="Detail_principalType" xml:space="preserve"><value>Principaltyp</value></data>
+  <data name="Detail_principalId" xml:space="preserve"><value>Principal</value></data>
+  <data name="Detail_username" xml:space="preserve"><value>Användarnamn</value></data>
+  <data name="Detail_email" xml:space="preserve"><value>E-post</value></data>
+  <data name="Detail_targetUserId" xml:space="preserve"><value>Målanvändare</value></data>
+  <data name="Detail_deletedUserId" xml:space="preserve"><value>Raderad användare</value></data>
+  <data name="Detail_isSystemAdmin" xml:space="preserve"><value>Systemadministratör</value></data>
+  <data name="Detail_expiresAt" xml:space="preserve"><value>Utgår</value></data>
+  <data name="Detail_count" xml:space="preserve"><value>Antal</value></data>
+  <data name="Detail_assetCount" xml:space="preserve"><value>Tillgångar</value></data>
+  <data name="Detail_reason" xml:space="preserve"><value>Orsak</value></data>
+  <data name="Detail_error" xml:space="preserve"><value>Fel</value></data>
+  <data name="Detail_errorType" xml:space="preserve"><value>Feltyp</value></data>
+  <data name="Detail_threatName" xml:space="preserve"><value>Hot</value></data>
+  <data name="Detail_ip" xml:space="preserve"><value>IP-adress</value></data>
+  <data name="Detail_bulk" xml:space="preserve"><value>Massåtgärd</value></data>
+  <data name="Detail_admin" xml:space="preserve"><value>Adminåtgärd</value></data>
+  <data name="Detail_deleteAssets" xml:space="preserve"><value>Radera tillgångar</value></data>
+  <data name="Detail_aclsRemoved" xml:space="preserve"><value>Åtkomstregler borttagna</value></data>
+  <data name="Detail_sharesRevoked" xml:space="preserve"><value>Delningar återkallade</value></data>
+
+  <!-- Audit Action Categories -->
+  <data name="AuditAction_Download" xml:space="preserve"><value>Nedladdning</value></data>
+  <data name="AuditAction_Security" xml:space="preserve"><value>Säkerhet</value></data>
 
   <!-- Share Management -->
   <data name="AllSharedLinks" xml:space="preserve"><value>Alla delade länkar</value></data>

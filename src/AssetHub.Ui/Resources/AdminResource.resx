@@ -63,11 +63,14 @@
   <data name="Event_asset.upload_initiated" xml:space="preserve"><value>Upload Started</value></data>
   <data name="Event_asset.upload_confirmed" xml:space="preserve"><value>Upload Completed</value></data>
   <data name="Event_asset.malware_detected" xml:space="preserve"><value>Malware Detected</value></data>
+  <data name="Event_asset.downloaded" xml:space="preserve"><value>Asset Downloaded</value></data>
+  <data name="Event_asset.processing_failed" xml:space="preserve"><value>Processing Failed</value></data>
   <data name="Event_collection.created" xml:space="preserve"><value>Collection Created</value></data>
   <data name="Event_collection.updated" xml:space="preserve"><value>Collection Updated</value></data>
   <data name="Event_collection.deleted" xml:space="preserve"><value>Collection Deleted</value></data>
   <data name="Event_collection.download_requested" xml:space="preserve"><value>Collection Download Requested</value></data>
   <data name="Event_collection.downloaded" xml:space="preserve"><value>Collection Downloaded</value></data>
+  <data name="Event_collection.access_set" xml:space="preserve"><value>Collection Access Granted</value></data>
   <data name="Event_share.created" xml:space="preserve"><value>Share Link Created</value></data>
   <data name="Event_share.revoked" xml:space="preserve"><value>Share Link Revoked</value></data>
   <data name="Event_share.password_updated" xml:space="preserve"><value>Share Password Changed</value></data>
@@ -78,6 +81,50 @@
   <data name="Event_user.cleanup" xml:space="preserve"><value>User Data Cleaned Up</value></data>
   <data name="Event_user.sync.cleanup" xml:space="preserve"><value>User Sync Cleanup</value></data>
   <data name="Event_user.password_reset_email" xml:space="preserve"><value>Password Reset Email Sent</value></data>
+  <data name="Event_user.created" xml:space="preserve"><value>User Created</value></data>
+  <data name="Event_user.create_failed" xml:space="preserve"><value>User Creation Failed</value></data>
+  <data name="Event_user.deleted" xml:space="preserve"><value>User Deleted</value></data>
+  <data name="Event_user.sync.completed" xml:space="preserve"><value>User Sync Completed</value></data>
+
+  <!-- Audit Detail Keys -->
+  <data name="Detail_title" xml:space="preserve"><value>Title</value></data>
+  <data name="Detail_fileName" xml:space="preserve"><value>File Name</value></data>
+  <data name="Detail_fileSize" xml:space="preserve"><value>File Size</value></data>
+  <data name="Detail_size" xml:space="preserve"><value>Size</value></data>
+  <data name="Detail_sizeBytes" xml:space="preserve"><value>Size (bytes)</value></data>
+  <data name="Detail_contentType" xml:space="preserve"><value>Content Type</value></data>
+  <data name="Detail_assetType" xml:space="preserve"><value>Asset Type</value></data>
+  <data name="Detail_description" xml:space="preserve"><value>Description</value></data>
+  <data name="Detail_tags" xml:space="preserve"><value>Tags</value></data>
+  <data name="Detail_name" xml:space="preserve"><value>Name</value></data>
+  <data name="Detail_collectionId" xml:space="preserve"><value>Collection</value></data>
+  <data name="Detail_scopeType" xml:space="preserve"><value>Scope</value></data>
+  <data name="Detail_scopeId" xml:space="preserve"><value>Scope ID</value></data>
+  <data name="Detail_role" xml:space="preserve"><value>Role</value></data>
+  <data name="Detail_principalType" xml:space="preserve"><value>Principal Type</value></data>
+  <data name="Detail_principalId" xml:space="preserve"><value>Principal</value></data>
+  <data name="Detail_username" xml:space="preserve"><value>Username</value></data>
+  <data name="Detail_email" xml:space="preserve"><value>Email</value></data>
+  <data name="Detail_targetUserId" xml:space="preserve"><value>Target User</value></data>
+  <data name="Detail_deletedUserId" xml:space="preserve"><value>Deleted User</value></data>
+  <data name="Detail_isSystemAdmin" xml:space="preserve"><value>System Admin</value></data>
+  <data name="Detail_expiresAt" xml:space="preserve"><value>Expires</value></data>
+  <data name="Detail_count" xml:space="preserve"><value>Count</value></data>
+  <data name="Detail_assetCount" xml:space="preserve"><value>Assets</value></data>
+  <data name="Detail_reason" xml:space="preserve"><value>Reason</value></data>
+  <data name="Detail_error" xml:space="preserve"><value>Error</value></data>
+  <data name="Detail_errorType" xml:space="preserve"><value>Error Type</value></data>
+  <data name="Detail_threatName" xml:space="preserve"><value>Threat</value></data>
+  <data name="Detail_ip" xml:space="preserve"><value>IP Address</value></data>
+  <data name="Detail_bulk" xml:space="preserve"><value>Bulk Operation</value></data>
+  <data name="Detail_admin" xml:space="preserve"><value>Admin Action</value></data>
+  <data name="Detail_deleteAssets" xml:space="preserve"><value>Delete Assets</value></data>
+  <data name="Detail_aclsRemoved" xml:space="preserve"><value>Access Rules Removed</value></data>
+  <data name="Detail_sharesRevoked" xml:space="preserve"><value>Shares Revoked</value></data>
+
+  <!-- Audit Action Categories -->
+  <data name="AuditAction_Download" xml:space="preserve"><value>Download</value></data>
+  <data name="AuditAction_Security" xml:space="preserve"><value>Security</value></data>
 
   <!-- Share Management -->
   <data name="AllSharedLinks" xml:space="preserve"><value>All Shared Links</value></data>

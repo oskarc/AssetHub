@@ -34,7 +34,9 @@ else
             <MudChip T="string" Color="@(_showCreate ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleCreate" Style="cursor: pointer;">@AdminLoc["AuditAction_Create"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "create")</MudChip>
             <MudChip T="string" Color="@(_showUpdate ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleUpdate" Style="cursor: pointer;">@AdminLoc["AuditAction_Update"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "update")</MudChip>
             <MudChip T="string" Color="@(_showDelete ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleDelete" Style="cursor: pointer;">@AdminLoc["AuditAction_Delete"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "delete")</MudChip>
+            <MudChip T="string" Color="@(_showDownload ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleDownload" Style="cursor: pointer;">@AdminLoc["AuditAction_Download"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "download")</MudChip>
             <MudChip T="string" Color="@(_showAccessGranted ? Color.Secondary : Color.Default)" Size="Size.Small" OnClick="ToggleAccessGranted" Style="cursor: pointer;">@AdminLoc["AuditAction_AccessGranted"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "access")</MudChip>
+            <MudChip T="string" Color="@(_showSecurity ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleSecurity" Style="cursor: pointer;">@AdminLoc["AuditAction_Security"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "security")</MudChip>
             <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
             <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">@AdminLoc["Total"]: @_totalCount</MudChip>
         </ToolBarContent>
@@ -57,7 +59,7 @@ else
             </MudTd>
             <MudTd DataLabel="@AdminLoc["Header_Actor"]">@(context.ActorUserName ?? context.ActorUserId ?? "—")</MudTd>
             <MudTd DataLabel="@AdminLoc["Header_TargetType"]">
-                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.TargetType</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@GetLocalizedTargetType(context.TargetType)</MudChip>
             </MudTd>
             <MudTd DataLabel="@AdminLoc["Header_TargetName"]">
                 @if (!string.IsNullOrEmpty(context.TargetName))
@@ -89,10 +91,13 @@ else
                             <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
                         </ChildContent>
                         <TooltipContent>
-                            <div style="max-width: 400px; white-space: pre-wrap;">
+                            <div style="max-width: 400px;">
                                 @foreach (var kvp in context.Details)
                                 {
-                                    <div><strong>@kvp.Key:</strong> @kvp.Value</div>
+                                    <div style="padding: 2px 0;">
+                                        <span style="opacity: 0.7;">@GetLocalizedDetailKey(kvp.Key):</span>
+                                        <span style="margin-left: 4px;">@FormatDetailValue(kvp.Key, kvp.Value)</span>
+                                    </div>
                                 }
                             </div>
                         </TooltipContent>
@@ -135,7 +140,9 @@ else
     private bool _showCreate = true;
     private bool _showUpdate = true;
     private bool _showDelete = true;
+    private bool _showDownload = true;
     private bool _showAccessGranted = true;
+    private bool _showSecurity = true;
 
     private const string StorageKeyShowCollections = "auditLog_showCollections";
     private const string StorageKeyShowAssets = "auditLog_showAssets";
@@ -143,7 +150,9 @@ else
     private const string StorageKeyShowCreate = "auditLog_showCreate";
     private const string StorageKeyShowUpdate = "auditLog_showUpdate";
     private const string StorageKeyShowDelete = "auditLog_showDelete";
+    private const string StorageKeyShowDownload = "auditLog_showDownload";
     private const string StorageKeyShowAccessGranted = "auditLog_showAccessGranted";
+    private const string StorageKeyShowSecurity = "auditLog_showSecurity";
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,7 +169,9 @@ else
             _showCreate = await LocalStorage.GetBoolAsync(StorageKeyShowCreate, true);
             _showUpdate = await LocalStorage.GetBoolAsync(StorageKeyShowUpdate, true);
             _showDelete = await LocalStorage.GetBoolAsync(StorageKeyShowDelete, true);
+            _showDownload = await LocalStorage.GetBoolAsync(StorageKeyShowDownload, true);
             _showAccessGranted = await LocalStorage.GetBoolAsync(StorageKeyShowAccessGranted, true);
+            _showSecurity = await LocalStorage.GetBoolAsync(StorageKeyShowSecurity, true);
             StateHasChanged();
         }
     }
@@ -170,7 +181,7 @@ else
         try
         {
             _auditLoading = true;
-            
+
             if (reset)
             {
                 _auditEvents = null;
@@ -222,7 +233,9 @@ else
         if (action == "create" && !_showCreate) return false;
         if (action == "update" && !_showUpdate) return false;
         if (action == "delete" && !_showDelete) return false;
+        if (action == "download" && !_showDownload) return false;
         if (action == "access" && !_showAccessGranted) return false;
+        if (action == "security" && !_showSecurity) return false;
 
         // Text search filter (minimum 4 characters)
         if (string.IsNullOrWhiteSpace(_searchString) || _searchString.Trim().Length < 4)
@@ -240,10 +253,12 @@ else
     private static string GetActionCategory(string eventType)
     {
         var et = eventType.ToLowerInvariant();
-        if (et.Contains("acl.set") || et.Contains("access_granted")) return "access";
+        if (et.Contains("malware") || et.Contains("password_failed") || et.Contains("processing_failed")) return "security";
+        if (et.Contains("download")) return "download";
+        if (et.Contains("acl.set") || et.Contains("access_granted") || et.Contains("access_set")) return "access";
         if (et.Contains("created") || et.Contains("upload")) return "create";
         if (et.Contains("updated")) return "update";
-        if (et.Contains("deleted") || et.Contains("removed") || et.Contains("revoked")) return "delete";
+        if (et.Contains("deleted") || et.Contains("removed") || et.Contains("revoked") || et.Contains("cleanup")) return "delete";
         return "other";
     }
 
@@ -283,20 +298,33 @@ else
         await LocalStorage.SetBoolAsync(StorageKeyShowDelete, _showDelete);
     }
 
+    private async Task ToggleDownload()
+    {
+        _showDownload = !_showDownload;
+        await LocalStorage.SetBoolAsync(StorageKeyShowDownload, _showDownload);
+    }
+
     private async Task ToggleAccessGranted()
     {
         _showAccessGranted = !_showAccessGranted;
         await LocalStorage.SetBoolAsync(StorageKeyShowAccessGranted, _showAccessGranted);
     }
 
+    private async Task ToggleSecurity()
+    {
+        _showSecurity = !_showSecurity;
+        await LocalStorage.SetBoolAsync(StorageKeyShowSecurity, _showSecurity);
+    }
+
     private static Color GetEventColor(string eventType) => eventType.ToLowerInvariant() switch
     {
+        var e when e.Contains("malware") || e.Contains("processing_failed") || e.Contains("password_failed") => Color.Error,
         var e when e.Contains("create") || e.Contains("upload") => Color.Success,
-        var e when e.Contains("delete") || e.Contains("revoke") => Color.Error,
-        var e when e.Contains("update") || e.Contains("edit") || e.Contains("move") => Color.Warning,
-        var e when e.Contains("share") || e.Contains("download") => Color.Info,
-        var e when e.Contains("login") || e.Contains("access") => Color.Secondary,
-        var e when e.Contains("malware") => Color.Error,
+        var e when e.Contains("delete") || e.Contains("revoke") || e.Contains("removed") || e.Contains("cleanup") => Color.Error,
+        var e when e.Contains("update") => Color.Warning,
+        var e when e.Contains("download") => Color.Info,
+        var e when e.Contains("share") => Color.Info,
+        var e when e.Contains("access") || e.Contains("acl") => Color.Secondary,
         _ => Color.Default
     };
 
@@ -304,7 +332,43 @@ else
     {
         var key = $"Event_{eventType}";
         var localized = AdminLoc[key];
-        // If no localization found, return the raw event type
         return localized.ResourceNotFound ? eventType : localized.Value;
+    }
+
+    private string GetLocalizedTargetType(string targetType)
+    {
+        var key = $"ScopeType_{char.ToUpper(targetType[0])}{targetType[1..]}";
+        var localized = CommonLoc[key];
+        return localized.ResourceNotFound ? targetType : localized.Value;
+    }
+
+    private string GetLocalizedDetailKey(string key)
+    {
+        var locKey = $"Detail_{key}";
+        var localized = AdminLoc[locKey];
+        return localized.ResourceNotFound ? FormatCamelCase(key) : localized.Value;
+    }
+
+    private static string FormatDetailValue(string key, object value)
+    {
+        var str = value?.ToString() ?? "";
+        // Format boolean values as Yes/No
+        if (str is "True" or "true") return "Yes";
+        if (str is "False" or "false") return "No";
+        return str;
+    }
+
+    private static string FormatCamelCase(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        var result = new System.Text.StringBuilder();
+        result.Append(char.ToUpper(input[0]));
+        for (var i = 1; i < input.Length; i++)
+        {
+            if (char.IsUpper(input[i]))
+                result.Append(' ');
+            result.Append(input[i]);
+        }
+        return result.ToString();
     }
 }
