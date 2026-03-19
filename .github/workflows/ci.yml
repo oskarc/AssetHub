@@ -145,7 +145,7 @@ jobs:
           cache-to: type=gha,mode=max
       
       - name: Scan API image for vulnerabilities
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 (trivy v0.69.3)
         with:
           image-ref: 'assethub-api:${{ github.sha }}'
           format: 'table'
@@ -156,7 +156,7 @@ jobs:
           output: 'trivy-api-results.txt'
       
       - name: Scan Worker image for vulnerabilities
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 (trivy v0.69.3)
         if: success() || failure()
         with:
           image-ref: 'assethub-worker:${{ github.sha }}'
