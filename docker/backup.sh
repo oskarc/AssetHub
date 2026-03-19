@@ -45,7 +45,7 @@ file_size() { du -sh "$1" 2>/dev/null | cut -f1; }
 # -- Pre-flight checks ------------------------------------------------------
 
 command -v docker >/dev/null 2>&1 || die "docker is not installed."
-[ -f "${COMPOSE_FILE}" ]          || die "Compose file not found: ${COMPOSE_FILE}"
+[[ -f "${COMPOSE_FILE}" ]]          || die "Compose file not found: ${COMPOSE_FILE}"
 
 # Verify required containers are running
 for svc in postgres minio; do
@@ -67,7 +67,7 @@ compose exec -T postgres \
     pg_dumpall -U "${POSTGRES_USER}" --clean \
     | gzip > "${PG_FILE}"
 
-[ -s "${PG_FILE}" ] || die "PostgreSQL dump is empty — something went wrong."
+[[ -s "${PG_FILE}" ]] || die "PostgreSQL dump is empty — something went wrong."
 info "PostgreSQL done ($(file_size "${PG_FILE}"))"
 
 # -- 2. MinIO ----------------------------------------------------------------
@@ -79,7 +79,7 @@ compose exec -T minio \
     tar -czf - -C / data \
     > "${MINIO_FILE}"
 
-if [ -s "${MINIO_FILE}" ]; then
+if [[ -s "${MINIO_FILE}" ]]; then
     info "MinIO done ($(file_size "${MINIO_FILE}"))"
 else
     warn "MinIO archive is empty — the bucket may have no objects yet."
