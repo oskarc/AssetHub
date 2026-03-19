@@ -331,6 +331,33 @@
   <data name="Error_FileTooLarge" xml:space="preserve"><value>{0} exceeds the maximum size of {1} MB</value></data>
   <data name="Warning_FilesRejected" xml:space="preserve"><value>{0} file(s) were skipped due to validation errors</value></data>
 
+  <!-- Search -->
+  <data name="SearchHint_MinChars" xml:space="preserve"><value>Type at least {0} characters to search</value></data>
+
+  <!-- Friendly Content Types -->
+  <data name="ContentType_JPEG" xml:space="preserve"><value>JPEG Image</value></data>
+  <data name="ContentType_PNG" xml:space="preserve"><value>PNG Image</value></data>
+  <data name="ContentType_GIF" xml:space="preserve"><value>GIF Image</value></data>
+  <data name="ContentType_WebP" xml:space="preserve"><value>WebP Image</value></data>
+  <data name="ContentType_SVG" xml:space="preserve"><value>SVG Image</value></data>
+  <data name="ContentType_TIFF" xml:space="preserve"><value>TIFF Image</value></data>
+  <data name="ContentType_BMP" xml:space="preserve"><value>BMP Image</value></data>
+  <data name="ContentType_MP4" xml:space="preserve"><value>MP4 Video</value></data>
+  <data name="ContentType_WebM" xml:space="preserve"><value>WebM Video</value></data>
+  <data name="ContentType_MOV" xml:space="preserve"><value>QuickTime Video</value></data>
+  <data name="ContentType_AVI" xml:space="preserve"><value>AVI Video</value></data>
+  <data name="ContentType_PDF" xml:space="preserve"><value>PDF Document</value></data>
+  <data name="ContentType_Word" xml:space="preserve"><value>Word Document</value></data>
+  <data name="ContentType_Excel" xml:space="preserve"><value>Excel Spreadsheet</value></data>
+  <data name="ContentType_PowerPoint" xml:space="preserve"><value>PowerPoint Presentation</value></data>
+  <data name="ContentType_ZIP" xml:space="preserve"><value>ZIP Archive</value></data>
+  <data name="ContentType_MP3" xml:space="preserve"><value>MP3 Audio</value></data>
+  <data name="ContentType_WAV" xml:space="preserve"><value>WAV Audio</value></data>
+  <data name="ContentType_PlainText" xml:space="preserve"><value>Plain Text</value></data>
+
+  <!-- Date/Time -->
+  <data name="DateTime_FullTooltip" xml:space="preserve"><value>Full date &amp; time</value></data>
+
   <!-- Pagination -->
   <data name="Showing" xml:space="preserve"><value>Showing</value></data>
   <data name="OfTotal" xml:space="preserve"><value>of</value></data>

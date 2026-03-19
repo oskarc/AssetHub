@@ -208,6 +208,40 @@ public static class AssetDisplayHelpers
         _ => role ?? ""
     };
 
+    // ===== CONTENT TYPE DISPLAY =====
+
+    /// <summary>
+    /// Returns the CommonResource key for a MIME content type, e.g. "image/jpeg" → "ContentType_JPEG".
+    /// Falls back to the raw content type if no mapping exists.
+    /// </summary>
+    public static string GetContentTypeKey(string? contentType)
+    {
+        if (string.IsNullOrEmpty(contentType)) return "";
+        return contentType.ToLowerInvariant() switch
+        {
+            "image/jpeg" or "image/jpg" => "ContentType_JPEG",
+            "image/png" => "ContentType_PNG",
+            "image/gif" => "ContentType_GIF",
+            "image/webp" => "ContentType_WebP",
+            "image/svg+xml" => "ContentType_SVG",
+            "image/tiff" => "ContentType_TIFF",
+            "image/bmp" => "ContentType_BMP",
+            "video/mp4" => "ContentType_MP4",
+            "video/webm" => "ContentType_WebM",
+            "video/quicktime" => "ContentType_MOV",
+            "video/x-msvideo" => "ContentType_AVI",
+            "application/pdf" => "ContentType_PDF",
+            "application/msword" or "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "ContentType_Word",
+            "application/vnd.ms-excel" or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "ContentType_Excel",
+            "application/vnd.ms-powerpoint" or "application/vnd.openxmlformats-officedocument.presentationml.presentation" => "ContentType_PowerPoint",
+            "application/zip" or "application/x-zip-compressed" => "ContentType_ZIP",
+            "audio/mpeg" or "audio/mp3" => "ContentType_MP3",
+            "audio/wav" or "audio/x-wav" => "ContentType_WAV",
+            "text/plain" => "ContentType_PlainText",
+            _ => ""
+        };
+    }
+
     // ===== FORMATTING =====
 
     /// <summary>

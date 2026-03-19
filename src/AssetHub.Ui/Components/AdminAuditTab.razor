@@ -25,7 +25,8 @@ else
         <ToolBarContent>
             <MudTextField @bind-Value="_searchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000" />
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000"
+                HelperText="@(_searchString.Length > 0 && _searchString.Length < 4 ? string.Format(CommonLoc["SearchHint_MinChars"], 4) : null)" />
             <MudSpacer />
             <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Style="cursor: pointer;">@CommonLoc["ScopeType_Collection"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Collection, StringComparison.OrdinalIgnoreCase))</MudChip>
             <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Style="cursor: pointer;">@CommonLoc["ScopeType_Asset"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Asset, StringComparison.OrdinalIgnoreCase))</MudChip>
@@ -49,7 +50,11 @@ else
             <MudTh>@AdminLoc["Header_Details"]</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="@AdminLoc["Header_Timestamp"]">@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
+            <MudTd DataLabel="@AdminLoc["Header_Timestamp"]">
+                <MudTooltip Text="@context.CreatedAt.ToLocalTime().ToString("F")">
+                    <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("g")</MudText>
+                </MudTooltip>
+            </MudTd>
             <MudTd DataLabel="@AdminLoc["Header_EventType"]">
                 <MudTooltip Text="@context.EventType">
                     <MudChip T="string" Size="Size.Small" Color="@GetEventColor(context.EventType)" Variant="Variant.Outlined">

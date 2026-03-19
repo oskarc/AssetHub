@@ -194,15 +194,27 @@ else
                                     </tr>
                                     <tr>
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Type"]</MudText></td>
-                                        <td><MudText Typo="Typo.body2">@_asset.ContentType</MudText></td>
+                                        <td>
+                                            <MudTooltip Text="@_asset.ContentType">
+                                                <MudText Typo="Typo.body2">@GetFriendlyContentType(_asset.ContentType)</MudText>
+                                            </MudTooltip>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Created"]</MudText></td>
-                                        <td><MudText Typo="Typo.body2">@_asset.CreatedAt.ToLocalTime().ToString("g")</MudText></td>
+                                        <td>
+                                            <MudTooltip Text="@_asset.CreatedAt.ToLocalTime().ToString("F")">
+                                                <MudText Typo="Typo.body2">@_asset.CreatedAt.ToLocalTime().ToString("g")</MudText>
+                                            </MudTooltip>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Updated"]</MudText></td>
-                                        <td><MudText Typo="Typo.body2">@_asset.UpdatedAt.ToLocalTime().ToString("g")</MudText></td>
+                                        <td>
+                                            <MudTooltip Text="@_asset.UpdatedAt.ToLocalTime().ToString("F")">
+                                                <MudText Typo="Typo.body2">@_asset.UpdatedAt.ToLocalTime().ToString("g")</MudText>
+                                            </MudTooltip>
+                                        </td>
                                     </tr>
                                     @if (!string.IsNullOrEmpty(_asset.Sha256))
                                     {
@@ -388,10 +400,10 @@ else
         {
             _assetCollections = await Api.GetAssetCollectionsAsync(AssetId);
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently fail - collections list will be empty
             _assetCollections = new();
+            Feedback.HandleError(ex, "load collections");
         }
     }
 
@@ -569,6 +581,14 @@ else
     {
         var safeUrl = UrlSafetyHelper.SafeReturnUrl(ReturnUrl, "/collections");
         Nav.NavigateTo(safeUrl);
+    }
+
+    private string GetFriendlyContentType(string? contentType)
+    {
+        var key = AssetDisplayHelpers.GetContentTypeKey(contentType);
+        if (string.IsNullOrEmpty(key)) return contentType ?? "";
+        var localized = CommonLoc[key];
+        return localized.ResourceNotFound ? contentType ?? "" : localized.Value;
     }
 
 }

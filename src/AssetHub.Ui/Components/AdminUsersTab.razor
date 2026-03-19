@@ -28,7 +28,8 @@ else
         <ToolBarContent>
             <MudTextField @bind-Value="_userSearchString" Placeholder="@AdminLoc["SearchUsersPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000" />
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000"
+                HelperText="@(_userSearchString.Length > 0 && _userSearchString.Length < 4 ? string.Format(CommonLoc["SearchHint_MinChars"], 4) : null)" />
             <MudSpacer />
             <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">@AdminLoc["Total"]: @_allUsers.Count</MudChip>
             <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
@@ -64,7 +65,18 @@ else
         <RowTemplate>
             <MudTd>@context.Username</MudTd>
             <MudTd>@(context.Email ?? "-")</MudTd>
-            <MudTd>@(context.CreatedAt?.ToLocalTime().ToString("g") ?? "-")</MudTd>
+            <MudTd>
+                @if (context.CreatedAt.HasValue)
+                {
+                    <MudTooltip Text="@context.CreatedAt.Value.ToLocalTime().ToString("F")">
+                        <MudText Typo="Typo.body2">@context.CreatedAt.Value.ToLocalTime().ToString("g")</MudText>
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2">—</MudText>
+                }
+            </MudTd>
             <MudTd>
                 @if (context.IsSystemAdmin)
                 {

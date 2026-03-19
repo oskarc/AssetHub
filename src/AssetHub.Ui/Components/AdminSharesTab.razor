@@ -25,7 +25,8 @@ else
         <ToolBarContent>
             <MudTextField @bind-Value="_shareSearchString" Placeholder="@AdminLoc["SearchSharesPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000" />
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000"
+                HelperText="@(_shareSearchString.Length > 0 && _shareSearchString.Length < 4 ? string.Format(CommonLoc["SearchHint_MinChars"], 4) : null)" />
             <MudSpacer />
             <MudChip T="string" Color="@(_showActive ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleActive" Style="cursor: pointer;">@AdminLoc["Active"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Active)</MudChip>
             <MudChip T="string" Color="@(_showExpired ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleExpired" Style="cursor: pointer;">@AdminLoc["Expired"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Expired)</MudChip>
@@ -53,7 +54,9 @@ else
             </MudTd>
             <MudTd>
                 <MudTooltip Text="@context.ScopeId.ToString()">
-                    @context.ScopeName
+                    <MudText Typo="Typo.body2" Style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        @context.ScopeName
+                    </MudText>
                 </MudTooltip>
                 @if (context.HasPassword)
                 {
@@ -63,9 +66,28 @@ else
                 }
             </MudTd>
             <MudTd>@context.CreatedByUserName</MudTd>
-            <MudTd>@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
-            <MudTd>@context.ExpiresAt.ToLocalTime().ToString("g")</MudTd>
-            <MudTd>@(context.LastAccessedAt?.ToLocalTime().ToString("g") ?? @CommonLoc["Text_Never"])</MudTd>
+            <MudTd>
+                <MudTooltip Text="@context.CreatedAt.ToLocalTime().ToString("F")">
+                    <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("g")</MudText>
+                </MudTooltip>
+            </MudTd>
+            <MudTd>
+                <MudTooltip Text="@context.ExpiresAt.ToLocalTime().ToString("F")">
+                    <MudText Typo="Typo.body2">@context.ExpiresAt.ToLocalTime().ToString("g")</MudText>
+                </MudTooltip>
+            </MudTd>
+            <MudTd>
+                @if (context.LastAccessedAt.HasValue)
+                {
+                    <MudTooltip Text="@context.LastAccessedAt.Value.ToLocalTime().ToString("F")">
+                        <MudText Typo="Typo.body2">@context.LastAccessedAt.Value.ToLocalTime().ToString("g")</MudText>
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Style="opacity: 0.5;">@CommonLoc["Text_Never"]</MudText>
+                }
+            </MudTd>
             <MudTd><MudChip T="string" Size="Size.Small">@context.AccessCount</MudChip></MudTd>
             <MudTd>
                 <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetShareStatusColor(context.Status)">
