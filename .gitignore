@@ -85,3 +85,4 @@ Thumbs.db
 .DS_Store
 
 certs/
+.claude/settings.local.json
