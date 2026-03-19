@@ -57,7 +57,7 @@
                 <MudStack>
                     <MudText Typo="Typo.h5">@Asset.Title</MudText>
                     <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(Asset.AssetType)" Class="share-chip-width">
-                        @Asset.AssetType.ToUpperInvariant()
+                        @(!string.IsNullOrEmpty(AssetTypeDisplay) ? AssetTypeDisplay : Asset.AssetType.ToUpperInvariant())
                     </MudChip>
                 </MudStack>
 
@@ -95,7 +95,18 @@
                             </tr>
                             <tr>
                                 <td><MudText Typo="Typo.body2" Color="Color.Secondary">@TypeLabel</MudText></td>
-                                <td><MudText Typo="Typo.body2">@Asset.ContentType</MudText></td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(ContentTypeDisplay))
+                                    {
+                                        <MudTooltip Text="@Asset.ContentType">
+                                            <MudText Typo="Typo.body2">@ContentTypeDisplay</MudText>
+                                        </MudTooltip>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.body2">@Asset.ContentType</MudText>
+                                    }
+                                </td>
                             </tr>
                         </tbody>
                     </MudSimpleTable>
@@ -195,4 +206,6 @@
     [Parameter] public string DownloadOriginalText { get; set; } = "Download Original";
     [Parameter] public string DownloadMediumText { get; set; } = "Download Medium";
     [Parameter] public string DownloadThumbnailText { get; set; } = "Download Thumbnail";
+    [Parameter] public string AssetTypeDisplay { get; set; } = "";
+    [Parameter] public string ContentTypeDisplay { get; set; } = "";
 }

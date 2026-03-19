@@ -56,10 +56,12 @@
 
             @if (ExpiresAt.HasValue)
             {
-                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
-                    @CommonLoc["Label_Expires"]: @ExpiresAt.Value.ToLocalTime().ToString("f")
-                </MudText>
+                <MudTooltip Text="@ExpiresAt.Value.ToLocalTime().ToString("F")">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                        @CommonLoc["Label_Expires"]: @ExpiresAt.Value.ToLocalTime().ToString("g")
+                    </MudText>
+                </MudTooltip>
             }
 
             @if (!string.IsNullOrEmpty(Password))

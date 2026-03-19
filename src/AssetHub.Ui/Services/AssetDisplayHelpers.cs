@@ -1,5 +1,6 @@
 using AssetHub.Application;
 using AssetHub.Application.Helpers;
+using Microsoft.Extensions.Localization;
 
 namespace AssetHub.Ui.Services;
 
@@ -87,7 +88,7 @@ public static class AssetDisplayHelpers
         Constants.AssetTypeFilters.Image => "AssetType_Image",
         Constants.AssetTypeFilters.Video => "AssetType_Video",
         Constants.AssetTypeFilters.Document => "AssetType_Document",
-        "audio" => "AssetType_Audio",
+        Constants.AssetTypeFilters.Audio => "AssetType_Audio",
         _ => assetType ?? ""
     };
 
@@ -261,4 +262,50 @@ public static class AssetDisplayHelpers
     /// Delegates to FileHelpers for the actual check.
     /// </summary>
     public static bool IsPdfContentType(string? contentType) => FileHelpers.IsPdfContentType(contentType);
+
+    // ===== LOCALIZED DISPLAY HELPERS =====
+
+    /// <summary>
+    /// Returns the localized display name for a role, falling back to the raw value.
+    /// </summary>
+    public static string GetLocalizedRole(string? role, IStringLocalizer loc)
+    {
+        var key = GetRoleKey(role);
+        if (string.IsNullOrEmpty(key)) return role ?? "";
+        var localized = loc[key];
+        return localized.ResourceNotFound ? role ?? "" : localized.Value;
+    }
+
+    /// <summary>
+    /// Returns the localized display name for an asset type, falling back to the raw value.
+    /// </summary>
+    public static string GetLocalizedAssetType(string? assetType, IStringLocalizer loc)
+    {
+        var key = GetAssetTypeKey(assetType);
+        if (string.IsNullOrEmpty(key)) return assetType ?? "";
+        var localized = loc[key];
+        return localized.ResourceNotFound ? assetType ?? "" : localized.Value;
+    }
+
+    /// <summary>
+    /// Returns the localized display name for a content type, falling back to the raw MIME type.
+    /// </summary>
+    public static string GetLocalizedContentType(string? contentType, IStringLocalizer loc)
+    {
+        var key = GetContentTypeKey(contentType);
+        if (string.IsNullOrEmpty(key)) return contentType ?? "";
+        var localized = loc[key];
+        return localized.ResourceNotFound ? contentType ?? "" : localized.Value;
+    }
+
+    /// <summary>
+    /// Returns the localized display name for a scope type (asset, collection, etc.), falling back to the raw value.
+    /// </summary>
+    public static string GetLocalizedScopeType(string? scopeType, IStringLocalizer loc)
+    {
+        if (string.IsNullOrEmpty(scopeType)) return scopeType ?? "";
+        var key = $"ScopeType_{char.ToUpper(scopeType[0])}{scopeType[1..]}";
+        var localized = loc[key];
+        return localized.ResourceNotFound ? scopeType : localized.Value;
+    }
 }

@@ -145,7 +145,7 @@
                                             <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
                                             <MudChip T="string" Size="Size.Small"
                                                      Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)">
-                                                @asset.AssetType
+                                                @GetAssetTypeLabel(asset.AssetType)
                                             </MudChip>
                                         </MudCardContent>
                                     </MudCard>
@@ -190,7 +190,7 @@
                                             <div class="d-flex align-center gap-2 mt-2">
                                                 <MudChip T="string" Size="Size.Small"
                                                          Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
-                                                    @collection.UserRole
+                                                    @GetLocalizedRole(collection.UserRole)
                                                 </MudChip>
                                             </div>
                                         </MudCardContent>
@@ -235,7 +235,7 @@
                                                 <div>
                                                     <MudText Typo="Typo.body2">@(share.ScopeName ?? share.ScopeId.ToString()[..8])</MudText>
                                                     <MudText Typo="Typo.caption">
-                                                        @share.ScopeType &middot;
+                                                        @GetLocalizedTargetType(share.ScopeType) &middot;
                                                         @string.Format(Loc["Dashboard_Accesses"].Value, share.AccessCount)
                                                         @if (share.HasPassword)
                                                         {
@@ -433,13 +433,8 @@
         return localized.ResourceNotFound ? eventType : localized.Value;
     }
 
-    private string GetLocalizedTargetType(string targetType)
-    {
-        if (string.IsNullOrEmpty(targetType)) return targetType;
-        var key = $"ScopeType_{char.ToUpper(targetType[0])}{targetType[1..]}";
-        var localized = Loc[key];
-        return localized.ResourceNotFound ? targetType : localized.Value;
-    }
+    private string GetLocalizedTargetType(string targetType) =>
+        AssetDisplayHelpers.GetLocalizedScopeType(targetType, Loc);
 
     private string FormatTimeAgo(DateTime utcTime)
     {
@@ -460,10 +455,9 @@
         _storageChartLabels = _dashboard.Stats.StorageByType.Select(s => GetAssetTypeLabel(s.AssetType)).ToArray();
     }
 
-    private string GetAssetTypeLabel(string assetType)
-    {
-        var key = AssetDisplayHelpers.GetAssetTypeKey(assetType);
-        var localized = Loc[key];
-        return localized.ResourceNotFound ? assetType : localized.Value;
-    }
+    private string GetAssetTypeLabel(string assetType) =>
+        AssetDisplayHelpers.GetLocalizedAssetType(assetType, Loc);
+
+    private string GetLocalizedRole(string role) =>
+        AssetDisplayHelpers.GetLocalizedRole(role, Loc);
 }

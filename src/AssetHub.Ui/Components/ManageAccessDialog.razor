@@ -269,7 +269,7 @@
 
         try
         {
-            await Api.SetCollectionAccessAsync(CollectionId, "user", _selectedUser.Id, _selectedRole);
+            await Api.SetCollectionAccessAsync(CollectionId, Constants.PrincipalTypes.User, _selectedUser.Id, _selectedRole);
             Feedback.ShowSuccess(string.Format(CollLoc["AccessGrantedSuccess"], _selectedUser.Username, _selectedRole));
 
             _selectedUser = null;
@@ -308,7 +308,7 @@
 
         try
         {
-            await Api.SetCollectionAccessAsync(CollectionId, "user", _editingPrincipalId, _editingRole);
+            await Api.SetCollectionAccessAsync(CollectionId, Constants.PrincipalTypes.User, _editingPrincipalId, _editingRole);
             Feedback.ShowSuccess(CollLoc["RoleUpdatedSuccess"]);
 
             _editingEntryId = null;

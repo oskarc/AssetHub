@@ -24,7 +24,7 @@ else if (_allUsers == null || !_allUsers.Any())
 }
 else
 {
-    <MudTable Items="@_allUsers" Hover="true" Dense="true" Striped="true" Filter="new Func<KeycloakUserDto,bool>(UserFilter)" SortLabel="Sort By">
+    <MudTable Items="@_allUsers" Hover="true" Dense="true" Striped="true" Filter="new Func<KeycloakUserDto,bool>(UserFilter)" SortLabel="@CommonLoc["Label_SortBy"]">
         <ToolBarContent>
             <MudTextField @bind-Value="_userSearchString" Placeholder="@AdminLoc["SearchUsersPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"

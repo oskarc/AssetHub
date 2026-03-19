@@ -219,7 +219,7 @@ else
                                     @if (!string.IsNullOrEmpty(_asset.Sha256))
                                     {
                                         <tr>
-                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_SHA256"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Text_SHA256"]</MudText></td>
                                             <td>
                                                 <MudTooltip Text="@_asset.Sha256">
                                                     <MudText Typo="Typo.body2" Class="asset-detail-truncate">
@@ -247,7 +247,7 @@ else
                             </MudStack>
                         }
 
-                        @if (_asset.Status == "failed")
+                        @if (_asset.Status == Constants.AssetStatus.Failed)
                         {
                             <MudDivider />
                             <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true">
@@ -583,12 +583,7 @@ else
         Nav.NavigateTo(safeUrl);
     }
 
-    private string GetFriendlyContentType(string? contentType)
-    {
-        var key = AssetDisplayHelpers.GetContentTypeKey(contentType);
-        if (string.IsNullOrEmpty(key)) return contentType ?? "";
-        var localized = CommonLoc[key];
-        return localized.ResourceNotFound ? contentType ?? "" : localized.Value;
-    }
+    private string GetFriendlyContentType(string? contentType) =>
+        AssetDisplayHelpers.GetLocalizedContentType(contentType, CommonLoc);
 
 }

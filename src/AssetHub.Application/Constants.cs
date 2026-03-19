@@ -87,6 +87,17 @@ public static class Constants
         public const string Image = "image";
         public const string Video = "video";
         public const string Document = "document";
+        public const string Audio = "audio";
+    }
+
+    /// <summary>
+    /// Asset processing status values.
+    /// </summary>
+    public static class AssetStatus
+    {
+        public const string Ready = "ready";
+        public const string Processing = "processing";
+        public const string Failed = "failed";
     }
 
     /// <summary>

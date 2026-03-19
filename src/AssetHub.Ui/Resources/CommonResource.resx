@@ -148,6 +148,8 @@
   <data name="Sort_LargestFirst" xml:space="preserve"><value>Largest First</value></data>
 
   <!-- Common Text -->
+  <data name="Text_Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="Text_No" xml:space="preserve"><value>No</value></data>
   <data name="Text_Loading" xml:space="preserve"><value>Loading...</value></data>
   <data name="Text_Never" xml:space="preserve"><value>Never</value></data>
   <data name="Text_None" xml:space="preserve"><value>None</value></data>

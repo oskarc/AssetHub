@@ -51,7 +51,7 @@
 @if (_uploads.Any())
 {
     <MudPaper Class="pa-3 mt-3" Elevation="1">
-        <MudText Typo="Typo.subtitle2" Class="mb-2">@CommonLoc["Label_Uploads"]</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@CommonLoc["Text_Uploads"]</MudText>
         <MudStack Spacing="2">
             @foreach (var upload in _uploads)
             {
@@ -334,7 +334,7 @@
                 foreach (var assetId in assetIds)
                 {
                     var asset = await Api.GetAssetAsync(assetId, CancellationToken.None);
-                    if (asset?.Status == "processing")
+                    if (asset?.Status == Constants.AssetStatus.Processing)
                     {
                         allReady = false;
                         break;

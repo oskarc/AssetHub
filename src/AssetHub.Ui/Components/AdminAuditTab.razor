@@ -20,7 +20,7 @@ else if (_auditEvents == null || (!_auditEvents.Any() && !_hasMore))
 else
 {
     <MudTable Items="@_auditEvents" Hover="true" Dense="true" Striped="true"
-              Filter="new Func<AuditEventDto, bool>(AuditFilter)" SortLabel="Sort By"
+              Filter="new Func<AuditEventDto, bool>(AuditFilter)" SortLabel="@CommonLoc["Label_SortBy"]"
               FixedHeader="true" Height="550px" Loading="@_auditLoading">
         <ToolBarContent>
             <MudTextField @bind-Value="_searchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
@@ -340,12 +340,8 @@ else
         return localized.ResourceNotFound ? eventType : localized.Value;
     }
 
-    private string GetLocalizedTargetType(string targetType)
-    {
-        var key = $"ScopeType_{char.ToUpper(targetType[0])}{targetType[1..]}";
-        var localized = CommonLoc[key];
-        return localized.ResourceNotFound ? targetType : localized.Value;
-    }
+    private string GetLocalizedTargetType(string targetType) =>
+        AssetDisplayHelpers.GetLocalizedScopeType(targetType, CommonLoc);
 
     private string GetLocalizedDetailKey(string key)
     {
@@ -354,12 +350,11 @@ else
         return localized.ResourceNotFound ? FormatCamelCase(key) : localized.Value;
     }
 
-    private static string FormatDetailValue(string key, object value)
+    private string FormatDetailValue(string key, object value)
     {
         var str = value?.ToString() ?? "";
-        // Format boolean values as Yes/No
-        if (str is "True" or "true") return "Yes";
-        if (str is "False" or "false") return "No";
+        if (str is "True" or "true") return CommonLoc["Text_Yes"].Value;
+        if (str is "False" or "false") return CommonLoc["Text_No"].Value;
         return str;
     }
 

@@ -101,7 +101,9 @@
                           MetadataText="@CommonLoc["Text_Metadata"]"
                           DownloadOriginalText="@CommonLoc["Btn_DownloadOriginal"]"
                           DownloadMediumText="@CommonLoc["Btn_DownloadMedium"]"
-                          DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]" />
+                          DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]"
+                          AssetTypeDisplay="@GetFriendlyAssetType(_sharedAsset.AssetType)"
+                          ContentTypeDisplay="@GetFriendlyContentType(_sharedAsset.ContentType)" />
     }
     else if (_sharedCollection != null)
     {
@@ -135,7 +137,9 @@
                               MetadataText="@CommonLoc["Text_Metadata"]"
                               DownloadOriginalText="@CommonLoc["Btn_DownloadOriginal"]"
                               DownloadMediumText="@CommonLoc["Btn_DownloadMedium"]"
-                              DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]" />
+                              DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]"
+                              AssetTypeDisplay="@GetFriendlyAssetType(_selectedAsset.AssetType)"
+                              ContentTypeDisplay="@GetFriendlyContentType(_selectedAsset.ContentType)" />
         }
         else
         {
@@ -451,7 +455,7 @@
         // so the server returns the original file for inline display / playback.
         if (AssetDisplayHelpers.IsPdfContentType(_sharedAsset.ContentType)
             || _sharedAsset.AssetType == Constants.AssetTypeFilters.Video
-            || _sharedAsset.AssetType == "audio")
+            || _sharedAsset.AssetType == Constants.AssetTypeFilters.Audio)
         {
             var url = $"/api/v1/shares/{escapedToken}/preview";
             if (!string.IsNullOrEmpty(_accessToken))
@@ -583,8 +587,8 @@
     {
         _downloadStatusText = status switch
         {
-            "pending" => CommonLoc["Msg_DownloadQueued"].Value,
-            "building" => CommonLoc["Msg_BuildingZip"].Value,
+            Constants.ZipProgressStatus.Pending => CommonLoc["Msg_DownloadQueued"].Value,
+            Constants.ZipProgressStatus.Building => CommonLoc["Msg_BuildingZip"].Value,
             _ => CommonLoc["Msg_PreparingDownload"].Value
         };
         InvokeAsync(StateHasChanged);
@@ -662,6 +666,12 @@
             url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
     }
+
+    private string GetFriendlyAssetType(string assetType) =>
+        AssetDisplayHelpers.GetLocalizedAssetType(assetType, CommonLoc);
+
+    private string GetFriendlyContentType(string contentType) =>
+        AssetDisplayHelpers.GetLocalizedContentType(contentType, CommonLoc);
 
     public async ValueTask DisposeAsync()
     {
