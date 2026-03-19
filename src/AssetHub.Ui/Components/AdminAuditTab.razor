@@ -5,8 +5,6 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 
-<MudText Typo="Typo.h6" Class="mb-4">@AdminLoc["AllAuditEvents"]</MudText>
-
 @if (_auditLoading && _auditEvents == null)
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
@@ -19,6 +17,30 @@ else if (_auditEvents == null || (!_auditEvents.Any() && !_hasMore))
 }
 else
 {
+    <MudPaper Elevation="0" Outlined="true" Class="pa-3 mb-3 rounded">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">@AdminLoc["Header_TargetType"]</MudText>
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                    <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Style="cursor: pointer;">@CommonLoc["ScopeType_Collection"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Collection, StringComparison.OrdinalIgnoreCase))</MudChip>
+                    <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Style="cursor: pointer;">@CommonLoc["ScopeType_Asset"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Asset, StringComparison.OrdinalIgnoreCase))</MudChip>
+                    <MudChip T="string" Color="@(_showShares ? Color.Primary : Color.Default)" Size="Size.Small" OnClick="ToggleShares" Style="cursor: pointer;">@CommonLoc["ScopeType_Share"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Share, StringComparison.OrdinalIgnoreCase))</MudChip>
+                </MudStack>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">@AdminLoc["Header_EventType"]</MudText>
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                    <MudChip T="string" Color="@(_showCreate ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleCreate" Style="cursor: pointer;">@AdminLoc["AuditAction_Create"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "create")</MudChip>
+                    <MudChip T="string" Color="@(_showUpdate ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleUpdate" Style="cursor: pointer;">@AdminLoc["AuditAction_Update"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "update")</MudChip>
+                    <MudChip T="string" Color="@(_showDelete ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleDelete" Style="cursor: pointer;">@AdminLoc["AuditAction_Delete"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "delete")</MudChip>
+                    <MudChip T="string" Color="@(_showDownload ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleDownload" Style="cursor: pointer;">@AdminLoc["AuditAction_Download"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "download")</MudChip>
+                    <MudChip T="string" Color="@(_showAccessGranted ? Color.Secondary : Color.Default)" Size="Size.Small" OnClick="ToggleAccessGranted" Style="cursor: pointer;">@AdminLoc["AuditAction_AccessGranted"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "access")</MudChip>
+                    <MudChip T="string" Color="@(_showSecurity ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleSecurity" Style="cursor: pointer;">@AdminLoc["AuditAction_Security"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "security")</MudChip>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
     <MudTable Items="@_auditEvents" Hover="true" Dense="true" Striped="true"
               Filter="new Func<AuditEventDto, bool>(AuditFilter)" SortLabel="@CommonLoc["Label_SortBy"]"
               FixedHeader="true" Height="550px" Loading="@_auditLoading">
@@ -28,17 +50,6 @@ else
                 IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000"
                 HelperText="@(_searchString.Length > 0 && _searchString.Length < 4 ? string.Format(CommonLoc["SearchHint_MinChars"], 4) : null)" />
             <MudSpacer />
-            <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Style="cursor: pointer;">@CommonLoc["ScopeType_Collection"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Collection, StringComparison.OrdinalIgnoreCase))</MudChip>
-            <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Style="cursor: pointer;">@CommonLoc["ScopeType_Asset"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Asset, StringComparison.OrdinalIgnoreCase))</MudChip>
-            <MudChip T="string" Color="@(_showShares ? Color.Primary : Color.Default)" Size="Size.Small" OnClick="ToggleShares" Style="cursor: pointer;">@CommonLoc["ScopeType_Share"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Share, StringComparison.OrdinalIgnoreCase))</MudChip>
-            <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
-            <MudChip T="string" Color="@(_showCreate ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleCreate" Style="cursor: pointer;">@AdminLoc["AuditAction_Create"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "create")</MudChip>
-            <MudChip T="string" Color="@(_showUpdate ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleUpdate" Style="cursor: pointer;">@AdminLoc["AuditAction_Update"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "update")</MudChip>
-            <MudChip T="string" Color="@(_showDelete ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleDelete" Style="cursor: pointer;">@AdminLoc["AuditAction_Delete"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "delete")</MudChip>
-            <MudChip T="string" Color="@(_showDownload ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleDownload" Style="cursor: pointer;">@AdminLoc["AuditAction_Download"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "download")</MudChip>
-            <MudChip T="string" Color="@(_showAccessGranted ? Color.Secondary : Color.Default)" Size="Size.Small" OnClick="ToggleAccessGranted" Style="cursor: pointer;">@AdminLoc["AuditAction_AccessGranted"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "access")</MudChip>
-            <MudChip T="string" Color="@(_showSecurity ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleSecurity" Style="cursor: pointer;">@AdminLoc["AuditAction_Security"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "security")</MudChip>
-            <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
             <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">@AdminLoc["Total"]: @_totalCount</MudChip>
         </ToolBarContent>
         <HeaderContent>

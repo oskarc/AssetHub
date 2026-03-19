@@ -38,8 +38,12 @@
         @* ── Admin: Platform stats + storage chart ──────────────────── *@
         @if (_dashboard.Stats is not null)
         {
-            <MudText Typo="Typo.h6" Class="mb-2">@Loc["Dashboard_PlatformStats"]</MudText>
-            <MudGrid Class="mb-6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4 mb-6 rounded">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">@Loc["Dashboard_PlatformStats"]</MudText>
+            </MudStack>
+            <MudGrid>
                 <MudItem xs="12" md="8">
                     <MudGrid>
                         <MudItem xs="6" sm="4">
@@ -79,7 +83,7 @@
                         </MudItem>
                         <MudItem xs="6" sm="4">
                             <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
-                                <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Dark" Size="Size.Large" />
+                                <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Tertiary" Size="Size.Large" />
                                 <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalAuditEvents</MudText>
                                 <MudText Typo="Typo.caption">@Loc["Dashboard_AuditEvents"]</MudText>
                             </MudPaper>
@@ -111,6 +115,7 @@
                     </MudItem>
                 }
             </MudGrid>
+            </MudPaper>
         }
 
         <MudGrid>
@@ -128,9 +133,9 @@
 
                     @if (_dashboard.RecentAssets.Count == 0)
                     {
-                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-                            @Loc["Dashboard_NoRecentAssets"]
-                        </MudAlert>
+                        <EmptyState Title="@Loc["Dashboard_NoRecentAssets"]"
+                                    Icon="@Icons.Material.Filled.Photo"
+                                    Class="py-4" />
                     }
                     else
                     {
@@ -168,9 +173,9 @@
 
                     @if (_dashboard.Collections.Count == 0)
                     {
-                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-                            @Loc["Dashboard_NoCollections"]
-                        </MudAlert>
+                        <EmptyState Title="@Loc["Dashboard_NoCollections"]"
+                                    Icon="@Icons.Material.Filled.FolderOpen"
+                                    Class="py-4" />
                     }
                     else
                     {
@@ -213,7 +218,7 @@
                             <div class="d-flex justify-space-between align-center mb-3">
                                 <MudText Typo="Typo.h6">@Loc["Dashboard_ActiveShares"]</MudText>
                                 <MudButton Variant="Variant.Text" Color="Color.Primary"
-                                           Href="/admin"
+                                           Href="/admin?tab=0"
                                            EndIcon="@Icons.Material.Filled.ArrowForward">
                                     @Loc["Dashboard_ViewAll"]
                                 </MudButton>
@@ -221,9 +226,9 @@
 
                             @if (_dashboard.RecentShares.Count == 0)
                             {
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-                                    @Loc["Dashboard_NoShares"]
-                                </MudAlert>
+                                <EmptyState Title="@Loc["Dashboard_NoShares"]"
+                                            Icon="@Icons.Material.Filled.Share"
+                                            Class="py-2" />
                             }
                             else
                             {
@@ -272,9 +277,9 @@
 
                             @if (_dashboard.RecentActivity.Count == 0)
                             {
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-                                    @Loc["Dashboard_NoActivity"]
-                                </MudAlert>
+                                <EmptyState Title="@Loc["Dashboard_NoActivity"]"
+                                            Icon="@Icons.Material.Filled.History"
+                                            Class="py-2" />
                             }
                             else
                             {

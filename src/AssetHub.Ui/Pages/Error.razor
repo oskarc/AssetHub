@@ -1,4 +1,4 @@
-﻿@page "/Error"
+@page "/Error"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @using System.Diagnostics
 
@@ -6,23 +6,40 @@
 
 <PageTitle>@CommonLoc["Error_PageTitle"]</PageTitle>
 
-<h1 class="text-danger">@CommonLoc["Error_Heading"]</h1>
-<h2 class="text-danger">@CommonLoc["Error_Description"]</h2>
+<MudContainer MaxWidth="MaxWidth.Small" Class="py-8">
+    <MudPaper Elevation="2" Class="pa-6">
+        <MudStack AlignItems="AlignItems.Center" Spacing="3">
+            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Color="Color.Error" Align="Align.Center">@CommonLoc["Error_Heading"]</MudText>
+            <MudText Typo="Typo.body1" Align="Align.Center">@CommonLoc["Error_Description"]</MudText>
+        </MudStack>
 
-@if (ShowRequestId)
-{
-    <p>
-        <strong>@CommonLoc["Error_RequestId"]</strong> <code>@RequestId</code>
-    </p>
-}
+        @if (ShowRequestId)
+        {
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @CommonLoc["Error_RequestId"] <code>@RequestId</code>
+            </MudText>
+        }
 
-<h3>@CommonLoc["Error_DevelopmentMode"]</h3>
-<p>
-    @CommonLoc["Error_DevelopmentInfo"]
-</p>
-<p>
-    @CommonLoc["Error_DevelopmentWarning"]
-</p>
+        <MudDivider Class="my-4" />
+
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+            <MudText Typo="Typo.subtitle2">@CommonLoc["Error_DevelopmentMode"]</MudText>
+            <MudText Typo="Typo.body2" Class="mt-1">@CommonLoc["Error_DevelopmentInfo"]</MudText>
+        </MudAlert>
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @CommonLoc["Error_DevelopmentWarning"]
+        </MudText>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Home"
+                   Href="/" Class="mt-4" FullWidth="true">
+            @CommonLoc["Btn_GoHome"]
+        </MudButton>
+    </MudPaper>
+</MudContainer>
 
 @code{
     [CascadingParameter]

@@ -32,7 +32,7 @@
 
             @if (_selectedCollectionId.HasValue)
             {
-                <MudStack Row="true" Spacing="2">
+                <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
                     @if (_assetSelectionMode)
                     {
                         @if (_selectedAssetIds.Count > 0)
@@ -291,11 +291,12 @@
                             }
                             <div class="d-flex align-center gap-2 flex-wrap">
                                 <MudText Typo="Typo.body2" Style="font-weight: 500;">@CollectionLoc["YourRole"]:</MudText>
-                                <MudChip T="string" Size="Size.Small"
-                                         Color="@AssetDisplayHelpers.GetRoleColor(_selectedCollection.UserRole)">
-                                    @CommonLoc[AssetDisplayHelpers.GetRoleKey(_selectedCollection.UserRole)]
-                                </MudChip>
-                                <MudText Typo="Typo.caption" Style="opacity: 0.6;">— @GetRoleDescription(_selectedCollection.UserRole)</MudText>
+                                <MudTooltip Text="@GetRoleDescription(_selectedCollection.UserRole)">
+                                    <MudChip T="string" Size="Size.Small"
+                                             Color="@AssetDisplayHelpers.GetRoleColor(_selectedCollection.UserRole)">
+                                        @CommonLoc[AssetDisplayHelpers.GetRoleKey(_selectedCollection.UserRole)]
+                                    </MudChip>
+                                </MudTooltip>
                             </div>
                         </div>
                         <div class="d-flex gap-2 ml-3">

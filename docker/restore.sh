@@ -38,22 +38,22 @@ compose() { docker compose -f "${COMPOSE_FILE}" "$@"; }
 # -- Pre-flight checks ------------------------------------------------------
 
 command -v docker >/dev/null 2>&1 || die "docker is not installed."
-[ -f "${COMPOSE_FILE}" ]          || die "Compose file not found: ${COMPOSE_FILE}"
-[ -d "${BACKUP_DIR}" ]            || die "Backup directory not found: ${BACKUP_DIR}"
+[[ -f "${COMPOSE_FILE}" ]]          || die "Compose file not found: ${COMPOSE_FILE}"
+[[ -d "${BACKUP_DIR}" ]]            || die "Backup directory not found: ${BACKUP_DIR}"
 
 PG_FILE="${BACKUP_DIR}/postgres.sql.gz"
 MINIO_FILE="${BACKUP_DIR}/minio.tar.gz"
 
 # Check what's available to restore
-HAS_PG=false;    [ -f "${PG_FILE}" ]    && HAS_PG=true
-HAS_MINIO=false; [ -f "${MINIO_FILE}" ] && HAS_MINIO=true
+HAS_PG=false;    [[ -f "${PG_FILE}" ]]    && HAS_PG=true
+HAS_MINIO=false; [[ -f "${MINIO_FILE}" ]] && HAS_MINIO=true
 
 if ! ${HAS_PG} && ! ${HAS_MINIO}; then
     die "No backup files found in ${BACKUP_DIR}.\n  Expected: postgres.sql.gz and/or minio.tar.gz"
 fi
 
 # Show metadata if available
-if [ -f "${BACKUP_DIR}/metadata.json" ]; then
+if [[ -f "${BACKUP_DIR}/metadata.json" ]]; then
     echo ""
     echo -e "  ${BOLD}Backup metadata:${NC}"
     cat "${BACKUP_DIR}/metadata.json" | sed 's/^/    /'
@@ -73,7 +73,7 @@ echo ""
 read -rp "  Type 'restore' to continue: " CONFIRM
 echo ""
 
-if [ "${CONFIRM}" != "restore" ]; then
+if [[ "${CONFIRM}" != "restore" ]]; then
     echo "  Aborted."
     exit 0
 fi

@@ -20,7 +20,12 @@
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                     <MudStack Spacing="0">
                         <MudText Typo="Typo.subtitle1"><strong>@CollectionName</strong></MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@CollLoc["YourRole"]: @CurrentUserRole</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@CollLoc["YourRole"]:</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(CurrentUserRole)">
+                                @CommonLoc[AssetDisplayHelpers.GetRoleKey(CurrentUserRole)]
+                            </MudChip>
+                        </MudStack>
                     </MudStack>
                 </MudStack>
             </MudPaper>

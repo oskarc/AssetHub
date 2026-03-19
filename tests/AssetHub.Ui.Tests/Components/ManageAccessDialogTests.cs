@@ -53,7 +53,7 @@ public class ManageAccessDialogTests : BunitTestBase
     {
         var cut = await RenderDialogAsync(currentUserRole: "manager");
 
-        Assert.Contains("manager", cut.Markup);
+        Assert.Contains("Role_Manager", cut.Markup);
     }
 
     [Fact]
