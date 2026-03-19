@@ -86,10 +86,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.MediumObjectKey).HasMaxLength(512);
             entity.Property(e => e.PosterObjectKey).HasMaxLength(512);
 
-            entity.Property(e => e.Tags).HasConversion(
-                v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
-                .HasColumnType(Jsonb)
+            entity.Property(e => e.Tags)
+                .HasColumnType("text[]")
                 .Metadata.SetValueComparer(new ValueComparer<List<string>>(
                     (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),

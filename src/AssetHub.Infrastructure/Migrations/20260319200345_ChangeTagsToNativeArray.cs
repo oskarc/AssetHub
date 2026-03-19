@@ -1,0 +1,57 @@
+﻿using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class ChangeTagsToNativeArray : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropIndex(
+                name: "idx_collections_name",
+                table: "Collections");
+
+            // Convert jsonb array to native text[] via temp column (no subquery in USING)
+            migrationBuilder.Sql("""
+                ALTER TABLE "Assets" ADD COLUMN "Tags_new" text[] NOT NULL DEFAULT '{}';
+                UPDATE "Assets" SET "Tags_new" = (
+                    SELECT coalesce(array_agg(elem), '{}')
+                    FROM jsonb_array_elements_text("Tags") AS elem
+                );
+                ALTER TABLE "Assets" DROP COLUMN "Tags";
+                ALTER TABLE "Assets" RENAME COLUMN "Tags_new" TO "Tags";
+                """);
+
+            migrationBuilder.CreateIndex(
+                name: "idx_collections_name_unique",
+                table: "Collections",
+                column: "Name",
+                unique: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropIndex(
+                name: "idx_collections_name_unique",
+                table: "Collections");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Tags",
+                table: "Assets",
+                type: "jsonb",
+                nullable: false,
+                oldClrType: typeof(List<string>),
+                oldType: "text[]");
+
+            migrationBuilder.CreateIndex(
+                name: "idx_collections_name",
+                table: "Collections",
+                column: "Name");
+        }
+    }
+}
