@@ -85,6 +85,8 @@
   <data name="Event_user.create_failed" xml:space="preserve"><value>User Creation Failed</value></data>
   <data name="Event_user.deleted" xml:space="preserve"><value>User Deleted</value></data>
   <data name="Event_user.sync.completed" xml:space="preserve"><value>User Sync Completed</value></data>
+  <data name="Event_shares.bulk_deleted" xml:space="preserve"><value>Shares Bulk Deleted</value></data>
+  <data name="Event_share.deleted" xml:space="preserve"><value>Share Deleted</value></data>
 
   <!-- Audit Detail Keys -->
   <data name="Detail_title" xml:space="preserve"><value>Title</value></data>
@@ -231,4 +233,12 @@
 
   <!-- Audit Pagination -->
   <data name="LoadMore" xml:space="preserve"><value>Load More</value></data>
+
+  <!-- Filter Empty States -->
+  <data name="NoMatchingShares" xml:space="preserve"><value>No shares match your filters</value></data>
+  <data name="NoMatchingSharesDesc" xml:space="preserve"><value>Try adjusting your search or filter criteria.</value></data>
+  <data name="NoMatchingUsers" xml:space="preserve"><value>No users match your filters</value></data>
+  <data name="NoMatchingUsersDesc" xml:space="preserve"><value>Try adjusting your search or filter criteria.</value></data>
+  <data name="NoMatchingAuditEvents" xml:space="preserve"><value>No audit events match your filters</value></data>
+  <data name="NoMatchingAuditEventsDesc" xml:space="preserve"><value>Try adjusting your search or filter criteria.</value></data>
 </root>

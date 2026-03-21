@@ -69,6 +69,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         MockUserLookup.Setup(m => m.GetUserEmailsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) =>
                 ids.ToDictionary(id => id, id => $"user-{id[..8]}@test.com"));
+        MockUserLookup.Setup(m => m.GetAllUsersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>());
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

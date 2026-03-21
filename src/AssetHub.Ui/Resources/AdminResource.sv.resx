@@ -85,6 +85,8 @@
   <data name="Event_user.create_failed" xml:space="preserve"><value>Användarskapande misslyckades</value></data>
   <data name="Event_user.deleted" xml:space="preserve"><value>Användare raderad</value></data>
   <data name="Event_user.sync.completed" xml:space="preserve"><value>Användarsynk slutförd</value></data>
+  <data name="Event_shares.bulk_deleted" xml:space="preserve"><value>Delningar massborttagna</value></data>
+  <data name="Event_share.deleted" xml:space="preserve"><value>Delning raderad</value></data>
 
   <!-- Audit Detail Keys -->
   <data name="Detail_title" xml:space="preserve"><value>Titel</value></data>
@@ -231,4 +233,12 @@
 
   <!-- Audit Pagination -->
   <data name="LoadMore" xml:space="preserve"><value>Ladda fler</value></data>
+
+  <!-- Filter Empty States -->
+  <data name="NoMatchingShares" xml:space="preserve"><value>Inga delningar matchar dina filter</value></data>
+  <data name="NoMatchingSharesDesc" xml:space="preserve"><value>Försök justera din sökning eller filterkriterier.</value></data>
+  <data name="NoMatchingUsers" xml:space="preserve"><value>Inga användare matchar dina filter</value></data>
+  <data name="NoMatchingUsersDesc" xml:space="preserve"><value>Försök justera din sökning eller filterkriterier.</value></data>
+  <data name="NoMatchingAuditEvents" xml:space="preserve"><value>Inga granskningshändelser matchar dina filter</value></data>
+  <data name="NoMatchingAuditEventsDesc" xml:space="preserve"><value>Försök justera din sökning eller filterkriterier.</value></data>
 </root>

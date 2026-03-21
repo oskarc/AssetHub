@@ -92,52 +92,45 @@ else
                     }
                     else
                     {
-                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
-                            <thead>
-                                <tr>
-                                    <th>@CommonLoc["Label_User"]</th>
-                                    <th>@CommonLoc["Label_Role"]</th>
-                                    <th>@CommonLoc["Label_Actions"]</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var acl in _selectedCollection.Acls)
-                                {
-                                    <tr>
-                                        <td>
-                                            <MudStack Spacing="0">
-                                                <MudText Typo="Typo.body2">@acl.PrincipalName</MudText>
-                                                @if (!string.IsNullOrEmpty(acl.PrincipalEmail))
-                                                {
-                                                    <MudText Typo="Typo.caption" Class="text-secondary">@acl.PrincipalEmail</MudText>
-                                                }
-                                            </MudStack>
-                                        </td>
-                                        <td>
-                                            <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(acl.Role)">
-                                                @CommonLoc[AssetDisplayHelpers.GetRoleKey(acl.Role)]
-                                            </MudChip>
-                                        </td>
-                                        <td>
-                                            @if (acl.IsSystemAdmin)
-                                            {
-                                                <MudTooltip Text="@AdminLoc["AdminImplicitAccess"]">
-                                                    <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings"
-                                                             Size="Size.Small" Color="Color.Default" />
-                                                </MudTooltip>
-                                            }
-                                            else
-                                            {
-                                                <MudTooltip Text="@CommonLoc["Btn_Remove"]">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                                        Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
-                                                </MudTooltip>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </MudSimpleTable>
+                        <MudTable Items="@_selectedCollection.Acls" Dense="true" Hover="true" Striped="true" Elevation="0">
+                            <HeaderContent>
+                                <MudTh><MudTableSortLabel SortBy="@((CollectionAclResponseDto acl) => acl.PrincipalName ?? "")">@CommonLoc["Label_User"]</MudTableSortLabel></MudTh>
+                                <MudTh><MudTableSortLabel SortBy="@((CollectionAclResponseDto acl) => acl.Role)">@CommonLoc["Label_Role"]</MudTableSortLabel></MudTh>
+                                <MudTh>@CommonLoc["Label_Actions"]</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="acl">
+                                <MudTd DataLabel="@CommonLoc["Label_User"]">
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body2">@acl.PrincipalName</MudText>
+                                        @if (!string.IsNullOrEmpty(acl.PrincipalEmail))
+                                        {
+                                            <MudText Typo="Typo.caption" Class="text-secondary">@acl.PrincipalEmail</MudText>
+                                        }
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="@CommonLoc["Label_Role"]">
+                                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(acl.Role)">
+                                        @CommonLoc[AssetDisplayHelpers.GetRoleKey(acl.Role)]
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="@CommonLoc["Label_Actions"]">
+                                    @if (acl.IsSystemAdmin)
+                                    {
+                                        <MudTooltip Text="@AdminLoc["AdminImplicitAccess"]">
+                                            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings"
+                                                     Size="Size.Small" Color="Color.Default" />
+                                        </MudTooltip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="@CommonLoc["Btn_Remove"]">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
+                                        </MudTooltip>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
                     }
                 }
             </MudPaper>

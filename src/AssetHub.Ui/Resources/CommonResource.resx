@@ -127,6 +127,7 @@
   <data name="Role_Contributor" xml:space="preserve"><value>Contributor</value></data>
   <data name="Role_Manager" xml:space="preserve"><value>Manager</value></data>
   <data name="Role_Admin" xml:space="preserve"><value>Administrator</value></data>
+  <data name="Role_Unassigned" xml:space="preserve"><value>Unassigned</value></data>
 
   <!-- Asset Types / Filters -->
   <data name="Filter_AllTypes" xml:space="preserve"><value>All Types</value></data>

@@ -43,6 +43,8 @@ public class DashboardServiceTests : IAsyncLifetime
         var userLookupMock = new Mock<IUserLookupService>();
         userLookupMock.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(userNames ?? new Dictionary<string, string>());
+        userLookupMock.Setup(m => m.GetAllUsersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>());
 
         var queryService = new DashboardQueryService(_db, userLookupMock.Object);
         var keycloakMock = new Mock<IKeycloakUserService>();

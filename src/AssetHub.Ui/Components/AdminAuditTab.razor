@@ -44,6 +44,11 @@ else
     <MudTable Items="@_auditEvents" Hover="true" Dense="true" Striped="true"
               Filter="new Func<AuditEventDto, bool>(AuditFilter)" SortLabel="@CommonLoc["Label_SortBy"]"
               FixedHeader="true" Height="550px" Loading="@_auditLoading">
+        <NoRecordsContent>
+            <EmptyState Title="@AdminLoc["NoMatchingAuditEvents"]"
+                        Description="@AdminLoc["NoMatchingAuditEventsDesc"]"
+                        Icon="@Icons.Material.Filled.SearchOff" />
+        </NoRecordsContent>
         <ToolBarContent>
             <MudTextField @bind-Value="_searchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -110,7 +115,7 @@ else
                                 @foreach (var kvp in context.Details)
                                 {
                                     <div style="padding: 2px 0;">
-                                        <span class="text-secondary">@GetLocalizedDetailKey(kvp.Key):</span>
+                                        <span style="opacity: 0.7;">@GetLocalizedDetailKey(kvp.Key):</span>
                                         <span style="margin-left: 4px;">@FormatDetailValue(kvp.Key, kvp.Value)</span>
                                     </div>
                                 }

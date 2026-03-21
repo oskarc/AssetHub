@@ -84,7 +84,13 @@ public class DashboardService : IDashboardService
             // System admins are tracked in Keycloak, not in ACLs
             var adminIds = await _keycloakUsers.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
             dashboard.Stats.AdminCount = adminIds.Count;
-            dashboard.Stats.TotalUsers += adminIds.Count;
+
+            // Total users from Keycloak; compute unassigned = total - admins - users with roles
+            var allUsers = await _userLookup.GetAllUsersAsync(ct);
+            dashboard.Stats.TotalUsers = allUsers.Count;
+            var assignedCount = dashboard.Stats.AdminCount + dashboard.Stats.ViewerCount
+                              + dashboard.Stats.ContributorCount + dashboard.Stats.ManagerCount;
+            dashboard.Stats.UnassignedCount = Math.Max(0, dashboard.Stats.TotalUsers - assignedCount);
         }
 
         return dashboard;

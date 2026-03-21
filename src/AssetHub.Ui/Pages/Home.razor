@@ -51,8 +51,10 @@
                         <MudItem xs="6" sm="4">
                             <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
                                 <MudIcon Icon="@Icons.Material.Filled.Photo" Color="Color.Primary" Size="Size.Large" />
-                                <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalAssets</MudText>
-                                <MudText Typo="Typo.caption">@Loc["Dashboard_TotalAssets"]</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Baseline" Spacing="1" Class="mt-2">
+                                    <MudText Typo="Typo.h5">@_dashboard.Stats.TotalAssets</MudText>
+                                    <MudText Typo="Typo.caption">@Loc["Dashboard_TotalAssets"]</MudText>
+                                </MudStack>
                                 @if (_dashboard.Stats.StorageByType.Count > 0)
                                 {
                                     <MudStack Row="true" Spacing="1" Class="mt-1 flex-wrap justify-center">
@@ -90,6 +92,10 @@
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.ContributorCount @Loc["Role_Contributor"]</MudChip>
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.ManagerCount @Loc["Role_Manager"]</MudChip>
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.AdminCount @Loc["Role_Admin"]</MudChip>
+                                    @if (_dashboard.Stats.UnassignedCount > 0)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.UnassignedCount @Loc["Role_Unassigned"]</MudChip>
+                                    }
                                 </MudStack>
                             </MudPaper>
                         </MudItem>
@@ -133,7 +139,7 @@
                                     var item = _dashboard.Stats.StorageByType[i];
                                     <div class="d-flex align-center gap-1">
                                         <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Style="@($"color: {_storageChartColors[i % _storageChartColors.Length]}")" />
-                                        <MudText Typo="Typo.caption">@GetAssetTypeLabel(item.AssetType): @AssetDisplayHelpers.FormatFileSize(item.TotalBytes) (@item.Count)</MudText>
+                                        <MudText Typo="Typo.caption">@AssetDisplayHelpers.FormatFileSize(item.TotalBytes) (@item.Count)</MudText>
                                     </div>
                                 }
                             </div>
@@ -172,10 +178,13 @@
                                     <MudCard Class="cursor-pointer" @onclick="() => NavigateToAsset(asset.Id)">
                                         <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)"
                                                        Height="120" />
-                                        <MudCardContent Class="pa-2">
+                                        <MudCardContent Class="pa-2" Style="overflow: hidden;">
                                             <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-truncate">
-                                                @(asset.CreatedByUserName ?? Loc["Dashboard_UnknownUser"]) &middot; @FormatTimeAgo(asset.CreatedAt)
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-truncate" Style="display: block;">
+                                                @(asset.CreatedByUserName ?? Loc["Dashboard_UnknownUser"])
+                                            </MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="display: block;">
+                                                @FormatTimeAgo(asset.CreatedAt)
                                             </MudText>
                                         </MudCardContent>
                                     </MudCard>

@@ -20,6 +20,11 @@ else if (_shares == null || (!_shares.Any() && _totalCount == 0))
 else
 {
     <MudTable Items="@_shares" Hover="true" Dense="true" Striped="true" Filter="ShareFilter" SortLabel="@CommonLoc["Label_SortBy"]">
+        <NoRecordsContent>
+            <EmptyState Title="@AdminLoc["NoMatchingShares"]"
+                        Description="@AdminLoc["NoMatchingSharesDesc"]"
+                        Icon="@Icons.Material.Filled.SearchOff" />
+        </NoRecordsContent>
         <ToolBarContent>
             <MudTextField @bind-Value="_shareSearchString" Placeholder="@AdminLoc["SearchSharesPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"

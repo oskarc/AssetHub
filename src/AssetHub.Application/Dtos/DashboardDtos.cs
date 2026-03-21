@@ -37,6 +37,7 @@ public class DashboardStatsDto
     public int ContributorCount { get; set; }
     public int ManagerCount { get; set; }
     public int AdminCount { get; set; }
+    public int UnassignedCount { get; set; }
     public int ActiveShares { get; set; }
     public int ExpiredShares { get; set; }
     public int RevokedShares { get; set; }

@@ -48,7 +48,7 @@
                                      Dense="true"
                                      ResetValueOnEmptyText="true"
                                      DebounceInterval="300"
-                                     MinCharacters="1"
+                                     MinCharacters="0"
                                      MaxItems="20"
                                      Class="dialog-flex-fill">
                         <ItemTemplate Context="user">
@@ -257,12 +257,9 @@
 
     private async Task<IEnumerable<UserSearchResultDto>> SearchUsersAsync(string? value, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(value))
-            return Enumerable.Empty<UserSearchResultDto>();
-
         try
         {
-            return await Api.SearchUsersForAclAsync(CollectionId, value, ct);
+            return await Api.SearchUsersForAclAsync(CollectionId, value ?? string.Empty, ct);
         }
         catch
         {
