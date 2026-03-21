@@ -33,11 +33,10 @@ public class AssetDeletionServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _assetRepo = new AssetRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
+        var cache = TestCacheHelper.CreateHybridCache();
+        _assetRepo = new AssetRepository(_db, cache,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AssetRepository>.Instance);
-        _assetCollectionRepo = new AssetCollectionRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
+        _assetCollectionRepo = new AssetCollectionRepository(_db, cache,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AssetCollectionRepository>.Instance);
         _shareRepo = new ShareRepository(_db,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareRepository>.Instance);

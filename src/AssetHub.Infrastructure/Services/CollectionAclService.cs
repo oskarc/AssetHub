@@ -4,8 +4,17 @@ using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
+using Microsoft.Extensions.Caching.Hybrid;
 
 namespace AssetHub.Infrastructure.Services;
+
+/// <summary>
+/// Groups repository dependencies for <see cref="CollectionAclService"/>
+/// to keep the constructor parameter count manageable.
+/// </summary>
+public sealed record CollectionAclRepositories(
+    ICollectionRepository CollectionRepo,
+    ICollectionAclRepository AclRepo);
 
 /// <summary>
 /// Unified ACL management for collections. Replaces the duplicated logic
@@ -19,23 +28,25 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
     private readonly IUserLookupService _userLookup;
     private readonly IKeycloakUserService _keycloakUserService;
     private readonly IAuditService _audit;
+    private readonly HybridCache _cache;
     private readonly CurrentUser _currentUser;
 
     public CollectionAclService(
-        ICollectionRepository collectionRepo,
-        ICollectionAclRepository aclRepo,
+        CollectionAclRepositories repos,
         ICollectionAuthorizationService authService,
         IUserLookupService userLookup,
         IKeycloakUserService keycloakUserService,
         IAuditService audit,
+        HybridCache cache,
         CurrentUser currentUser)
     {
-        _collectionRepo = collectionRepo;
-        _aclRepo = aclRepo;
+        _collectionRepo = repos.CollectionRepo;
+        _aclRepo = repos.AclRepo;
         _authService = authService;
         _userLookup = userLookup;
         _keycloakUserService = keycloakUserService;
         _audit = audit;
+        _cache = cache;
         _currentUser = currentUser;
     }
 
@@ -98,6 +109,10 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = role },
             ct);
 
+        if (principalType == Constants.PrincipalTypes.User)
+            await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
+
         string? principalName = null;
         string? principalEmail = null;
         if (principalType == Constants.PrincipalTypes.User)
@@ -139,6 +154,10 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         await _audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, userId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId },
             ct);
+
+        if (principalType == Constants.PrincipalTypes.User)
+            await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
 
         return ServiceResult.Success;
     }
@@ -221,6 +240,10 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = targetRole, ["admin"] = true },
             ct);
 
+        if (principalType == Constants.PrincipalTypes.User)
+            await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
+
         return new AccessUpdatedResponse
         {
             Message = "Access updated",
@@ -242,6 +265,10 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         await _audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, adminUserId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["admin"] = true },
             ct);
+
+        if (principalType == Constants.PrincipalTypes.User)
+            await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
 
         return new AccessRevokedResponse
         {

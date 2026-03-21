@@ -10,7 +10,6 @@ using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -42,9 +41,9 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
         _dbName = $"test_{Guid.NewGuid():N}";
         _db = await _fixture.CreateDbContextAsync(_dbName);
 
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
         _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        _colRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();

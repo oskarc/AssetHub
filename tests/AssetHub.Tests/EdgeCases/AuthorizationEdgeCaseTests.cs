@@ -33,7 +33,7 @@ public class AuthorizationEdgeCaseTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
         _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
         _authService = new CollectionAuthorizationService(
             _db, NullLogger<CollectionAuthorizationService>.Instance);

@@ -3,7 +3,7 @@ using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
@@ -15,10 +15,10 @@ namespace AssetHub.Infrastructure.Repositories;
 public class AssetCollectionRepository : IAssetCollectionRepository
 {
     private readonly AssetHubDbContext _context;
-    private readonly IMemoryCache _cache;
+    private readonly HybridCache _cache;
     private readonly ILogger<AssetCollectionRepository> _logger;
 
-    public AssetCollectionRepository(AssetHubDbContext context, IMemoryCache cache, ILogger<AssetCollectionRepository> logger)
+    public AssetCollectionRepository(AssetHubDbContext context, HybridCache cache, ILogger<AssetCollectionRepository> logger)
     {
         _context = context;
         _cache = cache;
@@ -97,7 +97,8 @@ public class AssetCollectionRepository : IAssetCollectionRepository
         await _context.SaveChangesAsync(ct);
 
         // Invalidate cached collection IDs for this asset
-        CacheKeys.InvalidateAssetCollectionIds(_cache, assetId);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.AssetCollections(assetId), ct);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.Collection(collectionId), ct);
         _logger.LogDebug("Cache invalidated: asset-collection IDs for asset {AssetId}", assetId);
 
         return assetCollection;
@@ -115,7 +116,8 @@ public class AssetCollectionRepository : IAssetCollectionRepository
         await _context.SaveChangesAsync(ct);
 
         // Invalidate cached collection IDs for this asset
-        CacheKeys.InvalidateAssetCollectionIds(_cache, assetId);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.AssetCollections(assetId), ct);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.Collection(collectionId), ct);
         _logger.LogDebug("Cache invalidated: asset-collection IDs for asset {AssetId}", assetId);
 
         return true;
@@ -141,29 +143,31 @@ public class AssetCollectionRepository : IAssetCollectionRepository
         await _context.SaveChangesAsync(ct);
 
         foreach (var assetId in assetIds)
-            CacheKeys.InvalidateAssetCollectionIds(_cache, assetId);
+            await _cache.RemoveByTagAsync(CacheKeys.Tags.AssetCollections(assetId), ct);
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.Collection(collectionId), ct);
     }
 
     public async Task<List<Guid>> GetCollectionIdsForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
         var cacheKey = CacheKeys.AssetCollectionIds(assetId);
+        var tags = new[] { CacheKeys.Tags.AssetCollections(assetId) };
 
-        if (_cache.TryGetValue(cacheKey, out List<Guid>? cached) && cached is not null)
-        {
-            _logger.LogDebug("Cache hit: collection IDs for asset {AssetId} ({Count} collections)", assetId, cached.Count);
-            return cached;
-        }
-
-        var result = await _context.AssetCollections
-            .Where(ac => ac.AssetId == assetId)
-            .Select(ac => ac.CollectionId)
-            .ToListAsync(ct);
-
-        _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = CacheKeys.AssetCollectionIdsTtl,
-            Size = 1
-        });
-        return result;
+        return await _cache.GetOrCreateAsync(
+            cacheKey,
+            async cancel =>
+            {
+                var result = await _context.AssetCollections
+                    .Where(ac => ac.AssetId == assetId)
+                    .Select(ac => ac.CollectionId)
+                    .ToListAsync(cancel);
+                return result;
+            },
+            new HybridCacheEntryOptions
+            {
+                Expiration = CacheKeys.AssetCollectionIdsTtl,
+                LocalCacheExpiration = TimeSpan.FromMinutes(1)
+            },
+            tags,
+            ct);
     }
 }

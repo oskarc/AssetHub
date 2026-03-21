@@ -18,10 +18,7 @@ class Program
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureServices((hostContext, services) =>
             {
-                // Memory cache — required by repository layer (registered via AddSharedInfrastructure)
-                services.AddMemoryCache();
-
-                // Shared infrastructure: DB, Hangfire storage, MinIO, Repos, core services
+                // Shared infrastructure: DB, Hangfire storage, MinIO, Repos, Caching, core services
                 services.AddSharedInfrastructure(hostContext.Configuration);
 
                 // Worker-specific services needed for job resolution

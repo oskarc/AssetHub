@@ -43,7 +43,7 @@ public class CollectionServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
         _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
         _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
@@ -58,7 +58,7 @@ public class CollectionServiceTests : IAsyncLifetime
     {
         var currentUser = new CurrentUser(userId, isAdmin);
         var minioSettings = Options.Create(new MinIOSettings { BucketName = "test-bucket" });
-        var repos = new CollectionServiceRepositories(_collectionRepo, _aclRepo, _shareRepo);
+        var repos = new CollectionServiceRepositories(_collectionRepo, _aclRepo, _shareRepo, TestCacheHelper.CreateHybridCache());
 
         return new CollectionService(
             repos,

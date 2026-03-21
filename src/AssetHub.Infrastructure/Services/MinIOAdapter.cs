@@ -1,6 +1,6 @@
 using System.Net.Sockets;
 using AssetHub.Application.Services;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Minio;
 using Minio.Exceptions;
@@ -19,8 +19,8 @@ public class MinIOAdapter(
     IMinioClient minioClient,
     IMinioClient publicMinioClient,
     ILogger<MinIOAdapter> logger,
-    IMemoryCache cache,
-    ResiliencePipelineProvider<string> pipelineProvider) : IMinIOAdapter
+    ResiliencePipelineProvider<string> pipelineProvider,
+    HybridCache cache) : IMinIOAdapter
 {
     private const string StorageUnavailableMessage = "Storage service is temporarily unavailable. Please try again.";
     private readonly ResiliencePipeline _pipeline = pipelineProvider.GetPipeline("minio");
@@ -251,41 +251,37 @@ public class MinIOAdapter(
         var sanitizedFileName = forceDownload ? SanitizeFileName(downloadFileName ?? Path.GetFileName(objectKey)) : null;
         var cacheKey = $"presigned:{bucketName}:{objectKey}:{forceDownload}:{sanitizedFileName}";
 
-        if (cache.TryGetValue(cacheKey, out string? cachedUrl) && cachedUrl is not null)
+        // Cache for 75% of expiry time to ensure URL is still valid when served
+        var cacheDuration = TimeSpan.FromSeconds(expirySeconds * 0.75);
+        var cacheOptions = new HybridCacheEntryOptions
         {
-            return cachedUrl;
-        }
+            Expiration = cacheDuration,
+            LocalCacheExpiration = cacheDuration
+        };
 
         try
         {
-            var url = await _pipeline.ExecuteAsync(async _ =>
+            return await cache.GetOrCreateAsync(cacheKey, async ct =>
             {
-                var presignedGetObjectArgs = new PresignedGetObjectArgs()
-                    .WithBucket(bucketName)
-                    .WithObject(objectKey)
-                    .WithExpiry(expirySeconds);
-
-                if (forceDownload && sanitizedFileName is not null)
+                return await _pipeline.ExecuteAsync(async _ =>
                 {
-                    var headers = new Dictionary<string, string>
+                    var presignedGetObjectArgs = new PresignedGetObjectArgs()
+                        .WithBucket(bucketName)
+                        .WithObject(objectKey)
+                        .WithExpiry(expirySeconds);
+
+                    if (forceDownload && sanitizedFileName is not null)
                     {
-                        ["response-content-disposition"] = $"attachment; filename=\"{sanitizedFileName}\""
-                    };
-                    presignedGetObjectArgs.WithHeaders(headers);
-                }
+                        var headers = new Dictionary<string, string>
+                        {
+                            ["response-content-disposition"] = $"attachment; filename=\"{sanitizedFileName}\""
+                        };
+                        presignedGetObjectArgs.WithHeaders(headers);
+                    }
 
-                return await publicMinioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
-            }, cancellationToken);
-
-            // Cache for 75% of expiry time to ensure URL is still valid when served
-            var cacheDuration = TimeSpan.FromSeconds(expirySeconds * 0.75);
-            cache.Set(cacheKey, url, new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = cacheDuration,
-                Size = 1
-            });
-
-            return url;
+                    return await publicMinioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
+                }, ct);
+            }, cacheOptions, cancellationToken: cancellationToken);
         }
         catch (MinioException ex)
         {

@@ -7,7 +7,7 @@ using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
-using Microsoft.Extensions.Caching.Memory;
+using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -47,7 +47,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
     {
         _db = await _fixture.CreateDbContextAsync();
 
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
         _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache, NullLogger<AssetCollectionRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);

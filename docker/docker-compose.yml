@@ -157,6 +157,7 @@ services:
       ClamAV__Enabled: "${CLAMAV_ENABLED:-true}"
       ClamAV__Host: "clamav"
       ClamAV__Port: "3310"
+      Redis__ConnectionString: "redis:6379"
       OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
     volumes:
       - ../certs:/app/certs:ro
@@ -170,6 +171,8 @@ services:
       keycloak:
         condition: service_healthy
       clamav:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       backend:
@@ -208,11 +211,14 @@ services:
       MinIO__BucketName: "${MINIO_BUCKET_NAME}"
       MinIO__UseSSL: "false"
       Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      Redis__ConnectionString: "redis:6379"
       OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
     depends_on:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - backend
@@ -232,6 +238,36 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp:size=2G
+
+  # ── Redis (Distributed Cache) ──────────────────────────────────────────────
+  redis:
+    image: redis:7.4-alpine
+    container_name: assethub-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+          pids: 50
+    # Security hardening
+    user: "999:999"  # redis user in alpine
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /data:size=256M
 
   mailpit:
     image: axllent/mailpit:latest
@@ -390,6 +426,7 @@ volumes:
   pgdata:
   miniodata:
   keycloakdata:
+  redisdata:
   prometheusdata:
   grafanadata:
 

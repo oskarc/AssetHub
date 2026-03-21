@@ -66,6 +66,18 @@ public static class ServiceCollectionExtensions
         services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
+        // ── SignalR Redis backplane (multi-instance Blazor Server) ───────────
+        var redisConnection = configuration["Redis:ConnectionString"];
+        if (!string.IsNullOrEmpty(redisConnection))
+        {
+            services.AddSignalR()
+                .AddStackExchangeRedis(redisConnection, options =>
+                {
+                    options.Configuration.ChannelPrefix =
+                        StackExchange.Redis.RedisChannel.Literal("AssetHub:");
+                });
+        }
+
         services.AddHttpContextAccessor();
 
         // ── Data Protection ─────────────────────────────────────────────────
@@ -89,10 +101,8 @@ public static class ServiceCollectionExtensions
         services.AddMudServices();
 
         // ── Caching ─────────────────────────────────────────────────────────
-        services.AddMemoryCache(options =>
-        {
-            options.SizeLimit = Constants.Limits.MemoryCacheSizeLimit;
-        });
+        // HybridCache (L1 in-memory + L2 Redis) is registered via AddSharedInfrastructure.
+        // No standalone AddMemoryCache needed — HybridCache manages its own L1 cache.
 
         // ── Options (API-specific — shared options are in AddSharedInfrastructure) ─
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
@@ -140,6 +150,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AssetQueryRepositories>();
         services.AddScoped<AssetUploadRepositories>();
         services.AddScoped<AssetUploadPipeline>();
+        services.AddScoped<AssetServiceRepositories>();
         services.AddScoped<IAssetService, AssetService>();           // Commands: update, delete, collection membership
         services.AddScoped<IAssetQueryService, AssetQueryService>(); // Queries: get, list, rendition URLs
         services.AddScoped<IAssetUploadService, AssetUploadService>(); // Uploads: streaming and presigned
@@ -150,6 +161,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICollectionService, CollectionService>();           // Commands: create, update, delete, download
         services.AddScoped<CollectionAdminRepositories>();
         services.AddScoped<ICollectionAdminService, CollectionAdminService>(); // Admin: bulk delete, bulk set access
+        services.AddScoped<CollectionAclRepositories>();
         services.AddScoped<CollectionAclService>();
         services.AddScoped<ICollectionAclService>(sp => sp.GetRequiredService<CollectionAclService>());
         services.AddScoped<IAdminCollectionAclService>(sp => sp.GetRequiredService<CollectionAclService>());
@@ -238,7 +250,7 @@ public static class ServiceCollectionExtensions
         .AddHttpMessageHandler<AssetHub.Ui.Services.CookieForwardingHandler>();
 
         // ── Health checks ───────────────────────────────────────────────────
-        services.AddHealthChecks()
+        var healthChecks = services.AddHealthChecks()
             .AddNpgSql(
                 connectionString ?? throw new InvalidOperationException("ConnectionStrings:Postgres required"),
                 name: "postgresql",
@@ -246,6 +258,14 @@ public static class ServiceCollectionExtensions
             .AddCheck<MinioHealthCheck>("minio", tags: ["storage", ReadyTag])
             .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", ReadyTag])
             .AddCheck<ClamAvHealthCheck>("clamav", tags: ["security", ReadyTag]);
+
+        if (!string.IsNullOrEmpty(redisConnection))
+        {
+            healthChecks.AddRedis(
+                redisConnection,
+                name: "redis",
+                tags: ["cache", ReadyTag]);
+        }
 
         return services;
     }

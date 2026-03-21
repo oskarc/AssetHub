@@ -4,9 +4,18 @@ using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
+
+/// <summary>
+/// Groups repository dependencies for <see cref="AssetService"/>
+/// to keep the constructor parameter count manageable.
+/// </summary>
+public sealed record AssetServiceRepositories(
+    IAssetRepository AssetRepo,
+    IAssetCollectionRepository AssetCollectionRepo);
 
 /// <summary>
 /// Command operations for assets: update, delete, collection membership.
@@ -20,25 +29,27 @@ public sealed class AssetService : IAssetService
     private readonly ICollectionAuthorizationService _authService;
     private readonly IAssetDeletionService _deletionService;
     private readonly IAuditService _audit;
+    private readonly HybridCache _cache;
     private readonly CurrentUser _currentUser;
     private readonly string _bucketName;
     private const string AssetNotFoundMessage = "Asset not found";
     private const string AuditKeyTitle = "title";
 
     public AssetService(
-        IAssetRepository assetRepo,
-        IAssetCollectionRepository assetCollectionRepo,
+        AssetServiceRepositories repos,
         ICollectionAuthorizationService authService,
         IAssetDeletionService deletionService,
         IAuditService audit,
+        HybridCache cache,
         CurrentUser currentUser,
         IOptions<MinIOSettings> minioSettings)
     {
-        _assetRepo = assetRepo;
-        _assetCollectionRepo = assetCollectionRepo;
+        _assetRepo = repos.AssetRepo;
+        _assetCollectionRepo = repos.AssetCollectionRepo;
         _authService = authService;
         _deletionService = deletionService;
         _audit = audit;
+        _cache = cache;
         _currentUser = currentUser;
         _bucketName = minioSettings.Value.BucketName;
     }
@@ -177,6 +188,8 @@ public sealed class AssetService : IAssetService
         await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
         await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
             new() { [AuditKeyTitle] = asset.Title }, ct);
+
+        await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
 
         return ServiceResult.Success;
     }

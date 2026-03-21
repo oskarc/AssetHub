@@ -10,7 +10,7 @@ using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -49,11 +49,11 @@ public class SmartDeletionServiceTests : IAsyncLifetime
     {
         _db = await _fixture.CreateDbContextAsync();
 
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
         _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache,
             NullLogger<AssetCollectionRepository>.Instance);
-        _colRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
         _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
@@ -77,11 +77,11 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
 
         return new AssetService(
-            _assetRepo,
-            _acRepo,
+            new AssetServiceRepositories(_assetRepo, _acRepo),
             _authService,
             _deletionService,
             _auditMock.Object,
+            TestCacheHelper.CreateHybridCache(),
             currentUser,
             minioSettings);
     }
@@ -245,7 +245,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         // Re-create a fresh DbContext to avoid stale tracking
         var dbName = new Npgsql.NpgsqlConnectionStringBuilder(_db.Database.GetConnectionString()!).Database!;
         var db2 = _fixture.CreateDbContextForExistingDb(dbName);
-        var cache2 = new MemoryCache(new MemoryCacheOptions());
+        var cache2 = TestCacheHelper.CreateHybridCache();
         var assetRepo2 = new AssetRepository(db2, cache2, NullLogger<AssetRepository>.Instance);
         var acRepo2 = new AssetCollectionRepository(db2, cache2,
             NullLogger<AssetCollectionRepository>.Instance);

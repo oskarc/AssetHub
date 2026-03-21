@@ -5,18 +5,20 @@ using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// Groups repository dependencies for <see cref="CollectionService"/>
+/// Groups dependencies for <see cref="CollectionService"/>
 /// to keep the constructor parameter count manageable.
 /// </summary>
 public sealed record CollectionServiceRepositories(
     ICollectionRepository CollectionRepo,
     ICollectionAclRepository AclRepo,
-    IShareRepository ShareRepo);
+    IShareRepository ShareRepo,
+    HybridCache Cache);
 
 /// <summary>
 /// Collection commands: create, update, delete, and download.
@@ -80,6 +82,9 @@ public sealed class CollectionService(
             new() { ["name"] = collection.Name },
             ct);
 
+        await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(userId), ct);
+        await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
+
         return new CollectionResponseDto
         {
             Id = collection.Id,
@@ -137,6 +142,8 @@ public sealed class CollectionService(
             new() { ["name"] = collection.Name, ["description"] = collection.Description ?? "" },
             ct);
 
+        await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.Collection(id), ct);
+
         return new MessageResponse("Collection updated");
     }
 
@@ -160,6 +167,10 @@ public sealed class CollectionService(
         await audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
             new() { ["name"] = collectionName },
             ct);
+
+        await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.Collection(id), ct);
+        await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
+        await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
 
         return ServiceResult.Success;
     }

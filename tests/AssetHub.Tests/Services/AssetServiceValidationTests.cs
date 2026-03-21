@@ -8,7 +8,6 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -38,7 +37,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
     {
         _db = await _fixture.CreateDbContextAsync();
 
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
         _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache, NullLogger<AssetCollectionRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
@@ -56,11 +55,11 @@ public class AssetServiceValidationTests : IAsyncLifetime
         var minioSettings = Options.Create(new MinIOSettings { BucketName = "test" });
 
         return new AssetService(
-            _assetRepo,
-            _acRepo,
+            new AssetServiceRepositories(_assetRepo, _acRepo),
             _authService,
             new Mock<IAssetDeletionService>().Object,
             _auditMock.Object,
+            TestCacheHelper.CreateHybridCache(),
             new CurrentUser(userId, isSystemAdmin: false),
             minioSettings);
     }

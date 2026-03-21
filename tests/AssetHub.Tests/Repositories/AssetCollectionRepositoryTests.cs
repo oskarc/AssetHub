@@ -2,7 +2,6 @@ using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.Repositories;
@@ -19,7 +18,7 @@ public class AssetCollectionRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
         var logger = NullLogger<AssetCollectionRepository>.Instance;
         _repo = new AssetCollectionRepository(_db, cache, logger);
     }

@@ -36,9 +36,9 @@ public class DashboardServiceTests : IAsyncLifetime
         Dictionary<string, string>? userNames = null)
     {
         var currentUser = new CurrentUser(userId, isAdmin);
-        var collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
-        var assetRepo = new AssetRepository(_db, new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), NullLogger<AssetRepository>.Instance);
+        var cache = TestCacheHelper.CreateHybridCache();
+        var collectionRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
+        var assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         var authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         var userLookupMock = new Mock<IUserLookupService>();
         userLookupMock.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
@@ -46,7 +46,7 @@ public class DashboardServiceTests : IAsyncLifetime
         userLookupMock.Setup(m => m.GetAllUsersAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>());
 
-        var queryService = new DashboardQueryService(_db, userLookupMock.Object);
+        var queryService = new DashboardQueryService(_db, userLookupMock.Object, cache);
         var keycloakMock = new Mock<IKeycloakUserService>();
         keycloakMock.Setup(m => m.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<string>());

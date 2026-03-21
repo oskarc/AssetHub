@@ -8,7 +8,7 @@ using AssetHub.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -95,6 +95,33 @@ public static class InfrastructureServiceExtensions
 
         services.Configure<ImageProcessingSettings>(configuration.GetSection(ImageProcessingSettings.SectionName));
 
+        // ── Caching (Redis L2 + HybridCache L1/L2) ────────────────────────
+        var redisConnectionString = configuration["Redis:ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            var redisInstanceName = configuration["Redis:InstanceName"] ?? "AssetHub:";
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+                options.InstanceName = redisInstanceName;
+            });
+        }
+        else
+        {
+            // Fallback for tests or environments without Redis
+            services.AddDistributedMemoryCache();
+        }
+
+        services.AddHybridCache(options =>
+        {
+            options.DefaultEntryOptions = new HybridCacheEntryOptions
+            {
+                Expiration = TimeSpan.FromMinutes(5),
+                LocalCacheExpiration = TimeSpan.FromMinutes(2)
+            };
+            options.MaximumPayloadBytes = 1024 * 1024; // 1 MB max serialized size
+        });
+
         // ── MinIO clients ───────────────────────────────────────────────────
         AddMinIOClients(services, configuration);
 
@@ -115,9 +142,9 @@ public static class InfrastructureServiceExtensions
             var internalClient = sp.GetRequiredService<IMinioClient>();
             var publicClient = sp.GetRequiredKeyedService<IMinioClient>("public");
             var adapterLogger = sp.GetRequiredService<ILogger<MinIOAdapter>>();
-            var cache = sp.GetRequiredService<IMemoryCache>();
             var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
-            return new MinIOAdapter(internalClient, publicClient, adapterLogger, cache, pipelineProvider);
+            var hybridCache = sp.GetRequiredService<HybridCache>();
+            return new MinIOAdapter(internalClient, publicClient, adapterLogger, pipelineProvider, hybridCache);
         });
         // Register concrete type for Hangfire job resolution, then forward the interface to it
         services.AddScoped<MediaProcessingService>();

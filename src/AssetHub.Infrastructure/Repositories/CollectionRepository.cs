@@ -1,13 +1,16 @@
+using AssetHub.Application;
 using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
 public class CollectionRepository(
     AssetHubDbContext dbContext,
+    HybridCache cache,
     ILogger<CollectionRepository> logger) : ICollectionRepository
 {
     public async Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, CancellationToken ct = default)
@@ -29,12 +32,24 @@ public class CollectionRepository(
 
     public async Task<IEnumerable<Collection>> GetAccessibleCollectionsAsync(string userId, CancellationToken ct = default)
     {
-        // Find all collections where the user has a direct ACL entry
-        var accessibleIds = await dbContext.CollectionAcls
-            .Where(a => a.PrincipalId == userId && a.PrincipalType == PrincipalType.User)
-            .Select(a => a.CollectionId)
-            .Distinct()
-            .ToListAsync(ct);
+        // Cache the accessible collection IDs per user, then load full entities
+        var accessibleIds = await cache.GetOrCreateAsync(
+            CacheKeys.CollectionAccess(userId),
+            async cancel =>
+            {
+                return await dbContext.CollectionAcls
+                    .Where(a => a.PrincipalId == userId && a.PrincipalType == PrincipalType.User)
+                    .Select(a => a.CollectionId)
+                    .Distinct()
+                    .ToListAsync(cancel);
+            },
+            new HybridCacheEntryOptions
+            {
+                Expiration = CacheKeys.CollectionAccessTtl,
+                LocalCacheExpiration = TimeSpan.FromMinutes(1)
+            },
+            [CacheKeys.Tags.CollectionAccessTag(userId), CacheKeys.Tags.CollectionAcl],
+            ct);
 
         return await dbContext.Collections
             .Where(c => accessibleIds.Contains(c.Id))
@@ -60,6 +75,7 @@ public class CollectionRepository(
     {
         dbContext.Collections.Update(collection);
         await dbContext.SaveChangesAsync(ct);
+        await cache.RemoveByTagAsync(CacheKeys.Tags.Collection(collection.Id), ct);
         return collection;
     }
 
@@ -74,6 +90,8 @@ public class CollectionRepository(
 
         dbContext.Collections.Remove(collection);
         await dbContext.SaveChangesAsync(ct);
+        await cache.RemoveByTagAsync(CacheKeys.Tags.Collection(id), ct);
+        await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
         logger.LogInformation("Deleted collection {CollectionId}", id);
     }
 
@@ -122,11 +140,56 @@ public class CollectionRepository(
         if (ids.Count == 0)
             return [];
 
-        return await dbContext.Collections
-            .AsNoTracking()
-            .Where(c => ids.Contains(c.Id))
-            .Select(c => new { c.Id, c.Name })
-            .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+        // For small batches, cache individually per collection
+        var result = new Dictionary<Guid, string>();
+        var uncachedIds = new List<Guid>();
+
+        foreach (var id in ids)
+        {
+            var name = await cache.GetOrCreateAsync<string?>
+            (
+                CacheKeys.CollectionName(id),
+                cancel => default(ValueTask<string?>),
+                new HybridCacheEntryOptions
+                {
+                    Expiration = CacheKeys.CollectionNameTtl,
+                    LocalCacheExpiration = TimeSpan.FromMinutes(2)
+                },
+                [CacheKeys.Tags.Collection(id)],
+                ct
+            );
+
+            if (name is not null)
+                result[id] = name;
+            else
+                uncachedIds.Add(id);
+        }
+
+        if (uncachedIds.Count > 0)
+        {
+            var fetched = await dbContext.Collections
+                .AsNoTracking()
+                .Where(c => uncachedIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.Name })
+                .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+
+            foreach (var (id, name) in fetched)
+            {
+                result[id] = name;
+                await cache.SetAsync(
+                    CacheKeys.CollectionName(id),
+                    name,
+                    new HybridCacheEntryOptions
+                    {
+                        Expiration = CacheKeys.CollectionNameTtl,
+                        LocalCacheExpiration = TimeSpan.FromMinutes(2)
+                    },
+                    [CacheKeys.Tags.Collection(id)],
+                    ct);
+            }
+        }
+
+        return result;
     }
 
     public async Task<Dictionary<Guid, int>> GetAssetCountsAsync(IEnumerable<Guid> collectionIds, CancellationToken ct = default)
@@ -135,11 +198,56 @@ public class CollectionRepository(
         if (idList.Count == 0)
             return new Dictionary<Guid, int>();
 
-        return await dbContext.AssetCollections
-            .Where(ac => idList.Contains(ac.CollectionId))
-            .GroupBy(ac => ac.CollectionId)
-            .Select(g => new { CollectionId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.CollectionId, x => x.Count, ct);
+        var result = new Dictionary<Guid, int>();
+        var uncachedIds = new List<Guid>();
+
+        foreach (var id in idList)
+        {
+            var count = await cache.GetOrCreateAsync<int?>
+            (
+                CacheKeys.CollectionCount(id),
+                cancel => default(ValueTask<int?>),
+                new HybridCacheEntryOptions
+                {
+                    Expiration = CacheKeys.CollectionCountTtl,
+                    LocalCacheExpiration = TimeSpan.FromSeconds(30)
+                },
+                [CacheKeys.Tags.Collection(id)],
+                ct
+            );
+
+            if (count.HasValue)
+                result[id] = count.Value;
+            else
+                uncachedIds.Add(id);
+        }
+
+        if (uncachedIds.Count > 0)
+        {
+            var fetched = await dbContext.AssetCollections
+                .Where(ac => uncachedIds.Contains(ac.CollectionId))
+                .GroupBy(ac => ac.CollectionId)
+                .Select(g => new { CollectionId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CollectionId, x => x.Count, ct);
+
+            foreach (var id in uncachedIds)
+            {
+                var count = fetched.GetValueOrDefault(id);
+                result[id] = count;
+                await cache.SetAsync(
+                    CacheKeys.CollectionCount(id),
+                    (int?)count,
+                    new HybridCacheEntryOptions
+                    {
+                        Expiration = CacheKeys.CollectionCountTtl,
+                        LocalCacheExpiration = TimeSpan.FromSeconds(30)
+                    },
+                    [CacheKeys.Tags.Collection(id)],
+                    ct);
+            }
+        }
+
+        return result;
     }
 
 }

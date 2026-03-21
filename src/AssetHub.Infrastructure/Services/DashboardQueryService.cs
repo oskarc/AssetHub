@@ -5,6 +5,7 @@ using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -17,11 +18,13 @@ public class DashboardQueryService : IDashboardQueryService
 {
     private readonly AssetHubDbContext _db;
     private readonly IUserLookupService _userLookup;
+    private readonly HybridCache _cache;
 
-    public DashboardQueryService(AssetHubDbContext db, IUserLookupService userLookup)
+    public DashboardQueryService(AssetHubDbContext db, IUserLookupService userLookup, HybridCache cache)
     {
         _db = db;
         _userLookup = userLookup;
+        _cache = cache;
     }
 
     public async Task<string> GetHighestRoleAsync(string userId, CancellationToken ct)
@@ -151,56 +154,66 @@ public class DashboardQueryService : IDashboardQueryService
 
     public async Task<DashboardStatsDto> GetGlobalStatsAsync(CancellationToken ct)
     {
-        var totalAssets = await _db.Assets.CountAsync(ct);
-        var totalStorage = await _db.Assets
-            .Where(a => a.Status == AssetStatus.Ready)
-            .SumAsync(a => a.SizeBytes, ct);
-        var totalCollections = await _db.Collections.CountAsync(ct);
-        var totalShares = await _db.Shares.CountAsync(ct);
-        var activeShares = await _db.Shares
-            .CountAsync(s => s.RevokedAt == null && s.ExpiresAt > DateTime.UtcNow, ct);
-        var expiredShares = await _db.Shares
-            .CountAsync(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow, ct);
-        var revokedShares = await _db.Shares
-            .CountAsync(s => s.RevokedAt != null, ct);
-        // User role breakdown: group non-admin users by their highest ACL role
-        // System admins don't have ACLs — they are counted separately via Keycloak
-        var userHighestRoles = await _db.CollectionAcls
-            .Where(a => a.PrincipalType == PrincipalType.User)
-            .GroupBy(a => a.PrincipalId)
-            .Select(g => g.Max(a => a.Role))
-            .ToListAsync(ct);
-        var totalUsers = userHighestRoles.Count;
-        var viewerCount = userHighestRoles.Count(r => r == AclRole.Viewer);
-        var contributorCount = userHighestRoles.Count(r => r == AclRole.Contributor);
-        var managerCount = userHighestRoles.Count(r => r == AclRole.Manager);
-        var totalAuditEvents = await _db.AuditEvents.CountAsync(ct);
+        return await _cache.GetOrCreateAsync(
+            CacheKeys.DashboardSummary("global"),
+            async cancel =>
+            {
+                var totalAssets = await _db.Assets.CountAsync(cancel);
+                var totalStorage = await _db.Assets
+                    .Where(a => a.Status == AssetStatus.Ready)
+                    .SumAsync(a => a.SizeBytes, cancel);
+                var totalCollections = await _db.Collections.CountAsync(cancel);
+                var totalShares = await _db.Shares.CountAsync(cancel);
+                var activeShares = await _db.Shares
+                    .CountAsync(s => s.RevokedAt == null && s.ExpiresAt > DateTime.UtcNow, cancel);
+                var expiredShares = await _db.Shares
+                    .CountAsync(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow, cancel);
+                var revokedShares = await _db.Shares
+                    .CountAsync(s => s.RevokedAt != null, cancel);
+                var userHighestRoles = await _db.CollectionAcls
+                    .Where(a => a.PrincipalType == PrincipalType.User)
+                    .GroupBy(a => a.PrincipalId)
+                    .Select(g => g.Max(a => a.Role))
+                    .ToListAsync(cancel);
+                var totalUsers = userHighestRoles.Count;
+                var viewerCount = userHighestRoles.Count(r => r == AclRole.Viewer);
+                var contributorCount = userHighestRoles.Count(r => r == AclRole.Contributor);
+                var managerCount = userHighestRoles.Count(r => r == AclRole.Manager);
+                var totalAuditEvents = await _db.AuditEvents.CountAsync(cancel);
 
-        return new DashboardStatsDto
-        {
-            TotalAssets = totalAssets,
-            TotalStorageBytes = totalStorage,
-            TotalCollections = totalCollections,
-            TotalShares = totalShares,
-            ActiveShares = activeShares,
-            ExpiredShares = expiredShares,
-            RevokedShares = revokedShares,
-            TotalUsers = totalUsers,
-            ViewerCount = viewerCount,
-            ContributorCount = contributorCount,
-            ManagerCount = managerCount,
-            TotalAuditEvents = totalAuditEvents,
-            StorageByType = await _db.Assets
-                .Where(a => a.Status == AssetStatus.Ready)
-                .GroupBy(a => a.AssetType)
-                .Select(g => new StorageByTypeDto
+                return new DashboardStatsDto
                 {
-                    AssetType = g.Key.ToString().ToLowerInvariant(),
-                    TotalBytes = g.Sum(a => a.SizeBytes),
-                    Count = g.Count()
-                })
-                .ToListAsync(ct)
-        };
+                    TotalAssets = totalAssets,
+                    TotalStorageBytes = totalStorage,
+                    TotalCollections = totalCollections,
+                    TotalShares = totalShares,
+                    ActiveShares = activeShares,
+                    ExpiredShares = expiredShares,
+                    RevokedShares = revokedShares,
+                    TotalUsers = totalUsers,
+                    ViewerCount = viewerCount,
+                    ContributorCount = contributorCount,
+                    ManagerCount = managerCount,
+                    TotalAuditEvents = totalAuditEvents,
+                    StorageByType = await _db.Assets
+                        .Where(a => a.Status == AssetStatus.Ready)
+                        .GroupBy(a => a.AssetType)
+                        .Select(g => new StorageByTypeDto
+                        {
+                            AssetType = g.Key.ToString().ToLowerInvariant(),
+                            TotalBytes = g.Sum(a => a.SizeBytes),
+                            Count = g.Count()
+                        })
+                        .ToListAsync(cancel)
+                };
+            },
+            new HybridCacheEntryOptions
+            {
+                Expiration = CacheKeys.DashboardSummaryTtl,
+                LocalCacheExpiration = TimeSpan.FromSeconds(30)
+            },
+            [CacheKeys.Tags.Dashboard],
+            ct);
     }
 
     private static string? ResolveTargetName(

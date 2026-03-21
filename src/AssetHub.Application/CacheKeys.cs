@@ -1,11 +1,9 @@
-using Microsoft.Extensions.Caching.Memory;
-
 namespace AssetHub.Application;
 
 /// <summary>
-/// Centralized cache key patterns and TTL configuration for IMemoryCache.
+/// Centralized cache key patterns, TTL configuration, and tag definitions for HybridCache.
 /// 
-/// NOTE: Authorization role lookups are NOT cached in IMemoryCache.
+/// NOTE: Authorization role lookups are NOT cached here.
 /// They use request-scoped caching (private Dictionary in the Scoped
 /// CollectionAuthorizationService) to avoid stale-permission windows.
 /// Only non-security-critical data is cached here.
@@ -16,6 +14,10 @@ public static class CacheKeys
     private const string AssetCollectionIdsPrefix = "asset:colls:";
     private const string UserNamePrefix = "user:name:";
     private const string AllUsersKey = "users:all";
+    private const string CollectionAccessPrefix = "collection:access:";
+    private const string CollectionNamePrefix = "collection:name:";
+    private const string CollectionCountPrefix = "collection:count:";
+    private const string DashboardSummaryPrefix = "dashboard:summary:";
 
     // ── TTLs ──────────────────────────────────────────────────────────
 
@@ -27,6 +29,18 @@ public static class CacheKeys
 
     /// <summary>All users list (admin page). Short TTL since users can be created.</summary>
     public static readonly TimeSpan AllUsersTtl = TimeSpan.FromSeconds(30);
+
+    /// <summary>Accessible collections per user. Invalidated on ACL changes.</summary>
+    public static readonly TimeSpan CollectionAccessTtl = TimeSpan.FromMinutes(5);
+
+    /// <summary>Collection name lookups. Invalidated on collection rename/delete.</summary>
+    public static readonly TimeSpan CollectionNameTtl = TimeSpan.FromMinutes(10);
+
+    /// <summary>Asset count per collection. Short TTL — volatile as assets are added/removed.</summary>
+    public static readonly TimeSpan CollectionCountTtl = TimeSpan.FromMinutes(1);
+
+    /// <summary>Dashboard summary data. Invalidated on asset/collection changes.</summary>
+    public static readonly TimeSpan DashboardSummaryTtl = TimeSpan.FromMinutes(2);
 
     // ── Key Builders ──────────────────────────────────────────────────
 
@@ -41,23 +55,45 @@ public static class CacheKeys
     /// <summary>Cache key for the all-users list.</summary>
     public static string AllUsers() => AllUsersKey;
 
-    // ── Invalidation Helpers ──────────────────────────────────────────
+    /// <summary>Cache key for a user's accessible collection list.</summary>
+    public static string CollectionAccess(string userId)
+        => $"{CollectionAccessPrefix}{userId}";
 
-    /// <summary>Invalidate cached collection IDs for an asset.</summary>
-    public static void InvalidateAssetCollectionIds(IMemoryCache cache, Guid assetId)
-    {
-        cache.Remove(AssetCollectionIds(assetId));
-    }
+    /// <summary>Cache key for a collection's name.</summary>
+    public static string CollectionName(Guid collectionId)
+        => $"{CollectionNamePrefix}{collectionId}";
 
-    /// <summary>Invalidate cached all-users list.</summary>
-    public static void InvalidateAllUsers(IMemoryCache cache)
-    {
-        cache.Remove(AllUsers());
-    }
+    /// <summary>Cache key for a collection's asset count.</summary>
+    public static string CollectionCount(Guid collectionId)
+        => $"{CollectionCountPrefix}{collectionId}";
 
-    /// <summary>Invalidate cached username for a user.</summary>
-    public static void InvalidateUserName(IMemoryCache cache, string userId)
+    /// <summary>Cache key for dashboard summary for a user.</summary>
+    public static string DashboardSummary(string userId)
+        => $"{DashboardSummaryPrefix}{userId}";
+
+    // ── Tag Definitions (for HybridCache tag-based invalidation) ─────
+
+    /// <summary>
+    /// Tag definitions for group-based cache invalidation via HybridCache.RemoveByTagAsync().
+    /// </summary>
+    public static class Tags
     {
-        cache.Remove(UserName(userId));
+        /// <summary>Tag for asset-collection membership entries for a specific asset.</summary>
+        public static string AssetCollections(Guid assetId) => $"asset-colls:{assetId}";
+
+        /// <summary>Tag for all user name cache entries.</summary>
+        public const string UserNames = "user-names";
+
+        /// <summary>Tag for all collection-related entries for a specific collection.</summary>
+        public static string Collection(Guid collectionId) => $"collection:{collectionId}";
+
+        /// <summary>Tag for a user's collection access list entries.</summary>
+        public static string CollectionAccessTag(string userId) => $"collection-access:{userId}";
+
+        /// <summary>Tag for all collection ACL-related entries (invalidated on any ACL change).</summary>
+        public const string CollectionAcl = "collection-acl";
+
+        /// <summary>Tag for all dashboard summary entries.</summary>
+        public const string Dashboard = "dashboard";
     }
 }

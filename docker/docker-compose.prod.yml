@@ -176,6 +176,39 @@ services:
         max-size: "50m"
         max-file: "5"
 
+  # ---------- Redis (Distributed Cache) ----------------------------------------
+  redis:
+    image: redis:7.4-alpine
+    container_name: assethub-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+          pids: 50
+    # Security hardening
+    user: "999:999"  # redis user in alpine
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /data:size=256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
   # ---------- AssetHub API + Blazor UI ----------------------------------------
   api:
     build:
@@ -248,6 +281,9 @@ services:
       OpenTelemetry__Enabled: "${OTEL_ENABLED:-true}"
       OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
       OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
+
+      # Redis
+      Redis__ConnectionString: "redis:6379"
     ports:
       - "127.0.0.1:7252:7252"
     healthcheck:
@@ -264,6 +300,8 @@ services:
       keycloak:
         condition: service_healthy
       clamav:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - backend
@@ -318,10 +356,15 @@ services:
       OpenTelemetry__Enabled: "${OTEL_ENABLED:-true}"
       OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
       OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
+
+      # Redis
+      Redis__ConnectionString: "redis:6379"
     depends_on:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - backend
@@ -505,6 +548,7 @@ volumes:
   pgdata:
   miniodata:
   keycloakdata:
+  redisdata:
   jaegerdata:
   prometheusdata:
   grafanadata:

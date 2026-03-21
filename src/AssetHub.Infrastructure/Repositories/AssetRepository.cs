@@ -4,14 +4,14 @@ using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
 public class AssetRepository(
     AssetHubDbContext dbContext,
-    IMemoryCache cache,
+    HybridCache cache,
     ILogger<AssetRepository> logger) : IAssetRepository
 {
     public async Task<Asset?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -173,7 +173,8 @@ public class AssetRepository(
 
                 // Invalidate cached collection IDs for all affected assets
                 foreach (var assetId in assetIds)
-                    CacheKeys.InvalidateAssetCollectionIds(cache, assetId);
+                    await cache.RemoveByTagAsync(CacheKeys.Tags.AssetCollections(assetId), cancellationToken);
+                await cache.RemoveByTagAsync(CacheKeys.Tags.Collection(collectionId), cancellationToken);
 
                 return exclusiveAssets; // caller can clean up MinIO for these
             });

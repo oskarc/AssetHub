@@ -8,7 +8,6 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -57,7 +56,7 @@ public class ConcurrencyTests : IAsyncLifetime
         // Create multiple repos with separate contexts
         await using var db1 = _fixture.CreateDbContextForExistingDb(_dbName);
         await using var db2 = _fixture.CreateDbContextForExistingDb(_dbName);
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
         var repo1 = new AssetRepository(db1, cache, NullLogger<AssetRepository>.Instance);
         var repo2 = new AssetRepository(db2, cache, NullLogger<AssetRepository>.Instance);
 
@@ -89,7 +88,7 @@ public class ConcurrencyTests : IAsyncLifetime
         var deleteTasks = assetIds.Select(async id =>
         {
             await using var db = _fixture.CreateDbContextForExistingDb(_dbName);
-            var cache = new MemoryCache(new MemoryCacheOptions());
+            var cache = TestCacheHelper.CreateHybridCache();
             var repo = new AssetRepository(db, cache, NullLogger<AssetRepository>.Instance);
             await repo.DeleteAsync(id);
         });
@@ -265,9 +264,9 @@ public class ConcurrencyTests : IAsyncLifetime
         await using var db1 = _fixture.CreateDbContextForExistingDb(_dbName);
         await using var db2 = _fixture.CreateDbContextForExistingDb(_dbName);
         await using var db3 = _fixture.CreateDbContextForExistingDb(_dbName);
-        var repo1 = new CollectionRepository(db1, NullLogger<CollectionRepository>.Instance);
-        var repo2 = new CollectionRepository(db2, NullLogger<CollectionRepository>.Instance);
-        var repo3 = new CollectionRepository(db3, NullLogger<CollectionRepository>.Instance);
+        var repo1 = new CollectionRepository(db1, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        var repo2 = new CollectionRepository(db2, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        var repo3 = new CollectionRepository(db3, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
 
         // Load in all contexts
         var c1 = await repo1.GetByIdAsync(collection.Id);
@@ -305,7 +304,7 @@ public class ConcurrencyTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         // Create separate contexts
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
         await using var db1 = _fixture.CreateDbContextForExistingDb(_dbName);
         await using var db2 = _fixture.CreateDbContextForExistingDb(_dbName);
         var repo1 = new AssetCollectionRepository(db1, cache, NullLogger<AssetCollectionRepository>.Instance);
@@ -341,7 +340,7 @@ public class ConcurrencyTests : IAsyncLifetime
         _db.Collections.AddRange(collections);
         await _db.SaveChangesAsync();
 
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
 
         // Act: Add asset to all collections concurrently
         var tasks = collections.Select(async c =>
@@ -373,7 +372,7 @@ public class ConcurrencyTests : IAsyncLifetime
         await _db.SaveChangesAsync();
         var assetId = asset.Id;
 
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
 
         // Act: Concurrently delete and try to read
         await using var dbDelete = _fixture.CreateDbContextForExistingDb(_dbName);
@@ -412,7 +411,7 @@ public class ConcurrencyTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         var assetIds = assets.Select(a => a.Id).ToList();
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
 
         // Act: Delete collection assets while concurrently reading them
         await using var dbDelete = _fixture.CreateDbContextForExistingDb(_dbName);

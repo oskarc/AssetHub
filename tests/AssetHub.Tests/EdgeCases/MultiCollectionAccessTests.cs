@@ -5,7 +5,6 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.EdgeCases;
@@ -29,11 +28,11 @@ public class MultiCollectionAccessTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = TestCacheHelper.CreateHybridCache();
         var logger = NullLogger<AssetCollectionRepository>.Instance;
         _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache, logger);
-        _collectionRepo = new CollectionRepository(_db, NullLogger<CollectionRepository>.Instance);
+        _collectionRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
         _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
     }
 
