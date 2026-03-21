@@ -26,8 +26,7 @@ else
         <ToolBarContent>
             <MudTextField @bind-Value="_userSearchString" Placeholder="@AdminLoc["SearchUsersPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000"
-                HelperText="@(_userSearchString.Length > 0 && _userSearchString.Length < 4 ? string.Format(CommonLoc["SearchHint_MinChars"], 4) : null)" />
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="500" />
             <MudSpacer />
             <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">@AdminLoc["Total"]: @_allUsers.Count</MudChip>
             <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
@@ -89,7 +88,7 @@ else
                 }
                 else
                 {
-                    <MudText Typo="Typo.body2" Class="text-muted">@CommonLoc["Text_None"]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Text_None"]</MudText>
                 }
             </MudTd>
             <MudTd>
@@ -107,7 +106,7 @@ else
                 }
                 else
                 {
-                    <MudText Typo="Typo.body2" Class="text-muted">@CommonLoc["Text_NoAccess"]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Text_NoAccess"]</MudText>
                 }
             </MudTd>
             <MudTd>
@@ -198,8 +197,7 @@ else
         if (!user.IsSystemAdmin && user.CollectionCount > 0 && !_showWithAccess) return false;
         if (!user.IsSystemAdmin && user.CollectionCount == 0 && !_showNoAccess) return false;
 
-        // Text search filter (minimum 4 characters)
-        if (string.IsNullOrWhiteSpace(_userSearchString) || _userSearchString.Trim().Length < 4)
+        if (string.IsNullOrWhiteSpace(_userSearchString))
             return true;
 
         return user.Username.Contains(_userSearchString, StringComparison.OrdinalIgnoreCase)
@@ -238,7 +236,7 @@ else
 
         var options = new DialogOptions
         {
-            MaxWidth = MaxWidth.Large,
+            MaxWidth = MaxWidth.Small,
             FullWidth = true,
             CloseOnEscapeKey = true
         };
@@ -274,13 +272,19 @@ else
 
     private async Task DeleteUser(KeycloakUserDto user)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            AdminLoc["DeleteUser"],
-            string.Format(AdminLoc["ConfirmDeleteUser"], user.Username),
-            yesText: CommonLoc["Btn_Delete"], cancelText: CommonLoc["Btn_Cancel"],
-            options: new DialogOptions { CloseOnEscapeKey = true });
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, AdminLoc["DeleteUser"] },
+            { x => x.Message, string.Format(AdminLoc["ConfirmDeleteUser"], user.Username) },
+            { x => x.TitleIcon, Icons.Material.Filled.PersonRemove },
+            { x => x.IconColor, Color.Error },
+            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed != true)
+        if (confirmResult == null || confirmResult.Canceled)
             return;
 
         var (success, _) = await Feedback.ExecuteWithFeedbackAsync(
@@ -311,12 +315,19 @@ else
             }
 
             var message = string.Format(AdminLoc["SyncConfirm"], preview.DeletedUsers, preview.AclsRemoved, preview.SharesRevoked);
-            var confirmed = await DialogService.ShowMessageBox(
-                AdminLoc["Btn_SyncUsers"],
-                message,
-                yesText: CommonLoc["Btn_Confirm"], cancelText: CommonLoc["Btn_Cancel"]);
+            var confirmParams = new DialogParameters<ConfirmDialog>
+            {
+                { x => x.Title, AdminLoc["Btn_SyncUsers"] },
+                { x => x.Message, message },
+                { x => x.TitleIcon, Icons.Material.Filled.Sync },
+                { x => x.IconColor, Color.Warning },
+                { x => x.ConfirmText, CommonLoc["Btn_Confirm"] },
+                { x => x.ConfirmColor, Color.Primary }
+            };
+            var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+            var confirmResult = await confirmDialog.Result;
 
-            if (confirmed != true)
+            if (confirmResult == null || confirmResult.Canceled)
                 return;
 
             var result = await Api.SyncDeletedUsersAsync(dryRun: false);

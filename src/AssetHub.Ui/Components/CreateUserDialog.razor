@@ -17,6 +17,7 @@
         </MudStack>
     </TitleContent>
     <DialogContent>
+        <MudStack Spacing="3" Class="dialog-min-width">
         @if (_createdUser != null)
         {
             @* Success state *@
@@ -53,22 +54,31 @@
         else
         {
             @* Form state *@
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @AdminLoc["CreateUserDesc"]
+            </MudText>
+
             <MudForm @ref="_form" @bind-IsValid="_formIsValid">
-                <MudStack Spacing="3">
-                    @* Basic Info *@
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">@CommonLoc["User_AccountInfo"]</MudText>
+                @* Basic Info *@
+                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                    <MudText Typo="Typo.subtitle2" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                        @CommonLoc["User_AccountInfo"]
+                    </MudText>
 
                     <MudTextField @bind-Value="_model.Username" Label="@CommonLoc["Label_Username"]" Required="true"
                                   RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_Username"].Value)"
                                   Validation="@(new Func<string, string?>(ValidateUsername))"
-                                  Variant="Variant.Outlined" Immediate="true"
-                                  HelperText="@CommonLoc["User_UsernameHelper"].Value" />
+                                  Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
+                                  HelperText="@CommonLoc["User_UsernameHelper"].Value"
+                                  Class="mb-3" />
 
                     <MudTextField @bind-Value="_model.Email" Label="@CommonLoc["Label_Email"]" Required="true"
                                   RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, CommonLoc["Label_Email"].Value)"
                                   Validation="@(new Func<string, string?>(ValidateEmail))"
                                   Variant="Variant.Outlined" Immediate="true"
-                                  InputType="InputType.Email" />
+                                  InputType="InputType.Email"
+                                  Class="mb-3" />
 
                     <MudGrid>
                         <MudItem xs="6">
@@ -82,28 +92,33 @@
                                           Variant="Variant.Outlined" />
                         </MudItem>
                     </MudGrid>
+                </MudPaper>
 
-                    @* Global Administrator *@
-                    <MudDivider Class="my-1" />
+                @* Role & Access *@
+                <MudPaper Class="pa-3 mt-3" Elevation="0" Outlined="true">
+                    <MudText Typo="Typo.subtitle2" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Class="mr-1" />
+                        @CommonLoc["Label_RoleAndAccess"]
+                    </MudText>
+
                     <MudCheckBox @bind-Value="_model.IsSystemAdmin" Label="@AdminLoc["MakeAdministrator"]"
                                  Color="Color.Primary" Dense="true" />
                     @if (_model.IsSystemAdmin)
                     {
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-n2">
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
                             @AdminLoc["AdminImplicitAccess"]
                         </MudAlert>
                     }
 
-                    @* Optional: Initial Collection Access (hidden for system admins) *@
                     @if (!_model.IsSystemAdmin && _collections != null && _collections.Any())
                     {
-                        <MudDivider Class="my-1" />
-                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-n2">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3 mb-2">
                             @AdminLoc["AddCollectionAccess"]
                         </MudText>
 
                         <MudSelect @bind-Value="_model.InitialRole" Label="@CommonLoc["User_RoleForCollections"].Value"
-                                   Variant="Variant.Outlined">
+                                   Variant="Variant.Outlined"
+                                   Class="mb-3">
                             <MudSelectItem Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
                             <MudSelectItem Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
                             <MudSelectItem Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
@@ -121,14 +136,15 @@
                             }
                         </MudSelect>
                     }
+                </MudPaper>
 
-                    @if (!string.IsNullOrEmpty(_errorMessage))
-                    {
-                        <MudAlert Severity="Severity.Error" Dense="true">@_errorMessage</MudAlert>
-                    }
-                </MudStack>
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_errorMessage</MudAlert>
+                }
             </MudForm>
         }
+        </MudStack>
     </DialogContent>
     <DialogActions>
         @if (_createdUser != null)

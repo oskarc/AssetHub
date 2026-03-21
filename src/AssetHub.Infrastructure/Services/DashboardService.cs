@@ -24,6 +24,7 @@ public class DashboardService : IDashboardService
     private readonly IAssetRepository _assetRepo;
     private readonly CurrentUser _currentUser;
     private readonly IUserLookupService _userLookup;
+    private readonly IKeycloakUserService _keycloakUsers;
 
     public DashboardService(
         IDashboardQueryService queryService,
@@ -31,6 +32,7 @@ public class DashboardService : IDashboardService
         ICollectionAuthorizationService authService,
         IAssetRepository assetRepo,
         IUserLookupService userLookup,
+        IKeycloakUserService keycloakUsers,
         CurrentUser currentUser)
     {
         _queryService = queryService;
@@ -38,6 +40,7 @@ public class DashboardService : IDashboardService
         _authService = authService;
         _assetRepo = assetRepo;
         _userLookup = userLookup;
+        _keycloakUsers = keycloakUsers;
         _currentUser = currentUser;
     }
 
@@ -77,6 +80,11 @@ public class DashboardService : IDashboardService
         if (isAdmin)
         {
             dashboard.Stats = await _queryService.GetGlobalStatsAsync(ct);
+
+            // System admins are tracked in Keycloak, not in ACLs
+            var adminIds = await _keycloakUsers.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+            dashboard.Stats.AdminCount = adminIds.Count;
+            dashboard.Stats.TotalUsers += adminIds.Count;
         }
 
         return dashboard;

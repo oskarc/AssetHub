@@ -45,4 +45,16 @@ public interface IShareRepository
     /// Returns the number of shares deleted.
     /// </summary>
     Task<int> DeleteOrphanedAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes all expired shares (not revoked, past expiry date).
+    /// Returns the number of shares deleted.
+    /// </summary>
+    Task<int> DeleteExpiredAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes all revoked shares.
+    /// Returns the number of shares deleted.
+    /// </summary>
+    Task<int> DeleteRevokedAsync(CancellationToken cancellationToken = default);
 }

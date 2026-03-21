@@ -8,68 +8,67 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.Share" Class="mr-2" Color="Color.Success" />
-            @ShareLoc["ShareLinkCreated"]
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Success" />
+            <MudText Typo="Typo.h6">@ShareLoc["ShareLinkCreated"]</MudText>
+        </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3">
-            <MudAlert Severity="Severity.Success" Dense="true">
+        <MudStack Spacing="3" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
                 @ShareLoc["CreatedSuccess"]
-            </MudAlert>
+            </MudText>
 
-            <MudTextField Value="@ShareUrl"
-                          Label="@ShareLoc["ShareURL"]"
-                          ReadOnly="true"
-                          Variant="Variant.Outlined"
-                          Adornment="Adornment.End"
-                          AdornmentIcon="@Icons.Material.Filled.ContentCopy"
-                          OnAdornmentClick="CopyUrlToClipboard" />
+            @* Share Link Section *@
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" Class="mr-1" />
+                    @ShareLoc["ShareUrl"]
+                </MudText>
+                <MudTextField Value="@ShareUrl"
+                              Label="@ShareLoc["ShareURL"]"
+                              ReadOnly="true"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                              OnAdornmentClick="CopyUrlToClipboard" />
+
+                @if (ExpiresAt.HasValue)
+                {
+                    <MudTooltip Text="@ExpiresAt.Value.ToLocalTime().ToString("F")">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                            @CommonLoc["Label_Expires"]: @ExpiresAt.Value.ToLocalTime().ToString("g")
+                        </MudText>
+                    </MudTooltip>
+                }
+            </MudPaper>
 
             @if (!string.IsNullOrEmpty(Password))
             {
-            <MudTextField Value="@Password"
-                          Label="@CommonLoc["Label_Password"]"
-                          ReadOnly="true"
-                          Variant="Variant.Outlined"
-                          InputType="@(_showPassword ? InputType.Text : InputType.Password)"
-                          Adornment="Adornment.End"
-                          AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                          OnAdornmentClick="TogglePasswordVisibility" />
-
-            <MudStack Row="true" Spacing="2">
-                <MudButton Size="Size.Small"
-                           Variant="Variant.Text"
-                           StartIcon="@Icons.Material.Filled.ContentCopy"
-                           OnClick="CopyPasswordToClipboard">
-                    @CommonLoc["Btn_CopyPassword"]
-                </MudButton>
-                <MudButton Size="Size.Small"
-                           Variant="Variant.Text"
-                           StartIcon="@Icons.Material.Filled.ContentCopy"
-                           OnClick="CopyAllToClipboard">
-                    @CommonLoc["Btn_CopyAll"]
-                </MudButton>
-            </MudStack>
-            }
-
-            @if (ExpiresAt.HasValue)
-            {
-                <MudTooltip Text="@ExpiresAt.Value.ToLocalTime().ToString("F")">
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
-                        @CommonLoc["Label_Expires"]: @ExpiresAt.Value.ToLocalTime().ToString("g")
+                @* Password Section *@
+                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                    <MudText Typo="Typo.subtitle2" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                        @CommonLoc["Label_Password"]
                     </MudText>
-                </MudTooltip>
-            }
+                    <MudTextField Value="@Password"
+                                  Label="@CommonLoc["Label_Password"]"
+                                  ReadOnly="true"
+                                  Variant="Variant.Outlined"
+                                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="TogglePasswordVisibility" />
 
-            @if (!string.IsNullOrEmpty(Password))
-            {
-                <MudAlert Severity="Severity.Warning" Dense="true">
-                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
-                    @ShareLoc["PasswordProtectedWarning"]
-                </MudAlert>
+                    <MudButton Size="Size.Small"
+                               Variant="Variant.Text"
+                               StartIcon="@Icons.Material.Filled.ContentCopy"
+                               OnClick="CopyPasswordToClipboard"
+                               Class="mt-2">
+                        @CommonLoc["Btn_CopyPassword"]
+                    </MudButton>
+                </MudPaper>
             }
         </MudStack>
     </DialogContent>

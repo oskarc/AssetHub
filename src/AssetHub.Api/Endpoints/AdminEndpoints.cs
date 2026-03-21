@@ -26,6 +26,8 @@ public static class AdminEndpoints
         group.MapGet("/shares/{id:guid}/token", GetShareToken).WithName("AdminGetShareToken");
         group.MapGet("/shares/{id:guid}/password", GetSharePassword).WithName("AdminGetSharePassword");
         group.MapDelete("/shares/{id:guid}", RevokeShare).DisableAntiforgery().WithName("AdminRevokeShare");
+        group.MapDelete("/shares/{id:guid}/permanent", DeleteShare).DisableAntiforgery().WithName("AdminDeleteShare");
+        group.MapDelete("/shares/bulk/{status}", BulkDeleteSharesByStatus).DisableAntiforgery().WithName("BulkDeleteSharesByStatus");
 
         // ===== COLLECTION ACCESS MANAGEMENT =====
         group.MapGet("/collections/access", GetCollectionAccess).WithName("GetCollectionAccess");
@@ -78,6 +80,20 @@ public static class AdminEndpoints
         Guid id, [FromServices] IShareAdminService svc, CancellationToken ct)
     {
         var result = await svc.AdminRevokeShareAsync(id, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeleteShare(
+        Guid id, [FromServices] IShareAdminService svc, CancellationToken ct)
+    {
+        var result = await svc.DeleteShareAsync(id, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> BulkDeleteSharesByStatus(
+        string status, [FromServices] IShareAdminService svc, CancellationToken ct)
+    {
+        var result = await svc.BulkDeleteSharesByStatusAsync(status, ct);
         return result.ToHttpResult();
     }
 

@@ -14,23 +14,21 @@
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Style="min-width: 500px;">
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
-                @string.Format(CollLoc["BulkSelectedCount"], SelectedCollections.Count)
-            </MudAlert>
+        <MudStack Spacing="3" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @string.Format(CollLoc["BulkActionsDesc"], SelectedCollections.Count)
+            </MudText>
 
             <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
                 <!-- Bulk Delete Tab -->
                 <MudTabPanel Text="@CollLoc["BulkDelete"]" Icon="@Icons.Material.Filled.DeleteSweep">
                     <MudStack Spacing="3">
-                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
-                            @CollLoc["BulkDeleteWarning"]
-                        </MudAlert>
-
-                        <MudSwitch T="bool" @bind-Value="_deleteAssets" Color="Color.Error" Label="@CollLoc["BulkDeleteAssetsSwitch"]" />
-                        <MudAlert Severity="@(_deleteAssets ? Severity.Error : Severity.Info)" Variant="Variant.Text" Dense="true">
-                            @(_deleteAssets ? CollLoc["BulkDeleteAssetsOn"] : CollLoc["BulkDeleteAssetsOff"])
-                        </MudAlert>
+                        <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                            <MudSwitch T="bool" @bind-Value="_deleteAssets" Color="Color.Error" Label="@CollLoc["BulkDeleteAssetsSwitch"]" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                @(_deleteAssets ? CollLoc["BulkDeleteAssetsOn"] : CollLoc["BulkDeleteAssetsOff"])
+                            </MudText>
+                        </MudPaper>
 
                         <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Class="table-outlined">
                             <thead>
@@ -50,25 +48,13 @@
                             </tbody>
                         </MudSimpleTable>
 
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Error"
-                                   StartIcon="@Icons.Material.Filled.DeleteForever"
-                                   OnClick="BulkDeleteAsync"
-                                   Disabled="_isProcessing"
-                                   FullWidth="true">
-                            @if (_isProcessing)
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                            }
-                            @string.Format(CollLoc["BulkDeleteConfirmBtn"], SelectedCollections.Count)
-                        </MudButton>
                     </MudStack>
                 </MudTabPanel>
 
                 <!-- Bulk Add Access Tab -->
                 <MudTabPanel Text="@CollLoc["BulkAddAccess"]" Icon="@Icons.Material.Filled.GroupAdd">
                     <MudStack Spacing="3">
-                        <MudText Typo="Typo.body2" Style="opacity: 0.7;">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
                             @CollLoc["BulkAddAccessDesc"]
                         </MudText>
 
@@ -125,7 +111,18 @@
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
+        <MudButton OnClick="Close" Disabled="_isProcessing">@CommonLoc["Btn_Close"]</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Error"
+                   StartIcon="@Icons.Material.Filled.DeleteForever"
+                   OnClick="BulkDeleteAsync"
+                   Disabled="_isProcessing">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @string.Format(CollLoc["BulkDeleteConfirmBtn"], SelectedCollections.Count)
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -177,13 +174,19 @@
             ? string.Format(CollLoc["BulkDeleteFinalConfirm"], SelectedCollections.Count)
             : string.Format(CollLoc["BulkDeleteFinalConfirmKeepAssets"], SelectedCollections.Count);
 
-        var confirmed = await DialogService.ShowMessageBox(
-            CollLoc["BulkDelete"],
-            confirmMessage,
-            yesText: CommonLoc["Btn_Delete"],
-            cancelText: CommonLoc["Btn_Cancel"]);
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, CollLoc["BulkDelete"] },
+            { x => x.Message, confirmMessage },
+            { x => x.TitleIcon, Icons.Material.Filled.DeleteForever },
+            { x => x.IconColor, Color.Error },
+            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed != true) return;
+        if (confirmResult == null || confirmResult.Canceled) return;
 
         _isProcessing = true;
         StateHasChanged();

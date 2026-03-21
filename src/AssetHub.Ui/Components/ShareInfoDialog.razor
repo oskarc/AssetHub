@@ -12,74 +12,111 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.Link" Class="mr-2" Color="Color.Primary" />
-            @ShareLoc["ShareDetails"]
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Link" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@ShareLoc["ShareDetails"]</MudText>
+        </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3">
+        <MudStack Spacing="3" Class="dialog-min-width">
             <MudText Typo="Typo.body2" Color="Color.Secondary">
                 @ShareLoc["ShareDetailsDesc"]
             </MudText>
-            <MudDivider />
 
             @if (Share.ScopeType == Constants.ScopeTypes.Asset && Share.CollectionNames.Count > 0)
             {
-                <MudText Typo="Typo.subtitle2">@AdminLoc["Label_MemberOfCollections"]</MudText>
-                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                    @foreach (var name in Share.CollectionNames)
-                    {
-                        <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Folder" Variant="Variant.Outlined">@name</MudChip>
-                    }
-                </MudStack>
-                <MudDivider />
+                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">@AdminLoc["Label_MemberOfCollections"]</MudText>
+                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                        @foreach (var name in Share.CollectionNames)
+                        {
+                            <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Folder" Variant="Variant.Outlined">@name</MudChip>
+                        }
+                    </MudStack>
+                </MudPaper>
             }
 
-            @if (_isLoading)
-            {
-                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-            }
-            else if (!string.IsNullOrEmpty(ShareUrl))
-            {
-                <MudTextField @bind-Value="ShareUrl" Label="@ShareLoc["ShareUrl"]" ReadOnly="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy" OnAdornmentClick="CopyUrl" />
-            }
-            else
-            {
-                <MudAlert Severity="Severity.Info" Dense="true">
-                    @ShareLoc["ShareUrlNotAvailable"]
-                </MudAlert>
-            }
+            <!-- Share Link Section -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" Class="mr-1" />
+                    @ShareLoc["ShareUrl"]
+                </MudText>
+                @if (_isLoading)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                }
+                else if (!string.IsNullOrEmpty(ShareUrl))
+                {
+                    <MudTextField @bind-Value="ShareUrl"
+                                  Label="@ShareLoc["ShareUrl"]"
+                                  ReadOnly="true"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                                  OnAdornmentClick="CopyUrl" />
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        @ShareLoc["ShareUrlNotAvailable"]
+                    </MudAlert>
+                }
+            </MudPaper>
 
-            @if (!string.IsNullOrEmpty(_displayPassword))
-            {
-                <MudTextField T="string" Value="@_displayPassword" 
-                              Label="@ShareLoc["SharePassword"]" 
-                              ReadOnly="true" 
-                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
-                              Adornment="Adornment.End" 
-                              AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" 
-                              OnAdornmentClick="TogglePasswordVisibility" />
-                <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyPassword">@CommonLoc["Btn_CopyPassword"]</MudButton>
-            }
-            else if (Share.HasPassword)
-            {
-                <MudTextField T="string" Value="@_passwordPlaceholder" Label="@ShareLoc["SharePassword"]" ReadOnly="true" HelperText="@ShareLoc["PasswordSetButHidden"]" />
-            }
+            <!-- Password Section -->
+            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                    @CommonLoc["Label_Password"]
+                </MudText>
+                @if (!string.IsNullOrEmpty(_displayPassword))
+                {
+                    <MudTextField T="string" Value="@_displayPassword"
+                                  Label="@ShareLoc["SharePassword"]"
+                                  ReadOnly="true"
+                                  Variant="Variant.Outlined"
+                                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="TogglePasswordVisibility" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.ContentCopy"
+                               OnClick="CopyPassword" Class="mt-1">
+                        @CommonLoc["Btn_CopyPassword"]
+                    </MudButton>
+                }
+                else if (Share.HasPassword)
+                {
+                    <MudTextField T="string" Value="@_passwordPlaceholder"
+                                  Label="@ShareLoc["SharePassword"]"
+                                  ReadOnly="true"
+                                  Variant="Variant.Outlined"
+                                  HelperText="@ShareLoc["PasswordSetButHidden"]" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@ShareLoc["NoPasswordSet"]</MudText>
+                }
+                <MudButton Variant="Variant.Text" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Key"
+                           OnClick="OpenSetPassword" Class="mt-1">
+                    @ShareLoc["SetOrChangePassword"]
+                </MudButton>
+            </MudPaper>
 
-            <MudStack Row="true" Spacing="2">
-                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Key" OnClick="OpenSetPassword">@ShareLoc["SetOrChangePassword"]</MudButton>
-            </MudStack>
-
-            <MudAlert Severity="Severity.Info" Dense="true" Class="share-metadata-margin">
-                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+            <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined">
                 @ShareLoc["ShareInfoCopyHint"]
             </MudAlert>
         </MudStack>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAll" Disabled="@(string.IsNullOrEmpty(ShareUrl))">@CommonLoc["Btn_CopyAll"]</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.ContentCopy"
+                   OnClick="CopyAll"
+                   Disabled="@(string.IsNullOrEmpty(ShareUrl))">
+            @CommonLoc["Btn_CopyAll"]
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -105,7 +142,7 @@
     {
         // Initialize local display password from parameter
         _displayPassword = SharePassword;
-        
+
         try
         {
             var token = await Api.GetShareTokenAsync(Share.Id);
@@ -113,7 +150,7 @@
             {
                 ShareUrl = $"{Navigation.BaseUri.TrimEnd('/')}/{Constants.Routes.Share}/{Uri.EscapeDataString(token)}";
             }
-            
+
             // Also fetch the password if the share has one
             if (Share.HasPassword && string.IsNullOrEmpty(_displayPassword))
             {
@@ -188,7 +225,7 @@
 
         var dialog = await DialogService.ShowAsync<SharePasswordDialog>(AdminLoc["EditSharePassword"], parameters);
         var result = await dialog.Result;
-        
+
         if (result != null && !result.Canceled && result.Data is string pwd && !string.IsNullOrEmpty(pwd))
         {
             _displayPassword = pwd;

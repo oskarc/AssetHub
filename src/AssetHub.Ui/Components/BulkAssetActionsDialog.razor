@@ -12,27 +12,25 @@
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudIcon Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Error" />
+            <MudIcon Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Primary" />
             <MudText Typo="Typo.h6">@AssetLoc["BulkAssetActions"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Style="min-width: 500px;">
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
-                @string.Format(AssetLoc["BulkAssetSelectedCount"], SelectedAssets.Count)
-            </MudAlert>
-
-            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
-                @AssetLoc["BulkAssetDeleteWarning"]
-            </MudAlert>
+        <MudStack Spacing="3" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @string.Format(AssetLoc["BulkAssetActionsDesc"], SelectedAssets.Count)
+            </MudText>
 
             @if (CollectionId.HasValue)
             {
-                <MudSwitch T="bool" @bind-Value="_permanentDelete" Color="Color.Error"
-                           Label="@AssetLoc["BulkAssetPermanentDeleteSwitch"]" />
-                <MudAlert Severity="@(_permanentDelete ? Severity.Error : Severity.Info)" Variant="Variant.Text" Dense="true">
-                    @(_permanentDelete ? AssetLoc["BulkAssetPermanentDeleteOn"] : AssetLoc["BulkAssetPermanentDeleteOff"])
-                </MudAlert>
+                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                    <MudSwitch T="bool" @bind-Value="_permanentDelete" Color="Color.Error"
+                               Label="@AssetLoc["BulkAssetPermanentDeleteSwitch"]" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                        @(_permanentDelete ? AssetLoc["BulkAssetPermanentDeleteOn"] : AssetLoc["BulkAssetPermanentDeleteOff"])
+                    </MudText>
+                </MudPaper>
             }
 
             <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0" Class="table-outlined">
@@ -49,34 +47,30 @@
                         <tr>
                             <td>@asset.Title</td>
                             <td>
-                                <MudChip T="string" Size="Size.Small"
-                                         Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
-                                         Variant="Variant.Outlined">
+                                <MudText Typo="Typo.body2">
                                     @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
-                                </MudChip>
+                                </MudText>
                             </td>
                             <td style="text-align: right;">@AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)</td>
                         </tr>
                     }
                 </tbody>
             </MudSimpleTable>
-
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Error"
-                       StartIcon="@Icons.Material.Filled.DeleteForever"
-                       OnClick="BulkDeleteAsync"
-                       Disabled="_isProcessing"
-                       FullWidth="true">
-                @if (_isProcessing)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                }
-                @string.Format(AssetLoc["BulkAssetDeleteConfirmBtn"], SelectedAssets.Count)
-            </MudButton>
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
+        <MudButton OnClick="Close" Disabled="_isProcessing">@CommonLoc["Btn_Close"]</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Error"
+                   StartIcon="@Icons.Material.Filled.DeleteForever"
+                   OnClick="BulkDeleteAsync"
+                   Disabled="_isProcessing">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @string.Format(AssetLoc["BulkAssetDeleteConfirmBtn"], SelectedAssets.Count)
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -96,13 +90,19 @@
             ? string.Format(AssetLoc["BulkAssetDeleteFinalConfirm"], SelectedAssets.Count)
             : string.Format(AssetLoc["BulkAssetRemoveFinalConfirm"], SelectedAssets.Count);
 
-        var confirmed = await DialogService.ShowMessageBox(
-            AssetLoc["BulkAssetDeleteTitle"],
-            confirmMessage,
-            yesText: CommonLoc["Btn_Delete"],
-            cancelText: CommonLoc["Btn_Cancel"]);
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, AssetLoc["BulkAssetDeleteTitle"] },
+            { x => x.Message, confirmMessage },
+            { x => x.TitleIcon, Icons.Material.Filled.DeleteForever },
+            { x => x.IconColor, Color.Error },
+            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed != true) return;
+        if (confirmResult == null || confirmResult.Canceled) return;
 
         _isProcessing = true;
         StateHasChanged();

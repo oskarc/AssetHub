@@ -12,6 +12,8 @@
 @inject IStringLocalizer<AssetHub.Ui.Resources.AdminResource> AdminLoc
 @inject AuthenticationStateProvider AuthState
 @inject IDialogService DialogService
+@inject LocalStorageService LocalStorage
+@inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>@Loc["Dashboard_Title"] - @Loc["AppName"]</PageTitle>
 
@@ -51,6 +53,15 @@
                                 <MudIcon Icon="@Icons.Material.Filled.Photo" Color="Color.Primary" Size="Size.Large" />
                                 <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalAssets</MudText>
                                 <MudText Typo="Typo.caption">@Loc["Dashboard_TotalAssets"]</MudText>
+                                @if (_dashboard.Stats.StorageByType.Count > 0)
+                                {
+                                    <MudStack Row="true" Spacing="1" Class="mt-1 flex-wrap justify-center">
+                                        @foreach (var item in _dashboard.Stats.StorageByType)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@item.Count @GetAssetTypeLabel(item.AssetType)</MudChip>
+                                        }
+                                    </MudStack>
+                                }
                             </MudPaper>
                         </MudItem>
                         <MudItem xs="6" sm="4">
@@ -70,15 +81,30 @@
                         <MudItem xs="6" sm="4">
                             <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
                                 <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
-                                <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.TotalUsers</MudText>
-                                <MudText Typo="Typo.caption">@Loc["Dashboard_TotalUsers"]</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Baseline" Spacing="1" Class="mt-2">
+                                    <MudText Typo="Typo.h5">@_dashboard.Stats.TotalUsers</MudText>
+                                    <MudText Typo="Typo.caption">@Loc["Dashboard_TotalUsers"]</MudText>
+                                </MudStack>
+                                <MudStack Row="true" Spacing="1" Class="mt-1 flex-wrap justify-center">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.ViewerCount @Loc["Role_Viewer"]</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.ContributorCount @Loc["Role_Contributor"]</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.ManagerCount @Loc["Role_Manager"]</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.AdminCount @Loc["Role_Admin"]</MudChip>
+                                </MudStack>
                             </MudPaper>
                         </MudItem>
                         <MudItem xs="6" sm="4">
                             <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
                                 <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Warning" Size="Size.Large" />
-                                <MudText Typo="Typo.h5" Class="mt-2">@_dashboard.Stats.ActiveShares / @_dashboard.Stats.TotalShares</MudText>
-                                <MudText Typo="Typo.caption">@Loc["Dashboard_SharesActive"]</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Baseline" Spacing="1" Class="mt-2">
+                                    <MudText Typo="Typo.h5">@_dashboard.Stats.TotalShares</MudText>
+                                    <MudText Typo="Typo.caption">@Loc["Dashboard_TotalShares"]</MudText>
+                                </MudStack>
+                                <MudStack Row="true" Spacing="1" Class="mt-1">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">@_dashboard.Stats.ActiveShares @Loc["Dashboard_Active"]</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@_dashboard.Stats.ExpiredShares @Loc["Dashboard_Expired"]</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">@_dashboard.Stats.RevokedShares @Loc["Dashboard_Revoked"]</MudChip>
+                                </MudStack>
                             </MudPaper>
                         </MudItem>
                         <MudItem xs="6" sm="4">
@@ -148,10 +174,9 @@
                                                        Height="120" />
                                         <MudCardContent Class="pa-2">
                                             <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
-                                            <MudChip T="string" Size="Size.Small"
-                                                     Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)">
-                                                @GetAssetTypeLabel(asset.AssetType)
-                                            </MudChip>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-truncate">
+                                                @(asset.CreatedByUserName ?? Loc["Dashboard_UnknownUser"]) &middot; @FormatTimeAgo(asset.CreatedAt)
+                                            </MudText>
                                         </MudCardContent>
                                     </MudCard>
                                 </MudItem>
@@ -189,7 +214,7 @@
                                                 <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" />
                                                 <MudText Typo="Typo.subtitle1" Class="text-truncate">@collection.Name</MudText>
                                             </div>
-                                            <MudText Typo="Typo.caption" Class="mt-1" Style="opacity: 0.6;">
+                                            <MudText Typo="Typo.caption" Class="mt-1" Color="Color.Secondary">
                                                 @Loc["Dashboard_Updated"] @FormatTimeAgo(collection.UpdatedAt)
                                             </MudText>
                                             <div class="d-flex align-center gap-2 mt-2">
@@ -197,6 +222,9 @@
                                                          Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
                                                     @GetLocalizedRole(collection.UserRole)
                                                 </MudChip>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                    @collection.AssetCount @Loc["Dashboard_Assets"]
+                                                </MudText>
                                             </div>
                                         </MudCardContent>
                                     </MudCard>
@@ -217,11 +245,14 @@
                         <MudPaper Elevation="1" Class="pa-4 mb-4">
                             <div class="d-flex justify-space-between align-center mb-3">
                                 <MudText Typo="Typo.h6">@Loc["Dashboard_ActiveShares"]</MudText>
-                                <MudButton Variant="Variant.Text" Color="Color.Primary"
-                                           Href="/admin?tab=0"
-                                           EndIcon="@Icons.Material.Filled.ArrowForward">
-                                    @Loc["Dashboard_ViewAll"]
-                                </MudButton>
+                                @if (_isAdmin)
+                                {
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                               Href="/admin?tab=0"
+                                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                                        @Loc["Dashboard_ViewAll"]
+                                    </MudButton>
+                                }
                             </div>
 
                             @if (_dashboard.RecentShares.Count == 0)
@@ -268,11 +299,14 @@
                         <MudPaper Elevation="1" Class="pa-4">
                             <div class="d-flex justify-space-between align-center mb-3">
                                 <MudText Typo="Typo.h6">@Loc["Dashboard_RecentActivity"]</MudText>
-                                <MudButton Variant="Variant.Text" Color="Color.Primary"
-                                           Href="/admin?tab=3"
-                                           EndIcon="@Icons.Material.Filled.ArrowForward">
-                                    @Loc["Dashboard_ViewAll"]
-                                </MudButton>
+                                @if (_isAdmin)
+                                {
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                               Href="/admin?tab=3"
+                                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                                        @Loc["Dashboard_ViewAll"]
+                                    </MudButton>
+                                }
                             </div>
 
                             @if (_dashboard.RecentActivity.Count == 0)
@@ -291,7 +325,7 @@
                                                 <MudText Typo="Typo.body2">@GetLocalizedEventType(evt.EventType)</MudText>
                                                 @if (!string.IsNullOrEmpty(evt.ActorUserName))
                                                 {
-                                                    <MudText Typo="Typo.caption" Style="opacity: 0.8; display: block;">
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="display: block;">
                                                         @Loc["Dashboard_AddedBy", evt.ActorUserName]
                                                     </MudText>
                                                 }
@@ -302,7 +336,7 @@
                                                         @:&middot; @evt.TargetName
                                                     }
                                                 </MudText>
-                                                <MudText Typo="Typo.caption" Style="opacity: 0.6; display: block;">
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary" Style="display: block;">
                                                     @FormatTimeAgo(evt.CreatedAt)
                                                 </MudText>
                                             </div>
@@ -325,8 +359,12 @@
     private bool _dashboardError;
     private double[] _storageChartData = [];
     private string[] _storageChartLabels = [];
-    private static readonly string[] _storageChartColors = ["#4caf50", "#2196f3", "#ff9800", "#9c27b0"];
+    private bool _isDarkMode = true;
+    private string[] _storageChartColors => _isDarkMode
+        ? ["#66bb6a", "#42a5f5", "#ffa726", "#ab47bc"]  // Lighter shades for dark backgrounds
+        : ["#388e3c", "#1976d2", "#f57c00", "#7b1fa2"];  // Deeper shades for light backgrounds
 
+    private bool _isAdmin => RoleHierarchy.GetLevel(_dashboard?.UserRole ?? "") >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Admin);
     private bool _showShares => _dashboard?.RecentShares.Count > 0
         || RoleHierarchy.GetLevel(_dashboard?.UserRole ?? "") >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager);
     private bool _showActivity => _dashboard?.RecentActivity.Count > 0
@@ -334,6 +372,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Read dark mode from cookie for SSR (same pattern as MainLayout)
+        var cookies = HttpContextAccessor.HttpContext?.Request.Cookies;
+        if (cookies != null && cookies.TryGetValue("darkMode", out var dm))
+            _isDarkMode = !string.Equals(dm, "false", StringComparison.OrdinalIgnoreCase);
+
         var authState = await AuthState.GetAuthenticationStateAsync();
         var user = authState.User;
         _displayName = user.FindFirst("preferred_username")?.Value
@@ -342,6 +385,21 @@
                      ?? "";
 
         await LoadDashboardAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var stored = await LocalStorage.GetAsync("darkMode");
+            if (stored != null)
+            {
+                var wasDark = _isDarkMode;
+                _isDarkMode = stored == "true";
+                if (_isDarkMode != wasDark)
+                    StateHasChanged();
+            }
+        }
     }
 
     private async Task ReloadAsync()
@@ -419,17 +477,8 @@
         : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareRevoked"].Value
         : status;
 
-    private static Color GetAuditEventColor(string eventType) => eventType.ToLowerInvariant() switch
-    {
-        var e when e.Contains("malware") || e.Contains("processing_failed") || e.Contains("password_failed") => Color.Error,
-        var e when e.Contains("create") || e.Contains("upload") => Color.Success,
-        var e when e.Contains("delete") || e.Contains("revoke") || e.Contains("removed") || e.Contains("cleanup") => Color.Error,
-        var e when e.Contains("update") => Color.Warning,
-        var e when e.Contains("download") => Color.Info,
-        var e when e.Contains("share") => Color.Info,
-        var e when e.Contains("access") || e.Contains("acl") => Color.Secondary,
-        _ => Color.Default
-    };
+    private static Color GetAuditEventColor(string eventType) =>
+        AssetDisplayHelpers.GetAuditEventColor(eventType);
 
     private string GetLocalizedEventType(string eventType)
     {

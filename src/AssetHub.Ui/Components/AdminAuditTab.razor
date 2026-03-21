@@ -47,8 +47,7 @@ else
         <ToolBarContent>
             <MudTextField @bind-Value="_searchString" Placeholder="@AdminLoc["SearchAuditPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000"
-                HelperText="@(_searchString.Length > 0 && _searchString.Length < 4 ? string.Format(CommonLoc["SearchHint_MinChars"], 4) : null)" />
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="500" />
             <MudSpacer />
             <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">@AdminLoc["Total"]: @_totalCount</MudChip>
         </ToolBarContent>
@@ -81,7 +80,7 @@ else
                 @if (!string.IsNullOrEmpty(context.TargetName))
                 {
                     <MudTooltip Text="@context.TargetId?.ToString()">
-                        <MudText Typo="Typo.body2" Style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <MudText Typo="Typo.body2" Class="text-truncate-180">
                             @context.TargetName
                         </MudText>
                     </MudTooltip>
@@ -89,7 +88,7 @@ else
                 else if (context.TargetId.HasValue)
                 {
                     <MudTooltip Text="@context.TargetId.Value.ToString()">
-                        <MudText Typo="Typo.body2" Style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mud-palette-text-secondary);">
+                        <MudText Typo="Typo.body2" Class="text-truncate-120" Color="Color.Secondary">
                             @(context.TargetId.Value.ToString()[..8])...
                         </MudText>
                     </MudTooltip>
@@ -111,7 +110,7 @@ else
                                 @foreach (var kvp in context.Details)
                                 {
                                     <div style="padding: 2px 0;">
-                                        <span style="opacity: 0.7;">@GetLocalizedDetailKey(kvp.Key):</span>
+                                        <span class="text-secondary">@GetLocalizedDetailKey(kvp.Key):</span>
                                         <span style="margin-left: 4px;">@FormatDetailValue(kvp.Key, kvp.Value)</span>
                                     </div>
                                 }
@@ -253,8 +252,7 @@ else
         if (action == "access" && !_showAccessGranted) return false;
         if (action == "security" && !_showSecurity) return false;
 
-        // Text search filter (minimum 4 characters)
-        if (string.IsNullOrWhiteSpace(_searchString) || _searchString.Trim().Length < 4)
+        if (string.IsNullOrWhiteSpace(_searchString))
             return true;
 
         var localizedEventType = GetLocalizedEventType(evt.EventType);
@@ -332,17 +330,8 @@ else
         await LocalStorage.SetBoolAsync(StorageKeyShowSecurity, _showSecurity);
     }
 
-    private static Color GetEventColor(string eventType) => eventType.ToLowerInvariant() switch
-    {
-        var e when e.Contains("malware") || e.Contains("processing_failed") || e.Contains("password_failed") => Color.Error,
-        var e when e.Contains("create") || e.Contains("upload") => Color.Success,
-        var e when e.Contains("delete") || e.Contains("revoke") || e.Contains("removed") || e.Contains("cleanup") => Color.Error,
-        var e when e.Contains("update") => Color.Warning,
-        var e when e.Contains("download") => Color.Info,
-        var e when e.Contains("share") => Color.Info,
-        var e when e.Contains("access") || e.Contains("acl") => Color.Secondary,
-        _ => Color.Default
-    };
+    private static Color GetEventColor(string eventType) =>
+        AssetDisplayHelpers.GetAuditEventColor(eventType);
 
     private string GetLocalizedEventType(string eventType)
     {

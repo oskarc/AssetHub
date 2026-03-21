@@ -530,6 +530,26 @@ public class AssetHubApiClient
     }
 
     /// <summary>
+    /// Permanently deletes a share (must be expired or revoked, admin only).
+    /// </summary>
+    public virtual async Task DeleteShareAdminAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/shares/{id}/permanent", ct);
+        await EnsureSuccessAsync(response, "Delete share");
+    }
+
+    /// <summary>
+    /// Bulk deletes all shares with the given status ("expired" or "revoked", admin only).
+    /// Returns the number of shares deleted.
+    /// </summary>
+    public virtual async Task<int> BulkDeleteSharesByStatusAsync(string status, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/shares/bulk/{status}", ct);
+        await EnsureSuccessAsync(response, $"Bulk delete {status} shares");
+        return await response.Content.ReadFromJsonAsync<int>(ct);
+    }
+
+    /// <summary>
     /// Gets all collections with their ACLs (admin only).
     /// </summary>
     public virtual async Task<List<CollectionAccessDto>> GetCollectionAccessAsync(CancellationToken ct = default)

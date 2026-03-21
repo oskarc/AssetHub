@@ -93,10 +93,10 @@ public class EmptyStateTests : BunitTestBase
     }
 
     [Fact]
-    public void Default_Title_Is_NothingHereYet()
+    public void Default_Title_Is_Empty()
     {
         var cut = Render<EmptyState>();
 
-        cut.Find(".mud-typography-h6").TextContent.MarkupMatches("Nothing here yet");
+        cut.Find(".mud-typography-h6").TextContent.MarkupMatches("");
     }
 }

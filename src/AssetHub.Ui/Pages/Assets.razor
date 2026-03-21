@@ -47,6 +47,12 @@
                         }
                         <MudButton Variant="Variant.Outlined"
                                    Size="Size.Small"
+                                   StartIcon="@(_allGridAssetsSelected ? Icons.Material.Filled.Deselect : Icons.Material.Filled.SelectAll)"
+                                   OnClick="ToggleSelectAllGridAssets">
+                            @(_allGridAssetsSelected ? CommonLoc["Btn_DeselectAll"] : CommonLoc["Btn_SelectAll"])
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
                                    Color="Color.Error"
                                    StartIcon="@Icons.Material.Filled.Close"
                                    OnClick="ExitAssetSelectionMode">
@@ -123,6 +129,12 @@
                         }
                         <MudButton Variant="Variant.Outlined"
                                    Size="Size.Small"
+                                   StartIcon="@(_allCollectionsSelected ? Icons.Material.Filled.Deselect : Icons.Material.Filled.SelectAll)"
+                                   OnClick="ToggleSelectAllCollections">
+                            @(_allCollectionsSelected ? CommonLoc["Btn_DeselectAll"] : CommonLoc["Btn_SelectAll"])
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
                                    Color="Color.Error"
                                    StartIcon="@Icons.Material.Filled.Close"
                                    OnClick="ExitSelectionMode">
@@ -153,7 +165,7 @@
         @if (!_selectedCollectionId.HasValue)
         {
             <MudText Typo="Typo.h6" Class="mb-1">@AssetLoc["SelectCollection"]</MudText>
-            <MudText Typo="Typo.body2" Class="mb-3" Style="opacity: 0.7;">@AssetLoc["SelectCollectionDesc"]</MudText>
+            <MudText Typo="Typo.body2" Class="mb-3" Color="Color.Secondary">@AssetLoc["SelectCollectionDesc"]</MudText>
 
             <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
                 <MudTextField @bind-Value="_collectionSearchString"
@@ -167,10 +179,12 @@
                 <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
                     <MudIconButton Icon="@Icons.Material.Filled.GridView"
                                    Color="@(_collectionViewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => SetCollectionViewModeAsync(Constants.ViewModes.Grid))" />
+                                   OnClick="@(() => SetCollectionViewModeAsync(Constants.ViewModes.Grid))"
+                                   aria-label="@CommonLoc["Aria_GridView"]" />
                     <MudIconButton Icon="@Icons.Material.Filled.ViewList"
                                    Color="@(_collectionViewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => SetCollectionViewModeAsync(Constants.ViewModes.List))" />
+                                   OnClick="@(() => SetCollectionViewModeAsync(Constants.ViewModes.List))"
+                                   aria-label="@CommonLoc["Aria_ListView"]" />
                 </MudButtonGroup>
             </MudStack>
 
@@ -180,9 +194,8 @@
             }
             else if (_allCollections == null || !FilteredCollections.Any())
             {
-                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-                    @AssetLoc["NoCollectionsFound"]
-                </MudAlert>
+                <EmptyState Title="@AssetLoc["NoCollectionsFound"]"
+                            Icon="@Icons.Material.Filled.FolderOff" />
             }
             else if (_collectionViewMode == Constants.ViewModes.Grid)
             {
@@ -209,14 +222,14 @@
                                         </MudTooltip>
                                     </div>
                                     <div class="d-flex align-center gap-1 mt-2">
-                                        <MudText Typo="Typo.caption" Style="opacity: 0.6;">@CollectionLoc["YourRole"]:</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@CollectionLoc["YourRole"]:</MudText>
                                         <MudChip T="string" Size="Size.Small"
                                                  Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
                                             @CommonLoc[AssetDisplayHelpers.GetRoleKey(collection.UserRole)]
                                         </MudChip>
                                     </div>
                                     <div class="mt-1">
-                                        <MudText Typo="Typo.caption" Style="opacity: 0.6;">@string.Format(CommonLoc["Text_CountAssets"], collection.AssetCount)</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@string.Format(CommonLoc["Text_CountAssets"], collection.AssetCount)</MudText>
                                     </div>
                                 </MudCardContent>
                             </MudCard>
@@ -261,7 +274,7 @@
                             @if (!string.IsNullOrWhiteSpace(context.Description))
                             {
                                 <MudTooltip Text="@context.Description">
-                                    <MudText Typo="Typo.body2" Style="opacity: 0.7;">@Truncate(context.Description, 20)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@Truncate(context.Description, 20)</MudText>
                                 </MudTooltip>
                             }
                         </MudTd>
@@ -286,11 +299,11 @@
                         <div style="flex: 1; min-width: 0;">
                             @if (!string.IsNullOrWhiteSpace(_selectedCollection.Description))
                             {
-                                <MudText Typo="Typo.body2" Style="font-weight: 500;" Class="mb-1">@CollectionLoc["Description"]:</MudText>
-                                <MudText Typo="Typo.body2" Class="mb-3" Style="opacity: 0.85;">@_selectedCollection.Description</MudText>
+                                <MudText Typo="Typo.subtitle2" Class="mb-1">@CollectionLoc["Description"]:</MudText>
+                                <MudText Typo="Typo.body2" Class="mb-3" Color="Color.Secondary">@_selectedCollection.Description</MudText>
                             }
                             <div class="d-flex align-center gap-2 flex-wrap">
-                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@CollectionLoc["YourRole"]:</MudText>
+                                <MudText Typo="Typo.subtitle2">@CollectionLoc["YourRole"]:</MudText>
                                 <MudTooltip Text="@GetRoleDescription(_selectedCollection.UserRole)">
                                     <MudChip T="string" Size="Size.Small"
                                              Color="@AssetDisplayHelpers.GetRoleColor(_selectedCollection.UserRole)">
@@ -359,12 +372,14 @@
                         </MudItem>
                         <MudItem xs="12" sm="6" md="2">
                             <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
-                                <MudIconButton Icon="@Icons.Material.Filled.GridView" 
+                                <MudIconButton Icon="@Icons.Material.Filled.GridView"
                                                Color="@(_viewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
-                                               OnClick="@(() => SetAssetViewModeAsync(Constants.ViewModes.Grid))" />
+                                               OnClick="@(() => SetAssetViewModeAsync(Constants.ViewModes.Grid))"
+                                               aria-label="@CommonLoc["Aria_GridView"]" />
                                 <MudIconButton Icon="@Icons.Material.Filled.ViewList"
                                                Color="@(_viewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
-                                               OnClick="@(() => SetAssetViewModeAsync(Constants.ViewModes.List))" />
+                                               OnClick="@(() => SetAssetViewModeAsync(Constants.ViewModes.List))"
+                                               aria-label="@CommonLoc["Aria_ListView"]" />
                     </MudButtonGroup>
                 </MudItem>
             </MudGrid>
@@ -594,13 +609,19 @@
             : "";
         var message = string.Format(CollectionLoc["ConfirmDeleteCollection"], collection.Name, assetWarning);
 
-        var confirmed = await DialogService.ShowMessageBox(
-            CollectionLoc["DeleteCollection"],
-            message,
-            yesText: CommonLoc["Btn_Delete"],
-            cancelText: CommonLoc["Btn_Cancel"]);
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, CollectionLoc["DeleteCollection"] },
+            { x => x.Message, message },
+            { x => x.TitleIcon, Icons.Material.Filled.DeleteForever },
+            { x => x.IconColor, Color.Error },
+            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed == true)
+        if (confirmResult != null && !confirmResult.Canceled)
         {
             try
             {
@@ -786,6 +807,8 @@
             _selectedCollectionIds.Remove(id);
     }
 
+    private bool _allCollectionsSelected => FilteredCollections.Any() && FilteredCollections.All(c => _selectedCollectionIds.Contains(c.Id));
+
     private void ClearSelection() => _selectedCollectionIds.Clear();
 
     private void EnterSelectionMode() => _selectionMode = true;
@@ -794,6 +817,14 @@
     {
         _selectionMode = false;
         _selectedCollectionIds.Clear();
+    }
+
+    private void ToggleSelectAllCollections()
+    {
+        if (_allCollectionsSelected)
+            _selectedCollectionIds.Clear();
+        else
+            _selectedCollectionIds = new HashSet<Guid>(FilteredCollections.Select(c => c.Id));
     }
 
     private string GetCollectionCardClass(Guid id) =>
@@ -853,6 +884,10 @@
 
     // ── Asset Bulk Selection ─────────────────────────────────────
 
+    private bool _allGridAssetsSelected => _assetGrid != null
+        && _assetGrid.GetAllAssetIds() is var ids && ids.Count > 0
+        && ids.All(id => _selectedAssetIds.Contains(id));
+
     private void EnterAssetSelectionMode()
     {
         _assetSelectionMode = true;
@@ -863,6 +898,17 @@
     {
         _assetSelectionMode = false;
         _selectedAssetIds.Clear();
+    }
+
+    private async Task ToggleSelectAllGridAssets()
+    {
+        if (_assetGrid == null) return;
+        var allIds = _assetGrid.GetAllAssetIds();
+        if (_allGridAssetsSelected)
+            _selectedAssetIds.Clear();
+        else
+            _selectedAssetIds = new HashSet<Guid>(allIds);
+        await OnAssetSelectionChanged(_selectedAssetIds);
     }
 
     private Task OnAssetSelectionChanged(HashSet<Guid> ids)

@@ -50,7 +50,7 @@
 
 @if (_uploads.Any())
 {
-    <MudPaper Class="pa-3 mt-3" Elevation="1">
+    <MudPaper Class="pa-3 mt-3" Elevation="0" Outlined="true">
         <MudText Typo="Typo.subtitle2" Class="mb-2">@CommonLoc["Text_Uploads"]</MudText>
         <MudStack Spacing="2">
             @foreach (var upload in _uploads)

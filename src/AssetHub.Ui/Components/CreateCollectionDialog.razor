@@ -9,26 +9,35 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.CreateNewFolder" Class="mr-2" />
-            @CollectionLoc["CreateCollection"]
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.CreateNewFolder" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@CollectionLoc["CreateCollection"]</MudText>
+        </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudForm @ref="_form" @bind-IsValid="_isValid">
-            <MudTextField @bind-Value="_name"
-                          Label="@CollectionLoc["CollectionName"]"
-                          Required="true"
-                          RequiredError="@CollectionLoc["Validation_NameRequired"]"
-                          Immediate="true"
-                          Variant="Variant.Outlined"
-                          Class="mb-3" />
+        <MudStack Spacing="3" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @CollectionLoc["CreateCollectionDesc"]
+            </MudText>
 
-            <MudTextField @bind-Value="_description"
-                          Label="@CollectionLoc["DescriptionOptional"]"
-                          Lines="3"
-                          Variant="Variant.Outlined" />
-        </MudForm>
+            <MudForm @ref="_form" @bind-IsValid="_isValid">
+                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                    <MudTextField @bind-Value="_name"
+                                  Label="@CollectionLoc["CollectionName"]"
+                                  Required="true"
+                                  RequiredError="@CollectionLoc["Validation_NameRequired"]"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  AutoFocus="true"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="_description"
+                                  Label="@CollectionLoc["DescriptionOptional"]"
+                                  Lines="3"
+                                  Variant="Variant.Outlined" />
+                </MudPaper>
+            </MudForm>
+        </MudStack>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>

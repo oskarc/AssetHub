@@ -15,6 +15,10 @@
     </TitleContent>
     <DialogContent>
         <MudStack Spacing="3" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @CollLoc["ManageAccessDesc"]
+            </MudText>
+
             <!-- Collection Info Header -->
             <MudPaper Class="pa-3" Elevation="0" Outlined="true">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -40,6 +44,7 @@
                                      ToStringFunc="@(u => u?.Username ?? "")"
                                      Label="@CollLoc["SearchUser"]"
                                      Variant="Variant.Outlined"
+                                     AutoFocus="true"
                                      Dense="true"
                                      ResetValueOnEmptyText="true"
                                      DebounceInterval="300"
@@ -336,12 +341,19 @@
 
     private async Task RevokeAccessAsync(CollectionAclResponseDto entry)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            CommonLoc["Confirm_Revoke"],
-            string.Format(CollLoc["ConfirmRevokeAccess"], entry.PrincipalName ?? entry.PrincipalId),
-            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, CommonLoc["Confirm_Revoke"] },
+            { x => x.Message, string.Format(CollLoc["ConfirmRevokeAccess"], entry.PrincipalName ?? entry.PrincipalId) },
+            { x => x.TitleIcon, Icons.Material.Filled.PersonRemove },
+            { x => x.IconColor, Color.Warning },
+            { x => x.ConfirmText, CommonLoc["Btn_Revoke"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, parameters);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed != true)
+        if (confirmResult == null || confirmResult.Canceled)
             return;
 
         _revokingIds.Add(entry.Id);

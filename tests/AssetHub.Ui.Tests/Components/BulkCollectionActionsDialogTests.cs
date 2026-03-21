@@ -43,7 +43,7 @@ public class BulkCollectionActionsDialogTests : BunitTestBase
         var cut = await RenderDialogAsync(collections);
 
         Assert.Contains("BulkActions", cut.Markup);
-        Assert.Contains("BulkSelectedCount", cut.Markup);
+        Assert.Contains("BulkActionsDesc", cut.Markup);
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class BulkCollectionActionsDialogTests : BunitTestBase
         var cut = await RenderDialogAsync();
 
         Assert.Contains("BulkDelete", cut.Markup);
-        Assert.Contains("BulkDeleteWarning", cut.Markup);
+        Assert.Contains("BulkDeleteAssetsSwitch", cut.Markup);
     }
 
     [Fact]

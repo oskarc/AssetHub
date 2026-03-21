@@ -42,6 +42,10 @@
   <data name="UnableToAccess" xml:space="preserve"><value>Kan inte komma åt delat innehåll.</value></data>
   <data name="ErrorLoading" xml:space="preserve"><value>Ett fel uppstod vid laddning av det delade innehållet.</value></data>
   <data name="FailedToLoad" xml:space="preserve"><value>Kunde inte ladda delat innehåll. Försök igen senare.</value></data>
+  <data name="LinkExpiredDesc" xml:space="preserve"><value>Kontakta personen som delade länken för att begära en ny.</value></data>
+  <data name="LinkRevokedDesc" xml:space="preserve"><value>Ägaren har återkallat åtkomsten till detta delade innehåll.</value></data>
+  <data name="InvalidOrRemovedDesc" xml:space="preserve"><value>Kontrollera webbadressen eller kontakta personen som delade länken.</value></data>
+  <data name="ErrorLoadingDesc" xml:space="preserve"><value>Försök igen senare eller kontakta personen som delade länken.</value></data>
   <data name="NoAssetsInCollection" xml:space="preserve"><value>Inga tillgångar i denna samling</value></data>
   <data name="EmptyCollectionDesc" xml:space="preserve"><value>Denna delade samling innehåller inga tillgångar.</value></data>
 
@@ -80,5 +84,6 @@
   <data name="SetOrChangePassword" xml:space="preserve"><value>Ange eller ändra lösenord</value></data>
   <data name="ShareInfoCopyHint" xml:space="preserve"><value>Kopiera URL och lösenord innan du stänger denna dialog.</value></data>
   <data name="PasswordSetButHidden" xml:space="preserve"><value>Lösenord finns men kan inte hämtas (legacy-delning). Klicka nedan för att ange ett nytt.</value></data>
+  <data name="NoPasswordSet" xml:space="preserve"><value>Inget lösenord har angetts för denna delningslänk.</value></data>
   <data name="CurrentPasswordNotAvailable" xml:space="preserve"><value>Det nuvarande lösenordet kan inte hämtas (skapat innan lösenordslagring aktiverades). Ange ett nytt lösenord för att fortsätta.</value></data>
 </root>

@@ -23,8 +23,7 @@ else
         <ToolBarContent>
             <MudTextField @bind-Value="_shareSearchString" Placeholder="@AdminLoc["SearchSharesPlaceholder"]"
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="2000"
-                HelperText="@(_shareSearchString.Length > 0 && _shareSearchString.Length < 4 ? string.Format(CommonLoc["SearchHint_MinChars"], 4) : null)" />
+                IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="500" />
             <MudSpacer />
             <MudChip T="string" Color="@(_showActive ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleActive" Style="cursor: pointer;">@AdminLoc["Active"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Active)</MudChip>
             <MudChip T="string" Color="@(_showExpired ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleExpired" Style="cursor: pointer;">@AdminLoc["Expired"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Expired)</MudChip>
@@ -32,6 +31,15 @@ else
             <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
             <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Style="cursor: pointer;">@CommonLoc["ScopeType_Asset"]: @_shares.Count(s => s.ScopeType == Constants.ScopeTypes.Asset)</MudChip>
             <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Style="cursor: pointer;">@CommonLoc["ScopeType_Collection"]: @_shares.Count(s => s.ScopeType == Constants.ScopeTypes.Collection)</MudChip>
+            <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
+            <MudTooltip Text="@AdminLoc["DeleteAllExpired"]">
+                <MudIconButton Icon="@Icons.Material.Filled.EventBusy" Color="Color.Warning" Size="Size.Small"
+                    OnClick="BulkDeleteExpired" Disabled="@(_sharesLoading || _shares.Count(s => s.Status == Constants.ShareStatus.Expired) == 0)" />
+            </MudTooltip>
+            <MudTooltip Text="@AdminLoc["DeleteAllRevoked"]">
+                <MudIconButton Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Error" Size="Size.Small"
+                    OnClick="BulkDeleteRevoked" Disabled="@(_sharesLoading || _shares.Count(s => s.Status == Constants.ShareStatus.Revoked) == 0)" />
+            </MudTooltip>
         </ToolBarContent>
         <HeaderContent>
             <MudTh><MudTableSortLabel SortBy="new Func<AdminShareDto, object>(x => x.ScopeType)">@CommonLoc["Label_Type"]</MudTableSortLabel></MudTh>
@@ -52,7 +60,7 @@ else
             </MudTd>
             <MudTd>
                 <MudTooltip Text="@context.ScopeId.ToString()">
-                    <MudText Typo="Typo.body2" Style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <MudText Typo="Typo.body2" Class="text-truncate-200">
                         @context.ScopeName
                     </MudText>
                 </MudTooltip>
@@ -83,37 +91,40 @@ else
                 }
                 else
                 {
-                    <MudText Typo="Typo.body2" Style="opacity: 0.5;">@CommonLoc["Text_Never"]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Text_Never"]</MudText>
                 }
             </MudTd>
-            <MudTd><MudChip T="string" Size="Size.Small">@context.AccessCount</MudChip></MudTd>
+            <MudTd><MudText Typo="Typo.body2">@context.AccessCount</MudText></MudTd>
             <MudTd>
                 <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetShareStatusColor(context.Status)">
                     @AdminLoc[AssetDisplayHelpers.GetShareStatusKey(context.Status)]
                 </MudChip>
             </MudTd>
             <MudTd>
-                @if (context.Status == Constants.ShareStatus.Active)
-                {
-                    <MudStack Row="true" Spacing="1">
-                        <MudTooltip Text="@AdminLoc["ShowShareInfo"]">
-                            <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"
-                                OnClick="@(() => ShowShareInfo(context))" />
-                        </MudTooltip>
+                <MudStack Row="true" Spacing="1">
+                    <MudTooltip Text="@AdminLoc["ShowShareInfo"]">
+                        <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"
+                            OnClick="@(() => ShowShareInfo(context))" />
+                    </MudTooltip>
+                    @if (context.Status == Constants.ShareStatus.Active)
+                    {
                         <MudTooltip Text="@AdminLoc["RevokeShare"]">
-                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
+                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Warning" Size="Size.Small"
                                 OnClick="@(() => RevokeShare(context))" />
                         </MudTooltip>
-                    </MudStack>
-                }
+                    }
+                    else
+                    {
+                        <MudTooltip Text="@AdminLoc["DeleteShare"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                OnClick="@(() => DeleteShare(context))" />
+                        </MudTooltip>
+                    }
+                </MudStack>
             </MudTd>
         </RowTemplate>
-        <PagerContent>
-            <MudTablePager />
-        </PagerContent>
     </MudTable>
 
-    @* Server-side pagination controls *@
     <MudPaper Elevation="0" Class="d-flex justify-center align-center pa-3 gap-3">
         <MudText Typo="Typo.body2" Color="Color.Secondary">
             @CommonLoc["Showing"] @_shares.Count @CommonLoc["OfTotal"] @_totalCount
@@ -233,8 +244,7 @@ else
         };
         if (!scopeMatch) return false;
 
-        // Text search filter (minimum 4 characters)
-        if (string.IsNullOrWhiteSpace(_shareSearchString) || _shareSearchString.Trim().Length < 4)
+        if (string.IsNullOrWhiteSpace(_shareSearchString))
             return true;
 
         return share.ScopeName.Contains(_shareSearchString, StringComparison.OrdinalIgnoreCase)
@@ -244,12 +254,19 @@ else
 
     private async Task RevokeShare(AdminShareDto share)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            CommonLoc["Confirm_Revoke"],
-            string.Format(AdminLoc["ConfirmRevokeShare"], share.ScopeName),
-            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, CommonLoc["Confirm_Revoke"] },
+            { x => x.Message, string.Format(AdminLoc["ConfirmRevokeShare"], share.ScopeName) },
+            { x => x.TitleIcon, Icons.Material.Filled.LinkOff },
+            { x => x.IconColor, Color.Warning },
+            { x => x.ConfirmText, CommonLoc["Btn_Revoke"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed != true)
+        if (confirmResult == null || confirmResult.Canceled)
             return;
 
         var success = await Feedback.ExecuteWithFeedbackAsync(
@@ -314,6 +331,92 @@ else
     private async Task SaveFilterState(string key, bool value)
     {
         await LocalStorage.SetBoolAsync(key, value);
+    }
+
+    private async Task DeleteShare(AdminShareDto share)
+    {
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, AdminLoc["DeleteShare"] },
+            { x => x.Message, string.Format(AdminLoc["ConfirmDeleteShare"], share.ScopeName) },
+            { x => x.TitleIcon, Icons.Material.Filled.Delete },
+            { x => x.IconColor, Color.Error },
+            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
+
+        if (confirmResult == null || confirmResult.Canceled)
+            return;
+
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteShareAdminAsync(share.Id),
+            "delete share",
+            AdminLoc["ShareDeletedSuccess"]);
+
+        if (success)
+        {
+            await LoadAsync(reset: true);
+        }
+    }
+
+    private async Task BulkDeleteExpired()
+    {
+        var count = _shares?.Count(s => s.Status == Constants.ShareStatus.Expired) ?? 0;
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, AdminLoc["DeleteAllExpired"] },
+            { x => x.Message, string.Format(AdminLoc["ConfirmDeleteAllExpired"], count) },
+            { x => x.TitleIcon, Icons.Material.Filled.EventBusy },
+            { x => x.IconColor, Color.Error },
+            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
+
+        if (confirmResult == null || confirmResult.Canceled)
+            return;
+
+        var (success, deleted) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.BulkDeleteSharesByStatusAsync(Constants.ShareStatus.Expired),
+            "delete expired shares",
+            string.Format(AdminLoc["BulkSharesDeletedSuccess"], count));
+
+        if (success)
+        {
+            await LoadAsync(reset: true);
+        }
+    }
+
+    private async Task BulkDeleteRevoked()
+    {
+        var count = _shares?.Count(s => s.Status == Constants.ShareStatus.Revoked) ?? 0;
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, AdminLoc["DeleteAllRevoked"] },
+            { x => x.Message, string.Format(AdminLoc["ConfirmDeleteAllRevoked"], count) },
+            { x => x.TitleIcon, Icons.Material.Filled.DeleteSweep },
+            { x => x.IconColor, Color.Error },
+            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
+
+        if (confirmResult == null || confirmResult.Canceled)
+            return;
+
+        var (success, deleted) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.BulkDeleteSharesByStatusAsync(Constants.ShareStatus.Revoked),
+            "delete revoked shares",
+            string.Format(AdminLoc["BulkSharesDeletedSuccess"], count));
+
+        if (success)
+        {
+            await LoadAsync(reset: true);
+        }
     }
 
     private string GetLocalizedScopeType(string scopeType) =>

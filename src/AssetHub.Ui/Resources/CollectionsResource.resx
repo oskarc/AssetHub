@@ -38,6 +38,8 @@
   <data name="Description" xml:space="preserve"><value>Description</value></data>
   <data name="DescriptionOptional" xml:space="preserve"><value>Description (optional)</value></data>
   <data name="Validation_NameRequired" xml:space="preserve"><value>Collection name is required</value></data>
+  <data name="CreateCollectionDesc" xml:space="preserve"><value>Set up a new collection to organize your assets.</value></data>
+  <data name="EditCollectionDesc" xml:space="preserve"><value>Update the name and description for this collection.</value></data>
   <data name="SubCollectionHint" xml:space="preserve"><value>This will be created as a sub-collection.</value></data>
 
   <!-- Collection Tree -->
@@ -58,6 +60,7 @@
 
   <!-- Manage Access Dialog -->
   <data name="ManageAccess" xml:space="preserve"><value>Manage Access</value></data>
+  <data name="ManageAccessDesc" xml:space="preserve"><value>Control who can view and manage assets in this collection.</value></data>
   <data name="YourRole" xml:space="preserve"><value>Your role</value></data>
   <data name="InheritedRole" xml:space="preserve"><value>Inherited</value></data>
   <data name="AddUserAccess" xml:space="preserve"><value>Grant User Access</value></data>
@@ -95,4 +98,5 @@
   <data name="BulkAddAccessConfirmBtn" xml:space="preserve"><value>Grant Access to {0} Collection(s)</value></data>
   <data name="BulkAccessSuccess" xml:space="preserve"><value>Granted {0} access to {1} collection(s)</value></data>
   <data name="BulkAccessPartial" xml:space="preserve"><value>Updated {0} collection(s), {1} failed</value></data>
+  <data name="BulkActionsDesc" xml:space="preserve"><value>Perform actions on {0} selected collection(s).</value></data>
 </root>

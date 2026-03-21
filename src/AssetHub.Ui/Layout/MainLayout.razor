@@ -65,7 +65,7 @@
 
     <AuthorizeView>
         <Authorized>
-            <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+            <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Breakpoint="Breakpoint.Md">
                 <nav aria-label="@CommonLoc["Aria_MainNavigation"]">
                     <NavMenu />
                 </nav>
@@ -204,7 +204,7 @@
 
     public string DarkLightModeButtonIcon => _isDarkMode switch
     {
-        true => Icons.Material.Rounded.AutoMode,
+        true => Icons.Material.Rounded.LightMode,
         false => Icons.Material.Outlined.DarkMode,
     };
 }

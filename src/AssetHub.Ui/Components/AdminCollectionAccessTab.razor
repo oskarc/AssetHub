@@ -23,7 +23,7 @@ else
                 <MudText Typo="Typo.subtitle1" Class="mb-2">@CommonLoc["Label_Collections"]</MudText>
                 @foreach (var collection in _collections.OrderBy(c => c.Name, new NaturalSortComparer()))
                 {
-                    @RenderCollectionTree(collection, 0)
+                    @RenderCollectionItem(collection)
                 }
             </MudPaper>
         </MudItem>
@@ -198,7 +198,7 @@ else
         }
     }
 
-    private RenderFragment RenderCollectionTree(CollectionAccessDto collection, int depth) => __builder =>
+    private RenderFragment RenderCollectionItem(CollectionAccessDto collection) => __builder =>
     {
         var isSelected = _selectedCollection?.Id == collection.Id;
 
@@ -266,12 +266,19 @@ else
         if (_selectedCollection == null)
             return;
 
-        var confirmed = await DialogService.ShowMessageBox(
-            CommonLoc["Confirm_RemoveAccess"],
-            string.Format(AdminLoc["ConfirmRemoveAccess"], acl.PrincipalName ?? acl.PrincipalId, _selectedCollection.Name),
-            yesText: CommonLoc["Btn_Remove"], cancelText: CommonLoc["Btn_Cancel"]);
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, CommonLoc["Confirm_RemoveAccess"] },
+            { x => x.Message, string.Format(AdminLoc["ConfirmRemoveAccess"], acl.PrincipalName ?? acl.PrincipalId, _selectedCollection.Name) },
+            { x => x.TitleIcon, Icons.Material.Filled.RemoveCircle },
+            { x => x.IconColor, Color.Warning },
+            { x => x.ConfirmText, CommonLoc["Btn_Remove"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed != true)
+        if (confirmResult == null || confirmResult.Canceled)
             return;
 
         var success = await Feedback.ExecuteWithFeedbackAsync(

@@ -56,7 +56,7 @@
                 <!-- Title and Type -->
                 <MudStack>
                     <MudText Typo="Typo.h5">@Asset.Title</MudText>
-                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(Asset.AssetType)" Class="share-chip-width">
+                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(Asset.AssetType)" Variant="Variant.Outlined" Class="share-chip-width">
                         @(!string.IsNullOrEmpty(AssetTypeDisplay) ? AssetTypeDisplay : Asset.AssetType.ToUpperInvariant())
                     </MudChip>
                 </MudStack>

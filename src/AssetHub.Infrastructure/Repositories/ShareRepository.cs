@@ -181,4 +181,24 @@ public class ShareRepository(
 
         return deleted;
     }
+
+    public async Task<int> DeleteExpiredAsync(CancellationToken cancellationToken = default)
+    {
+        var deleted = await dbContext.Shares
+            .Where(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        logger.LogInformation("Deleted {Deleted} expired shares", deleted);
+        return deleted;
+    }
+
+    public async Task<int> DeleteRevokedAsync(CancellationToken cancellationToken = default)
+    {
+        var deleted = await dbContext.Shares
+            .Where(s => s.RevokedAt != null)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        logger.LogInformation("Deleted {Deleted} revoked shares", deleted);
+        return deleted;
+    }
 }

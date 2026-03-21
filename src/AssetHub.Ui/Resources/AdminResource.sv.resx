@@ -142,6 +142,14 @@
   <data name="RevokeShare" xml:space="preserve"><value>Återkalla delning</value></data>
   <data name="ConfirmRevokeShare" xml:space="preserve"><value>Är du säker på att du vill återkalla delningen för "{0}"? Denna åtgärd kan inte ångras.</value></data>
   <data name="ShareRevokedSuccess" xml:space="preserve"><value>Delning återkallad</value></data>
+  <data name="DeleteShare" xml:space="preserve"><value>Radera delning</value></data>
+  <data name="ConfirmDeleteShare" xml:space="preserve"><value>Är du säker på att du vill permanent radera delningen för "{0}"?</value></data>
+  <data name="ShareDeletedSuccess" xml:space="preserve"><value>Delning raderad</value></data>
+  <data name="DeleteAllExpired" xml:space="preserve"><value>Radera alla utgångna</value></data>
+  <data name="ConfirmDeleteAllExpired" xml:space="preserve"><value>Är du säker på att du vill permanent radera alla {0} utgångna delningar?</value></data>
+  <data name="DeleteAllRevoked" xml:space="preserve"><value>Radera alla återkallade</value></data>
+  <data name="ConfirmDeleteAllRevoked" xml:space="preserve"><value>Är du säker på att du vill permanent radera alla {0} återkallade delningar?</value></data>
+  <data name="BulkSharesDeletedSuccess" xml:space="preserve"><value>{0} delningar raderade</value></data>
   <data name="Label_MemberOfCollections" xml:space="preserve"><value>Ingår i samlingar</value></data>
 
   <!-- Collection Access -->
@@ -171,6 +179,7 @@
 
   <!-- Manage User Access Dialog -->
   <data name="ManageUserAccess" xml:space="preserve"><value>Hantera användaråtkomst</value></data>
+  <data name="ManageUserAccessDesc" xml:space="preserve"><value>Visa och hantera samlingsåtkomst, roller och kontoinställningar för denna användare.</value></data>
   <data name="AddCollectionAccess" xml:space="preserve"><value>Lägg till samlingsåtkomst</value></data>
   <data name="UserHasAllAccess" xml:space="preserve"><value>Användaren har åtkomst till alla samlingar</value></data>
   <data name="CurrentCollectionAccess" xml:space="preserve"><value>Nuvarande samlingsåtkomst ({0})</value></data>
@@ -183,6 +192,7 @@
 
   <!-- Create User Dialog -->
   <data name="CreateNewUser" xml:space="preserve"><value>Skapa ny användare</value></data>
+  <data name="CreateUserDesc" xml:space="preserve"><value>Skapa ett nytt användarkonto och ge valfri initial samlingsåtkomst.</value></data>
   <data name="EditSharePassword" xml:space="preserve"><value>Redigera delningslösenord</value></data>
   <data name="ShowShareInfo" xml:space="preserve"><value>Delningsinformation</value></data>
   <data name="SetPassword" xml:space="preserve"><value>Ange lösenord</value></data>
@@ -191,6 +201,7 @@
 
   <!-- User Access Dialog -->
   <data name="UserAccessDetails" xml:space="preserve"><value>Användaråtkomstdetaljer</value></data>
+  <data name="UserAccessDetailsDesc" xml:space="preserve"><value>Översikt över denna användares samlingsåtkomst och behörigheter.</value></data>
   <data name="Highest" xml:space="preserve"><value>Högsta:</value></data>
   <data name="CollectionAccessCount" xml:space="preserve"><value>Samlingsåtkomst ({0})</value></data>
   <data name="NoCollectionAccessUserDesc" xml:space="preserve"><value>Denna användare har inte åtkomst till några samlingar.</value></data>

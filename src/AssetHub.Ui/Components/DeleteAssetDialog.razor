@@ -5,21 +5,21 @@
 
 <MudDialog>
     <TitleContent>
-        @if (_context == null)
-        {
-            <MudText Typo="Typo.h6">@AssetLoc["ConfirmDelete"]</MudText>
-        }
-        else if (_context.CollectionCount > 1)
-        {
-            <MudText Typo="Typo.h6">@AssetLoc["DeleteOrRemove"]</MudText>
-        }
-        else
-        {
-            <MudText Typo="Typo.h6">@AssetLoc["ConfirmDelete"]</MudText>
-        }
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Primary" />
+            @if (_context?.CollectionCount > 1)
+            {
+                <MudText Typo="Typo.h6">@AssetLoc["DeleteOrRemove"]</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h6">@AssetLoc["ConfirmDelete"]</MudText>
+            }
+        </MudStack>
     </TitleContent>
 
     <DialogContent>
+        <MudStack Spacing="3" Class="dialog-min-width">
         @if (_loading)
         {
             <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mx-auto d-block my-4" />
@@ -78,6 +78,7 @@
                 @string.Format(AssetLoc["ConfirmDeleteAsset"], AssetTitle)
             </MudText>
         }
+        </MudStack>
     </DialogContent>
 
     <DialogActions>

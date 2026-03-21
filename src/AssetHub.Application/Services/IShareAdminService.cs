@@ -18,4 +18,10 @@ public interface IShareAdminService
 
     /// <summary>Revoke a share (admin override — no ownership check).</summary>
     Task<ServiceResult> AdminRevokeShareAsync(Guid shareId, CancellationToken ct);
+
+    /// <summary>Permanently delete a share (must be expired or revoked).</summary>
+    Task<ServiceResult> DeleteShareAsync(Guid shareId, CancellationToken ct);
+
+    /// <summary>Permanently delete all shares with the given status ("expired" or "revoked").</summary>
+    Task<ServiceResult<int>> BulkDeleteSharesByStatusAsync(string status, CancellationToken ct);
 }

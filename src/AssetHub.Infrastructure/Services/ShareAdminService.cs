@@ -155,4 +155,37 @@ public class ShareAdminService : IShareAdminService
 
         return ServiceResult.Success;
     }
+
+    public async Task<ServiceResult> DeleteShareAsync(Guid shareId, CancellationToken ct)
+    {
+        var share = await _shareRepo.GetByIdAsync(shareId, ct);
+        if (share == null)
+            return ServiceError.NotFound("Share not found");
+
+        if (share.RevokedAt == null && share.ExpiresAt > DateTime.UtcNow)
+            return ServiceError.BadRequest("Cannot delete an active share — revoke it first");
+
+        await _shareRepo.DeleteAsync(shareId, ct);
+
+        await _audit.LogAsync("share.deleted", Constants.ScopeTypes.Share, shareId, _currentUser.UserId,
+            new() { ["admin"] = true }, ct);
+
+        return ServiceResult.Success;
+    }
+
+    public async Task<ServiceResult<int>> BulkDeleteSharesByStatusAsync(string status, CancellationToken ct)
+    {
+        int deleted;
+        if (status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase))
+            deleted = await _shareRepo.DeleteExpiredAsync(ct);
+        else if (status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase))
+            deleted = await _shareRepo.DeleteRevokedAsync(ct);
+        else
+            return ServiceError.BadRequest($"Invalid status: {status}. Must be 'expired' or 'revoked'.");
+
+        await _audit.LogAsync("shares.bulk_deleted", Constants.ScopeTypes.Share, Guid.Empty, _currentUser.UserId,
+            new() { ["status"] = status, ["count"] = deleted }, ct);
+
+        return deleted;
+    }
 }

@@ -179,6 +179,24 @@ public static class AssetDisplayHelpers
         _ => status ?? ""
     };
 
+    // ===== AUDIT EVENT DISPLAY =====
+
+    /// <summary>
+    /// Gets the MudBlazor color for an audit event type.
+    /// Used by both the dashboard and admin audit tab.
+    /// </summary>
+    public static MudBlazor.Color GetAuditEventColor(string eventType) => eventType.ToLowerInvariant() switch
+    {
+        var e when e.Contains("malware") || e.Contains("processing_failed") || e.Contains("password_failed") => MudBlazor.Color.Error,
+        var e when e.Contains("create") || e.Contains("upload") => MudBlazor.Color.Success,
+        var e when e.Contains("delete") || e.Contains("revoke") || e.Contains("removed") || e.Contains("cleanup") => MudBlazor.Color.Error,
+        var e when e.Contains("update") => MudBlazor.Color.Warning,
+        var e when e.Contains("download") => MudBlazor.Color.Info,
+        var e when e.Contains("share") => MudBlazor.Color.Info,
+        var e when e.Contains("access") || e.Contains("acl") => MudBlazor.Color.Secondary,
+        _ => MudBlazor.Color.Default
+    };
+
     // ===== ROLE DISPLAY =====
 
     /// <summary>

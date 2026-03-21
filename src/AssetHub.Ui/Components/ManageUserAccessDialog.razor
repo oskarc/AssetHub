@@ -19,7 +19,11 @@
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3">
+        <MudStack Spacing="3" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @AdminLoc["ManageUserAccessDesc"]
+            </MudText>
+
             <!-- User Info Header -->
             <MudPaper Class="pa-3" Elevation="0" Outlined="true">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
@@ -84,36 +88,37 @@
             {
             <MudPaper Class="pa-3" Elevation="0" Outlined="true">
                 <MudText Typo="Typo.subtitle2" Class="mb-2">@AdminLoc["AddCollectionAccess"]</MudText>
-                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
-                    <MudSelect T="Guid?" 
-                               @bind-Value="_selectedCollectionId" 
-                               Label="@CommonLoc["Label_Collection"]" 
-                               Variant="Variant.Outlined" 
+                <MudStack Spacing="2">
+                    <MudSelect T="Guid?"
+                               @bind-Value="_selectedCollectionId"
+                               Label="@CommonLoc["Label_Collection"]"
+                               Variant="Variant.Outlined"
                                Dense="true"
-                               Disabled="@(_availableCollections.Count == 0)"
-                               Class="dialog-flex-fill">
+                               Disabled="@(_availableCollections.Count == 0)">
                         @foreach (var collection in _availableCollections)
                         {
                             <MudSelectItem T="Guid?" Value="@collection.Id">@collection.Name</MudSelectItem>
                         }
                     </MudSelect>
-                    <MudSelect T="string" 
-                               @bind-Value="_selectedRole" 
-                               Label="@CommonLoc["Label_Role"]" 
-                               Variant="Variant.Outlined" 
-                               Dense="true"
-                               Class="dialog-role-select">
-                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
-                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
-                        <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
-                    </MudSelect>
-                    <MudButton Variant="Variant.Filled" 
-                               Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="AddCollectionAccess"
-                               Disabled="@(!_selectedCollectionId.HasValue || _isAdding)">
-                        @CommonLoc["Btn_Add"]
-                    </MudButton>
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
+                        <MudSelect T="string"
+                                   @bind-Value="_selectedRole"
+                                   Label="@CommonLoc["Label_Role"]"
+                                   Variant="Variant.Outlined"
+                                   Dense="true"
+                                   Class="dialog-flex-fill">
+                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                        </MudSelect>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddCollectionAccess"
+                                   Disabled="@(!_selectedCollectionId.HasValue || _isAdding)">
+                            @CommonLoc["Btn_Add"]
+                        </MudButton>
+                    </MudStack>
                 </MudStack>
                 @if (_availableCollections.Count == 0)
                 {
@@ -139,7 +144,7 @@
                         <tr>
                             <th>@CommonLoc["Label_Collection"]</th>
                             <th>@CommonLoc["Label_Role"]</th>
-                            <th class="dialog-actions-col">@CommonLoc["Label_Actions"]</th>
+                            <th class="dialog-actions-col-sm">@CommonLoc["Label_Actions"]</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -147,7 +152,7 @@
                         {
                             <tr>
                                 <td>
-                                    <MudLink Href="@($"/collections?collection={collection.CollectionId}")" 
+                                    <MudLink Href="@($"/collections?collection={collection.CollectionId}")"
                                              Color="Color.Primary"
                                              Underline="Underline.Hover"
                                              Target="_blank">
@@ -157,9 +162,9 @@
                                 <td>
                                     @if (_editingCollectionId == collection.CollectionId)
                                     {
-                                        <MudSelect T="string" 
-                                                   @bind-Value="_editingRole" 
-                                                   Variant="Variant.Outlined" 
+                                        <MudSelect T="string"
+                                                   @bind-Value="_editingRole"
+                                                   Variant="Variant.Outlined"
                                                    Dense="true"
                                                    Margin="Margin.Dense"
                                                    Class="dialog-role-select">
@@ -180,14 +185,14 @@
                                     {
                                         <MudStack Row="true" Spacing="1">
                                             <MudTooltip Text="@CommonLoc["Btn_Save"]">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Save" 
-                                                               Size="Size.Small" 
+                                                <MudIconButton Icon="@Icons.Material.Filled.Save"
+                                                               Size="Size.Small"
                                                                Color="Color.Success"
                                                                OnClick="SaveRoleEdit" />
                                             </MudTooltip>
                                             <MudTooltip Text="@CommonLoc["Btn_Cancel"]">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Cancel" 
-                                                               Size="Size.Small" 
+                                                <MudIconButton Icon="@Icons.Material.Filled.Cancel"
+                                                               Size="Size.Small"
                                                                Color="Color.Default"
                                                                OnClick="CancelRoleEdit" />
                                             </MudTooltip>
@@ -197,15 +202,15 @@
                                     {
                                         <MudStack Row="true" Spacing="1">
                                             <MudTooltip Text="@AdminLoc["ChangeRole"]">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                                               Size="Size.Small" 
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                               Size="Size.Small"
                                                                Color="Color.Primary"
                                                                OnClick="@(() => StartRoleEdit(collection))"
                                                                Disabled="@(_revokingCollections.Count > 0)" />
                                             </MudTooltip>
                                             <MudTooltip Text="@AdminLoc["RevokeAccess"]">
-                                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" 
-                                                               Size="Size.Small" 
+                                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle"
+                                                               Size="Size.Small"
                                                                Color="Color.Error"
                                                                OnClick="@(() => RevokeAccess(collection))"
                                                                Disabled="@(_revokingCollections.Contains(collection.CollectionId))" />
@@ -254,7 +259,7 @@
     private string _selectedRole = RoleHierarchy.Roles.Viewer;
     private bool _isAdding = false;
     private HashSet<Guid> _revokingCollections = new();
-    
+
     private Guid? _editingCollectionId;
     private string _editingRole = "";
 
@@ -349,12 +354,12 @@
         try
         {
             await Api.UpdateCollectionAclAsync(_editingCollectionId.Value, Constants.PrincipalTypes.User, UserId, _editingRole);
-            
+
             // Reload user collections to confirm the change persisted
             await LoadUserCollections();
-            
+
             Feedback.ShowSuccess(CommonLoc["Success_RoleUpdated"].Value);
-            
+
             _editingCollectionId = null;
             _editingRole = "";
         }
@@ -372,12 +377,19 @@
 
     private async Task RevokeAccess(UserCollectionAccessDto collection)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            CommonLoc["Confirm_Revoke"],
-            string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName),
-            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, CommonLoc["Confirm_Revoke"] },
+            { x => x.Message, string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName) },
+            { x => x.TitleIcon, Icons.Material.Filled.RemoveCircle },
+            { x => x.IconColor, Color.Warning },
+            { x => x.ConfirmText, CommonLoc["Btn_Revoke"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, parameters);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed != true)
+        if (confirmResult == null || confirmResult.Canceled)
             return;
 
         _revokingCollections.Add(collection.CollectionId);
@@ -387,13 +399,13 @@
         {
             await Api.RemoveCollectionAclAsync(collection.CollectionId, UserId, Constants.PrincipalTypes.User);
             Feedback.ShowSuccess(string.Format(CommonLoc["Success_RevokedAccessTo"].Value, collection.CollectionName));
-            
+
             // Reload user collections to confirm the change persisted
             await LoadUserCollections();
-            
+
             // Update available collections
             UpdateAvailableCollections();
-            
+
             // Force UI refresh before removing from tracking
             StateHasChanged();
         }

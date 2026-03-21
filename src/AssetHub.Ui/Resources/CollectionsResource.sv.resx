@@ -38,6 +38,8 @@
   <data name="Description" xml:space="preserve"><value>Beskrivning</value></data>
   <data name="DescriptionOptional" xml:space="preserve"><value>Beskrivning (valfritt)</value></data>
   <data name="Validation_NameRequired" xml:space="preserve"><value>Samlingsnamn krävs</value></data>
+  <data name="CreateCollectionDesc" xml:space="preserve"><value>Skapa en ny samling för att organisera dina tillgångar.</value></data>
+  <data name="EditCollectionDesc" xml:space="preserve"><value>Uppdatera namn och beskrivning för denna samling.</value></data>
   <data name="SubCollectionHint" xml:space="preserve"><value>Denna skapas som en undersamling.</value></data>
 
   <!-- Collection Tree -->
@@ -58,6 +60,7 @@
 
   <!-- Manage Access Dialog -->
   <data name="ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
+  <data name="ManageAccessDesc" xml:space="preserve"><value>Styr vem som kan visa och hantera tillgångar i denna samling.</value></data>
   <data name="YourRole" xml:space="preserve"><value>Din roll</value></data>
   <data name="InheritedRole" xml:space="preserve"><value>Ärvd</value></data>
   <data name="AddUserAccess" xml:space="preserve"><value>Ge användaråtkomst</value></data>
@@ -95,4 +98,5 @@
   <data name="BulkAddAccessConfirmBtn" xml:space="preserve"><value>Ge åtkomst till {0} samling(ar)</value></data>
   <data name="BulkAccessSuccess" xml:space="preserve"><value>Gav {0} åtkomst till {1} samling(ar)</value></data>
   <data name="BulkAccessPartial" xml:space="preserve"><value>{0} samling(ar) uppdaterade, {1} misslyckades</value></data>
+  <data name="BulkActionsDesc" xml:space="preserve"><value>Utför åtgärder på {0} valda samling(ar).</value></data>
 </root>

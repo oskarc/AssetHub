@@ -27,7 +27,7 @@
                 @AssetLoc["BrowseAllAssets"]
             </MudText>
         </MudStack>
-        <MudStack Row="true" Spacing="2">
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
             @if (_selectionMode)
             {
                 @if (_selectedAssetIds.Count > 0)
@@ -40,6 +40,12 @@
                         @string.Format(AssetLoc["BulkAssetActionsBtn"], _selectedAssetIds.Count)
                     </MudButton>
                 }
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           StartIcon="@(_allAssetsSelected ? Icons.Material.Filled.Deselect : Icons.Material.Filled.SelectAll)"
+                           OnClick="ToggleSelectAllAssets">
+                    @(_allAssetsSelected ? CommonLoc["Btn_DeselectAll"] : CommonLoc["Btn_SelectAll"])
+                </MudButton>
                 <MudButton Variant="Variant.Outlined"
                            Size="Size.Small"
                            Color="Color.Error"
@@ -76,7 +82,7 @@
     <!-- Upload Area -->
     @if (_showUpload)
     {
-        <MudPaper Class="pa-3 mb-4" Elevation="1">
+        <MudPaper Class="pa-3 mb-4" Elevation="0" Outlined="true">
             <MudStack Spacing="2">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                     <MudSelect T="Guid?"
@@ -146,12 +152,14 @@
             </MudItem>
             <MudItem xs="12" sm="6" md="2">
                 <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
-                    <MudIconButton Icon="@Icons.Material.Filled.GridView" 
+                    <MudIconButton Icon="@Icons.Material.Filled.GridView"
                                    Color="@(_viewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => SetViewModeAsync(Constants.ViewModes.Grid))" />
+                                   OnClick="@(() => SetViewModeAsync(Constants.ViewModes.Grid))"
+                                   aria-label="@CommonLoc["Aria_GridView"]" />
                     <MudIconButton Icon="@Icons.Material.Filled.ViewList"
                                    Color="@(_viewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
-                                   OnClick="@(() => SetViewModeAsync(Constants.ViewModes.List))" />
+                                   OnClick="@(() => SetViewModeAsync(Constants.ViewModes.List))"
+                                   aria-label="@CommonLoc["Aria_ListView"]" />
                 </MudButtonGroup>
             </MudItem>
         </MudGrid>
@@ -251,7 +259,7 @@
         }
         else
         {
-            <MudTable Items="@_assets" Hover="true" Dense="true" Elevation="2" Breakpoint="Breakpoint.Sm">
+            <MudTable Items="@_assets" Hover="true" Dense="true" Striped="true" Elevation="2" Breakpoint="Breakpoint.Sm">
                 <HeaderContent>
                     @if (_selectionMode)
                     {
@@ -531,13 +539,19 @@
 
     private async Task DeleteAsset(AssetResponseDto asset)
     {
-        var result = await DialogService.ShowMessageBox(
-            AssetLoc["ConfirmDelete"],
-            string.Format(AssetLoc["ConfirmDeleteAsset"], asset.Title),
-            yesText: CommonLoc["Btn_Delete"],
-            cancelText: CommonLoc["Btn_Cancel"]);
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, AssetLoc["ConfirmDelete"] },
+            { x => x.Message, string.Format(AssetLoc["ConfirmDeleteAsset"], asset.Title) },
+            { x => x.TitleIcon, Icons.Material.Filled.Delete },
+            { x => x.IconColor, Color.Error },
+            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
 
-        if (result == true)
+        if (confirmResult != null && !confirmResult.Canceled)
         {
             var success = await Feedback.ExecuteWithFeedbackAsync(
                 () => Api.DeleteAssetAsync(asset.Id),
@@ -554,6 +568,8 @@
 
     // ── Bulk Selection ───────────────────────────────────────────
 
+    private bool _allAssetsSelected => _assets.Count > 0 && _assets.All(a => _selectedAssetIds.Contains(a.Id));
+
     private void EnterSelectionMode()
     {
         _selectionMode = true;
@@ -564,6 +580,14 @@
     {
         _selectionMode = false;
         _selectedAssetIds.Clear();
+    }
+
+    private void ToggleSelectAllAssets()
+    {
+        if (_allAssetsSelected)
+            _selectedAssetIds.Clear();
+        else
+            _selectedAssetIds = new HashSet<Guid>(_assets.Select(a => a.Id));
     }
 
     private void ToggleSelection(Guid id, bool selected)

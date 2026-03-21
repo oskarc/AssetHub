@@ -71,12 +71,9 @@
     }
     else if (_errorMessage != null)
     {
-        <MudAlert Severity="Severity.Error" Class="mb-4">
-            <MudText Typo="Typo.body1">@_errorMessage</MudText>
-        </MudAlert>
-        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/">
-            @CommonLoc["Btn_GoToHome"]
-        </MudButton>
+        <EmptyState Title="@_errorMessage"
+                    Description="@_errorDescription"
+                    Icon="@_errorIcon" />
     }
     else if (_sharedAsset != null)
     {
@@ -234,6 +231,15 @@
     private string? _accessToken;
     private string? _error;
     private string? _errorMessage;
+    private string _errorDescription = "";
+    private string _errorIcon = Icons.Material.Filled.Error;
+
+    private void SetError(string message, string description, string icon)
+    {
+        _errorMessage = message;
+        _errorDescription = description;
+        _errorIcon = icon;
+    }
 
     private SharedAssetDto? _sharedAsset;
     private SharedCollectionDto? _sharedCollection;
@@ -293,13 +299,13 @@
                 // Handle revoked/expired shares before password logic
                 if (errorCode == Constants.ShareErrorCodes.Revoked)
                 {
-                    _errorMessage = ShareLoc["LinkRevoked"].Value;
+                    SetError(ShareLoc["LinkRevoked"].Value, ShareLoc["LinkRevokedDesc"].Value, Icons.Material.Filled.LinkOff);
                     _isLoading = false;
                     return;
                 }
                 if (errorCode == Constants.ShareErrorCodes.Expired)
                 {
-                    _errorMessage = ShareLoc["LinkExpired"].Value;
+                    SetError(ShareLoc["LinkExpired"].Value, ShareLoc["LinkExpiredDesc"].Value, Icons.Material.Filled.TimerOff);
                     _isLoading = false;
                     return;
                 }
@@ -349,13 +355,21 @@
                 }
                 catch { /* non-JSON body — fall through to generic message */ }
 
-                _errorMessage = errorCode switch
+                switch (errorCode)
                 {
-                    Constants.ShareErrorCodes.Expired => ShareLoc["LinkExpired"].Value,
-                    Constants.ShareErrorCodes.Revoked => ShareLoc["LinkRevoked"].Value,
-                    _ when response.StatusCode == System.Net.HttpStatusCode.NotFound => ShareLoc["InvalidOrRemoved"].Value,
-                    _ => ShareLoc["ErrorLoading"].Value
-                };
+                    case Constants.ShareErrorCodes.Expired:
+                        SetError(ShareLoc["LinkExpired"].Value, ShareLoc["LinkExpiredDesc"].Value, Icons.Material.Filled.TimerOff);
+                        break;
+                    case Constants.ShareErrorCodes.Revoked:
+                        SetError(ShareLoc["LinkRevoked"].Value, ShareLoc["LinkRevokedDesc"].Value, Icons.Material.Filled.LinkOff);
+                        break;
+                    default:
+                        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                            SetError(ShareLoc["InvalidOrRemoved"].Value, ShareLoc["InvalidOrRemovedDesc"].Value, Icons.Material.Filled.LinkOff);
+                        else
+                            SetError(ShareLoc["ErrorLoading"].Value, ShareLoc["ErrorLoadingDesc"].Value, Icons.Material.Filled.ErrorOutline);
+                        break;
+                }
                 _isLoading = false;
                 return;
             }
@@ -400,7 +414,7 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = ShareLoc["FailedToLoad"].Value;
+            SetError(ShareLoc["FailedToLoad"].Value, ShareLoc["ErrorLoadingDesc"].Value, Icons.Material.Filled.CloudOff);
             Logger.LogError(ex, "Error loading shared content for token {Token}", Token);
         }
         finally
@@ -561,7 +575,7 @@
 
                 if (result?.Success != true)
                 {
-                    _errorMessage = result?.Error ?? CommonLoc["Msg_DownloadFailed"].Value;
+                    Snackbar.Add(result?.Error ?? CommonLoc["Msg_DownloadFailed"].Value, Severity.Error);
                 }
             }
         }
@@ -572,7 +586,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Download-all failed for share token");
-            _errorMessage = CommonLoc["Msg_DownloadFailed"].Value;
+            Snackbar.Add(CommonLoc["Msg_DownloadFailed"].Value, Severity.Error);
         }
         finally
         {

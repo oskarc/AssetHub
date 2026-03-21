@@ -413,4 +413,7 @@ else
 
     public List<AssetResponseDto> GetSelectedAssets() =>
         _assets.Where(a => SelectedAssetIds.Contains(a.Id)).ToList();
+
+    public List<Guid> GetAllAssetIds() =>
+        _assets.Select(a => a.Id).ToList();
 }

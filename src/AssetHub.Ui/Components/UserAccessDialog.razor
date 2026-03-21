@@ -18,7 +18,11 @@
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3">
+        <MudStack Spacing="3" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @AdminLoc["UserAccessDetailsDesc"]
+            </MudText>
+
             <!-- User Info Header -->
             <MudPaper Class="pa-3" Elevation="0" Outlined="true">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -106,12 +110,19 @@
 
     private async Task RevokeAccess(UserCollectionAccessDto collection)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            CommonLoc["Confirm_Revoke"],
-            string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName),
-            yesText: CommonLoc["Btn_Revoke"], cancelText: CommonLoc["Btn_Cancel"]);
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, CommonLoc["Confirm_Revoke"] },
+            { x => x.Message, string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName) },
+            { x => x.TitleIcon, Icons.Material.Filled.RemoveCircle },
+            { x => x.IconColor, Color.Warning },
+            { x => x.ConfirmText, CommonLoc["Btn_Revoke"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, parameters);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirmed != true)
+        if (confirmResult == null || confirmResult.Canceled)
             return;
 
         _isRevoking = true;

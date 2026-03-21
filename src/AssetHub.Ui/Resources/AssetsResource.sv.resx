@@ -52,6 +52,7 @@
   <data name="EditDetails" xml:space="preserve"><value>Redigera detaljer</value></data>
   <data name="EditAsset" xml:space="preserve"><value>Redigera tillgång</value></data>
   <data name="EditAssetDetails" xml:space="preserve"><value>Redigera tillgångsdetaljer</value></data>
+  <data name="EditAssetDetailsDesc" xml:space="preserve"><value>Uppdatera titel, beskrivning, taggar och metadata för denna tillgång.</value></data>
   <data name="AddToCollection" xml:space="preserve"><value>Lägg till i samling</value></data>
   <data name="RemoveFromCollection" xml:space="preserve"><value>Ta bort från samling</value></data>
   <data name="ConfirmRemoveFromCollection" xml:space="preserve"><value>Ta bort denna tillgång från '{0}'?</value></data>
@@ -111,6 +112,7 @@
   <data name="CancelAssetSelection" xml:space="preserve"><value>Avbryt val</value></data>
   <data name="BulkAssetActionsBtn" xml:space="preserve"><value>Massåtgärder ({0})</value></data>
   <data name="BulkAssetActions" xml:space="preserve"><value>Massåtgärder för tillgångar</value></data>
+  <data name="BulkAssetActionsDesc" xml:space="preserve"><value>Granska och bekräfta borttagning av {0} valda tillgång(ar).</value></data>
   <data name="BulkAssetSelectedCount" xml:space="preserve"><value>{0} tillgång(ar) valda</value></data>
   <data name="BulkAssetDeleteWarning" xml:space="preserve"><value>Du håller på att ta bort flera tillgångar. Denna åtgärd kan vara oåterkallelig.</value></data>
   <data name="BulkAssetPermanentDeleteSwitch" xml:space="preserve"><value>Ta bort tillgångar permanent (inte bara från samling)</value></data>

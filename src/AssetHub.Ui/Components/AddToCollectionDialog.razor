@@ -8,10 +8,14 @@
 @inject IStringLocalizer<AssetsResource> AssetLoc
 
 <MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@AssetLoc["SelectCollectionToAdd"]</MudText>
+        </MudStack>
+    </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3">
-            <MudText Typo="Typo.body1">@AssetLoc["SelectCollectionToAdd"]</MudText>
-            
+        <MudStack Spacing="3" Class="dialog-min-width">
             @if (_isLoading)
             {
                 <MudStack AlignItems="AlignItems.Center" Class="py-4">
@@ -26,10 +30,11 @@
             }
             else
             {
-                <MudSelect T="Guid?" 
+                <MudSelect T="Guid?"
                            @bind-Value="_selectedCollectionId"
                            Label="@CommonLoc["Label_Collection"].Value"
                            Variant="Variant.Outlined"
+                           AutoFocus="true"
                            AnchorOrigin="Origin.BottomLeft"
                            TransformOrigin="Origin.TopLeft"
                            FullWidth="true">

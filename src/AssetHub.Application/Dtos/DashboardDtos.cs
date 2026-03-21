@@ -33,7 +33,13 @@ public class DashboardStatsDto
     public long TotalStorageBytes { get; set; }
     public int TotalCollections { get; set; }
     public int TotalUsers { get; set; }
+    public int ViewerCount { get; set; }
+    public int ContributorCount { get; set; }
+    public int ManagerCount { get; set; }
+    public int AdminCount { get; set; }
     public int ActiveShares { get; set; }
+    public int ExpiredShares { get; set; }
+    public int RevokedShares { get; set; }
     public int TotalShares { get; set; }
     public int TotalAuditEvents { get; set; }
     public List<StorageByTypeDto> StorageByType { get; set; } = [];

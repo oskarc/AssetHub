@@ -84,11 +84,15 @@
   <data name="Btn_Generate" xml:space="preserve"><value>Generate</value></data>
   <data name="Btn_CopyPassword" xml:space="preserve"><value>Copy Password</value></data>
   <data name="Btn_CopyAll" xml:space="preserve"><value>Copy All</value></data>
+  <data name="Btn_SelectAll" xml:space="preserve"><value>Select All</value></data>
+  <data name="Btn_DeselectAll" xml:space="preserve"><value>Deselect All</value></data>
 
   <!-- Common Labels -->
   <data name="Label_Type" xml:space="preserve"><value>Type</value></data>
   <data name="Label_Role" xml:space="preserve"><value>Role</value></data>
+  <data name="Label_RoleAndAccess" xml:space="preserve"><value>Role &amp; Access</value></data>
   <data name="Label_Actions" xml:space="preserve"><value>Actions</value></data>
+  <data name="Label_BasicInfo" xml:space="preserve"><value>Basic Information</value></data>
   <data name="Label_Status" xml:space="preserve"><value>Status</value></data>
   <data name="AssetStatus_Ready" xml:space="preserve"><value>Ready</value></data>
   <data name="AssetStatus_Processing" xml:space="preserve"><value>Processing</value></data>
@@ -184,6 +188,9 @@
   <data name="Text_Fields" xml:space="preserve"><value>fields</value></data>
   <data name="Text_EmptyFields" xml:space="preserve"><value>Empty fields</value></data>
   <data name="Text_AddCustomField" xml:space="preserve"><value>Add custom field</value></data>
+  <data name="Text_EnterValue" xml:space="preserve"><value>Enter value...</value></data>
+  <data name="Btn_ShowEmptyFields" xml:space="preserve"><value>Show {0} empty fields</value></data>
+  <data name="Btn_HideEmptyFields" xml:space="preserve"><value>Hide empty fields</value></data>
   <data name="Text_SHA256" xml:space="preserve"><value>SHA256</value></data>
   <data name="Text_CountAssetsHeader" xml:space="preserve"><value>Assets</value></data>
 
@@ -305,14 +312,20 @@
   <data name="Dashboard_TotalCollections" xml:space="preserve"><value>Collections</value></data>
   <data name="Dashboard_TotalUsers" xml:space="preserve"><value>Users</value></data>
   <data name="Dashboard_SharesActive" xml:space="preserve"><value>Active / Total Shares</value></data>
+  <data name="Dashboard_TotalShares" xml:space="preserve"><value>Shares</value></data>
+  <data name="Dashboard_Active" xml:space="preserve"><value>active</value></data>
+  <data name="Dashboard_Expired" xml:space="preserve"><value>expired</value></data>
+  <data name="Dashboard_Revoked" xml:space="preserve"><value>revoked</value></data>
   <data name="Dashboard_AuditEvents" xml:space="preserve"><value>Audit Events</value></data>
   <data name="Dashboard_StorageByType" xml:space="preserve"><value>Storage by Asset Type</value></data>
+  <data name="Dashboard_Assets" xml:space="preserve"><value>assets</value></data>
   <data name="Dashboard_NoRecentAssets" xml:space="preserve"><value>No recent assets</value></data>
   <data name="Dashboard_AddedBy" xml:space="preserve"><value>By {0}</value></data>
   <data name="Dashboard_Updated" xml:space="preserve"><value>Updated</value></data>
   <data name="Dashboard_NoCollections" xml:space="preserve"><value>No collections available</value></data>
   <data name="Dashboard_NoShares" xml:space="preserve"><value>No active shares</value></data>
   <data name="Dashboard_NoActivity" xml:space="preserve"><value>No recent activity</value></data>
+  <data name="Dashboard_UnknownUser" xml:space="preserve"><value>Unknown</value></data>
   <data name="Dashboard_ViewAll" xml:space="preserve"><value>View All</value></data>
   <data name="Dashboard_Accesses" xml:space="preserve"><value>{0} accesses</value></data>
   <data name="Dashboard_ShareExpired" xml:space="preserve"><value>Expired</value></data>
@@ -371,4 +384,9 @@
   <data name="Aria_AccountMenu" xml:space="preserve"><value>Account menu</value></data>
   <data name="Aria_ToggleDarkMode" xml:space="preserve"><value>Toggle dark mode</value></data>
   <data name="Aria_MainNavigation" xml:space="preserve"><value>Main navigation</value></data>
+  <data name="Aria_GridView" xml:space="preserve"><value>Grid view</value></data>
+  <data name="Aria_ListView" xml:space="preserve"><value>List view</value></data>
+  <data name="Aria_SelectItem" xml:space="preserve"><value>Select item</value></data>
+  <data name="Aria_SelectAll" xml:space="preserve"><value>Select all</value></data>
+  <data name="Aria_DeselectAll" xml:space="preserve"><value>Deselect all</value></data>
 </root>

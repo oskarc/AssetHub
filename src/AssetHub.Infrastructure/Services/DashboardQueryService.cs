@@ -159,11 +159,21 @@ public class DashboardQueryService : IDashboardQueryService
         var totalShares = await _db.Shares.CountAsync(ct);
         var activeShares = await _db.Shares
             .CountAsync(s => s.RevokedAt == null && s.ExpiresAt > DateTime.UtcNow, ct);
-        var totalUsers = await _db.CollectionAcls
+        var expiredShares = await _db.Shares
+            .CountAsync(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow, ct);
+        var revokedShares = await _db.Shares
+            .CountAsync(s => s.RevokedAt != null, ct);
+        // User role breakdown: group non-admin users by their highest ACL role
+        // System admins don't have ACLs — they are counted separately via Keycloak
+        var userHighestRoles = await _db.CollectionAcls
             .Where(a => a.PrincipalType == PrincipalType.User)
-            .Select(a => a.PrincipalId)
-            .Distinct()
-            .CountAsync(ct);
+            .GroupBy(a => a.PrincipalId)
+            .Select(g => g.Max(a => a.Role))
+            .ToListAsync(ct);
+        var totalUsers = userHighestRoles.Count;
+        var viewerCount = userHighestRoles.Count(r => r == AclRole.Viewer);
+        var contributorCount = userHighestRoles.Count(r => r == AclRole.Contributor);
+        var managerCount = userHighestRoles.Count(r => r == AclRole.Manager);
         var totalAuditEvents = await _db.AuditEvents.CountAsync(ct);
 
         return new DashboardStatsDto
@@ -173,7 +183,12 @@ public class DashboardQueryService : IDashboardQueryService
             TotalCollections = totalCollections,
             TotalShares = totalShares,
             ActiveShares = activeShares,
+            ExpiredShares = expiredShares,
+            RevokedShares = revokedShares,
             TotalUsers = totalUsers,
+            ViewerCount = viewerCount,
+            ContributorCount = contributorCount,
+            ManagerCount = managerCount,
             TotalAuditEvents = totalAuditEvents,
             StorageByType = await _db.Assets
                 .Where(a => a.Status == AssetStatus.Ready)

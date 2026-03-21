@@ -19,7 +19,7 @@
 
 @if (_isLoading)
 {
-    <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
             <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
             <MudText Typo="Typo.body1" Class="mt-4">@AssetLoc["LoadingAsset"]</MudText>
@@ -28,7 +28,7 @@
 }
 else if (_asset == null)
 {
-    <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
         <EmptyState Title="@AssetLoc["AssetNotFound"]"
                     Description="@AssetLoc["AssetNotFoundDesc"]"
                     Icon="@Icons.Material.Filled.BrokenImage"
@@ -101,7 +101,7 @@ else
                         <MudStack>
                             <MudText Typo="Typo.h5">@_asset.Title</MudText>
                             <MudStack Row="true" Spacing="1">
-                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_asset.AssetType)">
+                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_asset.AssetType)" Variant="Variant.Outlined">
                                     @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(_asset.AssetType)]
                                 </MudChip>
                                 <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetStatusColor(_asset.Status)">
@@ -156,7 +156,7 @@ else
                             }
                             else
                             {
-                                <MudText Typo="Typo.body2" Class="asset-detail-italic">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Style="font-style: italic;">
                                     @CommonLoc["Text_NotAssignedToCollection"]
                                 </MudText>
                             }
@@ -437,13 +437,19 @@ else
     {
         var message = string.Format(AssetLoc["ConfirmRemoveFromCollection"].Value, collection.Name);
 
-        var confirm = await DialogService.ShowMessageBox(
-            AssetLoc["RemoveFromCollection"],
-            message,
-            yesText: CommonLoc["Btn_Remove"],
-            cancelText: CommonLoc["Btn_Cancel"]);
+        var confirmParams = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, AssetLoc["RemoveFromCollection"] },
+            { x => x.Message, message },
+            { x => x.TitleIcon, Icons.Material.Filled.FolderOff },
+            { x => x.IconColor, Color.Warning },
+            { x => x.ConfirmText, CommonLoc["Btn_Remove"] },
+            { x => x.ConfirmColor, Color.Error }
+        };
+        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
+        var confirmResult = await confirmDialog.Result;
 
-        if (confirm != true) return;
+        if (confirmResult == null || confirmResult.Canceled) return;
 
         try
         {

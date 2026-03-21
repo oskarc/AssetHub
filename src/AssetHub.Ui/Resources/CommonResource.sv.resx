@@ -81,11 +81,15 @@
   <data name="Btn_Generate" xml:space="preserve"><value>Generera</value></data>
   <data name="Btn_CopyPassword" xml:space="preserve"><value>Kopiera lösenord</value></data>
   <data name="Btn_CopyAll" xml:space="preserve"><value>Kopiera allt</value></data>
+  <data name="Btn_SelectAll" xml:space="preserve"><value>Markera alla</value></data>
+  <data name="Btn_DeselectAll" xml:space="preserve"><value>Avmarkera alla</value></data>
 
   <!-- Common Labels -->
   <data name="Label_Type" xml:space="preserve"><value>Typ</value></data>
   <data name="Label_Role" xml:space="preserve"><value>Roll</value></data>
+  <data name="Label_RoleAndAccess" xml:space="preserve"><value>Roll &amp; åtkomst</value></data>
   <data name="Label_Actions" xml:space="preserve"><value>Åtgärder</value></data>
+  <data name="Label_BasicInfo" xml:space="preserve"><value>Grundläggande information</value></data>
   <data name="Label_Status" xml:space="preserve"><value>Status</value></data>
   <data name="AssetStatus_Ready" xml:space="preserve"><value>Klar</value></data>
   <data name="AssetStatus_Processing" xml:space="preserve"><value>Bearbetar</value></data>
@@ -181,6 +185,9 @@
   <data name="Text_Fields" xml:space="preserve"><value>fält</value></data>
   <data name="Text_EmptyFields" xml:space="preserve"><value>Tomma fält</value></data>
   <data name="Text_AddCustomField" xml:space="preserve"><value>Lägg till eget fält</value></data>
+  <data name="Text_EnterValue" xml:space="preserve"><value>Ange värde...</value></data>
+  <data name="Btn_ShowEmptyFields" xml:space="preserve"><value>Visa {0} tomma fält</value></data>
+  <data name="Btn_HideEmptyFields" xml:space="preserve"><value>Dölj tomma fält</value></data>
   <data name="Text_SHA256" xml:space="preserve"><value>SHA256</value></data>
   <data name="Text_CountAssetsHeader" xml:space="preserve"><value>Tillgångar</value></data>
 
@@ -302,14 +309,20 @@
   <data name="Dashboard_TotalCollections" xml:space="preserve"><value>Samlingar</value></data>
   <data name="Dashboard_TotalUsers" xml:space="preserve"><value>Användare</value></data>
   <data name="Dashboard_SharesActive" xml:space="preserve"><value>Aktiva / Totala delningar</value></data>
+  <data name="Dashboard_TotalShares" xml:space="preserve"><value>Delningar</value></data>
+  <data name="Dashboard_Active" xml:space="preserve"><value>aktiva</value></data>
+  <data name="Dashboard_Expired" xml:space="preserve"><value>utgångna</value></data>
+  <data name="Dashboard_Revoked" xml:space="preserve"><value>återkallade</value></data>
   <data name="Dashboard_AuditEvents" xml:space="preserve"><value>Granskningshändelser</value></data>
   <data name="Dashboard_StorageByType" xml:space="preserve"><value>Lagring per tillgångstyp</value></data>
+  <data name="Dashboard_Assets" xml:space="preserve"><value>tillgångar</value></data>
   <data name="Dashboard_NoRecentAssets" xml:space="preserve"><value>Inga senaste tillgångar</value></data>
   <data name="Dashboard_AddedBy" xml:space="preserve"><value>Av {0}</value></data>
   <data name="Dashboard_Updated" xml:space="preserve"><value>Uppdaterad</value></data>
   <data name="Dashboard_NoCollections" xml:space="preserve"><value>Inga samlingar tillgängliga</value></data>
   <data name="Dashboard_NoShares" xml:space="preserve"><value>Inga aktiva delningar</value></data>
   <data name="Dashboard_NoActivity" xml:space="preserve"><value>Ingen senaste aktivitet</value></data>
+  <data name="Dashboard_UnknownUser" xml:space="preserve"><value>Okänd</value></data>
   <data name="Dashboard_ViewAll" xml:space="preserve"><value>Visa alla</value></data>
   <data name="Dashboard_Accesses" xml:space="preserve"><value>{0} åtkomster</value></data>
   <data name="Dashboard_ShareExpired" xml:space="preserve"><value>Utgången</value></data>
@@ -367,4 +380,9 @@
   <data name="Aria_AccountMenu" xml:space="preserve"><value>Kontomeny</value></data>
   <data name="Aria_ToggleDarkMode" xml:space="preserve"><value>Växla mörkt läge</value></data>
   <data name="Aria_MainNavigation" xml:space="preserve"><value>Huvudnavigering</value></data>
+  <data name="Aria_GridView" xml:space="preserve"><value>Rutnätsvy</value></data>
+  <data name="Aria_ListView" xml:space="preserve"><value>Listvy</value></data>
+  <data name="Aria_SelectItem" xml:space="preserve"><value>Välj objekt</value></data>
+  <data name="Aria_SelectAll" xml:space="preserve"><value>Markera alla</value></data>
+  <data name="Aria_DeselectAll" xml:space="preserve"><value>Avmarkera alla</value></data>
 </root>

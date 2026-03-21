@@ -42,6 +42,10 @@
   <data name="UnableToAccess" xml:space="preserve"><value>Unable to access shared content.</value></data>
   <data name="ErrorLoading" xml:space="preserve"><value>An error occurred while loading the shared content.</value></data>
   <data name="FailedToLoad" xml:space="preserve"><value>Failed to load shared content. Please try again later.</value></data>
+  <data name="LinkExpiredDesc" xml:space="preserve"><value>Please contact the person who shared this link to request a new one.</value></data>
+  <data name="LinkRevokedDesc" xml:space="preserve"><value>The owner has revoked access to this shared content.</value></data>
+  <data name="InvalidOrRemovedDesc" xml:space="preserve"><value>Please check the URL or contact the person who shared this link.</value></data>
+  <data name="ErrorLoadingDesc" xml:space="preserve"><value>Please try again later or contact the person who shared this link.</value></data>
   <data name="NoAssetsInCollection" xml:space="preserve"><value>No assets in this collection</value></data>
   <data name="EmptyCollectionDesc" xml:space="preserve"><value>This shared collection doesn't contain any assets.</value></data>
 
@@ -80,5 +84,6 @@
   <data name="SetOrChangePassword" xml:space="preserve"><value>Set or Change Password</value></data>
   <data name="ShareInfoCopyHint" xml:space="preserve"><value>Copy the URL and password before closing this dialog.</value></data>
   <data name="PasswordSetButHidden" xml:space="preserve"><value>Password exists but cannot be retrieved (legacy share). Click below to set a new one.</value></data>
+  <data name="NoPasswordSet" xml:space="preserve"><value>No password has been set for this share link.</value></data>
   <data name="CurrentPasswordNotAvailable" xml:space="preserve"><value>The current password cannot be retrieved (created before password storage was enabled). Set a new password to continue.</value></data>
 </root>

@@ -77,7 +77,6 @@ public class CreateShareDialogTests : BunitTestBase
     {
         var cut = await RenderDialogAsync();
 
-        Assert.Contains("Expiration", cut.Markup);
         Assert.Contains("ExpiresIn", cut.Markup);
     }
 

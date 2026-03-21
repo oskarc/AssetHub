@@ -30,7 +30,7 @@
 }
 
 .asset-thumbnail {
-    background-color: #f5f5f5;
+    background-color: var(--mud-palette-background-grey);
     object-fit: cover;
 }
 
@@ -66,10 +66,6 @@
 
 .clickable {
     cursor: pointer;
-}
-
-.text-muted {
-    opacity: 0.6;
 }
 
 .text-secondary {
@@ -137,7 +133,7 @@
 
 /* Dialog Layouts */
 .dialog-min-width {
-    min-width: 500px;
+    min-width: min(500px, 90vw);
 }
 
 .dialog-flex-fill {
@@ -225,10 +221,6 @@
 }
 
 /* Empty State */
-.empty-state-opacity {
-    opacity: 0.5;
-}
-
 .empty-state-max-width {
     max-width: 400px;
 }
@@ -238,12 +230,29 @@
     height: 80vh;
 }
 
-/* Asset Detail */
-.asset-detail-italic {
-    opacity: 0.6;
-    font-style: italic;
+/* Text Truncation Variants */
+.text-truncate-120 {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
+.text-truncate-180 {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.text-truncate-200 {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Asset Detail */
 .asset-detail-truncate {
     max-width: 200px;
     overflow: hidden;
@@ -260,9 +269,3 @@
     text-transform: none;
 }
 
-.admin-tree-item-depth-0 { padding-left: 12px; }
-.admin-tree-item-depth-1 { padding-left: 36px; }
-.admin-tree-item-depth-2 { padding-left: 60px; }
-.admin-tree-item-depth-3 { padding-left: 84px; }
-.admin-tree-item-depth-4 { padding-left: 108px; }
-.admin-tree-item-depth-5 { padding-left: 132px; }

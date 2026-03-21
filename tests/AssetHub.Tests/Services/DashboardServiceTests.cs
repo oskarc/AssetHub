@@ -45,10 +45,13 @@ public class DashboardServiceTests : IAsyncLifetime
             .ReturnsAsync(userNames ?? new Dictionary<string, string>());
 
         var queryService = new DashboardQueryService(_db, userLookupMock.Object);
+        var keycloakMock = new Mock<IKeycloakUserService>();
+        keycloakMock.Setup(m => m.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<string>());
 
         return new DashboardService(
             queryService, collectionRepo, authService, assetRepo,
-            userLookupMock.Object, currentUser);
+            userLookupMock.Object, keycloakMock.Object, currentUser);
     }
 
     public async Task DisposeAsync()

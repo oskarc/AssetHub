@@ -32,7 +32,7 @@ public class BulkAssetActionsDialogTests : BunitTestBase
         var cut = await RenderDialogAsync(assets);
 
         Assert.Contains("BulkAssetActions", cut.Markup);
-        Assert.Contains("BulkAssetSelectedCount", cut.Markup);
+        Assert.Contains("BulkAssetActionsDesc", cut.Markup);
     }
 
     [Fact]
@@ -75,11 +75,11 @@ public class BulkAssetActionsDialogTests : BunitTestBase
     }
 
     [Fact]
-    public async Task Shows_Warning_Alert()
+    public async Task Shows_Delete_Options()
     {
         var cut = await RenderDialogAsync();
 
-        Assert.Contains("BulkAssetDeleteWarning", cut.Markup);
+        Assert.Contains("BulkAssetPermanentDeleteOff", cut.Markup);
     }
 
     [Fact]

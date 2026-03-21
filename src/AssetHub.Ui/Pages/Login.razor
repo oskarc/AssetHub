@@ -24,7 +24,7 @@
                 @CommonLoc["AppSubtitle"]
             </MudText>
 
-            <MudDivider Class="my-4 login-button" FlexItem="true" />
+            <MudDivider Class="my-4" FlexItem="true" />
 
             <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">
                 @CommonLoc["Text_SignInDescription"]
@@ -43,10 +43,7 @@
                 @CommonLoc["Text_RedirectIdentityProvider"]
             </MudText>
 
-            <MudLink Typo="Typo.body2" Color="Color.Primary" OnClick="SignIn" Class="mt-2 cursor-pointer">
-                @CommonLoc["Btn_ForgotPassword"]
-            </MudLink>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-2">
                 @CommonLoc["Text_ForgotPasswordHint"]
             </MudText>
         </MudStack>
