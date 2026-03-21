@@ -12,3 +12,4 @@ public class AssetsResource { }
 public class CollectionsResource { }
 public class AdminResource { }
 public class SharesResource { }
+public class LogAnalysisResource { }

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Page -->
+  <data name="Page_Title" xml:space="preserve"><value>Log Analysis</value></data>
+  <data name="Page_Subtitle" xml:space="preserve"><value>Upload a log file to analyze error frequencies and trends</value></data>
+
+  <!-- Upload area -->
+  <data name="Upload_DropZoneHint" xml:space="preserve"><value>Drop a log file here or click to browse</value></data>
+  <data name="Upload_SupportedFormats" xml:space="preserve"><value>Supported formats: .log, .txt, .ndjson, .jsonl — max 50 MB</value></data>
+  <data name="Upload_Btn_Analyze" xml:space="preserve"><value>Analyze</value></data>
+  <data name="Upload_Btn_Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="Upload_Error_NoFile" xml:space="preserve"><value>Please select a file to analyze.</value></data>
+  <data name="Upload_Error_InvalidType" xml:space="preserve"><value>File type not supported. Allowed: .log, .txt, .ndjson, .jsonl</value></data>
+  <data name="Upload_Analyzing" xml:space="preserve"><value>Analyzing…</value></data>
+
+  <!-- Results: summary -->
+  <data name="Results_Title" xml:space="preserve"><value>Analysis Results</value></data>
+  <data name="Results_File" xml:space="preserve"><value>File</value></data>
+  <data name="Results_Format" xml:space="preserve"><value>Detected Format</value></data>
+  <data name="Results_TotalLines" xml:space="preserve"><value>Total Lines</value></data>
+  <data name="Results_TimeRange" xml:space="preserve"><value>Time Range</value></data>
+  <data name="Results_TimeRange_None" xml:space="preserve"><value>No timestamps detected</value></data>
+
+  <!-- Results: level breakdown -->
+  <data name="Results_LevelBreakdown_Title" xml:space="preserve"><value>Log Level Breakdown</value></data>
+  <data name="Results_Level_ERROR" xml:space="preserve"><value>Errors</value></data>
+  <data name="Results_Level_WARN" xml:space="preserve"><value>Warnings</value></data>
+  <data name="Results_Level_INFO" xml:space="preserve"><value>Info</value></data>
+  <data name="Results_Level_DEBUG" xml:space="preserve"><value>Debug</value></data>
+  <data name="Results_Level_UNKNOWN" xml:space="preserve"><value>Unknown</value></data>
+
+  <!-- Results: top messages -->
+  <data name="Results_TopMessages_Title" xml:space="preserve"><value>Most Frequent Error &amp; Warning Messages</value></data>
+  <data name="Results_TopMessages_Empty" xml:space="preserve"><value>No error or warning messages found.</value></data>
+  <data name="Results_TopMessages_Col_Count" xml:space="preserve"><value>Count</value></data>
+  <data name="Results_TopMessages_Col_Level" xml:space="preserve"><value>Level</value></data>
+  <data name="Results_TopMessages_Col_Message" xml:space="preserve"><value>Message</value></data>
+
+  <!-- Results: trend chart -->
+  <data name="Results_Trend_Title" xml:space="preserve"><value>Log Volume Trend</value></data>
+  <data name="Results_Trend_NoData" xml:space="preserve"><value>No timestamp data available for trend chart.</value></data>
+  <data name="Results_Trend_Granularity_minute" xml:space="preserve"><value>per minute</value></data>
+  <data name="Results_Trend_Granularity_hour" xml:space="preserve"><value>per hour</value></data>
+  <data name="Results_Trend_Granularity_day" xml:space="preserve"><value>per day</value></data>
+</root>

@@ -731,6 +731,26 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Log Analysis
+
+    /// <summary>
+    /// Uploads a log file and returns the analysis result.
+    /// </summary>
+    public virtual async Task<LogAnalysisResult> AnalyzeLogFileAsync(
+        Stream fileStream, string fileName, CancellationToken ct = default)
+    {
+        using var content = new MultipartFormDataContent();
+        using var streamContent = new StreamContent(fileStream);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain");
+        content.Add(streamContent, "file", fileName);
+
+        var response = await _http.PostAsync("/api/v1/log-analysis/analyze", content, ct);
+        await EnsureSuccessAsync(response, "Analyze log file");
+        return await ReadRequiredJsonAsync<LogAnalysisResult>(response, "Analyze log file");
+    }
+
+    #endregion
 }
 
 /// <summary>

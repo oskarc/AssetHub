@@ -167,6 +167,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthenticatedShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
         services.AddScoped<IDashboardQueryService, DashboardQueryService>();
         services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<ILogAnalysisService, LogAnalysisService>();
 
         // ── Keycloak Admin API HttpClient ───────────────────────────────────
         // HttpClient.Timeout is disabled (Infinite) because Polly manages both

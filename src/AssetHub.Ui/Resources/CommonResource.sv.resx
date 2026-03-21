@@ -367,4 +367,7 @@
   <data name="Aria_AccountMenu" xml:space="preserve"><value>Kontomeny</value></data>
   <data name="Aria_ToggleDarkMode" xml:space="preserve"><value>Växla mörkt läge</value></data>
   <data name="Aria_MainNavigation" xml:space="preserve"><value>Huvudnavigering</value></data>
+
+  <!-- Navigation: Log Analysis -->
+  <data name="Nav_LogAnalysis" xml:space="preserve"><value>Logganalys</value></data>
 </root>

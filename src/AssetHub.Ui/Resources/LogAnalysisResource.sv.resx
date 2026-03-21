@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Page -->
+  <data name="Page_Title" xml:space="preserve"><value>Logganalys</value></data>
+  <data name="Page_Subtitle" xml:space="preserve"><value>Ladda upp en loggfil för att analysera felfrekvenser och trender</value></data>
+
+  <!-- Upload area -->
+  <data name="Upload_DropZoneHint" xml:space="preserve"><value>Släpp en loggfil här eller klicka för att bläddra</value></data>
+  <data name="Upload_SupportedFormats" xml:space="preserve"><value>Stödda format: .log, .txt, .ndjson, .jsonl — max 50 MB</value></data>
+  <data name="Upload_Btn_Analyze" xml:space="preserve"><value>Analysera</value></data>
+  <data name="Upload_Btn_Clear" xml:space="preserve"><value>Rensa</value></data>
+  <data name="Upload_Error_NoFile" xml:space="preserve"><value>Välj en fil att analysera.</value></data>
+  <data name="Upload_Error_InvalidType" xml:space="preserve"><value>Filtypen stöds inte. Tillåtna: .log, .txt, .ndjson, .jsonl</value></data>
+  <data name="Upload_Analyzing" xml:space="preserve"><value>Analyserar…</value></data>
+
+  <!-- Results: summary -->
+  <data name="Results_Title" xml:space="preserve"><value>Analysresultat</value></data>
+  <data name="Results_File" xml:space="preserve"><value>Fil</value></data>
+  <data name="Results_Format" xml:space="preserve"><value>Identifierat format</value></data>
+  <data name="Results_TotalLines" xml:space="preserve"><value>Totalt antal rader</value></data>
+  <data name="Results_TimeRange" xml:space="preserve"><value>Tidsintervall</value></data>
+  <data name="Results_TimeRange_None" xml:space="preserve"><value>Inga tidsstämplar hittades</value></data>
+
+  <!-- Results: level breakdown -->
+  <data name="Results_LevelBreakdown_Title" xml:space="preserve"><value>Fördelning per loggnivå</value></data>
+  <data name="Results_Level_ERROR" xml:space="preserve"><value>Fel</value></data>
+  <data name="Results_Level_WARN" xml:space="preserve"><value>Varningar</value></data>
+  <data name="Results_Level_INFO" xml:space="preserve"><value>Info</value></data>
+  <data name="Results_Level_DEBUG" xml:space="preserve"><value>Debug</value></data>
+  <data name="Results_Level_UNKNOWN" xml:space="preserve"><value>Okänd</value></data>
+
+  <!-- Results: top messages -->
+  <data name="Results_TopMessages_Title" xml:space="preserve"><value>Vanligaste fel- och varningsmeddelanden</value></data>
+  <data name="Results_TopMessages_Empty" xml:space="preserve"><value>Inga fel- eller varningsmeddelanden hittades.</value></data>
+  <data name="Results_TopMessages_Col_Count" xml:space="preserve"><value>Antal</value></data>
+  <data name="Results_TopMessages_Col_Level" xml:space="preserve"><value>Nivå</value></data>
+  <data name="Results_TopMessages_Col_Message" xml:space="preserve"><value>Meddelande</value></data>
+
+  <!-- Results: trend chart -->
+  <data name="Results_Trend_Title" xml:space="preserve"><value>Loggvolymtrend</value></data>
+  <data name="Results_Trend_NoData" xml:space="preserve"><value>Ingen tidsstämpelinformation tillgänglig för trenddiagram.</value></data>
+  <data name="Results_Trend_Granularity_minute" xml:space="preserve"><value>per minut</value></data>
+  <data name="Results_Trend_Granularity_hour" xml:space="preserve"><value>per timme</value></data>
+  <data name="Results_Trend_Granularity_day" xml:space="preserve"><value>per dag</value></data>
+</root>

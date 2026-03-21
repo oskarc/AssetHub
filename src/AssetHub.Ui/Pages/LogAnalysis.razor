@@ -1,0 +1,236 @@
+@page "/log-analysis"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>@Loc["Page_Title"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+
+    <MudStack Row="false" Spacing="4">
+
+        @* ── Page header ──────────────────────────────────────────────── *@
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Analytics" Color="Color.Primary" Style="font-size:2rem" />
+            <div>
+                <MudText Typo="Typo.h4">@Loc["Page_Title"]</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@Loc["Page_Subtitle"]</MudText>
+            </div>
+        </MudStack>
+
+        @* ── Upload card ──────────────────────────────────────────────── *@
+        <MudPaper Elevation="0" Outlined="true" Class="pa-4 rounded">
+            <MudStack Spacing="3">
+
+                @* Drop zone *@
+                <MudFileUpload T="IBrowserFile"
+                               FilesChanged="OnFileChanged"
+                               Accept=".log,.txt,.ndjson,.jsonl"
+                               MaximumFileCount="1">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.UploadFile"
+                                   Class="mud-width-full py-6"
+                                   Style="border-style: dashed; min-height: 100px; font-size: 1rem;">
+                            @if (_selectedFile is null)
+                            {
+                                @Loc["Upload_DropZoneHint"]
+                            }
+                            else
+                            {
+                                <span>
+                                    <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Class="mr-1" />
+                                    @_selectedFile.Name
+                                    <MudText Typo="Typo.caption" Class="ml-2">(@FormatFileSize(_selectedFile.Size))</MudText>
+                                </span>
+                            }
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2">
+                    @Loc["Upload_SupportedFormats"]
+                </MudText>
+
+                @if (!string.IsNullOrEmpty(_uploadError))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_uploadError</MudAlert>
+                }
+
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Search"
+                               OnClick="AnalyzeAsync"
+                               Disabled="@(_analyzing || _selectedFile is null)">
+                        @if (_analyzing)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            @Loc["Upload_Analyzing"]
+                        }
+                        else
+                        {
+                            @Loc["Upload_Btn_Analyze"]
+                        }
+                    </MudButton>
+
+                    @if (_result is not null || _selectedFile is not null)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.Clear"
+                                   OnClick="ClearResults">
+                            @Loc["Upload_Btn_Clear"]
+                        </MudButton>
+                    }
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        @* ── Results ──────────────────────────────────────────────────── *@
+        @if (_result is not null)
+        {
+            <MudText Typo="Typo.h5">@Loc["Results_Title"]</MudText>
+
+            @* Summary row *@
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Color="Color.Primary" Class="mb-1" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Results_File"]</MudText>
+                        <MudText Typo="Typo.body2" Class="text-truncate" Style="max-width:160px" title="@_result.FileName">@_result.FileName</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Color="Color.Primary" Class="mb-1" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Results_TotalLines"]</MudText>
+                        <MudText Typo="Typo.h6">@_result.TotalLines.ToString("N0")</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Code" Color="Color.Primary" Class="mb-1" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Results_Format"]</MudText>
+                        <MudText Typo="Typo.h6">@_result.DetectedFormat</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Primary" Class="mb-1" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Results_TimeRange"]</MudText>
+                        @if (_result.EarliestTimestamp.HasValue)
+                        {
+                            <MudText Typo="Typo.body2">@_result.EarliestTimestamp.Value.ToString("yyyy-MM-dd HH:mm")</MudText>
+                            <MudText Typo="Typo.caption">→ @_result.LatestTimestamp!.Value.ToString("yyyy-MM-dd HH:mm")</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@Loc["Results_TimeRange_None"]</MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            @* Level breakdown *@
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4 rounded">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.BarChart" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">@Loc["Results_LevelBreakdown_Title"]</MudText>
+                </MudStack>
+                <MudGrid Spacing="2">
+                    @foreach (var item in GetLevelItems())
+                    {
+                        <MudItem xs="6" sm="4" md="2">
+                            <MudPaper Class="pa-3 d-flex flex-column align-center" Elevation="1"
+                                      Style="@item.BorderStyle">
+                                <MudText Typo="Typo.h5" Style="@item.TextStyle">@item.Count.ToString("N0")</MudText>
+                                <MudText Typo="Typo.caption">@item.Label</MudText>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+
+            @* Trend chart *@
+            @if (_result.TrendData.Count > 0)
+            {
+                <MudPaper Elevation="0" Outlined="true" Class="pa-4 rounded">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.ShowChart" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">
+                            @Loc["Results_Trend_Title"]
+                            <MudText Typo="Typo.caption" Class="ml-2" Color="Color.Secondary" Inline="true">
+                                (@GetTrendGranularityLabel())
+                            </MudText>
+                        </MudText>
+                    </MudStack>
+
+                    @* SVG bar chart — pre-computed to avoid complex @{} blocks inside SVG *@
+                    <div style="overflow-x: auto;">
+                        @((MarkupString)BuildTrendSvg())
+                    </div>
+
+                    @* Legend *@
+                    <MudStack Row="true" Spacing="3" Class="mt-2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <div style="width:12px;height:12px;background:#f44336;border-radius:2px"></div>
+                            <MudText Typo="Typo.caption">@Loc["Results_Level_ERROR"]</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <div style="width:12px;height:12px;background:#ff9800;border-radius:2px"></div>
+                            <MudText Typo="Typo.caption">@Loc["Results_Level_WARN"]</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <div style="width:12px;height:12px;background:#4caf50;border-radius:2px"></div>
+                            <MudText Typo="Typo.caption">@Loc["Results_Level_INFO"]</MudText>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">@Loc["Results_Trend_NoData"]</MudAlert>
+            }
+
+            @* Top messages table *@
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4 rounded">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" />
+                    <MudText Typo="Typo.h6">@Loc["Results_TopMessages_Title"]</MudText>
+                </MudStack>
+
+                @if (_result.TopMessages.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true">@Loc["Results_TopMessages_Empty"]</MudAlert>
+                }
+                else
+                {
+                    <MudDataGrid T="LogEntryFrequency" Items="@_result.TopMessages"
+                                 Dense="true" Striped="true"
+                                 SortMode="SortMode.Single">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Count" Title="@Loc["Results_TopMessages_Col_Count"]"
+                                            InitialDirection="SortDirection.Descending" />
+                            <TemplateColumn Title="@Loc["Results_TopMessages_Col_Level"]">
+                                <CellTemplate>
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@GetLevelChipColor(context.Item.Level)"
+                                             Variant="Variant.Filled">
+                                        @context.Item.Level
+                                    </MudChip>
+                                </CellTemplate>
+                            </TemplateColumn>
+                            <PropertyColumn Property="x => x.Message" Title="@Loc["Results_TopMessages_Col_Message"]" />
+                        </Columns>
+                    </MudDataGrid>
+                }
+            </MudPaper>
+        }
+
+    </MudStack>
+</MudContainer>
+

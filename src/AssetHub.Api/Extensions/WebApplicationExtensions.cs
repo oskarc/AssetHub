@@ -265,6 +265,7 @@ public static class WebApplicationExtensions
         app.MapShareEndpoints();
         app.MapAdminEndpoints();
         app.MapZipDownloadEndpoints();
+        app.MapLogAnalysisEndpoints();
 
         // Blazor
         app.MapRazorComponents<App>()
