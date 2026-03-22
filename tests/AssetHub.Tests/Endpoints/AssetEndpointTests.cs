@@ -5,6 +5,7 @@ using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -31,7 +32,7 @@ public class AssetEndpointTests : IAsyncLifetime
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AssetHubDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => Task.CompletedTask;

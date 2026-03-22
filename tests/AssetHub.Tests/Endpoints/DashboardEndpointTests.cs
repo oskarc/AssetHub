@@ -4,6 +4,7 @@ using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Tests.Fixtures;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AssetHub.Tests.Endpoints;
@@ -22,7 +23,7 @@ public class DashboardEndpointTests : IAsyncLifetime
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AssetHubDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
