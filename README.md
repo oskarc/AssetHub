@@ -203,11 +203,11 @@ Included reverse proxy configurations (Caddy and Nginx), backup/restore scripts,
 
 | Layer | Framework | Coverage |
 |-------|-----------|----------|
-| **Backend** (unit + integration) | xUnit, Testcontainers, Moq | 29 test files — repositories, endpoints, services, edge cases |
-| **Components** (Blazor) | bUnit | 18 test files — dialogs, grids, helpers |
+| **Backend** (unit + integration) | xUnit, Testcontainers, Moq | 33 test files — repositories, endpoints, services, edge cases |
+| **Components** (Blazor) | bUnit | 20 test files — dialogs, grids, helpers |
 | **E2E** (browser) | Playwright (TypeScript) | 15 spec files — auth, CRUD, shares, admin, accessibility (Chromium, Firefox, WebKit, mobile) |
 
-700+ .NET test methods across 53 files + 15 E2E spec files (x4 browsers). See **[DEPLOYMENT.md](docs/DEPLOYMENT.md#testing)** for commands and details.
+700+ .NET test methods across 53 test files + 15 E2E spec files (x4 browsers). See **[DEPLOYMENT.md](docs/DEPLOYMENT.md#testing)** for commands and details.
 
 ---
 

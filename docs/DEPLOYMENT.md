@@ -411,7 +411,7 @@ Two test strategies in one project:
 - **Integration tests** (repositories, endpoints, edge cases) — run against **real PostgreSQL** via Testcontainers and use `WebApplicationFactory<Program>` for full API stack testing with a custom auth handler
 - **Unit tests** (services, helpers) — use Moq to isolate service logic from infrastructure
 
-Coverage across 29 test files:
+Coverage across 33 test files:
 
 | Category | Files | What's Tested |
 |----------|-------|---------------|
@@ -427,8 +427,8 @@ Coverage across 29 test files:
 dotnet test tests/AssetHub.Ui.Tests/
 ```
 
-18 test files covering:
-- **bUnit component tests** (15 files) — AssetGrid, AssetUpload, CollectionTree, CreateShareDialog, EditAssetDialog, ManageAccessDialog, AddToCollectionDialog, CreateCollectionDialog, LanguageSwitcher, EmptyState, BulkAssetActionsDialog, BulkCollectionActionsDialog, CreateUserDialog, DeleteAssetDialog, ShareInfoDialog, SharePasswordDialog
+20 test files covering:
+- **bUnit component tests** (17 files) — AssetGrid, AssetUpload, CollectionTree, CreateShareDialog, EditAssetDialog, ManageAccessDialog, AddToCollectionDialog, CreateCollectionDialog, LanguageSwitcher, EmptyState, BulkAssetActionsDialog, BulkCollectionActionsDialog, CreateUserDialog, DeleteAssetDialog, ShareInfoDialog, SharePasswordDialog, and more
 - **Unit tests** (3 files) — AssetDisplayHelpers, RolePermissions, UserFeedbackService
 
 ### E2E Tests (Playwright)
@@ -472,7 +472,7 @@ npm run test:ui       # Playwright UI mode
 - Place Blazor component tests in `tests/AssetHub.Ui.Tests/`
 - Place E2E tests in `tests/E2E/tests/specs/`
 - All new features should include appropriate test coverage
-- Total: 700+ .NET test methods across 53 files + 15 E2E spec files (x4 browsers)
+- Total: 700+ .NET test methods across 53 test files + 15 E2E spec files (x4 browsers)
 
 ---
 

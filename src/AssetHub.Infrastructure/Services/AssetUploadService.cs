@@ -233,9 +233,9 @@ public sealed class AssetUploadService : IAssetUploadService
         if (!scanResult.ScanCompleted)
         {
             _logger.LogError("Malware scan failed for upload {FileName}: {Error}", asset.Title, scanResult.ErrorMessage);
-            // Don't block upload on scanner failure, but log it
+            return ServiceError.Server("File scanning failed. Please try again later.");
         }
-        else if (scanResult.IsClean == false)
+        if (scanResult.IsClean == false)
         {
             _logger.LogWarning("Malware detected in upload {AssetId}/{FileName}: {ThreatName}",
                 asset.Id, asset.Title, scanResult.ThreatName);

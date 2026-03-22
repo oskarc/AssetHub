@@ -40,7 +40,7 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 ┌─────────────▼────────────────────────────────────▼──────────────────────────┐
 │  APPLICATION LAYER  (AssetHub.Application)                                  │
 │                                                                             │
-│  Service interfaces (26 interfaces):                                        │
+│  Service interfaces (27 interfaces):                                        │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
 │  │ Assets       │ │ Collections  │ │ Shares       │ │ Users                ││
 │  │ Query,Upload │ │ CRUD, ACL,   │ │ Public,Auth, │ │ Admin, Lookup,       ││
@@ -253,7 +253,7 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 
 | Entity | PostgreSQL-Specific Features | Notes |
 |--------|----------------------------|-------|
-| `Assets` | `Tags` (jsonb), `MetadataJson` (jsonb) | Custom ValueComparers for change tracking on JSON columns |
+| `Assets` | `Tags` (text[]), `MetadataJson` (jsonb) | GIN index on Tags for array containment queries; custom ValueComparers for change tracking on JSON columns |
 | `Collections` | — | Case-insensitive unique index on Name (`lower("Name")`) |
 | `CollectionAcls` | — | Unique composite index on (CollectionId, PrincipalType, PrincipalId) |
 | `AssetCollections` | — | Many-to-many join table with unique (AssetId, CollectionId) |
@@ -264,8 +264,8 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 
 #### PostgreSQL-Specific Dependencies
 
-- **4 jsonb columns** with serialization/deserialization converters and custom `ValueComparer` implementations
-- **GIN index on Tags** — enables efficient JSONB tag search via `@>` operator
+- **3 jsonb columns** with serialization/deserialization converters and custom `ValueComparer` implementations
+- **GIN index on Tags** — enables efficient array containment queries on the native `text[]` column
 - **`pg_trgm` extension** — installed via migration, enables trigram-based fuzzy search
 - **`EF.Functions.ILike()`** — case-insensitive pattern matching for asset search (title and description)
 - **`EnableDynamicJson()`** — NpgsqlDataSource configuration for JSON column support
@@ -273,7 +273,7 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 
 #### Migrations
 
-Code-first, conditionally applied on startup. Both the API and Worker hosts call `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. Currently 14 migrations from initial schema through to tags GIN indexing.
+Code-first, conditionally applied on startup. Both the API and Worker hosts call `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. Currently 16 migrations from initial schema through to native array tags.
 
 #### Replacing PostgreSQL
 
@@ -383,6 +383,7 @@ Implement `IMalwareScannerService` with your scanner's SDK or API. The interface
 - Stale upload cleanup (daily)
 - Orphaned share cleanup (weekly)
 - ZIP expiry cleanup
+- Audit log retention (configurable retention period)
 - User sync
 
 The Worker runs as a **separate container** (`AssetHub.Worker`) so it can be scaled independently from the API. It shares the same Infrastructure layer but has its own Dockerfile with ImageMagick and ffmpeg pre-installed. Both the API and Worker run configurable Hangfire worker pools (2-8 threads).
