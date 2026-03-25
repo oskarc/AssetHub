@@ -30,7 +30,6 @@
     <PackageReference Include="Serilog.Formatting.Compact" Version="3.*" />
     <!-- OpenTelemetry (API-specific; shared packages come transitively from Infrastructure) -->
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.*" />
-    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.*-*" />
   </ItemGroup>
 
   <ItemGroup>

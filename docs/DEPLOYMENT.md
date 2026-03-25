@@ -99,7 +99,7 @@ mkdir -p certs
 openssl req -x509 -newkey rsa:4096 -sha256 -days 365 \
   -nodes -keyout certs/dev-cert.key -out certs/dev-cert.crt \
   -subj "/CN=assethub.local" \
-  -addext "subjectAltName=DNS:localhost,DNS:assethub.local,DNS:api,DNS:api.assethub.local,DNS:keycloak,DNS:keycloak.assethub.local,DNS:jaeger.assethub.local,DNS:prometheus.assethub.local,DNS:grafana.assethub.local,IP:127.0.0.1"
+  -addext "subjectAltName=DNS:localhost,DNS:assethub.local,DNS:api,DNS:api.assethub.local,DNS:keycloak,DNS:keycloak.assethub.local,IP:127.0.0.1"
 
 # Convert to PFX format (required by Kestrel and Keycloak)
 openssl pkcs12 -export -out certs/dev-cert.pfx \
@@ -217,9 +217,7 @@ Update `docker-compose.prod.yml` to mount the certificate and set the password i
 | `assethub-minio` | S3-compatible object storage | 9000 / 9001 | 127.0.0.1:9000, :9001 | not exposed | AWS S3 or any S3-compatible store |
 | `assethub-keycloak` | OIDC identity provider + Admin API | 8080 / 8443 | 127.0.0.1:8080, :8443 | not exposed | Requires adapter rewrites (see note) |
 | `assethub-clamav` | Malware scanning (clamd TCP) | 3310 | not exposed | not exposed | Set `ClamAV__Enabled=false` to disable |
-| `assethub-jaeger` | Distributed tracing (OTLP) | 16686 / 4317 / 4318 | 127.0.0.1:16686, :4317, :4318 | not exposed | Any OTLP-compatible backend |
-| `assethub-prometheus` | Metrics collection | 9090 | 127.0.0.1:9090 | not exposed | Any Prometheus-compatible scraper |
-| `assethub-grafana` | Metrics dashboards | 3000 | 127.0.0.1:3000 | not exposed | Any visualisation tool |
+| `assethub-aspire-dashboard` | Traces, metrics, and structured logs (OTLP) | 18888 / 18889 | 127.0.0.1:18888 | not exposed | Any OTLP-compatible backend |
 | `assethub-mailpit` | Dev email capture (dev only) | 8025 / 1025 | 127.0.0.1:8025, :1025 | not present | Configure `Email__*` for any SMTP relay |
 
 > **Keycloak note:** OIDC authentication is standard and works with any compliant provider. However, the application also calls the Keycloak Admin REST API for user management. Swapping Keycloak for Azure AD, Okta, or Auth0 requires new implementations of `IKeycloakUserService` and `IUserLookupService`.
@@ -258,7 +256,6 @@ The production compose file includes:
 - **Log rotation** — `json-file` driver with 50 MB x 5 files on every container
 - **Keycloak production mode** — `KC_HOSTNAME_STRICT`, `KC_PROXY_HEADERS: xforwarded`, HTTPS required
 - **Docker secrets** — File-based secrets for all sensitive credentials (`postgres_password`, `keycloak_admin_password`, `keycloak_db_password`, `minio_root_password`, `keycloak_client_secret`). Services use `_FILE` suffix environment variables (e.g., `POSTGRES_PASSWORD_FILE`)
-- **Prometheus** — 30-day retention, `--web.enable-lifecycle` omitted (use `SIGHUP` to reload config)
 
 ### Reverse Proxy Setup
 
@@ -484,9 +481,7 @@ npm run test:ui       # Playwright UI mode
 |------|-----|---------|
 | Health check | https://assethub.local:7252/health/ready | Readiness probe (PG + MinIO + Keycloak + ClamAV) |
 | Hangfire | https://assethub.local:7252/hangfire | Job queues, processing status |
-| Grafana | http://localhost:3000 | Metrics dashboards (pre-configured) |
-| Prometheus | http://localhost:9090 | Raw metrics, alerting rules |
-| Jaeger | http://localhost:16686 | Distributed tracing |
+| Aspire Dashboard | http://localhost:18888 | Traces, metrics, and structured logs |
 | Keycloak Admin | https://keycloak.assethub.local:8443/admin | Users, sessions, clients |
 | MinIO Console | http://localhost:9001 | Storage usage, buckets |
 | Mailpit | http://localhost:8025 | Email capture (dev only) |
@@ -494,25 +489,12 @@ npm run test:ui       # Playwright UI mode
 ### Observability Architecture
 
 ```
-  AssetHub API ──OTLP gRPC──> Jaeger (traces)
-       │                          │
-       ├── /metrics <── scrape ── Prometheus ──> Grafana (dashboards)
-       │                                            │
-  AssetHub Worker ──OTLP gRPC──> Jaeger ────────────┘
+  AssetHub API    ──OTLP gRPC──> Aspire Dashboard (traces, metrics, logs)
+  AssetHub Worker ──OTLP gRPC──>        │
+                                   http://localhost:18888
 ```
 
-1. **Traces**: Both the API and Worker export trace spans to Jaeger via OTLP gRPC (`http://jaeger:4317`)
-2. **Metrics**: The API exposes a `/metrics` endpoint scraped by Prometheus every 15 seconds
-3. **Dashboards**: Grafana queries Prometheus (metrics) and Jaeger (traces)
-
-### Grafana Dashboards
-
-Pre-configured dashboards include:
-- **AssetHub Overview** — Request rate, error rate, P95 latency, active users
-- **Upload Metrics** — Upload volume, processing queue depth, malware detections
-- **Infrastructure** — PostgreSQL connections, MinIO storage, Keycloak sessions
-
-Data sources are auto-provisioned via `docker/grafana/provisioning/datasources/datasources.yml`.
+Both the API and Worker export traces and metrics to the .NET Aspire Dashboard via OTLP gRPC (`http://aspire-dashboard:18889`). The dashboard provides a built-in UI for viewing traces, metrics, and structured logs — no additional infrastructure required.
 
 ### OpenTelemetry Configuration
 
@@ -523,7 +505,6 @@ All settings under the `OpenTelemetry` section in `appsettings.json`:
 | `Enabled` | bool | `true` | Master switch for all OpenTelemetry |
 | `ServiceName` | string | `"AssetHub"` | Service name in traces and metrics |
 | `OtlpEndpoint` | string | `""` | OTLP collector endpoint (gRPC) |
-| `EnablePrometheusExporter` | bool | `true` | Expose `/metrics` endpoint |
 | `SamplingRatio` | double | `1.0` | Trace sampling ratio (production: `0.1`) |
 | `RecordExceptions` | bool | `true` | Include exception details in spans (production: `false`) |
 | `StripQueryStrings` | bool | `false` | Remove query strings from traced URLs (production: `true`) |
@@ -535,15 +516,11 @@ All settings under the `OpenTelemetry` section in `appsettings.json`:
 | `SamplingRatio` | `1.0` (all traces) | `0.1` (10%) |
 | `RecordExceptions` | `true` | `false` |
 | `StripQueryStrings` | `false` | `true` |
-| Prometheus lifecycle | enabled | disabled |
-| Jaeger UI port | exposed (16686) | not exposed |
-| Grafana port | exposed (3000) | not exposed |
+| Dashboard UI port | exposed (18888) | not exposed |
 
 ### Security Considerations
 
-- **`/metrics` endpoint** — `AllowAnonymous` but protected by `MetricsIpRestrictionMiddleware` (RFC 1918 IPs only)
 - **OTLP transport** — Uses plain HTTP within Docker network. Switch to `https://` if the collector is on a different host.
-- **Prometheus lifecycle** — Disabled in production (use `docker kill -s HUP assethub-prometheus` to reload config)
 - **Exception recording** — Disabled in production to prevent leaking connection strings, file paths, and PII in trace spans
 - **Query string stripping** — Enabled in production to prevent leaking tokens, API keys, and user data
 
@@ -689,10 +666,8 @@ docker compose -f docker/docker-compose.prod.yml up -d --build
 
 ### Observability Issues
 
-- **No traces in Jaeger** — Check `OpenTelemetry:Enabled` and `OtlpEndpoint`. Low sampling ratio means many requests needed before a trace appears.
-- **No metrics in Prometheus** — Test from inside Docker: `docker exec assethub-prometheus wget -qO- http://api:7252/metrics | head -20`
-- **403 on `/metrics`** — Request originates from non-private IP. Ensure Prometheus is on the same Docker network.
-- **Grafana shows "No data"** — Verify data sources: Grafana > Configuration > Data Sources > Test.
+- **No traces in Aspire Dashboard** — Check `OpenTelemetry:Enabled` and `OtlpEndpoint`. Low sampling ratio means many requests needed before a trace appears.
+- **Dashboard shows no data** — Verify the OTLP endpoint (`http://aspire-dashboard:18889`) is reachable from the API/Worker containers on the observability network.
 
 ### Log Aggregation
 

@@ -21,7 +21,7 @@ public static class OpenTelemetryServiceExtensions
 {
     /// <summary>
     /// Adds shared OpenTelemetry tracing and metrics. Host-specific instrumentation
-    /// (e.g., ASP.NET Core, Prometheus) can be added via the optional callbacks.
+    /// (e.g., ASP.NET Core) can be added via the optional callbacks.
     /// </summary>
     public static IServiceCollection AddSharedOpenTelemetry(
         this IServiceCollection services,
@@ -98,9 +98,9 @@ public static class OpenTelemetryServiceExtensions
 
     /// <summary>
     /// Returns true if the address belongs to a private/loopback range (RFC 1918 + loopback).
-    /// Used by both OTLP transport validation and the metrics IP restriction middleware.
+    /// Used by OTLP transport validation to detect cleartext exports over public networks.
     /// </summary>
-    public static bool IsPrivateIp(IPAddress address)
+    internal static bool IsPrivateIp(IPAddress address)
     {
         if (IPAddress.IsLoopback(address))
             return true;

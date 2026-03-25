@@ -23,11 +23,7 @@ How an incoming HTTP request flows through the ASP.NET Core middleware pipeline 
 ```mermaid
 flowchart TD
     A[Incoming HTTP Request] --> B[ForwardedHeaders]
-    B --> C{Is /metrics path?}
-    C -->|Yes| D{From private IP?}
-    D -->|No| E[403 Forbidden]
-    D -->|Yes| F[Return Metrics]
-    C -->|No| G{Production?}
+    B --> G{Production?}
     G -->|Yes| H[HTTPS Redirect + HSTS]
     G -->|No| I[Skip HTTPS]
     H --> J[Security Headers]

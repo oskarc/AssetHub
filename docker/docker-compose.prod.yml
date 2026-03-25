@@ -279,7 +279,7 @@ services:
 
       # OpenTelemetry
       OpenTelemetry__Enabled: "${OTEL_ENABLED:-true}"
-      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
       OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
 
       # Redis
@@ -354,7 +354,7 @@ services:
 
       # OpenTelemetry
       OpenTelemetry__Enabled: "${OTEL_ENABLED:-true}"
-      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
       OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
 
       # Redis
@@ -425,104 +425,17 @@ services:
         max-file: "5"
     restart: unless-stopped
 
-  # ── Observability Stack ──────────────────────────────────────────────────────
+  # ── Observability ────────────────────────────────────────────────────────────
 
-  # Jaeger - Distributed Tracing
-  jaeger:
-    image: jaegertracing/all-in-one:1.54
-    container_name: assethub-jaeger
+  # .NET Aspire Dashboard — single container for traces, metrics, and structured logs
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+    container_name: assethub-aspire-dashboard
     environment:
-      COLLECTOR_OTLP_ENABLED: "true"
-      SPAN_STORAGE_TYPE: "badger"
-      BADGER_EPHEMERAL: "false"
-      BADGER_DIRECTORY_VALUE: "/badger/data"
-      BADGER_DIRECTORY_KEY: "/badger/key"
-    volumes:
-      - jaegerdata:/badger
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
     # Expose only on localhost in production (access via reverse proxy)
     # ports:
-    #   - "127.0.0.1:16686:16686"
-    networks:
-      - observability
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-          pids: 100
-    # Security hardening
-    user: "10001:10001"  # jaeger user
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp:size=50M
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
-    restart: unless-stopped
-
-  # Prometheus - Metrics Collection
-  prometheus:
-    image: prom/prometheus:v2.50.0
-    container_name: assethub-prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheusdata:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-      # --web.enable-lifecycle intentionally omitted in production.
-      # Use SIGHUP to reload config: docker kill -s HUP assethub-prometheus
-    # Expose only on localhost in production
-    # ports:
-    #   - "127.0.0.1:9090:9090"
-    networks:
-      - backend
-      - observability
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-          pids: 100
-    # Security hardening
-    user: "65534:65534"  # nobody user
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
-    restart: unless-stopped
-
-  # Grafana - Visualization & Dashboards
-  grafana:
-    image: grafana/grafana:10.3.0
-    container_name: assethub-grafana
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SERVER_ROOT_URL: "${GRAFANA_ROOT_URL:-http://localhost:3000}"
-    volumes:
-      - grafanadata:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    # Expose only on localhost in production
-    # ports:
-    #   - "127.0.0.1:3000:3000"
-    depends_on:
-      - prometheus
-      - jaeger
+    #   - "127.0.0.1:18888:18888"
     networks:
       - observability
     deploy:
@@ -532,7 +445,6 @@ services:
           memory: 256M
           pids: 100
     # Security hardening
-    user: "472:472"  # grafana user
     cap_drop:
       - ALL
     security_opt:
@@ -549,9 +461,6 @@ volumes:
   miniodata:
   keycloakdata:
   redisdata:
-  jaegerdata:
-  prometheusdata:
-  grafanadata:
 
 networks:
   # Backend network - database and storage services only
@@ -565,7 +474,7 @@ networks:
 # ============================================================================
 # Services are isolated into separate networks for defense-in-depth:
 #   - backend: postgres, minio, clamav, keycloak (internal data stores)
-#   - observability: jaeger, prometheus, grafana (monitoring stack)
+#   - observability: aspire-dashboard (monitoring)
 #
 # The api and worker services bridge both networks to access data stores
 # and export telemetry. This limits blast radius if any service is compromised.

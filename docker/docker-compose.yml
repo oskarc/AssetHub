@@ -158,7 +158,7 @@ services:
       ClamAV__Host: "clamav"
       ClamAV__Port: "3310"
       Redis__ConnectionString: "redis:6379"
-      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
     volumes:
       - ../certs:/app/certs:ro
     ports:
@@ -212,7 +212,7 @@ services:
       MinIO__UseSSL: "false"
       Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       Redis__ConnectionString: "redis:6379"
-      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
     depends_on:
       postgres:
         condition: service_healthy
@@ -321,93 +321,18 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # ── Observability Stack ──────────────────────────────────────────────────────
+  # ── Observability ────────────────────────────────────────────────────────────
 
-  # Jaeger - Distributed Tracing
-  jaeger:
-    image: jaegertracing/all-in-one:1.54
-    container_name: assethub-jaeger
+  # .NET Aspire Dashboard — single container for traces, metrics, and structured logs
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+    container_name: assethub-aspire-dashboard
     environment:
-      COLLECTOR_OTLP_ENABLED: "true"
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
     ports:
-      - "127.0.0.1:16686:16686"   # Jaeger UI
-      - "127.0.0.1:4317:4317"     # OTLP gRPC
-      - "127.0.0.1:4318:4318"     # OTLP HTTP
+      - "127.0.0.1:18888:18888"   # Dashboard UI
     networks:
-      observability:
-        aliases:
-          - jaeger.assethub.local
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-          pids: 100
-    # Security hardening
-    user: "10001:10001"  # jaeger user
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp:size=50M
-
-  # Prometheus - Metrics Collection
-  prometheus:
-    image: prom/prometheus:v2.50.0
-    container_name: assethub-prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheusdata:/prometheus
-      - ../certs/dev-cert.crt:/etc/prometheus/certs/dev-cert.crt:ro
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.enable-lifecycle'
-    ports:
-      - "127.0.0.1:9090:9090"
-    networks:
-      backend:
-        aliases:
-          - prometheus.assethub.local
-      observability:
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-          pids: 100
-    # Security hardening
-    user: "65534:65534"  # nobody user
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-
-  # Grafana - Visualization & Dashboards
-  grafana:
-    image: grafana/grafana:10.3.0
-    container_name: assethub-grafana
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    volumes:
-      - grafanadata:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - "127.0.0.1:3000:3000"
-    depends_on:
-      - prometheus
-      - jaeger
-    networks:
-      observability:
-        aliases:
-          - grafana.assethub.local
+      - observability
     restart: unless-stopped
     deploy:
       resources:
@@ -416,7 +341,6 @@ services:
           memory: 256M
           pids: 100
     # Security hardening
-    user: "472:472"  # grafana user
     cap_drop:
       - ALL
     security_opt:
@@ -427,8 +351,6 @@ volumes:
   miniodata:
   keycloakdata:
   redisdata:
-  prometheusdata:
-  grafanadata:
 
 networks:
   # Backend network - database and storage services only

@@ -28,7 +28,7 @@ Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out
 | **Secure Sharing** — Password-protected, time-limited share links | **Background Processing** — Auto-generated thumbnails, previews, and video posters |
 | **Enterprise Security** — ClamAV scanning, audit trail, RBAC, container hardening, Docker secrets | **Fully Modular** — Swap S3, Auth, DB, Email via clean interfaces |
 | **Video Support** — Poster extraction via ffmpeg, inline playback | **Search** — Full-text trigram search across names, descriptions, and tags (GIN-indexed) |
-| **Accessibility** — Skip-to-content, ARIA labels, keyboard navigation, multi-viewport | **Observability** — Prometheus, Grafana, Jaeger, structured logging |
+| **Accessibility** — Skip-to-content, ARIA labels, keyboard navigation, multi-viewport | **Observability** — OpenTelemetry, Aspire Dashboard, structured logging |
 | **Localisation** — Swedish and English, extensible via `.resx` files | **API Versioning** — Versioned API (`/api/v1/`) with request validation filters |
 | **Zip Downloads** — Download collections or shared content as archives | **Admin Dashboard** — User management, share admin, paginated audit log |
 
@@ -164,7 +164,7 @@ Every external dependency can be swapped by implementing a clean interface:
 | **Email** | SMTP (Mailpit in dev) | `IEmailService` | SendGrid, AWS SES |
 | **Malware Scan** | ClamAV (clamd TCP) | `IMalwareScannerService` | Any scanner SDK |
 | **Jobs** | Hangfire + PostgreSQL | Hangfire abstraction | MassTransit, NServiceBus |
-| **Tracing** | Jaeger (OTLP) | OpenTelemetry | Datadog, Honeycomb, Grafana Cloud |
+| **Tracing** | Aspire Dashboard (OTLP) | OpenTelemetry | Jaeger, Datadog, Honeycomb, Grafana Cloud |
 
 Full interface definitions, implementation details, and replacement guides in **[ARCHITECTURE.md](docs/ARCHITECTURE.md#modular-components)**.
 

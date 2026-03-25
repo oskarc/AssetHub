@@ -7,7 +7,7 @@ namespace AssetHub.Api.Extensions;
 
 /// <summary>
 /// Configures OpenTelemetry for the API service.
-/// Adds ASP.NET Core instrumentation and Prometheus metrics on top of the shared configuration.
+/// Adds ASP.NET Core instrumentation on top of the shared configuration.
 /// </summary>
 public static class OpenTelemetryExtensions
 {
@@ -29,7 +29,6 @@ public static class OpenTelemetryExtensions
                     options.Filter = context =>
                         !context.Request.Path.StartsWithSegments("/health") &&
                         !context.Request.Path.StartsWithSegments("/_blazor") &&
-                        !context.Request.Path.StartsWithSegments("/metrics") &&
                         !context.Request.Path.StartsWithSegments("/_framework") &&
                         !context.Request.Path.StartsWithSegments("/css") &&
                         !context.Request.Path.StartsWithSegments("/js");
@@ -49,9 +48,6 @@ public static class OpenTelemetryExtensions
             configureMetrics: metrics =>
             {
                 metrics.AddAspNetCoreInstrumentation();
-
-                if (settings.EnablePrometheusExporter)
-                    metrics.AddPrometheusExporter();
             });
     }
 }

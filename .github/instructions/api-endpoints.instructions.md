@@ -74,7 +74,6 @@ All API errors use `ApiError` format:
 ## Middleware
 - **Global exception handler** in `WebApplicationExtensions` — catches unhandled exceptions for `/api/*` paths and returns `ApiError`.
 - **Security headers** via `UseSecurityHeaders()` — CSP, X-Frame-Options, etc.
-- **MetricsIpRestrictionMiddleware** — blocks `/metrics` from non-private IPs.
 
 ## DI Wiring
 - Infrastructure: `AddSharedInfrastructure()` (shared with Worker).

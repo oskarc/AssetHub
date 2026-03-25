@@ -77,10 +77,10 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  │  16 (+ EF    │ │  (S3 API)   │ │  (OIDC +     │ │   (clamd TCP)         ││
 │  │   + Hangfire)│ │              │ │  Admin API)  │ │                      ││
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
-│  │   Mailpit    │ │    Jaeger    │ │  Prometheus  │ │      Grafana         ││
-│  │ (SMTP, dev)  │ │  (OTLP)     │ │  (metrics)   │ │   (dashboards)        ││
-│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
+│  ┌──────────────┐ ┌──────────────────────────────────────────────────────────┐│
+│  │   Mailpit    │ │  Aspire Dashboard (traces, metrics, logs via OTLP)     ││
+│  │ (SMTP, dev)  │ │                                                        ││
+│  └──────────────┘ └──────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -115,11 +115,9 @@ AssetHub.sln
 │   ├── init-keycloak-db.sh         # Creates Keycloak database on first PostgreSQL start
 │   ├── backup.sh                   # Full backup script (PostgreSQL, MinIO, Keycloak)
 │   ├── restore.sh                  # Companion restore script with confirmation
-│   ├── prometheus.yml              # Prometheus scrape targets
 │   ├── reverse-proxy/
 │   │   ├── caddy/Caddyfile         # Production Caddy config (auto-TLS, WebSocket, security headers)
 │   │   └── nginx/nginx.conf        # Production Nginx config (manual TLS, WebSocket, security headers)
-│   └── grafana/provisioning/       # Pre-configured Grafana datasources and dashboards
 │
 ├── keycloak/
 │   ├── import/media-realm.json     # Keycloak realm definition (clients, roles, test users)

@@ -147,15 +147,13 @@ All containers are hardened in the production Docker Compose. The level varies b
 | MinIO | Yes | Yes | — | — | Yes (built-in) | 100 |
 | Keycloak | Yes | Yes | — | — | Yes (`1000:1000`) | 200 |
 | ClamAV | Yes + selective `cap_add` | Yes | — | — | Yes (built-in) | 100 |
-| Jaeger | Yes | Yes | Yes | /tmp:50M | Yes (`10001`) | 100 |
-| Prometheus | Yes | Yes | Yes | — | Yes (`65534`) | 100 |
-| Grafana | Yes | Yes | — | — | Yes (`472`) | 100 |
+| Aspire Dashboard | Yes | Yes | — | — | Yes (built-in) | 100 |
 | Mailpit (dev) | Yes | Yes | — | — | — | 50 |
 
 ### Notes
 
 - **ClamAV capabilities** — Requires `CHOWN`, `SETUID`, `SETGID`, `FOWNER`, and `DAC_OVERRIDE` for its entrypoint setup; all other capabilities are dropped.
-- **Read-only root filesystem** — The API, Worker, Jaeger, and Prometheus containers run with read-only root filesystems. Writable storage is limited to tmpfs mounts and Docker volumes.
+- **Read-only root filesystem** — The API and Worker containers run with read-only root filesystems. Writable storage is limited to tmpfs mounts and Docker volumes.
 - **PID limits** — Prevent fork bombs and runaway process creation. Limits are set per-container based on expected workload.
 - **Non-root users** — Every container runs as a non-root user. The API and Worker use the `app` user created in the Dockerfile. Infrastructure containers use their built-in non-root users.
 
@@ -171,14 +169,13 @@ All containers are hardened in the production Docker Compose. The level varies b
 | **Security headers** | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `X-XSS-Protection: 1; mode=block` |
 | **Content Security Policy** | Production only — `default-src 'self'`, `script-src/style-src 'self' 'unsafe-inline'` (required by Blazor/MudBlazor), `img-src 'self' data: blob:`, `connect-src 'self' wss:` (SignalR), `frame-ancestors 'none'` |
 | **HTTPS enforcement** | HSTS with 365-day max-age, subdomain inclusion, and preload in production |
-| **Metrics endpoint** | IP-restricted to internal Docker network only via `MetricsIpRestrictionMiddleware` (RFC 1918 ranges) |
 
 ### Network Segmentation
 
 The production Docker Compose uses two isolated Docker networks:
 
 - **`backend`** — Data stores: PostgreSQL, MinIO, ClamAV, Keycloak
-- **`observability`** — Monitoring: Jaeger, Prometheus, Grafana
+- **`observability`** — Monitoring: Aspire Dashboard
 
 The API and Worker bridge both networks. Other services cannot cross boundaries. Only the API port (7252) is exposed on `127.0.0.1` for the reverse proxy — all other service ports are internal-only.
 
@@ -188,7 +185,6 @@ When placing AssetHub behind a reverse proxy, block these paths from public acce
 
 | Path | Reason | Mitigation |
 |------|--------|------------|
-| `/metrics` | Exposes runtime metrics, GC stats, request rates | App-level IP restriction + proxy block |
 | `/health`, `/health/ready` | Internal health checks | Restrict to monitoring IPs |
 | `/hangfire` | Background job dashboard | Restrict to admin IPs |
 
@@ -199,9 +195,7 @@ When placing AssetHub behind a reverse proxy, block these paths from public acce
 | Component | Purpose |
 |-----------|---------|
 | **Audit trail** | Every action logged with user, timestamp, target entity, IP address, and user agent. Events include uploads, downloads, shares, access changes, deletions, and malware detections. |
-| **Jaeger** | Distributed tracing via OpenTelemetry (OTLP export). Both API and Worker export trace spans. |
-| **Prometheus** | Metrics collection via `/metrics` endpoint scraping every 15 seconds. |
-| **Grafana** | Pre-configured dashboards for request rates, error rates, latency, upload volume, and infrastructure health. |
+| **Aspire Dashboard** | Traces, metrics, and structured logs via OpenTelemetry (OTLP export). Both API and Worker export telemetry. |
 | **Structured logging** | Serilog with request enrichment (user, IP, request ID). JSON + compact format in production. |
 
 ### Audit Event Types

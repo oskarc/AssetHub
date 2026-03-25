@@ -19,8 +19,8 @@ public class OpenTelemetrySettings
     public string ServiceName { get; set; } = "AssetHub";
 
     /// <summary>
-    /// OTLP endpoint for Jaeger (e.g., "http://jaeger:4317").
-    /// Uses gRPC protocol. Leave empty to disable Jaeger export.
+    /// OTLP endpoint (e.g., "http://aspire-dashboard:18889").
+    /// Uses gRPC protocol. Leave empty to disable OTLP export.
     /// </summary>
     public string OtlpEndpoint { get; set; } = "";
 
@@ -29,11 +29,6 @@ public class OpenTelemetrySettings
     /// Format: "header-name=header-value" or leave empty for no auth.
     /// </summary>
     public string OtlpAuthHeader { get; set; } = "";
-
-    /// <summary>
-    /// Whether to expose Prometheus metrics endpoint at /metrics.
-    /// </summary>
-    public bool EnablePrometheusExporter { get; set; } = true;
 
     /// <summary>
     /// Sampling ratio (0.0 to 1.0). Use 1.0 for development, lower for production.

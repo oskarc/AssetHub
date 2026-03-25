@@ -19,7 +19,6 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Minio;
 using Hangfire.Dashboard;
 using Serilog;
-using AssetHub.Application.Configuration;
 
 namespace AssetHub.Api.Extensions;
 
@@ -57,10 +56,6 @@ public static class WebApplicationExtensions
     public static void UseAssetHubMiddleware(this WebApplication app)
     {
         UseForwardedHeaders(app);
-
-        // Defense-in-depth: reject /metrics requests from non-private IPs
-        // even if the reverse proxy accidentally forwards the path.
-        app.UseMiddleware<MetricsIpRestrictionMiddleware>();
 
         if (!app.Environment.IsDevelopment())
         {
@@ -286,19 +281,6 @@ public static class WebApplicationExtensions
             "cleanup-expired-zip-downloads",
             service => service.CleanupExpiredAsync(CancellationToken.None),
             Cron.Hourly);
-
-        // Prometheus metrics endpoint (for scraping)
-        // SECURITY: In production, this endpoint is only accessible from the internal
-        // Docker network (Prometheus container). The port is not exposed externally.
-        // The reverse proxy should NOT forward /metrics to the public.
-        var otelSettings = app.Configuration.GetSection(OpenTelemetrySettings.SectionName)
-            .Get<OpenTelemetrySettings>() ?? new OpenTelemetrySettings();
-        if (otelSettings.Enabled && otelSettings.EnablePrometheusExporter)
-        {
-            // AllowAnonymous is required since FallbackPolicy requires auth.
-            // Protection comes from network isolation (internal Docker network only).
-            app.MapPrometheusScrapingEndpoint().AllowAnonymous();
-        }
 
         // Health checks
         MapHealthCheckEndpoints(app);
