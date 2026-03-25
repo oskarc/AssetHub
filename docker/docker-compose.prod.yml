@@ -181,8 +181,20 @@ services:
     image: redis:7.4-alpine
     container_name: assethub-redis
     restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --maxmemory
+      - 200mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - ""
+      - --appendonly
+      - "no"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -202,7 +214,9 @@ services:
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /data:size=256M
+      - /data:size=256M,uid=999,gid=999
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     logging:
       driver: json-file
       options:
@@ -283,7 +297,7 @@ services:
       OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
 
       # Redis
-      Redis__ConnectionString: "redis:6379"
+      Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
     ports:
       - "127.0.0.1:7252:7252"
     healthcheck:
@@ -358,7 +372,7 @@ services:
       OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
 
       # Redis
-      Redis__ConnectionString: "redis:6379"
+      Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
     depends_on:
       postgres:
         condition: service_healthy

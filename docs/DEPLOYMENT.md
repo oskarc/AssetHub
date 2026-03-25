@@ -218,6 +218,7 @@ Update `docker-compose.prod.yml` to mount the certificate and set the password i
 | `assethub-keycloak` | OIDC identity provider + Admin API | 8080 / 8443 | 127.0.0.1:8080, :8443 | not exposed | Requires adapter rewrites (see note) |
 | `assethub-clamav` | Malware scanning (clamd TCP) | 3310 | not exposed | not exposed | Set `ClamAV__Enabled=false` to disable |
 | `assethub-aspire-dashboard` | Traces, metrics, and structured logs (OTLP) | 18888 / 18889 | 127.0.0.1:18888 | not exposed | Any OTLP-compatible backend |
+| `assethub-redis` | Distributed cache (L2) + SignalR backplane | 6379 | 127.0.0.1:6379 | not exposed | Any Redis 7+ or managed Redis service |
 | `assethub-mailpit` | Dev email capture (dev only) | 8025 / 1025 | 127.0.0.1:8025, :1025 | not present | Configure `Email__*` for any SMTP relay |
 
 > **Keycloak note:** OIDC authentication is standard and works with any compliant provider. However, the application also calls the Keycloak Admin REST API for user management. Swapping Keycloak for Azure AD, Okta, or Auth0 requires new implementations of `IKeycloakUserService` and `IUserLookupService`.
@@ -344,11 +345,13 @@ Before going live, verify:
 
 - [ ] All `REPLACE_ME` values in `.env` replaced with strong, unique passwords
 - [ ] `.env` file permissions restricted: `chmod 600 .env`
+- [ ] `REDIS_PASSWORD` set to a strong, unique value (not the dev default)
 - [ ] HTTPS working on all public endpoints
 - [ ] HTTP automatically redirects to HTTPS
 - [ ] Keycloak admin password changed from initial bootstrap value
 - [ ] MinIO Console port (9001) not exposed externally
 - [ ] PostgreSQL port (5432) not exposed externally
+- [ ] Redis port (6379) not exposed externally (internal network only)
 - [ ] Keycloak port (8080) only exposed via reverse proxy
 - [ ] Firewall configured (only ports 80/443 open to public)
 - [ ] Backup script configured and tested
@@ -369,6 +372,7 @@ Production docker-compose memory limits:
 | API | 1 GB |
 | Worker | 1 GB |
 | ClamAV | 1 GB |
+| Redis | 256 MB (200 MB maxmemory) |
 
 Adjust in `docker-compose.prod.yml`:
 ```yaml
@@ -377,6 +381,75 @@ deploy:
     limits:
       memory: 2G
 ```
+
+### Redis Configuration
+
+Redis is configured as a **pure ephemeral cache** (no persistence) with the following server-side settings:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `requirepass` | `${REDIS_PASSWORD}` | Authentication — prevents unauthorized access |
+| `maxmemory` | `200mb` | Caps memory usage below the 256 MB container limit |
+| `maxmemory-policy` | `allkeys-lru` | Evicts least-recently-used keys when memory is full |
+| `save ""` | (disabled) | No RDB snapshots — data is ephemeral |
+| `appendonly no` | (disabled) | No AOF log — data is ephemeral |
+
+The application gracefully handles Redis unavailability by falling back to in-memory caching. Authorization decisions are **never cached in Redis** — they always hit the database.
+
+### High Availability (HA) Production Considerations
+
+The default Docker Compose setup runs a single instance of each service. For production environments requiring high availability, consider the following.
+
+#### Redis HA
+
+The single-instance Redis in `docker-compose.prod.yml` is sufficient for small-to-medium deployments because:
+- AssetHub treats Redis as a **pure cache** (no persistence, no critical state)
+- If Redis goes down, the app falls back to per-instance in-memory caching (L1 only)
+- Cache misses cause extra database queries but no data loss or functional failures
+
+For larger deployments where cache availability matters:
+
+1. **Redis Sentinel** (recommended for most HA needs)
+   - Deploy 1 primary + 2 replicas + 3 Sentinel instances
+   - Provides automatic failover (typically < 30 seconds)
+   - Update connection string: `redis-sentinel:26379,serviceName=mymaster,password=...`
+   - StackExchange.Redis supports Sentinel natively
+
+2. **Redis Cluster** (for very large datasets)
+   - Shards data across multiple nodes for horizontal scaling
+   - More complex to operate — only needed if cache data exceeds single-node memory
+   - Requires `StackExchange.Redis` cluster-aware configuration
+
+3. **Managed Redis** (simplest HA path)
+   - AWS ElastiCache, Azure Cache for Redis, or GCP Memorystore
+   - Handles replication, failover, patching, and monitoring automatically
+   - Update `Redis__ConnectionString` to point to the managed endpoint
+   - Enable TLS in the connection string: `managed-redis.example.com:6380,ssl=true,password=...`
+
+#### TLS for Redis
+
+Within a single-host Docker network, unencrypted Redis traffic is acceptable (network-isolated). For multi-host or cloud deployments:
+
+- **Managed Redis**: Enable the provider's TLS option and add `ssl=true` to the connection string
+- **Self-hosted**: Configure Redis with `tls-port`, `tls-cert-file`, and `tls-key-file`, or use a sidecar proxy (stunnel, envoy)
+- **Connection string**: `redis:6380,ssl=true,password=...,abortConnect=false`
+
+#### Scaling the Application
+
+| Component | Scaling Strategy |
+|-----------|-----------------|
+| **API** | Run multiple replicas behind a load balancer. Redis already serves as the SignalR backplane and shared L2 cache. |
+| **Worker** | Run multiple replicas. Hangfire coordinates job distribution via PostgreSQL — no conflicts. |
+| **PostgreSQL** | Use managed PostgreSQL (RDS, Cloud SQL) with read replicas, or Patroni for self-hosted HA. |
+| **MinIO** | Use distributed MinIO (multi-node) or a managed S3-compatible service. |
+| **Keycloak** | Run multiple replicas behind a load balancer. Keycloak uses the shared PostgreSQL for session/state. |
+
+#### Monitoring in HA
+
+- Set up alerts on the `/health/ready` endpoint — it checks PostgreSQL, MinIO, Keycloak, ClamAV, and Redis
+- Monitor Redis memory usage (`INFO memory`) — if `used_memory` approaches `maxmemory`, consider increasing the limit or reviewing cache TTLs
+- Monitor cache hit rates (`INFO stats` — `keyspace_hits` vs `keyspace_misses`) to validate caching effectiveness
+- Use the Aspire Dashboard (or a production OTLP backend like Grafana/Jaeger) for distributed tracing across replicas
 
 ---
 

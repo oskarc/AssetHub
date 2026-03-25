@@ -255,9 +255,13 @@ public static class InfrastructureServiceExtensions
 
         services.AddSingleton<IMinioClient>(minioClient);
 
-        // Public client for presigned URLs that browsers access directly
+        // Public client for presigned URLs that browsers access directly.
+        // The region is set explicitly so the SDK doesn't make an HTTP call to the
+        // public endpoint (which may be unreachable from inside Docker) to look up
+        // the bucket region.
         var publicEndpoint = minioConfig["PublicUrl"];
         var publicUseSsl = minioConfig.GetValue("PublicUseSSL", minioUseSsl);
+        var minioRegion = minioConfig["Region"] ?? "us-east-1";
         IMinioClient publicMinioClient;
         if (!string.IsNullOrWhiteSpace(publicEndpoint) && publicEndpoint != minioEndpoint)
         {
@@ -265,6 +269,7 @@ public static class InfrastructureServiceExtensions
                 .WithEndpoint(publicEndpoint)
                 .WithCredentials(minioAccessKey, minioSecretKey)
                 .WithSSL(publicUseSsl)
+                .WithRegion(minioRegion)
                 .Build();
         }
         else

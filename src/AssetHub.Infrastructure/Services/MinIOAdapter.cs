@@ -298,6 +298,11 @@ public class MinIOAdapter(
             logger.LogError(ex, "Connection error during MinIO presigned URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
             throw new StorageException(StorageUnavailableMessage, ex);
         }
+        catch (Polly.CircuitBreaker.BrokenCircuitException ex)
+        {
+            logger.LogError(ex, "Circuit breaker open for MinIO presigned URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException(StorageUnavailableMessage, ex);
+        }
     }
 
     /// <summary>
