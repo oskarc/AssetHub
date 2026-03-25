@@ -146,7 +146,10 @@ public static class InfrastructureServiceExtensions
             var hybridCache = sp.GetRequiredService<HybridCache>();
             return new MinIOAdapter(internalClient, publicClient, adapterLogger, pipelineProvider, hybridCache);
         });
-        // Register concrete type for Hangfire job resolution, then forward the interface to it
+        // Register concrete types for Hangfire job resolution, then forward the interface
+        services.AddScoped<ImageMetadataExtractor>();
+        services.AddScoped<ImageProcessingService>();
+        services.AddScoped<VideoProcessingService>();
         services.AddScoped<MediaProcessingService>();
         services.AddScoped<IMediaProcessingService>(sp => sp.GetRequiredService<MediaProcessingService>());
         services.AddScoped<ZipBuildDataDependencies>();

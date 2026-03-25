@@ -7,17 +7,4 @@ public interface IMediaProcessingService
     /// Returns a job ID that can be tracked.
     /// </summary>
     Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Process an image: create thumbnail and medium-size versions.
-    /// Called by background job processor.
-    /// </summary>
-    Task ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default);
-
-    /// <summary>
-    /// Process a video: extract a poster frame thumbnail.
-    /// Called by background job processor.
-    /// </summary>
-    Task ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default);
-
 }

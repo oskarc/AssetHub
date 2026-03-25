@@ -1,0 +1,316 @@
+@using AssetHub.Ui.Services
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using Microsoft.Extensions.Logging
+
+@inject IJSRuntime JS
+@inject ILogger<SharedCollectionView> Logger
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<SharesResource> ShareLoc
+@inject ISnackbar Snackbar
+
+@implements IAsyncDisposable
+
+@if (_selectedAsset != null)
+{
+    <!-- Selected Asset Detail View -->
+    <MudButton Variant="Variant.Text"
+               StartIcon="@Icons.Material.Filled.ArrowBack"
+               OnClick="@(() => _selectedAsset = null)"
+               Class="mb-3">
+        @CommonLoc["Btn_BackToCollection"]
+    </MudButton>
+
+    <AssetDetailPanel Asset="_selectedAsset"
+                      PreviewUrl="@GetAssetPreviewUrl(_selectedAsset.Id)"
+                      PosterUrl="@GetAssetPosterUrl(_selectedAsset.Id)"
+                      DownloadUrl="@GetAssetDownloadUrl(_selectedAsset.Id)"
+                      OnDownload="@(() => DownloadAsset(_selectedAsset.Id))"
+                      MediumDownloadUrl="@GetMediumDownloadUrl(_selectedAsset.Id)"
+                      OnDownloadMedium="@(() => DownloadSpecificSize(_selectedAsset.Id, "medium"))"
+                      ThumbnailDownloadUrl="@GetThumbnailDownloadUrl(_selectedAsset.Id)"
+                      OnDownloadThumbnail="@(() => DownloadSpecificSize(_selectedAsset.Id, "thumb"))"
+                      BrowserNoVideoText="@CommonLoc["Text_BrowserNoVideo"]"
+                      PreviewNotAvailableText="@CommonLoc["Text_DocumentPreviewNotAvailable"]"
+                      DownloadToViewText="@CommonLoc["Btn_DownloadToView"]"
+                      DescriptionLabel="@CommonLoc["Label_Description"]"
+                      CopyrightLabel="@CommonLoc["Label_Copyright"]"
+                      FileInformationText="@CommonLoc["Text_FileInformation"]"
+                      SizeLabel="@CommonLoc["Label_Size"]"
+                      TypeLabel="@CommonLoc["Label_Type"]"
+                      MetadataText="@CommonLoc["Text_Metadata"]"
+                      DownloadOriginalText="@CommonLoc["Btn_DownloadOriginal"]"
+                      DownloadMediumText="@CommonLoc["Btn_DownloadMedium"]"
+                      DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]"
+                      AssetTypeDisplay="@AssetDisplayHelpers.GetLocalizedAssetType(_selectedAsset.AssetType, CommonLoc)"
+                      ContentTypeDisplay="@AssetDisplayHelpers.GetLocalizedContentType(_selectedAsset.ContentType, CommonLoc)" />
+}
+else
+{
+    <!-- Shared Collection View -->
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudStack>
+                <MudText Typo="Typo.h5">@Collection.Name</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    @string.Format(CommonLoc["Text_CountAssets"].Value, Collection.Assets.Count)
+                </MudText>
+            </MudStack>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       OnClick="DownloadAllAssets"
+                       Disabled="_isDownloading">
+                @if (_isDownloading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    @_downloadStatusText
+                }
+                else
+                {
+                    @CommonLoc["Btn_DownloadAll"]
+                }
+            </MudButton>
+        </MudStack>
+        @if (!string.IsNullOrEmpty(Collection.Description))
+        {
+            <MudText Typo="Typo.body1" Class="mt-2">@Collection.Description</MudText>
+        }
+    </MudPaper>
+
+    <MudGrid Spacing="3">
+        @if (Collection.Assets.Count == 0)
+        {
+            <MudItem xs="12">
+                <EmptyState Title="@ShareLoc["NoAssetsInCollection"]"
+                            Description="@ShareLoc["EmptyCollectionDesc"]"
+                            Icon="@Icons.Material.Filled.FolderOff" />
+            </MudItem>
+        }
+        else
+        {
+            @foreach (var asset in Collection.Assets)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                <MudCard Elevation="2" Class="clickable" @onclick="@(() => _selectedAsset = asset)">
+                    <MudCardMedia Image="@GetCollectionThumbnailUrl(asset)"
+                                  Height="160" />
+                    <MudCardContent Class="pa-2">
+                        <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)" Variant="Variant.Outlined">
+                            @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
+                        </MudChip>
+                    </MudCardContent>
+                    <MudCardActions Class="pa-2 pt-0" @onclick:stopPropagation="true">
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick="@(() => DownloadAsset(asset.Id))">
+                            @CommonLoc["Btn_Download"]
+                        </MudButton>
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Visibility"
+                                   OnClick="@(() => _selectedAsset = asset)">
+                            @CommonLoc["Btn_View"]
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+            }
+        }
+    </MudGrid>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public SharedCollectionDto Collection { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public string Token { get; set; } = "";
+
+    [Parameter]
+    public string? AccessToken { get; set; }
+
+    private SharedAssetDto? _selectedAsset;
+    private bool _isDownloading;
+    private string _downloadStatusText = "";
+
+    private IJSObjectReference? _jsModule;
+    private DotNetObjectReference<SharedCollectionView>? _dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AssetHub.Ui/js/helpers.js");
+        }
+    }
+
+    private string AppendAccessToken(string url)
+    {
+        if (string.IsNullOrEmpty(AccessToken)) return url;
+        var separator = url.Contains('?') ? '&' : '?';
+        return $"{url}{separator}accessToken={Uri.EscapeDataString(AccessToken)}";
+    }
+
+    private string GetCollectionThumbnailUrl(SharedAssetDto asset)
+    {
+        var url = asset.ThumbnailUrl ?? asset.MediumUrl;
+        if (string.IsNullOrEmpty(url))
+            return AssetDisplayHelpers.GetPlaceholderForType(asset.AssetType);
+        return AppendAccessToken(url);
+    }
+
+    private string GetAssetPreviewUrl(Guid assetId)
+    {
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}";
+        if (!string.IsNullOrEmpty(AccessToken))
+            url += $"&accessToken={Uri.EscapeDataString(AccessToken)}";
+        return url;
+    }
+
+    private string GetAssetPosterUrl(Guid assetId)
+    {
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?assetId={assetId}&size=medium";
+        if (!string.IsNullOrEmpty(AccessToken))
+            url += $"&accessToken={Uri.EscapeDataString(AccessToken)}";
+        return url;
+    }
+
+    private string GetAssetDownloadUrl(Guid assetId)
+    {
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/download?assetId={assetId}";
+        if (!string.IsNullOrEmpty(AccessToken))
+            url += $"&accessToken={Uri.EscapeDataString(AccessToken)}";
+        return url;
+    }
+
+    private string? GetMediumDownloadUrl(Guid assetId)
+    {
+        var asset = Collection.Assets.FirstOrDefault(a => a.Id == assetId);
+        if (asset != null && string.IsNullOrEmpty(asset.MediumUrl))
+            return null;
+
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?size=medium&assetId={assetId}";
+        if (!string.IsNullOrEmpty(AccessToken))
+            url += $"&accessToken={Uri.EscapeDataString(AccessToken)}";
+        return url;
+    }
+
+    private string? GetThumbnailDownloadUrl(Guid assetId)
+    {
+        var asset = Collection.Assets.FirstOrDefault(a => a.Id == assetId);
+        if (asset != null && string.IsNullOrEmpty(asset.ThumbnailUrl))
+            return null;
+
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?size=thumb&assetId={assetId}";
+        if (!string.IsNullOrEmpty(AccessToken))
+            url += $"&accessToken={Uri.EscapeDataString(AccessToken)}";
+        return url;
+    }
+
+    private async Task DownloadAsset(Guid assetId)
+    {
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/download?assetId={assetId}";
+        if (!string.IsNullOrEmpty(AccessToken))
+            url += $"&accessToken={Uri.EscapeDataString(AccessToken)}";
+
+        if (_jsModule != null)
+        {
+            var error = await _jsModule.InvokeAsync<string?>("downloadWithErrorCheck", url, null);
+            if (!string.IsNullOrEmpty(error))
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
+    }
+
+    private async Task DownloadSpecificSize(Guid assetId, string size)
+    {
+        var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/preview?size={size}&download=true&assetId={assetId}";
+        if (!string.IsNullOrEmpty(AccessToken))
+            url += $"&accessToken={Uri.EscapeDataString(AccessToken)}";
+
+        if (_jsModule != null)
+        {
+            var error = await _jsModule.InvokeAsync<string?>("downloadWithErrorCheck", url, null);
+            if (!string.IsNullOrEmpty(error))
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
+    }
+
+    private async Task DownloadAllAssets()
+    {
+        if (_isDownloading) return;
+
+        _isDownloading = true;
+        _downloadStatusText = CommonLoc["Msg_PreparingDownload"].Value;
+        StateHasChanged();
+
+        try
+        {
+            var url = $"/api/v1/shares/{Uri.EscapeDataString(Token)}/download-all";
+            if (!string.IsNullOrEmpty(AccessToken))
+                url += $"?accessToken={Uri.EscapeDataString(AccessToken)}";
+
+            var headers = new Dictionary<string, string> { { "X-Share-Token", Token } };
+            _dotNetRef?.Dispose();
+            _dotNetRef = DotNetObjectReference.Create(this);
+
+            if (_jsModule != null)
+            {
+                var resultJson = await _jsModule.InvokeAsync<string>(
+                    "enqueueAndPollZipDownload", url, headers, _dotNetRef);
+
+                var result = System.Text.Json.JsonSerializer.Deserialize<ZipDownloadResult>(resultJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (result?.Success != true)
+                {
+                    Snackbar.Add(result?.Error ?? CommonLoc["Msg_DownloadFailed"].Value, Severity.Error);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Download-all failed for share token");
+            Snackbar.Add(CommonLoc["Msg_DownloadFailed"].Value, Severity.Error);
+        }
+        finally
+        {
+            _isDownloading = false;
+            _downloadStatusText = "";
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void UpdateZipProgress(string status, string fileName)
+    {
+        _downloadStatusText = status switch
+        {
+            Constants.ZipProgressStatus.Pending => CommonLoc["Msg_DownloadQueued"].Value,
+            Constants.ZipProgressStatus.Building => CommonLoc["Msg_BuildingZip"].Value,
+            _ => CommonLoc["Msg_PreparingDownload"].Value
+        };
+        InvokeAsync(StateHasChanged);
+    }
+
+    private record ZipDownloadResult(bool Success, string? Error);
+
+    public async ValueTask DisposeAsync()
+    {
+        _dotNetRef?.Dispose();
+        if (_jsModule is not null)
+        {
+            try { await _jsModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+        }
+    }
+}
