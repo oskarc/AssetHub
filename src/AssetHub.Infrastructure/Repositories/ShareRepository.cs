@@ -20,6 +20,7 @@ public class ShareRepository(
     public async Task<Share?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default)
     {
         return await dbContext.Shares
+            .AsNoTracking()
             .FirstOrDefaultAsync(s => s.TokenHash == tokenHash, cancellationToken);
     }
 
@@ -27,6 +28,7 @@ public class ShareRepository(
     {
         var scope = Enum.Parse<ShareScopeType>(scopeType, true);
         return await dbContext.Shares
+            .AsNoTracking()
             .Where(s => s.ScopeType == scope && s.ScopeId == scopeId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -35,6 +37,7 @@ public class ShareRepository(
     public async Task<List<Share>> GetByUserAsync(string userId, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
         return await dbContext.Shares
+            .AsNoTracking()
             .Where(s => s.CreatedByUserId == userId)
             .OrderByDescending(s => s.CreatedAt)
             .Skip(skip)
@@ -52,6 +55,7 @@ public class ShareRepository(
         options ??= new ShareQueryOptions();
 
         var shares = await dbContext.Shares
+            .AsNoTracking()
             .OrderByDescending(s => s.CreatedAt)
             .Skip(options.Skip)
             .Take(options.Take)

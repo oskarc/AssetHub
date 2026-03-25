@@ -170,10 +170,11 @@ public sealed class AssetQueryService : IAssetQueryService
             return AssetMapper.ToDto(asset, RoleHierarchy.Roles.Admin);
 
         var linkedCollections = await _assetCollectionRepo.GetCollectionsForAssetAsync(id, ct);
+        var collectionIds = linkedCollections.Select(c => c.Id).ToList();
+        var roleMap = await _authService.GetUserRolesAsync(_currentUser.UserId, collectionIds, ct);
         foreach (var collection in linkedCollections)
         {
-            var role = await _authService.GetUserRoleAsync(_currentUser.UserId, collection.Id, ct);
-            if (role != null)
+            if (roleMap.TryGetValue(collection.Id, out var role) && role != null)
                 return AssetMapper.ToDto(asset, role);
         }
 

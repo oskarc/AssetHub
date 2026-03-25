@@ -56,6 +56,7 @@ public static class WebApplicationExtensions
     public static void UseAssetHubMiddleware(this WebApplication app)
     {
         UseForwardedHeaders(app);
+        app.UseResponseCompression();
 
         if (!app.Environment.IsDevelopment())
         {

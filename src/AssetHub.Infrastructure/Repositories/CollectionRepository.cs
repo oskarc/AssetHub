@@ -26,6 +26,7 @@ public class CollectionRepository(
     public async Task<IEnumerable<Collection>> GetRootCollectionsAsync(CancellationToken ct = default)
     {
         return await dbContext.Collections
+            .AsNoTracking()
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
     }
@@ -52,6 +53,7 @@ public class CollectionRepository(
             ct);
 
         return await dbContext.Collections
+            .AsNoTracking()
             .Where(c => accessibleIds.Contains(c.Id))
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
@@ -115,6 +117,7 @@ public class CollectionRepository(
 
         // Use projection to avoid loading full Collection entities
         var rows = await dbContext.AssetCollections
+            .AsNoTracking()
             .Where(ac => assetIds.Contains(ac.AssetId))
             .Select(ac => new { ac.AssetId, CollectionName = ac.Collection.Name })
             .ToListAsync(ct);

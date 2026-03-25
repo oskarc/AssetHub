@@ -30,6 +30,7 @@ public class AssetRepository(
                 ac => ac.AssetId,
                 a => a.Id,
                 (ac, a) => a)
+            .AsNoTracking()
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip)
             .Take(take)
@@ -41,6 +42,7 @@ public class AssetRepository(
         if (!Enum.TryParse<AssetType>(assetType, ignoreCase: true, out var type))
             return new List<Asset>();
         return await dbContext.Assets
+            .AsNoTracking()
             .Where(a => a.AssetType == type)
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip)
@@ -53,6 +55,7 @@ public class AssetRepository(
         if (!Enum.TryParse<AssetStatus>(status, ignoreCase: true, out var statusEnum))
             return new List<Asset>();
         return await dbContext.Assets
+            .AsNoTracking()
             .Where(a => a.Status == statusEnum)
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip)
@@ -63,6 +66,7 @@ public class AssetRepository(
     public async Task<List<Asset>> GetByUserAsync(string userId, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
         return await dbContext.Assets
+            .AsNoTracking()
             .Where(a => a.CreatedByUserId == userId)
             .OrderByDescending(a => a.CreatedAt)
             .Skip(skip)
@@ -88,6 +92,7 @@ public class AssetRepository(
     public async Task<Asset?> GetByOriginalKeyAsync(string objectKey, CancellationToken cancellationToken = default)
     {
         return await dbContext.Assets
+            .AsNoTracking()
             .FirstOrDefaultAsync(a => a.OriginalObjectKey == objectKey, cancellationToken);
     }
 

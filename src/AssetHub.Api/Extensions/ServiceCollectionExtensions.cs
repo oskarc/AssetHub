@@ -8,10 +8,13 @@ using AssetHub.Infrastructure.Services;
 using Hangfire;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Http.Resilience;
 using MudBlazor.Services;
 using Polly;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
 namespace AssetHub.Api.Extensions;
@@ -37,6 +40,23 @@ public static class ServiceCollectionExtensions
             options.Limits.MaxRequestBodySize = (long)maxUploadMb * 1024 * 1024;
             options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(30);
             options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
+        });
+
+        // ── Response compression ────────────────────────────────────────────
+        services.AddResponseCompression(options =>
+        {
+            options.EnableForHttps = true;
+            options.Providers.Add<BrotliCompressionProvider>();
+            options.Providers.Add<GzipCompressionProvider>();
+            options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+                ["application/json", "text/plain", "application/javascript", "text/css"]);
+        });
+
+        // ── JSON serialization ──────────────────────────────────────────────
+        services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         });
 
         // ── HSTS (production hardening) ────────────────────────────────────
