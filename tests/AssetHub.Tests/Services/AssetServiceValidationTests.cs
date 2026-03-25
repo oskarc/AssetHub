@@ -26,6 +26,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
     private AssetHubDbContext _db = null!;
     private AssetRepository _assetRepo = null!;
     private AssetCollectionRepository _acRepo = null!;
+    private CollectionRepository _colRepo = null!;
     private CollectionAuthorizationService _authService = null!;
     private Mock<IAuditService> _auditMock = null!;
 
@@ -40,6 +41,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
         var cache = TestCacheHelper.CreateHybridCache();
         _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache, NullLogger<AssetCollectionRepository>.Instance);
+        _colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
         _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
         _auditMock = new Mock<IAuditService>();
     }
@@ -55,7 +57,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
         var minioSettings = Options.Create(new MinIOSettings { BucketName = "test" });
 
         return new AssetService(
-            new AssetServiceRepositories(_assetRepo, _acRepo),
+            new AssetServiceRepositories(_assetRepo, _acRepo, _colRepo),
             _authService,
             new Mock<IAssetDeletionService>().Object,
             _auditMock.Object,

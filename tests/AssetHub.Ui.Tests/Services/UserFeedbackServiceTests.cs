@@ -10,13 +10,44 @@ public class UserFeedbackServiceTests
 {
     private readonly Mock<ISnackbar> _mockSnackbar;
     private readonly Mock<ILogger<UserFeedbackService>> _mockLogger;
+    private readonly Mock<IStringLocalizer<CommonResource>> _mockLocalizer;
     private readonly UserFeedbackService _sut;
 
     public UserFeedbackServiceTests()
     {
         _mockSnackbar = new Mock<ISnackbar>();
         _mockLogger = new Mock<ILogger<UserFeedbackService>>();
-        _sut = new UserFeedbackService(_mockSnackbar.Object, _mockLogger.Object);
+        _mockLocalizer = new Mock<IStringLocalizer<CommonResource>>();
+        // Return realistic English strings for known resource keys so assertions match
+        var feedbackStrings = new Dictionary<string, string>
+        {
+            ["Feedback_RequestTimedOut"] = "The request timed out. Please try again.",
+            ["Feedback_OperationCancelled"] = "The operation was cancelled.",
+            ["Feedback_NoPermission"] = "You don't have permission to perform this action.",
+            ["Feedback_GenericError"] = "Could not {0}. Please try again.",
+            ["Feedback_InvalidRequest"] = "The request was invalid.",
+            ["Feedback_SignInRequired"] = "Please sign in to continue.",
+            ["Feedback_ItemNotFound"] = "The requested item was not found.",
+            ["Feedback_ConflictError"] = "A conflict occurred. Please refresh and try again.",
+            ["Feedback_FileTooLarge"] = "The file is too large.",
+            ["Feedback_InvalidInput"] = "The input is invalid.",
+            ["Feedback_TooManyRequests"] = "Too many requests. Please wait.",
+            ["Feedback_ServerError"] = "A server error occurred.",
+            ["Feedback_ServiceUnavailable"] = "The service is temporarily unavailable.",
+            ["Feedback_GenericApiError"] = "Could not {0}. Please try again.",
+            ["Feedback_ConnectionFailed"] = "Could not connect to the server.",
+            ["Feedback_SecureConnectionFailed"] = "Could not establish a secure connection.",
+            ["Feedback_NetworkError"] = "A network error occurred. Check your connection.",
+        };
+        _mockLocalizer.Setup(l => l[It.IsAny<string>()])
+            .Returns((string key) => new LocalizedString(key, feedbackStrings.GetValueOrDefault(key, key)));
+        _mockLocalizer.Setup(l => l[It.IsAny<string>(), It.IsAny<object[]>()])
+            .Returns((string key, object[] args) =>
+            {
+                var template = feedbackStrings.GetValueOrDefault(key, key);
+                return new LocalizedString(key, string.Format(template, args));
+            });
+        _sut = new UserFeedbackService(_mockSnackbar.Object, _mockLogger.Object, _mockLocalizer.Object);
     }
 
     // ===== ShowSuccess =====

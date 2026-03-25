@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AssetHub.Application.Resources;
 
 namespace AssetHub.Application.Dtos;
 
@@ -104,20 +105,20 @@ public record KeycloakUserDto
 public record CreateUserRequest
 {
     [Required]
-    [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters")]
-    [RegularExpression(@"^[a-zA-Z0-9_\-\.]+$", ErrorMessage = "Username can only contain letters, numbers, underscores, hyphens, and dots")]
+    [StringLength(50, MinimumLength = 3, ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.Username_Length))]
+    [RegularExpression(@"^[a-zA-Z0-9_\-\.]+$", ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.Username_Format))]
     public string Username { get; init; } = "";
 
     [Required]
-    [EmailAddress(ErrorMessage = "Invalid email address")]
+    [EmailAddress(ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.Email_Invalid))]
     public string Email { get; init; } = "";
 
     [Required]
-    [StringLength(100, MinimumLength = 1, ErrorMessage = "First name is required")]
+    [StringLength(100, MinimumLength = 1, ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.FirstName_Required))]
     public string FirstName { get; init; } = "";
 
     [Required]
-    [StringLength(100, MinimumLength = 1, ErrorMessage = "Last name is required")]
+    [StringLength(100, MinimumLength = 1, ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.LastName_Required))]
     public string LastName { get; init; } = "";
 
     /// <summary>
@@ -144,7 +145,7 @@ public record CreateUserRequest
     /// <summary>
     /// Role to assign for initial collections (default: viewer).
     /// </summary>
-    [RegularExpression("^(viewer|contributor|manager|admin)$", ErrorMessage = "Invalid role")]
+    [RegularExpression("^(viewer|contributor|manager|admin)$", ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.Role_Invalid))]
     public string InitialRole { get; init; } = "viewer";
 
     /// <summary>

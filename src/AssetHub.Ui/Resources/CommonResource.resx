@@ -363,6 +363,25 @@
   <data name="ContentType_MOV" xml:space="preserve"><value>QuickTime Video</value></data>
   <data name="ContentType_AVI" xml:space="preserve"><value>AVI Video</value></data>
   <data name="ContentType_PDF" xml:space="preserve"><value>PDF Document</value></data>
+
+  <!-- Feedback / Error Fallbacks (UserFeedbackService) -->
+  <data name="Feedback_RequestTimedOut" xml:space="preserve"><value>The request timed out. Please try again.</value></data>
+  <data name="Feedback_OperationCancelled" xml:space="preserve"><value>The operation was cancelled.</value></data>
+  <data name="Feedback_NoPermission" xml:space="preserve"><value>You don't have permission to perform this action.</value></data>
+  <data name="Feedback_GenericError" xml:space="preserve"><value>Something went wrong while trying to {0}. Please try again.</value></data>
+  <data name="Feedback_InvalidRequest" xml:space="preserve"><value>Invalid request. Please check your input and try again.</value></data>
+  <data name="Feedback_SignInRequired" xml:space="preserve"><value>You need to sign in to perform this action.</value></data>
+  <data name="Feedback_ItemNotFound" xml:space="preserve"><value>The requested item was not found. It may have been deleted.</value></data>
+  <data name="Feedback_ConflictError" xml:space="preserve"><value>This operation conflicts with existing data. Please refresh and try again.</value></data>
+  <data name="Feedback_FileTooLarge" xml:space="preserve"><value>The file is too large. Please try a smaller file.</value></data>
+  <data name="Feedback_InvalidInput" xml:space="preserve"><value>The request couldn't be processed. Please check your input.</value></data>
+  <data name="Feedback_TooManyRequests" xml:space="preserve"><value>Too many requests. Please wait a moment and try again.</value></data>
+  <data name="Feedback_ServerError" xml:space="preserve"><value>A server error occurred. Please try again later.</value></data>
+  <data name="Feedback_ServiceUnavailable" xml:space="preserve"><value>The service is temporarily unavailable. Please try again in a few moments.</value></data>
+  <data name="Feedback_GenericApiError" xml:space="preserve"><value>Failed to {0}. Please try again.</value></data>
+  <data name="Feedback_ConnectionFailed" xml:space="preserve"><value>Unable to connect to the server. Please check your internet connection.</value></data>
+  <data name="Feedback_SecureConnectionFailed" xml:space="preserve"><value>A secure connection could not be established. Please try again.</value></data>
+  <data name="Feedback_NetworkError" xml:space="preserve"><value>A network error occurred while trying to {0}. Please check your connection and try again.</value></data>
   <data name="ContentType_Word" xml:space="preserve"><value>Word Document</value></data>
   <data name="ContentType_Excel" xml:space="preserve"><value>Excel Spreadsheet</value></data>
   <data name="ContentType_PowerPoint" xml:space="preserve"><value>PowerPoint Presentation</value></data>

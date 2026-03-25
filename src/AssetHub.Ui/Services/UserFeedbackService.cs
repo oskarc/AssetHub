@@ -1,3 +1,5 @@
+using AssetHub.Ui.Resources;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using MudBlazor;
 using System.Net;
@@ -12,6 +14,7 @@ public class UserFeedbackService : IUserFeedbackService
 {
     private readonly ISnackbar _snackbar;
     private readonly ILogger<UserFeedbackService> _logger;
+    private readonly IStringLocalizer<CommonResource> _loc;
 
     // Configuration for snackbar display
     private const int SuccessDurationMs = 3000;
@@ -19,10 +22,11 @@ public class UserFeedbackService : IUserFeedbackService
     private const int WarningDurationMs = 5000;
     private const int ErrorDurationMs = 6000;
 
-    public UserFeedbackService(ISnackbar snackbar, ILogger<UserFeedbackService> logger)
+    public UserFeedbackService(ISnackbar snackbar, ILogger<UserFeedbackService> logger, IStringLocalizer<CommonResource> loc)
     {
         _snackbar = snackbar;
         _logger = logger;
+        _loc = loc;
     }
 
     public void ShowSuccess(string message)
@@ -136,25 +140,25 @@ public class UserFeedbackService : IUserFeedbackService
     /// <summary>
     /// Converts exceptions to user-friendly messages.
     /// </summary>
-    private static string GetUserFriendlyMessage(Exception ex, string operationName)
+    private string GetUserFriendlyMessage(Exception ex, string operationName)
     {
         // Handle specific exception types
         return ex switch
         {
             ApiException apiEx => GetApiErrorMessage(apiEx, operationName),
             HttpRequestException httpEx => GetHttpErrorMessage(httpEx, operationName),
-            TaskCanceledException => $"The request timed out. Please try again.",
-            OperationCanceledException => "The operation was cancelled.",
-            UnauthorizedAccessException => "You don't have permission to perform this action.",
+            TaskCanceledException => _loc["Feedback_RequestTimedOut"],
+            OperationCanceledException => _loc["Feedback_OperationCancelled"],
+            UnauthorizedAccessException => _loc["Feedback_NoPermission"],
             ArgumentException argEx when !string.IsNullOrEmpty(argEx.Message) => argEx.Message,
-            _ => $"Something went wrong while trying to {operationName}. Please try again."
+            _ => string.Format(_loc["Feedback_GenericError"], operationName)
         };
     }
 
     /// <summary>
     /// Converts API exceptions to user-friendly messages based on status code.
     /// </summary>
-    private static string GetApiErrorMessage(ApiException ex, string operationName)
+    private string GetApiErrorMessage(ApiException ex, string operationName)
     {
         // If the API returned a specific error message, use it (already sanitized by API)
         if (!string.IsNullOrWhiteSpace(ex.Message) && ex.Message != "null")
@@ -165,38 +169,38 @@ public class UserFeedbackService : IUserFeedbackService
         // Otherwise, provide a generic message based on status code
         return ex.StatusCode switch
         {
-            HttpStatusCode.BadRequest => $"Invalid request. Please check your input and try again.",
-            HttpStatusCode.Unauthorized => "You need to sign in to perform this action.",
-            HttpStatusCode.Forbidden => "You don't have permission to perform this action.",
-            HttpStatusCode.NotFound => $"The requested item was not found. It may have been deleted.",
-            HttpStatusCode.Conflict => "This operation conflicts with existing data. Please refresh and try again.",
-            HttpStatusCode.RequestEntityTooLarge => "The file is too large. Please try a smaller file.",
-            HttpStatusCode.UnprocessableEntity => "The request couldn't be processed. Please check your input.",
-            HttpStatusCode.TooManyRequests => "Too many requests. Please wait a moment and try again.",
-            HttpStatusCode.InternalServerError => "A server error occurred. Please try again later.",
+            HttpStatusCode.BadRequest => _loc["Feedback_InvalidRequest"],
+            HttpStatusCode.Unauthorized => _loc["Feedback_SignInRequired"],
+            HttpStatusCode.Forbidden => _loc["Feedback_NoPermission"],
+            HttpStatusCode.NotFound => _loc["Feedback_ItemNotFound"],
+            HttpStatusCode.Conflict => _loc["Feedback_ConflictError"],
+            HttpStatusCode.RequestEntityTooLarge => _loc["Feedback_FileTooLarge"],
+            HttpStatusCode.UnprocessableEntity => _loc["Feedback_InvalidInput"],
+            HttpStatusCode.TooManyRequests => _loc["Feedback_TooManyRequests"],
+            HttpStatusCode.InternalServerError => _loc["Feedback_ServerError"],
             HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout 
-                => "The service is temporarily unavailable. Please try again in a few moments.",
-            _ => $"Failed to {operationName}. Please try again."
+                => _loc["Feedback_ServiceUnavailable"],
+            _ => string.Format(_loc["Feedback_GenericApiError"], operationName)
         };
     }
 
     /// <summary>
     /// Converts HTTP request exceptions to user-friendly messages.
     /// </summary>
-    private static string GetHttpErrorMessage(HttpRequestException ex, string operationName)
+    private string GetHttpErrorMessage(HttpRequestException ex, string operationName)
     {
         if (ex.Message.Contains("No connection could be made", StringComparison.OrdinalIgnoreCase) ||
             ex.Message.Contains("Connection refused", StringComparison.OrdinalIgnoreCase))
         {
-            return "Unable to connect to the server. Please check your internet connection.";
+            return _loc["Feedback_ConnectionFailed"];
         }
 
         if (ex.Message.Contains("SSL", StringComparison.OrdinalIgnoreCase) ||
             ex.Message.Contains("certificate", StringComparison.OrdinalIgnoreCase))
         {
-            return "A secure connection could not be established. Please try again.";
+            return _loc["Feedback_SecureConnectionFailed"];
         }
 
-        return $"A network error occurred while trying to {operationName}. Please check your connection and try again.";
+        return string.Format(_loc["Feedback_NetworkError"], operationName);
     }
 }

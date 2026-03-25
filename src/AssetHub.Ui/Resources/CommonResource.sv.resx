@@ -359,6 +359,25 @@
   <data name="ContentType_MOV" xml:space="preserve"><value>QuickTime-video</value></data>
   <data name="ContentType_AVI" xml:space="preserve"><value>AVI-video</value></data>
   <data name="ContentType_PDF" xml:space="preserve"><value>PDF-dokument</value></data>
+
+  <!-- Feedback / Error Fallbacks (UserFeedbackService) -->
+  <data name="Feedback_RequestTimedOut" xml:space="preserve"><value>Begäran tog för lång tid. Försök igen.</value></data>
+  <data name="Feedback_OperationCancelled" xml:space="preserve"><value>Åtgärden avbröts.</value></data>
+  <data name="Feedback_NoPermission" xml:space="preserve"><value>Du har inte behörighet att utföra denna åtgärd.</value></data>
+  <data name="Feedback_GenericError" xml:space="preserve"><value>Något gick fel vid {0}. Försök igen.</value></data>
+  <data name="Feedback_InvalidRequest" xml:space="preserve"><value>Ogiltig begäran. Kontrollera dina uppgifter och försök igen.</value></data>
+  <data name="Feedback_SignInRequired" xml:space="preserve"><value>Du måste logga in för att utföra denna åtgärd.</value></data>
+  <data name="Feedback_ItemNotFound" xml:space="preserve"><value>Det begärda objektet hittades inte. Det kan ha tagits bort.</value></data>
+  <data name="Feedback_ConflictError" xml:space="preserve"><value>Åtgärden står i konflikt med befintliga data. Uppdatera sidan och försök igen.</value></data>
+  <data name="Feedback_FileTooLarge" xml:space="preserve"><value>Filen är för stor. Försök med en mindre fil.</value></data>
+  <data name="Feedback_InvalidInput" xml:space="preserve"><value>Begäran kunde inte behandlas. Kontrollera dina uppgifter.</value></data>
+  <data name="Feedback_TooManyRequests" xml:space="preserve"><value>För många förfrågningar. Vänta en stund och försök igen.</value></data>
+  <data name="Feedback_ServerError" xml:space="preserve"><value>Ett serverfel inträffade. Försök igen senare.</value></data>
+  <data name="Feedback_ServiceUnavailable" xml:space="preserve"><value>Tjänsten är tillfälligt otillgänglig. Försök igen om en stund.</value></data>
+  <data name="Feedback_GenericApiError" xml:space="preserve"><value>Kunde inte {0}. Försök igen.</value></data>
+  <data name="Feedback_ConnectionFailed" xml:space="preserve"><value>Kunde inte ansluta till servern. Kontrollera din internetanslutning.</value></data>
+  <data name="Feedback_SecureConnectionFailed" xml:space="preserve"><value>En säker anslutning kunde inte upprättas. Försök igen.</value></data>
+  <data name="Feedback_NetworkError" xml:space="preserve"><value>Ett nätverksfel inträffade vid {0}. Kontrollera din anslutning och försök igen.</value></data>
   <data name="ContentType_Word" xml:space="preserve"><value>Word-dokument</value></data>
   <data name="ContentType_Excel" xml:space="preserve"><value>Excel-kalkylblad</value></data>
   <data name="ContentType_PowerPoint" xml:space="preserve"><value>PowerPoint-presentation</value></data>

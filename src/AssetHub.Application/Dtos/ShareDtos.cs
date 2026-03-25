@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AssetHub.Application.Resources;
 
 namespace AssetHub.Application.Dtos;
 
@@ -13,12 +14,12 @@ public class CreateShareDto
 
     /// <summary>"asset" or "collection".</summary>
     [Required]
-    [RegularExpression("^(asset|collection)$", ErrorMessage = "ScopeType must be 'asset' or 'collection'")]
+    [RegularExpression("^(asset|collection)$", ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.ScopeType_Invalid))]
     public required string ScopeType { get; set; }
 
     public DateTime? ExpiresAt { get; set; }
 
-    [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be 8-100 characters")]
+    [StringLength(100, MinimumLength = 8, ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.SharePassword_Length))]
     public string? Password { get; set; }
 
     public Dictionary<string, bool>? PermissionsJson { get; set; }
@@ -27,7 +28,7 @@ public class CreateShareDto
     /// Optional list of email addresses to notify about this share.
     /// Maximum 10 recipients.
     /// </summary>
-    [MaxLength(10, ErrorMessage = "Maximum 10 email recipients allowed")]
+    [MaxLength(10, ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.ShareEmails_MaxCount))]
     public List<string>? NotifyEmails { get; set; }
 }
 
@@ -100,7 +101,7 @@ public class SharedCollectionDto : ISharedContentDto
 public class UpdateSharePasswordDto
 {
     [Required]
-    [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be 8-100 characters")]
+    [StringLength(100, MinimumLength = 8, ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.SharePassword_Length))]
     public required string Password { get; set; }
 }
 

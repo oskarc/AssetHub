@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AssetHub.Application.Resources;
 
 namespace AssetHub.Application.Dtos;
 
@@ -64,7 +65,7 @@ public class SetCollectionAccessDto
     /// Principal type: "user".
     /// </summary>
     [Required]
-    [RegularExpression("^(user)$", ErrorMessage = "PrincipalType must be 'user'")]
+    [RegularExpression("^(user)$", ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.PrincipalType_MustBeUser))]
     public required string PrincipalType { get; set; }
 
     /// <summary>
@@ -78,7 +79,7 @@ public class SetCollectionAccessDto
     /// Role to assign: "viewer", "contributor", "manager", "admin".
     /// </summary>
     [Required]
-    [RegularExpression("^(viewer|contributor|manager|admin)$", ErrorMessage = "Role must be 'viewer', 'contributor', 'manager', or 'admin'")]
+    [RegularExpression("^(viewer|contributor|manager|admin)$", ErrorMessageResourceType = typeof(ValidationResource), ErrorMessageResourceName = nameof(ValidationResource.CollectionRole_Invalid))]
     public required string Role { get; set; }
 }
 

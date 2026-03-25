@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- User / Admin -->
+  <data name="Username_Length" xml:space="preserve"><value>Anv&#228;ndarnamn m&#229;ste vara mellan 3 och 50 tecken</value></data>
+  <data name="Username_Format" xml:space="preserve"><value>Anv&#228;ndarnamn f&#229;r bara inneh&#229;lla bokst&#228;ver, siffror, understreck, bindestreck och punkter</value></data>
+  <data name="Email_Invalid" xml:space="preserve"><value>Ogiltig e-postadress</value></data>
+  <data name="FirstName_Required" xml:space="preserve"><value>F&#246;rnamn kr&#228;vs</value></data>
+  <data name="LastName_Required" xml:space="preserve"><value>Efternamn kr&#228;vs</value></data>
+  <data name="Role_Invalid" xml:space="preserve"><value>Ogiltig roll</value></data>
+
+  <!-- Share -->
+  <data name="ScopeType_Invalid" xml:space="preserve"><value>Typ m&#229;ste vara 'asset' eller 'collection'</value></data>
+  <data name="SharePassword_Length" xml:space="preserve"><value>L&#246;senord m&#229;ste vara 8&#8211;100 tecken</value></data>
+  <data name="ShareEmails_MaxCount" xml:space="preserve"><value>Maximalt 10 e-postmottagare till&#229;tna</value></data>
+
+  <!-- Collection / ACL -->
+  <data name="PrincipalType_MustBeUser" xml:space="preserve"><value>PrincipalType m&#229;ste vara 'user'</value></data>
+  <data name="CollectionRole_Invalid" xml:space="preserve"><value>Rollen m&#229;ste vara 'viewer', 'contributor', 'manager' eller 'admin'</value></data>
+
+  <!-- Asset -->
+  <data name="Tags_MaxCount" xml:space="preserve"><value>Maximalt 50 taggar till&#229;tna</value></data>
+</root>

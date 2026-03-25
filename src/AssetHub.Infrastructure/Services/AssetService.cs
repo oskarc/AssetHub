@@ -15,7 +15,8 @@ namespace AssetHub.Infrastructure.Services;
 /// </summary>
 public sealed record AssetServiceRepositories(
     IAssetRepository AssetRepo,
-    IAssetCollectionRepository AssetCollectionRepo);
+    IAssetCollectionRepository AssetCollectionRepo,
+    ICollectionRepository CollectionRepo);
 
 /// <summary>
 /// Command operations for assets: update, delete, collection membership.
@@ -26,6 +27,7 @@ public sealed class AssetService : IAssetService
 {
     private readonly IAssetRepository _assetRepo;
     private readonly IAssetCollectionRepository _assetCollectionRepo;
+    private readonly ICollectionRepository _collectionRepo;
     private readonly ICollectionAuthorizationService _authService;
     private readonly IAssetDeletionService _deletionService;
     private readonly IAuditService _audit;
@@ -46,6 +48,7 @@ public sealed class AssetService : IAssetService
     {
         _assetRepo = repos.AssetRepo;
         _assetCollectionRepo = repos.AssetCollectionRepo;
+        _collectionRepo = repos.CollectionRepo;
         _authService = authService;
         _deletionService = deletionService;
         _audit = audit;
@@ -257,9 +260,12 @@ public sealed class AssetService : IAssetService
                 return ServiceError.Forbidden("You don't have permission to add assets to this collection");
         }
 
+        if (!await _collectionRepo.ExistsAsync(collectionId, ct))
+            return ServiceError.NotFound("Collection not found");
+
         var result = await _assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
         if (result == null)
-            return ServiceError.BadRequest("Asset is already linked to this collection or collection not found");
+            return ServiceError.Conflict("Asset is already linked to this collection");
 
         await _audit.LogAsync("asset.added_to_collection", Constants.ScopeTypes.Asset, assetId, userId,
             new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);

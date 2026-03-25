@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- User / Admin -->
+  <data name="Username_Length" xml:space="preserve"><value>Username must be between 3 and 50 characters</value></data>
+  <data name="Username_Format" xml:space="preserve"><value>Username can only contain letters, numbers, underscores, hyphens, and dots</value></data>
+  <data name="Email_Invalid" xml:space="preserve"><value>Invalid email address</value></data>
+  <data name="FirstName_Required" xml:space="preserve"><value>First name is required</value></data>
+  <data name="LastName_Required" xml:space="preserve"><value>Last name is required</value></data>
+  <data name="Role_Invalid" xml:space="preserve"><value>Invalid role</value></data>
+
+  <!-- Share -->
+  <data name="ScopeType_Invalid" xml:space="preserve"><value>ScopeType must be 'asset' or 'collection'</value></data>
+  <data name="SharePassword_Length" xml:space="preserve"><value>Password must be 8-100 characters</value></data>
+  <data name="ShareEmails_MaxCount" xml:space="preserve"><value>Maximum 10 email recipients allowed</value></data>
+
+  <!-- Collection / ACL -->
+  <data name="PrincipalType_MustBeUser" xml:space="preserve"><value>PrincipalType must be 'user'</value></data>
+  <data name="CollectionRole_Invalid" xml:space="preserve"><value>Role must be 'viewer', 'contributor', 'manager', or 'admin'</value></data>
+
+  <!-- Asset -->
+  <data name="Tags_MaxCount" xml:space="preserve"><value>Maximum 50 tags allowed</value></data>
+</root>

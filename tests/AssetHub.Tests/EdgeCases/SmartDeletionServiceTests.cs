@@ -77,7 +77,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         var minioSettings = Options.Create(new MinIOSettings { BucketName = BucketName });
 
         return new AssetService(
-            new AssetServiceRepositories(_assetRepo, _acRepo),
+            new AssetServiceRepositories(_assetRepo, _acRepo, _colRepo),
             _authService,
             _deletionService,
             _auditMock.Object,
