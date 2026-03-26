@@ -63,13 +63,12 @@ export async function uploadFile(presignedUrl, inputElement, fileIndex, dotNetHe
  * @returns {Array<{name: string, size: number, type: string}>} File metadata array
  */
 export function getFileMetadata(inputElement) {
-    const files = inputElement.files;
     const result = [];
-    for (let i = 0; i < files.length; i++) {
+    for (const file of inputElement.files) {
         result.push({
-            name: files[i].name,
-            size: files[i].size,
-            type: files[i].type || 'application/octet-stream'
+            name: file.name,
+            size: file.size,
+            type: file.type || 'application/octet-stream'
         });
     }
     return result;
