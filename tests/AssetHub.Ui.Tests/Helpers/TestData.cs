@@ -7,6 +7,7 @@ public static class TestData
 {
     private static int _counter = 0;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Test factory with optional defaults — callers only specify what they need")]
     public static AssetResponseDto CreateAsset(
         Guid? id = null,
         string title = "Test Asset",

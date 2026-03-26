@@ -12,6 +12,7 @@ public static class TestData
 {
     private static readonly string DefaultUserId = "test-user-001";
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Test factory with optional defaults — callers only specify what they need")]
     public static Asset CreateAsset(
         Guid? id = null,
         string title = "Test Asset",
@@ -91,6 +92,7 @@ public static class TestData
         };
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Test factory with optional defaults — callers only specify what they need")]
     public static Share CreateShare(
         Guid? id = null,
         ShareScopeType scopeType = ShareScopeType.Asset,

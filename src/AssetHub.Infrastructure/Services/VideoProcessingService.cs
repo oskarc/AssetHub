@@ -138,12 +138,12 @@ public sealed class VideoProcessingService(
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             process.Kill(entireProcessTree: true);
-            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { }
+            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { /* Best-effort drain of stdio after kill — exceptions are non-actionable */ }
             throw new TimeoutException($"{toolName} process exceeded the {ProcessTimeout.TotalMinutes:F0}-minute timeout and was killed");
         }
         catch
         {
-            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { }
+            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { /* Best-effort drain of stdio after failure — exceptions are non-actionable */ }
             throw;
         }
 

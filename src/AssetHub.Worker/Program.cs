@@ -11,7 +11,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace AssetHub.Worker;
 
-class Program
+static class Program
 {
     static async Task Main(string[] args)
     {

@@ -367,14 +367,10 @@ public sealed class AssetService : IAssetService
             return RoleHierarchy.Roles.Viewer;
 
         var roles = await _authService.GetUserRolesAsync(_currentUser.UserId, collections, ct);
-        var bestRole = RoleHierarchy.Roles.Viewer;
 
-        foreach (var role in roles.Values)
-        {
-            if (role is not null && RoleHierarchy.GetLevel(role) > RoleHierarchy.GetLevel(bestRole))
-                bestRole = role;
-        }
-
-        return bestRole;
+        return roles.Values
+            .Where(role => role is not null)
+            .Aggregate(RoleHierarchy.Roles.Viewer, (best, role) =>
+                RoleHierarchy.GetLevel(role!) > RoleHierarchy.GetLevel(best) ? role! : best);
     }
 }
