@@ -74,3 +74,60 @@ export function getFileMetadata(inputElement) {
     }
     return result;
 }
+
+/**
+ * Preload thumbnail images so the browser caches them before the grid renders.
+ * Resolves when all images have loaded (or failed), with a safety timeout.
+ * @param {string[]} urls - Array of thumbnail URLs to preload
+ * @param {number} timeoutMs - Maximum wait time in milliseconds (default: 10000)
+ * @returns {Promise<void>}
+ */
+export function preloadImages(urls, timeoutMs = 10000) {
+    if (!urls || urls.length === 0) return Promise.resolve();
+
+    return new Promise((resolve) => {
+        const timeout = setTimeout(resolve, timeoutMs);
+        let remaining = urls.length;
+
+        const onDone = () => {
+            remaining--;
+            if (remaining <= 0) {
+                clearTimeout(timeout);
+                resolve();
+            }
+        };
+
+        for (const url of urls) {
+            const img = new Image();
+            img.onload = onDone;
+            img.onerror = onDone;
+            img.src = url;
+        }
+    });
+}
+
+/** @type {((e: BeforeUnloadEvent) => void) | null} */
+let _beforeUnloadHandler = null;
+
+/**
+ * Enable the browser's native "Leave site?" confirmation dialog.
+ * Called when uploads start.
+ */
+export function enableBeforeUnload() {
+    if (_beforeUnloadHandler) return;
+    _beforeUnloadHandler = (e) => {
+        e.preventDefault();
+    };
+    window.addEventListener('beforeunload', _beforeUnloadHandler);
+}
+
+/**
+ * Disable the browser's native "Leave site?" dialog.
+ * Called when all uploads finish or the component is disposed.
+ */
+export function disableBeforeUnload() {
+    if (_beforeUnloadHandler) {
+        window.removeEventListener('beforeunload', _beforeUnloadHandler);
+        _beforeUnloadHandler = null;
+    }
+}

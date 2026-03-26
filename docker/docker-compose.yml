@@ -306,8 +306,11 @@ services:
   clamav:
     image: clamav/clamav:1.5.1
     container_name: assethub-clamav
-    volumes:
-      - ./clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+    environment:
+      # Increase size limits for large media uploads (defaults: 25M/400M/1000M)
+      CLAMD_CONF_StreamMaxLength: "1600M"
+      CLAMD_CONF_MaxFileSize: "1600M"
+      CLAMD_CONF_MaxScanSize: "1600M"
     healthcheck:
       test: ["CMD", "clamdcheck.sh"]
       interval: 60s

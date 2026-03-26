@@ -160,6 +160,7 @@
   <data name="Text_SignedIn" xml:space="preserve"><value>Inloggad</value></data>
   <data name="Text_NoTags" xml:space="preserve"><value>Inga taggar</value></data>
   <data name="Text_Processing" xml:space="preserve"><value>Bearbetar</value></data>
+  <data name="Text_Verifying" xml:space="preserve"><value>Verifierar</value></data>
   <data name="Text_Queued" xml:space="preserve"><value>I kö</value></data>
   <data name="Text_Remaining" xml:space="preserve"><value>({0} kvar)</value></data>
   <data name="Text_ShowingOfAssets" xml:space="preserve"><value>Visar {0} av {1} tillgångar</value></data>
@@ -198,6 +199,9 @@
   <data name="Confirm_Revoke" xml:space="preserve"><value>Bekräfta återkallande</value></data>
   <data name="Confirm_RemoveAccess" xml:space="preserve"><value>Bekräfta borttagning av åtkomst</value></data>
   <data name="Confirm_Generate" xml:space="preserve"><value>Bekräfta generering</value></data>
+  <data name="Title_LeavePageConfirm" xml:space="preserve"><value>Lämna sidan?</value></data>
+  <data name="Text_UploadInProgress" xml:space="preserve"><value>Filer laddas fortfarande upp eller bearbetas. Om du lämnar sidan avbryts de återstående uppladdningarna.</value></data>
+  <data name="Btn_LeavePage" xml:space="preserve"><value>Lämna sidan</value></data>
 
   <!-- Validation -->
   <data name="Validation_Required" xml:space="preserve"><value>{0} krävs</value></data>

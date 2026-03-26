@@ -163,6 +163,7 @@
   <data name="Text_SignedIn" xml:space="preserve"><value>Signed In</value></data>
   <data name="Text_NoTags" xml:space="preserve"><value>No tags</value></data>
   <data name="Text_Processing" xml:space="preserve"><value>Processing</value></data>
+  <data name="Text_Verifying" xml:space="preserve"><value>Verifying</value></data>
   <data name="Text_Queued" xml:space="preserve"><value>Queued</value></data>
   <data name="Text_Remaining" xml:space="preserve"><value>({0} remaining)</value></data>
   <data name="Text_ShowingOfAssets" xml:space="preserve"><value>Showing {0} of {1} assets</value></data>
@@ -201,6 +202,9 @@
   <data name="Confirm_Revoke" xml:space="preserve"><value>Confirm Revoke</value></data>
   <data name="Confirm_RemoveAccess" xml:space="preserve"><value>Confirm Remove Access</value></data>
   <data name="Confirm_Generate" xml:space="preserve"><value>Confirm Generate</value></data>
+  <data name="Title_LeavePageConfirm" xml:space="preserve"><value>Leave page?</value></data>
+  <data name="Text_UploadInProgress" xml:space="preserve"><value>Files are still being uploaded or processed. Leaving this page will cancel the remaining uploads.</value></data>
+  <data name="Btn_LeavePage" xml:space="preserve"><value>Leave page</value></data>
 
   <!-- Validation -->
   <data name="Validation_Required" xml:space="preserve"><value>{0} is required</value></data>
