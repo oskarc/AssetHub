@@ -110,4 +110,9 @@ public interface ICollectionAclRepository
     /// Gets all ACL entries across all collections (admin use).
     /// </summary>
     Task<IEnumerable<CollectionAcl>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes all ACL entries for a user across all collections. Returns the count deleted.
+    /// </summary>
+    Task<int> DeleteByUserAsync(string userId, CancellationToken ct = default);
 }

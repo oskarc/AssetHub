@@ -14,6 +14,7 @@ public class CollectionAclRepository(
     public async Task<IEnumerable<CollectionAcl>> GetByCollectionAsync(Guid collectionId, CancellationToken ct = default)
     {
         return await dbContext.CollectionAcls
+            .AsNoTracking()
             .Where(a => a.CollectionId == collectionId)
             .OrderBy(a => a.PrincipalType)
             .ThenBy(a => a.PrincipalId)
@@ -33,6 +34,7 @@ public class CollectionAclRepository(
     public async Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId, CancellationToken ct = default)
     {
         return await dbContext.CollectionAcls
+            .AsNoTracking()
             .Where(a => a.PrincipalType == PrincipalType.User && a.PrincipalId == userId)
             .ToListAsync(ct);
     }
@@ -118,8 +120,16 @@ public class CollectionAclRepository(
     public async Task<IEnumerable<CollectionAcl>> GetAllAsync(CancellationToken ct = default)
     {
         return await dbContext.CollectionAcls
+            .AsNoTracking()
             .OrderBy(a => a.CollectionId)
             .ThenBy(a => a.PrincipalId)
             .ToListAsync(ct);
+    }
+
+    public async Task<int> DeleteByUserAsync(string userId, CancellationToken ct = default)
+    {
+        return await dbContext.CollectionAcls
+            .Where(a => a.PrincipalType == PrincipalType.User && a.PrincipalId == userId)
+            .ExecuteDeleteAsync(ct);
     }
 }

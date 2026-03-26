@@ -1,10 +1,12 @@
 @page "/"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IAsyncDisposable
 
 @using AssetHub.Application
 @using AssetHub.Application.Dtos
 @using AssetHub.Ui.Services
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.Extensions.Logging
 
 @inject AssetHubApiClient Api
 @inject NavigationManager Nav
@@ -14,6 +16,7 @@
 @inject IDialogService DialogService
 @inject LocalStorageService LocalStorage
 @inject IHttpContextAccessor HttpContextAccessor
+@inject ILogger<Home> Logger
 
 <PageTitle>@Loc["Dashboard_Title"] - @Loc["AppName"]</PageTitle>
 
@@ -366,6 +369,7 @@
     private string _displayName = "";
     private bool _loading = true;
     private bool _dashboardError;
+    private CancellationTokenSource _cts = new();
     private double[] _storageChartData = [];
     private string[] _storageChartLabels = [];
     private bool _isDarkMode = true;
@@ -422,14 +426,19 @@
     {
         try
         {
-            _dashboard = await Api.GetDashboardAsync();
+            _dashboard = await Api.GetDashboardAsync(_cts.Token);
             if (_dashboard is null)
                 _dashboardError = true;
             else
                 BuildStorageChart();
         }
-        catch
+        catch (OperationCanceledException)
         {
+            // Component disposed or reload triggered — ignore
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load dashboard data");
             _dashboardError = true;
         }
         finally
@@ -523,4 +532,11 @@
 
     private string GetLocalizedRole(string role) =>
         AssetDisplayHelpers.GetLocalizedRole(role, Loc);
+
+    public ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        return ValueTask.CompletedTask;
+    }
 }

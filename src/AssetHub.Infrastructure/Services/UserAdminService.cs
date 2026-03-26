@@ -95,10 +95,10 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
             .Where(u => !u.Username.StartsWith("service-account-", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+        // Start Keycloak API call in parallel with EF Core query
+        var adminUserIdsTask = _lifecycle.KeycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
         var allAcls = await _aclRepo.GetAllAsync(ct);
-
-        // Get users with the "admin" realm role
-        var adminUserIds = await _lifecycle.KeycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        var adminUserIds = await adminUserIdsTask;
 
         var userAclGroups = allAcls
             .Where(a => a.PrincipalType == PrincipalType.User)

@@ -215,7 +215,7 @@ public static class AdminEndpoints
     {
         var request = new AuditQueryRequest
         {
-            PageSize = pageSize,
+            PageSize = Math.Clamp(pageSize, 1, Constants.Limits.MaxPageSize),
             Cursor = cursor,
             EventType = eventType,
             TargetType = targetType,

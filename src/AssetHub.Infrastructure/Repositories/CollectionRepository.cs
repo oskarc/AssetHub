@@ -132,6 +132,7 @@ public class CollectionRepository(
     public async Task<IEnumerable<Collection>> GetAllWithAclsAsync(CancellationToken ct = default)
     {
         return await dbContext.Collections
+            .AsNoTracking()
             .Include(c => c.Acls)
             .OrderBy(c => c.Name)
             .Take(AssetHub.Application.Constants.Limits.AdminCollectionQueryLimit)

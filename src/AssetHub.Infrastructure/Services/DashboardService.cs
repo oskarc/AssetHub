@@ -56,37 +56,36 @@ public class DashboardService : IDashboardService
 
         var dashboard = new DashboardDto { UserRole = highestRole };
 
-        // ── Recent assets ───────────────────────────────────────────────
-        dashboard.RecentAssets = await GetRecentAssetsAsync(userId, isAdmin, ct);
+        var showManagerSections = isAdmin || RoleHierarchy.GetLevel(highestRole) >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager);
 
-        // ── Collections (for contributor/viewer quick access) ────────────
+        // ── Start non-DB calls (Keycloak HTTP) in parallel with DB work ──
+        var adminIdsTask = isAdmin
+            ? _keycloakUsers.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct)
+            : Task.FromResult<HashSet<string>>(null!);
+        var allUsersTask = isAdmin
+            ? _userLookup.GetAllUsersAsync(ct)
+            : Task.FromResult<List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>>(null!);
+
+        // ── DB queries must stay sequential (shared scoped DbContext) ────
+        dashboard.RecentAssets = await GetRecentAssetsAsync(userId, isAdmin, ct);
         dashboard.Collections = await GetAccessibleCollectionsAsync(userId, ct);
 
-        // ── Shares (manager+ see their own, admin sees all) ─────────────
-        if (isAdmin || RoleHierarchy.GetLevel(highestRole) >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager))
+        if (showManagerSections)
         {
             dashboard.RecentShares = await _queryService.GetRecentSharesAsync(
                 isAdmin ? null : userId, RecentSharesLimit, ct);
-        }
-
-        // ── Activity feed (manager+ see their own, admin sees all) ──────
-        if (isAdmin || RoleHierarchy.GetLevel(highestRole) >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager))
-        {
             dashboard.RecentActivity = await _queryService.GetRecentActivityAsync(
                 isAdmin ? null : userId, RecentActivityLimit, ct);
         }
 
-        // ── Global stats (admin only) ───────────────────────────────────
         if (isAdmin)
         {
             dashboard.Stats = await _queryService.GetGlobalStatsAsync(ct);
 
-            // System admins are tracked in Keycloak, not in ACLs
-            var adminIds = await _keycloakUsers.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+            var adminIds = await adminIdsTask;
             dashboard.Stats.AdminCount = adminIds.Count;
 
-            // Total users from Keycloak; compute unassigned = total - admins - users with roles
-            var allUsers = await _userLookup.GetAllUsersAsync(ct);
+            var allUsers = await allUsersTask;
             dashboard.Stats.TotalUsers = allUsers.Count;
             var assignedCount = dashboard.Stats.AdminCount + dashboard.Stats.ViewerCount
                               + dashboard.Stats.ContributorCount + dashboard.Stats.ManagerCount;

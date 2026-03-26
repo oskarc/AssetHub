@@ -1,5 +1,6 @@
 @page "/assets/{AssetId:guid}"
 @attribute [Authorize]
+@implements IAsyncDisposable
 
 @using AssetHub.Application
 @using AssetHub.Application.Dtos
@@ -369,9 +370,14 @@ else
     private AssetResponseDto? _asset;
     private List<AssetCollectionDto> _assetCollections = new();
     private bool _isLoading = true;
+    private CancellationTokenSource _cts = new();
 
     protected override async Task OnParametersSetAsync()
     {
+        // Cancel any in-flight request from a previous AssetId
+        await _cts.CancelAsync();
+        _cts.Dispose();
+        _cts = new CancellationTokenSource();
         await LoadAssetAsync();
     }
 
@@ -380,8 +386,12 @@ else
         try
         {
             _isLoading = true;
-            _asset = await Api.GetAssetAsync(AssetId);
+            _asset = await Api.GetAssetAsync(AssetId, _cts.Token);
             await LoadAssetCollectionsAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Navigation to different asset or disposal — ignore
         }
         catch (Exception ex)
         {
@@ -398,7 +408,11 @@ else
     {
         try
         {
-            _assetCollections = await Api.GetAssetCollectionsAsync(AssetId);
+            _assetCollections = await Api.GetAssetCollectionsAsync(AssetId, _cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled — ignore
         }
         catch (Exception ex)
         {
@@ -592,4 +606,10 @@ else
     private string GetFriendlyContentType(string? contentType) =>
         AssetDisplayHelpers.GetLocalizedContentType(contentType, CommonLoc);
 
+    public ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        return ValueTask.CompletedTask;
+    }
 }

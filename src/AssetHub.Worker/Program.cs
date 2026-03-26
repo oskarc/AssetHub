@@ -54,13 +54,13 @@ class Program
         var recurringJobs = host.Services.GetRequiredService<IRecurringJobManager>();
         recurringJobs.AddOrUpdate<StaleUploadCleanupJob>(
             "stale-upload-cleanup",
-            job => job.ExecuteAsync(),
+            job => job.ExecuteAsync(CancellationToken.None),
             Cron.Daily(3, 0), // Run daily at 3:00 AM UTC
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
         recurringJobs.AddOrUpdate<CleanupOrphanedSharesJob>(
             "orphaned-shares-cleanup",
-            job => job.ExecuteAsync(),
+            job => job.ExecuteAsync(CancellationToken.None),
             Cron.Weekly(DayOfWeek.Sunday, 4, 0), // Run weekly on Sunday at 4:00 AM UTC
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 

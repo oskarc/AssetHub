@@ -35,6 +35,11 @@ public interface IShareRepository
     Task DeleteByScopeAsync(string scopeType, Guid scopeId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Deletes all shares matching a scope type and any of the given scope IDs in a single query.
+    /// </summary>
+    Task DeleteByScopeBatchAsync(string scopeType, IEnumerable<Guid> scopeIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Atomically increments the access count and updates LastAccessedAt using a single SQL UPDATE.
     /// Avoids the read-modify-write race condition of fetching the entity first.
     /// </summary>

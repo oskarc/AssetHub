@@ -170,15 +170,21 @@ public class DashboardQueryService : IDashboardQueryService
                     .CountAsync(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow, cancel);
                 var revokedShares = await _db.Shares
                     .CountAsync(s => s.RevokedAt != null, cancel);
-                var userHighestRoles = await _db.CollectionAcls
+
+                // Aggregate role counts in the database instead of loading all ACLs into memory
+                var roleCounts = await _db.CollectionAcls
                     .Where(a => a.PrincipalType == PrincipalType.User)
                     .GroupBy(a => a.PrincipalId)
                     .Select(g => g.Max(a => a.Role))
+                    .GroupBy(r => r)
+                    .Select(g => new { Role = g.Key, Count = g.Count() })
                     .ToListAsync(cancel);
-                var totalUsers = userHighestRoles.Count;
-                var viewerCount = userHighestRoles.Count(r => r == AclRole.Viewer);
-                var contributorCount = userHighestRoles.Count(r => r == AclRole.Contributor);
-                var managerCount = userHighestRoles.Count(r => r == AclRole.Manager);
+
+                var viewerCount = roleCounts.FirstOrDefault(r => r.Role == AclRole.Viewer)?.Count ?? 0;
+                var contributorCount = roleCounts.FirstOrDefault(r => r.Role == AclRole.Contributor)?.Count ?? 0;
+                var managerCount = roleCounts.FirstOrDefault(r => r.Role == AclRole.Manager)?.Count ?? 0;
+                var totalUsers = roleCounts.Sum(r => r.Count);
+
                 var totalAuditEvents = await _db.AuditEvents.CountAsync(cancel);
 
                 return new DashboardStatsDto

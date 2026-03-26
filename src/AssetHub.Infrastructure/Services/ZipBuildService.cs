@@ -82,7 +82,15 @@ public class ZipBuildService : IZipBuildService
 
         var hangfireJobId = _jobClient.Enqueue<ZipBuildService>(svc => svc.BuildZipAsync(zipDownload.Id, CancellationToken.None));
         zipDownload.HangfireJobId = hangfireJobId;
-        await db.SaveChangesAsync(ct);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist Hangfire job ID for ZIP download {ZipDownloadId}. Job is still enqueued.", zipDownload.Id);
+        }
 
         _logger.LogInformation("Enqueued ZIP build {ZipDownloadId} for collection {CollectionId} by user {UserId}",
             zipDownload.Id, collectionId, userId);
@@ -117,7 +125,15 @@ public class ZipBuildService : IZipBuildService
 
         var hangfireJobId = _jobClient.Enqueue<ZipBuildService>(svc => svc.BuildZipAsync(zipDownload.Id, CancellationToken.None));
         zipDownload.HangfireJobId = hangfireJobId;
-        await db.SaveChangesAsync(ct);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist Hangfire job ID for ZIP download {ZipDownloadId}. Job is still enqueued.", zipDownload.Id);
+        }
 
         _logger.LogInformation("Enqueued ZIP build {ZipDownloadId} for shared collection {CollectionId}",
             zipDownload.Id, collectionId);
@@ -333,7 +349,7 @@ public class ZipBuildService : IZipBuildService
         {
             try
             {
-                await _minioAdapter.DeleteAsync(_bucketName, objectKey, ct);
+                await _minioAdapter.DeleteAsync(_bucketName, objectKey!, ct);
             }
             catch (Exception ex)
             {

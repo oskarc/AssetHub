@@ -63,9 +63,15 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
 
         var acls = await _aclRepo.GetByCollectionAsync(collectionId, ct);
         var userIds = acls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId);
-        var nameMap = await _userLookup.GetUserNamesAsync(userIds, ct);
-        var emailMap = await _userLookup.GetUserEmailsAsync(userIds, ct);
-        var adminIds = await _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+
+        // These are independent Keycloak DB/API calls — run in parallel
+        var nameMapTask = _userLookup.GetUserNamesAsync(userIds, ct);
+        var emailMapTask = _userLookup.GetUserEmailsAsync(userIds, ct);
+        var adminIdsTask = _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        await Task.WhenAll(nameMapTask, emailMapTask, adminIdsTask);
+        var nameMap = await nameMapTask;
+        var emailMap = await emailMapTask;
+        var adminIds = await adminIdsTask;
 
         var dtos = acls.Select(a => new CollectionAclResponseDto
         {
@@ -117,9 +123,11 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         string? principalEmail = null;
         if (principalType == Constants.PrincipalTypes.User)
         {
-            principalName = await _userLookup.GetUserNameAsync(principalId, ct);
-            var emailMap = await _userLookup.GetUserEmailsAsync(new[] { principalId }, ct);
-            emailMap.TryGetValue(principalId, out principalEmail);
+            var nameTask = _userLookup.GetUserNameAsync(principalId, ct);
+            var emailMapTask = _userLookup.GetUserEmailsAsync(new[] { principalId }, ct);
+            await Task.WhenAll(nameTask, emailMapTask);
+            principalName = await nameTask;
+            (await emailMapTask).TryGetValue(principalId, out principalEmail);
         }
 
         return new CollectionAclResponseDto

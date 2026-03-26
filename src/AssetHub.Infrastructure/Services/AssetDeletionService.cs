@@ -41,8 +41,8 @@ public class AssetDeletionService(
         Guid collectionId, string bucketName, CancellationToken ct = default)
     {
         var deletedAssets = await assetRepository.DeleteByCollectionAsync(collectionId, ct);
-        foreach (var asset in deletedAssets)
-            await shareRepository.DeleteByScopeAsync(Constants.ScopeTypes.Asset, asset.Id, ct);
+        var assetIds = deletedAssets.Select(a => a.Id).ToList();
+        await shareRepository.DeleteByScopeBatchAsync(Constants.ScopeTypes.Asset, assetIds, ct);
         await minioAdapter.DeleteAssetObjectsBatchAsync(bucketName, deletedAssets, ct);
         return deletedAssets;
     }

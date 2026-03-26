@@ -144,6 +144,17 @@ public class ShareRepository(
             .ExecuteDeleteAsync(cancellationToken);
     }
 
+    public async Task DeleteByScopeBatchAsync(string scopeType, IEnumerable<Guid> scopeIds, CancellationToken cancellationToken = default)
+    {
+        var ids = scopeIds.ToList();
+        if (ids.Count == 0) return;
+
+        var scope = Enum.Parse<ShareScopeType>(scopeType, true);
+        await dbContext.Shares
+            .Where(s => s.ScopeType == scope && ids.Contains(s.ScopeId))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
     public async Task IncrementAccessAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await dbContext.Shares

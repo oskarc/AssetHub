@@ -102,11 +102,11 @@ public class AssetHubApiClient
     /// <summary>
     /// Gets aggregated dashboard data scoped to the current user's role.
     /// </summary>
-    public async Task<DashboardDto?> GetDashboardAsync()
+    public virtual async Task<DashboardDto?> GetDashboardAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/dashboard");
-        if (!response.IsSuccessStatusCode) return null;
-        return await response.Content.ReadFromJsonAsync<DashboardDto>();
+        var response = await _http.GetAsync("/api/v1/dashboard", ct);
+        await EnsureSuccessAsync(response, "Get dashboard");
+        return await response.Content.ReadFromJsonAsync<DashboardDto>(ct);
     }
 
     #endregion

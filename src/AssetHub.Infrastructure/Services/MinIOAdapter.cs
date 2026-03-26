@@ -66,18 +66,25 @@ public class MinIOAdapter(
         return await _pipeline.ExecuteAsync(async ct =>
         {
             var memoryStream = new MemoryStream();
+            try
+            {
+                var getObjectArgs = new GetObjectArgs()
+                    .WithBucket(bucketName)
+                    .WithObject(objectKey)
+                    .WithCallbackStream(async (stream, innerCt) =>
+                    {
+                        await stream.CopyToAsync(memoryStream, innerCt);
+                    });
 
-            var getObjectArgs = new GetObjectArgs()
-                .WithBucket(bucketName)
-                .WithObject(objectKey)
-                .WithCallbackStream(async (stream, innerCt) =>
-                {
-                    await stream.CopyToAsync(memoryStream, innerCt);
-                });
-
-            await minioClient.GetObjectAsync(getObjectArgs, ct);
-            memoryStream.Position = 0;
-            return (Stream)memoryStream;
+                await minioClient.GetObjectAsync(getObjectArgs, ct);
+                memoryStream.Position = 0;
+                return (Stream)memoryStream;
+            }
+            catch
+            {
+                await memoryStream.DisposeAsync();
+                throw;
+            }
         }, cancellationToken);
     }
 

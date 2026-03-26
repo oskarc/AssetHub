@@ -124,7 +124,18 @@ public sealed class AssetUploadService : IAssetUploadService
         }
 
         await _assetRepo.CreateAsync(asset, ct);
-        await _assetCollectionRepo.AddToCollectionAsync(asset.Id, collectionId, userId, ct);
+
+        try
+        {
+            await _assetCollectionRepo.AddToCollectionAsync(asset.Id, collectionId, userId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to link asset {AssetId} to collection {CollectionId} after creation", asset.Id, collectionId);
+            asset.MarkFailed("Failed to link asset to collection.");
+            await _assetRepo.UpdateAsync(asset, ct);
+            return ServiceError.Server("Failed to link asset to collection. Please try again.");
+        }
 
         await _audit.LogAsync("asset.created", Constants.ScopeTypes.Asset, asset.Id, userId,
             new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },

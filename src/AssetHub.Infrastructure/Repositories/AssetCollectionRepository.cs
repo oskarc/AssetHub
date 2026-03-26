@@ -28,6 +28,7 @@ public class AssetCollectionRepository : IAssetCollectionRepository
     public async Task<List<Collection>> GetCollectionsForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
         return await _context.AssetCollections
+            .AsNoTracking()
             .Where(ac => ac.AssetId == assetId)
             .Include(ac => ac.Collection)
             .Select(ac => ac.Collection)
@@ -60,6 +61,7 @@ public class AssetCollectionRepository : IAssetCollectionRepository
     public async Task<List<AssetCollection>> GetByCollectionAsync(Guid collectionId, CancellationToken ct = default)
     {
         return await _context.AssetCollections
+            .AsNoTracking()
             .Where(ac => ac.CollectionId == collectionId)
             .Include(ac => ac.Asset)
             .ToListAsync(ct);
@@ -142,8 +144,8 @@ public class AssetCollectionRepository : IAssetCollectionRepository
         _context.AssetCollections.RemoveRange(links);
         await _context.SaveChangesAsync(ct);
 
-        foreach (var assetId in assetIds)
-            await _cache.RemoveByTagAsync(CacheKeys.Tags.AssetCollections(assetId), ct);
+        var cacheTasks = assetIds.Select(id => _cache.RemoveByTagAsync(CacheKeys.Tags.AssetCollections(id), ct).AsTask());
+        await Task.WhenAll(cacheTasks);
         await _cache.RemoveByTagAsync(CacheKeys.Tags.Collection(collectionId), ct);
     }
 

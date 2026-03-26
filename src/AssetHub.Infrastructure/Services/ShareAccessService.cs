@@ -399,7 +399,7 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
 
             return DateTimeOffset.UtcNow.ToUnixTimeSeconds() < expirySeconds;
         }
-        catch
+        catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or FormatException)
         {
             // Decryption failed → not an access token, just a regular password
             return false;
@@ -411,7 +411,7 @@ public class ShareAccessService : IPublicShareAccessService, IAuthenticatedShare
     {
         // Strip GPS coordinates from shared metadata to protect location privacy
         // when assets are accessed by external share-link recipients (CWE-359).
-        var publicMetadata = asset.MetadataJson
+        var publicMetadata = (asset.MetadataJson ?? new())
             .Where(kvp => !kvp.Key.StartsWith("gps", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 

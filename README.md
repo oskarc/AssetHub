@@ -1,142 +1,165 @@
+<div align="center">
+
 # AssetHub
 
-**A modular, self-hosted digital asset management system built for teams who need enterprise features without vendor lock-in.**
+**Self-hosted digital asset management for teams who want enterprise features without vendor lock-in.**
 
-AssetHub lets you organise images, videos, and documents into collections, control who sees what with per-collection roles, share files via password-protected links, and get automatic thumbnails and previews — all running on your own infrastructure with fully replaceable components.
+Organise images, videos, and documents into collections. Control access with per-collection roles. Share via password-protected links. Get automatic thumbnails and previews — all on your own infrastructure.
 
-Built with ASP.NET Core 9, Blazor Server, and a pluggable architecture. Swap out authentication, storage, database, or any service layer without changing application code.
+[![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](#tech-stack)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](#quick-start)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](#modular-components)
 
----
+<img src="docs/screen%20shots/dashboard%201.png" alt="AssetHub Dashboard" width="720" />
 
-## Who Is This For?
-
-| Audience | Why AssetHub? |
-|----------|---------------|
-| **IT Teams** | Full control over infrastructure. No SaaS dependency, no per-seat licensing, no data leaving your network. |
-| **Developers** | Clean separation of concerns with interface-driven services. Replace any component by implementing standard interfaces. |
-| **Enterprise Architects** | Integrate with existing AD/LDAP via Keycloak federation. Connect to corporate S3 or Azure Blob. Use your existing PostgreSQL cluster. |
-| **Small Teams** | One `docker compose up` gets you running. Zero configuration needed for evaluation. |
-| **Security-Conscious Orgs** | Audit trail for every action. ClamAV malware scanning. Role-based access control. Self-hosted = your data never leaves your premises. |
+</div>
 
 ---
 
-## Features
+## Table of Contents
 
-| | |
-|---|---|
-| **Smart Collections** — Multi-collection assets with drag-and-drop upload | **Fine-grained Access** — Viewer / Contributor / Manager / Admin per collection |
-| **Secure Sharing** — Password-protected, time-limited share links | **Background Processing** — Auto-generated thumbnails, previews, and video posters |
-| **Enterprise Security** — ClamAV scanning, audit trail, RBAC, container hardening, Docker secrets | **Fully Modular** — Swap S3, Auth, DB, Email via clean interfaces |
-| **Video Support** — Poster extraction via ffmpeg, inline playback | **Search** — Full-text trigram search across names, descriptions, and tags (GIN-indexed) |
-| **Accessibility** — Skip-to-content, ARIA labels, keyboard navigation, multi-viewport | **Observability** — OpenTelemetry, Aspire Dashboard, structured logging |
-| **Localisation** — Swedish and English, extensible via `.resx` files | **API Versioning** — Versioned API (`/api/v1/`) with request validation filters |
-| **Zip Downloads** — Download collections or shared content as archives | **Admin Dashboard** — User management, share admin, paginated audit log |
-
----
-
-## Screenshots
-
-### Dashboard
-
-<p>
-  <img src="docs/screen%20shots/dashboard%201.png" alt="Dashboard overview" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/dashboard%202.png" alt="Dashboard storage chart" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/dashboard%203.png" alt="Dashboard activity" width="720" />
-</p>
-
-### Collections
-
-<p>
-  <img src="docs/screen%20shots/Collections.png" alt="Collections overview" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Collections%202.png" alt="Collection detail" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Collection%203.png" alt="Collection management" width="720" />
-</p>
-
-### Assets
-
-<p>
-  <img src="docs/screen%20shots/All%20assets.png" alt="All assets" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Asset%201.png" alt="Asset detail" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Asset%202.png" alt="Asset preview" width="720" />
-</p>
-
-### Sharing
-
-<p>
-  <img src="docs/screen%20shots/Access%20share%201.png" alt="Share link creation" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Access%20share%202.png" alt="Share access view" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Access%20share%203.png" alt="Share download" width="720" />
-</p>
-
-### Administration
-
-<p>
-  <img src="docs/screen%20shots/Admin%201.png" alt="Admin dashboard" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Admin%202.png" alt="User management" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Admin%203.png" alt="Share management" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Admin%204.png" alt="Audit log" width="720" />
-</p>
-<p>
-  <img src="docs/screen%20shots/Admin%205.png" alt="Admin settings" width="720" />
-</p>
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Architecture](#architecture)
+- [Modular Components](#modular-components)
+- [Security](#security)
+- [Deployment](#deployment)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
 ## Quick Start
 
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+
+**1. Clone and start**
+
 ```bash
 git clone <repository-url>
 cd AssetHub
-
-# Add hostnames to hosts file (required for OIDC same-site cookies)
-# Windows: Add to C:\Windows\System32\drivers\etc\hosts
-# Linux/Mac: Add to /etc/hosts
-# 127.0.0.1 assethub.local keycloak.assethub.local
-
 docker compose up --build
 ```
 
-Open https://assethub.local:7252 and log in:
+**2. Add hostnames** (required for OIDC)
+
+Add this line to your hosts file (`C:\Windows\System32\drivers\etc\hosts` on Windows, `/etc/hosts` on Linux/Mac):
+
+```
+127.0.0.1 assethub.local keycloak.assethub.local
+```
+
+**3. Open and log in**
+
+Navigate to **https://assethub.local:7252** and sign in:
 
 | User | Password | Role |
 |------|----------|------|
 | `mediaadmin` | `mediaadmin123` | Admin |
 | `testuser` | `testuser123` | Viewer |
 
-See [CREDENTIALS.md](CREDENTIALS.md) for all default passwords and connection strings.
+> All default passwords and connection strings are in [CREDENTIALS.md](CREDENTIALS.md).
 
 ---
 
-## Architecture at a Glance
+## Features
+
+**Asset Management**
+- Drag-and-drop upload with multi-collection organisation
+- Full-text trigram search across names, descriptions, and tags (GIN-indexed)
+- Video poster extraction via ffmpeg with inline playback
+- Download collections or shared content as zip archives
+- Auto-generated thumbnails, previews, and video posters
+
+**Access Control & Sharing**
+- Per-collection RBAC — Viewer, Contributor, Manager, Admin
+- Password-protected, time-limited share links
+- Admin dashboard with user management, share admin, and paginated audit log
+
+**Security**
+- ClamAV malware scanning on every upload
+- Container hardening with Docker secrets, network segmentation, and security headers
+- Full audit trail for every action
+
+**Developer Experience**
+- Clean Architecture with interface-driven services — swap any component
+- Versioned Minimal API (`/api/v1/`) with request validation filters
+- OpenTelemetry observability with Aspire Dashboard
+- Localisation — Swedish and English, extensible via `.resx` files
+- Accessibility — skip-to-content, ARIA labels, keyboard navigation, responsive viewports
+
+---
+
+## Screenshots
+
+<details>
+<summary><strong>Dashboard</strong></summary>
+<br/>
+<img src="docs/screen%20shots/dashboard%201.png" alt="Dashboard overview" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/dashboard%202.png" alt="Dashboard storage chart" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/dashboard%203.png" alt="Dashboard activity" width="720" />
+</details>
+
+<details>
+<summary><strong>Collections</strong></summary>
+<br/>
+<img src="docs/screen%20shots/Collections.png" alt="Collections overview" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Collections%202.png" alt="Collection detail" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Collection%203.png" alt="Collection management" width="720" />
+</details>
+
+<details>
+<summary><strong>Assets</strong></summary>
+<br/>
+<img src="docs/screen%20shots/All%20assets.png" alt="All assets" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Asset%201.png" alt="Asset detail" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Asset%202.png" alt="Asset preview" width="720" />
+</details>
+
+<details>
+<summary><strong>Sharing</strong></summary>
+<br/>
+<img src="docs/screen%20shots/Access%20share%201.png" alt="Share link creation" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Access%20share%202.png" alt="Share access view" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Access%20share%203.png" alt="Share download" width="720" />
+</details>
+
+<details>
+<summary><strong>Administration</strong></summary>
+<br/>
+<img src="docs/screen%20shots/Admin%201.png" alt="Admin dashboard" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Admin%202.png" alt="User management" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Admin%203.png" alt="Share management" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Admin%204.png" alt="Audit log" width="720" />
+<br/><br/>
+<img src="docs/screen%20shots/Admin%205.png" alt="Admin settings" width="720" />
+</details>
+
+---
+
+## Architecture
 
 AssetHub follows **Clean Architecture** with strict dependency rules. Every external service is abstracted behind an interface.
 
 ```
-Domain  <-  Application  <-  Infrastructure  <-  Api / Worker
-                ^                                    ^
-                Ui (Razor Class Library) ────────────┘
+Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
+                ↑                                ↑
+                Ui (Razor Class Library) ────────┘
 ```
 
 | Project | Purpose |
@@ -144,11 +167,11 @@ Domain  <-  Application  <-  Infrastructure  <-  Api / Worker
 | `AssetHub.Domain` | Entities, enums, value objects — zero dependencies |
 | `AssetHub.Application` | Service interfaces, DTOs, constants, business rules |
 | `AssetHub.Infrastructure` | EF Core, MinIO, SMTP, ClamAV, Keycloak implementations |
-| `AssetHub.Api` | ASP.NET Core host — Versioned Minimal APIs (`/api/v1/`), auth, validation filters, DI wiring, Blazor hosting |
-| `AssetHub.Ui` | Blazor Server components, pages, layouts (Razor Class Library) |
+| `AssetHub.Api` | Composition root — Minimal APIs, auth, DI wiring, Blazor host |
+| `AssetHub.Ui` | Blazor Server components and pages (Razor Class Library) |
 | `AssetHub.Worker` | Hangfire background processor (separate container) |
 
-For the full architecture diagram, layer details, modular component interfaces, and resilience patterns, see **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+> Full architecture diagram, layer details, and resilience patterns in **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
@@ -156,33 +179,37 @@ For the full architecture diagram, layer details, modular component interfaces, 
 
 Every external dependency can be swapped by implementing a clean interface:
 
-| Component | Default | Interface | Alternatives |
-|-----------|---------|-----------|-------------|
-| **Identity** | Keycloak 26 (OIDC) | `IKeycloakUserService` | Azure AD, Okta, Auth0 (OIDC standard; admin API needs adapter) |
-| **Storage** | MinIO (S3 API) | `IMinIOAdapter` | AWS S3, Azure Blob, GCS |
-| **Database** | PostgreSQL 16 | EF Core + Npgsql | SQL Server (requires migration rework) |
-| **Email** | SMTP (Mailpit in dev) | `IEmailService` | SendGrid, AWS SES |
-| **Malware Scan** | ClamAV (clamd TCP) | `IMalwareScannerService` | Any scanner SDK |
-| **Jobs** | Hangfire + PostgreSQL | Hangfire abstraction | MassTransit, NServiceBus |
-| **Tracing** | Aspire Dashboard (OTLP) | OpenTelemetry | Jaeger, Datadog, Honeycomb, Grafana Cloud |
+| Component | Default | Interface | Swap with |
+|-----------|---------|-----------|-----------|
+| Identity | Keycloak 26 (OIDC) | `IKeycloakUserService` | Azure AD, Okta, Auth0 |
+| Storage | MinIO (S3 API) | `IMinIOAdapter` | AWS S3, Azure Blob, GCS |
+| Database | PostgreSQL 16 | EF Core + Npgsql | SQL Server* |
+| Email | SMTP (Mailpit in dev) | `IEmailService` | SendGrid, AWS SES |
+| Malware Scan | ClamAV (clamd TCP) | `IMalwareScannerService` | Any scanner SDK |
+| Jobs | Hangfire + PostgreSQL | Hangfire abstraction | MassTransit, NServiceBus |
+| Tracing | Aspire Dashboard (OTLP) | OpenTelemetry | Jaeger, Datadog, Grafana |
 
-Full interface definitions, implementation details, and replacement guides in **[ARCHITECTURE.md](docs/ARCHITECTURE.md#modular-components)**.
+<sub>*SQL Server requires migration rework for JSONB/pg_trgm features.</sub>
+
+> Interface definitions and replacement guides in **[ARCHITECTURE.md](docs/ARCHITECTURE.md#modular-components)**.
 
 ---
 
-## Security Highlights
+## Security
 
-- **OIDC with PKCE** — Authorization Code flow, no implicit grant
-- **Per-collection RBAC** — Viewer, Contributor, Manager, Admin roles
-- **Rate limiting** — Global, SignalR, anonymous shares, password brute force
-- **Upload validation** — Content-type allowlist, magic byte verification, ClamAV scanning, client-side pre-validation
-- **Data encryption** — Share tokens and passwords encrypted at rest via ASP.NET Data Protection
-- **Container hardening** — `cap_drop: ALL`, `no-new-privileges`, non-root users, read-only filesystems, PID limits
-- **Docker secrets** — File-based secrets for all sensitive credentials in production
-- **Network segmentation** — Isolated Docker networks for backend and observability services
-- **CSP + security headers** — HSTS, X-Frame-Options, referrer policy, permissions policy
+| Category | Implementation |
+|----------|---------------|
+| **Authentication** | OIDC with PKCE — Authorization Code flow, no implicit grant |
+| **Authorization** | Per-collection RBAC — Viewer, Contributor, Manager, Admin roles |
+| **Rate Limiting** | Per-user, SignalR, anonymous shares, password brute-force protection |
+| **Upload Security** | Content-type allowlist → magic byte check → ClamAV scan → size limits |
+| **Data Protection** | Share tokens and passwords encrypted at rest via ASP.NET Data Protection |
+| **Containers** | `cap_drop: ALL`, `no-new-privileges`, non-root users, read-only filesystems |
+| **Secrets** | Docker secrets for all production credentials (file-based, not env vars) |
+| **Network** | Isolated Docker networks for backend and observability services |
+| **Headers** | HSTS, CSP, X-Frame-Options, referrer policy, permissions policy |
 
-Full security documentation, RBAC matrix, and API reference in **[SECURITY.md](docs/SECURITY.md)**.
+> Full RBAC matrix and API security reference in **[SECURITY.md](docs/SECURITY.md)**.
 
 ---
 
@@ -191,32 +218,59 @@ Full security documentation, RBAC matrix, and API reference in **[SECURITY.md](d
 The production stack runs via Docker Compose with hardened containers, resource limits, and internal-only networking.
 
 ```bash
-cp .env.template .env
+cp .env.template .env          # Configure secrets and domains
+# Edit .env with your production values
+
 docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
-Included reverse proxy configurations (Caddy and Nginx), backup/restore scripts, certificates, Keycloak configuration, CI/CD pipeline, monitoring, testing, and troubleshooting are covered in **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+The deployment guide covers reverse proxy setup (Caddy/Nginx), TLS certificates, backup/restore scripts, Keycloak configuration, CI/CD pipeline, monitoring, and troubleshooting.
+
+> **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** — complete production deployment guide.
 
 ---
 
 ## Testing
 
-| Layer | Framework | Coverage |
-|-------|-----------|----------|
-| **Backend** (unit + integration) | xUnit, Testcontainers, Moq | 33 test files — repositories, endpoints, services, edge cases |
-| **Components** (Blazor) | bUnit | 20 test files — dialogs, grids, helpers |
-| **E2E** (browser) | Playwright (TypeScript) | 15 spec files — auth, CRUD, shares, admin, accessibility (Chromium, Firefox, WebKit, mobile) |
+| Layer | Framework | Scope |
+|-------|-----------|-------|
+| Unit + Integration | xUnit, Testcontainers, Moq | Repositories, endpoints, services, edge cases |
+| Blazor Components | bUnit | Dialogs, grids, helpers |
+| End-to-End | Playwright (TypeScript) | Auth, CRUD, shares, admin, accessibility |
 
-700+ .NET test methods across 53 test files + 15 E2E spec files (x4 browsers). See **[DEPLOYMENT.md](docs/DEPLOYMENT.md#testing)** for commands and details.
+```bash
+# .NET tests (unit + integration + bUnit)
+dotnet test --configuration Release
+
+# E2E tests (requires app running)
+cd tests/E2E && npx playwright test
+```
+
+700+ test methods across 53 .NET test files + 15 E2E specs (Chromium, Firefox, WebKit, mobile).
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | ASP.NET Core 9, C# 13 |
+| UI | Blazor Server, MudBlazor 8 |
+| Database | PostgreSQL 16, EF Core 9 |
+| Storage | MinIO (S3 API) |
+| Auth | Keycloak 26 (OIDC) |
+| Jobs | Hangfire |
+| Security | ClamAV, ASP.NET Data Protection |
+| Observability | OpenTelemetry, Aspire Dashboard |
+| Containerisation | Docker Compose |
 
 ---
 
 ## Project Status
 
-**Production-ready.** All core features implemented and tested. The codebase builds with 0 errors and 0 warnings.
+**Production-ready** — all core features implemented and tested. Builds with zero errors and zero warnings.
 
-### Roadmap
-
+**Roadmap:**
 - Office document preview (Word, Excel, PowerPoint)
 - Video transcoding (HLS/DASH adaptive streaming)
 - Group-based ACLs (Keycloak groups/roles)
@@ -227,26 +281,20 @@ Included reverse proxy configurations (Caddy and Nginx), backup/restore scripts,
 
 | Document | Contents |
 |----------|----------|
-| **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System overview, project structure, layer dependencies, modular component interfaces, service reference, resilience patterns |
-| **[SECURITY.md](docs/SECURITY.md)** | Authentication, RBAC, rate limiting, upload security, data protection, container hardening, network security, audit, API reference |
-| **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** | Quick start, certificates, environment config, container reference, production deployment, CI/CD, testing, monitoring, backups, troubleshooting |
-| **[CREDENTIALS.md](CREDENTIALS.md)** | Default passwords, OAuth config, connection strings |
-| **[CONTRIBUTING.md](CONTRIBUTING.md)** | Development setup, code style, PR guidelines |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, layer dependencies, modular interfaces, resilience patterns |
+| [SECURITY.md](docs/SECURITY.md) | Auth, RBAC, rate limiting, upload security, container hardening, audit |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production setup, certificates, CI/CD, monitoring, backups, troubleshooting |
+| [CREDENTIALS.md](CREDENTIALS.md) | Default passwords, OAuth config, connection strings |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, code style, PR guidelines |
 
 ---
 
 ## Contributing
 
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Ensure clean build: `dotnet build`
-3. Run tests: `dotnet test`
-4. Run E2E tests: `cd tests/E2E && npm test`
-5. Open a Pull Request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR guidelines.
 
 ---
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) for details.
+[Apache License 2.0](LICENSE)

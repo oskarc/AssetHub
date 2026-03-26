@@ -1,5 +1,6 @@
 @page "/all-assets"
 @attribute [Authorize(Policy = "RequireAdmin")]
+@implements IAsyncDisposable
 
 @using AssetHub.Application
 @using AssetHub.Application.Dtos
@@ -368,6 +369,7 @@
     // Bulk selection state
     private bool _selectionMode;
     private HashSet<Guid> _selectedAssetIds = new();
+    private CancellationTokenSource _cts = new();
     
     // Role-based UI visibility using centralized permissions
     private bool CanShare(AssetResponseDto asset) => RolePermissions.CanShare(asset.UserRole);
@@ -402,7 +404,11 @@
     {
         try
         {
-            _collections = await Api.GetCollectionsAsync();
+            _collections = await Api.GetCollectionsAsync(_cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed — ignore
         }
         catch (Exception ex)
         {
@@ -423,10 +429,15 @@
                 _filterCollectionId,
                 Constants.SortBy.CreatedDesc,
                 _skip,
-                _take);
+                _take,
+                _cts.Token);
             
             _assets.AddRange(response.Items);
             _total = response.Total;
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed — ignore
         }
         catch (Exception ex)
         {
@@ -451,10 +462,15 @@
                 _filterCollectionId,
                 Constants.SortBy.CreatedDesc,
                 _skip,
-                _take);
+                _take,
+                _cts.Token);
             
             _assets.AddRange(response.Items);
             _total = response.Total;
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed — ignore
         }
         catch (Exception ex)
         {
@@ -643,5 +659,12 @@
             _selectedAssetIds.Clear();
             await RefreshAsync();
         }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

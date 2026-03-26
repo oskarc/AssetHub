@@ -238,16 +238,8 @@ public sealed class AssetService : IAssetService
         if (!_currentUser.IsSystemAdmin)
         {
             var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(assetId, ct);
-            bool canAccessAsset = false;
-
-            foreach (var acId in assetCollections)
-            {
-                if (await _authService.CheckAccessAsync(userId, acId, RoleHierarchy.Roles.Contributor, ct))
-                {
-                    canAccessAsset = true;
-                    break;
-                }
-            }
+            var canAccessAsset = assetCollections.Count > 0
+                && (await _authService.FilterAccessibleAsync(userId, assetCollections, RoleHierarchy.Roles.Contributor, ct)).Count > 0;
 
             if (!canAccessAsset && assetCollections.Count == 0)
                 canAccessAsset = await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
@@ -371,15 +363,16 @@ public sealed class AssetService : IAssetService
             return RoleHierarchy.Roles.Admin;
 
         var collections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(assetId, ct);
+        if (collections.Count == 0)
+            return RoleHierarchy.Roles.Viewer;
+
+        var roles = await _authService.GetUserRolesAsync(_currentUser.UserId, collections, ct);
         var bestRole = RoleHierarchy.Roles.Viewer;
 
-        foreach (var collectionId in collections)
+        foreach (var role in roles.Values)
         {
-            var role = await _authService.GetUserRoleAsync(_currentUser.UserId, collectionId, ct);
-            if (role != null && RoleHierarchy.GetLevel(role) > RoleHierarchy.GetLevel(bestRole))
-            {
+            if (role is not null && RoleHierarchy.GetLevel(role) > RoleHierarchy.GetLevel(bestRole))
                 bestRole = role;
-            }
         }
 
         return bestRole;

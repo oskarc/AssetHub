@@ -15,14 +15,14 @@ public class CleanupOrphanedSharesJob(
     IServiceScopeFactory scopeFactory,
     ILogger<CleanupOrphanedSharesJob> logger)
 {
-    public async Task ExecuteAsync()
+    public async Task ExecuteAsync(CancellationToken ct)
     {
         logger.LogInformation("Starting orphaned shares cleanup");
 
         using var scope = scopeFactory.CreateScope();
         var shareRepo = scope.ServiceProvider.GetRequiredService<IShareRepository>();
 
-        var deleted = await shareRepo.DeleteOrphanedAsync(CancellationToken.None);
+        var deleted = await shareRepo.DeleteOrphanedAsync(ct);
             
         if (deleted > 0)
         {

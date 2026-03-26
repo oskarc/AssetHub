@@ -306,6 +306,8 @@ services:
   clamav:
     image: clamav/clamav:1.5.1
     container_name: assethub-clamav
+    volumes:
+      - ./clamav/clamd.conf:/etc/clamav/clamd.conf:ro
     healthcheck:
       test: ["CMD", "clamdcheck.sh"]
       interval: 60s
@@ -319,7 +321,7 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 1G
+          memory: 3G
           pids: 100
     # Security hardening (clamav entrypoint needs caps for setup)
     cap_drop:

@@ -186,7 +186,13 @@ public sealed class ImageProcessingService(
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             process.Kill(entireProcessTree: true);
+            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { }
             throw new TimeoutException($"{toolName} process exceeded the {ProcessTimeout.TotalMinutes:F0}-minute timeout and was killed");
+        }
+        catch
+        {
+            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { }
+            throw;
         }
 
         await stdoutTask;

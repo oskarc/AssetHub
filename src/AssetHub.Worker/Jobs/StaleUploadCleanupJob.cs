@@ -22,7 +22,7 @@ public class StaleUploadCleanupJob(
     /// </summary>
     private static readonly TimeSpan StaleThreshold = TimeSpan.FromHours(24);
 
-    public async Task ExecuteAsync()
+    public async Task ExecuteAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var assetRepo = scope.ServiceProvider.GetRequiredService<IAssetRepository>();
@@ -34,26 +34,33 @@ public class StaleUploadCleanupJob(
 
         logger.LogInformation("Starting stale upload cleanup (threshold: {Threshold})", StaleThreshold);
 
-        var staleAssets = await assetRepo.GetByStatusAsync(
-            AssetStatus.Uploading.ToDbString(), skip: 0, take: 500, CancellationToken.None);
-
         var cleaned = 0;
-        foreach (var asset in staleAssets.Where(a => a.CreatedAt < cutoff))
-        {
-            try
-            {
-                await deletionService.PermanentDeleteAsync(asset, bucketName, CancellationToken.None);
-                cleaned++;
-                logger.LogInformation("Cleaned up stale upload: {AssetId} ({Title}, created {CreatedAt})",
-                    asset.Id, asset.Title, asset.CreatedAt);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to clean up stale upload {AssetId}", asset.Id);
-            }
-        }
+        const int batchSize = 500;
+        int batchCleaned;
 
-        logger.LogInformation("Stale upload cleanup complete: {Cleaned} assets removed out of {Total} checked",
-            cleaned, staleAssets.Count);
+        do
+        {
+            var staleAssets = await assetRepo.GetByStatusAsync(
+                AssetStatus.Uploading.ToDbString(), skip: 0, take: batchSize, ct);
+
+            batchCleaned = 0;
+            foreach (var asset in staleAssets.Where(a => a.CreatedAt < cutoff))
+            {
+                try
+                {
+                    await deletionService.PermanentDeleteAsync(asset, bucketName, ct);
+                    cleaned++;
+                    batchCleaned++;
+                    logger.LogInformation("Cleaned up stale upload: {AssetId} ({Title}, created {CreatedAt})",
+                        asset.Id, asset.Title, asset.CreatedAt);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to clean up stale upload {AssetId}", asset.Id);
+                }
+            }
+        } while (batchCleaned > 0);
+
+        logger.LogInformation("Stale upload cleanup complete: {Cleaned} assets removed", cleaned);
     }
 }
