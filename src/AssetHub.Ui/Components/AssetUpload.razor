@@ -130,6 +130,8 @@
     private bool _isUploading = false;
     private bool _isDragOver = false;
     private IDisposable? _locationChangingRegistration;
+    private bool _navigationConfirmed;
+    private CancellationTokenSource _cts = new();
 
     private int _dragCounter = 0;
     private string _uploadAreaClass => $"pa-4 upload-area {(_isDragOver ? "drag-over" : "")}";
@@ -244,6 +246,8 @@
         // Process each file sequentially
         for (var i = 0; i < validFiles.Count; i++)
         {
+            if (_cts.IsCancellationRequested) break;
+
             var file = validFiles[i].File;
             var upload = uploadItems[i];
             upload.Status = UploadStatus.Uploading;
@@ -284,7 +288,8 @@
                 {
                     upload.Status = UploadStatus.Failed;
                     upload.ErrorMessage ??= string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name);
-                    Feedback.ShowError(string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name));
+                    if (!_navigationConfirmed)
+                        Feedback.ShowError(string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name));
                     StateHasChanged();
                     continue;
                 }
@@ -304,7 +309,8 @@
             {
                 upload.Status = UploadStatus.Failed;
                 upload.ErrorMessage = ex.Message;
-                Feedback.ShowError(string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name));
+                if (!_navigationConfirmed)
+                    Feedback.ShowError(string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name));
             }
 
             StateHasChanged();
@@ -319,7 +325,8 @@
             .ToList();
 
         // Trigger initial refresh to show assets (with processing status)
-        await OnUploadComplete.InvokeAsync();
+        if (!_cts.IsCancellationRequested)
+            await OnUploadComplete.InvokeAsync();
 
         // Poll for processing completion in background, then refresh again
         if (processingAssetIds.Any())
@@ -347,7 +354,7 @@
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
-            await Task.Delay(pollIntervalMs);
+            await Task.Delay(pollIntervalMs, _cts.Token);
 
             try
             {
@@ -371,6 +378,10 @@
                     return;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                return; // Component disposed or user navigated away
+            }
             catch
             {
                 // Ignore polling errors — worst case user refreshes manually
@@ -378,7 +389,8 @@
         }
 
         // Timeout — finish anyway
-        await FinishProcessing(assetIds);
+        if (!_cts.IsCancellationRequested)
+            await FinishProcessing(assetIds);
     }
 
     /// <summary>
@@ -387,6 +399,8 @@
     /// </summary>
     private async Task FinishProcessing(List<Guid> assetIds)
     {
+        if (_cts.IsCancellationRequested) return;
+
         // Uploads fully complete — remove browser navigation guard
         await DisableBeforeUnloadAsync();
 
@@ -436,6 +450,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        await _cts.CancelAsync();
+        _cts.Dispose();
         _locationChangingRegistration?.Dispose();
         await DisableBeforeUnloadAsync();
         if (_jsModule != null)
@@ -450,7 +466,7 @@
 
     private async ValueTask OnLocationChanging(LocationChangingContext context)
     {
-        if (!HasActiveUploads) return;
+        if (!HasActiveUploads || _navigationConfirmed) return;
 
         // Prevent navigation while showing the dialog
         context.PreventNavigation();
@@ -480,7 +496,9 @@
 
         if (result is { Canceled: false })
         {
-            // User confirmed — navigate to the target URL
+            // User confirmed — cancel background work and skip the guard on re-entrant NavigateTo
+            _navigationConfirmed = true;
+            await _cts.CancelAsync();
             Nav.NavigateTo(context.TargetLocation);
         }
     }
