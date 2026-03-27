@@ -8,23 +8,23 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title-success">
             <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Success" />
             <MudText Typo="Typo.h6">@ShareLoc["ShareLinkCreated"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Class="dialog-intro dialog-intro-success">
                 @ShareLoc["CreatedSuccess"]
             </MudText>
 
             @* Share Link Section *@
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
-                <MudText Typo="Typo.subtitle2" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" Class="mr-1" />
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+                <div class="dialog-section-title">
+                    <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" />
                     @ShareLoc["ShareUrl"]
-                </MudText>
+                </div>
                 <MudTextField Value="@ShareUrl"
                               Label="@ShareLoc["ShareURL"]"
                               ReadOnly="true"
@@ -47,11 +47,11 @@
             @if (!string.IsNullOrEmpty(Password))
             {
                 @* Password Section *@
-                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
-                    <MudText Typo="Typo.subtitle2" Class="mb-3">
-                        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+                    <div class="dialog-section-title">
+                        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" />
                         @CommonLoc["Label_Password"]
-                    </MudText>
+                    </div>
                     <MudTextField Value="@Password"
                                   Label="@CommonLoc["Label_Password"]"
                                   ReadOnly="true"

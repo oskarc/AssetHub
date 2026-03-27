@@ -9,19 +9,19 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
             <MudText Typo="Typo.h6">@CollectionLoc["EditCollection"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Class="dialog-intro">
                 @CollectionLoc["EditCollectionDesc"]
             </MudText>
 
             <MudForm @ref="_form" @bind-IsValid="_isValid">
-                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
                     <MudTextField @bind-Value="_name"
                                   Label="@CollectionLoc["CollectionName"]"
                                   Required="true"
@@ -29,7 +29,7 @@
                                   Immediate="true"
                                   Variant="Variant.Outlined"
                                   AutoFocus="true"
-                                  Class="mb-3" />
+                                  Class="mb-2" />
 
                     <MudTextField @bind-Value="_description"
                                   Label="@CollectionLoc["DescriptionOptional"]"

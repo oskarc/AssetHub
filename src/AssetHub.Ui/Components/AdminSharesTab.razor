@@ -30,12 +30,12 @@ else
                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                 IconSize="Size.Medium" Class="mt-0" Immediate="true" DebounceInterval="500" />
             <MudSpacer />
-            <MudChip T="string" Color="@(_showActive ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleActive" Style="cursor: pointer;">@AdminLoc["Active"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Active)</MudChip>
-            <MudChip T="string" Color="@(_showExpired ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleExpired" Style="cursor: pointer;">@AdminLoc["Expired"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Expired)</MudChip>
-            <MudChip T="string" Color="@(_showRevoked ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleRevoked" Style="cursor: pointer;">@AdminLoc["Revoked"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Revoked)</MudChip>
+            <MudChip T="string" Color="@(_showActive ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleActive" Class="chip-clickable">@AdminLoc["Active"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Active)</MudChip>
+            <MudChip T="string" Color="@(_showExpired ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleExpired" Class="chip-clickable">@AdminLoc["Expired"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Expired)</MudChip>
+            <MudChip T="string" Color="@(_showRevoked ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleRevoked" Class="chip-clickable">@AdminLoc["Revoked"]: @_shares.Count(s => s.Status == Constants.ShareStatus.Revoked)</MudChip>
             <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
-            <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Style="cursor: pointer;">@CommonLoc["ScopeType_Asset"]: @_shares.Count(s => s.ScopeType == Constants.ScopeTypes.Asset)</MudChip>
-            <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Style="cursor: pointer;">@CommonLoc["ScopeType_Collection"]: @_shares.Count(s => s.ScopeType == Constants.ScopeTypes.Collection)</MudChip>
+            <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Class="chip-clickable">@CommonLoc["ScopeType_Asset"]: @_shares.Count(s => s.ScopeType == Constants.ScopeTypes.Asset)</MudChip>
+            <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Class="chip-clickable">@CommonLoc["ScopeType_Collection"]: @_shares.Count(s => s.ScopeType == Constants.ScopeTypes.Collection)</MudChip>
             <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
             <MudTooltip Text="@AdminLoc["DeleteAllExpired"]">
                 <MudIconButton Icon="@Icons.Material.Filled.EventBusy" Color="Color.Warning" Size="Size.Small"

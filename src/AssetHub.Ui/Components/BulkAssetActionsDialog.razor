@@ -11,20 +11,20 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudIcon Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Primary" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title-danger">
+            <MudIcon Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Error" />
             <MudText Typo="Typo.h6">@AssetLoc["BulkAssetActions"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Class="dialog-intro dialog-intro-danger">
                 @string.Format(AssetLoc["BulkAssetActionsDesc"], SelectedAssets.Count)
             </MudText>
 
             @if (CollectionId.HasValue)
             {
-                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
                     <MudSwitch T="bool" @bind-Value="_permanentDelete" Color="Color.Error"
                                Label="@AssetLoc["BulkAssetPermanentDeleteSwitch"]" />
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
@@ -37,8 +37,8 @@
                 <thead>
                     <tr>
                         <th>@AssetLoc["Column_Title"]</th>
-                        <th style="width: 100px;">@CommonLoc["Label_Type"]</th>
-                        <th style="width: 100px; text-align: right;">@AssetLoc["Column_Size"]</th>
+                        <th class="col-w-100">@CommonLoc["Label_Type"]</th>
+                        <th class="col-w-100 col-text-right">@AssetLoc["Column_Size"]</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -51,7 +51,7 @@
                                     @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
                                 </MudText>
                             </td>
-                            <td style="text-align: right;">@AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)</td>
+                            <td class="col-text-right">@AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)</td>
                         </tr>
                     }
                 </tbody>

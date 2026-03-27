@@ -307,6 +307,7 @@
   <!-- Dashboard -->
   <data name="Dashboard_Title" xml:space="preserve"><value>Dashboard</value></data>
   <data name="Dashboard_Welcome" xml:space="preserve"><value>Welcome, {0}</value></data>
+  <data name="Dashboard_Subtitle" xml:space="preserve"><value>Here's an overview of your digital assets and recent activity.</value></data>
   <data name="Dashboard_RecentAssets" xml:space="preserve"><value>Recent Assets</value></data>
   <data name="Dashboard_QuickAccess" xml:space="preserve"><value>Quick Access</value></data>
   <data name="Dashboard_ActiveShares" xml:space="preserve"><value>Active Shares</value></data>

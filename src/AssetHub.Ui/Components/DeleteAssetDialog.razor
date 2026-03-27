@@ -5,8 +5,8 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudIcon Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Primary" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title-danger">
+            <MudIcon Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" />
             @if (_context?.CollectionCount > 1)
             {
                 <MudText Typo="Typo.h6">@AssetLoc["DeleteOrRemove"]</MudText>
@@ -19,20 +19,20 @@
     </TitleContent>
 
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
+        <MudStack Spacing="2" Class="dialog-min-width">
         @if (_loading)
         {
             <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mx-auto d-block my-4" />
         }
         else if (_context != null && _context.CollectionCount > 1)
         {
-            <MudText Typo="Typo.body1" Class="mb-4">
+            <MudText Typo="Typo.body1" Class="dialog-intro dialog-intro-danger">
                 @string.Format(AssetLoc["DeleteOrRemoveDesc"], AssetTitle, _context.CollectionCount)
             </MudText>
 
-            <MudStack Spacing="3">
+            <MudStack Spacing="2">
                 <!-- Remove from this collection -->
-                <MudPaper Outlined="true" Class="pa-3">
+                <MudPaper Outlined="true" Class="pa-3 dialog-section">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.LinkOff" Color="Color.Warning" />
                         <MudStack Spacing="0">
@@ -47,7 +47,7 @@
                 </MudPaper>
 
                 <!-- Delete permanently -->
-                <MudPaper Outlined="true" Class="pa-3">
+                <MudPaper Outlined="true" Class="pa-3 dialog-section">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" />
                         <MudStack Spacing="0">

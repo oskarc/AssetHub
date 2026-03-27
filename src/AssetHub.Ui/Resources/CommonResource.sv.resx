@@ -304,6 +304,7 @@
   <!-- Dashboard -->
   <data name="Dashboard_Title" xml:space="preserve"><value>Instrumentpanel</value></data>
   <data name="Dashboard_Welcome" xml:space="preserve"><value>Välkommen, {0}</value></data>
+  <data name="Dashboard_Subtitle" xml:space="preserve"><value>Här är en överblick av dina digitala tillgångar och senaste aktivitet.</value></data>
   <data name="Dashboard_RecentAssets" xml:space="preserve"><value>Senaste tillgångar</value></data>
   <data name="Dashboard_QuickAccess" xml:space="preserve"><value>Snabbåtkomst</value></data>
   <data name="Dashboard_ActiveShares" xml:space="preserve"><value>Aktiva delningar</value></data>

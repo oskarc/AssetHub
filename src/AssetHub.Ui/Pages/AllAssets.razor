@@ -91,7 +91,7 @@
                                Label="@AssetLoc["UploadToCollection"]"
                                Variant="Variant.Outlined"
                                Margin="Margin.Dense"
-                               Style="max-width: 300px;">
+                               Class="max-w-300">
                         <MudSelectItem T="Guid?" Value="@((Guid?)null)">@AssetLoc["NoCollection"]</MudSelectItem>
                         @foreach (var collection in _collections)
                         {
@@ -264,7 +264,7 @@
                 <HeaderContent>
                     @if (_selectionMode)
                     {
-                        <MudTh Style="width: 50px;"></MudTh>
+                        <MudTh Class="col-w-50"></MudTh>
                     }
                     <MudTh></MudTh>
                     <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.Title)">@AssetLoc["Column_Title"]</MudTableSortLabel></MudTh>

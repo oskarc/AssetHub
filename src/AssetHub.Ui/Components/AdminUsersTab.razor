@@ -35,9 +35,9 @@ else
             <MudSpacer />
             <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">@AdminLoc["Total"]: @_allUsers.Count</MudChip>
             <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
-            <MudChip T="string" Color="@(_showWithAccess ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleWithAccess" Style="cursor: pointer;">@AdminLoc["WithAccess"]: @_allUsers.Count(u => !u.IsSystemAdmin && u.CollectionCount > 0)</MudChip>
-            <MudChip T="string" Color="@(_showAdmins ? Color.Primary : Color.Default)" Size="Size.Small" OnClick="ToggleAdmins" Style="cursor: pointer;">@AdminLoc["Admins"]: @_allUsers.Count(u => u.IsSystemAdmin)</MudChip>
-            <MudChip T="string" Color="@(_showNoAccess ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleNoAccess" Style="cursor: pointer;">@AdminLoc["NoAssignedAccess"]: @_allUsers.Count(u => !u.IsSystemAdmin && u.CollectionCount == 0)</MudChip>
+            <MudChip T="string" Color="@(_showWithAccess ? Color.Success : Color.Default)" Size="Size.Small" OnClick="ToggleWithAccess" Class="chip-clickable">@AdminLoc["WithAccess"]: @_allUsers.Count(u => !u.IsSystemAdmin && u.CollectionCount > 0)</MudChip>
+            <MudChip T="string" Color="@(_showAdmins ? Color.Primary : Color.Default)" Size="Size.Small" OnClick="ToggleAdmins" Class="chip-clickable">@AdminLoc["Admins"]: @_allUsers.Count(u => u.IsSystemAdmin)</MudChip>
+            <MudChip T="string" Color="@(_showNoAccess ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleNoAccess" Class="chip-clickable">@AdminLoc["NoAssignedAccess"]: @_allUsers.Count(u => !u.IsSystemAdmin && u.CollectionCount == 0)</MudChip>
             <MudTooltip Text="@AdminLoc["SyncUsersTooltip"]">
                 <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.Sync"

@@ -12,19 +12,19 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
             <MudText Typo="Typo.h6">@AdminLoc["UserAccessDetails"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Class="dialog-intro">
                 @AdminLoc["UserAccessDetailsDesc"]
             </MudText>
 
             <!-- User Info Header -->
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                     <MudStack Spacing="0">
                         <MudText Typo="Typo.subtitle1">@User.UserName</MudText>

@@ -8,19 +8,19 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" />
             <MudText Typo="Typo.h6">@CollLoc["ManageAccess"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Class="dialog-intro">
                 @CollLoc["ManageAccessDesc"]
             </MudText>
 
             <!-- Collection Info Header -->
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                     <MudStack Spacing="0">
                         <MudText Typo="Typo.subtitle1"><strong>@CollectionName</strong></MudText>
@@ -35,8 +35,10 @@
             </MudPaper>
 
             <!-- Add User Section -->
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">@CollLoc["AddUserAccess"]</MudText>
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+                <div class="dialog-section-title">
+                    @CollLoc["AddUserAccess"]
+                </div>
                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
                     <MudAutocomplete T="UserSearchResultDto"
                                      @bind-Value="_selectedUser"

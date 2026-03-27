@@ -2,14 +2,14 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="@TitleClass">
             <MudIcon Icon="@TitleIcon" Color="@IconColor" />
             <MudText Typo="Typo.h6">@Title</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
-            <MudText Typo="Typo.body1">@Message</MudText>
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudText Typo="Typo.body1" Class="@($"dialog-intro {IntroClass}")">@Message</MudText>
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -31,6 +31,20 @@
     [Parameter] public string ConfirmText { get; set; } = "Confirm";
     [Parameter] public string? CancelText { get; set; }
     [Parameter] public Color ConfirmColor { get; set; } = Color.Primary;
+
+    private string TitleClass => IconColor switch
+    {
+        Color.Error => "dialog-title-danger",
+        Color.Success => "dialog-title-success",
+        _ => "dialog-title"
+    };
+
+    private string IntroClass => IconColor switch
+    {
+        Color.Error => "dialog-intro-danger",
+        Color.Success => "dialog-intro-success",
+        _ => ""
+    };
 
     private void Cancel() => MudDialog.Cancel();
     private void Confirm() => MudDialog.Close(DialogResult.Ok(true));

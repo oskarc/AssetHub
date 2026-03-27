@@ -26,7 +26,7 @@
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
             <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0">
                 <ItemTemplate Context="item">
-                    <MudLink OnClick="@(() => OnBreadcrumbClick(item))" Color="Color.Primary" Style="cursor: pointer;">@item.Text</MudLink>
+                    <MudLink OnClick="@(() => OnBreadcrumbClick(item))" Color="Color.Primary" Class="cursor-pointer">@item.Text</MudLink>
                 </ItemTemplate>
             </MudBreadcrumbs>
 
@@ -175,7 +175,7 @@
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Search"
                               Immediate="true"
-                              Style="flex: 1;" />
+                              Class="flex-1" />
                 <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
                     <MudIconButton Icon="@Icons.Material.Filled.GridView"
                                    Color="@(_collectionViewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
@@ -213,11 +213,11 @@
                                                          ValueChanged="@(v => ToggleCollectionSelection(collection.Id, v))"
                                                          Size="Size.Small"
                                                          Color="Color.Primary"
-                                                         Style="margin: -8px -4px -8px -8px; flex-shrink: 0;"
+                                                         Class="checkbox-compact-card"
                                                          @onclick:stopPropagation="true" />
                                         }
-                                        <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" Style="flex-shrink: 0;" />
-                                        <MudTooltip Text="@collection.Name" Style="min-width: 0; flex: 1;">
+                                        <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" Class="flex-shrink-0" />
+                                        <MudTooltip Text="@collection.Name" Class="tooltip-flex">
                                             <MudText Typo="Typo.subtitle2" Class="collection-name-truncate">@collection.Name</MudText>
                                         </MudTooltip>
                                     </div>
@@ -245,12 +245,12 @@
                     <HeaderContent>
                         @if (_selectionMode)
                         {
-                            <MudTh Style="width: 42px;"></MudTh>
+                            <MudTh Class="col-w-42"></MudTh>
                         }
                         <MudTh><MudTableSortLabel SortBy="new Func<CollectionResponseDto, object>(x => x.Name)">@CollectionLoc["CollectionName"]</MudTableSortLabel></MudTh>
-                        <MudTh Style="width: 200px;"><MudTableSortLabel SortBy="new Func<CollectionResponseDto, object>(x => x.Description ?? string.Empty)">@CollectionLoc["Description"]</MudTableSortLabel></MudTh>
-                        <MudTh Style="width: 120px;"><MudTableSortLabel SortBy="new Func<CollectionResponseDto, object>(x => x.UserRole)">@CollectionLoc["YourRole"]</MudTableSortLabel></MudTh>
-                        <MudTh Style="width: 100px;"><MudTableSortLabel SortBy="new Func<CollectionResponseDto, object>(x => x.AssetCount)">@CommonLoc["Text_CountAssetsHeader"]</MudTableSortLabel></MudTh>
+                        <MudTh Class="col-w-200"><MudTableSortLabel SortBy="new Func<CollectionResponseDto, object>(x => x.Description ?? string.Empty)">@CollectionLoc["Description"]</MudTableSortLabel></MudTh>
+                        <MudTh Class="col-w-120"><MudTableSortLabel SortBy="new Func<CollectionResponseDto, object>(x => x.UserRole)">@CollectionLoc["YourRole"]</MudTableSortLabel></MudTh>
+                        <MudTh Class="col-w-100"><MudTableSortLabel SortBy="new Func<CollectionResponseDto, object>(x => x.AssetCount)">@CommonLoc["Text_CountAssetsHeader"]</MudTableSortLabel></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         @if (_selectionMode)
@@ -261,7 +261,7 @@
                                              ValueChanged="@(v => ToggleCollectionSelection(context.Id, v))"
                                              Size="Size.Small"
                                              Color="Color.Primary"
-                                             Style="margin: -4px;" />
+                                             Class="checkbox-compact" />
                             </MudTd>
                         }
                         <MudTd DataLabel="@CollectionLoc["CollectionName"]">
@@ -284,7 +284,7 @@
                                 @CommonLoc[AssetDisplayHelpers.GetRoleKey(context.UserRole)]
                             </MudChip>
                         </MudTd>
-                        <MudTd DataLabel="@CommonLoc["Text_CountAssetsHeader"]" Style="text-align: right;">@context.AssetCount</MudTd>
+                        <MudTd DataLabel="@CommonLoc["Text_CountAssetsHeader"]" Class="col-text-right">@context.AssetCount</MudTd>
                     </RowTemplate>
                 </MudTable>
             }
@@ -296,7 +296,7 @@
             {
                 <MudPaper Class="pa-4 mb-3" Elevation="0" Outlined="true">
                     <div class="d-flex justify-space-between align-start">
-                        <div style="flex: 1; min-width: 0;">
+                        <div class="flex-1-min-0">
                             @if (!string.IsNullOrWhiteSpace(_selectedCollection.Description))
                             {
                                 <MudText Typo="Typo.subtitle2" Class="mb-1">@CollectionLoc["Description"]:</MudText>

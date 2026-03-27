@@ -16,17 +16,50 @@
     top: 0;
 }
 
-/* AssetHub Component Styles */
+/* ── Visual Rhythm & Spacing ────────────────────────────────── */
+
+/* Page-level section with generous vertical breathing room */
+.section-block {
+    margin-bottom: 2rem;
+}
+
+.section-block:last-child {
+    margin-bottom: 0;
+}
+
+/* Section header: title + optional action aligned */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
+
+/* Subtle label above sections (e.g. "ADMINISTRATION") */
+.section-overline {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mud-palette-text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+/* ── Card Styles ────────────────────────────────────────────── */
 
 /* Asset Card Grid */
 .asset-card {
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .asset-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .asset-thumbnail {
@@ -34,10 +67,95 @@
     object-fit: cover;
 }
 
+/* Stat card in dashboard */
+.stat-card {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border-radius: 12px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.stat-card .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-top: 0.75rem;
+}
+
+.stat-card .stat-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: var(--mud-palette-text-secondary);
+    margin-top: 0.25rem;
+}
+
+/* Collection Cards */
+.collection-card {
+    min-height: 132px;
+    height: 100%;
+    border-radius: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.collection-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.collection-card .mud-card-content {
+    overflow: hidden;
+}
+
+.collection-card-header {
+    overflow: hidden;
+    width: 100%;
+}
+
+.collection-name-truncate {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Content cards (sections with a title bar) */
+.content-card {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* ── Welcome / Hero Heading ─────────────────────────────────── */
+
+.welcome-heading {
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    background: linear-gradient(135deg, var(--mud-palette-primary), var(--mud-palette-tertiary, var(--mud-palette-primary-lighten)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Subtitle text under page headings */
+.page-subtitle {
+    color: var(--mud-palette-text-secondary);
+    font-weight: 400;
+    letter-spacing: 0.005em;
+    line-height: 1.5;
+}
+
 /* Upload Area */
 .upload-area {
     border: 2px dashed var(--mud-palette-lines-default);
-    border-radius: 8px;
+    border-radius: 12px;
     transition: border-color 0.2s, background-color 0.2s;
     cursor: pointer;
 }
@@ -80,6 +198,19 @@
     word-break: break-all;
 }
 
+/* Subtle muted helper text */
+.text-muted {
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+/* Accent left border for featured items */
+.accent-border-left {
+    border-left: 3px solid var(--mud-palette-primary);
+    padding-left: 12px;
+}
+
 /* Media Preview */
 .media-preview-image {
     width: 100%;
@@ -109,28 +240,6 @@
     padding-bottom: 8px;
 }
 
-/* Collection Cards */
-.collection-card {
-    min-height: 132px;
-    height: 100%;
-}
-
-.collection-card .mud-card-content {
-    overflow: hidden;
-}
-
-.collection-card-header {
-    overflow: hidden;
-    width: 100%;
-}
-
-.collection-name-truncate {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 /* Dialog Layouts */
 .dialog-min-width {
     min-width: min(500px, 90vw);
@@ -156,6 +265,90 @@
     width: 120px;
 }
 
+/* ── Dialog Visual Storytelling ─────────────────────────────── */
+
+/* Compact dialog content padding */
+.mud-dialog .mud-dialog-content {
+    padding: 16px 24px !important;
+}
+
+.mud-dialog .mud-dialog-title {
+    padding: 14px 24px 0 !important;
+}
+
+.mud-dialog .mud-dialog-actions {
+    border-top: 1px solid var(--mud-palette-lines-default);
+    padding: 10px 24px !important;
+    gap: 8px;
+}
+
+/* Title accent bar — signals dialog purpose */
+.dialog-title {
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--mud-palette-primary);
+}
+
+.dialog-title-success {
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--mud-palette-success);
+}
+
+.dialog-title-danger {
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--mud-palette-error);
+}
+
+/* Intro context callout — compact guide text */
+.dialog-intro {
+    padding: 8px 12px;
+    background: var(--mud-palette-background);
+    border-left: 3px solid var(--mud-palette-primary);
+    border-radius: 0 6px 6px 0;
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+.dialog-intro-success {
+    border-left-color: var(--mud-palette-success);
+}
+
+.dialog-intro-danger {
+    border-left-color: var(--mud-palette-error);
+}
+
+/* Section header — compact label for content areas */
+.dialog-section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--mud-palette-text-secondary);
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
+
+/* Enhanced paper sections — refined containers */
+.dialog-section {
+    border-radius: 10px !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dialog-section:focus-within {
+    border-color: var(--mud-palette-primary) !important;
+    box-shadow: 0 0 0 1px var(--mud-palette-primary-hover);
+}
+
+/* Dense form fields inside dialogs */
+.dialog-section .mud-input-outlined .mud-input-slot {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+}
+
 /* Table / List Styles */
 .table-outlined {
     border: 1px solid var(--mud-palette-lines-default);
@@ -173,15 +366,18 @@
 /* Login Page */
 .login-container {
     height: 100vh;
+    background: linear-gradient(135deg, var(--mud-palette-background) 0%, var(--mud-palette-surface) 100%);
 }
 
 .login-card {
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
+    border-radius: 16px;
 }
 
 .login-icon {
     font-size: 4rem;
+    color: var(--mud-palette-primary);
 }
 
 .login-button {
@@ -269,3 +465,170 @@
     text-transform: none;
 }
 
+/* ── Global Refinements ─────────────────────────────────────── */
+
+/* Smoother transitions on all MudPaper elements */
+.mud-paper {
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+/* Better rounded corners on elevated cards */
+.mud-paper.mud-elevation-1,
+.mud-paper.mud-elevation-2 {
+    border-radius: 10px;
+}
+
+/* Subtle focus ring for interactive cards */
+.mud-card:focus-visible {
+    outline: 2px solid var(--mud-palette-primary);
+    outline-offset: 2px;
+}
+
+/* Drawer active nav item accent */
+.mud-nav-link.active {
+    border-left: 3px solid var(--mud-palette-primary);
+}
+
+/* Chart tooltip consistency */
+.mud-chart-legend .mud-typography {
+    font-size: 0.75rem;
+}
+
+/* Timeline compact spacing */
+.mud-timeline-item .mud-typography-caption {
+    line-height: 1.4;
+}
+
+/* Chip refinements */
+.mud-chip {
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+/* ── Layout Chrome ──────────────────────────────────────────── */
+
+/* AppBar subtle bottom border */
+.appbar-border {
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
+
+/* AppBar brand title */
+.appbar-title {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* Drawer right border separator */
+.drawer-border {
+    border-right: 1px solid var(--mud-palette-lines-default);
+}
+
+/* ── Inline-to-Class Utilities ──────────────────────────────── */
+
+/* Clickable chip (cursor pointer) */
+.chip-clickable {
+    cursor: pointer;
+}
+
+/* Force block display on inline text */
+.d-block {
+    display: block;
+}
+
+/* Full height */
+.h-100 {
+    height: 100%;
+}
+
+/* Full width */
+.w-100 {
+    width: 100%;
+}
+
+/* Overflow hidden */
+.overflow-hidden {
+    overflow: hidden;
+}
+
+/* Flex utilities */
+.flex-1 {
+    flex: 1;
+}
+
+.flex-shrink-0 {
+    flex-shrink: 0;
+}
+
+.flex-1-min-0 {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Italic text */
+.font-italic {
+    font-style: italic;
+}
+
+/* Negative margin for compact checkboxes in grids/tables */
+.checkbox-compact {
+    margin: -4px;
+}
+
+.checkbox-compact-card {
+    margin: -8px -4px -8px -8px;
+    flex-shrink: 0;
+}
+
+/* Tooltip min-width reset + flex-1 */
+.tooltip-flex {
+    min-width: 0;
+    flex: 1;
+}
+
+/* Table column widths */
+.col-w-42 {
+    width: 42px;
+}
+
+.col-w-50 {
+    width: 50px;
+}
+
+.col-w-100 {
+    width: 100px;
+}
+
+.col-w-120 {
+    width: 120px;
+}
+
+.col-w-200 {
+    width: 200px;
+}
+
+/* Max-width constraints */
+.max-w-300 {
+    max-width: 300px;
+}
+
+.max-w-400 {
+    max-width: 400px;
+}
+
+/* Audit detail tooltip styles */
+.audit-detail-row {
+    padding: 2px 0;
+}
+
+.audit-detail-key {
+    opacity: 0.7;
+}
+
+.audit-detail-value {
+    margin-left: 4px;
+}
+
+/* Breadcrumb link pointer */
+.cursor-pointer {
+    cursor: pointer;
+}

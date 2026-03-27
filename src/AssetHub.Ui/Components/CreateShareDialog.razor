@@ -11,23 +11,23 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Primary" />
             <MudText Typo="Typo.h6">@ShareLoc["CreateShareLink"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Class="dialog-intro">
                 @string.Format(ShareLoc["CreateShareDesc"].Value, ContentName)
             </MudText>
 
             @* Password Section *@
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
-                <MudText Typo="Typo.subtitle2" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+                <div class="dialog-section-title">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" />
                     @CommonLoc["Label_Password"]
-                </MudText>
+                </div>
                 <MudTextField @bind-Value="_password"
                               Label="@CommonLoc["Label_Password"]"
                               Variant="Variant.Outlined"
@@ -47,11 +47,11 @@
             </MudPaper>
 
             @* Expiration Section *@
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
-                <MudText Typo="Typo.subtitle2" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+                <div class="dialog-section-title">
+                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
                     @ShareLoc["Expiration"]
-                </MudText>
+                </div>
                 <MudSelect T="int" @bind-Value="_expirationDays" Variant="Variant.Outlined" Label="@ShareLoc["ExpiresIn"]">
                     <MudSelectItem Value="1">@CommonLoc["Expiry_1Day"]</MudSelectItem>
                     <MudSelectItem Value="7">@CommonLoc["Expiry_7Days"]</MudSelectItem>
@@ -62,11 +62,11 @@
             </MudPaper>
 
             @* Email Notification Section *@
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
-                <MudText Typo="Typo.subtitle2" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Class="mr-1" />
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+                <div class="dialog-section-title">
+                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
                     @ShareLoc["NotifyEmail"]
-                </MudText>
+                </div>
 
                 <MudTextField @bind-Value="_emailInput"
                               Label="@ShareLoc["AddEmailLabel"]"

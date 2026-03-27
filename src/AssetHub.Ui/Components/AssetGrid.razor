@@ -40,7 +40,7 @@ else
                                              ValueChanged="@(v => ToggleAssetSelection(asset.Id, v))"
                                              Size="Size.Small"
                                              Color="Color.Primary"
-                                             Style="margin: -4px;"
+                                             Class="checkbox-compact"
                                              @onclick:stopPropagation="true" />
                                 <MudSpacer />
                             </div>
@@ -99,7 +99,7 @@ else
             <HeaderContent>
                 @if (SelectionMode)
                 {
-                    <MudTh Style="width: 42px;"></MudTh>
+                    <MudTh Class="col-w-42"></MudTh>
                 }
                 <MudTh></MudTh>
                 <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.Title)">@AssetLoc["Column_Title"]</MudTableSortLabel></MudTh>
@@ -120,7 +120,7 @@ else
                                      ValueChanged="@(v => ToggleAssetSelection(context.Id, v))"
                                      Size="Size.Small"
                                      Color="Color.Primary"
-                                     Style="margin: -4px;" />
+                                     Class="checkbox-compact" />
                     </MudTd>
                 }
                 <MudTd DataLabel="" Class="col-icon">

@@ -9,13 +9,13 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Color="Color.Primary" />
             <MudText Typo="Typo.h6">@AssetLoc["SelectCollectionToAdd"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
+        <MudStack Spacing="2" Class="dialog-min-width">
             @if (_isLoading)
             {
                 <MudStack AlignItems="AlignItems.Center" Class="py-4">

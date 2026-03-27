@@ -13,19 +13,19 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.ManageAccounts" Color="Color.Primary" />
             <MudText Typo="Typo.h6">@AdminLoc["ManageUserAccess"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3" Class="dialog-min-width">
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudText Typo="Typo.body2" Class="dialog-intro">
                 @AdminLoc["ManageUserAccessDesc"]
             </MudText>
 
             <!-- User Info Header -->
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
                     <MudAvatar Color="Color.Primary" Size="Size.Large">
                         @(string.IsNullOrEmpty(FirstName) ? Username[..1].ToUpper() : FirstName[..1].ToUpper())
@@ -49,13 +49,13 @@
             </MudPaper>
 
             <!-- Reset Password -->
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                     <MudStack Spacing="0">
-                        <MudText Typo="Typo.subtitle2">
-                            <MudIcon Icon="@Icons.Material.Filled.LockReset" Size="Size.Small" Class="mr-1" />
+                        <div class="dialog-section-title" style="margin-bottom:0;padding-bottom:6px;border-bottom:none">
+                            <MudIcon Icon="@Icons.Material.Filled.LockReset" Size="Size.Small" />
                             @AdminLoc["ResetPassword"]
-                        </MudText>
+                        </div>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                             @AdminLoc["ResetPasswordDesc"]
                         </MudText>
@@ -86,8 +86,10 @@
             <!-- Add New Collection Access -->
             @if (!IsSystemAdmin)
             {
-            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">@AdminLoc["AddCollectionAccess"]</MudText>
+            <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+                <div class="dialog-section-title">
+                    @AdminLoc["AddCollectionAccess"]
+                </div>
                 <MudStack Spacing="2">
                     <MudSelect T="Guid?"
                                @bind-Value="_selectedCollectionId"
