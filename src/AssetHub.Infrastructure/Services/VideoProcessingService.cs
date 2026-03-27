@@ -1,15 +1,17 @@
+using System.Diagnostics;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
+using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Diagnostics;
 
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// Processes video assets: extracts a poster frame thumbnail.
+/// Processes video assets: extracts a poster frame and thumbnail.
+/// Uses presigned URLs so FFmpeg can stream directly from MinIO without downloading the entire file.
 /// Called by Hangfire background jobs.
 /// </summary>
 public sealed class VideoProcessingService(
@@ -25,10 +27,13 @@ public sealed class VideoProcessingService(
 
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
 
+    [AutomaticRetry(Attempts = 2, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
+    [Queue("media-processing")]
     public async Task ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
-        var tempOriginal = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var posterPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
+        var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
+        var sw = Stopwatch.StartNew();
 
         try
         {
@@ -41,30 +46,35 @@ public sealed class VideoProcessingService(
                 return;
             }
 
-            // Download original video
-            using var originalStream = await minioAdapter.DownloadAsync(_bucketName, originalObjectKey, ct);
-            using (var fs = File.Create(tempOriginal))
-            {
-                await originalStream.CopyToAsync(fs, ct);
-            }
+            // Generate a presigned URL so FFmpeg can stream directly from MinIO
+            // instead of downloading the entire video file to disk.
+            var presignedUrl = await minioAdapter.GetInternalPresignedDownloadUrlAsync(
+                _bucketName, originalObjectKey, expirySeconds: 600, ct);
 
-            // Extract poster frame
-            await ExtractPosterAsync(tempOriginal, posterPath, _imageSettings.PosterFrameSeconds, ct);
+            // Extract poster frame (medium size for preview)
+            await ExtractFrameAsync(presignedUrl, posterPath, _imageSettings.PosterFrameSeconds, _imageSettings.PosterWidth, ct);
+
+            // Extract thumbnail (small size for grid display)
+            await ExtractFrameAsync(presignedUrl, thumbPath, _imageSettings.PosterFrameSeconds, _imageSettings.ThumbnailWidth, ct);
+
+            // Upload poster and thumbnail in parallel
             var posterKey = $"{Constants.StoragePrefixes.Posters}/{assetId}-poster.jpg";
-            using (var fs = File.OpenRead(posterPath))
-            {
-                await minioAdapter.UploadAsync(_bucketName, posterKey, fs, Constants.ContentTypes.Jpeg, ct);
-            }
+            var thumbKey = $"{Constants.StoragePrefixes.Thumbnails}/{assetId}-thumb.jpg";
 
-            // Update asset with poster
-            asset.MarkReady(posterKey: posterKey);
+            await Task.WhenAll(
+                UploadFileAsync(posterPath, posterKey, ct),
+                UploadFileAsync(thumbPath, thumbKey, ct));
+
+            // Update asset with poster and thumbnail
+            asset.MarkReady(thumbKey, posterKey: posterKey);
             await assetRepository.UpdateAsync(asset, ct);
 
-            logger.LogInformation("Successfully processed video asset {AssetId}", assetId);
+            sw.Stop();
+            logger.LogInformation("Successfully processed video asset {AssetId} in {ElapsedMs}ms", assetId, sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Video processing failed for asset {AssetId}: {Error}", assetId, ex.Message);
+            logger.LogError(ex, "Video processing failed for asset {AssetId} after {ElapsedMs}ms: {Error}", assetId, sw.ElapsedMilliseconds, ex.Message);
 
             await auditService.LogAsync(
                 "asset.processing_failed",
@@ -85,89 +95,39 @@ public sealed class VideoProcessingService(
                 asset.MarkFailed("Video processing failed. Please try uploading again or contact an administrator.");
                 await assetRepository.UpdateAsync(asset, ct);
             }
+
+            throw; // Re-throw so Hangfire can retry
         }
         finally
         {
-            CleanupTempFile(tempOriginal);
-            CleanupTempFile(posterPath);
+            ProcessRunner.CleanupTempFile(posterPath, logger);
+            ProcessRunner.CleanupTempFile(thumbPath, logger);
         }
     }
 
-    private async Task ExtractPosterAsync(string inputPath, string outputPath, int atSecond, CancellationToken ct = default)
+    private async Task UploadFileAsync(string localPath, string objectKey, CancellationToken ct)
+    {
+        using var fs = File.OpenRead(localPath);
+        await minioAdapter.UploadAsync(_bucketName, objectKey, fs, Constants.ContentTypes.Jpeg, ct);
+    }
+
+    private async Task ExtractFrameAsync(string inputUrl, string outputPath, int atSecond, int width, CancellationToken ct)
     {
         var ffmpegPath = OperatingSystem.IsWindows() ? "ffmpeg" : "/usr/bin/ffmpeg";
-        var command = new ProcessStartInfo(ffmpegPath)
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+        var command = ProcessRunner.CreateStartInfo(ffmpegPath);
         command.ArgumentList.Add("-ss");
         command.ArgumentList.Add(atSecond.ToString());
         command.ArgumentList.Add("-i");
-        command.ArgumentList.Add(inputPath);
+        command.ArgumentList.Add(inputUrl);
         command.ArgumentList.Add("-vframes");
         command.ArgumentList.Add("1");
         command.ArgumentList.Add("-vf");
-        command.ArgumentList.Add($"scale={_imageSettings.PosterWidth}:-1");
+        command.ArgumentList.Add($"scale={width}:-1");
         command.ArgumentList.Add("-q:v");
         command.ArgumentList.Add(_imageSettings.PosterQuality.ToString());
         command.ArgumentList.Add(outputPath);
         command.ArgumentList.Add("-y");
 
-        await RunProcessAsync(ffmpegPath, command, ct);
-    }
-
-    private static async Task RunProcessAsync(string toolName, ProcessStartInfo startInfo, CancellationToken ct)
-    {
-        using var process = Process.Start(startInfo);
-        if (process == null)
-            throw new InvalidOperationException($"{toolName} process failed to start");
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(ProcessTimeout);
-
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
-        var stderrTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
-
-        try
-        {
-            await process.WaitForExitAsync(timeoutCts.Token);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            process.Kill(entireProcessTree: true);
-            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { /* Best-effort drain of stdio after kill — exceptions are non-actionable */ }
-            throw new TimeoutException($"{toolName} process exceeded the {ProcessTimeout.TotalMinutes:F0}-minute timeout and was killed");
-        }
-        catch
-        {
-            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { /* Best-effort drain of stdio after failure — exceptions are non-actionable */ }
-            throw;
-        }
-
-        await stdoutTask;
-        var stderr = await stderrTask;
-
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"{toolName} error (exit code {process.ExitCode}): {stderr}");
-        }
-    }
-
-    private void CleanupTempFile(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to cleanup temp file: {Path}", path);
-        }
+        await ProcessRunner.RunAsync(ffmpegPath, command, ProcessTimeout, logger, ct);
     }
 }

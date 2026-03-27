@@ -1,10 +1,11 @@
+using System.Diagnostics;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
+using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Diagnostics;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -26,11 +27,14 @@ public sealed class ImageProcessingService(
 
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
 
+    [AutomaticRetry(Attempts = 2, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
+    [Queue("media-processing")]
     public async Task ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
         var tempOriginal = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         var mediumPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
+        var sw = Stopwatch.StartNew();
 
         try
         {
@@ -86,31 +90,27 @@ public sealed class ImageProcessingService(
                 asset.MetadataJson["metadataExtractionError"] = ex.Message;
             }
 
-            // Create thumbnail
-            await ResizeImageAsync(tempOriginal, thumbPath, _imageSettings.ThumbnailWidth, _imageSettings.ThumbnailHeight, ct);
-            var thumbKey = $"{Constants.StoragePrefixes.Thumbnails}/{assetId}-thumb.jpg";
-            using (var fs = File.OpenRead(thumbPath))
-            {
-                await minioAdapter.UploadAsync(_bucketName, thumbKey, fs, Constants.ContentTypes.Jpeg, ct);
-            }
+            // Create thumbnail and medium in a single ImageMagick invocation
+            await CreateRenditionsAsync(tempOriginal, thumbPath, mediumPath, ct);
 
-            // Create medium version
-            await ResizeImageAsync(tempOriginal, mediumPath, _imageSettings.MediumWidth, _imageSettings.MediumHeight, ct);
+            // Upload thumbnail and medium in parallel
+            var thumbKey = $"{Constants.StoragePrefixes.Thumbnails}/{assetId}-thumb.jpg";
             var mediumKey = $"{Constants.StoragePrefixes.Medium}/{assetId}-medium.jpg";
-            using (var fs = File.OpenRead(mediumPath))
-            {
-                await minioAdapter.UploadAsync(_bucketName, mediumKey, fs, Constants.ContentTypes.Jpeg, ct);
-            }
+
+            await Task.WhenAll(
+                UploadFileAsync(thumbPath, thumbKey, ct),
+                UploadFileAsync(mediumPath, mediumKey, ct));
 
             // Update asset with processed variants
             asset.MarkReady(thumbKey, mediumKey);
             await assetRepository.UpdateAsync(asset, ct);
 
-            logger.LogInformation("Successfully processed image asset {AssetId}", assetId);
+            sw.Stop();
+            logger.LogInformation("Successfully processed image asset {AssetId} in {ElapsedMs}ms", assetId, sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Image processing failed for asset {AssetId}: {Error}", assetId, ex.Message);
+            logger.LogError(ex, "Image processing failed for asset {AssetId} after {ElapsedMs}ms: {Error}", assetId, sw.ElapsedMilliseconds, ex.Message);
 
             await auditService.LogAsync(
                 "asset.processing_failed",
@@ -131,25 +131,33 @@ public sealed class ImageProcessingService(
                 asset.MarkFailed("Image processing failed. Please try uploading again or contact an administrator.");
                 await assetRepository.UpdateAsync(asset, ct);
             }
+
+            throw; // Re-throw so Hangfire can retry
         }
         finally
         {
-            CleanupTempFile(tempOriginal);
-            CleanupTempFile(thumbPath);
-            CleanupTempFile(mediumPath);
+            ProcessRunner.CleanupTempFile(tempOriginal, logger);
+            ProcessRunner.CleanupTempFile(thumbPath, logger);
+            ProcessRunner.CleanupTempFile(mediumPath, logger);
         }
     }
 
-    private async Task ResizeImageAsync(string inputPath, string outputPath, int maxWidth, int maxHeight, CancellationToken ct = default)
+    private async Task UploadFileAsync(string localPath, string objectKey, CancellationToken ct)
+    {
+        using var fs = File.OpenRead(localPath);
+        await minioAdapter.UploadAsync(_bucketName, objectKey, fs, Constants.ContentTypes.Jpeg, ct);
+    }
+
+    /// <summary>
+    /// Creates both thumbnail and medium renditions in a single ImageMagick call using +write.
+    /// Reads the source image once, writes the thumbnail with +write, then continues to write the medium.
+    /// </summary>
+    private async Task CreateRenditionsAsync(string inputPath, string thumbPath, string mediumPath, CancellationToken ct)
     {
         var executable = OperatingSystem.IsWindows() ? "magick" : "/usr/bin/convert";
-        var command = new ProcessStartInfo(executable)
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+        var command = ProcessRunner.CreateStartInfo(executable);
+
+        // Read source once, auto-orient and flatten
         command.ArgumentList.Add($"{inputPath}[0]");
         command.ArgumentList.Add("-auto-orient");
         command.ArgumentList.Add("-background");
@@ -157,65 +165,26 @@ public sealed class ImageProcessingService(
         command.ArgumentList.Add("-flatten");
         command.ArgumentList.Add("-colorspace");
         command.ArgumentList.Add("sRGB");
-        command.ArgumentList.Add("-resize");
-        command.ArgumentList.Add($"{maxWidth}x{maxHeight}>");
+        command.ArgumentList.Add("-strip");
+
+        // Write thumbnail using +write (continues pipeline)
+        command.ArgumentList.Add("(");
+        command.ArgumentList.Add("+clone");
+        command.ArgumentList.Add("-thumbnail");
+        command.ArgumentList.Add($"{_imageSettings.ThumbnailWidth}x{_imageSettings.ThumbnailHeight}>");
         command.ArgumentList.Add("-quality");
         command.ArgumentList.Add(_imageSettings.JpegQuality.ToString());
-        command.ArgumentList.Add("-strip");
-        command.ArgumentList.Add(outputPath);
+        command.ArgumentList.Add("+write");
+        command.ArgumentList.Add(thumbPath);
+        command.ArgumentList.Add(")");
 
-        await RunProcessAsync(executable, command, ct);
-    }
+        // Write medium version
+        command.ArgumentList.Add("-thumbnail");
+        command.ArgumentList.Add($"{_imageSettings.MediumWidth}x{_imageSettings.MediumHeight}>");
+        command.ArgumentList.Add("-quality");
+        command.ArgumentList.Add(_imageSettings.JpegQuality.ToString());
+        command.ArgumentList.Add(mediumPath);
 
-    private static async Task RunProcessAsync(string toolName, ProcessStartInfo startInfo, CancellationToken ct)
-    {
-        using var process = Process.Start(startInfo);
-        if (process == null)
-            throw new InvalidOperationException($"{toolName} process failed to start");
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(ProcessTimeout);
-
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
-        var stderrTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
-
-        try
-        {
-            await process.WaitForExitAsync(timeoutCts.Token);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            process.Kill(entireProcessTree: true);
-            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { /* Best-effort drain of stdio after kill — exceptions are non-actionable */ }
-            throw new TimeoutException($"{toolName} process exceeded the {ProcessTimeout.TotalMinutes:F0}-minute timeout and was killed");
-        }
-        catch
-        {
-            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { /* Best-effort drain of stdio after failure — exceptions are non-actionable */ }
-            throw;
-        }
-
-        await stdoutTask;
-        var stderr = await stderrTask;
-
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"{toolName} error (exit code {process.ExitCode}): {stderr}");
-        }
-    }
-
-    private void CleanupTempFile(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to cleanup temp file: {Path}", path);
-        }
+        await ProcessRunner.RunAsync(executable, command, ProcessTimeout, logger, ct);
     }
 }

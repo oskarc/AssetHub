@@ -335,18 +335,13 @@
 /* Enhanced paper sections — refined containers */
 .dialog-section {
     border-radius: 10px !important;
+    padding-bottom: 16px !important;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dialog-section:focus-within {
     border-color: var(--mud-palette-primary) !important;
     box-shadow: 0 0 0 1px var(--mud-palette-primary-hover);
-}
-
-/* Dense form fields inside dialogs */
-.dialog-section .mud-input-outlined .mud-input-slot {
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
 }
 
 /* Table / List Styles */

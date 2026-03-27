@@ -313,6 +313,43 @@ public class MinIOAdapter(
     }
 
     /// <summary>
+    /// Generate presigned download URL using the INTERNAL MinIO client.
+    /// Used by server-side tools (FFmpeg) that need HTTP access to objects
+    /// without downloading the entire file to disk first.
+    /// Not cached — these are short-lived, single-use URLs.
+    /// </summary>
+    public async Task<string> GetInternalPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 600, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _pipeline.ExecuteAsync(async _ =>
+            {
+                var args = new PresignedGetObjectArgs()
+                    .WithBucket(bucketName)
+                    .WithObject(objectKey)
+                    .WithExpiry(expirySeconds);
+
+                return await minioClient.PresignedGetObjectAsync(args);
+            }, cancellationToken);
+        }
+        catch (MinioException ex)
+        {
+            logger.LogError(ex, "MinIO internal presigned URL generation failed for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException("Storage service failed to generate internal download URL.", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error during MinIO internal presigned URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException(StorageUnavailableMessage, ex);
+        }
+        catch (SocketException ex)
+        {
+            logger.LogError(ex, "Connection error during MinIO internal presigned URL generation for {BucketName}/{ObjectKey}", bucketName, objectKey);
+            throw new StorageException(StorageUnavailableMessage, ex);
+        }
+    }
+
+    /// <summary>
     /// Strips control characters (including CRLF) and quote characters from a filename
     /// to prevent Content-Disposition header injection.
     /// </summary>

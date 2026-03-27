@@ -43,6 +43,13 @@ public interface IMinIOAdapter
     Task<string> GetPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 3600, bool forceDownload = false, string? downloadFileName = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Generate a presigned URL for downloading an object using the internal MinIO endpoint.
+    /// Intended for server-side tools (e.g. FFmpeg) that need HTTP access to objects
+    /// without downloading the entire file to disk first.
+    /// </summary>
+    Task<string> GetInternalPresignedDownloadUrlAsync(string bucketName, string objectKey, int expirySeconds = 600, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Generate a presigned URL for uploading (PUT) an object.
     /// Uses the public MinIO endpoint so browsers can upload directly.
     /// </summary>
