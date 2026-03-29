@@ -14,8 +14,8 @@
 @inject IStringLocalizer<AssetHub.Ui.Resources.AdminResource> AdminLoc
 @inject AuthenticationStateProvider AuthState
 @inject IDialogService DialogService
-@inject LocalStorageService LocalStorage
-@inject IHttpContextAccessor HttpContextAccessor
+@inject ThemeService Theme
+@inject LocalizedDisplayService Display
 @inject ILogger<Home> Logger
 
 <PageTitle>@Loc["Dashboard_Title"] - @Loc["AppName"]</PageTitle>
@@ -87,7 +87,7 @@
                                     <MudStack Row="true" Spacing="1" Class="mt-2 flex-wrap justify-center">
                                         @foreach (var item in _dashboard.Stats.StorageByType)
                                         {
-                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@item.Count @GetAssetTypeLabel(item.AssetType)</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@item.Count @Display.AssetType(item.AssetType)</MudChip>
                                         }
                                     </MudStack>
                                 }
@@ -283,7 +283,7 @@
                                             <div class="d-flex align-center gap-2 mt-2">
                                                 <MudChip T="string" Size="Size.Small"
                                                          Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
-                                                    @GetLocalizedRole(collection.UserRole)
+                                                    @Display.Role(collection.UserRole)
                                                 </MudChip>
                                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                     @collection.AssetCount @Loc["Dashboard_Assets"]
@@ -356,7 +356,7 @@
                                                 <div>
                                                     <MudText Typo="Typo.body2">@(share.ScopeName ?? share.ScopeId.ToString()[..8])</MudText>
                                                     <MudText Typo="Typo.caption">
-                                                        @GetLocalizedTargetType(share.ScopeType) &middot;
+                                                        @Display.ScopeType(share.ScopeType) &middot;
                                                         @string.Format(Loc["Dashboard_Accesses"].Value, share.AccessCount)
                                                         @if (share.HasPassword)
                                                         {
@@ -415,7 +415,7 @@
                                                     </MudText>
                                                 }
                                                 <MudText Typo="Typo.caption" Class="d-block">
-                                                    @GetLocalizedTargetType(evt.TargetType)
+                                                    @Display.ScopeType(evt.TargetType)
                                                     @if (!string.IsNullOrEmpty(evt.TargetName))
                                                     {
                                                         @:&middot; @evt.TargetName
@@ -446,8 +446,7 @@
     private CancellationTokenSource _cts = new();
     private double[] _storageChartData = [];
     private string[] _storageChartLabels = [];
-    private bool _isDarkMode = true;
-    private string[] _storageChartColors => _isDarkMode
+    private string[] _storageChartColors => Theme.IsDarkMode
         ? ["#66bb6a", "#42a5f5", "#ffa726", "#ab47bc"]  // Lighter shades for dark backgrounds
         : ["#388e3c", "#1976d2", "#f57c00", "#7b1fa2"];  // Deeper shades for light backgrounds
 
@@ -459,11 +458,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Read dark mode from cookie for SSR (same pattern as MainLayout)
-        var cookies = HttpContextAccessor.HttpContext?.Request.Cookies;
-        if (cookies != null && cookies.TryGetValue("darkMode", out var dm))
-            _isDarkMode = !string.Equals(dm, "false", StringComparison.OrdinalIgnoreCase);
-
         var authState = await AuthState.GetAuthenticationStateAsync();
         var user = authState.User;
         _displayName = user.FindFirst("preferred_username")?.Value
@@ -472,21 +466,6 @@
                      ?? "";
 
         await LoadDashboardAsync();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            var stored = await LocalStorage.GetAsync("darkMode");
-            if (stored != null)
-            {
-                var wasDark = _isDarkMode;
-                _isDarkMode = stored == "true";
-                if (_isDarkMode != wasDark)
-                    StateHasChanged();
-            }
-        }
     }
 
     private async Task ReloadAsync()
@@ -579,9 +558,6 @@
         return localized.ResourceNotFound ? eventType : localized.Value;
     }
 
-    private string GetLocalizedTargetType(string targetType) =>
-        AssetDisplayHelpers.GetLocalizedScopeType(targetType, Loc);
-
     private string FormatTimeAgo(DateTime utcTime)
     {
         var diff = DateTime.UtcNow - utcTime;
@@ -598,14 +574,8 @@
             return;
 
         _storageChartData = _dashboard.Stats.StorageByType.Select(s => (double)s.TotalBytes).ToArray();
-        _storageChartLabels = _dashboard.Stats.StorageByType.Select(s => GetAssetTypeLabel(s.AssetType)).ToArray();
+        _storageChartLabels = _dashboard.Stats.StorageByType.Select(s => Display.AssetType(s.AssetType)).ToArray();
     }
-
-    private string GetAssetTypeLabel(string assetType) =>
-        AssetDisplayHelpers.GetLocalizedAssetType(assetType, Loc);
-
-    private string GetLocalizedRole(string role) =>
-        AssetDisplayHelpers.GetLocalizedRole(role, Loc);
 
     public ValueTask DisposeAsync()
     {

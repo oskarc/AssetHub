@@ -362,11 +362,25 @@
                 foreach (var assetId in assetIds)
                 {
                     var upload = _uploads.FirstOrDefault(u => u.AssetId == assetId);
-                    if (upload is null || upload.Status == UploadStatus.Completed)
+                    if (upload is null || upload.Status is UploadStatus.Completed or UploadStatus.Failed)
                         continue;
 
                     var asset = await Api.GetAssetAsync(assetId, CancellationToken.None);
-                    if (asset?.Status == Constants.AssetStatus.Processing)
+
+                    if (asset is null)
+                    {
+                        // Asset was deleted (e.g., malware detected during scan)
+                        upload.Status = UploadStatus.Failed;
+                        upload.ErrorMessage = CommonLoc["Error_AssetProcessingDeleted"].Value;
+                        await InvokeAsync(StateHasChanged);
+                    }
+                    else if (asset.Status == Constants.AssetStatus.Failed)
+                    {
+                        upload.Status = UploadStatus.Failed;
+                        upload.ErrorMessage = CommonLoc["Error_AssetProcessingFailed"].Value;
+                        await InvokeAsync(StateHasChanged);
+                    }
+                    else if (asset.Status == Constants.AssetStatus.Processing)
                     {
                         allReady = false;
                     }
@@ -388,14 +402,21 @@
             }
         }
 
-        // Timeout — finish anyway
+        // Timeout — mark remaining processing uploads as failed with a clear message
         if (!_cts.IsCancellationRequested)
+        {
+            foreach (var upload in _uploads.Where(u => u.Status == UploadStatus.Processing))
+            {
+                upload.Status = UploadStatus.Failed;
+                upload.ErrorMessage = CommonLoc["Error_AssetProcessingTimeout"].Value;
+            }
             await FinishProcessing(assetIds);
+        }
     }
 
     /// <summary>
-    /// Refreshes the asset grid, preloads thumbnail images, then marks uploads as completed.
-    /// Keeps the Processing indicator visible until thumbnails are cached by the browser.
+    /// Refreshes the asset grid, preloads thumbnail images for successful uploads,
+    /// then marks remaining processing uploads as completed.
     /// </summary>
     private async Task FinishProcessing(List<Guid> assetIds)
     {
@@ -404,13 +425,24 @@
         // Uploads fully complete — remove browser navigation guard
         await DisableBeforeUnloadAsync();
 
-        // Refresh grid so assets appear (still showing Processing indicator)
+        // Notify user of any failures
+        var failedCount = _uploads.Count(u => u.AssetId.HasValue && assetIds.Contains(u.AssetId.Value) && u.Status == UploadStatus.Failed);
+        if (failedCount > 0)
+        {
+            Feedback.ShowError(string.Format(CommonLoc["Error_ProcessingFailedCount"].Value, failedCount));
+        }
+
+        // Refresh grid so assets appear (still showing Processing indicator for successful ones)
         await OnUploadComplete.InvokeAsync();
 
-        // Preload thumbnails so they render instantly when the loader disappears
-        if (_jsModule != null)
+        // Preload thumbnails only for assets that weren't marked as failed
+        var successIds = assetIds
+            .Where(id => _uploads.Any(u => u.AssetId == id && u.Status == UploadStatus.Processing))
+            .ToArray();
+
+        if (_jsModule != null && successIds.Length > 0)
         {
-            var thumbUrls = assetIds.Select(id => $"/api/v1/assets/{id}/thumb").ToArray();
+            var thumbUrls = successIds.Select(id => $"/api/v1/assets/{id}/thumb").ToArray();
             try
             {
                 await _jsModule.InvokeVoidAsync("preloadImages", (object)thumbUrls, 10000);
@@ -421,7 +453,7 @@
             }
         }
 
-        // Now mark all as completed
+        // Mark remaining processing uploads as completed (failed ones keep their status)
         foreach (var upload in _uploads.Where(u => u.Status == UploadStatus.Processing))
         {
             upload.Status = UploadStatus.Completed;
@@ -430,7 +462,7 @@
 
         // Clean up after a short delay
         await Task.Delay(3000);
-        _uploads.RemoveAll(u => u.Status == UploadStatus.Completed);
+        _uploads.RemoveAll(u => u.Status is UploadStatus.Completed or UploadStatus.Failed);
         await InvokeAsync(StateHasChanged);
     }
 

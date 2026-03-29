@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using AssetHub.Application;
 using AssetHub.Application.Helpers;
 using Microsoft.Extensions.Localization;
@@ -11,6 +12,8 @@ namespace AssetHub.Ui.Services;
 public static class AssetDisplayHelpers
 {
     // ===== THUMBNAILS & PLACEHOLDERS =====
+
+    private static readonly ConcurrentDictionary<string, string> _placeholderCache = new();
 
     /// <summary>
     /// Gets the thumbnail URL for an asset, or generates a placeholder SVG.
@@ -50,17 +53,18 @@ public static class AssetDisplayHelpers
 
     /// <summary>
     /// Gets a placeholder SVG image for a given asset type (image/video/document).
-    /// Use this when you have an asset type but no thumbnail URL.
+    /// Results are cached since there are only a few asset types.
     /// </summary>
     public static string GetPlaceholderForType(string? assetType)
     {
-        return assetType switch
+        var key = assetType ?? "_default";
+        return _placeholderCache.GetOrAdd(key, _ => assetType switch
         {
             Constants.AssetTypeFilters.Image => GetPlaceholderSvg("Image", "#4CAF50", "M21,19V5c0-1.1-0.9-2-2-2H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14C20.1,21,21,20.1,21,19z M8.5,13.5l2.5,3.01L14.5,12l4.5,6H5L8.5,13.5z"),
             Constants.AssetTypeFilters.Video => GetPlaceholderSvg("Video", "#2196F3", "M17,10.5V7c0-0.55-0.45-1-1-1H4C3.45,6,3,6.45,3,7v10c0,0.55,0.45,1,1,1h12c0.55,0,1-0.45,1-1v-3.5l4,4v-11L17,10.5z"),
             Constants.AssetTypeFilters.Document => GetPlaceholderSvg("Document", "#FF9800", "M14,2H6C4.9,2,4.01,2.9,4.01,4L4,20c0,1.1,0.89,2,1.99,2H18c1.1,0,2-0.9,2-2V8L14,2z M16,18H8v-2h8V18z M16,14H8v-2h8V14z M13,9V3.5L18.5,9H13z"),
             _ => GetPlaceholderSvg("Asset", "#9E9E9E", "M6,2C4.89,2,4,2.9,4,4v16c0,1.1,0.89,2,2,2h12c1.1,0,2-0.9,2-2V8l-6-6H6z M13,9V3.5L18.5,9H13z")
-        };
+        });
     }
 
     // ===== ASSET TYPE DISPLAY =====

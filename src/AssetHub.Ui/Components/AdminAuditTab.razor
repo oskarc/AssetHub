@@ -4,6 +4,7 @@
 @inject LocalStorageService LocalStorage
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject LocalizedDisplayService Display
 
 @if (_auditLoading && _auditEvents == null)
 {
@@ -79,7 +80,7 @@ else
             </MudTd>
             <MudTd DataLabel="@AdminLoc["Header_Actor"]">@(context.ActorUserName ?? context.ActorUserId ?? "—")</MudTd>
             <MudTd DataLabel="@AdminLoc["Header_TargetType"]">
-                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@GetLocalizedTargetType(context.TargetType)</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@Display.ScopeType(context.TargetType)</MudChip>
             </MudTd>
             <MudTd DataLabel="@AdminLoc["Header_TargetName"]">
                 @if (!string.IsNullOrEmpty(context.TargetName))
@@ -344,9 +345,6 @@ else
         var localized = AdminLoc[key];
         return localized.ResourceNotFound ? eventType : localized.Value;
     }
-
-    private string GetLocalizedTargetType(string targetType) =>
-        AssetDisplayHelpers.GetLocalizedScopeType(targetType, CommonLoc);
 
     private string GetLocalizedDetailKey(string key)
     {

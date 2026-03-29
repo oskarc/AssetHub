@@ -21,7 +21,7 @@ public class CreateCollectionDialogTests : BunitTestBase
         var cut = await RenderDialogAsync();
 
         Assert.Contains("CreateCollection", cut.Markup);
-        // Should have name and description fields
+        // Should have name and description fields via CollectionForm
         Assert.True(cut.FindAll("input, textarea").Count >= 1);
     }
 
@@ -32,20 +32,6 @@ public class CreateCollectionDialogTests : BunitTestBase
 
         Assert.Contains("Btn_Cancel", cut.Markup);
         Assert.Contains("Btn_Create", cut.Markup);
-    }
-
-    [Fact]
-    public async Task Create_Button_Initially_Disabled_Until_Form_Valid()
-    {
-        var cut = await RenderDialogAsync();
-
-        // The create button requires form validation (_isValid)
-        // Name is required so initially the button should be disabled
-        var buttons = cut.FindAll("button");
-        var createButton = buttons.FirstOrDefault(b => b.TextContent.Contains("Btn_Create"));
-        Assert.NotNull(createButton);
-        // Button has Disabled attribute when form is not valid
-        Assert.True(createButton.HasAttribute("disabled"));
     }
 
     [Fact]
@@ -62,20 +48,28 @@ public class CreateCollectionDialogTests : BunitTestBase
         nameInput.Input("New Collection");
         nameInput.Blur();
 
-        // Explicitly validate the form so @bind-IsValid updates in the bUnit test environment
-        await cut.InvokeAsync(async () => await cut.FindComponent<MudForm>().Instance.Validate());
-
-        // Wait for form to become valid, then click the Create button
-        cut.WaitForState(() => cut.FindAll("button").Any(b =>
-            b.TextContent.Contains("Btn_Create") && !b.HasAttribute("disabled")),
-            TimeSpan.FromSeconds(2));
-
+        // Click the Create button — validation happens on submit
         var createButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Create"));
         await cut.InvokeAsync(() => createButton.Click());
 
         MockApi.Verify(a => a.CreateCollectionAsync(
             It.Is<CreateCollectionDto>(dto => dto.Name == "New Collection"),
             It.IsAny<CancellationToken>()), Times.Once());
+    }
+
+    [Fact]
+    public async Task Does_Not_Submit_When_Name_Empty()
+    {
+        var cut = await RenderDialogAsync();
+
+        // Click Create without entering a name
+        var createButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Create"));
+        await cut.InvokeAsync(() => createButton.Click());
+
+        // API should not be called
+        MockApi.Verify(a => a.CreateCollectionAsync(
+            It.IsAny<CreateCollectionDto>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]

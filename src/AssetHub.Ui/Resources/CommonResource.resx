@@ -352,6 +352,12 @@
   <data name="Error_FileTooLarge" xml:space="preserve"><value>{0} exceeds the maximum size of {1} MB</value></data>
   <data name="Warning_FilesRejected" xml:space="preserve"><value>{0} file(s) were skipped due to validation errors</value></data>
 
+  <!-- Processing errors -->
+  <data name="Error_AssetProcessingFailed" xml:space="preserve"><value>Processing failed. Please try uploading again.</value></data>
+  <data name="Error_AssetProcessingDeleted" xml:space="preserve"><value>File was removed during security scanning.</value></data>
+  <data name="Error_AssetProcessingTimeout" xml:space="preserve"><value>Processing is taking longer than expected. The file will appear once complete.</value></data>
+  <data name="Error_ProcessingFailedCount" xml:space="preserve"><value>{0} file(s) failed processing</value></data>
+
   <!-- Search -->
   <data name="SearchHint_MinChars" xml:space="preserve"><value>Type at least {0} characters to search</value></data>
 

@@ -1,0 +1,42 @@
+@using AssetHub.Ui.Services
+
+@inject IStringLocalizer<CollectionsResource> CollectionLoc
+
+<MudForm @ref="_form" @bind-IsValid="_isValid">
+    <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+        <MudTextField @bind-Value="Name"
+                      Label="@CollectionLoc["CollectionName"]"
+                      Required="true"
+                      RequiredError="@CollectionLoc["Validation_NameRequired"]"
+                      Immediate="true"
+                      Variant="Variant.Outlined"
+                      AutoFocus="true"
+                      Class="mb-2" />
+
+        <MudTextField @bind-Value="Description"
+                      Label="@CollectionLoc["DescriptionOptional"]"
+                      Lines="3"
+                      Immediate="true"
+                      Variant="Variant.Outlined" />
+    </MudPaper>
+</MudForm>
+
+@code {
+    /// <summary>Collection name. Set initial value via parameter, read back via property.</summary>
+    [Parameter] public string Name { get; set; } = "";
+
+    /// <summary>Collection description. Set initial value via parameter, read back via property.</summary>
+    [Parameter] public string Description { get; set; } = "";
+
+    private MudForm? _form;
+    private bool _isValid;
+
+    public bool IsValid => _isValid;
+
+    public async Task<bool> ValidateAsync()
+    {
+        if (_form != null)
+            await _form.Validate();
+        return _isValid;
+    }
+}

@@ -69,9 +69,9 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         var emailMapTask = _userLookup.GetUserEmailsAsync(userIds, ct);
         var adminIdsTask = _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
         await Task.WhenAll(nameMapTask, emailMapTask, adminIdsTask);
-        var nameMap = await nameMapTask;
-        var emailMap = await emailMapTask;
-        var adminIds = await adminIdsTask;
+        var nameMap = nameMapTask.Result;
+        var emailMap = emailMapTask.Result;
+        var adminIds = adminIdsTask.Result;
 
         var dtos = acls.Select(a => new CollectionAclResponseDto
         {
@@ -126,8 +126,8 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
             var nameTask = _userLookup.GetUserNameAsync(principalId, ct);
             var emailMapTask = _userLookup.GetUserEmailsAsync(new[] { principalId }, ct);
             await Task.WhenAll(nameTask, emailMapTask);
-            principalName = await nameTask;
-            (await emailMapTask).TryGetValue(principalId, out principalEmail);
+            principalName = nameTask.Result;
+            emailMapTask.Result.TryGetValue(principalId, out principalEmail);
         }
 
         return new CollectionAclResponseDto

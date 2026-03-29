@@ -8,6 +8,7 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<SharesResource> ShareLoc
 @inject ISnackbar Snackbar
+@inject LocalizedDisplayService Display
 
 @implements IAsyncDisposable
 
@@ -42,8 +43,8 @@
                       DownloadOriginalText="@CommonLoc["Btn_DownloadOriginal"]"
                       DownloadMediumText="@CommonLoc["Btn_DownloadMedium"]"
                       DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]"
-                      AssetTypeDisplay="@AssetDisplayHelpers.GetLocalizedAssetType(_selectedAsset.AssetType, CommonLoc)"
-                      ContentTypeDisplay="@AssetDisplayHelpers.GetLocalizedContentType(_selectedAsset.ContentType, CommonLoc)" />
+                      AssetTypeDisplay="@Display.AssetType(_selectedAsset.AssetType)"
+                      ContentTypeDisplay="@Display.ContentType(_selectedAsset.ContentType)" />
 }
 else
 {
@@ -98,7 +99,7 @@ else
                     <MudCardContent Class="pa-2">
                         <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
                         <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)" Variant="Variant.Outlined">
-                            @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
+                            @Display.AssetType(asset.AssetType)
                         </MudChip>
                     </MudCardContent>
                     <MudCardActions Class="pa-2 pt-0" @onclick:stopPropagation="true">

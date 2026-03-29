@@ -85,7 +85,7 @@ public static class InfrastructureServiceExtensions
         });
 
         // NOTE: Each host should call AddHangfireServer() with its own options.
-        // The API host uses default options; the Worker host configures queues/worker count.
+        // Both the API and Worker configure queues including "media-processing".
 
         // ── Options ─────────────────────────────────────────────────────────
         services.AddOptions<MinIOSettings>()

@@ -17,6 +17,7 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<SharesResource> ShareLoc
 @inject ISnackbar Snackbar
+@inject LocalizedDisplayService Display
 
 <PageTitle>@ShareLoc["SharedContent"] - @CommonLoc["AppName"]</PageTitle>
 
@@ -99,8 +100,8 @@
                           DownloadOriginalText="@CommonLoc["Btn_DownloadOriginal"]"
                           DownloadMediumText="@CommonLoc["Btn_DownloadMedium"]"
                           DownloadThumbnailText="@CommonLoc["Btn_DownloadThumbnail"]"
-                          AssetTypeDisplay="@GetFriendlyAssetType(_sharedAsset.AssetType)"
-                          ContentTypeDisplay="@GetFriendlyContentType(_sharedAsset.ContentType)" />
+                          AssetTypeDisplay="@Display.AssetType(_sharedAsset.AssetType)"
+                          ContentTypeDisplay="@Display.ContentType(_sharedAsset.ContentType)" />
     }
     else if (_sharedCollection != null)
     {
@@ -460,12 +461,6 @@
             url += $"&accessToken={Uri.EscapeDataString(_accessToken)}";
         return url;
     }
-
-    private string GetFriendlyAssetType(string assetType) =>
-        AssetDisplayHelpers.GetLocalizedAssetType(assetType, CommonLoc);
-
-    private string GetFriendlyContentType(string contentType) =>
-        AssetDisplayHelpers.GetLocalizedContentType(contentType, CommonLoc);
 
     public async ValueTask DisposeAsync()
     {

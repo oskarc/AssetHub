@@ -15,6 +15,7 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
+@inject LocalizedDisplayService Display
 
 <PageTitle>@(_isLoading ? AssetLoc["LoadingAsset"] : _asset?.Title ?? AssetLoc["AssetNotFound"]) - @CommonLoc["AppName"]</PageTitle>
 
@@ -103,7 +104,7 @@ else
                             <MudText Typo="Typo.h5">@_asset.Title</MudText>
                             <MudStack Row="true" Spacing="1">
                                 <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_asset.AssetType)" Variant="Variant.Outlined">
-                                    @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(_asset.AssetType)]
+                                    @Display.AssetType(_asset.AssetType)
                                 </MudChip>
                                 <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetStatusColor(_asset.Status)">
                                     @CommonLoc[AssetDisplayHelpers.GetAssetStatusKey(_asset.Status)]
@@ -197,7 +198,7 @@ else
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Type"]</MudText></td>
                                         <td>
                                             <MudTooltip Text="@_asset.ContentType">
-                                                <MudText Typo="Typo.body2">@GetFriendlyContentType(_asset.ContentType)</MudText>
+                                                <MudText Typo="Typo.body2">@Display.ContentType(_asset.ContentType)</MudText>
                                             </MudTooltip>
                                         </td>
                                     </tr>
@@ -602,9 +603,6 @@ else
         var safeUrl = UrlSafetyHelper.SafeReturnUrl(ReturnUrl, "/collections");
         Nav.NavigateTo(safeUrl);
     }
-
-    private string GetFriendlyContentType(string? contentType) =>
-        AssetDisplayHelpers.GetLocalizedContentType(contentType, CommonLoc);
 
     public ValueTask DisposeAsync()
     {

@@ -104,7 +104,7 @@ public class CollectionTreeTests : BunitTestBase
     }
 
     [Fact]
-    public void Shows_Context_Menu_With_Edit_And_Delete()
+    public void Renders_Collection_Without_Context_Menu()
     {
         var collection = TestData.CreateCollection();
         MockApi.Setup(a => a.GetCollectionsAsync(It.IsAny<CancellationToken>()))
@@ -112,8 +112,8 @@ public class CollectionTreeTests : BunitTestBase
 
         var cut = Render<CollectionTree>();
 
-        // Menu trigger should exist (MoreVert icon)
-        Assert.Contains(Icons.Material.Filled.MoreVert, cut.Markup);
+        // Context menu was removed — actions are on the collection header instead
+        Assert.DoesNotContain(Icons.Material.Filled.MoreVert, cut.Markup);
     }
 
     [Fact]

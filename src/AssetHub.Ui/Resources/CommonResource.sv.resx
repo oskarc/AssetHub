@@ -348,6 +348,12 @@
   <data name="Error_FileTooLarge" xml:space="preserve"><value>{0} överskrider maxstorleken på {1} MB</value></data>
   <data name="Warning_FilesRejected" xml:space="preserve"><value>{0} fil(er) hoppades över på grund av valideringsfel</value></data>
 
+  <!-- Processing errors -->
+  <data name="Error_AssetProcessingFailed" xml:space="preserve"><value>Bearbetning misslyckades. Försök ladda upp igen.</value></data>
+  <data name="Error_AssetProcessingDeleted" xml:space="preserve"><value>Filen togs bort under säkerhetsskanning.</value></data>
+  <data name="Error_AssetProcessingTimeout" xml:space="preserve"><value>Bearbetningen tar längre tid än förväntat. Filen visas när den är klar.</value></data>
+  <data name="Error_ProcessingFailedCount" xml:space="preserve"><value>{0} fil(er) misslyckades vid bearbetning</value></data>
+
   <!-- Search -->
   <data name="SearchHint_MinChars" xml:space="preserve"><value>Skriv minst {0} tecken för att söka</value></data>
 

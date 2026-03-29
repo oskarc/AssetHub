@@ -6,6 +6,7 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 @inject LocalStorageService LocalStorage
+@inject LocalizedDisplayService Display
 
 @if (_sharesLoading && _shares == null)
 {
@@ -60,7 +61,7 @@ else
         <RowTemplate>
             <MudTd>
                 <MudChip T="string" Size="Size.Small" Color="@(context.ScopeType == Constants.ScopeTypes.Asset ? Color.Info : Color.Default)" Variant="Variant.Outlined">
-                    @GetLocalizedScopeType(context.ScopeType)
+                    @Display.ScopeType(context.ScopeType)
                 </MudChip>
             </MudTd>
             <MudTd>
@@ -423,7 +424,4 @@ else
             await LoadAsync(reset: true);
         }
     }
-
-    private string GetLocalizedScopeType(string scopeType) =>
-        AssetDisplayHelpers.GetLocalizedScopeType(scopeType, CommonLoc);
 }

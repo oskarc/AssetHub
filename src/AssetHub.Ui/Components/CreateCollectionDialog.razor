@@ -20,31 +20,15 @@
                 @CollectionLoc["CreateCollectionDesc"]
             </MudText>
 
-            <MudForm @ref="_form" @bind-IsValid="_isValid">
-                <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
-                    <MudTextField @bind-Value="_name"
-                                  Label="@CollectionLoc["CollectionName"]"
-                                  Required="true"
-                                  RequiredError="@CollectionLoc["Validation_NameRequired"]"
-                                  Immediate="true"
-                                  Variant="Variant.Outlined"
-                                  AutoFocus="true"
-                                  Class="mb-2" />
-
-                    <MudTextField @bind-Value="_description"
-                                  Label="@CollectionLoc["DescriptionOptional"]"
-                                  Lines="3"
-                                  Variant="Variant.Outlined" />
-                </MudPaper>
-            </MudForm>
+            <CollectionForm @ref="_collectionForm" />
         </MudStack>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
-        <MudButton Color="Color.Primary" 
+        <MudButton Color="Color.Primary"
                    Variant="Variant.Filled"
                    OnClick="CreateAsync"
-                   Disabled="@(!_isValid || _isCreating)">
+                   Disabled="_isCreating">
             @if (_isCreating)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -58,21 +42,15 @@
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = default!;
 
-    private MudForm? _form;
-    private string _name = "";
-    private string _description = "";
-    private bool _isValid;
+    private CollectionForm? _collectionForm;
     private bool _isCreating;
 
     private void Cancel() => MudDialog.Cancel();
 
     private async Task CreateAsync()
     {
-        if (_form != null)
-        {
-            await _form.Validate();
-            if (!_isValid) return;
-        }
+        if (_collectionForm == null || !await _collectionForm.ValidateAsync())
+            return;
 
         try
         {
@@ -80,8 +58,8 @@
 
             var dto = new CreateCollectionDto
             {
-                Name = _name,
-                Description = InputValidation.NormalizeToNull(_description)
+                Name = _collectionForm.Name,
+                Description = InputValidation.NormalizeToNull(_collectionForm.Description)
             };
 
             var result = await Api.CreateCollectionAsync(dto);

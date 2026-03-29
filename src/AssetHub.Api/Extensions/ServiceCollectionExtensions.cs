@@ -111,6 +111,7 @@ public static class ServiceCollectionExtensions
         // ── Hangfire server (API host processes jobs with constrained workers) ───
         services.AddHangfireServer(options =>
         {
+            options.Queues = ["default", "media-processing"];
             options.WorkerCount = Math.Max(Constants.Limits.ApiMinHangfireWorkers, Math.Min(Environment.ProcessorCount, Constants.Limits.ApiMaxHangfireWorkers));
         });
 
@@ -244,6 +245,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AssetHub.Ui.Services.IUserFeedbackService, AssetHub.Ui.Services.UserFeedbackService>();
         services.AddScoped<AssetHub.Ui.Services.IClipboardService, AssetHub.Ui.Services.ClipboardService>();
         services.AddScoped<AssetHub.Ui.Services.LocalStorageService>();
+        services.AddScoped<AssetHub.Ui.Services.ThemeService>();
+        services.AddScoped<AssetHub.Ui.Services.LocalizedDisplayService>();
         services.AddTransient<AssetHub.Ui.Services.CookieForwardingHandler>();
 
         var connectionString = configuration.GetConnectionString("Postgres");

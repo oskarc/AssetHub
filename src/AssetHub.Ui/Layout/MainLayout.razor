@@ -1,11 +1,12 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
 @inject IStringLocalizer<CommonResource> CommonLoc
-@inject LocalStorageService LocalStorage
+@inject ThemeService Theme
 @inject IHttpContextAccessor HttpContextAccessor
 
-<MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
+<MudThemeProvider Theme="@_theme" IsDarkMode="Theme.IsDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -87,20 +88,14 @@
 
 @code {
     private bool _drawerOpen = true;
-    private bool _isDarkMode = true;
     private MudTheme? _theme = null;
 
     protected override void OnInitialized()
     {
         base.OnInitialized();
 
-        // Read dark mode preference from cookie so SSR renders the correct theme
-        // (avoids flash when page reloads, e.g. on language switch)
-        var cookies = HttpContextAccessor.HttpContext?.Request.Cookies;
-        if (cookies != null && cookies.TryGetValue("darkMode", out var dm))
-        {
-            _isDarkMode = !string.Equals(dm, "false", StringComparison.OrdinalIgnoreCase);
-        }
+        Theme.InitializeFromCookies(HttpContextAccessor);
+        Theme.OnChange += StateHasChanged;
 
         _theme = new()
         {
@@ -178,14 +173,8 @@
     {
         if (firstRender)
         {
-            var stored = await LocalStorage.GetAsync("darkMode");
-            if (stored != null)
-            {
-                _isDarkMode = stored == "true";
-                // Sync cookie with localStorage value so next SSR uses correct theme
-                await LocalStorage.SetWithCookieAsync("darkMode", stored);
+            if (await Theme.InitializeFromLocalStorageAsync())
                 StateHasChanged();
-            }
         }
     }
 
@@ -193,8 +182,7 @@
 
     private async Task DarkModeToggle()
     {
-        _isDarkMode = !_isDarkMode;
-        await LocalStorage.SetBoolWithCookieAsync("darkMode", _isDarkMode);
+        await Theme.ToggleAsync();
     }
 
     private void Login()
@@ -286,9 +274,14 @@
         OverlayLight = "#1e203080",
     };
 
-    public string DarkLightModeButtonIcon => _isDarkMode switch
+    public string DarkLightModeButtonIcon => Theme.IsDarkMode switch
     {
         true => Icons.Material.Rounded.LightMode,
         false => Icons.Material.Outlined.DarkMode,
     };
+
+    public void Dispose()
+    {
+        Theme.OnChange -= StateHasChanged;
+    }
 }
