@@ -1,0 +1,65 @@
+@inject IStringLocalizer<CommonResource> Loc
+@inject IStringLocalizer<AdminResource> AdminLoc
+@inject LocalizedDisplayService Display
+
+<MudPaper Elevation="1" Class="pa-5 content-card">
+    <div class="section-header">
+        <MudText Typo="Typo.h6">@Loc["Dashboard_RecentActivity"]</MudText>
+        @if (IsAdmin)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                       Href="/admin?tab=3"
+                       EndIcon="@Icons.Material.Filled.ArrowForward">
+                @Loc["Dashboard_ViewAll"]
+            </MudButton>
+        }
+    </div>
+
+    @if (Events.Count == 0)
+    {
+        <EmptyState Title="@Loc["Dashboard_NoActivity"]"
+                    Icon="@Icons.Material.Filled.History"
+                    Class="py-2" />
+    }
+    else
+    {
+        <MudTimeline TimelinePosition="TimelinePosition.Start">
+            @foreach (var evt in Events.Take(8))
+            {
+                <MudTimelineItem Color="@AssetDisplayHelpers.GetAuditEventColor(evt.EventType)" Size="Size.Small">
+                    <div>
+                        <MudText Typo="Typo.body2">@GetLocalizedEventType(evt.EventType)</MudText>
+                        @if (!string.IsNullOrEmpty(evt.ActorUserName))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
+                                @Loc["Dashboard_AddedBy", evt.ActorUserName]
+                            </MudText>
+                        }
+                        <MudText Typo="Typo.caption" Class="d-block">
+                            @Display.ScopeType(evt.TargetType)
+                            @if (!string.IsNullOrEmpty(evt.TargetName))
+                            {
+                                @:&middot; @evt.TargetName
+                            }
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
+                            @Display.TimeAgo(evt.CreatedAt)
+                        </MudText>
+                    </div>
+                </MudTimelineItem>
+            }
+        </MudTimeline>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public List<AuditEventDto> Events { get; set; } = [];
+    [Parameter] public bool IsAdmin { get; set; }
+
+    private string GetLocalizedEventType(string eventType)
+    {
+        var key = $"Event_{eventType}";
+        var localized = AdminLoc[key];
+        return localized.ResourceNotFound ? eventType : localized.Value;
+    }
+}

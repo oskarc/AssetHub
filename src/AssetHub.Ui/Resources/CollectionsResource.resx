@@ -47,8 +47,9 @@
   <data name="CreateFirstHint" xml:space="preserve"><value>Click the folder icon above to create your first collection.</value></data>
   <data name="Rename" xml:space="preserve"><value>Rename</value></data>
   <data name="DeleteCollection" xml:space="preserve"><value>Delete Collection</value></data>
-  <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Are you sure you want to delete '{0}'?{1} This action cannot be undone.</value></data>
-  <data name="AssetCountWarning" xml:space="preserve"><value> This collection contains {0} asset(s) that will also be deleted.</value></data>
+  <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Are you sure you want to delete '{0}'? This action cannot be undone.</value></data>
+  <data name="AssetCountWarning" xml:space="preserve"><value>This collection contains {0} asset(s).</value></data>
+  <data name="OrphanedAssetWarning" xml:space="preserve"><value>Warning: {0} asset(s) exist only in this collection and will be permanently deleted.</value></data>
   <data name="DeletedSuccess" xml:space="preserve"><value>Collection deleted successfully</value></data>
   <data name="ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
 

@@ -328,41 +328,30 @@
             if (!_isValid) return;
         }
 
-        try
+        _isSaving = true;
+
+        var metadata = new Dictionary<string, object>();
+        foreach (var field in _metadataFields)
         {
-            _isSaving = true;
+            var value = field.Value?.Trim();
+            if (!string.IsNullOrWhiteSpace(value))
+                metadata[field.Key] = value;
+        }
+        var dto = new UpdateAssetDto
+        {
+            Title = _title,
+            Description = InputValidation.NormalizeToNull(_description),
+            Copyright = InputValidation.NormalizeToNull(_copyright),
+            Tags = _tags,
+            MetadataJson = metadata
+        };
+        var (success, updatedAsset) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.UpdateAssetAsync(Asset.Id, dto),
+            "update asset");
+        _isSaving = false;
 
-            // Build metadata dictionary (only include non-empty values)
-            var metadata = new Dictionary<string, object>();
-            foreach (var field in _metadataFields)
-            {
-                var value = field.Value?.Trim();
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    metadata[field.Key] = value;
-                }
-            }
-
-            var dto = new UpdateAssetDto
-            {
-                Title = _title,
-                Description = InputValidation.NormalizeToNull(_description),
-                Copyright = InputValidation.NormalizeToNull(_copyright),
-                Tags = _tags,
-                MetadataJson = metadata
-            };
-
-            var updatedAsset = await Api.UpdateAssetAsync(Asset.Id, dto);
+        if (success)
             MudDialog.Close(DialogResult.Ok(updatedAsset));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "update asset");
-        }
-        finally
-        {
-            _isSaving = false;
-        }
     }
 
     private class MetadataField

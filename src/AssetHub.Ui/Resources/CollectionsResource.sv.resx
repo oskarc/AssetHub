@@ -47,8 +47,9 @@
   <data name="CreateFirstHint" xml:space="preserve"><value>Klicka på mappikonen ovan för att skapa din första samling.</value></data>
   <data name="Rename" xml:space="preserve"><value>Byt namn</value></data>
   <data name="DeleteCollection" xml:space="preserve"><value>Ta bort samling</value></data>
-  <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Är du säker på att du vill ta bort '{0}'?{1} Denna åtgärd kan inte ångras.</value></data>
-  <data name="AssetCountWarning" xml:space="preserve"><value> Denna samling innehåller {0} tillgång(ar) som också kommer att tas bort.</value></data>
+  <data name="ConfirmDeleteCollection" xml:space="preserve"><value>Är du säker på att du vill ta bort '{0}'? Denna åtgärd kan inte ångras.</value></data>
+  <data name="AssetCountWarning" xml:space="preserve"><value>Denna samling innehåller {0} tillgång(ar).</value></data>
+  <data name="OrphanedAssetWarning" xml:space="preserve"><value>Varning: {0} tillgång(ar) finns bara i denna samling och kommer att raderas permanent.</value></data>
   <data name="DeletedSuccess" xml:space="preserve"><value>Samling har tagits bort</value></data>
   <data name="ClearSelection" xml:space="preserve"><value>Rensa val</value></data>
 

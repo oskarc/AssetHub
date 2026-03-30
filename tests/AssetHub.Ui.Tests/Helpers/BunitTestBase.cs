@@ -21,6 +21,10 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
         MockFeedback = new Mock<IUserFeedbackService>();
         MockDialogService = new Mock<IDialogService>();
 
+        // Setup ExecuteWithFeedbackAsync to invoke the provided action (pass-through)
+        // so tests can verify inner API calls and error handling.
+        SetupFeedbackPassThrough();
+
         // Register MudBlazor services
         Services.AddMudServices();
 
@@ -119,6 +123,44 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
     protected void VerifyHandleErrorCalled()
     {
         MockFeedback.Verify(f => f.HandleError(It.IsAny<Exception>(), It.IsAny<string>()), Times.AtLeastOnce());
+    }
+
+    /// <summary>
+    /// Sets up ExecuteWithFeedbackAsync (void and common generic overloads) to invoke
+    /// the provided action and delegate error handling to HandleError, matching real behavior.
+    /// </summary>
+    private void SetupFeedbackPassThrough()
+    {
+        MockFeedback
+            .Setup(f => f.ExecuteWithFeedbackAsync(
+                It.IsAny<Func<Task>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<int>()))
+            .Returns(async (Func<Task> action, string name, string? msg, int retries) =>
+            {
+                try { await action(); return true; }
+                catch (Exception ex) { MockFeedback.Object.HandleError(ex, name); return false; }
+            });
+
+        SetupGenericFeedback<CollectionResponseDto>();
+        SetupGenericFeedback<AssetResponseDto>();
+        SetupGenericFeedback<ShareResponseDto>();
+    }
+
+    private void SetupGenericFeedback<T>() where T : class
+    {
+        MockFeedback
+            .Setup(f => f.ExecuteWithFeedbackAsync(
+                It.IsAny<Func<Task<T>>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<int>()))
+            .Returns(async (Func<Task<T>> action, string name, string? msg, int retries) =>
+            {
+                try { var result = await action(); return (true, (T?)result); }
+                catch (Exception ex) { MockFeedback.Object.HandleError(ex, name); return (false, default(T)); }
+            });
     }
 }
 

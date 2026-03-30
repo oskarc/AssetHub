@@ -121,20 +121,14 @@
     {
         if (!_selectedCollectionId.HasValue) return;
 
-        try
-        {
-            _isSubmitting = true;
-            await Api.AddAssetToCollectionAsync(AssetId, _selectedCollectionId.Value);
+        _isSubmitting = true;
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.AddAssetToCollectionAsync(AssetId, _selectedCollectionId.Value),
+            "add to collection");
+        _isSubmitting = false;
+
+        if (success)
             MudDialog.Close(DialogResult.Ok(true));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "add to collection");
-        }
-        finally
-        {
-            _isSubmitting = false;
-        }
     }
 
     private void Cancel() => MudDialog.Cancel();

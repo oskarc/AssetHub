@@ -1,0 +1,151 @@
+@using AssetHub.Application.Helpers
+@inject IStringLocalizer<CommonResource> Loc
+@inject LocalizedDisplayService Display
+@inject ThemeService Theme
+
+@if (Loading)
+{
+    <MudPaper Elevation="0" Outlined="true" Class="pa-5 mb-6 rounded-lg">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@Loc["Dashboard_PlatformStats"]</MudText>
+        </MudStack>
+        <MudGrid>
+            @for (var i = 0; i < 6; i++)
+            {
+                <MudItem xs="6" sm="4">
+                    <MudPaper Class="stat-card" Elevation="1">
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="60px" Height="28px" Class="mt-3" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="80px" Height="14px" Class="mt-1" />
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudPaper>
+}
+else if (Stats is not null)
+{
+    <MudPaper Elevation="0" Outlined="true" Class="pa-5 mb-6 rounded-lg">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@Loc["Dashboard_PlatformStats"]</MudText>
+        </MudStack>
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <MudGrid>
+                    <MudItem xs="6" sm="4">
+                        <MudPaper Class="stat-card" Elevation="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Photo" Color="Color.Primary" Size="Size.Large" />
+                            <div class="stat-value">@Stats.TotalAssets</div>
+                            <div class="stat-label">@Loc["Dashboard_TotalAssets"]</div>
+                            @if (Stats.StorageByType.Count > 0)
+                            {
+                                <MudStack Row="true" Spacing="1" Class="mt-2 flex-wrap justify-center">
+                                    @foreach (var item in Stats.StorageByType)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@item.Count @Display.AssetType(item.AssetType)</MudChip>
+                                    }
+                                </MudStack>
+                            }
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6" sm="4">
+                        <MudPaper Class="stat-card" Elevation="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Secondary" Size="Size.Large" />
+                            <div class="stat-value">@AssetDisplayHelpers.FormatFileSize(Stats.TotalStorageBytes)</div>
+                            <div class="stat-label">@Loc["Dashboard_StorageUsed"]</div>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6" sm="4">
+                        <MudPaper Class="stat-card" Elevation="1">
+                            <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Color="Color.Tertiary" Size="Size.Large" />
+                            <div class="stat-value">@Stats.TotalCollections</div>
+                            <div class="stat-label">@Loc["Dashboard_TotalCollections"]</div>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6" sm="4">
+                        <MudPaper Class="stat-card" Elevation="1">
+                            <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
+                            <div class="stat-value">@Stats.TotalUsers</div>
+                            <div class="stat-label">@Loc["Dashboard_TotalUsers"]</div>
+                            <MudStack Row="true" Spacing="1" Class="mt-2 flex-wrap justify-center">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@Stats.ViewerCount @Loc["Role_Viewer"]</MudChip>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@Stats.ContributorCount @Loc["Role_Contributor"]</MudChip>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@Stats.ManagerCount @Loc["Role_Manager"]</MudChip>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@Stats.AdminCount @Loc["Role_Admin"]</MudChip>
+                                @if (Stats.UnassignedCount > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@Stats.UnassignedCount @Loc["Role_Unassigned"]</MudChip>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6" sm="4">
+                        <MudPaper Class="stat-card" Elevation="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Warning" Size="Size.Large" />
+                            <div class="stat-value">@Stats.TotalShares</div>
+                            <div class="stat-label">@Loc["Dashboard_TotalShares"]</div>
+                            <MudStack Row="true" Spacing="1" Class="mt-2">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">@Stats.ActiveShares @Loc["Dashboard_Active"]</MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@Stats.ExpiredShares @Loc["Dashboard_Expired"]</MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">@Stats.RevokedShares @Loc["Dashboard_Revoked"]</MudChip>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6" sm="4">
+                        <MudPaper Class="stat-card" Elevation="1">
+                            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Tertiary" Size="Size.Large" />
+                            <div class="stat-value">@Stats.TotalAuditEvents</div>
+                            <div class="stat-label">@Loc["Dashboard_AuditEvents"]</div>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+
+            @if (Stats.StorageByType.Count > 0)
+            {
+                <MudItem xs="12" md="4">
+                    <MudPaper Class="stat-card h-100" Elevation="1">
+                        <MudText Typo="Typo.subtitle1" Class="mb-3 font-semibold">@Loc["Dashboard_StorageByType"]</MudText>
+                        <MudChart ChartType="ChartType.Pie"
+                                  InputData="@_storageChartData"
+                                  InputLabels="@_storageChartLabels"
+                                  Width="200px" Height="200px"
+                                  ChartOptions="@(new ChartOptions { ChartPalette = _storageChartColors })" />
+                        <div class="d-flex flex-wrap gap-3 mt-3 justify-center">
+                            @for (var i = 0; i < Stats.StorageByType.Count; i++)
+                            {
+                                var item = Stats.StorageByType[i];
+                                <div class="d-flex align-center gap-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Style="@($"color: {_storageChartColors[i % _storageChartColors.Length]}")" />
+                                    <MudText Typo="Typo.caption">@AssetDisplayHelpers.FormatFileSize(item.TotalBytes) (@item.Count)</MudText>
+                                </div>
+                            }
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public DashboardStatsDto? Stats { get; set; }
+    [Parameter] public bool Loading { get; set; }
+
+    private double[] _storageChartData = [];
+    private string[] _storageChartLabels = [];
+    private string[] _storageChartColors => Theme.IsDarkMode
+        ? ["#66bb6a", "#42a5f5", "#ffa726", "#ab47bc"]
+        : ["#388e3c", "#1976d2", "#f57c00", "#7b1fa2"];
+
+    protected override void OnParametersSet()
+    {
+        if (Stats?.StorageByType is { Count: > 0 })
+        {
+            _storageChartData = Stats.StorageByType.Select(s => (double)s.TotalBytes).ToArray();
+            _storageChartLabels = Stats.StorageByType.Select(s => Display.AssetType(s.AssetType)).ToArray();
+        }
+    }
+}

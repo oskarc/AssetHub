@@ -1,0 +1,95 @@
+@inject IStringLocalizer<CommonResource> Loc
+@inject IDialogService DialogService
+@inject LocalizedDisplayService Display
+
+<MudPaper Elevation="1" Class="pa-5 mb-5 content-card">
+    <div class="section-header">
+        <MudText Typo="Typo.h6">@Loc["Dashboard_ActiveShares"]</MudText>
+        @if (IsAdmin)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                       Href="/admin?tab=0"
+                       EndIcon="@Icons.Material.Filled.ArrowForward">
+                @Loc["Dashboard_ViewAll"]
+            </MudButton>
+        }
+    </div>
+
+    @if (Shares.Count == 0)
+    {
+        <EmptyState Title="@Loc["Dashboard_NoShares"]"
+                    Icon="@Icons.Material.Filled.Share"
+                    Class="py-2" />
+    }
+    else
+    {
+        <MudList T="DashboardShareDto" Dense="true">
+            @foreach (var share in Shares.Take(5))
+            {
+                <MudListItem T="DashboardShareDto" Icon="@Icons.Material.Filled.Link" OnClick="@(() => ShowShareInfo(share))">
+                    <div class="d-flex justify-space-between align-center w-100">
+                        <div>
+                            <MudText Typo="Typo.body2">@(share.ScopeName ?? share.ScopeId.ToString()[..8])</MudText>
+                            <MudText Typo="Typo.caption">
+                                @Display.ScopeType(share.ScopeType) &middot;
+                                @string.Format(Loc["Dashboard_Accesses"].Value, share.AccessCount)
+                                @if (share.HasPassword)
+                                {
+                                    <MudTooltip Text="@Loc["Dashboard_PasswordProtected"].Value">
+                                        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="ml-1" />
+                                    </MudTooltip>
+                                }
+                            </MudText>
+                        </div>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@GetShareStatusColor(share.Status)">
+                            @GetShareStatusLabel(share.Status)
+                        </MudChip>
+                    </div>
+                </MudListItem>
+            }
+        </MudList>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public List<DashboardShareDto> Shares { get; set; } = [];
+    [Parameter] public bool IsAdmin { get; set; }
+
+    private async Task ShowShareInfo(DashboardShareDto dashboardShare)
+    {
+        var share = new AdminShareDto
+        {
+            Id = dashboardShare.Id,
+            ScopeType = dashboardShare.ScopeType,
+            ScopeId = dashboardShare.ScopeId,
+            ScopeName = dashboardShare.ScopeName ?? "",
+            CreatedByUserId = "",
+            CreatedByUserName = "",
+            CreatedAt = dashboardShare.CreatedAt,
+            ExpiresAt = dashboardShare.ExpiresAt ?? DateTime.MaxValue,
+            AccessCount = dashboardShare.AccessCount,
+            HasPassword = dashboardShare.HasPassword,
+            Status = dashboardShare.Status
+        };
+
+        var parameters = new DialogParameters<ShareInfoDialog>
+        {
+            { x => x.Share, share },
+            { x => x.ShareUrl, string.Empty },
+            { x => x.SharePassword, string.Empty }
+        };
+
+        await DialogService.ShowAsync<ShareInfoDialog>(Loc["Dashboard_ShareDetails"], parameters);
+    }
+
+    private Color GetShareStatusColor(string status) => status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase) ? Color.Success
+        : status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase) ? Color.Warning
+        : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Color.Error
+        : Color.Default;
+
+    private string GetShareStatusLabel(string status) => status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareActive"].Value
+        : status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareExpired"].Value
+        : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareRevoked"].Value
+        : status;
+}

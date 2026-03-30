@@ -276,24 +276,20 @@
         _isGranting = true;
         StateHasChanged();
 
-        try
-        {
-            await Api.SetCollectionAccessAsync(CollectionId, Constants.PrincipalTypes.User, _selectedUser.Id, _selectedRole);
-            Feedback.ShowSuccess(string.Format(CollLoc["AccessGrantedSuccess"], _selectedUser.Username, _selectedRole));
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SetCollectionAccessAsync(CollectionId, Constants.PrincipalTypes.User, _selectedUser.Id, _selectedRole),
+            "grant access",
+            string.Format(CollLoc["AccessGrantedSuccess"], _selectedUser.Username, _selectedRole));
 
+        if (success)
+        {
             _selectedUser = null;
             _selectedRole = RoleHierarchy.Roles.Viewer;
             await LoadAclsAsync();
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "grant access");
-        }
-        finally
-        {
-            _isGranting = false;
-            StateHasChanged();
-        }
+
+        _isGranting = false;
+        StateHasChanged();
     }
 
     private bool CanEditEntry(CollectionAclResponseDto entry)
@@ -315,19 +311,17 @@
     {
         if (_editingEntryId == null) return;
 
-        try
-        {
-            await Api.SetCollectionAccessAsync(CollectionId, Constants.PrincipalTypes.User, _editingPrincipalId, _editingRole);
-            Feedback.ShowSuccess(CollLoc["RoleUpdatedSuccess"]);
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SetCollectionAccessAsync(CollectionId, Constants.PrincipalTypes.User, _editingPrincipalId, _editingRole),
+            "update role",
+            CollLoc["RoleUpdatedSuccess"]);
 
+        if (success)
+        {
             _editingEntryId = null;
             _editingRole = "";
             _editingPrincipalId = "";
             await LoadAclsAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "update role");
         }
     }
 
@@ -340,39 +334,30 @@
 
     private async Task RevokeAccessAsync(CollectionAclResponseDto entry)
     {
-        var parameters = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, CommonLoc["Confirm_Revoke"] },
-            { x => x.Message, string.Format(CollLoc["ConfirmRevokeAccess"], entry.PrincipalName ?? entry.PrincipalId) },
-            { x => x.TitleIcon, Icons.Material.Filled.PersonRemove },
-            { x => x.IconColor, Color.Warning },
-            { x => x.ConfirmText, CommonLoc["Btn_Revoke"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, parameters);
-        var confirmResult = await confirmDialog.Result;
+        var confirmed = await DialogService.ShowConfirmAsync(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(CollLoc["ConfirmRevokeAccess"], entry.PrincipalName ?? entry.PrincipalId),
+            CommonLoc["Btn_Revoke"],
+            Icons.Material.Filled.PersonRemove,
+            Color.Warning,
+            Color.Error);
 
-        if (confirmResult == null || confirmResult.Canceled)
+        if (!confirmed)
             return;
 
         _revokingIds.Add(entry.Id);
         StateHasChanged();
 
-        try
-        {
-            await Api.RevokeCollectionAccessAsync(CollectionId, entry.PrincipalType, entry.PrincipalId);
-            Feedback.ShowSuccess(string.Format(CollLoc["AccessRevokedSuccess"], entry.PrincipalName ?? entry.PrincipalId));
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RevokeCollectionAccessAsync(CollectionId, entry.PrincipalType, entry.PrincipalId),
+            "revoke access",
+            string.Format(CollLoc["AccessRevokedSuccess"], entry.PrincipalName ?? entry.PrincipalId));
+
+        if (success)
             await LoadAclsAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "revoke access");
-        }
-        finally
-        {
-            _revokingIds.Remove(entry.Id);
-            StateHasChanged();
-        }
+
+        _revokingIds.Remove(entry.Id);
+        StateHasChanged();
     }
 
     private void Close() => MudDialog.Close(DialogResult.Ok(true));

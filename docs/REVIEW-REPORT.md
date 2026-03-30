@@ -30,72 +30,25 @@
 
 ---
 
-### 1.3 Media Preview Logic Duplicated
+### 1.3 ~~Media Preview Logic Duplicated~~ ✅ DONE
 
-**Files:** `Pages/AssetDetail.razor`, `Components/AssetDetailPanel.razor`, `Pages/Share.razor`
+**Files:** `Components/MediaPreview.razor` (new), `Components/AssetDetailPanel.razor`, `Pages/AssetDetail.razor`
 
-**Problem:** The conditional rendering logic for media previews (image vs video vs PDF vs fallback) is implemented separately in `AssetDetail.razor` (inline) and `AssetDetailPanel.razor` (component), with slightly different URL construction. `Share.razor` has its own URL logic too.
-
-**Impact:** Bug fixes to preview behavior need to be applied in multiple places.
-
-**Implementation Plan:**
-
-1. Make `AssetDetailPanel.razor` the single source of truth for media preview rendering.
-2. Add parameters to `AssetDetailPanel` for action buttons (download, share, edit, delete) via `RenderFragment` parameters:
-   ```razor
-   [Parameter] public RenderFragment? Actions { get; set; }
-   [Parameter] public RenderFragment? DownloadActions { get; set; }
-   ```
-3. Refactor `AssetDetail.razor` to use `<AssetDetailPanel>` instead of inline preview markup. Pass action buttons as child content.
-4. Ensure `Share.razor` continues to use `AssetDetailPanel` (it already does) but verify URL construction is consistent.
-5. Remove ~80-100 lines of duplicate preview markup from `AssetDetail.razor`.
-
-**Effort:** Medium (2-3 hours)
+**Resolution:** Extracted `Components/MediaPreview.razor` — a shared component handling conditional rendering for image/video/PDF/fallback previews. Both `AssetDetailPanel.razor` and `AssetDetail.razor` now use `<MediaPreview>` instead of inline conditional markup. `AssetDetail.razor`'s `GetPreviewUrl()` unified to handle video/PDF/image URL selection in one method, removing `GetVideoUrl()` and `GetInlinePreviewUrl()`. ~25 lines of duplicate preview markup eliminated from each consumer.
 
 ---
 
-### 1.4 Dialog Parameter Ceremony Repeated 10+ Times
+### 1.4 ~~Dialog Parameter Ceremony Repeated 10+ Times~~ ✅ DONE
 
 **Files:** `Pages/Assets.razor`, `Pages/AssetDetail.razor`, `Components/AssetGrid.razor`, `Components/AdminUsersTab.razor`, and others.
 
-**Problem:** The same boilerplate for opening MudBlazor dialogs appears everywhere:
-```csharp
-var parameters = new DialogParameters<SomeDialog>
-{
-    { x => x.Prop1, val1 },
-    { x => x.Prop2, val2 }
-};
-var dialog = await DialogService.ShowAsync<SomeDialog>("Title", parameters);
-var result = await dialog.Result;
-if (!result.Canceled) { ... }
-```
+**Resolution:** Created `Services/DialogExtensions.cs` with two extension methods on `IDialogService`:
+- `ShowConfirmAsync()` — encapsulates `ConfirmDialog` parameter construction and result checking, returns `bool`. Refactored 13 call sites across 10 components.
+- `ShowShareFlowAsync()` — encapsulates the `CreateShareDialog` → `ShareLinkDialog` two-step flow, returns `ShareResponseDto?`. Refactored 4 call sites across 4 components.
 
-**Impact:** Noise that obscures the actual intent. Easy to forget the `result.Canceled` check.
+One `ConfirmDialog` usage intentionally left as-is (`AssetUpload.razor` navigation guard) because it requires custom `DialogOptions` and a re-entrant navigation pattern.
 
-**Implementation Plan:**
-
-1. Create `Services/DialogExtensions.cs` with typed extension methods:
-   ```csharp
-   public static class DialogExtensions
-   {
-       public static async Task<bool> ShowCreateCollectionAsync(
-           this IDialogService dialog) { ... }
-
-       public static async Task<(bool confirmed, string action)> ShowDeleteAssetAsync(
-           this IDialogService dialog, Guid assetId, string title, Guid? collectionId) { ... }
-
-       public static async Task<bool> ShowEditAssetAsync(
-           this IDialogService dialog, AssetResponseDto asset) { ... }
-
-       public static async Task<ShareResponseDto?> ShowCreateShareAsync(
-           this IDialogService dialog, string targetType, Guid targetId) { ... }
-   }
-   ```
-2. Each extension method encapsulates parameter construction, dialog invocation, and result handling.
-3. Callers become one-liners: `if (await DialogService.ShowCreateCollectionAsync()) await LoadCollections();`
-4. Migrate existing dialog calls one at a time — no big-bang refactor needed.
-
-**Effort:** Medium (3-4 hours for all dialogs)
+**Files modified:** `AssetDetail.razor`, `AllAssets.razor`, `Assets.razor`, `AssetGrid.razor`, `AdminSharesTab.razor`, `AdminCollectionAccessTab.razor`, `AdminUsersTab.razor`, `BulkAssetActionsDialog.razor`, `BulkCollectionActionsDialog.razor`, `ManageAccessDialog.razor`, `ManageUserAccessDialog.razor`, `UserAccessDialog.razor`
 
 ---
 
@@ -113,99 +66,49 @@ if (!result.Canceled) { ... }
 
 ## 2. Oversized Components & Services
 
-### 2.1 Home.razor (616 lines) — Dashboard Page
+### 2.1 ~~Home.razor (616 lines) — Dashboard Page~~ ✅ DONE
 
-**Problem:** Single component handles stats rendering, chart building, recent assets, collections, shares, activity feed, dark mode, and localization helpers. Hard to test, hard to reuse sections.
+**Resolution:** Decomposed Home.razor from ~580 lines into 5 focused sub-components + a ~170-line orchestrator:
 
-**Implementation Plan:**
+1. **`Components/Dashboard/DashboardStatsPanel.razor`** (~130 lines) — Admin platform stats cards (6 stat cards with asset/storage/collection/user/share/audit counts) + storage pie chart with theme-aware colors. Parameters: `DashboardStatsDto? Stats`, `bool Loading`. Owns `BuildStorageChart` logic in `OnParametersSet`.
 
-1. Extract `Components/Dashboard/DashboardStatsGrid.razor` (~80 lines):
-   - Parameters: `DashboardDto Dashboard`
-   - Renders the 6 stat cards (total assets, storage, collections, users, shares, audit events)
-   - Owns the formatting logic for numbers and storage sizes
+2. **`Components/Dashboard/RecentAssetsGrid.razor`** (~70 lines) — Recent asset cards with thumbnails, creator names, and relative timestamps. Parameters: `List<AssetResponseDto> RecentAssets`, `bool Loading`, `EventCallback<Guid> OnAssetClicked`.
 
-2. Extract `Components/Dashboard/StorageChart.razor` (~60 lines):
-   - Parameters: `Dictionary<string, long> StorageByType`, `bool IsDarkMode`
-   - Renders the MudChart pie chart
-   - Owns `BuildStorageChart()` logic and color computation
+3. **`Components/Dashboard/QuickAccessCollections.razor`** (~75 lines) — Collection quick-access cards with folder icons, role chips, and asset counts. Parameters: `List<CollectionResponseDto> Collections`, `bool Loading`, `EventCallback<Guid> OnCollectionClicked`.
 
-3. Extract `Components/Dashboard/RecentAssetsGrid.razor` (~50 lines):
-   - Parameters: `List<AssetResponseDto> Assets`
-   - Renders the recent assets card grid with thumbnails
+4. **`Components/Dashboard/ActiveSharesList.razor`** (~90 lines) — Active shares sidebar with status chips, password indicators, and share info dialog. Parameters: `List<DashboardShareDto> Shares`, `bool IsAdmin`. Owns `GetShareStatusColor/Label` and `ShowShareInfo` logic.
 
-4. Extract `Components/Dashboard/ActivityTimeline.razor` (~70 lines):
-   - Parameters: `List<AuditEventDto> Events`
-   - Renders the activity timeline with event icons and relative timestamps
-   - Owns `FormatTimeAgo()` and event color logic
+5. **`Components/Dashboard/ActivityTimeline.razor`** (~65 lines) — Activity timeline with event type colors, actor info, and relative timestamps. Parameters: `List<AuditEventDto> Events`, `bool IsAdmin`. Owns `GetLocalizedEventType` logic.
 
-5. Extract `Components/Dashboard/ActiveSharesList.razor` (~50 lines):
-   - Parameters: `List<ShareResponseDto> Shares`
-   - Renders the active shares sidebar with status chips
+`Home.razor` now serves as a slim orchestrator: fetches dashboard data, determines visibility flags (`_isAdmin`, `_showShares`, `_showActivity`), and composes sub-components with parameters. Removed 4 helper methods (`FormatTimeAgo`, `BuildStorageChart`, `GetShareStatusColor/Label`, `GetAuditEventColor`, `GetLocalizedEventType`) — moved to sub-components or `LocalizedDisplayService.TimeAgo()`.
 
-6. Refactor `Home.razor` to be an orchestrator (~150 lines):
-   - Fetches dashboard data
-   - Passes data down to sub-components
-   - Handles error/retry state
-   - No rendering logic beyond layout
-
-**Effort:** Medium (4-5 hours)
+Also added `TimeAgo(DateTime utcTime)` to `LocalizedDisplayService` as a shared replacement for the private `FormatTimeAgo` method (used by 3 sub-components).
 
 ---
 
-### 2.2 Assets.razor (~970 lines) — Collection Browser + Asset Grid
+### 2.2 Assets.razor (~970 lines) — Collection Browser + Asset Grid ✅ DONE
 
 **Problem:** Manages two distinct views (collection selection and asset browsing) with 20+ private fields, collection CRUD, asset search/filter, bulk actions, download progress, and view mode persistence.
 
-**Implementation Plan:**
+**Resolution:** Extracted three sub-components:
 
-1. Extract `Components/CollectionBrowser.razor` (~200 lines):
-   - Parameters: `List<CollectionResponseDto> Collections`, `EventCallback<Guid> OnSelected`
-   - Owns collection search, sort, grid/table toggle, and collection selection mode
-   - Owns bulk collection selection and `OpenBulkActionsAsync()`
-   - Emits `OnSelected` when a collection is clicked
+1. **`Components/CollectionBrowser.razor`** (~160 lines) — Collection grid/table view with search, sort, selection checkboxes, and view mode toggle. Parameters: `AllCollections`, `Loading`, `SearchString`, `ViewMode`, `SelectionMode`, `SelectedCollectionIds`, `OnCollectionSelected`. Owns `FilteredCollections`, `Truncate`, card/row click, selection toggle.
 
-2. Extract `Components/AssetToolbar.razor` (~80 lines):
-   - Parameters: `string SearchQuery`, `string? FilterType`, `string ViewMode`, plus `EventCallback` variants
-   - Renders search field, type filter dropdown, grid/list toggle
-   - Owns debounce logic for search
+2. **`Components/CollectionHeader.razor`** (~60 lines) — Collection info banner with description, role chip, edit/delete buttons. Parameters: `Collection`, `CurrentUserRole`, `OnEdit`, `OnDelete`. Owns `GetRoleDescription`.
 
-3. Extract `Components/CollectionHeader.razor` (~100 lines):
-   - Parameters: `CollectionResponseDto Collection`, `string UserRole`
-   - Renders breadcrumbs, collection info banner, action buttons (edit, delete, share, manage access, download all)
-   - Emits callbacks for each action
+3. **`Components/AssetToolbar.razor`** (~55 lines) — Search field, type filter dropdown, grid/list view toggle. Parameters: `SearchQuery`, `FilterType`, `ViewMode` with EventCallbacks. Owns debounce and filter change propagation.
 
-4. Keep `Assets.razor` as the page orchestrator (~250 lines):
-   - Manages which view is active (collection browser vs asset view)
-   - Fetches collections and passes to `CollectionBrowser`
-   - Handles routing/query parameters
-   - Coordinates between toolbar, header, and grid
+`Assets.razor` is now an orchestrator (~480 lines) that manages routing, collection/asset state, CRUD dialog flows, download logic, and bulk actions. Inline collection browser/header/toolbar markup replaced with component tags.
 
-**Effort:** Large (6-8 hours)
+`Assets.razor` is now an orchestrator (~480 lines) that manages routing, collection/asset state, CRUD dialog flows, download logic, and bulk actions. Inline collection browser/header/toolbar markup replaced with component tags.
 
 ---
 
-### 2.3 AssetGrid.razor (420 lines) — Dual View Mode
+### 2.3 ~~AssetGrid.razor (420 lines) — Dual View Mode~~ ✅ DONE
 
 **Problem:** Implements both grid view (MudCard thumbnails) and table view (MudTable rows) in a single component with shared state but divergent markup.
 
-**Implementation Plan:**
-
-1. Extract `Components/AssetCardGrid.razor` (~120 lines):
-   - Parameters: `List<AssetResponseDto> Assets`, `bool SelectionMode`, `HashSet<Guid> SelectedIds`, `string UserRole`, plus callbacks
-   - Renders only the MudGrid with MudCards
-   - Handles card click (select or navigate)
-
-2. Extract `Components/AssetTable.razor` (~120 lines):
-   - Parameters: Same as AssetCardGrid
-   - Renders only the MudTable with columns
-   - Handles row click (select or navigate)
-
-3. Keep `AssetGrid.razor` as the data-loading wrapper (~180 lines):
-   - Owns API calls, pagination, search state
-   - Renders `<AssetCardGrid>` or `<AssetTable>` based on `ViewMode`
-   - Exposes public `RefreshAsync()` and `GetSelectedAssets()` methods
-
-**Effort:** Medium (3-4 hours)
+**Resolution:** Extracted two view sub-components: `Components/AssetCardGrid.razor` (~100 lines, MudGrid/MudCard rendering) and `Components/AssetTable.razor` (~110 lines, MudTable rendering). Both share the same parameter surface: `Items`, `SelectionMode`, `SelectedAssetIds`, `UserRole`, plus `EventCallback`s for click, toggle, share, and delete. `AssetGrid.razor` reduced to ~230 lines as a data-loading wrapper that delegates to `<AssetCardGrid>` or `<AssetTable>` based on `ViewMode`. All 709 tests pass.
 
 ---
 
@@ -263,32 +166,16 @@ if (!result.Canceled) { ... }
 
 ---
 
-### 2.6 ShareAccessService.cs (479 lines) — Dual Interface
+### 2.6 ~~ShareAccessService.cs (479 lines) — Dual Interface~~ ✅ DONE
 
 **Files:** `Infrastructure/Services/ShareAccessService.cs`
 
-**Problem:** Implements both `IPublicShareAccessService` (anonymous access) and `IAuthenticatedShareAccessService` (create/revoke/update) in one class with 18 dependencies. These are fundamentally different concerns — one faces anonymous users, the other faces authenticated managers.
-
-**Implementation Plan:**
-
-1. Create `Services/PublicShareAccessService.cs` (~200 lines):
-   - Implements `IPublicShareAccessService`
-   - Methods: `GetSharedContentAsync`, `GetDownloadUrlAsync`, `GetPreviewUrlAsync`, `EnqueueDownloadAllAsync`, `CreateAccessTokenAsync`
-   - Dependencies: share repository, MinIO adapter, data protection, asset repository
-
-2. Create `Services/AuthenticatedShareAccessService.cs` (~180 lines):
-   - Implements `IAuthenticatedShareAccessService`
-   - Methods: `CreateShareAsync`, `RevokeShareAsync`, `UpdateSharePasswordAsync`
-   - Dependencies: share repository, collection auth service, audit service, data protection
-
-3. Extract shared helpers into `Services/ShareHelpers.cs` (~50 lines):
-   - Token hashing, password encryption, share validation
-   - Used by both services
-
-4. Delete `ShareAccessService.cs`.
-5. Update DI registration.
-
-**Effort:** Medium (3-4 hours)
+**Resolution:** Split into two focused services:
+- `PublicShareAccessService.cs` (~280 lines, 11 deps) — implements `IPublicShareAccessService` with 5 public methods + 6 private helpers for anonymous share access.
+- `AuthenticatedShareAccessService.cs` (~120 lines, 7 deps) — implements `IAuthenticatedShareAccessService` with 3 public methods for share management.
+- Shared helpers (token hashing, etc.) stayed with `PublicShareAccessService` as they're only used there.
+- DI simplified from 4-line forwarding pattern to 2 direct registrations.
+- Deleted original `ShareAccessService.cs`. All 28 share access tests pass with updated factory methods.
 
 ---
 
@@ -368,9 +255,13 @@ if (!result.Canceled) { ... }
 
 ## 4. Missing Features
 
-### 4.1 No Pagination in Admin Tabs (Critical)
+### 4.1 ~~No Pagination in Admin Tabs~~ ✅ DONE (AdminUsersTab)
 
-**Files:** `Components/AdminUsersTab.razor` (356 lines), `Components/AdminCollectionAccessTab.razor` (289 lines)
+**Files:** `Components/AdminUsersTab.razor`, `Components/AdminCollectionAccessTab.razor` (289 lines)
+
+**Resolution (AdminUsersTab):** Implemented full server-side pagination. Added `PaginatedKeycloakUsersResponse` DTO with category counts, `GetKeycloakUsersPaginatedAsync` to `IUserAdminQueryService` + `UserAdminService` (server-side filtering/sorting/pagination), paginated endpoint `GET /api/v1/admin/keycloak-users/paginated`, and `AssetHubApiClient` method. Refactored `AdminUsersTab.razor` from client-side `Items`/`Filter` to `MudTable<T> ServerData` callback with `SortLabel`-based server sorting, exclusive category chip filters backed by server counts, and debounced search. Removed `LoadAsync()`, `UserFilter()`, 3 toggle methods. Category preference persisted to localStorage.
+
+**Remaining (AdminCollectionAccessTab):** Collection access tab still uses client-side loading. Collection lists are typically smaller, but pagination can be added if needed.
 
 **Problem:** Both tabs load ALL records into memory on initialization. `AdminUsersTab` calls `GetUsersAsync()` which returns every Keycloak user. `AdminCollectionAccessTab` calls `GetCollectionAccessTreeAsync()` which returns every collection with ACLs. At 1000+ users or collections, the page becomes unresponsive.
 
@@ -403,136 +294,43 @@ if (!result.Canceled) { ... }
 
 ---
 
-### 4.2 No Virtual Scrolling / Lazy Thumbnail Loading
+### 4.2 ~~Lazy Thumbnail Loading~~ ✅ DONE (partial — virtual scrolling remains open)
 
 **File:** `Components/AssetGrid.razor`
 
-**Problem:** All thumbnails in the current page load eagerly. With 24 items per page this is manageable, but the "Load More" pattern means after several loads, hundreds of images are in the DOM simultaneously.
+**Resolution (lazy loading):** Already implemented — `MudCardMedia` uses `loading="lazy"` and `MudImage` uses `loading="lazy"` on all thumbnail elements in `AssetGrid.razor`. Native browser lazy loading is active.
 
-**Implementation Plan:**
-
-1. Add `loading="lazy"` to all `<MudImage>` thumbnail elements:
-   ```razor
-   <MudImage Src="@GetThumbnailUrl(asset)" loading="lazy" ... />
-   ```
-   This is a one-line change per image tag and gives native browser lazy loading.
-
-2. For large collections, replace "Load More" with `MudVirtualize`:
-   ```razor
-   <MudVirtualize Items="_assets" Context="asset" OverscanCount="4">
-       <AssetCard Asset="asset" ... />
-   </MudVirtualize>
-   ```
-   This only renders visible items plus a small buffer.
-
-3. Add an `ItemsProvider` to `MudVirtualize` that fetches pages on demand:
-   ```csharp
-   private async ValueTask<ItemsProviderResult<AssetResponseDto>> LoadItems(
-       ItemsProviderRequest request)
-   {
-       var assets = await Api.GetAssetsAsync(collectionId, request.StartIndex, request.Count);
-       return new ItemsProviderResult<AssetResponseDto>(assets.Items, assets.Total);
-   }
-   ```
-
-**Effort:** Small for lazy loading (30 minutes), Medium for virtual scrolling (3-4 hours)
+**Remaining (virtual scrolling):** Replacing "Load More" with `MudVirtualize` + `ItemsProvider` for on-demand page fetching is still open. Medium effort (3-4 hours).
 
 ---
 
-### 4.3 No Optimistic UI Updates
+### 4.3 ~~No Optimistic UI Updates~~ ✅ DONE
 
-**Files:** Multiple pages and dialogs
+**Files:** `Pages/Assets.razor`, `Pages/AssetDetail.razor`, `Components/AssetGrid.razor`
 
-**Problem:** After every mutation (create collection, edit asset, delete, etc.), the entire dataset is re-fetched from the API. This causes a visible loading flash and feels sluggish.
+**Resolution:** Applied optimistic local-state updates to the most common mutations, eliminating visible loading flashes:
 
-**Implementation Plan:**
+1. **Collection creation** (`Assets.razor CreateCollectionAsync`): Dialog returns `CollectionResponseDto` → added to `_allCollections` immediately + `StateHasChanged()` → background `LoadAllCollections()` for consistency.
 
-1. For collection creation:
-   ```csharp
-   // In Assets.razor after CreateCollectionDialog returns
-   var newCollection = dialog.Result.Data as CollectionResponseDto;
-   _allCollections.Add(newCollection);  // Optimistic add
-   StateHasChanged();
-   _ = LoadAllCollections();  // Background refresh for consistency
-   ```
+2. **Collection editing** (`Assets.razor EditCollectionAsync`): Immediately refreshes selected collection details if it was the edited one → shows success feedback → background `LoadAllCollections()` instead of blocking await.
 
-2. For asset deletion:
-   ```csharp
-   // In AssetGrid after delete
-   _assets.RemoveAll(a => a.Id == deletedId);
-   _total--;
-   StateHasChanged();
-   // No need to re-fetch unless we want to verify
-   ```
+3. **Collection deletion** (`Assets.razor DeleteCollectionAsync`): After API delete, removes from `_allCollections` locally via `RemoveAll` + `StateHasChanged()` → background `LoadAllCollections()` for consistency.
 
-3. For metadata edits:
-   ```csharp
-   // In AssetDetail after edit dialog
-   var updated = dialog.Result.Data as AssetResponseDto;
-   _asset = updated;  // Apply returned data immediately
-   StateHasChanged();
-   ```
+4. **Asset deletion** (`AssetGrid.razor DeleteAsset`): Already optimistic — removes from `_assets` list, decrements `_total`, notifies parent via callback. No change needed.
 
-4. Apply this pattern to the 5-6 most common mutations first (create/edit/delete collection, edit/delete asset, create share).
+5. **Asset editing** (`AssetDetail.razor EditAssetAsync`): Already optimistic — applies returned `AssetResponseDto` directly to `_asset`. No change needed.
 
-**Effort:** Medium (3-4 hours across all mutation points)
+6. **Remove from collection** (`AssetDetail.razor RemoveFromCollectionAsync`): Changed from full `LoadAssetAsync()` to local `_assetCollections.RemoveAll(c => c.Id == collection.Id)` + `StateHasChanged()`.
+
+Pattern: mutation succeeds → update local state immediately → `StateHasChanged()` → fire-and-forget background refresh (`_ = LoadAllCollections()`) for eventual consistency.
 
 ---
 
-### 4.4 No Retry on Transient Failures
+### 4.4 ~~No Retry on Transient Failures~~ ✅ DONE
 
-**File:** `Services/UserFeedbackService.cs`
+**File:** `Services/UserFeedbackService.cs`, `Services/IUserFeedbackService.cs`
 
-**Problem:** `ExecuteWithFeedbackAsync()` catches errors and shows a snackbar, but offers no retry mechanism. For uploads, saves, and downloads, a transient network error requires the user to manually redo the entire action.
-
-**Implementation Plan:**
-
-1. Extend `UserFeedbackService` with a retry-capable variant:
-   ```csharp
-   public async Task<T?> ExecuteWithRetryAsync<T>(
-       Func<Task<T>> action,
-       string successMessage,
-       string errorContext,
-       int maxRetries = 1)
-   {
-       for (int attempt = 0; attempt <= maxRetries; attempt++)
-       {
-           try
-           {
-               var result = await action();
-               ShowSuccess(successMessage);
-               return result;
-           }
-           catch (Exception ex) when (attempt < maxRetries && IsTransient(ex))
-           {
-               ShowWarning($"Retrying... ({attempt + 1}/{maxRetries})");
-               await Task.Delay(1000 * (attempt + 1));
-           }
-           catch (Exception ex)
-           {
-               HandleError(ex, errorContext);
-               return default;
-           }
-       }
-       return default;
-   }
-
-   private static bool IsTransient(Exception ex) =>
-       ex is HttpRequestException or TaskCanceledException or IOException;
-   ```
-
-2. Add a "Retry" action to error snackbars for key operations:
-   ```csharp
-   Snackbar.Add(errorMessage, Severity.Error, config =>
-   {
-       config.Action = "Retry";
-       config.Onclick = _ => retryCallback();
-   });
-   ```
-
-3. Apply to upload confirmation, asset save, collection CRUD, and share creation.
-
-**Effort:** Medium (2-3 hours)
+**Resolution:** Added `maxRetries = 0` optional parameter to both `ExecuteWithFeedbackAsync` overloads (backward-compatible default). Implemented retry loop with exponential backoff (`1000 * (attempt + 1)` ms) and `IsTransient(Exception)` classifier (matches `HttpRequestException`, `TaskCanceledException`, `IOException`, and `ApiException` with 500/502/503/504/408 status codes). Shows localized warning snackbar on retry (`Feedback_Retrying` key in EN/SV). Updated `BunitTestBase` mock setup for the new 4-parameter signatures.
 
 ---
 
@@ -584,38 +382,19 @@ if (!result.Canceled) { ... }
 
 ---
 
-### 4.7 No Orphaned Asset Warning on Collection Delete
+### 4.7 ~~No Orphaned Asset Warning on Collection Delete~~ ✅ DONE
 
 **File:** `Pages/Assets.razor` — `DeleteCollectionAsync()` method
 
-**Problem:** When deleting a collection, the confirmation dialog shows the asset count but doesn't warn if any of those assets exist ONLY in this collection (and will become orphaned / permanently deleted).
+**Resolution:** Implemented full orphaned asset warning flow:
 
-**Implementation Plan:**
-
-1. Add an API endpoint or extend the existing delete:
-   ```
-   GET /api/v1/collections/{id}/deletion-context
-   Response: { assetCount: 42, orphanedAssetCount: 3 }
-   ```
-2. Backend implementation in `CollectionService`:
-   ```csharp
-   public async Task<CollectionDeletionContextDto> GetDeletionContextAsync(Guid id, CancellationToken ct)
-   {
-       var assetCount = await _repo.GetAssetCountAsync(id, ct);
-       var orphanedCount = await _repo.GetOrphanedAssetCountAsync(id, ct);
-       return new(assetCount, orphanedCount);
-   }
-   ```
-   Where `GetOrphanedAssetCountAsync` counts assets that belong to ONLY this collection.
-
-3. Update the delete confirmation dialog to show:
-   ```
-   "This collection contains 42 assets. 3 assets exist only in this collection and will be permanently deleted."
-   ```
-
-4. Style the orphan warning with `Color.Error` to make it prominent.
-
-**Effort:** Medium (2-3 hours)
+1. **New DTO**: `CollectionDeletionContextDto` with `TotalAssetCount` and `OrphanedAssetCount` in `CollectionDtos.cs`.
+2. **New repo method**: `GetOrphanedAssetCountAsync(Guid collectionId)` in `CollectionRepository` — EF Core query that counts assets in the collection not present in any other collection.
+3. **New service method**: `GetDeletionContextAsync(Guid id)` in `CollectionQueryService` — requires Manager role, returns asset + orphan counts.
+4. **New endpoint**: `GET /api/v1/collections/{id}/deletion-context` in `CollectionEndpoints`.
+5. **New API client method**: `GetCollectionDeletionContextAsync(Guid id)` in `AssetHubApiClient`.
+6. **Updated delete dialog**: `DeleteCollectionAsync` in `Assets.razor` fetches context before showing confirmation. Shows total asset count and a separate orphan warning when orphaned assets exist. Gracefully degrades if context fetch fails.
+7. **Localization**: Updated `ConfirmDeleteCollection` format, added `OrphanedAssetWarning` key in EN and SV resource files.
 
 ---
 
@@ -768,68 +547,19 @@ if (!result.Canceled) { ... }
 
 ## 5. Inconsistencies
 
-### 5.1 Error Handling Patterns Vary Across Components
+### 5.1 ~~Error Handling Patterns Vary Across Components~~ ✅ DONE
 
-**Problem:** Three different error handling patterns are used interchangeably:
+**Resolution:** Audited all 38 Blazor components. No unhandled API calls found (category B clean). Standardized 12 user-action methods across 9 dialog/component files from raw `try/catch + HandleError` to `ExecuteWithFeedbackAsync` pattern:
+- **Dialog methods (close on success):** `EditCollectionDialog.SaveAsync`, `CreateCollectionDialog.CreateAsync`, `EditAssetDialog.SaveAsync`, `AddToCollectionDialog.AddToCollectionAsync`, `CreateShareDialog.CreateShare`, `SharePasswordDialog.SavePassword`
+- **Access management methods:** `ManageAccessDialog` (GrantAccessAsync, SaveRoleEditAsync, RevokeAccessAsync), `ManageUserAccessDialog` (AddCollectionAccess, SaveRoleEdit, RevokeAccess, SendPasswordResetEmail)
 
-1. `try/catch` with `Feedback.HandleError(ex, "context")` — most common
-2. `await Feedback.ExecuteWithFeedbackAsync(async () => { ... }, "success", "error")` — used in some places
-3. No error handling at all — a few components skip it
-
-**Implementation Plan:**
-
-1. Standardize on `ExecuteWithFeedbackAsync` for all user-initiated actions (button clicks, form submits):
-   ```csharp
-   private async Task SaveAsync()
-   {
-       await Feedback.ExecuteWithFeedbackAsync(
-           async () => { await Api.UpdateAssetAsync(...); },
-           Loc["AssetSaved"],
-           Loc["SaveError"]);
-   }
-   ```
-
-2. Use `try/catch` with `HandleError` only for initialization/loading where there's no success message.
-
-3. Audit all components for missing error handling. Add error handling to:
-   - `AssetDetailPanel.razor` — currently has zero error handling
-   - Any `OnInitializedAsync` that calls APIs
-
-4. Document the convention in `CONTRIBUTING.md`:
-   - User actions: `ExecuteWithFeedbackAsync`
-   - Data loading: `try/catch` with `HandleError`
-   - Never: bare API calls without error handling
-
-**Effort:** Medium (3-4 hours to audit and fix all components)
+Methods with custom error branching (`AdminCollectionAccessTab.AddCollectionAccess` — "not found" check, `CreateUserDialog.Submit` — custom ApiException handling) and bulk operations (`BulkDeleteAsync`, `SyncDeletedUsers`) intentionally left as `try/catch` since they require non-standard error logic. Test infrastructure updated: `BunitTestBase.SetupFeedbackPassThrough()` configures `ExecuteWithFeedbackAsync` mock to invoke the provided action and delegate errors to `HandleError`.
 
 ---
 
-### 5.2 Inconsistent Async Disposal
+### 5.2 ~~Inconsistent Async Disposal~~ ✅ DONE
 
-**Problem:** Some components implement `IAsyncDisposable` for JS module cleanup (Home, Assets, AssetUpload, AssetDetail), but `Share.razor` and others that create JS module references or `DotNetObjectReference` instances may not dispose them safely in all paths.
-
-**Implementation Plan:**
-
-1. Audit all components that use `IJSRuntime` or create `DotNetObjectReference`.
-2. Ensure all implement `IAsyncDisposable` with the safe pattern:
-   ```csharp
-   public async ValueTask DisposeAsync()
-   {
-       try
-       {
-           if (_jsModule is not null)
-               await _jsModule.DisposeAsync();
-       }
-       catch (JSDisconnectedException) { }
-       _dotNetRef?.Dispose();
-       _cts?.Cancel();
-       _cts?.Dispose();
-   }
-   ```
-3. Check that `NavigationManager.LocationChanged` event handlers are unsubscribed.
-4. Verify CancellationTokenSource instances are disposed.
-
-**Effort:** Small (1-2 hours)
+**Resolution:** Audited all 10 Blazor components with disposable resources (JS modules, CancellationTokenSource, DotNetObjectReference, event subscriptions). All were found to be correct with one exception: `AssetUpload.razor`'s `DisposeAsync` was missing `JSDisconnectedException` guard on `_jsModule.DisposeAsync()` — fixed by wrapping in `try/catch (JSDisconnectedException)`. All event subscriptions (NavigationManager.LocationChanged, Theme.OnChange) properly unsubscribed. All CancellationTokenSource instances properly cancelled and disposed.
 
 ---
 
@@ -843,31 +573,11 @@ if (!result.Canceled) { ... }
 
 ## 6. Performance Issues
 
-### 6.1 SearchUsersForAcl Loads All Users
+### 6.1 ~~SearchUsersForAcl Loads All Users~~ ✅ DONE
 
 **File:** `Infrastructure/Services/CollectionAclService.cs` — `SearchUsersForAclAsync()`
 
-**Problem:** Fetches all Keycloak users, then filters in memory, then returns top 50. With thousands of users, this is wasteful.
-
-**Implementation Plan:**
-
-1. Use Keycloak Admin REST API's built-in search:
-   ```csharp
-   // Instead of: GetAllUsers() then filter
-   // Use: GET /admin/realms/{realm}/users?search={query}&first=0&max=50
-   var users = await _keycloakClient.GetUsersAsync(search: query, first: 0, max: 50, ct);
-   ```
-
-2. Update `IKeycloakUserService` to accept search parameters:
-   ```csharp
-   Task<List<UserDto>> SearchUsersAsync(string query, int skip, int take, CancellationToken ct);
-   ```
-
-3. Remove the client-side filtering logic from `SearchUsersForAclAsync`.
-
-4. Update the autocomplete in `AdminCollectionAccessTab.razor` to call the new paginated search.
-
-**Effort:** Medium (2-3 hours)
+**Resolution:** Added `SearchUsersAsync(string query, int maxResults, CancellationToken ct)` to `IUserLookupService` with parameterized SQL `WHERE username ILIKE @search OR email ILIKE @search`. Implemented in `UserLookupService` with direct Keycloak DB query. Updated `CollectionAclService.SearchUsersForAclAsync` to use server-side search when a query is provided (falls back to `GetAllUsersAsync` for empty queries). Updated `AdminCollectionAccessTab.razor` to call the backend search endpoint on each keystroke (via `Api.SearchUsersForAclAsync`) instead of loading all users upfront and filtering locally — removed `_allUsers` field, `LoadUsersAsync()` method, and in-memory `SearchUsersForAcl` callback. Changed autocomplete type from `KeycloakUserDto` to `UserSearchResultDto`.
 
 ---
 
@@ -902,6 +612,20 @@ if (!result.Canceled) { ... }
 | 6.3 | Cache SVG placeholders | Performance |
 | 4.6 | Share.razor disposal verified correct | Memory safety |
 | 1.5 | Create LocalizedDisplayService | Reduce duplication |
+| 1.3 | Extract MediaPreview component | Reduce duplication |
+| 1.4 | Dialog extension methods (ShowConfirmAsync, ShowShareFlowAsync) | Reduce boilerplate |
+| 4.2 | Lazy thumbnail loading (`loading="lazy"`) | Performance |
+| 5.1 | Standardize error handling (ExecuteWithFeedbackAsync) | Consistency |
+| 5.2 | Async disposal audit — one fix (AssetUpload JSDisconnectedException) | Memory safety |
+| 6.1 | Server-side user search (SearchUsersAsync) | Performance |
+| 2.6 | Split ShareAccessService into Public + Authenticated | Architecture |
+| 4.1 | Admin tab server-side pagination (AdminUsersTab) | Performance |
+| 4.4 | Retry on transient failures (ExecuteWithFeedbackAsync) | UX |
+| 2.1 | Break up Home.razor into Dashboard sub-components | Maintainability |
+| 4.3 | Optimistic UI updates for collection CRUD | UX |
+| 2.2 | Break up Assets.razor into CollectionBrowser/Header/Toolbar | Maintainability |
+| 4.7 | Orphaned asset warning on collection delete | Data safety |
+| 2.3 | Split AssetGrid into grid/table sub-components | Maintainability |
 
 ### Immediate (< 1 day)
 | # | Item | Effort | Impact |
@@ -911,24 +635,14 @@ if (!result.Canceled) { ... }
 ### Short-term (1-3 days)
 | # | Item | Effort | Impact |
 |---|------|--------|--------|
-| 4.1 | Admin tab pagination | 6-8 hrs | Critical for scale |
-| 2.1 | Break up Home.razor | 4-5 hrs | Maintainability |
-| 2.2 | Break up Assets.razor | 6-8 hrs | Maintainability |
-| 2.6 | Split ShareAccessService | 3-4 hrs | Architecture |
-| 5.1 | Standardize error handling | 3-4 hrs | Consistency |
-| 4.3 | Optimistic UI updates | 3-4 hrs | UX |
-| 4.4 | Retry on transient failures | 2-3 hrs | UX |
+| — | *(All short-term items completed)* | — | — |
 
 ### Medium-term (1-2 weeks)
 | # | Item | Effort | Impact |
 |---|------|--------|--------|
-| 2.3 | Split AssetGrid into grid/table | 3-4 hrs | Architecture |
 | 2.4 | Decompose AssetDetail.razor | 4-5 hrs | Maintainability |
 | 2.5 | Extract TagEditor/MetadataEditor | 3-4 hrs | Reusability |
-| 1.4 | Dialog extension methods | 3-4 hrs | Reduce boilerplate |
 | 4.2 | Virtual scrolling for large collections | 3-4 hrs | Performance |
-| 4.7 | Orphaned asset warning | 2-3 hrs | Data safety |
-| 6.1 | Server-side user search | 2-3 hrs | Performance |
 | 4.5 | Accessibility pass (phases 1-2) | 4-5 hrs | Compliance |
 
 ### Long-term (2+ weeks)

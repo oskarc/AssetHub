@@ -87,55 +87,93 @@ public class UserFeedbackService : IUserFeedbackService
         ShowError(userMessage);
     }
 
-    public async Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null)
+    public async Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null, int maxRetries = 0)
     {
-        try
+        for (var attempt = 0; attempt <= maxRetries; attempt++)
         {
-            await operation();
-
-            if (successMessage != null)
+            try
             {
-                ShowSuccess(successMessage);
-            }
+                await operation();
 
-            return true;
+                if (successMessage != null)
+                {
+                    ShowSuccess(successMessage);
+                }
+
+                return true;
+            }
+            catch (Exception ex) when (attempt < maxRetries && IsTransient(ex))
+            {
+                _logger.LogWarning(ex, "Transient error during '{OperationName}', retrying ({Attempt}/{MaxRetries})",
+                    operationName, attempt + 1, maxRetries);
+                ShowWarning(string.Format(_loc["Feedback_Retrying"], attempt + 1, maxRetries));
+                await Task.Delay(1000 * (attempt + 1));
+            }
+            catch (ApiException ex)
+            {
+                HandleApiError(ex, operationName);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                HandleError(ex, operationName);
+                return false;
+            }
         }
-        catch (ApiException ex)
-        {
-            HandleApiError(ex, operationName);
-            return false;
-        }
-        catch (Exception ex)
-        {
-            HandleError(ex, operationName);
-            return false;
-        }
+
+        return false;
     }
 
-    public async Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null)
+    public async Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null, int maxRetries = 0)
     {
-        try
+        for (var attempt = 0; attempt <= maxRetries; attempt++)
         {
-            var result = await operation();
-
-            if (successMessage != null)
+            try
             {
-                ShowSuccess(successMessage);
-            }
+                var result = await operation();
 
-            return (true, result);
+                if (successMessage != null)
+                {
+                    ShowSuccess(successMessage);
+                }
+
+                return (true, result);
+            }
+            catch (Exception ex) when (attempt < maxRetries && IsTransient(ex))
+            {
+                _logger.LogWarning(ex, "Transient error during '{OperationName}', retrying ({Attempt}/{MaxRetries})",
+                    operationName, attempt + 1, maxRetries);
+                ShowWarning(string.Format(_loc["Feedback_Retrying"], attempt + 1, maxRetries));
+                await Task.Delay(1000 * (attempt + 1));
+            }
+            catch (ApiException ex)
+            {
+                HandleApiError(ex, operationName);
+                return (false, default);
+            }
+            catch (Exception ex)
+            {
+                HandleError(ex, operationName);
+                return (false, default);
+            }
         }
-        catch (ApiException ex)
-        {
-            HandleApiError(ex, operationName);
-            return (false, default);
-        }
-        catch (Exception ex)
-        {
-            HandleError(ex, operationName);
-            return (false, default);
-        }
+
+        return (false, default);
     }
+
+    private static bool IsTransient(Exception ex) => ex switch
+    {
+        HttpRequestException => true,
+        TaskCanceledException => true,
+        IOException => true,
+        ApiException apiEx => apiEx.StatusCode is
+            System.Net.HttpStatusCode.InternalServerError or
+            System.Net.HttpStatusCode.BadGateway or
+            System.Net.HttpStatusCode.ServiceUnavailable or
+            System.Net.HttpStatusCode.GatewayTimeout or
+            System.Net.HttpStatusCode.RequestTimeout,
+        _ => false
+    };
 
     /// <summary>
     /// Converts exceptions to user-friendly messages.

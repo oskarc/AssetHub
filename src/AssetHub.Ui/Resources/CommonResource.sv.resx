@@ -389,6 +389,7 @@
   <data name="Feedback_ConnectionFailed" xml:space="preserve"><value>Kunde inte ansluta till servern. Kontrollera din internetanslutning.</value></data>
   <data name="Feedback_SecureConnectionFailed" xml:space="preserve"><value>En säker anslutning kunde inte upprättas. Försök igen.</value></data>
   <data name="Feedback_NetworkError" xml:space="preserve"><value>Ett nätverksfel inträffade vid {0}. Kontrollera din anslutning och försök igen.</value></data>
+  <data name="Feedback_Retrying" xml:space="preserve"><value>Försöker igen... ({0}/{1})</value></data>
   <data name="ContentType_Word" xml:space="preserve"><value>Word-dokument</value></data>
   <data name="ContentType_Excel" xml:space="preserve"><value>Excel-kalkylblad</value></data>
   <data name="ContentType_PowerPoint" xml:space="preserve"><value>PowerPoint-presentation</value></data>

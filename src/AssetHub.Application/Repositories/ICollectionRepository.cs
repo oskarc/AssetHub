@@ -68,6 +68,12 @@ public interface ICollectionRepository
     /// Gets asset counts for a set of collection IDs.
     /// </summary>
     Task<Dictionary<Guid, int>> GetAssetCountsAsync(IEnumerable<Guid> collectionIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the count of assets that would become orphaned (not in any other collection)
+    /// if the specified collection were deleted.
+    /// </summary>
+    Task<int> GetOrphanedAssetCountAsync(Guid collectionId, CancellationToken ct = default);
 }
 
 /// <summary>

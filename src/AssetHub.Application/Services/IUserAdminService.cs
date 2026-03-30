@@ -12,6 +12,11 @@ public interface IUserAdminQueryService
 
     /// <summary>Get all users from Keycloak with app-level access info.</summary>
     Task<ServiceResult<List<KeycloakUserDto>>> GetKeycloakUsersAsync(CancellationToken ct);
+
+    /// <summary>Get paginated users from Keycloak with filtering, sorting, and category counts.</summary>
+    Task<ServiceResult<PaginatedKeycloakUsersResponse>> GetKeycloakUsersPaginatedAsync(
+        string? search, string? category, string? sortBy, bool sortDescending,
+        int skip, int take, CancellationToken ct);
 }
 
 /// <summary>

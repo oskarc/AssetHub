@@ -57,6 +57,15 @@ public record CollectionResponseDto
 }
 
 /// <summary>
+/// Context information shown before deleting a collection.
+/// </summary>
+public record CollectionDeletionContextDto
+{
+    public int TotalAssetCount { get; init; }
+    public int OrphanedAssetCount { get; init; }
+}
+
+/// <summary>
 /// DTO for ACL assignment requests.
 /// </summary>
 public class SetCollectionAccessDto

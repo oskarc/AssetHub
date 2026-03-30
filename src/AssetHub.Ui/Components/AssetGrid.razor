@@ -27,156 +27,26 @@ else
     @if (ViewMode == Constants.ViewModes.Grid)
     {
     <MudGrid Spacing="3">
-        @foreach (var asset in _assets)
-        {
-            <MudItem xs="12" sm="6" md="4" lg="3" xl="2">
-                <MudCard Class="@GetAssetCardClass(asset.Id)" Elevation="2">
-                    <div @onclick="() => OnAssetCardClick(asset)" class="clickable">
-                        @if (SelectionMode)
-                        {
-                            <div class="d-flex align-center pa-2 pb-0">
-                                <MudCheckBox T="bool"
-                                             Value="@SelectedAssetIds.Contains(asset.Id)"
-                                             ValueChanged="@(v => ToggleAssetSelection(asset.Id, v))"
-                                             Size="Size.Small"
-                                             Color="Color.Primary"
-                                             Class="checkbox-compact"
-                                             @onclick:stopPropagation="true" />
-                                <MudSpacer />
-                            </div>
-                        }
-                        <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)"
-                                      Height="160"
-                                      Class="asset-thumbnail"
-                                      loading="lazy" />
-                        <MudCardContent Class="pa-2">
-                            <MudText Typo="Typo.body2" Class="text-truncate">
-                                @asset.Title
-                            </MudText>
-                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                <MudChip T="string" 
-                                         Size="Size.Small" 
-                                         Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
-                                         Variant="Variant.Outlined">
-                                    @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
-                                </MudChip>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
-                                </MudText>
-                            </MudStack>
-                        </MudCardContent>
-                    </div>
-                    @if (!SelectionMode)
-                    {
-                    <MudCardActions Class="pa-2 pt-0">
-                        @if (CanShare)
-                        {
-                            <MudTooltip Text="@CommonLoc["Btn_Share"]">
-                                <MudIconButton Icon="@Icons.Material.Filled.Share" 
-                                               Size="Size.Small" 
-                                               OnClick="@(async () => await ShareAsset(asset))" />
-                            </MudTooltip>
-                        }
-                        <MudSpacer />
-                        @if (CanDelete)
-                        {
-                            <MudTooltip Text="@CommonLoc["Btn_Delete"]">
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                               Size="Size.Small" 
-                                               Color="Color.Error"
-                                               OnClick="@(async () => await DeleteAsset(asset))" />
-                            </MudTooltip>
-                        }
-                    </MudCardActions>
-                    }
-                </MudCard>
-            </MudItem>
-        }
+        <AssetCardGrid Items="@_assets"
+                       SelectionMode="@SelectionMode"
+                       SelectedAssetIds="@SelectedAssetIds"
+                       UserRole="@UserRole"
+                       OnAssetClick="@OnAssetClicked"
+                       OnToggleSelection="@OnToggleAssetSelection"
+                       OnShare="@ShareAsset"
+                       OnDelete="@DeleteAsset" />
     </MudGrid>
     }
     else
     {
-        <MudTable Items="@_assets" Hover="true" Dense="true" Elevation="2" Breakpoint="Breakpoint.Sm">
-            <HeaderContent>
-                @if (SelectionMode)
-                {
-                    <MudTh Class="col-w-42"></MudTh>
-                }
-                <MudTh></MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.Title)">@AssetLoc["Column_Title"]</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.AssetType)">@CommonLoc["Label_Type"]</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<AssetResponseDto, object>(x => x.SizeBytes)">@AssetLoc["Column_Size"]</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<AssetResponseDto, object>(x => x.CreatedAt)">@AssetLoc["Column_Created"]</MudTableSortLabel></MudTh>
-                @if (!SelectionMode)
-                {
-                    <MudTh Class="col-text-right">@AssetLoc["Column_Actions"]</MudTh>
-                }
-            </HeaderContent>
-            <RowTemplate>
-                @if (SelectionMode)
-                {
-                    <MudTd @onclick:stopPropagation="true">
-                        <MudCheckBox T="bool"
-                                     Value="@SelectedAssetIds.Contains(context.Id)"
-                                     ValueChanged="@(v => ToggleAssetSelection(context.Id, v))"
-                                     Size="Size.Small"
-                                     Color="Color.Primary"
-                                     Class="checkbox-compact" />
-                    </MudTd>
-                }
-                <MudTd DataLabel="" Class="col-icon">
-                    <MudAvatar Rounded="true" Size="Size.Medium" Class="clickable" @onclick="() => OnAssetCardClick(context)">
-                        <MudImage Src="@AssetDisplayHelpers.GetThumbnailUrl(context.Id, context.ThumbObjectKey, context.AssetType, context.PosterObjectKey)"
-                                  Alt="@context.Title"
-                                  ObjectFit="ObjectFit.Cover"
-                                  Width="40" Height="40"
-                                  loading="lazy" />
-                    </MudAvatar>
-                </MudTd>
-                <MudTd DataLabel="@AssetLoc["Column_Title"]">
-                    <MudLink OnClick="@(() => OnAssetCardClick(context))" Underline="Underline.Hover">
-                        @context.Title
-                    </MudLink>
-                </MudTd>
-                <MudTd DataLabel="@CommonLoc["Label_Type"]">
-                    <MudChip T="string" Size="Size.Small"
-                             Color="@AssetDisplayHelpers.GetAssetTypeColor(context.AssetType)"
-                             Variant="Variant.Outlined">
-                        @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(context.AssetType)]
-                    </MudChip>
-                </MudTd>
-                <MudTd DataLabel="@AssetLoc["Column_Size"]">
-                    @AssetDisplayHelpers.FormatFileSize(context.SizeBytes)
-                </MudTd>
-                <MudTd DataLabel="@AssetLoc["Column_Created"]">
-                    <MudTooltip Text="@context.CreatedAt.ToLocalTime().ToString("F")">
-                        <span>@context.CreatedAt.ToLocalTime().ToString("g")</span>
-                    </MudTooltip>
-                </MudTd>
-                <MudTd DataLabel="@AssetLoc["Column_Actions"]" Class="col-text-right">
-                    @if (!SelectionMode)
-                    {
-                    @if (CanShare)
-                    {
-                        <MudTooltip Text="@CommonLoc["Btn_Share"]">
-                            <MudIconButton Icon="@Icons.Material.Filled.Share"
-                                           Size="Size.Small"
-                                           OnClick="@(async () => await ShareAsset(context))" />
-                        </MudTooltip>
-                    }
-                    @if (CanDelete)
-                    {
-                        <MudTooltip Text="@CommonLoc["Btn_Delete"]">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                           Size="Size.Small"
-                                           Color="Color.Error"
-                                           OnClick="@(async () => await DeleteAsset(context))" />
-                        </MudTooltip>
-                    }
-                    }
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
+        <AssetTable Items="@_assets"
+                    SelectionMode="@SelectionMode"
+                    SelectedAssetIds="@SelectedAssetIds"
+                    UserRole="@UserRole"
+                    OnAssetClick="@OnAssetClicked"
+                    OnToggleSelection="@OnToggleAssetSelection"
+                    OnShare="@ShareAsset"
+                    OnDelete="@DeleteAsset" />
     }
 
     @if (_total > _assets.Count)
@@ -199,19 +69,11 @@ else
     [Parameter]
     public string? FilterType { get; set; }
 
-    // Server-side sort order (client-side sorting via MudTable handles display order)
     private const string SortBy = Constants.SortBy.CreatedDesc;
 
-    /// <summary>
-    /// Display mode: Constants.ViewModes.Grid for card view, Constants.ViewModes.List for table view.
-    /// </summary>
     [Parameter]
     public string ViewMode { get; set; } = Constants.ViewModes.Grid;
-    
-    /// <summary>
-    /// The user's role in the current collection. Used to show/hide action buttons.
-    /// Valid values: "viewer", "contributor", "manager", "admin"
-    /// </summary>
+
     [Parameter]
     public string UserRole { get; set; } = RoleHierarchy.Roles.Viewer;
 
@@ -229,10 +91,6 @@ else
 
     [Parameter]
     public EventCallback<HashSet<Guid>> SelectedAssetIdsChanged { get; set; }
-    
-    // Role-based UI visibility using centralized permissions
-    private bool CanShare => RolePermissions.CanShare(UserRole);
-    private bool CanDelete => RolePermissions.CanDelete(UserRole);
 
     private List<AssetResponseDto> _assets = new();
     private int _total = 0;
@@ -310,6 +168,24 @@ else
         await LoadAssetsAsync();
     }
 
+    // ── Event handlers for sub-components ────────────────────────────────
+
+    private void OnAssetClicked(AssetResponseDto asset)
+    {
+        ViewAsset(asset.Id);
+    }
+
+    private async Task OnToggleAssetSelection((Guid Id, bool Selected) args)
+    {
+        if (args.Selected)
+            SelectedAssetIds.Add(args.Id);
+        else
+            SelectedAssetIds.Remove(args.Id);
+        await SelectedAssetIdsChanged.InvokeAsync(SelectedAssetIds);
+    }
+
+    // ── Navigation ───────────────────────────────────────────────────────
+
     private void ViewAsset(Guid id)
     {
         if (CollectionId.HasValue)
@@ -322,28 +198,19 @@ else
         }
     }
 
+    // ── Asset actions ────────────────────────────────────────────────────
+
     private async Task ShareAsset(AssetResponseDto asset)
     {
-        var createParams = new DialogParameters<CreateShareDialog>
+        var share = await DialogService.ShowShareFlowAsync(
+            asset.Id,
+            Constants.ScopeTypes.Asset,
+            asset.Title,
+            AssetLoc["CreateShareLink"],
+            AssetLoc["ShareLinkCreated"]);
+
+        if (share != null)
         {
-            { x => x.ScopeId, asset.Id },
-            { x => x.ScopeType, Constants.ScopeTypes.Asset },
-            { x => x.ContentName, asset.Title }
-        };
-
-        var createResult = await DialogService.ShowAsync<CreateShareDialog>(AssetLoc["CreateShareLink"], createParams);
-        var result = await createResult.Result;
-
-        if (result != null && !result.Canceled && result.Data is ShareResponseDto share)
-        {
-            var successParams = new DialogParameters<ShareLinkDialog>
-            {
-                { x => x.ShareUrl, share.ShareUrl },
-                { x => x.Password, share.Password ?? "" },
-                { x => x.ExpiresAt, share.ExpiresAt }
-            };
-
-            await DialogService.ShowAsync<ShareLinkDialog>(AssetLoc["ShareLinkCreated"], successParams);
             await OnAssetsChanged.InvokeAsync();
         }
     }
@@ -387,31 +254,7 @@ else
         }
     }
 
-    // ── Selection helpers ────────────────────────────────────────────────────
-
-    private void OnAssetCardClick(AssetResponseDto asset)
-    {
-        if (SelectionMode)
-        {
-            ToggleAssetSelection(asset.Id, !SelectedAssetIds.Contains(asset.Id));
-            return;
-        }
-        ViewAsset(asset.Id);
-    }
-
-    private void ToggleAssetSelection(Guid id, bool selected)
-    {
-        if (selected)
-            SelectedAssetIds.Add(id);
-        else
-            SelectedAssetIds.Remove(id);
-        SelectedAssetIdsChanged.InvokeAsync(SelectedAssetIds);
-    }
-
-    private string GetAssetCardClass(Guid id) =>
-        SelectedAssetIds.Contains(id)
-            ? "asset-card mud-border-primary"
-            : "asset-card";
+    // ── Public helpers for parent access ─────────────────────────────────
 
     public List<AssetResponseDto> GetSelectedAssets() =>
         _assets.Where(a => SelectedAssetIds.Contains(a.Id)).ToList();

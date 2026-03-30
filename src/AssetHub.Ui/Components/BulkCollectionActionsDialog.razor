@@ -174,19 +174,15 @@
             ? string.Format(CollLoc["BulkDeleteFinalConfirm"], SelectedCollections.Count)
             : string.Format(CollLoc["BulkDeleteFinalConfirmKeepAssets"], SelectedCollections.Count);
 
-        var confirmParams = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, CollLoc["BulkDelete"] },
-            { x => x.Message, confirmMessage },
-            { x => x.TitleIcon, Icons.Material.Filled.DeleteForever },
-            { x => x.IconColor, Color.Error },
-            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
-        var confirmResult = await confirmDialog.Result;
+        var confirmed = await DialogService.ShowConfirmAsync(
+            CollLoc["BulkDelete"],
+            confirmMessage,
+            CommonLoc["Btn_Delete"],
+            Icons.Material.Filled.DeleteForever,
+            Color.Error,
+            Color.Error);
 
-        if (confirmResult == null || confirmResult.Canceled) return;
+        if (!confirmed) return;
 
         _isProcessing = true;
         StateHasChanged();

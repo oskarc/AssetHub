@@ -336,11 +336,10 @@ public class CollectionAclServiceTests : IAsyncLifetime
         _db.CollectionAcls.Add(TestData.CreateAcl(col.Id, ManagerUser, AclRole.Manager));
         await _db.SaveChangesAsync();
 
-        _userLookupMock.Setup(x => x.GetAllUsersAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<UserTuple>
+        _userLookupMock.Setup(x => x.SearchUsersAsync("alice", 50, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<(string Id, string Username, string? Email)>
             {
-                ("u1", "alice", "alice@test.com", null, null, null),
-                ("u2", "bob", "bob@test.com", null, null, null)
+                ("u1", "alice", "alice@test.com")
             });
 
         var svc = CreateService(ManagerUser);

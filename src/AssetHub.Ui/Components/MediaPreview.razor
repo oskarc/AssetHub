@@ -1,0 +1,53 @@
+@using AssetHub.Application
+@using AssetHub.Application.Helpers
+
+@if (AssetType == Constants.AssetTypeFilters.Image)
+{
+    <MudImage Src="@PreviewUrl"
+              Alt="@Title"
+              ObjectFit="ObjectFit.Contain"
+              Class="media-preview-image rounded" />
+}
+else if (AssetType == Constants.AssetTypeFilters.Video)
+{
+    <video controls poster="@PosterUrl" class="media-preview-video" aria-label="@Title">
+        <source src="@PreviewUrl" type="@ContentType">
+        @BrowserNoVideoText
+    </video>
+}
+else if (AssetDisplayHelpers.IsPdfContentType(ContentType))
+{
+    <iframe src="@PreviewUrl"
+            class="media-preview-iframe"
+            title="@Title">
+    </iframe>
+}
+else
+{
+    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+        <MudIcon Icon="@AssetDisplayHelpers.GetAssetIcon(AssetType)" Size="Size.Large" Color="Color.Primary" />
+        <MudText Typo="Typo.h6">@Title</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            @PreviewNotAvailableText
+        </MudText>
+        <MudButton Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Download"
+                   Href="@DownloadUrl"
+                   Target="_blank"
+                   Class="mt-2">
+            @DownloadToViewText
+        </MudButton>
+    </MudStack>
+}
+
+@code {
+    [Parameter, EditorRequired] public string AssetType { get; set; } = "";
+    [Parameter, EditorRequired] public string ContentType { get; set; } = "";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string PreviewUrl { get; set; } = "";
+    [Parameter] public string? PosterUrl { get; set; }
+    [Parameter] public string DownloadUrl { get; set; } = "";
+    [Parameter] public string BrowserNoVideoText { get; set; } = "";
+    [Parameter] public string PreviewNotAvailableText { get; set; } = "";
+    [Parameter] public string DownloadToViewText { get; set; } = "";
+}

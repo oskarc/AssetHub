@@ -210,29 +210,14 @@
         }
 
         _isCreating = true;
-        try
-        {
-            var expiresAt = DateTime.UtcNow.AddDays(_expirationDays);
-            var emailList = _emails.Any() ? _emails : null;
+        var expiresAt = DateTime.UtcNow.AddDays(_expirationDays);
+        var emailList = _emails.Any() ? _emails : null;
+        var (success, share) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.CreateShareAsync(ScopeId, ScopeType, expiresAt, _password, emailList),
+            "create share");
+        _isCreating = false;
 
-            var share = await Api.CreateShareAsync(
-                ScopeId,
-                ScopeType,
-                expiresAt,
-                _password,
-                emailList
-            );
-
-            // Return the share result so the caller can show the success dialog
+        if (success)
             MudDialog.Close(DialogResult.Ok(share));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "create share");
-        }
-        finally
-        {
-            _isCreating = false;
-        }
     }
 }

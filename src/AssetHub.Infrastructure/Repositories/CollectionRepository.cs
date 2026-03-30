@@ -254,4 +254,14 @@ public class CollectionRepository(
         return result;
     }
 
+    public async Task<int> GetOrphanedAssetCountAsync(Guid collectionId, CancellationToken ct = default)
+    {
+        // Count assets in this collection that are NOT in any other collection
+        return await dbContext.AssetCollections
+            .Where(ac => ac.CollectionId == collectionId)
+            .Where(ac => !dbContext.AssetCollections
+                .Any(other => other.AssetId == ac.AssetId && other.CollectionId != collectionId))
+            .CountAsync(ct);
+    }
+
 }

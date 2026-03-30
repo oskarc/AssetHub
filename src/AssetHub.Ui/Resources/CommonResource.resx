@@ -393,6 +393,7 @@
   <data name="Feedback_ConnectionFailed" xml:space="preserve"><value>Unable to connect to the server. Please check your internet connection.</value></data>
   <data name="Feedback_SecureConnectionFailed" xml:space="preserve"><value>A secure connection could not be established. Please try again.</value></data>
   <data name="Feedback_NetworkError" xml:space="preserve"><value>A network error occurred while trying to {0}. Please check your connection and try again.</value></data>
+  <data name="Feedback_Retrying" xml:space="preserve"><value>Retrying... ({0}/{1})</value></data>
   <data name="ContentType_Word" xml:space="preserve"><value>Word Document</value></data>
   <data name="ContentType_Excel" xml:space="preserve"><value>Excel Spreadsheet</value></data>
   <data name="ContentType_PowerPoint" xml:space="preserve"><value>PowerPoint Presentation</value></data>

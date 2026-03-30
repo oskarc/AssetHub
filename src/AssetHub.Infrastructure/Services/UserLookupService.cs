@@ -190,6 +190,42 @@ public class UserLookupService(
             ct);
     }
 
+    public async Task<List<(string Id, string Username, string? Email)>> SearchUsersAsync(
+        string query, int maxResults = 50, CancellationToken ct = default)
+    {
+        var users = new List<(string, string, string?)>();
+
+        if (string.IsNullOrWhiteSpace(query))
+            return users;
+
+        var searchPattern = $"%{query.Trim()}%";
+
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(ct);
+
+        const string sql = """
+            SELECT id, username, email
+            FROM user_entity
+            WHERE username ILIKE @search OR email ILIKE @search
+            ORDER BY username
+            LIMIT @maxResults
+            """;
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("search", searchPattern);
+        cmd.Parameters.AddWithValue("maxResults", maxResults);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var id = reader.GetString(0);
+            var username = reader.GetString(1);
+            var email = await reader.IsDBNullAsync(2, ct) ? null : reader.GetString(2);
+            users.Add((id, username, email));
+        }
+
+        return users;
+    }
+
     public async Task<HashSet<string>> GetExistingUserIdsAsync(IEnumerable<string> userIds, CancellationToken ct = default)
     {
         var ids = userIds.Distinct().ToArray();

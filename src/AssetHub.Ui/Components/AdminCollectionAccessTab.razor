@@ -44,7 +44,7 @@ else
                     @* Add user form *@
                     <MudGrid Class="mb-4">
                         <MudItem xs="12" sm="5">
-                            <MudAutocomplete T="KeycloakUserDto"
+                            <MudAutocomplete T="UserSearchResultDto"
                                              @bind-Value="_newAclUser"
                                              SearchFunc="SearchUsersForAcl"
                                              ToStringFunc="@(u => u?.Username ?? "")"
@@ -142,19 +142,17 @@ else
     private List<CollectionAccessDto>? _collections;
     private bool _collectionsLoading = true;
     private CollectionAccessDto? _selectedCollection;
-    private KeycloakUserDto? _newAclUser;
+    private UserSearchResultDto? _newAclUser;
     private string _newAclRole = RoleHierarchy.Roles.Viewer;
-
-    private List<KeycloakUserDto>? _allUsers;
 
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(LoadCollectionsAsync(), LoadUsersAsync());
+        await LoadCollectionsAsync();
     }
 
     public async Task RefreshAsync()
     {
-        await Task.WhenAll(LoadCollectionsAsync(), LoadUsersAsync());
+        await LoadCollectionsAsync();
         StateHasChanged();
     }
 
@@ -176,18 +174,6 @@ else
         finally
         {
             _collectionsLoading = false;
-        }
-    }
-
-    private async Task LoadUsersAsync()
-    {
-        try
-        {
-            _allUsers = await Api.GetKeycloakUsersAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load users for ACL autocomplete");
         }
     }
 
@@ -214,19 +200,19 @@ else
         _newAclRole = RoleHierarchy.Roles.Viewer;
     }
 
-    private Task<IEnumerable<KeycloakUserDto>> SearchUsersForAcl(string? value, CancellationToken ct)
+    private async Task<IEnumerable<UserSearchResultDto>> SearchUsersForAcl(string? value, CancellationToken ct)
     {
-        var users = _allUsers ?? new List<KeycloakUserDto>();
-        if (string.IsNullOrWhiteSpace(value))
-            return Task.FromResult(users.AsEnumerable());
+        if (_selectedCollection == null)
+            return Enumerable.Empty<UserSearchResultDto>();
 
-        var filtered = users.Where(u =>
-            u.Username.Contains(value, StringComparison.OrdinalIgnoreCase)
-            || (u.Email?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (u.FirstName?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (u.LastName?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false));
-
-        return Task.FromResult(filtered);
+        try
+        {
+            return await Api.SearchUsersForAclAsync(_selectedCollection.Id, value ?? string.Empty, ct);
+        }
+        catch
+        {
+            return Enumerable.Empty<UserSearchResultDto>();
+        }
     }
 
     private async Task AddCollectionAccess()
@@ -259,19 +245,15 @@ else
         if (_selectedCollection == null)
             return;
 
-        var confirmParams = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, CommonLoc["Confirm_RemoveAccess"] },
-            { x => x.Message, string.Format(AdminLoc["ConfirmRemoveAccess"], acl.PrincipalName ?? acl.PrincipalId, _selectedCollection.Name) },
-            { x => x.TitleIcon, Icons.Material.Filled.RemoveCircle },
-            { x => x.IconColor, Color.Warning },
-            { x => x.ConfirmText, CommonLoc["Btn_Remove"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
-        var confirmResult = await confirmDialog.Result;
+        var confirmed = await DialogService.ShowConfirmAsync(
+            CommonLoc["Confirm_RemoveAccess"],
+            string.Format(AdminLoc["ConfirmRemoveAccess"], acl.PrincipalName ?? acl.PrincipalId, _selectedCollection.Name),
+            CommonLoc["Btn_Remove"],
+            Icons.Material.Filled.RemoveCircle,
+            Color.Warning,
+            Color.Error);
 
-        if (confirmResult == null || confirmResult.Canceled)
+        if (!confirmed)
             return;
 
         var success = await Feedback.ExecuteWithFeedbackAsync(

@@ -319,28 +319,21 @@
         _isAdding = true;
         StateHasChanged();
 
-        try
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.AddCollectionAclAsync(_selectedCollectionId.Value, Constants.PrincipalTypes.User, UserId, _selectedRole),
+            "add collection access",
+            CommonLoc["Success_CollectionAccessAdded"].Value);
+
+        if (success)
         {
-            await Api.AddCollectionAclAsync(_selectedCollectionId.Value, Constants.PrincipalTypes.User, UserId, _selectedRole);
-            Feedback.ShowSuccess(CommonLoc["Success_CollectionAccessAdded"].Value);
-
-            // Reload user collections to confirm the change persisted
             await LoadUserCollections();
-
-            // Reset and update available collections
             _selectedCollectionId = null;
             _selectedRole = RoleHierarchy.Roles.Viewer;
             UpdateAvailableCollections();
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "add collection access");
-        }
-        finally
-        {
-            _isAdding = false;
-            StateHasChanged();
-        }
+
+        _isAdding = false;
+        StateHasChanged();
     }
 
     private void StartRoleEdit(UserCollectionAccessDto collection)
@@ -353,21 +346,16 @@
     {
         if (!_editingCollectionId.HasValue) return;
 
-        try
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.UpdateCollectionAclAsync(_editingCollectionId.Value, Constants.PrincipalTypes.User, UserId, _editingRole),
+            "update role",
+            CommonLoc["Success_RoleUpdated"].Value);
+
+        if (success)
         {
-            await Api.UpdateCollectionAclAsync(_editingCollectionId.Value, Constants.PrincipalTypes.User, UserId, _editingRole);
-
-            // Reload user collections to confirm the change persisted
             await LoadUserCollections();
-
-            Feedback.ShowSuccess(CommonLoc["Success_RoleUpdated"].Value);
-
             _editingCollectionId = null;
             _editingRole = "";
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "update role");
         }
     }
 
@@ -379,47 +367,33 @@
 
     private async Task RevokeAccess(UserCollectionAccessDto collection)
     {
-        var parameters = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, CommonLoc["Confirm_Revoke"] },
-            { x => x.Message, string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName) },
-            { x => x.TitleIcon, Icons.Material.Filled.RemoveCircle },
-            { x => x.IconColor, Color.Warning },
-            { x => x.ConfirmText, CommonLoc["Btn_Revoke"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, parameters);
-        var confirmResult = await confirmDialog.Result;
+        var confirmed = await DialogService.ShowConfirmAsync(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName),
+            CommonLoc["Btn_Revoke"],
+            Icons.Material.Filled.RemoveCircle,
+            Color.Warning,
+            Color.Error);
 
-        if (confirmResult == null || confirmResult.Canceled)
+        if (!confirmed)
             return;
 
         _revokingCollections.Add(collection.CollectionId);
         StateHasChanged();
 
-        try
-        {
-            await Api.RemoveCollectionAclAsync(collection.CollectionId, UserId, Constants.PrincipalTypes.User);
-            Feedback.ShowSuccess(string.Format(CommonLoc["Success_RevokedAccessTo"].Value, collection.CollectionName));
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RemoveCollectionAclAsync(collection.CollectionId, UserId, Constants.PrincipalTypes.User),
+            "revoke access",
+            string.Format(CommonLoc["Success_RevokedAccessTo"].Value, collection.CollectionName));
 
-            // Reload user collections to confirm the change persisted
+        if (success)
+        {
             await LoadUserCollections();
-
-            // Update available collections
             UpdateAvailableCollections();
+        }
 
-            // Force UI refresh before removing from tracking
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "revoke access");
-        }
-        finally
-        {
-            _revokingCollections.Remove(collection.CollectionId);
-            StateHasChanged();
-        }
+        _revokingCollections.Remove(collection.CollectionId);
+        StateHasChanged();
     }
 
     private void Close() => MudDialog.Close(DialogResult.Ok(true));
@@ -430,20 +404,13 @@
         _passwordResetSuccess = false;
         StateHasChanged();
 
-        try
-        {
-            await Api.SendPasswordResetEmailAsync(UserId);
-            _passwordResetSuccess = true;
-            Feedback.ShowSuccess(AdminLoc["PasswordResetSuccess"]);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "send password reset email");
-        }
-        finally
-        {
-            _resettingPassword = false;
-            StateHasChanged();
-        }
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SendPasswordResetEmailAsync(UserId),
+            "send password reset email",
+            AdminLoc["PasswordResetSuccess"]);
+
+        _passwordResetSuccess = success;
+        _resettingPassword = false;
+        StateHasChanged();
     }
 }

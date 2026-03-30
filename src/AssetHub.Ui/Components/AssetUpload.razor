@@ -486,10 +486,12 @@
         _cts.Dispose();
         _locationChangingRegistration?.Dispose();
         await DisableBeforeUnloadAsync();
-        if (_jsModule != null)
+        try
         {
-            await _jsModule.DisposeAsync();
+            if (_jsModule != null)
+                await _jsModule.DisposeAsync();
         }
+        catch (JSDisconnectedException) { }
     }
 
     private bool HasActiveUploads => _uploads.Any(u =>

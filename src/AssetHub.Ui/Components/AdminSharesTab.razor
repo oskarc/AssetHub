@@ -260,19 +260,15 @@ else
 
     private async Task RevokeShare(AdminShareDto share)
     {
-        var confirmParams = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, CommonLoc["Confirm_Revoke"] },
-            { x => x.Message, string.Format(AdminLoc["ConfirmRevokeShare"], share.ScopeName) },
-            { x => x.TitleIcon, Icons.Material.Filled.LinkOff },
-            { x => x.IconColor, Color.Warning },
-            { x => x.ConfirmText, CommonLoc["Btn_Revoke"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
-        var confirmResult = await confirmDialog.Result;
+        var confirmed = await DialogService.ShowConfirmAsync(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(AdminLoc["ConfirmRevokeShare"], share.ScopeName),
+            CommonLoc["Btn_Revoke"],
+            Icons.Material.Filled.LinkOff,
+            Color.Warning,
+            Color.Error);
 
-        if (confirmResult == null || confirmResult.Canceled)
+        if (!confirmed)
             return;
 
         var success = await Feedback.ExecuteWithFeedbackAsync(
@@ -341,19 +337,15 @@ else
 
     private async Task DeleteShare(AdminShareDto share)
     {
-        var confirmParams = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, AdminLoc["DeleteShare"] },
-            { x => x.Message, string.Format(AdminLoc["ConfirmDeleteShare"], share.ScopeName) },
-            { x => x.TitleIcon, Icons.Material.Filled.Delete },
-            { x => x.IconColor, Color.Error },
-            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
-        var confirmResult = await confirmDialog.Result;
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["DeleteShare"],
+            string.Format(AdminLoc["ConfirmDeleteShare"], share.ScopeName),
+            CommonLoc["Btn_Delete"],
+            Icons.Material.Filled.Delete,
+            Color.Error,
+            Color.Error);
 
-        if (confirmResult == null || confirmResult.Canceled)
+        if (!confirmed)
             return;
 
         var success = await Feedback.ExecuteWithFeedbackAsync(
@@ -370,19 +362,16 @@ else
     private async Task BulkDeleteExpired()
     {
         var count = _shares?.Count(s => s.Status == Constants.ShareStatus.Expired) ?? 0;
-        var confirmParams = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, AdminLoc["DeleteAllExpired"] },
-            { x => x.Message, string.Format(AdminLoc["ConfirmDeleteAllExpired"], count) },
-            { x => x.TitleIcon, Icons.Material.Filled.EventBusy },
-            { x => x.IconColor, Color.Error },
-            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
-        var confirmResult = await confirmDialog.Result;
 
-        if (confirmResult == null || confirmResult.Canceled)
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["DeleteAllExpired"],
+            string.Format(AdminLoc["ConfirmDeleteAllExpired"], count),
+            CommonLoc["Btn_Delete"],
+            Icons.Material.Filled.EventBusy,
+            Color.Error,
+            Color.Error);
+
+        if (!confirmed)
             return;
 
         var (success, deleted) = await Feedback.ExecuteWithFeedbackAsync(
@@ -399,19 +388,16 @@ else
     private async Task BulkDeleteRevoked()
     {
         var count = _shares?.Count(s => s.Status == Constants.ShareStatus.Revoked) ?? 0;
-        var confirmParams = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, AdminLoc["DeleteAllRevoked"] },
-            { x => x.Message, string.Format(AdminLoc["ConfirmDeleteAllRevoked"], count) },
-            { x => x.TitleIcon, Icons.Material.Filled.DeleteSweep },
-            { x => x.IconColor, Color.Error },
-            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
-        var confirmResult = await confirmDialog.Result;
 
-        if (confirmResult == null || confirmResult.Canceled)
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["DeleteAllRevoked"],
+            string.Format(AdminLoc["ConfirmDeleteAllRevoked"], count),
+            CommonLoc["Btn_Delete"],
+            Icons.Material.Filled.DeleteSweep,
+            Color.Error,
+            Color.Error);
+
+        if (!confirmed)
             return;
 
         var (success, deleted) = await Feedback.ExecuteWithFeedbackAsync(

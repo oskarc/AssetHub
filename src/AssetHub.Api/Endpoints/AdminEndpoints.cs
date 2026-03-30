@@ -41,6 +41,7 @@ public static class AdminEndpoints
         // ===== USER MANAGEMENT =====
         group.MapGet("/users", GetUsers).WithName("GetUsers");
         group.MapGet("/keycloak-users", GetKeycloakUsers).WithName("GetKeycloakUsers");
+        group.MapGet("/keycloak-users/paginated", GetKeycloakUsersPaginated).WithName("GetKeycloakUsersPaginated");
         group.MapPost("/users", CreateUser).AddEndpointFilter<ValidationFilter<CreateUserRequest>>().DisableAntiforgery().WithName("CreateUser");
         group.MapPost("/users/{userId}/reset-password", ResetUserPassword).DisableAntiforgery().WithName("ResetUserPassword");
         group.MapPost("/users/sync", SyncDeletedUsers).DisableAntiforgery().WithName("SyncDeletedUsers");
@@ -153,6 +154,17 @@ public static class AdminEndpoints
         [FromServices] IUserAdminQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetKeycloakUsersAsync(ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetKeycloakUsersPaginated(
+        [FromServices] IUserAdminQueryService svc, CancellationToken ct,
+        [FromQuery] string? search = null, [FromQuery] string? category = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
+        [FromQuery] int skip = 0, [FromQuery] int take = 50)
+    {
+        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
+        var result = await svc.GetKeycloakUsersPaginatedAsync(search, category, sortBy, sortDesc, skip, take, ct);
         return result.ToHttpResult();
     }
 

@@ -131,6 +131,71 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         return result;
     }
 
+    public async Task<ServiceResult<PaginatedKeycloakUsersResponse>> GetKeycloakUsersPaginatedAsync(
+        string? search, string? category, string? sortBy, bool sortDescending,
+        int skip, int take, CancellationToken ct)
+    {
+        // Reuse existing method to get all enriched users
+        var allResult = await GetKeycloakUsersAsync(ct);
+        if (!allResult.IsSuccess) return allResult.Error!;
+
+        var all = allResult.Value!;
+
+        // Category counts (always computed from unfiltered set)
+        var adminCount = all.Count(u => u.IsSystemAdmin);
+        var withAccessCount = all.Count(u => !u.IsSystemAdmin && u.CollectionCount > 0);
+        var noAccessCount = all.Count(u => !u.IsSystemAdmin && u.CollectionCount == 0);
+
+        // Apply category filter
+        IEnumerable<KeycloakUserDto> filtered = category?.ToLowerInvariant() switch
+        {
+            "admin" => all.Where(u => u.IsSystemAdmin),
+            "withaccess" => all.Where(u => !u.IsSystemAdmin && u.CollectionCount > 0),
+            "noaccess" => all.Where(u => !u.IsSystemAdmin && u.CollectionCount == 0),
+            _ => all
+        };
+
+        // Apply text search
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            filtered = filtered.Where(u =>
+                u.Username.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                (u.Email?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        // Sort
+        filtered = sortBy?.ToLowerInvariant() switch
+        {
+            "email" => sortDescending
+                ? filtered.OrderByDescending(u => u.Email ?? string.Empty)
+                : filtered.OrderBy(u => u.Email ?? string.Empty),
+            "createdat" => sortDescending
+                ? filtered.OrderByDescending(u => u.CreatedAt ?? DateTime.MinValue)
+                : filtered.OrderBy(u => u.CreatedAt ?? DateTime.MinValue),
+            "collectioncount" => sortDescending
+                ? filtered.OrderByDescending(u => u.CollectionCount)
+                : filtered.OrderBy(u => u.CollectionCount),
+            "highestrole" => sortDescending
+                ? filtered.OrderByDescending(u => u.HighestRole ?? string.Empty)
+                : filtered.OrderBy(u => u.HighestRole ?? string.Empty),
+            _ => sortDescending
+                ? filtered.OrderByDescending(u => u.Username)
+                : filtered.OrderBy(u => u.Username)
+        };
+
+        var materialised = filtered.ToList();
+
+        return new PaginatedKeycloakUsersResponse
+        {
+            Users = materialised.Skip(skip).Take(take).ToList(),
+            TotalFiltered = materialised.Count,
+            TotalAll = all.Count,
+            WithAccessCount = withAccessCount,
+            AdminCount = adminCount,
+            NoAccessCount = noAccessCount
+        };
+    }
+
     public async Task<ServiceResult<CreateUserResponse>> CreateUserAsync(
         CreateUserRequest request, string baseUrl, CancellationToken ct)
     {

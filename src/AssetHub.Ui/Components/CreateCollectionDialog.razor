@@ -52,27 +52,18 @@
         if (_collectionForm == null || !await _collectionForm.ValidateAsync())
             return;
 
-        try
+        _isCreating = true;
+        var dto = new CreateCollectionDto
         {
-            _isCreating = true;
+            Name = _collectionForm.Name,
+            Description = InputValidation.NormalizeToNull(_collectionForm.Description)
+        };
+        var (success, result) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.CreateCollectionAsync(dto),
+            "create collection");
+        _isCreating = false;
 
-            var dto = new CreateCollectionDto
-            {
-                Name = _collectionForm.Name,
-                Description = InputValidation.NormalizeToNull(_collectionForm.Description)
-            };
-
-            var result = await Api.CreateCollectionAsync(dto);
-
+        if (success)
             MudDialog.Close(DialogResult.Ok(result));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "create collection");
-        }
-        finally
-        {
-            _isCreating = false;
-        }
     }
 }

@@ -110,19 +110,15 @@
 
     private async Task RevokeAccess(UserCollectionAccessDto collection)
     {
-        var parameters = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, CommonLoc["Confirm_Revoke"] },
-            { x => x.Message, string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName) },
-            { x => x.TitleIcon, Icons.Material.Filled.RemoveCircle },
-            { x => x.IconColor, Color.Warning },
-            { x => x.ConfirmText, CommonLoc["Btn_Revoke"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, parameters);
-        var confirmResult = await confirmDialog.Result;
+        var confirmed = await DialogService.ShowConfirmAsync(
+            CommonLoc["Confirm_Revoke"],
+            string.Format(AdminLoc["ConfirmRevokeAccess"], collection.CollectionName),
+            CommonLoc["Btn_Revoke"],
+            Icons.Material.Filled.RemoveCircle,
+            Color.Warning,
+            Color.Error);
 
-        if (confirmResult == null || confirmResult.Canceled)
+        if (!confirmed)
             return;
 
         _isRevoking = true;

@@ -179,15 +179,16 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         if (!canManage)
             return ServiceError.Forbidden();
 
-        var allUsers = await _userLookup.GetAllUsersAsync(ct);
+        List<(string Id, string Username, string? Email)> matchedUsers;
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var q = query.Trim();
-            allUsers = allUsers
-                .Where(u => u.Username.Contains(q, StringComparison.OrdinalIgnoreCase)
-                    || (u.Email?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false))
-                .ToList();
+            matchedUsers = await _userLookup.SearchUsersAsync(query.Trim(), 50, ct);
+        }
+        else
+        {
+            var allUsers = await _userLookup.GetAllUsersAsync(ct);
+            matchedUsers = allUsers.Select(u => (u.Id, u.Username, u.Email)).ToList();
         }
 
         var existingAcls = await _aclRepo.GetByCollectionAsync(collectionId, ct);
@@ -196,7 +197,7 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
             .Select(a => a.PrincipalId)
             .ToHashSet();
 
-        var result = allUsers
+        var result = matchedUsers
             .Where(u => !existingUserIds.Contains(u.Id))
             .Select(u => new UserSearchResultDto { Id = u.Id, Username = u.Username, Email = u.Email })
             .OrderBy(u => u.Username)

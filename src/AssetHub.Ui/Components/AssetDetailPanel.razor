@@ -8,44 +8,15 @@
     <!-- Preview Area -->
     <MudItem xs="12" md="8">
         <MudPaper Class="pa-4" Elevation="1">
-            @if (Asset.AssetType == Constants.AssetTypeFilters.Image)
-            {
-                <MudImage Src="@PreviewUrl"
-                          Alt="@Asset.Title"
-                          ObjectFit="ObjectFit.Contain"
-                          Class="media-preview-image rounded" />
-            }
-            else if (Asset.AssetType == Constants.AssetTypeFilters.Video)
-            {
-                <video controls poster="@PosterUrl" class="media-preview-video">
-                    <source src="@PreviewUrl" type="@Asset.ContentType">
-                    @BrowserNoVideoText
-                </video>
-            }
-            else if (AssetDisplayHelpers.IsPdfContentType(Asset.ContentType))
-            {
-                <iframe src="@PreviewUrl"
-                        class="media-preview-iframe"
-                        title="@Asset.Title">
-                </iframe>
-            }
-            else
-            {
-                <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
-                    <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Primary" />
-                    <MudText Typo="Typo.h6">@Asset.Title</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        @PreviewNotAvailableText
-                    </MudText>
-                    <MudButton Variant="Variant.Outlined"
-                               StartIcon="@Icons.Material.Filled.Download"
-                               Href="@DownloadUrl"
-                               Target="_blank"
-                               Class="mt-2">
-                        @DownloadToViewText
-                    </MudButton>
-                </MudStack>
-            }
+            <MediaPreview AssetType="@Asset.AssetType"
+                          ContentType="@Asset.ContentType"
+                          Title="@Asset.Title"
+                          PreviewUrl="@PreviewUrl"
+                          PosterUrl="@PosterUrl"
+                          DownloadUrl="@DownloadUrl"
+                          BrowserNoVideoText="@BrowserNoVideoText"
+                          PreviewNotAvailableText="@PreviewNotAvailableText"
+                          DownloadToViewText="@DownloadToViewText" />
         </MudPaper>
     </MudItem>
 

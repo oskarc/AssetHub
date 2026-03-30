@@ -63,26 +63,18 @@
         if (_collectionForm == null || !await _collectionForm.ValidateAsync())
             return;
 
-        try
+        _isSaving = true;
+        var dto = new UpdateCollectionDto
         {
-            _isSaving = true;
+            Name = _collectionForm.Name,
+            Description = InputValidation.NormalizeToNull(_collectionForm.Description)
+        };
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.UpdateCollectionAsync(CollectionId, dto),
+            "update collection");
+        _isSaving = false;
 
-            var dto = new UpdateCollectionDto
-            {
-                Name = _collectionForm.Name,
-                Description = InputValidation.NormalizeToNull(_collectionForm.Description)
-            };
-
-            await Api.UpdateCollectionAsync(CollectionId, dto);
+        if (success)
             MudDialog.Close(DialogResult.Ok(true));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "update collection");
-        }
-        finally
-        {
-            _isSaving = false;
-        }
     }
 }

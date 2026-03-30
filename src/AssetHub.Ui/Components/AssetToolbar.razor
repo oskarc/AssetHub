@@ -1,0 +1,63 @@
+@inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudPaper Class="pa-3 my-3" Elevation="0" Outlined="true">
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField @bind-Value="SearchQuery"
+                          @bind-Value:after="OnSearchDebounced"
+                          Placeholder="@AssetLoc["SearchPlaceholder"]"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          DebounceInterval="500" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect @bind-Value="FilterType"
+                       @bind-Value:after="OnFilterChanged"
+                       Label="@CommonLoc["Label_Type"]"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       T="string">
+                <MudSelectItem Value="@((string?)null)" T="string">@CommonLoc["Filter_AllTypes"]</MudSelectItem>
+                <MudSelectItem Value="@(Constants.AssetTypeFilters.Image)" T="string">@CommonLoc["Filter_Images"]</MudSelectItem>
+                <MudSelectItem Value="@(Constants.AssetTypeFilters.Video)" T="string">@CommonLoc["Filter_Videos"]</MudSelectItem>
+                <MudSelectItem Value="@(Constants.AssetTypeFilters.Document)" T="string">@CommonLoc["Filter_Documents"]</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="mt-1">
+                <MudIconButton Icon="@Icons.Material.Filled.GridView"
+                               Color="@(ViewMode == Constants.ViewModes.Grid ? Color.Primary : Color.Default)"
+                               OnClick="@(() => ViewModeChanged.InvokeAsync(Constants.ViewModes.Grid))"
+                               aria-label="@CommonLoc["Aria_GridView"]" />
+                <MudIconButton Icon="@Icons.Material.Filled.ViewList"
+                               Color="@(ViewMode == Constants.ViewModes.List ? Color.Primary : Color.Default)"
+                               OnClick="@(() => ViewModeChanged.InvokeAsync(Constants.ViewModes.List))"
+                               aria-label="@CommonLoc["Aria_ListView"]" />
+            </MudButtonGroup>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    [Parameter] public string SearchQuery { get; set; } = "";
+    [Parameter] public EventCallback<string> SearchQueryChanged { get; set; }
+    [Parameter] public string? FilterType { get; set; }
+    [Parameter] public EventCallback<string?> FilterTypeChanged { get; set; }
+    [Parameter] public string ViewMode { get; set; } = Constants.ViewModes.Grid;
+    [Parameter] public EventCallback<string> ViewModeChanged { get; set; }
+    [Parameter] public EventCallback OnSearch { get; set; }
+
+    private async Task OnSearchDebounced()
+    {
+        await OnSearch.InvokeAsync();
+    }
+
+    private async Task OnFilterChanged()
+    {
+        await OnSearch.InvokeAsync();
+    }
+}

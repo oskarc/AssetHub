@@ -100,6 +100,19 @@ public record KeycloakUserDto
 }
 
 /// <summary>
+/// Paginated response for Keycloak users with category counts for filter chips.
+/// </summary>
+public record PaginatedKeycloakUsersResponse
+{
+    public List<KeycloakUserDto> Users { get; init; } = [];
+    public int TotalFiltered { get; init; }
+    public int TotalAll { get; init; }
+    public int WithAccessCount { get; init; }
+    public int AdminCount { get; init; }
+    public int NoAccessCount { get; init; }
+}
+
+/// <summary>
 /// Request to create a new user via Keycloak Admin API.
 /// </summary>
 public record CreateUserRequest

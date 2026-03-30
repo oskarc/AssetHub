@@ -12,4 +12,7 @@ public interface ICollectionQueryService
 
     /// <summary>Get a single collection by ID.</summary>
     Task<ServiceResult<CollectionResponseDto>> GetByIdAsync(Guid id, CancellationToken ct);
+
+    /// <summary>Get deletion context (asset count + orphan count) for a collection.</summary>
+    Task<ServiceResult<CollectionDeletionContextDto>> GetDeletionContextAsync(Guid id, CancellationToken ct);
 }

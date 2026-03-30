@@ -166,6 +166,18 @@ public class AssetHubApiClient
     }
 
     /// <summary>
+    /// Gets deletion context (asset count + orphan count) for a collection.
+    /// </summary>
+    public virtual async Task<CollectionDeletionContextDto?> GetCollectionDeletionContextAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/collections/{id}/deletion-context", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            return null;
+        await EnsureSuccessAsync(response, "Get collection deletion context");
+        return await response.Content.ReadFromJsonAsync<CollectionDeletionContextDto>(ct);
+    }
+
+    /// <summary>
     /// Gets the ACL entries for a collection (manager+).
     /// </summary>
     public virtual async Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default)
@@ -640,6 +652,25 @@ public class AssetHubApiClient
         var response = await _http.GetAsync("/api/v1/admin/keycloak-users", ct);
         await EnsureSuccessAsync(response, "Get Keycloak users");
         return await response.Content.ReadFromJsonAsync<List<KeycloakUserDto>>(ct) ?? new();
+    }
+
+    /// <summary>
+    /// Gets paginated users from Keycloak with filtering, sorting, and category counts (admin only).
+    /// </summary>
+    public virtual async Task<PaginatedKeycloakUsersResponse> GetKeycloakUsersPaginatedAsync(
+        string? search = null, string? category = null,
+        string? sortBy = null, bool sortDesc = false,
+        int skip = 0, int take = 50, CancellationToken ct = default)
+    {
+        var url = $"/api/v1/admin/keycloak-users/paginated?skip={skip}&take={take}";
+        if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+        if (!string.IsNullOrEmpty(category)) url += $"&category={Uri.EscapeDataString(category)}";
+        if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
+        if (sortDesc) url += "&sortDesc=true";
+        var response = await _http.GetAsync(url, ct);
+        await EnsureSuccessAsync(response, "Get Keycloak users (paginated)");
+        return await response.Content.ReadFromJsonAsync<PaginatedKeycloakUsersResponse>(ct)
+            ?? new PaginatedKeycloakUsersResponse();
     }
 
     /// <summary>

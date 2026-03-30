@@ -530,44 +530,25 @@
 
     private async Task ShareAsset(AssetResponseDto asset)
     {
-        var createParams = new DialogParameters<CreateShareDialog>
-        {
-            { x => x.ScopeId, asset.Id },
-            { x => x.ScopeType, Constants.ScopeTypes.Asset },
-            { x => x.ContentName, asset.Title }
-        };
-
-        var createResult = await DialogService.ShowAsync<CreateShareDialog>(AssetLoc["CreateShareLink"], createParams);
-        var result = await createResult.Result;
-
-        if (result != null && !result.Canceled && result.Data is ShareResponseDto share)
-        {
-            var successParams = new DialogParameters<ShareLinkDialog>
-            {
-                { x => x.ShareUrl, share.ShareUrl },
-                { x => x.Password, share.Password ?? "" },
-                { x => x.ExpiresAt, share.ExpiresAt }
-            };
-
-            await DialogService.ShowAsync<ShareLinkDialog>(AssetLoc["ShareLinkCreated"], successParams);
-        }
+        await DialogService.ShowShareFlowAsync(
+            asset.Id,
+            Constants.ScopeTypes.Asset,
+            asset.Title,
+            AssetLoc["CreateShareLink"],
+            AssetLoc["ShareLinkCreated"]);
     }
 
     private async Task DeleteAsset(AssetResponseDto asset)
     {
-        var confirmParams = new DialogParameters<ConfirmDialog>
-        {
-            { x => x.Title, AssetLoc["ConfirmDelete"] },
-            { x => x.Message, string.Format(AssetLoc["ConfirmDeleteAsset"], asset.Title) },
-            { x => x.TitleIcon, Icons.Material.Filled.Delete },
-            { x => x.IconColor, Color.Error },
-            { x => x.ConfirmText, CommonLoc["Btn_Delete"] },
-            { x => x.ConfirmColor, Color.Error }
-        };
-        var confirmDialog = await DialogService.ShowAsync<ConfirmDialog>(null, confirmParams);
-        var confirmResult = await confirmDialog.Result;
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AssetLoc["ConfirmDelete"],
+            string.Format(AssetLoc["ConfirmDeleteAsset"], asset.Title),
+            CommonLoc["Btn_Delete"],
+            Icons.Material.Filled.Delete,
+            Color.Error,
+            Color.Error);
 
-        if (confirmResult != null && !confirmResult.Canceled)
+        if (confirmed)
         {
             var success = await Feedback.ExecuteWithFeedbackAsync(
                 () => Api.DeleteAssetAsync(asset.Id),

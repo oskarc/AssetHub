@@ -16,6 +16,7 @@ public static class CollectionEndpoints
 
         group.MapGet("", GetRootCollections).WithName("GetRootCollections");
         group.MapGet("{id:guid}", GetCollectionById).WithName("GetCollectionById");
+        group.MapGet("{id:guid}/deletion-context", GetDeletionContext).WithName("GetCollectionDeletionContext");
         group.MapPost("", CreateCollection).AddEndpointFilter<ValidationFilter<CreateCollectionDto>>().DisableAntiforgery().RequireAuthorization("RequireContributor").WithName("CreateCollection");
         group.MapPatch("{id:guid}", UpdateCollection).AddEndpointFilter<ValidationFilter<UpdateCollectionDto>>().DisableAntiforgery().WithName("UpdateCollection");
         group.MapDelete("{id:guid}", DeleteCollection).DisableAntiforgery().WithName("DeleteCollection");
@@ -45,6 +46,13 @@ public static class CollectionEndpoints
         Guid id, [FromServices] ICollectionQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetByIdAsync(id, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetDeletionContext(
+        Guid id, [FromServices] ICollectionQueryService svc, CancellationToken ct)
+    {
+        var result = await svc.GetDeletionContextAsync(id, ct);
         return result.ToHttpResult();
     }
 

@@ -1,0 +1,115 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Services
+
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+@foreach (var asset in Items)
+{
+    <MudItem xs="12" sm="6" md="4" lg="3" xl="2">
+        <MudCard Class="@GetCardClass(asset.Id)" Elevation="2">
+            <div @onclick="() => OnCardClick(asset)" class="clickable">
+                @if (SelectionMode)
+                {
+                    <div class="d-flex align-center pa-2 pb-0">
+                        <MudCheckBox T="bool"
+                                     Value="@SelectedAssetIds.Contains(asset.Id)"
+                                     ValueChanged="@(v => OnToggleSelection.InvokeAsync((asset.Id, v)))"
+                                     Size="Size.Small"
+                                     Color="Color.Primary"
+                                     Class="checkbox-compact"
+                                     @onclick:stopPropagation="true" />
+                        <MudSpacer />
+                    </div>
+                }
+                <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)"
+                              Height="160"
+                              Class="asset-thumbnail"
+                              loading="lazy" />
+                <MudCardContent Class="pa-2">
+                    <MudText Typo="Typo.body2" Class="text-truncate">
+                        @asset.Title
+                    </MudText>
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
+                                 Variant="Variant.Outlined">
+                            @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
+                        </MudChip>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
+                        </MudText>
+                    </MudStack>
+                </MudCardContent>
+            </div>
+            @if (!SelectionMode)
+            {
+            <MudCardActions Class="pa-2 pt-0">
+                @if (CanShare)
+                {
+                    <MudTooltip Text="@CommonLoc["Btn_Share"]">
+                        <MudIconButton Icon="@Icons.Material.Filled.Share"
+                                       Size="Size.Small"
+                                       OnClick="@(() => OnShare.InvokeAsync(asset))" />
+                    </MudTooltip>
+                }
+                <MudSpacer />
+                @if (CanDelete)
+                {
+                    <MudTooltip Text="@CommonLoc["Btn_Delete"]">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="@(() => OnDelete.InvokeAsync(asset))" />
+                    </MudTooltip>
+                }
+            </MudCardActions>
+            }
+        </MudCard>
+    </MudItem>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public List<AssetResponseDto> Items { get; set; } = new();
+
+    [Parameter]
+    public bool SelectionMode { get; set; }
+
+    [Parameter]
+    public HashSet<Guid> SelectedAssetIds { get; set; } = new();
+
+    [Parameter]
+    public string UserRole { get; set; } = RoleHierarchy.Roles.Viewer;
+
+    [Parameter]
+    public EventCallback<AssetResponseDto> OnAssetClick { get; set; }
+
+    [Parameter]
+    public EventCallback<(Guid Id, bool Selected)> OnToggleSelection { get; set; }
+
+    [Parameter]
+    public EventCallback<AssetResponseDto> OnShare { get; set; }
+
+    [Parameter]
+    public EventCallback<AssetResponseDto> OnDelete { get; set; }
+
+    private bool CanShare => RolePermissions.CanShare(UserRole);
+    private bool CanDelete => RolePermissions.CanDelete(UserRole);
+
+    private async Task OnCardClick(AssetResponseDto asset)
+    {
+        if (SelectionMode)
+        {
+            await OnToggleSelection.InvokeAsync((asset.Id, !SelectedAssetIds.Contains(asset.Id)));
+            return;
+        }
+        await OnAssetClick.InvokeAsync(asset);
+    }
+
+    private string GetCardClass(Guid id) =>
+        SelectedAssetIds.Contains(id)
+            ? "asset-card mud-border-primary"
+            : "asset-card";
+}

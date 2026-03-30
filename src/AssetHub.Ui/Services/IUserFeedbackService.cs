@@ -47,8 +47,9 @@ public interface IUserFeedbackService
     /// <param name="operation">The async operation to execute.</param>
     /// <param name="operationName">Friendly name for the operation (e.g., "Delete asset").</param>
     /// <param name="successMessage">Optional custom success message. If null, no success message is shown.</param>
+    /// <param name="maxRetries">Maximum number of automatic retries for transient failures (default: 0).</param>
     /// <returns>True if the operation succeeded, false if it failed.</returns>
-    Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null);
+    Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null, int maxRetries = 0);
 
     /// <summary>
     /// Wraps an async operation that returns a result with automatic success/error feedback.
@@ -57,6 +58,7 @@ public interface IUserFeedbackService
     /// <param name="operation">The async operation to execute.</param>
     /// <param name="operationName">Friendly name for the operation.</param>
     /// <param name="successMessage">Optional custom success message. If null, no success message is shown.</param>
+    /// <param name="maxRetries">Maximum number of automatic retries for transient failures (default: 0).</param>
     /// <returns>The result if successful, or default(T) if failed.</returns>
-    Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null);
+    Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null, int maxRetries = 0);
 }

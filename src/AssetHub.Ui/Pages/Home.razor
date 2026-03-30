@@ -4,6 +4,7 @@
 
 @using AssetHub.Application
 @using AssetHub.Application.Dtos
+@using AssetHub.Ui.Components.Dashboard
 @using AssetHub.Ui.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.Extensions.Logging
@@ -11,11 +12,7 @@
 @inject AssetHubApiClient Api
 @inject NavigationManager Nav
 @inject IStringLocalizer<AssetHub.Ui.Resources.CommonResource> Loc
-@inject IStringLocalizer<AssetHub.Ui.Resources.AdminResource> AdminLoc
 @inject AuthenticationStateProvider AuthState
-@inject IDialogService DialogService
-@inject ThemeService Theme
-@inject LocalizedDisplayService Display
 @inject ILogger<Home> Logger
 
 <PageTitle>@Loc["Dashboard_Title"] - @Loc["AppName"]</PageTitle>
@@ -52,250 +49,19 @@
         @* ── Admin: Platform stats + storage chart ──────────────────── *@
         @if (_loading || _dashboard?.Stats is not null)
         {
-            <MudPaper Elevation="0" Outlined="true" Class="pa-5 mb-6 rounded-lg">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
-                <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Color="Color.Primary" />
-                <MudText Typo="Typo.h6">@Loc["Dashboard_PlatformStats"]</MudText>
-            </MudStack>
-            @if (_loading)
-            {
-                <MudGrid>
-                    @for (var i = 0; i < 6; i++)
-                    {
-                        <MudItem xs="6" sm="4">
-                            <MudPaper Class="stat-card" Elevation="1">
-                                <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" />
-                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="60px" Height="28px" Class="mt-3" />
-                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="80px" Height="14px" Class="mt-1" />
-                            </MudPaper>
-                        </MudItem>
-                    }
-                </MudGrid>
-            }
-            else if (_dashboard?.Stats is not null)
-            {
-            <MudGrid>
-                <MudItem xs="12" md="8">
-                    <MudGrid>
-                        <MudItem xs="6" sm="4">
-                            <MudPaper Class="stat-card" Elevation="1">
-                                <MudIcon Icon="@Icons.Material.Filled.Photo" Color="Color.Primary" Size="Size.Large" />
-                                <div class="stat-value">@_dashboard.Stats.TotalAssets</div>
-                                <div class="stat-label">@Loc["Dashboard_TotalAssets"]</div>
-                                @if (_dashboard.Stats.StorageByType.Count > 0)
-                                {
-                                    <MudStack Row="true" Spacing="1" Class="mt-2 flex-wrap justify-center">
-                                        @foreach (var item in _dashboard.Stats.StorageByType)
-                                        {
-                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@item.Count @Display.AssetType(item.AssetType)</MudChip>
-                                        }
-                                    </MudStack>
-                                }
-                            </MudPaper>
-                        </MudItem>
-                        <MudItem xs="6" sm="4">
-                            <MudPaper Class="stat-card" Elevation="1">
-                                <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Secondary" Size="Size.Large" />
-                                <div class="stat-value">@AssetDisplayHelpers.FormatFileSize(_dashboard.Stats.TotalStorageBytes)</div>
-                                <div class="stat-label">@Loc["Dashboard_StorageUsed"]</div>
-                            </MudPaper>
-                        </MudItem>
-                        <MudItem xs="6" sm="4">
-                            <MudPaper Class="stat-card" Elevation="1">
-                                <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Color="Color.Tertiary" Size="Size.Large" />
-                                <div class="stat-value">@_dashboard.Stats.TotalCollections</div>
-                                <div class="stat-label">@Loc["Dashboard_TotalCollections"]</div>
-                            </MudPaper>
-                        </MudItem>
-                        <MudItem xs="6" sm="4">
-                            <MudPaper Class="stat-card" Elevation="1">
-                                <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
-                                <div class="stat-value">@_dashboard.Stats.TotalUsers</div>
-                                <div class="stat-label">@Loc["Dashboard_TotalUsers"]</div>
-                                <MudStack Row="true" Spacing="1" Class="mt-2 flex-wrap justify-center">
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.ViewerCount @Loc["Role_Viewer"]</MudChip>
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.ContributorCount @Loc["Role_Contributor"]</MudChip>
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.ManagerCount @Loc["Role_Manager"]</MudChip>
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.AdminCount @Loc["Role_Admin"]</MudChip>
-                                    @if (_dashboard.Stats.UnassignedCount > 0)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_dashboard.Stats.UnassignedCount @Loc["Role_Unassigned"]</MudChip>
-                                    }
-                                </MudStack>
-                            </MudPaper>
-                        </MudItem>
-                        <MudItem xs="6" sm="4">
-                            <MudPaper Class="stat-card" Elevation="1">
-                                <MudIcon Icon="@Icons.Material.Filled.Share" Color="Color.Warning" Size="Size.Large" />
-                                <div class="stat-value">@_dashboard.Stats.TotalShares</div>
-                                <div class="stat-label">@Loc["Dashboard_TotalShares"]</div>
-                                <MudStack Row="true" Spacing="1" Class="mt-2">
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">@_dashboard.Stats.ActiveShares @Loc["Dashboard_Active"]</MudChip>
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@_dashboard.Stats.ExpiredShares @Loc["Dashboard_Expired"]</MudChip>
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">@_dashboard.Stats.RevokedShares @Loc["Dashboard_Revoked"]</MudChip>
-                                </MudStack>
-                            </MudPaper>
-                        </MudItem>
-                        <MudItem xs="6" sm="4">
-                            <MudPaper Class="stat-card" Elevation="1">
-                                <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Tertiary" Size="Size.Large" />
-                                <div class="stat-value">@_dashboard.Stats.TotalAuditEvents</div>
-                                <div class="stat-label">@Loc["Dashboard_AuditEvents"]</div>
-                            </MudPaper>
-                        </MudItem>
-                    </MudGrid>
-                </MudItem>
-
-                @if (_dashboard.Stats.StorageByType.Count > 0)
-                {
-                    <MudItem xs="12" md="4">
-                        <MudPaper Class="stat-card h-100" Elevation="1">
-                            <MudText Typo="Typo.subtitle1" Class="mb-3 font-semibold">@Loc["Dashboard_StorageByType"]</MudText>
-                            <MudChart ChartType="ChartType.Pie"
-                                      InputData="@_storageChartData"
-                                      InputLabels="@_storageChartLabels"
-                                      Width="200px" Height="200px"
-                                      ChartOptions="@(new ChartOptions { ChartPalette = _storageChartColors })" />
-                            <div class="d-flex flex-wrap gap-3 mt-3 justify-center">
-                                @for (var i = 0; i < _dashboard.Stats.StorageByType.Count; i++)
-                                {
-                                    var item = _dashboard.Stats.StorageByType[i];
-                                    <div class="d-flex align-center gap-1">
-                                        <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Style="@($"color: {_storageChartColors[i % _storageChartColors.Length]}")" />
-                                        <MudText Typo="Typo.caption">@AssetDisplayHelpers.FormatFileSize(item.TotalBytes) (@item.Count)</MudText>
-                                    </div>
-                                }
-                            </div>
-                        </MudPaper>
-                    </MudItem>
-                }
-            </MudGrid>
-            }
-            </MudPaper>
+            <DashboardStatsPanel Stats="@_dashboard?.Stats" Loading="@_loading" />
         }
 
         <MudGrid>
-            @* ── Recent Assets ──────────────────────────────────────── *@
+            @* ── Main content column ────────────────────────────────── *@
             <MudItem xs="12" md="@(_loading || _showShares || _showActivity ? 8 : 12)">
-                <MudPaper Elevation="1" Class="pa-5 mb-5 content-card">
-                    <div class="section-header">
-                        <MudText Typo="Typo.h6">@Loc["Dashboard_RecentAssets"]</MudText>
-                        @if (!_loading)
-                        {
-                            <MudButton Variant="Variant.Text" Color="Color.Primary"
-                                       Href="/assets"
-                                       EndIcon="@Icons.Material.Filled.ArrowForward">
-                                @Loc["Dashboard_ViewAll"]
-                            </MudButton>
-                        }
-                    </div>
+                <RecentAssetsGrid RecentAssets="@(_dashboard?.RecentAssets ?? [])"
+                                  Loading="@_loading"
+                                  OnAssetClicked="NavigateToAsset" />
 
-                    @if (_loading)
-                    {
-                        <MudGrid>
-                            @for (var i = 0; i < 6; i++)
-                            {
-                                <MudItem xs="6" sm="4" md="3" lg="2">
-                                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="120px" Class="rounded" />
-                                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="80%" Class="mt-2" />
-                                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="50%" />
-                                </MudItem>
-                            }
-                        </MudGrid>
-                    }
-                    else if (_dashboard!.RecentAssets.Count == 0)
-                    {
-                        <EmptyState Title="@Loc["Dashboard_NoRecentAssets"]"
-                                    Icon="@Icons.Material.Filled.Photo"
-                                    Class="py-4" />
-                    }
-                    else
-                    {
-                        <MudGrid>
-                            @foreach (var asset in _dashboard.RecentAssets)
-                            {
-                                <MudItem xs="6" sm="4" md="3" lg="2">
-                                    <MudCard Class="cursor-pointer" @onclick="() => NavigateToAsset(asset.Id)">
-                                        <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)"
-                                                       Height="120" />
-                                        <MudCardContent Class="pa-2 overflow-hidden">
-                                            <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-truncate d-block">
-                                                @(asset.CreatedByUserName ?? Loc["Dashboard_UnknownUser"])
-                                            </MudText>
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
-                                                @FormatTimeAgo(asset.CreatedAt)
-                                            </MudText>
-                                        </MudCardContent>
-                                    </MudCard>
-                                </MudItem>
-                            }
-                        </MudGrid>
-                    }
-                </MudPaper>
-
-                @* ── Quick access to collections ────────────────────── *@
-                <MudPaper Elevation="1" Class="pa-5 content-card">
-                    <div class="section-header">
-                        <MudText Typo="Typo.h6">@Loc["Dashboard_QuickAccess"]</MudText>
-                        @if (!_loading)
-                        {
-                            <MudButton Variant="Variant.Text" Color="Color.Primary"
-                                       Href="/collections"
-                                       EndIcon="@Icons.Material.Filled.ArrowForward">
-                                @Loc["Dashboard_ViewAll"]
-                            </MudButton>
-                        }
-                    </div>
-
-                    @if (_loading)
-                    {
-                        <MudGrid>
-                            @for (var i = 0; i < 4; i++)
-                            {
-                                <MudItem xs="6" sm="4" md="3">
-                                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100px" Class="rounded" />
-                                </MudItem>
-                            }
-                        </MudGrid>
-                    }
-                    else if (_dashboard!.Collections.Count == 0)
-                    {
-                        <EmptyState Title="@Loc["Dashboard_NoCollections"]"
-                                    Icon="@Icons.Material.Filled.FolderOpen"
-                                    Class="py-4" />
-                    }
-                    else
-                    {
-                        <MudGrid>
-                            @foreach (var collection in _dashboard.Collections)
-                            {
-                                <MudItem xs="6" sm="4" md="3">
-                                    <MudCard Class="cursor-pointer" @onclick="() => NavigateToCollection(collection.Id)">
-                                        <MudCardContent>
-                                            <div class="d-flex align-center gap-2">
-                                                <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Primary" />
-                                                <MudText Typo="Typo.subtitle1" Class="text-truncate">@collection.Name</MudText>
-                                            </div>
-                                            <MudText Typo="Typo.caption" Class="mt-1" Color="Color.Secondary">
-                                                @Loc["Dashboard_Updated"] @FormatTimeAgo(collection.UpdatedAt)
-                                            </MudText>
-                                            <div class="d-flex align-center gap-2 mt-2">
-                                                <MudChip T="string" Size="Size.Small"
-                                                         Color="@AssetDisplayHelpers.GetRoleColor(collection.UserRole)">
-                                                    @Display.Role(collection.UserRole)
-                                                </MudChip>
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                    @collection.AssetCount @Loc["Dashboard_Assets"]
-                                                </MudText>
-                                            </div>
-                                        </MudCardContent>
-                                    </MudCard>
-                                </MudItem>
-                            }
-                        </MudGrid>
-                    }
-                </MudPaper>
+                <QuickAccessCollections Collections="@(_dashboard?.Collections ?? [])"
+                                        Loading="@_loading"
+                                        OnCollectionClicked="NavigateToCollection" />
             </MudItem>
 
             @* ── Sidebar: Shares + Activity (manager+ only) ─────────── *@
@@ -324,113 +90,17 @@
                     }
                     else
                     {
-                    @* Active shares *@
-                    @if (_showShares)
-                    {
-                        <MudPaper Elevation="1" Class="pa-5 mb-5 content-card">
-                            <div class="section-header">
-                                <MudText Typo="Typo.h6">@Loc["Dashboard_ActiveShares"]</MudText>
-                                @if (_isAdmin)
-                                {
-                                    <MudButton Variant="Variant.Text" Color="Color.Primary"
-                                               Href="/admin?tab=0"
-                                               EndIcon="@Icons.Material.Filled.ArrowForward">
-                                        @Loc["Dashboard_ViewAll"]
-                                    </MudButton>
-                                }
-                            </div>
+                        @if (_showShares)
+                        {
+                            <ActiveSharesList Shares="@(_dashboard!.RecentShares)"
+                                              IsAdmin="@_isAdmin" />
+                        }
 
-                            @if (_dashboard!.RecentShares.Count == 0)
-                            {
-                                <EmptyState Title="@Loc["Dashboard_NoShares"]"
-                                            Icon="@Icons.Material.Filled.Share"
-                                            Class="py-2" />
-                            }
-                            else
-                            {
-                                <MudList T="DashboardShareDto" Dense="true">
-                                    @foreach (var share in _dashboard.RecentShares.Take(5))
-                                    {
-                                        <MudListItem T="DashboardShareDto" Icon="@Icons.Material.Filled.Link" OnClick="@(() => ShowShareInfo(share))">
-                                            <div class="d-flex justify-space-between align-center w-100">
-                                                <div>
-                                                    <MudText Typo="Typo.body2">@(share.ScopeName ?? share.ScopeId.ToString()[..8])</MudText>
-                                                    <MudText Typo="Typo.caption">
-                                                        @Display.ScopeType(share.ScopeType) &middot;
-                                                        @string.Format(Loc["Dashboard_Accesses"].Value, share.AccessCount)
-                                                        @if (share.HasPassword)
-                                                        {
-                                                            <MudTooltip Text="@Loc["Dashboard_PasswordProtected"].Value">
-                                                                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="ml-1" />
-                                                            </MudTooltip>
-                                                        }
-                                                    </MudText>
-                                                </div>
-                                                <MudChip T="string" Size="Size.Small"
-                                                         Color="@GetShareStatusColor(share.Status)">
-                                                    @GetShareStatusLabel(share.Status)
-                                                </MudChip>
-                                            </div>
-                                        </MudListItem>
-                                    }
-                                </MudList>
-                            }
-                        </MudPaper>
-                    }
-
-                    @* Recent activity *@
-                    @if (_showActivity)
-                    {
-                        <MudPaper Elevation="1" Class="pa-5 content-card">
-                            <div class="section-header">
-                                <MudText Typo="Typo.h6">@Loc["Dashboard_RecentActivity"]</MudText>
-                                @if (_isAdmin)
-                                {
-                                    <MudButton Variant="Variant.Text" Color="Color.Primary"
-                                               Href="/admin?tab=3"
-                                               EndIcon="@Icons.Material.Filled.ArrowForward">
-                                        @Loc["Dashboard_ViewAll"]
-                                    </MudButton>
-                                }
-                            </div>
-
-                            @if (_dashboard!.RecentActivity.Count == 0)
-                            {
-                                <EmptyState Title="@Loc["Dashboard_NoActivity"]"
-                                            Icon="@Icons.Material.Filled.History"
-                                            Class="py-2" />
-                            }
-                            else
-                            {
-                                <MudTimeline TimelinePosition="TimelinePosition.Start">
-                                    @foreach (var evt in _dashboard.RecentActivity.Take(8))
-                                    {
-                                        <MudTimelineItem Color="@GetAuditEventColor(evt.EventType)" Size="Size.Small">
-                                            <div>
-                                                <MudText Typo="Typo.body2">@GetLocalizedEventType(evt.EventType)</MudText>
-                                                @if (!string.IsNullOrEmpty(evt.ActorUserName))
-                                                {
-                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
-                                                        @Loc["Dashboard_AddedBy", evt.ActorUserName]
-                                                    </MudText>
-                                                }
-                                                <MudText Typo="Typo.caption" Class="d-block">
-                                                    @Display.ScopeType(evt.TargetType)
-                                                    @if (!string.IsNullOrEmpty(evt.TargetName))
-                                                    {
-                                                        @:&middot; @evt.TargetName
-                                                    }
-                                                </MudText>
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
-                                                    @FormatTimeAgo(evt.CreatedAt)
-                                                </MudText>
-                                            </div>
-                                        </MudTimelineItem>
-                                    }
-                                </MudTimeline>
-                            }
-                        </MudPaper>
-                    }
+                        @if (_showActivity)
+                        {
+                            <ActivityTimeline Events="@(_dashboard!.RecentActivity)"
+                                              IsAdmin="@_isAdmin" />
+                        }
                     }
                 </MudItem>
             }
@@ -444,11 +114,6 @@
     private bool _loading = true;
     private bool _dashboardError;
     private CancellationTokenSource _cts = new();
-    private double[] _storageChartData = [];
-    private string[] _storageChartLabels = [];
-    private string[] _storageChartColors => Theme.IsDarkMode
-        ? ["#66bb6a", "#42a5f5", "#ffa726", "#ab47bc"]  // Lighter shades for dark backgrounds
-        : ["#388e3c", "#1976d2", "#f57c00", "#7b1fa2"];  // Deeper shades for light backgrounds
 
     private bool _isAdmin => RoleHierarchy.GetLevel(_dashboard?.UserRole ?? "") >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Admin);
     private bool _showShares => _dashboard?.RecentShares.Count > 0
@@ -482,8 +147,6 @@
             _dashboard = await Api.GetDashboardAsync(_cts.Token);
             if (_dashboard is null)
                 _dashboardError = true;
-            else
-                BuildStorageChart();
         }
         catch (OperationCanceledException)
         {
@@ -508,73 +171,6 @@
     private void NavigateToCollection(Guid collectionId)
     {
         Nav.NavigateTo($"/collections?collection={collectionId}");
-    }
-
-    private async Task ShowShareInfo(DashboardShareDto dashboardShare)
-    {
-        // Convert DashboardShareDto to AdminShareDto for ShareInfoDialog
-        var share = new AdminShareDto
-        {
-            Id = dashboardShare.Id,
-            ScopeType = dashboardShare.ScopeType,
-            ScopeId = dashboardShare.ScopeId,
-            ScopeName = dashboardShare.ScopeName ?? "",
-            CreatedByUserId = "",
-            CreatedByUserName = "",
-            CreatedAt = dashboardShare.CreatedAt,
-            ExpiresAt = dashboardShare.ExpiresAt ?? DateTime.MaxValue,
-            AccessCount = dashboardShare.AccessCount,
-            HasPassword = dashboardShare.HasPassword,
-            Status = dashboardShare.Status
-        };
-
-        var parameters = new DialogParameters<ShareInfoDialog>
-        {
-            { x => x.Share, share },
-            { x => x.ShareUrl, string.Empty },
-            { x => x.SharePassword, string.Empty }
-        };
-
-        await DialogService.ShowAsync<ShareInfoDialog>(Loc["Dashboard_ShareDetails"], parameters);
-    }
-
-    private Color GetShareStatusColor(string status) => status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase) ? Color.Success
-        : status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase) ? Color.Warning
-        : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Color.Error
-        : Color.Default;
-
-    private string GetShareStatusLabel(string status) => status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareActive"].Value
-        : status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareExpired"].Value
-        : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareRevoked"].Value
-        : status;
-
-    private static Color GetAuditEventColor(string eventType) =>
-        AssetDisplayHelpers.GetAuditEventColor(eventType);
-
-    private string GetLocalizedEventType(string eventType)
-    {
-        var key = $"Event_{eventType}";
-        var localized = AdminLoc[key];
-        return localized.ResourceNotFound ? eventType : localized.Value;
-    }
-
-    private string FormatTimeAgo(DateTime utcTime)
-    {
-        var diff = DateTime.UtcNow - utcTime;
-        if (diff.TotalMinutes < 1) return Loc["Dashboard_JustNow"].Value;
-        if (diff.TotalMinutes < 60) return string.Format(Loc["Dashboard_MinutesAgo"].Value, (int)diff.TotalMinutes);
-        if (diff.TotalHours < 24) return string.Format(Loc["Dashboard_HoursAgo"].Value, (int)diff.TotalHours);
-        if (diff.TotalDays < 7) return string.Format(Loc["Dashboard_DaysAgo"].Value, (int)diff.TotalDays);
-        return utcTime.ToLocalTime().ToString("d");
-    }
-
-    private void BuildStorageChart()
-    {
-        if (_dashboard?.Stats?.StorageByType is not { Count: > 0 })
-            return;
-
-        _storageChartData = _dashboard.Stats.StorageByType.Select(s => (double)s.TotalBytes).ToArray();
-        _storageChartLabels = _dashboard.Stats.StorageByType.Select(s => Display.AssetType(s.AssetType)).ToArray();
     }
 
     public ValueTask DisposeAsync()

@@ -194,10 +194,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserAdminQueryService>(sp => sp.GetRequiredService<UserAdminService>());
         services.AddScoped<IUserAdminService>(sp => sp.GetRequiredService<UserAdminService>());
         
-        services.AddScoped<ShareAccessDependencies>();
-        services.AddScoped<ShareAccessService>();
-        services.AddScoped<IPublicShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
-        services.AddScoped<IAuthenticatedShareAccessService>(sp => sp.GetRequiredService<ShareAccessService>());
+        services.AddScoped<IPublicShareAccessService, PublicShareAccessService>();
+        services.AddScoped<IAuthenticatedShareAccessService, AuthenticatedShareAccessService>();
         services.AddScoped<IDashboardQueryService, DashboardQueryService>();
         services.AddScoped<IDashboardService, DashboardService>();
 

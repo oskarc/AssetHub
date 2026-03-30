@@ -65,26 +65,32 @@ public class ShareAccessServiceTests
         _minioSettings = Options.Create(new MinIOSettings { BucketName = "test-bucket" });
     }
 
-    private ShareAccessService CreateService(CurrentUser? currentUser = null)
+    private PublicShareAccessService CreatePublicService()
     {
-        var deps = new ShareAccessDependencies(
+        return new PublicShareAccessService(
             _shareRepoMock.Object,
             _assetRepoMock.Object,
             _assetCollectionRepoMock.Object,
             _collectionRepoMock.Object,
-            _authServiceMock.Object,
-            _shareServiceMock.Object,
             _zipBuildServiceMock.Object,
-            _auditMock.Object);
-
-        return new ShareAccessService(
-            deps,
+            _auditMock.Object,
             _minioAdapterMock.Object,
             _minioSettings,
             _dataProtectionMock.Object,
             _httpContextAccessorMock.Object,
-            NullLogger<ShareAccessService>.Instance,
-            currentUser ?? CurrentUser.Anonymous);
+            NullLogger<PublicShareAccessService>.Instance);
+    }
+
+    private AuthenticatedShareAccessService CreateAuthenticatedService(CurrentUser? currentUser = null)
+    {
+        return new AuthenticatedShareAccessService(
+            _shareRepoMock.Object,
+            _authServiceMock.Object,
+            _shareServiceMock.Object,
+            _auditMock.Object,
+            _dataProtectionMock.Object,
+            currentUser ?? CurrentUser.Anonymous,
+            NullLogger<AuthenticatedShareAccessService>.Instance);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -97,7 +103,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Share?)null);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync("invalid-token", null, 0, 50, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -114,7 +120,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, null, 0, 50, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -129,7 +135,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, null, 0, 50, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -150,7 +156,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, null, 0, 50, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -167,7 +173,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, WrongPassword, 0, 50, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -184,7 +190,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         await service.GetSharedContentAsync(token, WrongPassword, 0, 50, CancellationToken.None);
 
         // Verify audit log was called for failed password attempt
@@ -212,7 +218,7 @@ public class ShareAccessServiceTests
         _assetRepoMock.Setup(x => x.GetByIdAsync(asset.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(asset);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, TestPassword, 0, 50, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -234,7 +240,7 @@ public class ShareAccessServiceTests
         _assetRepoMock.Setup(x => x.GetByIdAsync(asset.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(asset);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, null, 0, 50, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -253,7 +259,7 @@ public class ShareAccessServiceTests
         _assetRepoMock.Setup(x => x.GetByIdAsync(asset.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(asset);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         await service.GetSharedContentAsync(token, null, 0, 50, CancellationToken.None);
 
         _shareRepoMock.Verify(x => x.IncrementAccessAsync(share.Id, It.IsAny<CancellationToken>()), Times.Once);
@@ -285,7 +291,7 @@ public class ShareAccessServiceTests
         _assetRepoMock.Setup(x => x.GetByCollectionAsync(collection.Id, 0, 50, It.IsAny<CancellationToken>()))
             .ReturnsAsync(assets);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, null, 0, 50, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -314,7 +320,7 @@ public class ShareAccessServiceTests
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), true, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("https://minio/presigned-url");
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetDownloadUrlAsync(token, null, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -337,7 +343,7 @@ public class ShareAccessServiceTests
         _assetCollectionRepoMock.Setup(x => x.BelongsToCollectionAsync(unrelatedAsset.Id, collection.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false); // Asset does NOT belong to the shared collection
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetDownloadUrlAsync(token, null, unrelatedAsset.Id, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -364,7 +370,7 @@ public class ShareAccessServiceTests
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), true, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("https://minio/presigned-url");
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetDownloadUrlAsync(token, null, asset.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -382,7 +388,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetDownloadUrlAsync(token, null, null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -403,7 +409,7 @@ public class ShareAccessServiceTests
         _assetRepoMock.Setup(x => x.GetByIdAsync(asset.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(asset);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetDownloadUrlAsync(token, null, null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -429,7 +435,7 @@ public class ShareAccessServiceTests
         _dataProtectorMock.Setup(x => x.Protect(It.IsAny<byte[]>()))
             .Returns<byte[]>(input => input);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.CreateAccessTokenAsync(token, TestPassword, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -446,7 +452,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.CreateAccessTokenAsync(token, WrongPassword, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -465,7 +471,7 @@ public class ShareAccessServiceTests
             .ReturnsAsync(share);
 
         var currentUser = new CurrentUser(TestUserId, isSystemAdmin: false);
-        var service = CreateService(currentUser);
+        var service = CreateAuthenticatedService(currentUser);
         var result = await service.RevokeShareAsync(share.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -483,7 +489,7 @@ public class ShareAccessServiceTests
             .ReturnsAsync(share);
 
         var currentUser = new CurrentUser(TestUserId, isSystemAdmin: false);
-        var service = CreateService(currentUser);
+        var service = CreateAuthenticatedService(currentUser);
         var result = await service.RevokeShareAsync(share.Id, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -497,7 +503,7 @@ public class ShareAccessServiceTests
             .ReturnsAsync((Share?)null);
 
         var currentUser = new CurrentUser(TestUserId, isSystemAdmin: false);
-        var service = CreateService(currentUser);
+        var service = CreateAuthenticatedService(currentUser);
         var result = await service.RevokeShareAsync(Guid.NewGuid(), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -516,7 +522,7 @@ public class ShareAccessServiceTests
             .ReturnsAsync(share);
 
         var currentUser = new CurrentUser(TestUserId, isSystemAdmin: false);
-        var service = CreateService(currentUser);
+        var service = CreateAuthenticatedService(currentUser);
         var result = await service.UpdateSharePasswordAsync(share.Id, "new-password", CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -534,7 +540,7 @@ public class ShareAccessServiceTests
             .ReturnsAsync(share);
 
         var adminUser = new CurrentUser(TestUserId, isSystemAdmin: true);
-        var service = CreateService(adminUser);
+        var service = CreateAuthenticatedService(adminUser);
         var result = await service.UpdateSharePasswordAsync(share.Id, "admin-new-password", CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -548,7 +554,7 @@ public class ShareAccessServiceTests
             .ReturnsAsync(share);
 
         var currentUser = new CurrentUser(TestUserId, isSystemAdmin: false);
-        var service = CreateService(currentUser);
+        var service = CreateAuthenticatedService(currentUser);
         var result = await service.UpdateSharePasswordAsync(share.Id, "new-password", CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -563,7 +569,7 @@ public class ShareAccessServiceTests
             .ReturnsAsync(share);
 
         var currentUser = new CurrentUser(TestUserId, isSystemAdmin: false);
-        var service = CreateService(currentUser);
+        var service = CreateAuthenticatedService(currentUser);
         var result = await service.UpdateSharePasswordAsync(share.Id, "", CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -585,7 +591,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.EnqueueDownloadAllAsync(token, null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -608,7 +614,7 @@ public class ShareAccessServiceTests
         _zipBuildServiceMock.Setup(x => x.EnqueueShareZipAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ZipDownloadEnqueuedResponse { JobId = Guid.NewGuid() });
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.EnqueueDownloadAllAsync(token, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -636,7 +642,7 @@ public class ShareAccessServiceTests
         _shareRepoMock.Setup(x => x.GetByTokenHashAsync(share.TokenHash, It.IsAny<CancellationToken>()))
             .ReturnsAsync(share);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, null, 0, 50, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -656,7 +662,7 @@ public class ShareAccessServiceTests
         _assetRepoMock.Setup(x => x.GetByIdAsync(asset.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(asset);
 
-        var service = CreateService();
+        var service = CreatePublicService();
         var result = await service.GetSharedContentAsync(token, null, 0, 50, CancellationToken.None);
 
         Assert.True(result.IsSuccess);

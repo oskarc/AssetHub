@@ -37,6 +37,12 @@ public interface IUserLookupService
     Task<List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default);
     
     /// <summary>
+    /// Searches users by username or email with server-side filtering.
+    /// Returns at most <paramref name="maxResults"/> matching users.
+    /// </summary>
+    Task<List<(string Id, string Username, string? Email)>> SearchUsersAsync(string query, int maxResults = 50, CancellationToken ct = default);
+    
+    /// <summary>
     /// Checks which of the given user IDs still exist in the identity provider.
     /// Returns the set of IDs that exist.
     /// </summary>
