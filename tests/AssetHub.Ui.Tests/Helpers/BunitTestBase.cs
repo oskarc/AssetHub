@@ -35,6 +35,9 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
         Services.AddSingleton<IStringLocalizer<SharesResource>>(new StubStringLocalizer<SharesResource>());
         Services.AddSingleton<IStringLocalizer<AdminResource>>(new StubStringLocalizer<AdminResource>());
 
+        // Register LocalizedDisplayService (used by dialogs/components that display localized labels)
+        Services.AddSingleton<LocalizedDisplayService>();
+
         // bUnit Loose mode — any un-stubbed JS interop call returns a default value
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
