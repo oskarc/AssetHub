@@ -1,22 +1,47 @@
 using System.Diagnostics;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
-using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
-using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
+/// Result of image processing — returned to the consumer for DB update and event publication.
+/// </summary>
+public sealed record ImageProcessingResult
+{
+    public bool Succeeded { get; init; }
+    public string? ThumbObjectKey { get; init; }
+    public string? MediumObjectKey { get; init; }
+    public Dictionary<string, object>? Metadata { get; init; }
+    public string? Copyright { get; init; }
+    public string? ErrorMessage { get; init; }
+    public string? ErrorType { get; init; }
+
+    public static ImageProcessingResult Success(
+        string thumbKey, string mediumKey,
+        Dictionary<string, object>? metadata, string? copyright)
+        => new()
+        {
+            Succeeded = true,
+            ThumbObjectKey = thumbKey,
+            MediumObjectKey = mediumKey,
+            Metadata = metadata,
+            Copyright = copyright
+        };
+
+    public static ImageProcessingResult Failure(string message, string errorType)
+        => new() { Succeeded = false, ErrorMessage = message, ErrorType = errorType };
+}
+
+/// <summary>
 /// Processes image assets: creates thumbnail and medium-size renditions, extracts metadata.
-/// Called by Hangfire background jobs.
+/// Returns a result object — the caller (Wolverine handler) is responsible for DB updates.
 /// </summary>
 public sealed class ImageProcessingService(
-    IAssetRepository assetRepository,
     IMinIOAdapter minioAdapter,
-    IAuditService auditService,
     ImageMetadataExtractor metadataExtractor,
     IOptions<MinIOSettings> minioSettings,
     IOptions<ImageProcessingSettings> imageProcessingSettings,
@@ -27,9 +52,7 @@ public sealed class ImageProcessingService(
 
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
 
-    [AutomaticRetry(Attempts = 2, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
-    [Queue("media-processing")]
-    public async Task ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
+    public async Task<ImageProcessingResult> ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
         var tempOriginal = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
@@ -40,13 +63,6 @@ public sealed class ImageProcessingService(
         {
             logger.LogInformation("Starting image processing for asset {AssetId}", assetId);
 
-            var asset = await assetRepository.GetByIdAsync(assetId, ct);
-            if (asset == null)
-            {
-                logger.LogWarning("Asset {AssetId} not found, skipping processing", assetId);
-                return;
-            }
-
             // Download original image
             using var originalStream = await minioAdapter.DownloadAsync(_bucketName, originalObjectKey, ct);
             using (var fs = File.Create(tempOriginal))
@@ -55,27 +71,24 @@ public sealed class ImageProcessingService(
             }
 
             // Extract EXIF metadata
+            Dictionary<string, object> metadata = new();
+            string? copyright = null;
             try
             {
                 logger.LogInformation("Starting metadata extraction for asset {AssetId}, file: {FilePath}", assetId, tempOriginal);
-                var metadata = metadataExtractor.ExtractImageMetadata(tempOriginal);
-                foreach (var kvp in metadata)
-                {
-                    asset.MetadataJson[kvp.Key] = kvp.Value;
-                }
+                metadata = metadataExtractor.ExtractImageMetadata(tempOriginal);
                 if (metadata.Count > 0)
                 {
                     logger.LogInformation("Extracted {MetadataCount} metadata fields for asset {AssetId}: {MetadataKeys}",
                         metadata.Count, assetId, string.Join(", ", metadata.Keys));
 
-                    // Auto-populate Copyright field from extracted metadata if not already set
-                    if (string.IsNullOrWhiteSpace(asset.Copyright) &&
-                        metadata.TryGetValue("copyright", out var extractedCopyright) &&
+                    // Extract copyright from metadata if available
+                    if (metadata.TryGetValue("copyright", out var extractedCopyright) &&
                         extractedCopyright is string copyrightStr &&
                         !string.IsNullOrWhiteSpace(copyrightStr))
                     {
-                        asset.Copyright = copyrightStr;
-                        logger.LogInformation("Auto-populated Copyright field for asset {AssetId} from EXIF: {Copyright}",
+                        copyright = copyrightStr;
+                        logger.LogInformation("Found Copyright in EXIF for asset {AssetId}: {Copyright}",
                             assetId, copyrightStr);
                     }
                 }
@@ -87,7 +100,7 @@ public sealed class ImageProcessingService(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}: {ErrorMessage}", assetId, ex.Message);
-                asset.MetadataJson["metadataExtractionError"] = ex.Message;
+                metadata["metadataExtractionError"] = ex.Message;
             }
 
             // Create thumbnail and medium in a single ImageMagick invocation
@@ -101,38 +114,15 @@ public sealed class ImageProcessingService(
                 UploadFileAsync(thumbPath, thumbKey, ct),
                 UploadFileAsync(mediumPath, mediumKey, ct));
 
-            // Update asset with processed variants
-            asset.MarkReady(thumbKey, mediumKey);
-            await assetRepository.UpdateAsync(asset, ct);
-
             sw.Stop();
             logger.LogInformation("Successfully processed image asset {AssetId} in {ElapsedMs}ms", assetId, sw.ElapsedMilliseconds);
+
+            return ImageProcessingResult.Success(thumbKey, mediumKey, metadata, copyright);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Image processing failed for asset {AssetId} after {ElapsedMs}ms: {Error}", assetId, sw.ElapsedMilliseconds, ex.Message);
-
-            await auditService.LogAsync(
-                "asset.processing_failed",
-                Constants.ScopeTypes.Asset,
-                assetId,
-                actorUserId: null,
-                new Dictionary<string, object>
-                {
-                    ["assetType"] = "image",
-                    ["error"] = ex.Message,
-                    ["errorType"] = ex.GetType().Name
-                },
-                ct);
-
-            var asset = await assetRepository.GetByIdAsync(assetId, ct);
-            if (asset != null)
-            {
-                asset.MarkFailed("Image processing failed. Please try uploading again or contact an administrator.");
-                await assetRepository.UpdateAsync(asset, ct);
-            }
-
-            throw; // Re-throw so Hangfire can retry
+            return ImageProcessingResult.Failure(ex.Message, ex.GetType().Name);
         }
         finally
         {
@@ -149,15 +139,24 @@ public sealed class ImageProcessingService(
     }
 
     /// <summary>
-    /// Creates both thumbnail and medium renditions in a single ImageMagick call using +write.
-    /// Reads the source image once, writes the thumbnail with +write, then continues to write the medium.
+    /// Creates both thumbnail and medium renditions using two separate ImageMagick calls.
+    /// ImageMagick 6.x's (+clone +write) pipeline pattern silently drops the image after
+    /// the closing parenthesis, so the medium rendition was never created.
     /// </summary>
     private async Task CreateRenditionsAsync(string inputPath, string thumbPath, string mediumPath, CancellationToken ct)
     {
         var executable = OperatingSystem.IsWindows() ? "magick" : "/usr/bin/convert";
-        var command = ProcessRunner.CreateStartInfo(executable);
 
-        // Read source once, auto-orient and flatten
+        await CreateRenditionAsync(executable, inputPath, thumbPath,
+            $"{_imageSettings.ThumbnailWidth}x{_imageSettings.ThumbnailHeight}>", ct);
+
+        await CreateRenditionAsync(executable, inputPath, mediumPath,
+            $"{_imageSettings.MediumWidth}x{_imageSettings.MediumHeight}>", ct);
+    }
+
+    private async Task CreateRenditionAsync(string executable, string inputPath, string outputPath, string geometry, CancellationToken ct)
+    {
+        var command = ProcessRunner.CreateStartInfo(executable);
         command.ArgumentList.Add($"{inputPath}[0]");
         command.ArgumentList.Add("-auto-orient");
         command.ArgumentList.Add("-background");
@@ -166,24 +165,11 @@ public sealed class ImageProcessingService(
         command.ArgumentList.Add("-colorspace");
         command.ArgumentList.Add("sRGB");
         command.ArgumentList.Add("-strip");
-
-        // Write thumbnail using +write (continues pipeline)
-        command.ArgumentList.Add("(");
-        command.ArgumentList.Add("+clone");
         command.ArgumentList.Add("-thumbnail");
-        command.ArgumentList.Add($"{_imageSettings.ThumbnailWidth}x{_imageSettings.ThumbnailHeight}>");
+        command.ArgumentList.Add(geometry);
         command.ArgumentList.Add("-quality");
         command.ArgumentList.Add(_imageSettings.JpegQuality.ToString());
-        command.ArgumentList.Add("+write");
-        command.ArgumentList.Add(thumbPath);
-        command.ArgumentList.Add(")");
-
-        // Write medium version
-        command.ArgumentList.Add("-thumbnail");
-        command.ArgumentList.Add($"{_imageSettings.MediumWidth}x{_imageSettings.MediumHeight}>");
-        command.ArgumentList.Add("-quality");
-        command.ArgumentList.Add(_imageSettings.JpegQuality.ToString());
-        command.ArgumentList.Add(mediumPath);
+        command.ArgumentList.Add(outputPath);
 
         await ProcessRunner.RunAsync(executable, command, ProcessTimeout, logger, ct);
     }

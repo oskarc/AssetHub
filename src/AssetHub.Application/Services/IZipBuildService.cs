@@ -3,7 +3,7 @@ using AssetHub.Application.Dtos;
 namespace AssetHub.Application.Services;
 
 /// <summary>
-/// Manages queued ZIP download builds via Hangfire.
+/// Manages queued ZIP download builds via Wolverine.
 /// Enqueues build jobs, tracks status, and serves completed downloads.
 /// </summary>
 public interface IZipBuildService
@@ -30,14 +30,14 @@ public interface IZipBuildService
         Guid jobId, string? userId, string? shareTokenHash, CancellationToken ct);
 
     /// <summary>
-    /// Hangfire background job entry point: builds the ZIP and uploads to MinIO.
-    /// Do not call directly — invoked by Hangfire.
+    /// Builds the ZIP and uploads to MinIO.
+    /// Invoked by the BuildZipHandler via Wolverine.
     /// </summary>
     Task BuildZipAsync(Guid zipDownloadId, CancellationToken ct);
 
     /// <summary>
     /// Cleanup expired ZIP downloads from MinIO and the database.
-    /// Called periodically by Hangfire.
+    /// Called periodically by ZipCleanupBackgroundService.
     /// </summary>
     Task CleanupExpiredAsync(CancellationToken ct);
 }

@@ -3,14 +3,15 @@ using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Helpers;
+using AssetHub.Application.Messages;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
-using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Wolverine;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -23,7 +24,7 @@ public sealed record ZipBuildDataDependencies(
     ICollectionRepository CollectionRepo);
 
 /// <summary>
-/// Manages queued ZIP download builds via Hangfire.
+/// Manages queued ZIP download builds via Wolverine.
 /// Builds ZIP files in the background and stores them as temporary MinIO objects.
 /// </summary>
 public class ZipBuildService : IZipBuildService
@@ -32,7 +33,7 @@ public class ZipBuildService : IZipBuildService
     private readonly IAssetRepository _assetRepo;
     private readonly ICollectionRepository _collectionRepo;
     private readonly IMinIOAdapter _minioAdapter;
-    private readonly IBackgroundJobClient _jobClient;
+    private readonly IMessageBus _messageBus;
     private readonly IAuditService _audit;
     private readonly string _bucketName;
     private readonly ILogger<ZipBuildService> _logger;
@@ -40,7 +41,7 @@ public class ZipBuildService : IZipBuildService
     public ZipBuildService(
         ZipBuildDataDependencies data,
         IMinIOAdapter minioAdapter,
-        IBackgroundJobClient jobClient,
+        IMessageBus messageBus,
         IAuditService audit,
         IOptions<MinIOSettings> minioSettings,
         ILogger<ZipBuildService> logger)
@@ -49,7 +50,7 @@ public class ZipBuildService : IZipBuildService
         _assetRepo = data.AssetRepo;
         _collectionRepo = data.CollectionRepo;
         _minioAdapter = minioAdapter;
-        _jobClient = jobClient;
+        _messageBus = messageBus;
         _audit = audit;
         _bucketName = minioSettings.Value.BucketName;
         _logger = logger;
@@ -80,17 +81,7 @@ public class ZipBuildService : IZipBuildService
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);
 
-        var hangfireJobId = _jobClient.Enqueue<ZipBuildService>(svc => svc.BuildZipAsync(zipDownload.Id, CancellationToken.None));
-        zipDownload.HangfireJobId = hangfireJobId;
-
-        try
-        {
-            await db.SaveChangesAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to persist Hangfire job ID for ZIP download {ZipDownloadId}. Job is still enqueued.", zipDownload.Id);
-        }
+        await _messageBus.PublishAsync(new BuildZipCommand { ZipDownloadId = zipDownload.Id });
 
         _logger.LogInformation("Enqueued ZIP build {ZipDownloadId} for collection {CollectionId} by user {UserId}",
             zipDownload.Id, collectionId, userId);
@@ -123,17 +114,7 @@ public class ZipBuildService : IZipBuildService
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);
 
-        var hangfireJobId = _jobClient.Enqueue<ZipBuildService>(svc => svc.BuildZipAsync(zipDownload.Id, CancellationToken.None));
-        zipDownload.HangfireJobId = hangfireJobId;
-
-        try
-        {
-            await db.SaveChangesAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to persist Hangfire job ID for ZIP download {ZipDownloadId}. Job is still enqueued.", zipDownload.Id);
-        }
+        await _messageBus.PublishAsync(new BuildZipCommand { ZipDownloadId = zipDownload.Id });
 
         _logger.LogInformation("Enqueued ZIP build {ZipDownloadId} for shared collection {CollectionId}",
             zipDownload.Id, collectionId);
@@ -198,7 +179,6 @@ public class ZipBuildService : IZipBuildService
         return response;
     }
 
-    [AutomaticRetry(Attempts = 1)]
     public async Task BuildZipAsync(Guid zipDownloadId, CancellationToken ct)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);

@@ -1,33 +1,43 @@
 using AssetHub.Application;
+using AssetHub.Application.Messages;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
-using Hangfire;
 using Microsoft.Extensions.Logging;
+using Wolverine;
 
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// Thin orchestrator that schedules asset processing jobs based on asset type.
-/// Delegates actual processing to <see cref="ImageProcessingService"/> and <see cref="VideoProcessingService"/>.
+/// Thin orchestrator that schedules asset processing by publishing commands to the message broker.
+/// Delegates actual processing to consumers that invoke
+/// <see cref="ImageProcessingService"/> and <see cref="VideoProcessingService"/>.
 /// </summary>
 public sealed class MediaProcessingService(
     IAssetRepository assetRepository,
-    IBackgroundJobClient backgroundJobClient,
+    IMessageBus messageBus,
     ILogger<MediaProcessingService> logger) : IMediaProcessingService
 {
     public async Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, CancellationToken cancellationToken = default)
     {
-        string jobId;
+        var correlationId = Guid.NewGuid();
 
         if (assetType == Constants.AssetTypeFilters.Image)
         {
-            logger.LogInformation("Scheduling image processing for asset {AssetId}", assetId);
-            jobId = backgroundJobClient.Enqueue<ImageProcessingService>(x => x.ProcessImageAsync(assetId, originalObjectKey, CancellationToken.None));
+            logger.LogInformation("Publishing image processing command for asset {AssetId}, correlation {CorrelationId}", assetId, correlationId);
+            await messageBus.PublishAsync(new ProcessImageCommand
+            {
+                AssetId = assetId,
+                OriginalObjectKey = originalObjectKey
+            });
         }
         else if (assetType == Constants.AssetTypeFilters.Video)
         {
-            logger.LogInformation("Scheduling video processing for asset {AssetId}", assetId);
-            jobId = backgroundJobClient.Enqueue<VideoProcessingService>(x => x.ProcessVideoAsync(assetId, originalObjectKey, CancellationToken.None));
+            logger.LogInformation("Publishing video processing command for asset {AssetId}, correlation {CorrelationId}", assetId, correlationId);
+            await messageBus.PublishAsync(new ProcessVideoCommand
+            {
+                AssetId = assetId,
+                OriginalObjectKey = originalObjectKey
+            });
         }
         else
         {
@@ -39,9 +49,8 @@ public sealed class MediaProcessingService(
                 asset.MarkReady();
                 await assetRepository.UpdateAsync(asset, cancellationToken);
             }
-            jobId = "no-processing-required";
         }
 
-        return jobId;
+        return correlationId.ToString();
     }
 }

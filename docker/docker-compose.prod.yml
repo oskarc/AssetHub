@@ -90,7 +90,8 @@ services:
           cpus: '1.0'
           memory: 512M
           pids: 100
-    # Security hardening (minio runs as non-root internally)
+    # Security hardening
+    user: "65534:65534"  # nobody user (MinIO needs no specific user)
     cap_drop:
       - ALL
     security_opt:
@@ -263,9 +264,13 @@ services:
       ClamAV__Enabled: "${CLAMAV_ENABLED:-true}"
       ClamAV__Host: "clamav"
       ClamAV__Port: "3310"
+      ClamAV__TimeoutMs: "120000"
+      ClamAV__ChunkSize: "262144"
 
-      # Hangfire
-      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      # RabbitMQ
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Username: "${RABBITMQ_DEFAULT_USER}"
+      RabbitMQ__Password: "${RABBITMQ_DEFAULT_PASS}"
 
       # Application
       App__BaseUrl: "${APP_BASE_URL}"
@@ -317,6 +322,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - backend
       - observability
@@ -327,20 +334,21 @@ services:
           memory: 1G
           pids: 200
     # Security hardening
+    user: "1654:1654"  # .NET 'app' user (set in Dockerfile, reinforced here)
     cap_drop:
       - ALL
     read_only: true
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /tmp:size=2G
+      - /tmp:size=2G,uid=1654,gid=1654
     logging:
       driver: json-file
       options:
         max-size: "50m"
         max-file: "5"
 
-  # ---------- Hangfire Background Worker --------------------------------------
+  # ---------- Background Worker (Wolverine + RabbitMQ) -------------------------
   worker:
     build:
       context: ..
@@ -356,7 +364,9 @@ services:
       MinIO__SecretKey: "${MINIO_SECRET_KEY}"
       MinIO__BucketName: "${MINIO_BUCKET_NAME}"
       MinIO__UseSSL: "false"
-      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Username: "${RABBITMQ_DEFAULT_USER}"
+      RabbitMQ__Password: "${RABBITMQ_DEFAULT_PASS}"
       ImageProcessing__ThumbnailWidth: "${IMAGE_THUMBNAIL_WIDTH:-200}"
       ImageProcessing__ThumbnailHeight: "${IMAGE_THUMBNAIL_HEIGHT:-200}"
       ImageProcessing__MediumWidth: "${IMAGE_MEDIUM_WIDTH:-800}"
@@ -380,9 +390,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - backend
       - observability
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:
@@ -390,13 +408,61 @@ services:
           memory: 1G
           pids: 200
     # Security hardening
+    user: "1654:1654"  # .NET 'app' user (set in Dockerfile, reinforced here)
     cap_drop:
       - ALL
     read_only: true
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /tmp:size=2G
+      - /tmp:size=2G,uid=1654,gid=1654
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ── RabbitMQ (Message Broker) ───────────────────────────────────────────────
+  # HA-ready: uses persistent volume, quorum queues, and Erlang cookie secret.
+  # To scale to a cluster, add rabbitmq2/rabbitmq3 services with the same
+  # Erlang cookie and RABBITMQ_CLUSTER_NODES environment variable.
+  rabbitmq:
+    image: rabbitmq:4-management-alpine@sha256:b618738ea52cb6d0073ee9f0412ede133411ecacd7afa40f17be748a6d9a9ee1
+    container_name: assethub-rabbitmq
+    hostname: rabbitmq  # stable hostname required for clustering
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      # Quorum queues are the default for HA — they replicate across cluster nodes.
+      # This sets the default queue type for new queues created by applications.
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit default_queue_type quorum"
+    secrets:
+      - rabbitmq_erlang_cookie
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 256
+    # Security hardening
+    user: "100:101"  # rabbitmq user (entrypoint detects non-root, skips su-exec)
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=512M,uid=100,gid=101
     logging:
       driver: json-file
       options:
@@ -405,7 +471,9 @@ services:
 
   # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
   clamav:
-    image: clamav/clamav:1.5.1
+    build:
+      context: .
+      dockerfile: Dockerfile.ClamAV
     container_name: assethub-clamav
     environment:
       # Increase size limits for large media uploads (defaults: 25M/400M/1000M)
@@ -426,17 +494,15 @@ services:
           cpus: '1.0'
           memory: 3G
           pids: 100
-    # Security hardening (clamav entrypoint needs caps for setup)
+    # Security hardening
+    user: "100:101"  # clamav user (entrypoint detects non-root, skips chown/gosu)
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
-      - FOWNER
-      - DAC_OVERRIDE
     security_opt:
       - no-new-privileges:true
+    tmpfs:
+      - /run/clamav:size=1M,uid=100,gid=101
+      - /tmp:size=512M,uid=100,gid=101
     logging:
       driver: json-file
       options:
@@ -464,10 +530,14 @@ services:
           memory: 256M
           pids: 100
     # Security hardening
+    user: "1654:1654"  # .NET 'app' user
     cap_drop:
       - ALL
+    read_only: true
     security_opt:
       - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64M,uid=1654,gid=1654
     logging:
       driver: json-file
       options:
@@ -480,6 +550,7 @@ volumes:
   miniodata:
   keycloakdata:
   redisdata:
+  rabbitmqdata:
 
 networks:
   # Backend network - database and storage services only
@@ -511,6 +582,7 @@ networks:
 #   echo "your-keycloak-db-password" > secrets/keycloak_db_password
 #   echo "your-minio-root-password" > secrets/minio_root_password
 #   echo "your-keycloak-client-secret" > secrets/keycloak_client_secret
+#   openssl rand -hex 32 > secrets/rabbitmq_erlang_cookie
 #   chmod 600 secrets/*
 #
 # Services that support _FILE suffix (Postgres, MinIO) will automatically
@@ -529,3 +601,5 @@ secrets:
     file: ./secrets/minio_root_password
   keycloak_client_secret:
     file: ./secrets/keycloak_client_secret
+  rabbitmq_erlang_cookie:
+    file: ./secrets/rabbitmq_erlang_cookie

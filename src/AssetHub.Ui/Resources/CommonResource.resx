@@ -163,7 +163,7 @@
   <data name="Text_SignedIn" xml:space="preserve"><value>Signed In</value></data>
   <data name="Text_NoTags" xml:space="preserve"><value>No tags</value></data>
   <data name="Text_Processing" xml:space="preserve"><value>Processing</value></data>
-  <data name="Text_Verifying" xml:space="preserve"><value>Verifying</value></data>
+  <data name="Text_ScanningForThreats" xml:space="preserve"><value>Scanning for threats…</value></data>
   <data name="Text_Queued" xml:space="preserve"><value>Queued</value></data>
   <data name="Text_Remaining" xml:space="preserve"><value>({0} remaining)</value></data>
   <data name="Text_ShowingOfAssets" xml:space="preserve"><value>Showing {0} of {1} assets</value></data>
@@ -357,6 +357,29 @@
   <data name="Error_AssetProcessingDeleted" xml:space="preserve"><value>File was removed during security scanning.</value></data>
   <data name="Error_AssetProcessingTimeout" xml:space="preserve"><value>Processing is taking longer than expected. The file will appear once complete.</value></data>
   <data name="Error_ProcessingFailedCount" xml:space="preserve"><value>{0} file(s) failed processing</value></data>
+
+  <!-- Security scanning errors -->
+  <data name="Error_MalwareDetected" xml:space="preserve"><value>File rejected: a security threat was detected. The file has been removed.</value></data>
+  <data name="Error_ScannerUnavailable" xml:space="preserve"><value>Virus scanning is currently unavailable. Upload cannot proceed — please contact your administrator.</value></data>
+  <data name="Error_ContentTypeMismatch" xml:space="preserve"><value>File contents do not match the declared file type.</value></data>
+  <data name="Error_UploadGeneric" xml:space="preserve"><value>Upload failed. Please try again.</value></data>
+  <data name="Alert_ScannerDown" xml:space="preserve"><value>The virus scanner is currently unavailable. All uploads are blocked until scanning is restored. Please notify your system administrator.</value></data>
+  <data name="Alert_MalwareBlocked" xml:space="preserve"><value>One or more files were identified as security threats and have been automatically removed.</value></data>
+
+  <!-- Upload Errors Dialog -->
+  <data name="Title_UploadErrors" xml:space="preserve"><value>Upload Errors</value></data>
+  <data name="Text_UploadErrorsSummary" xml:space="preserve"><value>{0} file(s) could not be uploaded or processed.</value></data>
+  <data name="Header_FileName" xml:space="preserve"><value>File</value></data>
+  <data name="Header_FileSize" xml:space="preserve"><value>Size</value></data>
+  <data name="Header_Error" xml:space="preserve"><value>Error</value></data>
+  <data name="Error_Unknown" xml:space="preserve"><value>An unknown error occurred.</value></data>
+  <data name="Aria_ShowUploadError" xml:space="preserve"><value>Show error details for {0}</value></data>
+
+  <!-- Upload Report -->
+  <data name="Text_UploadReport" xml:space="preserve"><value>Upload Report</value></data>
+  <data name="Text_ReportTotal" xml:space="preserve"><value>{0} total</value></data>
+  <data name="Text_ReportSucceeded" xml:space="preserve"><value>{0} succeeded</value></data>
+  <data name="Text_ReportFailed" xml:space="preserve"><value>{0} failed</value></data>
 
   <!-- Search -->
   <data name="SearchHint_MinChars" xml:space="preserve"><value>Type at least {0} characters to search</value></data>

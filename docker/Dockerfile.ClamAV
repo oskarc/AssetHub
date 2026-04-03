@@ -1,0 +1,8 @@
+FROM clamav/clamav:1.5.1
+
+# Ensure all ClamAV directories are writable by the clamav user for rootless operation.
+# The base image's entrypoint modifies configs via sed, creates PID/lock files at runtime.
+RUN install -d -m 0755 -o clamav -g clamav /run/clamav && \
+    chown -R clamav:clamav /etc/clamav /var/lib/clamav /var/log/clamav /run/lock
+
+USER clamav

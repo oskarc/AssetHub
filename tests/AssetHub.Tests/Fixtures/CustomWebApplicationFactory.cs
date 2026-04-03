@@ -2,6 +2,7 @@ using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
+using Wolverine;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -106,9 +107,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.AddDbContextFactory<AssetHubDbContext>(options =>
                 options.UseNpgsql(dataSource), ServiceLifetime.Scoped);
 
-            // Disable Hangfire server to prevent background job processing in tests
-            services.RemoveAll<Hangfire.BackgroundJobServer>();
-            services.Configure<Hangfire.BackgroundJobServerOptions>(o => o.WorkerCount = 0);
+            // Disable external Wolverine transports to prevent real RabbitMQ connections in tests
+            services.DisableAllExternalWolverineTransports();
+            services.RunWolverineInSoloMode();
 
             // Replace external services with mocks
             services.RemoveAll<IMinIOAdapter>();

@@ -28,6 +28,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0.14-bookworm-slim AS final
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     ffmpeg \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Apply restrictive ImageMagick policy to disable dangerous coders (SVG, MVG, etc.)

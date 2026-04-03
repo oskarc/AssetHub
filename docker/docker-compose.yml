@@ -62,7 +62,8 @@ services:
           cpus: '1.0'
           memory: 512M
           pids: 100
-    # Security hardening (minio runs as non-root internally)
+    # Security hardening
+    user: "65534:65534"  # nobody user (MinIO needs no specific user)
     cap_drop:
       - ALL
     security_opt:
@@ -152,11 +153,15 @@ services:
       MinIO__UseSSL: "false"
       MinIO__PublicUrl: "localhost:9000"
       MinIO__PublicUseSSL: "false"
-      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Username: "${RABBITMQ_DEFAULT_USER:-guest}"
+      RabbitMQ__Password: "${RABBITMQ_DEFAULT_PASS:-guest}"
       App__BaseUrl: "https://assethub.local:7252"
       ClamAV__Enabled: "${CLAMAV_ENABLED:-true}"
       ClamAV__Host: "clamav"
       ClamAV__Port: "3310"
+      ClamAV__TimeoutMs: "120000"
+      ClamAV__ChunkSize: "262144"
       Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
       OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
     volumes:
@@ -174,6 +179,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       backend:
         aliases:
@@ -188,13 +195,14 @@ services:
           memory: 1G
           pids: 200
     # Security hardening
+    user: "1654:1654"  # .NET 'app' user (set in Dockerfile, reinforced here)
     cap_drop:
       - ALL
     read_only: true
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /tmp:size=2G
+      - /tmp:size=2G,uid=1654,gid=1654
 
   worker:
     build:
@@ -210,7 +218,9 @@ services:
       MinIO__SecretKey: "${MINIO_SECRET_KEY}"
       MinIO__BucketName: "${MINIO_BUCKET_NAME}"
       MinIO__UseSSL: "false"
-      Hangfire__ConnectionString: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Username: "${RABBITMQ_DEFAULT_USER:-guest}"
+      RabbitMQ__Password: "${RABBITMQ_DEFAULT_PASS:-guest}"
       Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
       OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
     depends_on:
@@ -220,10 +230,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - backend
       - observability
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:
@@ -231,13 +249,50 @@ services:
           memory: 1G
           pids: 200
     # Security hardening
+    user: "1654:1654"  # .NET 'app' user (set in Dockerfile, reinforced here)
     cap_drop:
       - ALL
     read_only: true
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /tmp:size=2G
+      - /tmp:size=2G,uid=1654,gid=1654
+
+  # ── RabbitMQ (Message Broker) ───────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:4-management-alpine@sha256:b618738ea52cb6d0073ee9f0412ede133411ecacd7afa40f17be748a6d9a9ee1
+    container_name: assethub-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 256
+    # Security hardening
+    user: "100:101"  # rabbitmq user (entrypoint detects non-root, skips su-exec)
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /var/lib/rabbitmq:size=256M,uid=100,gid=101
+      - /tmp:size=64M,uid=100,gid=101
 
   # ── Redis (Distributed Cache) ──────────────────────────────────────────────
   redis:
@@ -282,7 +337,7 @@ services:
       - /data:size=256M,uid=999,gid=999
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.21
     container_name: assethub-mailpit
     ports:
       - "127.0.0.1:8025:8025"
@@ -297,14 +352,20 @@ services:
           memory: 128M
           pids: 50
     # Security hardening
+    user: "65534:65534"  # nobody user
     cap_drop:
       - ALL
+    read_only: true
     security_opt:
       - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64M,uid=65534,gid=65534
 
   # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
   clamav:
-    image: clamav/clamav:1.5.1
+    build:
+      context: .
+      dockerfile: Dockerfile.ClamAV
     container_name: assethub-clamav
     environment:
       # Increase size limits for large media uploads (defaults: 25M/400M/1000M)
@@ -326,17 +387,15 @@ services:
           cpus: '1.0'
           memory: 3G
           pids: 100
-    # Security hardening (clamav entrypoint needs caps for setup)
+    # Security hardening
+    user: "100:101"  # clamav user (entrypoint detects non-root, skips chown/gosu)
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
-      - FOWNER
-      - DAC_OVERRIDE
     security_opt:
       - no-new-privileges:true
+    tmpfs:
+      - /run/clamav:size=1M,uid=100,gid=101
+      - /tmp:size=512M,uid=100,gid=101
 
   # ── Observability ────────────────────────────────────────────────────────────
 
@@ -358,10 +417,14 @@ services:
           memory: 256M
           pids: 100
     # Security hardening
+    user: "1654:1654"  # .NET 'app' user
     cap_drop:
       - ALL
+    read_only: true
     security_opt:
       - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64M,uid=1654,gid=1654
 
 volumes:
   pgdata:

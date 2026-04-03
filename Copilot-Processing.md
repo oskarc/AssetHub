@@ -1,54 +1,94 @@
 # Copilot Processing Log
 
 ## Request
-Implement review report items 4.6 (Share.razor disposal) and 1.5 (LocalizedDisplayService).
+Add upload error details modal — a MudDialog with a table showing per-file error descriptions.
 
 ## Action Plan
 
-### Phase 1: Item 4.6 — Share.razor Disposal Audit ✅
-- [x] Audit `Share.razor` DisposeAsync implementation
-- [x] Verify JSDisconnectedException guards across all disposable components
-- [x] Result: Already correctly implemented — no code changes needed
-- [x] Update REVIEW-REPORT.md section 4.6
+### Phase 1: Create UploadErrorsDialog component
+- [x] Create `src/AssetHub.Ui/Components/UploadErrorsDialog.razor`
 
-### Phase 2: Item 1.5 — Create LocalizedDisplayService ✅
-- [x] Research all `AssetDisplayHelpers.GetLocalized*` call sites (11 matches in 7 files)
-- [x] Identify local wrapper methods to remove (~15 wrappers in 6 files)
-- [x] Create `Services/LocalizedDisplayService.cs`
-- [x] Register as scoped service in `ServiceCollectionExtensions.cs`
-- [x] Refactor `Home.razor` — remove 3 wrappers, update 5 call sites
-- [x] Refactor `AdminSharesTab.razor` — remove 1 wrapper, update 1 call site
-- [x] Refactor `AdminAuditTab.razor` — remove 1 wrapper, update 1 call site
-- [x] Refactor `SharePasswordDialog.razor` — remove 1 wrapper, update 1 call site
-- [x] Refactor `Share.razor` — remove 2 wrappers, update 2 call sites
-- [x] Refactor `AssetDetail.razor` — remove 1 wrapper, update 1 call site
-- [x] Refactor `SharedCollectionView.razor` — replace 2 inline static calls with service calls
+### Phase 2: Update AssetUpload.razor
+- [x] Open dialog from `FinishProcessing()` when failures exist
+- [x] Add clickable error icon to re-open dialog
+- [x] Remove per-file `Feedback.ShowError()` during upload loop
 
-### Phase 3: Verification ✅
-- [x] `dotnet build --configuration Release` — 0 warnings, 0 errors
-- [x] Update REVIEW-REPORT.md — mark both items ✅ DONE, update Priority Summary
+### Phase 3: Add localization strings
+- [x] `CommonResource.resx` + `CommonResource.sv.resx`
+
+### Phase 4: Verify
+- [x] Build compiles with zero warnings
+
+## Summary
+Created `UploadErrorsDialog.razor` — a MudDialog with a MudSimpleTable showing file name, size, and error description for each failed upload. Updated `AssetUpload.razor` to:
+- Open the dialog automatically when uploads finish with failures (both after processing poll and after immediate failures)
+- Replace per-file snackbar toasts with a single dialog at batch completion
+- Make the error icon clickable to re-open the dialog
+- Keep failed uploads visible in the list until the user closes the dialog
+- Added English and Swedish localization strings
+- [x] `src/AssetHub.Worker/Consumers/ProcessImageConsumer.cs`
+- [x] `src/AssetHub.Worker/Consumers/ProcessVideoConsumer.cs`
+
+### Phase 6: Fix build errors ✅
+- [x] Add `using Wolverine.ErrorHandling;` to Worker/Program.cs (for `OnException<T>()`)
+- [x] Add `using Wolverine.ErrorHandling;` to Api/Program.cs
+
+### Phase 7: Build & Test verification ✅
+- [x] `dotnet build --configuration Release` — Build succeeded (0 errors)
+- [x] ZipBuildServiceAuditTests — 2/2 passed
+- [x] Integration tests (Endpoints + EdgeCases) — 112/112 passed
 
 ## Summary
 
-### Changes Made
+MassTransit → Wolverine migration is complete. All source files, tests, and infrastructure are updated.
 
-**New file:**
-- `src/AssetHub.Ui/Services/LocalizedDisplayService.cs` — Scoped service with `Role()`, `AssetType()`, `ContentType()`, `ScopeType()` methods
+**Files modified this session:**
+- `src/AssetHub.Infrastructure/Services/ZipBuildService.cs` — IPublishEndpoint → IMessageBus
+- `src/AssetHub.Application/Services/IZipBuildService.cs` — Doc comments updated
+- `src/AssetHub.Infrastructure/Services/ImageProcessingService.cs` — Doc comment updated
+- `src/AssetHub.Infrastructure/Services/VideoProcessingService.cs` — Doc comment updated
+- `src/AssetHub.Api/Program.cs` — Added `using Wolverine.ErrorHandling;`
+- `src/AssetHub.Worker/Program.cs` — Added `using Wolverine.ErrorHandling;`
+- `tests/AssetHub.Tests/Fixtures/CustomWebApplicationFactory.cs` — MassTransit test harness → Wolverine test isolation
+- `tests/AssetHub.Tests/Services/ZipBuildServiceAuditTests.cs` — Mock<IPublishEndpoint> → Mock<IMessageBus>
 
-**Modified files (8):**
-- `src/AssetHub.Api/Extensions/ServiceCollectionExtensions.cs` — Added DI registration
-- `src/AssetHub.Ui/Pages/Home.razor` — Inject service, remove 3 wrappers, update 5 call sites
-- `src/AssetHub.Ui/Pages/Share.razor` — Inject service, remove 2 wrappers, update 2 call sites
-- `src/AssetHub.Ui/Pages/AssetDetail.razor` — Inject service, remove 1 wrapper, update 1 call site
-- `src/AssetHub.Ui/Components/AdminSharesTab.razor` — Inject service, remove 1 wrapper, update 1 call site
-- `src/AssetHub.Ui/Components/AdminAuditTab.razor` — Inject service, remove 1 wrapper, update 1 call site
-- `src/AssetHub.Ui/Components/SharePasswordDialog.razor` — Inject service, remove 1 wrapper, update 1 call site
-- `src/AssetHub.Ui/Components/SharedCollectionView.razor` — Inject service, replace 2 inline static calls
-- `docs/REVIEW-REPORT.md` — Both items marked ✅ DONE
-
-**Net effect:** Removed ~15 boilerplate wrapper methods across 7 components. Components now use `Display.Role()`, `Display.AssetType()`, `Display.ContentType()`, `Display.ScopeType()` instead of defining local one-liner delegates.
+**Files deleted:**
+- 5 old MassTransit consumer files (Api/Consumers + Worker/Consumers)
 
 **Not changed (intentional):**
 - `GetLocalizedEventType` in `Home.razor` and `AdminAuditTab.razor` — uses `AdminLoc` (different resource), not a simple wrapper
 - `FormatTimeAgo` in `Home.razor` — contains custom logic, not a localization delegation
 - `AssetDisplayHelpers` static methods — kept as-is for backward compatibility
+
+---
+
+## Session: Upload Failure Fix (2026-04-02)
+
+### Request
+User reported 4 uploaded files all failed processing.
+
+### Root Cause Analysis
+1. **Wolverine routing misconfiguration**: Both API and Worker had `opts.ApplicationAssembly = typeof(Program).Assembly` which only discovers local handlers. Without explicit routing, `ProcessImageCommand` published by API had "No routes can be determined" — messages silently dropped.
+2. **RabbitMQ healthcheck failure (PID limit)**: `pids: 150` too low — `rabbitmq-diagnostics` spawns Erlang VM needing ~28 scheduler threads, causing SIGABRT.
+3. **RabbitMQ healthcheck failure (.erlang.cookie permissions)**: After PID increase to 256, `cap_drop: ALL` removed `DAC_READ_SEARCH` — root healthcheck process couldn't read `.erlang.cookie` (0400, owned by rabbitmq UID 999).
+
+### Fixes Applied
+
+#### Phase 1: Wolverine message routing ✅
+- `src/AssetHub.Api/Program.cs` — Added `PublishMessage<T>().ToRabbitQueue()` for ProcessImageCommand, ProcessVideoCommand, BuildZipCommand + `ListenToRabbitQueue()` for asset-processing-completed/failed
+- `src/AssetHub.Worker/Program.cs` — Added `ListenToRabbitQueue()` for process-image/video/build-zip + `PublishMessage<T>().ToRabbitQueue()` for AssetProcessingCompletedEvent/FailedEvent
+
+#### Phase 2: RabbitMQ PID limit ✅
+- `docker/docker-compose.yml` — RabbitMQ `pids: 150` → `pids: 256`
+- `docker/docker-compose.prod.yml` — Same fix
+
+#### Phase 3: RabbitMQ .erlang.cookie permission ✅
+- `docker/docker-compose.yml` — Added `DAC_READ_SEARCH` to RabbitMQ `cap_add`
+- `docker/docker-compose.prod.yml` — Same fix
+
+### Verification
+- RabbitMQ: healthy, `rabbit@... is fully booted and running`
+- Worker: listening on `process-image`, `process-video`, `build-zip` queues
+- API: publishing to Worker queues, listening on `asset-processing-completed`, `asset-processing-failed`
+- All containers running and healthy
+- User can now retry uploads to verify end-to-end processing

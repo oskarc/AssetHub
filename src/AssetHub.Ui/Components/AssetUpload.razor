@@ -51,7 +51,77 @@
     </MudStack>
 </div>
 
-@if (_uploads.Any())
+@if (_showReport)
+{
+    var succeeded = _uploads.Count(u => u.Status == UploadStatus.Completed);
+    var failed = _uploads.Count(u => u.Status == UploadStatus.Failed);
+    var total = succeeded + failed;
+    var allSuccess = failed == 0;
+
+    <MudPaper Class="pa-3 mt-3" Elevation="0" Outlined="true">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+            <MudText Typo="Typo.subtitle2">@CommonLoc["Text_UploadReport"]</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                           Size="Size.Small"
+                           OnClick="DismissReport"
+                           aria-label="@CommonLoc["Btn_Close"]" />
+        </MudStack>
+
+        <MudStack Row="true" Spacing="4" Class="mb-3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Small" Color="Color.Default" />
+                <MudText Typo="Typo.body2">@string.Format(CommonLoc["Text_ReportTotal"].Value, total)</MudText>
+            </MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" />
+                <MudText Typo="Typo.body2" Color="Color.Success">@string.Format(CommonLoc["Text_ReportSucceeded"].Value, succeeded)</MudText>
+            </MudStack>
+            @if (failed > 0)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" Color="Color.Error" />
+                    <MudText Typo="Typo.body2" Color="Color.Error">@string.Format(CommonLoc["Text_ReportFailed"].Value, failed)</MudText>
+                </MudStack>
+            }
+        </MudStack>
+
+        <MudDivider Class="mb-2" />
+
+        <MudStack Spacing="1">
+            @foreach (var upload in _uploads)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    @if (upload.Status == UploadStatus.Completed)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                    }
+                    else
+                    {
+                        <MudTooltip Text="@upload.ErrorMessage">
+                            <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
+                        </MudTooltip>
+                    }
+                    <MudIcon Icon="@AssetDisplayHelpers.GetContentTypeIcon(upload.ContentType)"
+                             Size="Size.Small"
+                             Color="Color.Default" />
+                    <MudText Typo="Typo.body2" Class="flex-grow-1">
+                        @upload.FileName
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @AssetDisplayHelpers.FormatFileSize(upload.Size)
+                    </MudText>
+                    @if (upload.Status == UploadStatus.Failed)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error">
+                            @upload.ErrorMessage
+                        </MudText>
+                    }
+                </MudStack>
+            }
+        </MudStack>
+    </MudPaper>
+}
+else if (_uploads.Any())
 {
     <MudPaper Class="pa-3 mt-3" Elevation="0" Outlined="true">
         <MudText Typo="Typo.subtitle2" Class="mb-2">@CommonLoc["Text_Uploads"]</MudText>
@@ -59,10 +129,10 @@
             @foreach (var upload in _uploads)
             {
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudIcon Icon="@AssetDisplayHelpers.GetContentTypeIcon(upload.ContentType)" 
-                             Size="Size.Small" 
+                    <MudIcon Icon="@AssetDisplayHelpers.GetContentTypeIcon(upload.ContentType)"
+                             Size="Size.Small"
                              Color="@GetStatusColor(upload.Status)" />
-                    <MudText Typo="Typo.body2" Class="flex-grow-1 text-truncate upload-chip-max">
+                    <MudText Typo="Typo.body2" Class="flex-grow-1">
                         @upload.FileName
                     </MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -70,18 +140,19 @@
                     </MudText>
                     @if (upload.Status == UploadStatus.Uploading)
                     {
-                        <MudProgressLinear Value="@upload.ProgressPercent" 
-                                           Min="0" Max="100" 
+                        <MudProgressLinear Value="@upload.ProgressPercent"
+                                           Min="0" Max="100"
                                            Color="Color.Primary"
                                            Class="upload-progress" />
                         <MudText Typo="Typo.caption">@upload.ProgressPercent%</MudText>
                     }
-                    else if (upload.Status == UploadStatus.Verifying)
+                    else if (upload.Status == UploadStatus.Scanning)
                     {
                         <MudProgressLinear Indeterminate="true"
                                            Color="Color.Warning"
                                            Class="upload-progress" />
-                        <MudText Typo="Typo.caption" Color="Color.Warning">@CommonLoc["Text_Verifying"]</MudText>
+                        <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Small" Color="Color.Warning" />
+                        <MudText Typo="Typo.caption" Color="Color.Warning">@CommonLoc["Text_ScanningForThreats"]</MudText>
                     }
                     else if (upload.Status == UploadStatus.Processing)
                     {
@@ -97,7 +168,11 @@
                     else if (upload.Status == UploadStatus.Failed)
                     {
                         <MudTooltip Text="@upload.ErrorMessage">
-                            <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Error"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           aria-label="@string.Format(CommonLoc["Aria_ShowUploadError"].Value, upload.FileName)"
+                                           OnClick="ShowUploadErrorsDialog" />
                         </MudTooltip>
                     }
                     else if (upload.Status == UploadStatus.Queued)
@@ -128,7 +203,9 @@
     private IJSObjectReference? _jsModule;
     private List<UploadItem> _uploads = new();
     private bool _isUploading = false;
+    private int _activeProcessingCount = 0;
     private bool _isDragOver = false;
+    private bool _showReport = false;
     private IDisposable? _locationChangingRegistration;
     private bool _navigationConfirmed;
     private CancellationTokenSource _cts = new();
@@ -176,6 +253,8 @@
         }
 
         _isUploading = true;
+        _showReport = false;
+        _uploads.Clear();
         await EnableBeforeUnloadAsync();
         var files = e.GetMultipleFiles(Constants.Limits.MaxFilesPerUpload);
 
@@ -288,182 +367,189 @@
                 {
                     upload.Status = UploadStatus.Failed;
                     upload.ErrorMessage ??= string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name);
-                    if (!_navigationConfirmed)
-                        Feedback.ShowError(string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name));
                     StateHasChanged();
                     continue;
                 }
 
                 // Step 3: Verify upload — validates file and runs malware scan
-                upload.Status = UploadStatus.Verifying;
+                upload.Status = UploadStatus.Scanning;
                 StateHasChanged();
 
+                var scanStart = DateTime.UtcNow;
                 var confirmResult = await Api.ConfirmUploadAsync(initResult.AssetId);
                 upload.AssetId = initResult.AssetId;
                 upload.Message = confirmResult.Message;
 
-                // Stay in Processing state — polling will mark Completed when ready
+                // Ensure the scanning indicator stays visible long enough for users
+                // to see that each file was scanned (at least 1.5s)
+                var scanElapsed = DateTime.UtcNow - scanStart;
+                if (scanElapsed < TimeSpan.FromMilliseconds(1500))
+                    await Task.Delay(TimeSpan.FromMilliseconds(1500) - scanElapsed);
+
+                // Start independent background poll for this file
                 upload.Status = UploadStatus.Processing;
+                if (upload.AssetId.HasValue)
+                {
+                    Interlocked.Increment(ref _activeProcessingCount);
+                    _ = PollSingleAssetCompletion(upload);
+                }
             }
             catch (Exception ex)
             {
                 upload.Status = UploadStatus.Failed;
-                upload.ErrorMessage = ex.Message;
-                if (!_navigationConfirmed)
-                    Feedback.ShowError(string.Format(CommonLoc["Error_UploadFailed"].Value, file.Name));
+                upload.ErrorMessage = ClassifyUploadError(ex.Message, upload);
             }
 
             StateHasChanged();
         }
 
         _isUploading = false;
-        
-        // Collect asset IDs still being processed server-side
-        var processingAssetIds = _uploads
-            .Where(u => u.Status == UploadStatus.Processing && u.AssetId.HasValue)
-            .Select(u => u.AssetId!.Value)
-            .ToList();
 
         // Trigger initial refresh to show assets (with processing status)
         if (!_cts.IsCancellationRequested)
             await OnUploadComplete.InvokeAsync();
 
-        // Poll for processing completion in background, then refresh again
-        if (processingAssetIds.Any())
-        {
-            _ = PollForProcessingCompletion(processingAssetIds);
-        }
-        else
-        {
-            // All uploads either failed or had no processing — clean up now
-            await DisableBeforeUnloadAsync();
-            await Task.Delay(3000);
-            _uploads.RemoveAll(u => u.Status is UploadStatus.Completed or UploadStatus.Failed);
-            StateHasChanged();
-        }
+        // If nothing entered processing, handle completion immediately
+        if (_activeProcessingCount == 0)
+            await HandleAllUploadsFinished();
     }
 
     /// <summary>
-    /// Polls the API until all uploaded assets have finished processing (Ready or Failed),
-    /// then triggers a refresh so thumbnails appear without manual page reload.
+    /// Polls a single asset until its server-side processing completes.
+    /// Each file is tracked independently — completed files show a checkmark
+    /// and clean up without waiting for other files.
     /// </summary>
-    private async Task PollForProcessingCompletion(List<Guid> assetIds)
+    private async Task PollSingleAssetCompletion(UploadItem upload)
     {
-        const int maxAttempts = 40; // Max 120 seconds of polling (40 * 3s)
+        const int maxAttempts = 40;
         const int pollIntervalMs = 3000;
 
-        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        try
         {
-            await Task.Delay(pollIntervalMs, _cts.Token);
-
-            try
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                var allReady = true;
-                foreach (var assetId in assetIds)
-                {
-                    var upload = _uploads.FirstOrDefault(u => u.AssetId == assetId);
-                    if (upload is null || upload.Status is UploadStatus.Completed or UploadStatus.Failed)
-                        continue;
+                await Task.Delay(pollIntervalMs, _cts.Token);
 
-                    var asset = await Api.GetAssetAsync(assetId, CancellationToken.None);
+                try
+                {
+                    var asset = await Api.GetAssetAsync(upload.AssetId!.Value, CancellationToken.None);
 
                     if (asset is null)
                     {
-                        // Asset was deleted (e.g., malware detected during scan)
                         upload.Status = UploadStatus.Failed;
                         upload.ErrorMessage = CommonLoc["Error_AssetProcessingDeleted"].Value;
                         await InvokeAsync(StateHasChanged);
+                        return;
                     }
-                    else if (asset.Status == Constants.AssetStatus.Failed)
+
+                    if (asset.Status == Constants.AssetStatus.Failed)
                     {
                         upload.Status = UploadStatus.Failed;
                         upload.ErrorMessage = CommonLoc["Error_AssetProcessingFailed"].Value;
                         await InvokeAsync(StateHasChanged);
+                        return;
                     }
-                    else if (asset.Status == Constants.AssetStatus.Processing)
+
+                    if (asset.Status != Constants.AssetStatus.Processing)
                     {
-                        allReady = false;
+                        // Asset is ready — mark completed and refresh grid
+                        upload.Status = UploadStatus.Completed;
+                        await InvokeAsync(StateHasChanged);
+                        await OnUploadComplete.InvokeAsync();
+
+                        // Preload thumbnail so it appears without a flicker
+                        if (_jsModule != null)
+                        {
+                            try
+                            {
+                                await _jsModule.InvokeVoidAsync("preloadImages",
+                                    (object)new[] { $"/api/v1/assets/{upload.AssetId}/thumb" }, 10000);
+                            }
+                            catch { /* component may be disposed */ }
+                        }
+
+                        return;
                     }
                 }
+                catch (OperationCanceledException) { return; }
+                catch { /* polling error — retry next attempt */ }
+            }
 
-                if (allReady)
-                {
-                    await FinishProcessing(assetIds);
-                    return;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                return; // Component disposed or user navigated away
-            }
-            catch
-            {
-                // Ignore polling errors — worst case user refreshes manually
-            }
-        }
-
-        // Timeout — mark remaining processing uploads as failed with a clear message
-        if (!_cts.IsCancellationRequested)
-        {
-            foreach (var upload in _uploads.Where(u => u.Status == UploadStatus.Processing))
+            // Timeout
+            if (!_cts.IsCancellationRequested)
             {
                 upload.Status = UploadStatus.Failed;
                 upload.ErrorMessage = CommonLoc["Error_AssetProcessingTimeout"].Value;
+                await InvokeAsync(StateHasChanged);
             }
-            await FinishProcessing(assetIds);
+        }
+        finally
+        {
+            // When the last processing file finishes, handle batch completion
+            // (disable navigation guard, show error dialog if needed)
+            if (Interlocked.Decrement(ref _activeProcessingCount) == 0 && !_isUploading)
+                await HandleAllUploadsFinished();
         }
     }
 
     /// <summary>
-    /// Refreshes the asset grid, preloads thumbnail images for successful uploads,
-    /// then marks remaining processing uploads as completed.
+    /// Called when the last file finishes processing (success or failure).
+    /// Disables the navigation guard and shows the error dialog if any files failed.
     /// </summary>
-    private async Task FinishProcessing(List<Guid> assetIds)
+    private async Task HandleAllUploadsFinished()
     {
         if (_cts.IsCancellationRequested) return;
 
-        // Uploads fully complete — remove browser navigation guard
         await DisableBeforeUnloadAsync();
 
-        // Notify user of any failures
-        var failedCount = _uploads.Count(u => u.AssetId.HasValue && assetIds.Contains(u.AssetId.Value) && u.Status == UploadStatus.Failed);
-        if (failedCount > 0)
-        {
-            Feedback.ShowError(string.Format(CommonLoc["Error_ProcessingFailedCount"].Value, failedCount));
-        }
-
-        // Refresh grid so assets appear (still showing Processing indicator for successful ones)
-        await OnUploadComplete.InvokeAsync();
-
-        // Preload thumbnails only for assets that weren't marked as failed
-        var successIds = assetIds
-            .Where(id => _uploads.Any(u => u.AssetId == id && u.Status == UploadStatus.Processing))
-            .ToArray();
-
-        if (_jsModule != null && successIds.Length > 0)
-        {
-            var thumbUrls = successIds.Select(id => $"/api/v1/assets/{id}/thumb").ToArray();
-            try
-            {
-                await _jsModule.InvokeVoidAsync("preloadImages", (object)thumbUrls, 10000);
-            }
-            catch
-            {
-                // JS interop may fail if component is disposed — safe to ignore
-            }
-        }
-
-        // Mark remaining processing uploads as completed (failed ones keep their status)
-        foreach (var upload in _uploads.Where(u => u.Status == UploadStatus.Processing))
-        {
-            upload.Status = UploadStatus.Completed;
-        }
+        _showReport = true;
         await InvokeAsync(StateHasChanged);
+    }
 
-        // Clean up after a short delay
-        await Task.Delay(3000);
-        _uploads.RemoveAll(u => u.Status is UploadStatus.Completed or UploadStatus.Failed);
-        await InvokeAsync(StateHasChanged);
+    private void DismissReport()
+    {
+        _showReport = false;
+        _uploads.Clear();
+        StateHasChanged();
+    }
+
+    private async Task ShowUploadErrorsDialog()
+    {
+        var failedFiles = _uploads
+            .Where(u => u.Status == UploadStatus.Failed)
+            .Select(u => new UploadErrorsDialog.FailedFileInfo
+            {
+                FileName = u.FileName,
+                Size = u.Size,
+                ContentType = u.ContentType,
+                ErrorMessage = u.ErrorMessage,
+                Category = u.ErrorCategory
+            })
+            .ToList();
+
+        if (failedFiles.Count == 0) return;
+
+        var parameters = new DialogParameters<UploadErrorsDialog>
+        {
+            { x => x.FailedFiles, failedFiles }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<UploadErrorsDialog>(
+            CommonLoc["Title_UploadErrors"].Value,
+            parameters,
+            options);
+        await dialog.Result;
+
+        // After user closes dialog, clear failed uploads
+        _uploads.RemoveAll(u => u.Status == UploadStatus.Failed);
+        StateHasChanged();
     }
 
     private Color GetStatusColor(UploadStatus status)
@@ -471,7 +557,7 @@
         return status switch
         {
             UploadStatus.Uploading => Color.Primary,
-            UploadStatus.Verifying => Color.Warning,
+            UploadStatus.Scanning => Color.Warning,
             UploadStatus.Processing => Color.Info,
             UploadStatus.Completed => Color.Success,
             UploadStatus.Failed => Color.Error,
@@ -496,7 +582,7 @@
 
     private bool HasActiveUploads => _uploads.Any(u =>
         u.Status is UploadStatus.Queued or UploadStatus.Uploading
-            or UploadStatus.Verifying or UploadStatus.Processing);
+            or UploadStatus.Scanning or UploadStatus.Processing);
 
     private async ValueTask OnLocationChanging(LocationChangingContext context)
     {
@@ -555,6 +641,34 @@
         }
     }
 
+    /// <summary>
+    /// Maps API error messages to user-friendly, localized descriptions
+    /// and sets the error category on the upload item for visual differentiation.
+    /// </summary>
+    private string ClassifyUploadError(string errorMessage, UploadItem? upload = null)
+    {
+        if (string.IsNullOrEmpty(errorMessage))
+            return CommonLoc["Error_UploadGeneric"].Value;
+
+        if (errorMessage.Contains("malware detected", StringComparison.OrdinalIgnoreCase))
+        {
+            if (upload != null) upload.ErrorCategory = UploadErrorsDialog.ErrorCategory.Malware;
+            return CommonLoc["Error_MalwareDetected"].Value;
+        }
+
+        if (errorMessage.Contains("scanning failed", StringComparison.OrdinalIgnoreCase) ||
+            errorMessage.Contains("scanner unavailable", StringComparison.OrdinalIgnoreCase))
+        {
+            if (upload != null) upload.ErrorCategory = UploadErrorsDialog.ErrorCategory.ScannerUnavailable;
+            return CommonLoc["Error_ScannerUnavailable"].Value;
+        }
+
+        if (errorMessage.Contains("content does not match", StringComparison.OrdinalIgnoreCase))
+            return CommonLoc["Error_ContentTypeMismatch"].Value;
+
+        return errorMessage;
+    }
+
     private class UploadItem
     {
         public string FileName { get; set; } = "";
@@ -566,13 +680,14 @@
         public Guid? AssetId { get; set; }
         public string? Message { get; set; }
         public string? ErrorMessage { get; set; }
+        public UploadErrorsDialog.ErrorCategory ErrorCategory { get; set; }
     }
 
     private enum UploadStatus
     {
         Queued,
         Uploading,
-        Verifying,
+        Scanning,
         Processing,
         Completed,
         Failed

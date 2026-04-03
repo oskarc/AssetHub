@@ -240,18 +240,6 @@ public static class Constants
         /// <summary>How long a share access token remains valid (minutes).</summary>
         public const int ShareAccessTokenLifetimeMinutes = 30;
 
-        /// <summary>Min Hangfire workers for the API host (lightweight zip builds, etc.).</summary>
-        public const int ApiMinHangfireWorkers = 2;
-
-        /// <summary>Max Hangfire workers for the API host.</summary>
-        public const int ApiMaxHangfireWorkers = 8;
-
-        /// <summary>Min Hangfire workers for the dedicated Worker process (media processing, cleanup).</summary>
-        public const int WorkerMinHangfireWorkers = 2;
-
-        /// <summary>Max Hangfire workers for the dedicated Worker process.</summary>
-        public const int WorkerMaxHangfireWorkers = 8;
-
         /// <summary>Maximum number of entries in the in-memory cache.</summary>
         public const int MemoryCacheSizeLimit = 10_000;
 

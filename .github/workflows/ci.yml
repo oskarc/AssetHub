@@ -193,3 +193,45 @@ jobs:
             cat trivy-worker-results.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+
+  infra-image-scan:
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Pull RabbitMQ image
+        run: docker pull rabbitmq:4-management-alpine@sha256:b618738ea52cb6d0073ee9f0412ede133411ecacd7afa40f17be748a6d9a9ee1
+
+      - name: Scan RabbitMQ image for vulnerabilities
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 (trivy v0.69.3)
+        with:
+          image-ref: 'rabbitmq:4-management-alpine'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-rabbitmq-results.txt'
+
+      - name: Upload Trivy scan results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: trivy-infra-scan-results
+          path: trivy-rabbitmq-results.txt
+
+      - name: Add Trivy results to summary
+        if: always()
+        run: |
+          echo "## Infrastructure Image Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f trivy-rabbitmq-results.txt ]; then
+            echo "### RabbitMQ Image (rabbitmq:4-management-alpine)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat trivy-rabbitmq-results.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

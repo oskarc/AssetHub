@@ -8,7 +8,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
-using Hangfire;
+using Wolverine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -29,7 +29,7 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
     private CollectionRepository _colRepo = null!;
     private Mock<IMinIOAdapter> _minioMock = null!;
     private Mock<IAuditService> _auditMock = null!;
-    private Mock<IBackgroundJobClient> _jobClientMock = null!;
+    private Mock<IMessageBus> _messageBusMock = null!;
 
     private const string BucketName = "test-bucket";
     private const string TestUser = "zip-audit-user-001";
@@ -47,7 +47,7 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
-        _jobClientMock = new Mock<IBackgroundJobClient>();
+        _messageBusMock = new Mock<IMessageBus>();
 
         // Mock MinIO download to return a small stream
         _minioMock.Setup(m => m.DownloadAsync(
@@ -79,7 +79,7 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
         return new ZipBuildService(
             new ZipBuildDataDependencies(dbFactoryMock.Object, _assetRepo, _colRepo),
             _minioMock.Object,
-            _jobClientMock.Object,
+            _messageBusMock.Object,
             _auditMock.Object,
             minioSettings,
             NullLogger<ZipBuildService>.Instance);

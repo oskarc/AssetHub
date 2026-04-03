@@ -5,8 +5,6 @@ using AssetHub.Application.Services;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
-using Hangfire;
-using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
@@ -22,15 +20,13 @@ namespace AssetHub.Infrastructure.DependencyInjection;
 
 /// <summary>
 /// Registers infrastructure services shared by both the API host and the Worker host:
-/// database, Hangfire, MinIO, repositories, and core domain services.
+/// database, MinIO, repositories, and core domain services.
 /// Host-specific services (auth, Blazor, health checks, etc.) stay in each host project.
 /// </summary>
 public static class InfrastructureServiceExtensions
 {
     /// <summary>
     /// Adds all shared infrastructure services to the DI container.
-    /// Registers Hangfire storage but NOT the Hangfire server — each host
-    /// (API, Worker) should call AddHangfireServer() with its own options.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration.</param>
@@ -72,20 +68,6 @@ public static class InfrastructureServiceExtensions
             options.ConfigureWarnings(w =>
                 w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         }, ServiceLifetime.Scoped);
-
-        // ── Hangfire ────────────────────────────────────────────────────────
-        var hangfireConnectionString = configuration["Hangfire:ConnectionString"];
-        if (string.IsNullOrWhiteSpace(hangfireConnectionString))
-            hangfireConnectionString = connectionString;
-
-        services.AddHangfire(config =>
-        {
-            config.UsePostgreSqlStorage(options =>
-                options.UseNpgsqlConnection(hangfireConnectionString));
-        });
-
-        // NOTE: Each host should call AddHangfireServer() with its own options.
-        // Both the API and Worker configure queues including "media-processing".
 
         // ── Options ─────────────────────────────────────────────────────────
         services.AddOptions<MinIOSettings>()
@@ -146,7 +128,6 @@ public static class InfrastructureServiceExtensions
             var hybridCache = sp.GetRequiredService<HybridCache>();
             return new MinIOAdapter(internalClient, publicClient, adapterLogger, pipelineProvider, hybridCache);
         });
-        // Register concrete types for Hangfire job resolution, then forward the interface
         services.AddScoped<ImageMetadataExtractor>();
         services.AddScoped<ImageProcessingService>();
         services.AddScoped<VideoProcessingService>();

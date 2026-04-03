@@ -1,0 +1,116 @@
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title-danger">
+            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" />
+            <MudText Typo="Typo.h6">@CommonLoc["Title_UploadErrors"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2" Class="dialog-min-width">
+            @if (FailedFiles.Any(f => f.Category == ErrorCategory.ScannerUnavailable))
+            {
+                <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.ShieldMoon" Dense="true">
+                    @CommonLoc["Alert_ScannerDown"]
+                </MudAlert>
+            }
+            @if (FailedFiles.Any(f => f.Category == ErrorCategory.Malware))
+            {
+                <MudAlert Severity="Severity.Error" Icon="@Icons.Material.Filled.GppBad" Dense="true">
+                    @CommonLoc["Alert_MalwareBlocked"]
+                </MudAlert>
+            }
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @string.Format(CommonLoc["Text_UploadErrorsSummary"].Value, FailedFiles.Count)
+            </MudText>
+            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="overflow-x: auto;">
+                <thead>
+                    <tr>
+                        <th>@CommonLoc["Header_FileName"]</th>
+                        <th>@CommonLoc["Header_FileSize"]</th>
+                        <th>@CommonLoc["Header_Error"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var file in FailedFiles)
+                    {
+                        <tr>
+                            <td>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@GetErrorIcon(file)"
+                                             Size="Size.Small"
+                                             Color="@GetErrorColor(file)" />
+                                    <MudText Typo="Typo.body2" Class="text-truncate" Style="max-width: 200px;">
+                                        @file.FileName
+                                    </MudText>
+                                </MudStack>
+                            </td>
+                            <td>
+                                <MudText Typo="Typo.body2">
+                                    @AssetDisplayHelpers.FormatFileSize(file.Size)
+                                </MudText>
+                            </td>
+                            <td>
+                                <MudText Typo="Typo.body2" Color="@GetErrorColor(file)">
+                                    @(file.ErrorMessage ?? CommonLoc["Error_Unknown"].Value)
+                                </MudText>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">
+            @CommonLoc["Btn_Close"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public List<FailedFileInfo> FailedFiles { get; set; } = new();
+
+    private void Close() => MudDialog.Close();
+
+    private static string GetErrorIcon(FailedFileInfo file)
+    {
+        return file.Category switch
+        {
+            ErrorCategory.Malware => Icons.Material.Filled.GppBad,
+            ErrorCategory.ScannerUnavailable => Icons.Material.Filled.ShieldMoon,
+            _ => Icons.Material.Filled.Error
+        };
+    }
+
+    private static Color GetErrorColor(FailedFileInfo file)
+    {
+        return file.Category switch
+        {
+            ErrorCategory.Malware => Color.Error,
+            ErrorCategory.ScannerUnavailable => Color.Warning,
+            _ => Color.Error
+        };
+    }
+
+    public enum ErrorCategory
+    {
+        General,
+        Malware,
+        ScannerUnavailable
+    }
+
+    public class FailedFileInfo
+    {
+        public string FileName { get; set; } = "";
+        public long Size { get; set; }
+        public string ContentType { get; set; } = "";
+        public string? ErrorMessage { get; set; }
+        public ErrorCategory Category { get; set; } = ErrorCategory.General;
+    }
+}

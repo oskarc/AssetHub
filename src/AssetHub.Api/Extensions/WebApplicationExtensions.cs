@@ -6,7 +6,6 @@ using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using AssetHub.Ui;
-using Hangfire;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -17,7 +16,6 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Minio;
-using Hangfire.Dashboard;
 using Serilog;
 
 namespace AssetHub.Api.Extensions;
@@ -215,7 +213,7 @@ public static class WebApplicationExtensions
     // ── Endpoint mapping ────────────────────────────────────────────────────
 
     /// <summary>
-    /// Maps all API endpoints, auth routes, Blazor, Hangfire, and health checks.
+    /// Maps all API endpoints, auth routes, Blazor, and health checks.
     /// </summary>
     public static void MapAssetHubEndpoints(this WebApplication app)
     {
@@ -265,23 +263,6 @@ public static class WebApplicationExtensions
         // Blazor
         app.MapRazorComponents<App>()
            .AddInteractiveServerRenderMode();
-
-        // Hangfire Dashboard (admin-only)
-        app.MapHangfireDashboard("/hangfire", new DashboardOptions
-        {
-            Authorization = new[] { new HangfireAdminAuthorizationFilter() }
-        });
-
-        // Recurring jobs
-        RecurringJob.AddOrUpdate<IUserSyncService>(
-            "sync-deleted-users",
-            service => service.SyncDeletedUsersAsync(false, CancellationToken.None),
-            Cron.Daily);
-
-        RecurringJob.AddOrUpdate<IZipBuildService>(
-            "cleanup-expired-zip-downloads",
-            service => service.CleanupExpiredAsync(CancellationToken.None),
-            Cron.Hourly);
 
         // Health checks
         MapHealthCheckEndpoints(app);
@@ -461,19 +442,5 @@ public static class WebApplicationExtensions
             })
         };
         return context.Response.WriteAsJsonAsync(result);
-    }
-
-    /// <summary>
-    /// Hangfire dashboard authorization filter: requires authenticated admin user.
-    /// </summary>
-    private sealed class HangfireAdminAuthorizationFilter : IDashboardAuthorizationFilter
-    {
-        public bool Authorize(DashboardContext context)
-        {
-            var httpContext = context.GetHttpContext();
-            var user = httpContext.User;
-            return user.Identity?.IsAuthenticated == true
-                   && user.IsInRole("admin");
-        }
     }
 }

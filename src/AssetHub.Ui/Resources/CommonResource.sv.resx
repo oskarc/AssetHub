@@ -160,7 +160,7 @@
   <data name="Text_SignedIn" xml:space="preserve"><value>Inloggad</value></data>
   <data name="Text_NoTags" xml:space="preserve"><value>Inga taggar</value></data>
   <data name="Text_Processing" xml:space="preserve"><value>Bearbetar</value></data>
-  <data name="Text_Verifying" xml:space="preserve"><value>Verifierar</value></data>
+  <data name="Text_ScanningForThreats" xml:space="preserve"><value>Söker efter hot…</value></data>
   <data name="Text_Queued" xml:space="preserve"><value>I kö</value></data>
   <data name="Text_Remaining" xml:space="preserve"><value>({0} kvar)</value></data>
   <data name="Text_ShowingOfAssets" xml:space="preserve"><value>Visar {0} av {1} tillgångar</value></data>
@@ -353,6 +353,29 @@
   <data name="Error_AssetProcessingDeleted" xml:space="preserve"><value>Filen togs bort under säkerhetsskanning.</value></data>
   <data name="Error_AssetProcessingTimeout" xml:space="preserve"><value>Bearbetningen tar längre tid än förväntat. Filen visas när den är klar.</value></data>
   <data name="Error_ProcessingFailedCount" xml:space="preserve"><value>{0} fil(er) misslyckades vid bearbetning</value></data>
+
+  <!-- Security scanning errors -->
+  <data name="Error_MalwareDetected" xml:space="preserve"><value>Filen avvisades: ett säkerhetshot upptäcktes. Filen har tagits bort.</value></data>
+  <data name="Error_ScannerUnavailable" xml:space="preserve"><value>Virusskanning är för närvarande otillgänglig. Uppladdningen kan inte fortsätta — kontakta din administratör.</value></data>
+  <data name="Error_ContentTypeMismatch" xml:space="preserve"><value>Filinnehållet matchar inte den angivna filtypen.</value></data>
+  <data name="Error_UploadGeneric" xml:space="preserve"><value>Uppladdningen misslyckades. Försök igen.</value></data>
+  <data name="Alert_ScannerDown" xml:space="preserve"><value>Virusskannern är för närvarande otillgänglig. Alla uppladdningar blockeras tills skanning återställs. Vänligen meddela din systemadministratör.</value></data>
+  <data name="Alert_MalwareBlocked" xml:space="preserve"><value>En eller flera filer identifierades som säkerhetshot och har tagits bort automatiskt.</value></data>
+
+  <!-- Upload Errors Dialog -->
+  <data name="Title_UploadErrors" xml:space="preserve"><value>Uppladdningsfel</value></data>
+  <data name="Text_UploadErrorsSummary" xml:space="preserve"><value>{0} fil(er) kunde inte laddas upp eller bearbetas.</value></data>
+  <data name="Header_FileName" xml:space="preserve"><value>Fil</value></data>
+  <data name="Header_FileSize" xml:space="preserve"><value>Storlek</value></data>
+  <data name="Header_Error" xml:space="preserve"><value>Fel</value></data>
+  <data name="Error_Unknown" xml:space="preserve"><value>Ett okänt fel inträffade.</value></data>
+  <data name="Aria_ShowUploadError" xml:space="preserve"><value>Visa feldetaljer för {0}</value></data>
+
+  <!-- Upload Report -->
+  <data name="Text_UploadReport" xml:space="preserve"><value>Uppladdningsrapport</value></data>
+  <data name="Text_ReportTotal" xml:space="preserve"><value>{0} totalt</value></data>
+  <data name="Text_ReportSucceeded" xml:space="preserve"><value>{0} lyckades</value></data>
+  <data name="Text_ReportFailed" xml:space="preserve"><value>{0} misslyckades</value></data>
 
   <!-- Search -->
   <data name="SearchHint_MinChars" xml:space="preserve"><value>Skriv minst {0} tecken för att söka</value></data>

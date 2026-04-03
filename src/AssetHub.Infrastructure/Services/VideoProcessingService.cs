@@ -1,23 +1,37 @@
 using System.Diagnostics;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
-using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
-using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
+/// Result of video processing — returned to the consumer for DB update and event publication.
+/// </summary>
+public sealed record VideoProcessingResult
+{
+    public bool Succeeded { get; init; }
+    public string? ThumbObjectKey { get; init; }
+    public string? PosterObjectKey { get; init; }
+    public string? ErrorMessage { get; init; }
+    public string? ErrorType { get; init; }
+
+    public static VideoProcessingResult Success(string thumbKey, string posterKey)
+        => new() { Succeeded = true, ThumbObjectKey = thumbKey, PosterObjectKey = posterKey };
+
+    public static VideoProcessingResult Failure(string message, string errorType)
+        => new() { Succeeded = false, ErrorMessage = message, ErrorType = errorType };
+}
+
+/// <summary>
 /// Processes video assets: extracts a poster frame and thumbnail.
 /// Uses presigned URLs so FFmpeg can stream directly from MinIO without downloading the entire file.
-/// Called by Hangfire background jobs.
+/// Returns a result object — the caller (Wolverine handler) is responsible for DB updates.
 /// </summary>
 public sealed class VideoProcessingService(
-    IAssetRepository assetRepository,
     IMinIOAdapter minioAdapter,
-    IAuditService auditService,
     IOptions<MinIOSettings> minioSettings,
     IOptions<ImageProcessingSettings> imageProcessingSettings,
     ILogger<VideoProcessingService> logger)
@@ -27,9 +41,7 @@ public sealed class VideoProcessingService(
 
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
 
-    [AutomaticRetry(Attempts = 2, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
-    [Queue("media-processing")]
-    public async Task ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
+    public async Task<VideoProcessingResult> ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
         var posterPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
@@ -38,13 +50,6 @@ public sealed class VideoProcessingService(
         try
         {
             logger.LogInformation("Starting video processing for asset {AssetId}", assetId);
-
-            var asset = await assetRepository.GetByIdAsync(assetId, ct);
-            if (asset == null)
-            {
-                logger.LogWarning("Asset {AssetId} not found, skipping processing", assetId);
-                return;
-            }
 
             // Generate a presigned URL so FFmpeg can stream directly from MinIO
             // instead of downloading the entire video file to disk.
@@ -65,38 +70,15 @@ public sealed class VideoProcessingService(
                 UploadFileAsync(posterPath, posterKey, ct),
                 UploadFileAsync(thumbPath, thumbKey, ct));
 
-            // Update asset with poster and thumbnail
-            asset.MarkReady(thumbKey, posterKey: posterKey);
-            await assetRepository.UpdateAsync(asset, ct);
-
             sw.Stop();
             logger.LogInformation("Successfully processed video asset {AssetId} in {ElapsedMs}ms", assetId, sw.ElapsedMilliseconds);
+
+            return VideoProcessingResult.Success(thumbKey, posterKey);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Video processing failed for asset {AssetId} after {ElapsedMs}ms: {Error}", assetId, sw.ElapsedMilliseconds, ex.Message);
-
-            await auditService.LogAsync(
-                "asset.processing_failed",
-                Constants.ScopeTypes.Asset,
-                assetId,
-                actorUserId: null,
-                new Dictionary<string, object>
-                {
-                    ["assetType"] = "video",
-                    ["error"] = ex.Message,
-                    ["errorType"] = ex.GetType().Name
-                },
-                ct);
-
-            var asset = await assetRepository.GetByIdAsync(assetId, ct);
-            if (asset != null)
-            {
-                asset.MarkFailed("Video processing failed. Please try uploading again or contact an administrator.");
-                await assetRepository.UpdateAsync(asset, ct);
-            }
-
-            throw; // Re-throw so Hangfire can retry
+            return VideoProcessingResult.Failure(ex.Message, ex.GetType().Name);
         }
         finally
         {

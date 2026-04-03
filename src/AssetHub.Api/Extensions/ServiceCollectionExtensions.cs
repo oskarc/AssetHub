@@ -1,3 +1,4 @@
+using AssetHub.Api.BackgroundServices;
 using AssetHub.Api.HealthChecks;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
@@ -5,12 +6,12 @@ using AssetHub.Application.Services;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.DependencyInjection;
 using AssetHub.Infrastructure.Services;
-using Hangfire;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Options;
 using MudBlazor.Services;
 using Polly;
 using System.Text.Json;
@@ -105,15 +106,18 @@ public static class ServiceCollectionExtensions
             .PersistKeysToDbContext<AssetHubDbContext>()
             .SetApplicationName("AssetHub");
 
-        // ── Shared infrastructure: DB, Hangfire storage, MinIO, Repos, core services
+        // ── Shared infrastructure: DB, MinIO, Repos, core services
         services.AddSharedInfrastructure(configuration);
 
-        // ── Hangfire server (API host processes jobs with constrained workers) ───
-        services.AddHangfireServer(options =>
-        {
-            options.Queues = ["default", "media-processing"];
-            options.WorkerCount = Math.Max(Constants.Limits.ApiMinHangfireWorkers, Math.Min(Environment.ProcessorCount, Constants.Limits.ApiMaxHangfireWorkers));
-        });
+        // ── RabbitMQ settings (used by Wolverine, configured in Program.cs) ───
+        services.AddOptions<RabbitMQSettings>()
+            .BindConfiguration(RabbitMQSettings.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // ── Background services (recurring tasks) ────────────────────────────
+        services.AddHostedService<UserSyncBackgroundService>();
+        services.AddHostedService<ZipCleanupBackgroundService>();
 
         // ── Rate Limiting ───────────────────────────────────────────────────
         ConfigureRateLimiting(services, environment);

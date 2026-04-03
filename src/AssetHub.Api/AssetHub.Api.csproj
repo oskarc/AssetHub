@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.*" />
     <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+    <PackageReference Include="WolverineFx.RabbitMQ" Version="5.27.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="9.0.*" />
@@ -19,9 +20,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.*" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.*" />
-    <PackageReference Include="Hangfire.Core" Version="1.8.*" />
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.*" />
-    <PackageReference Include="Hangfire.PostgreSql" Version="1.20.*" />
     <PackageReference Include="Minio" Version="5.0.*" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.*" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.*" />
