@@ -3,4 +3,6 @@ FROM rabbitmq:4-management-alpine@sha256:b618738ea52cb6d0073ee9f0412ede133411eca
 # Patch CVE-2026-22184: zlib buffer overflow in untgz utility (HIGH)
 # Upstream Alpine base ships zlib 1.3.1-r2; fix is in 1.3.2-r0.
 # Remove this Dockerfile once the upstream rabbitmq image is rebuilt with the fix.
+USER root
 RUN apk upgrade --no-cache zlib
+USER rabbitmq
