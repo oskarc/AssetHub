@@ -164,24 +164,7 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         }
 
         // Sort
-        filtered = sortBy?.ToLowerInvariant() switch
-        {
-            "email" => sortDescending
-                ? filtered.OrderByDescending(u => u.Email ?? string.Empty)
-                : filtered.OrderBy(u => u.Email ?? string.Empty),
-            "createdat" => sortDescending
-                ? filtered.OrderByDescending(u => u.CreatedAt ?? DateTime.MinValue)
-                : filtered.OrderBy(u => u.CreatedAt ?? DateTime.MinValue),
-            "collectioncount" => sortDescending
-                ? filtered.OrderByDescending(u => u.CollectionCount)
-                : filtered.OrderBy(u => u.CollectionCount),
-            "highestrole" => sortDescending
-                ? filtered.OrderByDescending(u => u.HighestRole ?? string.Empty)
-                : filtered.OrderBy(u => u.HighestRole ?? string.Empty),
-            _ => sortDescending
-                ? filtered.OrderByDescending(u => u.Username)
-                : filtered.OrderBy(u => u.Username)
-        };
+        filtered = ApplySort(filtered, sortBy, sortDescending);
 
         var materialised = filtered.ToList();
 
@@ -193,6 +176,19 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
             WithAccessCount = withAccessCount,
             AdminCount = adminCount,
             NoAccessCount = noAccessCount
+        };
+    }
+
+    private static IEnumerable<KeycloakUserDto> ApplySort(
+        IEnumerable<KeycloakUserDto> source, string? sortBy, bool descending)
+    {
+        return sortBy?.ToLowerInvariant() switch
+        {
+            "email"           => descending ? source.OrderByDescending(u => u.Email ?? string.Empty)       : source.OrderBy(u => u.Email ?? string.Empty),
+            "createdat"       => descending ? source.OrderByDescending(u => u.CreatedAt ?? DateTime.MinValue) : source.OrderBy(u => u.CreatedAt ?? DateTime.MinValue),
+            "collectioncount" => descending ? source.OrderByDescending(u => u.CollectionCount)             : source.OrderBy(u => u.CollectionCount),
+            "highestrole"     => descending ? source.OrderByDescending(u => u.HighestRole ?? string.Empty)  : source.OrderBy(u => u.HighestRole ?? string.Empty),
+            _                 => descending ? source.OrderByDescending(u => u.Username)                    : source.OrderBy(u => u.Username),
         };
     }
 
