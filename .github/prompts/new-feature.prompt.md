@@ -23,7 +23,7 @@ Scaffold a complete vertical-slice feature for AssetHub following Clean Architec
 - **Repository** in `Repositories/` — `sealed class`, primary constructor with `AssetHubDbContext`, `IMemoryCache`, `ILogger<T>`. Async methods with `CancellationToken`.
 - **Service** in `Services/` — `sealed class`, primary constructor, injects repos + `CurrentUser` + `IOptions<T>`. Returns `ServiceResult<T>`, never throws for business errors. Wrap external calls in Polly pipelines.
 - **DbContext** — Add `DbSet<T>` and `OnModelCreating` configuration (JSONB with ValueComparer, string enums with `ToDbString()`, named indexes `idx_{entity}_{fields}`).
-- **DI registration** — Register in `DependencyInjection/InfrastructureServiceExtensions.cs`. For Hangfire-called services, register concrete type first then forward interface.
+- **DI registration** — Register in `DependencyInjection/InfrastructureServiceExtensions.cs`. For Wolverine-handled services, register concrete type first then forward interface.
 
 ## 4. API Endpoint (`src/AssetHub.Api/Endpoints/`)
 - Static class with `Map*Endpoints(this WebApplication app)`.

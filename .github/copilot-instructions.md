@@ -1,6 +1,13 @@
 # Copilot Instructions — AssetHub
 
-AssetHub is a self-hosted digital asset management system built with ASP.NET Core 9, Blazor Server (MudBlazor 8), PostgreSQL, MinIO, and Keycloak. It follows Clean Architecture with strict dependency rules.
+AssetHub is a self-hosted digital asset management system built with ASP.NET Core 9, Blazor Server (MudBlazor 8), PostgreSQL, MinIO, Keycloak, Wolverine/RabbitMQ, and Redis. It follows Clean Architecture with strict dependency rules.
+
+## Instruction Precedence
+
+When instructions conflict, **project-specific files override generic ones**:
+1. This file (`copilot-instructions.md`) — highest priority, defines AssetHub conventions.
+2. Scoped instruction files in `.github/instructions/` with `applyTo` targeting `src/AssetHub.*/**` — project-specific layer guidance.
+3. Generic instruction files (global user-level or broad `applyTo: '**'`) — general best practices; defer to the above when they disagree.
 
 ## Architecture
 
@@ -17,7 +24,7 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 | `AssetHub.Infrastructure` | EF Core repos, MinIO, SMTP, ClamAV, Keycloak, Polly pipelines |
 | `AssetHub.Api` | Composition root — Minimal API endpoints, auth, DI wiring, Blazor host |
 | `AssetHub.Ui` | Blazor Server components/pages (Razor Class Library, depends only on Application) |
-| `AssetHub.Worker` | Hangfire background jobs (media processing, cleanup, email) |
+| `AssetHub.Worker` | Wolverine message consumer — media processing, cleanup jobs |
 
 **Layer rules — never violate:**
 - Domain has no project references.
@@ -128,14 +135,15 @@ Static extension classes with `Map*Endpoints(this WebApplication app)`, register
 ### Repositories
 - Interface in `Application/Repositories/`, implementation in `Infrastructure/Repositories/`
 - No base repository — each is standalone
-- Primary constructors with `AssetHubDbContext`, `IMemoryCache`, `ILogger<T>`
+- Primary constructors with `AssetHubDbContext`, `HybridCache`, `ILogger<T>`
 - Async methods with `CancellationToken`, pagination via `skip`/`take`
 
 ### Background jobs (Worker)
+- Wolverine message consumers handle commands from RabbitMQ queues (`process-image`, `process-video`, `build-zip`)
+- Background `IHostedService` classes for scheduled cleanup (stale uploads, orphaned shares, audit retention)
 - Primary constructor DI with `IServiceScopeFactory` + `ILogger<T>`
 - Create own scope in `ExecuteAsync()` to resolve scoped services
 - Batch processing with per-item try/catch for resilience
-- Hangfire as scheduler (PostgreSQL storage)
 
 ### DTOs
 - Grouped by domain in single files (e.g., `CollectionDtos.cs`)
@@ -153,7 +161,7 @@ Static extension classes with `Map*Endpoints(this WebApplication app)`, register
 
 ### Configuration
 Settings classes in `Application/Configuration/` with `const string SectionName`:
-`AppSettings`, `EmailSettings`, `ImageProcessingSettings`, `KeycloakSettings`, `MinIOSettings`, `OpenTelemetrySettings`
+`AppSettings`, `EmailSettings`, `ImageProcessingSettings`, `KeycloakSettings`, `MinIOSettings`, `OpenTelemetrySettings`, `RabbitMQSettings`, `RedisSettings`
 
 ## Security
 
@@ -176,7 +184,9 @@ Settings classes in `Application/Configuration/` with `const string SectionName`
 - Shared infrastructure registered via `AddSharedInfrastructure()` (used by both Api and Worker).
 - API-specific services registered in `ServiceCollectionExtensions.AddAssetHubServices()`.
 - **Keyed services**: MinIO has internal + public clients (`AddKeyedSingleton<IMinioClient>("public", ...)`).
-- **Hangfire jobs**: register concrete type first, then interface forwarding: `AddScoped<MediaProcessingService>()` + `AddScoped<IMediaProcessingService>(sp => sp.GetRequiredService<...>())`.
+- **Service forwarding**: register concrete type first, then interface forwarding: `AddScoped<MediaProcessingService>()` + `AddScoped<IMediaProcessingService>(sp => sp.GetRequiredService<...>())`.
+- **Wolverine + RabbitMQ**: commands (`ProcessImageCommand`, `ProcessVideoCommand`, `BuildZipCommand`) published to queues; events (`AssetProcessingCompletedEvent`, `AssetProcessingFailedEvent`) consumed back. Configured in `Program.cs`.
+- **HybridCache**: L1 in-memory + L2 Redis, configured via `AddSharedInfrastructure()`.
 - **Options validation**: critical settings use `.ValidateOnStart()`; optional settings (Email, ImageProcessing) do not.
 
 ## CI Pipeline (`.github/workflows/ci.yml`)
@@ -185,6 +195,7 @@ Settings classes in `Application/Configuration/` with `const string SectionName`
 2. **Test** — `dotnet test` with XPlat Code Coverage (Cobertura); results uploaded as artifacts.
 3. **Security audit** — `dotnet list package --vulnerable --include-transitive`; fails if any found.
 4. **Docker build** (main branch only) — builds API + Worker images, scans with Trivy.
+5. **Infra image scan** (main branch only) — builds and scans patched RabbitMQ image with Trivy.
 
 ## Conventions
 

@@ -1,44 +1,76 @@
 ---
 applyTo: "src/AssetHub.Worker/**"
-description: "Use when creating or editing Hangfire background jobs in the AssetHub.Worker project."
+description: "Use when creating or editing Wolverine message handlers or background services in the AssetHub.Worker project."
 ---
 # Worker Conventions (AssetHub.Worker)
 
-AssetHub.Worker is a composition root that runs Hangfire background jobs. It shares infrastructure with the API via `AddSharedInfrastructure()`.
+AssetHub.Worker is a composition root that runs Wolverine message handlers (via RabbitMQ) and `IHostedService` background services. It shares infrastructure with the API via `AddSharedInfrastructure()`.
 
 ## Host Setup
-- Uses `Host.CreateDefaultBuilder()` (not WebApplicationBuilder — no HTTP pipeline).
-- Registers `IHttpContextAccessor` as singleton returning null (no HTTP context in jobs).
-- Auto-migrates the database on startup (separate from API migration).
+- Uses `Host.CreateDefaultBuilder()` with `.UseWolverine()` (not WebApplicationBuilder — no HTTP pipeline).
+- Registers `IHttpContextAccessor` as singleton returning null (no HTTP context in handlers).
+- Auto-migrates the database on startup (configurable).
 
-## Job Class Structure
+## Message Handlers
 
-All jobs follow this pattern:
+Wolverine auto-discovers public `HandleAsync()` methods. Handlers live in `Handlers/`.
 
 ```csharp
-public class ExampleJob(
-    IServiceScopeFactory scopeFactory,
-    ILogger<ExampleJob> logger)
+public sealed class ProcessImageHandler(
+    IMediaProcessingService mediaProcessingService,
+    ILogger<ProcessImageHandler> logger)
 {
-    public async Task ExecuteAsync(CancellationToken ct = default)
+    public async Task<object[]> HandleAsync(ProcessImageCommand command, CancellationToken ct)
     {
-        using var scope = scopeFactory.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<IExampleRepository>();
+        // Process image, return events
+        return [new AssetProcessingCompletedEvent(command.AssetId)];
+    }
+}
+```
 
-        // Job logic here
+**Key rules:**
+- Primary constructor with direct service injection (Wolverine manages scoping).
+- Method must be `public async Task HandleAsync(TCommand command, CancellationToken ct)`.
+- Return `object[]` to publish response events, or `Task` for void handlers.
+- Commands and events are defined in `AssetHub.Application/Messages/`.
+
+### Queues
+- **Listens to:** `process-image`, `process-video`, `build-zip`
+- **Publishes to:** `asset-processing-completed`, `asset-processing-failed`
+- Auto-retry with exponential backoff (1s → 2s → 5s → 10s → 30s).
+- Queues are auto-provisioned on startup.
+
+## Background Services (IHostedService)
+
+Recurring maintenance tasks use `BackgroundService` with `PeriodicTimer`. These live in `BackgroundServices/`.
+
+```csharp
+public sealed class ExampleCleanupService(
+    IServiceScopeFactory scopeFactory,
+    ILogger<ExampleCleanupService> logger) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromHours(24));
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            using var scope = scopeFactory.CreateScope();
+            var repo = scope.ServiceProvider.GetRequiredService<IExampleRepository>();
+            // Cleanup logic
+        }
     }
 }
 ```
 
 **Key rules:**
 - Primary constructor with `IServiceScopeFactory` + `ILogger<T>`.
-- Create a scope in `ExecuteAsync()` to resolve scoped services (DbContext, repos).
-- Method must be `public async Task ExecuteAsync(CancellationToken ct = default)`.
+- Create a scope per iteration to resolve scoped services (DbContext, repos).
+- Use `PeriodicTimer` for scheduling — not `Thread.Sleep` or `Task.Delay` loops.
 - Never inject scoped services directly — always resolve from the scope.
 
 ## Error Handling
 
-### Per-item resilience (batch processing)
+### Per-item resilience (batch processing in background services)
 ```csharp
 foreach (var item in items)
 {
@@ -76,34 +108,16 @@ catch (OperationCanceledException)
 
 ## Registration
 
-### 1. Register job class as scoped in `Program.cs`
-```csharp
-services.AddScoped<ExampleJob>();
-```
+### Message handlers
+Wolverine auto-discovers handlers — no explicit registration needed. Just create a public class with a `HandleAsync` method in the `Handlers/` directory.
 
-### 2. Register recurring schedule after host build
+### Background services in `Program.cs`
 ```csharp
-var recurringJobs = host.Services.GetRequiredService<IRecurringJobManager>();
-recurringJobs.AddOrUpdate<ExampleJob>(
-    "example-job",                              // Unique job ID (kebab-case)
-    job => job.ExecuteAsync(CancellationToken.None),
-    Cron.Daily(3, 0),                           // UTC schedule
-    new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+services.AddHostedService<ExampleCleanupService>();
 ```
-
-**Rules:**
-- Job ID must be globally unique, use kebab-case.
-- Always set `TimeZone = TimeZoneInfo.Utc`.
-- Pass `CancellationToken.None` in the lambda (Hangfire provides its own).
-- `AddOrUpdate` is idempotent — safe to call on every startup.
 
 ## Logging Conventions
-- `Information`: job start, job completion summary.
+- `Information`: handler/service start, completion summary.
 - `Debug`: per-batch progress, "nothing to do" outcomes.
 - `Warning`: per-item failures, cancellation.
 - Always include counts: `"Processed {Count} of {Total} items"`.
-
-## Hangfire Queues
-Two queues configured: `"default"` and `"media-processing"`.
-- Cleanup/retention jobs use the default queue.
-- Media processing jobs use `"media-processing"` queue.

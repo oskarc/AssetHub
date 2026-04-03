@@ -56,26 +56,30 @@ return new AssetDto(asset);
 ## Repositories
 
 ### Class structure
-Primary constructors with `AssetHubDbContext`, optional `IMemoryCache`, `ILogger<T>`:
+Primary constructors with `AssetHubDbContext`, `HybridCache`, `ILogger<T>`:
 
 ```csharp
 public sealed class ExampleRepository(
     AssetHubDbContext dbContext,
-    IMemoryCache cache,
+    HybridCache cache,
     ILogger<ExampleRepository> logger) : IExampleRepository
 ```
 
 ### Caching
-Use `IMemoryCache` for hot-path lookups with keys from `CacheKeys`:
+Use `HybridCache` for hot-path lookups with keys from `CacheKeys` (see `caching-patterns.instructions.md` for full conventions):
 ```csharp
-var cacheKey = CacheKeys.AssetCollectionIds(assetId);
-if (!cache.TryGetValue(cacheKey, out List<Guid>? ids))
-{
-    ids = await dbContext.AssetCollections.Where(...).Select(ac => ac.CollectionId).ToListAsync(ct);
-    cache.Set(cacheKey, ids, TimeSpan.FromMinutes(2));
-}
+var data = await cache.GetOrCreateAsync(
+    CacheKeys.Example(id),
+    async ct => await dbContext.Examples.FirstOrDefaultAsync(e => e.Id == id, ct),
+    new HybridCacheEntryOptions
+    {
+        Expiration = CacheKeys.ExampleTtl,
+        LocalCacheExpiration = TimeSpan.FromSeconds(30)
+    },
+    tags: [CacheKeys.Tags.Example(id)],
+    cancellationToken: ct);
 ```
-Invalidate on mutations: `CacheKeys.InvalidateAssetCollectionIds(cache, assetId)`.
+Invalidate on mutations: `await cache.RemoveByTagAsync(CacheKeys.Tags.Example(id), ct)`.
 
 ### Query patterns
 - **Pagination**: `query.Skip(skip).Take(take)` — always count first for total.
@@ -139,7 +143,7 @@ entity.HasOne(e => e.Collection)
 In `DependencyInjection/InfrastructureServiceExtensions.cs`:
 - Repositories: `AddScoped<IRepo, Repo>()`
 - Services: `AddScoped<IService, Service>()`
-- Hangfire-called services: register concrete first, then forward interface:
+- Wolverine-handled services: register concrete first, then forward interface:
   ```csharp
   services.AddScoped<MediaProcessingService>();
   services.AddScoped<IMediaProcessingService>(sp => sp.GetRequiredService<MediaProcessingService>());

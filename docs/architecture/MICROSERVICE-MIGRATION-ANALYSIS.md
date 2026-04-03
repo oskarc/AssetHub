@@ -52,7 +52,7 @@ AssetHub is a well-structured Clean Architecture monolith with strict layer depe
 | **Single database** | All 8 entities in one `AssetHubDbContext`, one PostgreSQL instance | **HIGH** — Database decomposition is the hardest part |
 | **PostgreSQL coupling** | JSONB, `text[]`, `pg_trgm`, GIN indexes, `ILike()` | Each service must retain PostgreSQL or rewrite queries |
 | **Shared DI root** | `AddSharedInfrastructure()` registers everything for both API and Worker | Must split into per-service registrations |
-| **Hangfire coupling** | Shared job storage in PostgreSQL, both hosts process same queues | Must introduce a message broker (RabbitMQ/Kafka) |
+| ~~**Hangfire coupling**~~ | ~~Shared job storage in PostgreSQL, both hosts process same queues~~ | ✅ **RESOLVED** — Migrated to Wolverine + RabbitMQ message bus |
 | **Cross-entity queries** | Dashboard aggregates across Assets, Collections, Shares, Audit | Distributed queries require new patterns (API composition, CQRS) |
 | **Collection authorization** | ACL checks require joining Collections, CollectionAcls, AssetCollections | Authorization context must be replicated or centralized |
 | **Blazor Server UI** | Server-rendered with SignalR circuits, `AssetHubApiClient` calls local API | Must become a BFF (Backend for Frontend) or switch to Blazor WASM |
@@ -241,17 +241,15 @@ AuditDbContext        { AuditEvents }
 
 Cross-context queries (like Dashboard) use read-only projections via raw SQL or a dedicated query context.
 
-#### 0.3 — Replace Hangfire with Message Broker
+#### ~~0.3 — Replace Hangfire with Message Broker~~ ✅ COMPLETED
 
-Introduce RabbitMQ (or Azure Service Bus) alongside Hangfire:
+~~Introduce RabbitMQ (or Azure Service Bus) alongside Hangfire:~~
 
-1. Add MassTransit with RabbitMQ transport
-2. Migrate fire-and-forget jobs to message consumers:
-   - `ProcessImageAsync` → `ImageProcessingCommand` message
-   - `ProcessVideoAsync` → `VideoProcessingCommand` message
-   - `BuildZipAsync` → `ZipBuildCommand` message
-3. Keep recurring jobs in Hangfire (or migrate to cron-based scheduling)
-4. Remove Hangfire PostgreSQL storage dependency
+This step has been completed. The application now uses **Wolverine + RabbitMQ** for all message-driven processing:
+- `ProcessImageCommand` / `ProcessVideoCommand` / `BuildZipCommand` — published to RabbitMQ queues
+- `AssetProcessingCompletedEvent` / `AssetProcessingFailedEvent` — consumed back by the API
+- Recurring maintenance tasks run as `IHostedService` classes in the Worker (no Hangfire dependency)
+- Hangfire PostgreSQL storage dependency has been fully removed
 
 #### 0.4 — Extract Shared Libraries
 
@@ -269,7 +267,7 @@ AssetHub.Infrastructure.Common/ — ServiceResult, Polly pipelines, MinIO adapte
 
 **Priority: FIRST** — Lowest risk, already a separate container.
 
-**Current state:** `AssetHub.Worker` is a separate Dockerfile running Hangfire jobs.
+**Current state:** `AssetHub.Worker` is a separate Dockerfile running Wolverine message consumers via RabbitMQ.
 
 **Target state:** Independent service consuming messages from RabbitMQ.
 
@@ -285,8 +283,9 @@ AssetHub.Infrastructure.Common/ — ServiceResult, Polly pipelines, MinIO adapte
    - `AssetProcessingCompletedEvent` → update Asset status to Ready, set rendition keys
    - `AssetProcessingFailedEvent` → update Asset status to Failed
 
-3. **Decommission Hangfire media jobs**
-   - Remove `ProcessImageAsync` / `ProcessVideoAsync` Hangfire calls
+3. **Decommission legacy media job calls**
+   - Remove any remaining direct processing calls
+   - Replace with Wolverine `Publish<ImageProcessingCommand>()`
    - Replace with MassTransit `Publish<ImageProcessingCommand>()`
 
 4. **Validation**

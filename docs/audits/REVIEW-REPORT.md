@@ -602,7 +602,7 @@ Methods with custom error branching (`AdminCollectionAccessTab.AddCollectionAcce
 ### ✅ Completed
 | # | Item | Category |
 |---|------|----------|
-| 7.1 | Hangfire media-processing queue missing from API host | Bug fix (critical) |
+| 7.1 | Hangfire media-processing queue (superseded by Wolverine) | Bug fix (critical) |
 | 7.2 | Upload polling ignores failed/deleted assets | Bug fix |
 | 1.1 | Extract shared collection form | Reduce duplication |
 | 1.2 | Consolidate dark mode into ThemeService | Maintainability |
@@ -658,13 +658,13 @@ Methods with custom error branching (`AdminCollectionAccessTab.AddCollectionAcce
 
 ## 7. Bug Fixes
 
-### 7.1 ~~Hangfire Media-Processing Queue Missing from API Host~~ ✅ DONE
+### 7.1 ~~Hangfire Media-Processing Queue Missing from API Host~~ ✅ DONE (Superseded)
+
+> **Note:** This fix was valid at the time but has since been superseded by the migration from Hangfire to **Wolverine + RabbitMQ**. Media processing is now driven by Wolverine message consumers, and the Hangfire dependency has been fully removed.
 
 **Files:** `Api/Extensions/ServiceCollectionExtensions.cs`, `Infrastructure/DependencyInjection/InfrastructureServiceExtensions.cs`
 
-**Problem:** Image and video processing jobs are enqueued to the `"media-processing"` Hangfire queue (via `[Queue("media-processing")]` on `ImageProcessingService` and `VideoProcessingService`). The Worker host correctly configured `Queues = ["default", "media-processing"]`, but the API host's Hangfire server used the default queue configuration (only `"default"`). When running without the Worker service (typical local development), media-processing jobs sat in the queue indefinitely — assets remained in `Processing` status, thumbnails were never generated, and the UI polling loop eventually timed out silently.
-
-**Resolution:** Added `options.Queues = ["default", "media-processing"]` to the API host's `AddHangfireServer()` call. Updated the infrastructure comment to reflect both hosts now process media jobs. In production where both API and Worker run, Hangfire's distributed locking prevents duplicate execution.
+**Original Problem:** Image and video processing jobs were enqueued to the `"media-processing"` Hangfire queue. The Worker host correctly configured the queue, but the API host's Hangfire server used the default queue configuration only. This was resolved by aligning the queue configuration, but has since been replaced entirely by Wolverine + RabbitMQ messaging.
 
 ---
 

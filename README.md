@@ -169,9 +169,9 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 | `AssetHub.Infrastructure` | EF Core, MinIO, SMTP, ClamAV, Keycloak implementations |
 | `AssetHub.Api` | Composition root — Minimal APIs, auth, DI wiring, Blazor host |
 | `AssetHub.Ui` | Blazor Server components and pages (Razor Class Library) |
-| `AssetHub.Worker` | Hangfire background processor (separate container) |
+| `AssetHub.Worker` | Wolverine message consumer — media processing, cleanup jobs (separate container) |
 
-> Full architecture diagram, layer details, and resilience patterns in **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+> Full architecture diagram, layer details, and resilience patterns in **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**.
 
 ---
 
@@ -186,12 +186,13 @@ Every external dependency can be swapped by implementing a clean interface:
 | Database | PostgreSQL 16 | EF Core + Npgsql | SQL Server* |
 | Email | SMTP (Mailpit in dev) | `IEmailService` | SendGrid, AWS SES |
 | Malware Scan | ClamAV (clamd TCP) | `IMalwareScannerService` | Any scanner SDK |
-| Jobs | Hangfire + PostgreSQL | Hangfire abstraction | MassTransit, NServiceBus |
+| Messaging | Wolverine 5 + RabbitMQ 4 | Wolverine command/event bus | MassTransit, NServiceBus |
 | Tracing | Aspire Dashboard (OTLP) | OpenTelemetry | Jaeger, Datadog, Grafana |
+| Cache | Redis 7 + HybridCache | `IDistributedCache` / `HybridCache` | Memcached, NCache |
 
 <sub>*SQL Server requires migration rework for JSONB/pg_trgm features.</sub>
 
-> Interface definitions and replacement guides in **[ARCHITECTURE.md](docs/ARCHITECTURE.md#modular-components)**.
+> Interface definitions and replacement guides in **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md#modular-components)**.
 
 ---
 
@@ -209,7 +210,7 @@ Every external dependency can be swapped by implementing a clean interface:
 | **Network** | Isolated Docker networks for backend and observability services |
 | **Headers** | HSTS, CSP, X-Frame-Options, referrer policy, permissions policy |
 
-> Full RBAC matrix and API security reference in **[SECURITY.md](docs/SECURITY.md)**.
+> Full RBAC matrix and API security reference in **[SECURITY.md](docs/security/SECURITY.md)**.
 
 ---
 
@@ -226,7 +227,7 @@ docker compose -f docker/docker-compose.prod.yml up -d
 
 The deployment guide covers reverse proxy setup (Caddy/Nginx), TLS certificates, backup/restore scripts, Keycloak configuration, CI/CD pipeline, monitoring, and troubleshooting.
 
-> **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** — complete production deployment guide.
+> **[DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)** — complete production deployment guide.
 
 ---
 
@@ -259,7 +260,7 @@ cd tests/E2E && npx playwright test
 | Database | PostgreSQL 16, EF Core 9 |
 | Storage | MinIO (S3 API) |
 | Auth | Keycloak 26 (OIDC) |
-| Jobs | Hangfire |
+| Messaging | Wolverine + RabbitMQ |
 | Security | ClamAV, ASP.NET Data Protection |
 | Observability | OpenTelemetry, Aspire Dashboard |
 | Containerisation | Docker Compose |
@@ -281,9 +282,9 @@ cd tests/E2E && npx playwright test
 
 | Document | Contents |
 |----------|----------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, layer dependencies, modular interfaces, resilience patterns |
-| [SECURITY.md](docs/SECURITY.md) | Auth, RBAC, rate limiting, upload security, container hardening, audit |
-| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production setup, certificates, CI/CD, monitoring, backups, troubleshooting |
+| [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) | System design, layer dependencies, modular interfaces, resilience patterns |
+| [SECURITY.md](docs/security/SECURITY.md) | Auth, RBAC, rate limiting, upload security, container hardening, audit |
+| [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) | Production setup, certificates, CI/CD, monitoring, backups, troubleshooting |
 | [CREDENTIALS.md](CREDENTIALS.md) | Default passwords, OAuth config, connection strings |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, code style, PR guidelines |
 

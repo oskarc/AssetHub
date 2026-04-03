@@ -55,7 +55,7 @@ Thank you for your interest in contributing to AssetHub! This guide will help yo
    dotnet run --project src/AssetHub.Api
    ```
 
-See [CREDENTIALS.md](CREDENTIALS.md) for default service passwords and [DEPLOYMENT.md](docs/DEPLOYMENT.md) for full deployment details.
+See [CREDENTIALS.md](CREDENTIALS.md) for default service passwords and [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) for full deployment details.
 
 ## Project Structure
 
@@ -66,7 +66,7 @@ src/
 ├── AssetHub.Infrastructure/   # EF Core, repositories, service implementations
 ├── AssetHub.Api/              # ASP.NET Core host, versioned minimal APIs (/api/v1/), validation filters, Blazor UI host
 ├── AssetHub.Ui/               # Blazor Server components (Razor Class Library)
-└── AssetHub.Worker/           # Hangfire background job processor
+└── AssetHub.Worker/           # Wolverine message consumer (media processing, cleanup jobs)
 
 tests/
 ├── AssetHub.Tests/            # Unit and integration tests (xUnit)

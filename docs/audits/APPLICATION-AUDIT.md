@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-24 (Revision 3 — comprehensive deep-scan re-audit)
 **Scope:** Full application architecture, code quality, security, infrastructure, testing, and operational readiness review
-**Application:** AssetHub (.NET 9, Blazor Server, Keycloak, PostgreSQL, MinIO, ClamAV, Hangfire)
+**Application:** AssetHub (.NET 9, Blazor Server, Keycloak, PostgreSQL, MinIO, ClamAV, Wolverine/RabbitMQ, Redis)
 
 ---
 
@@ -58,7 +58,7 @@ This is the **third audit** of AssetHub, conducted as a comprehensive deep scan 
 - **Interface Segregation**: Asset services split into `IAssetService`, `IAssetQueryService`, `IAssetUploadService`
 - **ServiceResult pattern**: Used consistently across all service methods — no exceptions as control flow
 - **Request-scoped authorization caching**: `CollectionAuthorizationService` caches ACL lookups per-request with batch preloading
-- **Shared infrastructure**: `InfrastructureServiceExtensions` registers DB, Hangfire, MinIO, repositories — shared between API and Worker hosts
+- **Shared infrastructure**: `InfrastructureServiceExtensions` registers DB, Wolverine/RabbitMQ, MinIO, Redis, repositories — shared between API and Worker hosts
 
 ### Open Findings
 

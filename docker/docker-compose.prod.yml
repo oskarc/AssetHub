@@ -3,7 +3,7 @@
 # ============================================================================
 # Prerequisites:
 #   1. Copy .env.template → .env and fill in all values.
-#   2. Read docs/DEPLOYMENT.md for the full setup guide.
+#   2. Read docs/operations/DEPLOYMENT.md for the full setup guide.
 #
 # Start:   docker compose -f docker/docker-compose.prod.yml up -d
 # Stop:    docker compose -f docker/docker-compose.prod.yml down

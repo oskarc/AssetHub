@@ -91,7 +91,7 @@ Rate limiting is applied at multiple levels to protect against abuse:
 | ShareAnonymous | Per IP | 30 requests/min | Limit anonymous share link access |
 | SharePassword | Per IP | 10 attempts/5 min | Brute force protection for share passwords |
 
-Rate limiting uses ASP.NET Core's built-in rate limiting middleware with fixed window policies. When a client exceeds the limit, they receive a `429 Too Many Requests` response.
+Rate limiting uses ASP.NET Core's built-in rate limiting middleware with sliding window policies. When a client exceeds the limit, they receive a `429 Too Many Requests` response with a `Retry-After` header.
 
 The SharePassword policy is intentionally aggressive — 10 attempts per 5 minutes per IP — to make password guessing impractical while still allowing legitimate users who mistype their password.
 
@@ -185,8 +185,7 @@ When placing AssetHub behind a reverse proxy, block these paths from public acce
 
 | Path | Reason | Mitigation |
 |------|--------|------------|
-| `/health`, `/health/ready` | Internal health checks | Restrict to monitoring IPs |
-| `/hangfire` | Background job dashboard | Restrict to admin IPs |
+| `/health` | Internal health checks | Restrict to monitoring IPs |
 
 ---
 
@@ -264,6 +263,7 @@ POST   /api/v1/assets/init-upload                    # Initiate presigned upload
 POST   /api/v1/assets/{id}/confirm-upload            # Confirm presigned upload completed
 PATCH  /api/v1/assets/{id}                           # Update title, description, copyright, tags
 DELETE /api/v1/assets/{id}                           # Delete asset (with optional collection scope)
+POST   /api/v1/assets/bulk-delete                    # Bulk delete assets
 GET    /api/v1/assets/collection/{collectionId}      # Assets in collection (search, sort, filter)
 GET    /api/v1/assets/{id}/deletion-context          # Get deletion impact info
 ```
@@ -315,11 +315,16 @@ GET    /api/v1/admin/shares                          # All shares (paginated, fi
 GET    /api/v1/admin/shares/{id}/token               # Retrieve share token (encrypted storage)
 GET    /api/v1/admin/shares/{id}/password            # Retrieve share password (encrypted storage)
 DELETE /api/v1/admin/shares/{id}                     # Revoke share
+DELETE /api/v1/admin/shares/{id}/permanent           # Permanent delete (must be revoked/expired)
+DELETE /api/v1/admin/shares/bulk/{status}             # Bulk delete shares by status (expired/revoked)
 GET    /api/v1/admin/collections/access              # All collection access (hierarchical tree)
 POST   /api/v1/admin/collections/{collectionId}/acl            # Grant access
 DELETE /api/v1/admin/collections/{collectionId}/acl/{principalId}  # Revoke access (?principalType=)
+POST   /api/v1/admin/collections/bulk-delete         # Bulk delete collections
+POST   /api/v1/admin/collections/bulk-set-access     # Bulk set collection access
 GET    /api/v1/admin/users                           # Users with access
 GET    /api/v1/admin/keycloak-users                  # All Keycloak users
+GET    /api/v1/admin/keycloak-users/paginated        # Paginated Keycloak users (search, sort)
 POST   /api/v1/admin/users                           # Create user in Keycloak
 POST   /api/v1/admin/users/{userId}/reset-password   # Reset password
 POST   /api/v1/admin/users/sync                      # Sync deleted users (supports dry-run)

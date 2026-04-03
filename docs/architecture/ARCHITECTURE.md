@@ -29,7 +29,7 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  HOSTS (Composition Roots)                                                  │
 │  ┌─────────────────────────────────────────┐  ┌──────────────────────────┐  │
 │  │  AssetHub.Api                           │  │  AssetHub.Worker         │  │
-│  │  ┌───────────────┐ ┌─────────────────┐  │  │  Hangfire job processor  │  │
+│  │  ┌───────────────┐ ┌─────────────────┐  │  │  Wolverine consumers     │  │
 │  │  │ Blazor Server │ │ Minimal APIs v1 │  │  │  ImageMagick + ffmpeg    │  │
 │  │  │ (MudBlazor 8) │ │ Smart auth:     │  │  │                          │  │
 │  │  │               │ │ Cookie/JWT/OIDC │  │  │                          │  │
@@ -74,13 +74,18 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  EXTERNAL SERVICES (Docker containers)                                      │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
 │  │  PostgreSQL  │ │    MinIO     │ │   Keycloak   │ │      ClamAV          ││
-│  │  16 (+ EF    │ │  (S3 API)   │ │  (OIDC +     │ │   (clamd TCP)         ││
-│  │   + Hangfire)│ │              │ │  Admin API)  │ │                      ││
+│  │  16 (+ EF)   │ │  (S3 API)   │ │  (OIDC +     │ │   (clamd TCP)         ││
+│  │              │ │              │ │  Admin API)  │ │                      ││
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
-│  ┌──────────────┐ ┌──────────────────────────────────────────────────────────┐│
-│  │   Mailpit    │ │  Aspire Dashboard (traces, metrics, logs via OTLP)     ││
-│  │ (SMTP, dev)  │ │                                                        ││
-│  └──────────────┘ └──────────────────────────────────────────────────────────┘│
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                         │
+│  │   RabbitMQ   │ │    Redis     │ │   Mailpit    │                         │
+│  │  (Wolverine  │ │  (HybridCache│ │  (SMTP, dev) │                         │
+│  │   messaging) │ │   L2 + SigR) │ │              │                         │
+│  └──────────────┘ └──────────────┘ └──────────────┘                         │
+│  ┌──────────────────────────────────────────────────────────────────────────┐│
+│  │  Aspire Dashboard (traces, metrics, logs via OTLP)                     ││
+│  │                                                                        ││
+│  └──────────────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -99,7 +104,7 @@ AssetHub.sln
 │   ├── AssetHub.Infrastructure/    # EF Core, MinIO, SMTP, ClamAV, Keycloak implementations
 │   ├── AssetHub.Api/               # ASP.NET Core host — Versioned Minimal APIs (/api/v1/), auth, DI wiring, validation filters
 │   ├── AssetHub.Ui/                # Blazor Server components, pages, layouts (Razor Class Library)
-│   └── AssetHub.Worker/            # Hangfire background job processor (separate container)
+│   └── AssetHub.Worker/            # Wolverine message consumer (media processing, cleanup jobs)
 │
 ├── tests/
 │   ├── AssetHub.Tests/             # Integration + unit tests (xUnit, Testcontainers, Moq)
@@ -147,7 +152,7 @@ Domain  ←  Application  ←  Infrastructure  ←  Api
 - **Infrastructure** — depends on Application + Domain. Contains all concrete implementations: EF Core repositories, MinIO adapter, SMTP email, ClamAV scanner, Keycloak client, media processing, and Polly resilience pipelines.
 - **Ui** — depends on Application only (no Infrastructure reference). A Razor Class Library containing all Blazor Server components, pages, and layouts. Communicates with infrastructure exclusively through Application interfaces.
 - **Api** — composition root, references all projects including Ui. Wires up dependency injection, configures authentication, defines versioned Minimal API endpoints (`/api/v1/`) with a `ValidationFilter` for request DTO validation, and hosts the Blazor Server app.
-- **Worker** — composition root, references Infrastructure + Application (no Ui). Runs Hangfire background jobs for media processing, zip building, cleanup tasks, and email sending.
+- **Worker** — composition root, references Infrastructure + Application (no Ui). Runs Wolverine message consumers for media processing and zip building, plus `IHostedService` classes for scheduled cleanup tasks (stale uploads, orphaned shares, audit retention).
 
 ---
 
@@ -245,7 +250,7 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 
 ### Database
 
-**Default:** PostgreSQL 16 via EF Core with the Npgsql provider. Hangfire job storage also uses PostgreSQL.
+**Default:** PostgreSQL 16 via EF Core with the Npgsql provider.
 
 #### Schema
 
@@ -275,7 +280,7 @@ Code-first, conditionally applied on startup. Both the API and Worker hosts call
 
 #### Replacing PostgreSQL
 
-Requires changing the EF Core provider (e.g., `UseSqlServer()`), replacing all jsonb columns with the target database's JSON support, rewriting the `pg_trgm` search migration, replacing `ILike` calls with provider-appropriate equivalents, switching the Hangfire storage provider, and regenerating migrations. This is a significant effort due to the deep use of PostgreSQL-native features.
+Requires changing the EF Core provider (e.g., `UseSqlServer()`), replacing all jsonb columns with the target database's JSON support, rewriting the `pg_trgm` search migration, replacing `ILike` calls with provider-appropriate equivalents, and regenerating migrations. This is a significant effort due to the deep use of PostgreSQL-native features.
 
 ---
 
@@ -364,31 +369,45 @@ Implement `IMalwareScannerService` with your scanner's SDK or API. The interface
 
 ---
 
-### Background Jobs
+### Background Jobs & Messaging
 
 | Default | Interface | Corporate Alternatives |
 |---------|-----------|----------------------|
-| **Hangfire + PostgreSQL** | Hangfire abstraction | Azure Service Bus, AWS SQS, RabbitMQ |
+| **Wolverine + RabbitMQ** | Wolverine command/event bus | MassTransit, NServiceBus, Azure Service Bus |
 
-#### Current Jobs
+#### Message Architecture
 
-- Thumbnail generation (ImageMagick)
-- Medium rendition generation
-- Video poster extraction (ffmpeg)
-- Malware scanning
-- Email notifications
-- Zip archive building
-- Stale upload cleanup (daily)
-- Orphaned share cleanup (weekly)
-- ZIP expiry cleanup
-- Audit log retention (configurable retention period)
-- User sync
+The API and Worker communicate via RabbitMQ queues using Wolverine as the messaging framework:
 
-The Worker runs as a **separate container** (`AssetHub.Worker`) so it can be scaled independently from the API. It shares the same Infrastructure layer but has its own Dockerfile with ImageMagick and ffmpeg pre-installed. Both the API and Worker run configurable Hangfire worker pools (2-8 threads).
+**Commands (API → Worker):**
+- `ProcessImageCommand` → `process-image` queue — extract metadata, generate thumbnail + medium rendition
+- `ProcessVideoCommand` → `process-video` queue — extract metadata, generate poster frame
+- `BuildZipCommand` → `build-zip` queue — build ZIP archive from collection assets
 
-#### Replacing Hangfire
+**Events (Worker → API):**
+- `AssetProcessingCompletedEvent` → `asset-processing-completed` queue — updates asset with renditions + metadata
+- `AssetProcessingFailedEvent` → `asset-processing-failed` queue — marks asset as Failed
 
-Hangfire is deeply integrated but uses standard job patterns. For enterprise message queues, wrap queue consumers in Hangfire jobs, or replace Hangfire entirely with MassTransit/NServiceBus.
+#### Scheduled Cleanup (IHostedService)
+
+- **StaleUploadCleanupService** — daily ~3:00 AM UTC, deletes assets stuck in "Uploading" status > 24h
+- **OrphanedSharesCleanupService** — weekly Sundays ~4:00 AM UTC, removes shares with deleted assets/collections
+- **AuditRetentionService** — weekly Sundays ~5:00 AM UTC, deletes audit events older than retention period
+- **ZipCleanupBackgroundService** (API) — hourly, removes expired ZIP downloads from MinIO
+- **UserSyncBackgroundService** (API) — daily, syncs users deleted in Keycloak
+
+The Worker runs as a **separate container** (`AssetHub.Worker`) so it can be scaled independently from the API. It shares the same Infrastructure layer but has its own Dockerfile with ImageMagick and ffmpeg pre-installed.
+
+#### Wolverine Configuration
+
+Both API and Worker configure Wolverine with:
+- Auto-provisioned RabbitMQ queues
+- Retry policy with cooldown: 1s, 2s, 5s, 10s, 30s delays
+- `AutoApplyTransactions()` — wraps message handlers in EF Core transactions
+
+#### Replacing Wolverine/RabbitMQ
+
+The messaging pattern is standard command/event with dedicated queues. Replace Wolverine with MassTransit or NServiceBus by implementing equivalent consumers for the same message types. The `IMediaProcessingService` interface abstracts the enqueueing.
 
 ---
 
@@ -407,7 +426,7 @@ public interface IMediaProcessingService
 }
 ```
 
-`ScheduleProcessingAsync` enqueues a Hangfire background job based on the asset type and returns a job ID. Non-image/video types (documents, etc.) are marked Ready immediately with no processing.
+`ScheduleProcessingAsync` publishes a Wolverine command (`ProcessImageCommand` or `ProcessVideoCommand`) to RabbitMQ based on the asset type and returns a job ID. Non-image/video types (documents, etc.) are marked Ready immediately with no processing.
 
 #### Rendition Output
 
@@ -470,7 +489,7 @@ Core business logic:
 | `IShareAdminService` | `ShareAdminService` | Admin share management (list, retrieve tokens/passwords) |
 | `IPublicShareAccessService` | `ShareAccessService` | Anonymous share access (validate token, password auth) |
 | `IAuthenticatedShareAccessService` | `ShareAccessService` | Authenticated share access (preview, download) |
-| `IZipBuildService` | `ZipBuildService` | Async zip archive building via Hangfire |
+| `IZipBuildService` | `ZipBuildService` | Async zip archive building via Wolverine + RabbitMQ |
 | `IUserAdminService` | `UserAdminService` | Admin user operations (create, delete, reset password) |
 | `IUserProvisioningService` | `UserProvisioningService` | Provision new users with default collection access |
 | `IUserCleanupService` | `UserCleanupService` | Remove all ACLs and revoke shares for a deleted user |

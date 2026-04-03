@@ -212,8 +212,9 @@ Update `docker-compose.prod.yml` to mount the certificate and set the password i
 | Container | Purpose | Internal Port | Dev Exposed | Prod Exposed | Swappable? |
 |-----------|---------|--------------|-------------|--------------|------------|
 | `assethub-api` | ASP.NET Core API + Blazor UI | 7252 | 127.0.0.1:7252 | 127.0.0.1:7252 | — (core) |
-| `assethub-worker` | Hangfire background processor (ImageMagick, ffmpeg, zip) | — | — | — | — (core) |
-| `assethub-postgres` | Primary database (EF Core + Hangfire) | 5432 | 127.0.0.1:5432 | not exposed | Any PostgreSQL instance |
+| `assethub-worker` | Wolverine message consumer (ImageMagick, ffmpeg, zip) | — | — | — | — (core) |
+| `assethub-postgres` | Primary database (EF Core) | 5432 | 127.0.0.1:5432 | not exposed | Any PostgreSQL instance |
+| `assethub-rabbitmq` | Message broker (Wolverine commands/events) | 5672 / 15672 | 127.0.0.1:5672, :15672 | not exposed | Any AMQP 0-9-1 broker |
 | `assethub-minio` | S3-compatible object storage | 9000 / 9001 | 127.0.0.1:9000, :9001 | not exposed | AWS S3 or any S3-compatible store |
 | `assethub-keycloak` | OIDC identity provider + Admin API | 8080 / 8443 | 127.0.0.1:8080, :8443 | not exposed | Requires adapter rewrites (see note) |
 | `assethub-clamav` | Malware scanning (clamd TCP) | 3310 | not exposed | not exposed | Set `ClamAV__Enabled=false` to disable |
@@ -439,7 +440,7 @@ Within a single-host Docker network, unencrypted Redis traffic is acceptable (ne
 | Component | Scaling Strategy |
 |-----------|-----------------|
 | **API** | Run multiple replicas behind a load balancer. Redis already serves as the SignalR backplane and shared L2 cache. |
-| **Worker** | Run multiple replicas. Hangfire coordinates job distribution via PostgreSQL — no conflicts. |
+| **Worker** | Run multiple replicas. Wolverine + RabbitMQ coordinate job distribution — no conflicts with competing consumers. |
 | **PostgreSQL** | Use managed PostgreSQL (RDS, Cloud SQL) with read replicas, or Patroni for self-hosted HA. |
 | **MinIO** | Use distributed MinIO (multi-node) or a managed S3-compatible service. |
 | **Keycloak** | Run multiple replicas behind a load balancer. Keycloak uses the shared PostgreSQL for session/state. |
@@ -462,6 +463,7 @@ GitHub Actions runs on every push and pull request to `main` and `develop`:
 | **build-and-test** | Restore, build (Release), run all .NET tests with Cobertura code coverage, upload results as artifacts | Every push and PR |
 | **security-audit** | `dotnet list package --vulnerable --include-transitive` — fails the build on known CVEs | Every push and PR |
 | **docker-build** | Builds API + Worker images, scans both with Trivy for CRITICAL/HIGH OS and library vulnerabilities. Requires build-and-test + security-audit to pass first. | Push to `main` only |
+| **infra-image-scan** | Builds patched RabbitMQ image and scans with Trivy. Requires build-and-test to pass first. | Push to `main` only |
 
 ---
 
@@ -552,8 +554,7 @@ npm run test:ui       # Playwright UI mode
 
 | Tool | URL | Purpose |
 |------|-----|---------|
-| Health check | https://assethub.local:7252/health/ready | Readiness probe (PG + MinIO + Keycloak + ClamAV) |
-| Hangfire | https://assethub.local:7252/hangfire | Job queues, processing status |
+| Health check | https://assethub.local:7252/health | Readiness probe (PG + MinIO + Keycloak + ClamAV) |
 | Aspire Dashboard | http://localhost:18888 | Traces, metrics, and structured logs |
 | Keycloak Admin | https://keycloak.assethub.local:8443/admin | Users, sessions, clients |
 | MinIO Console | http://localhost:9001 | Storage usage, buckets |

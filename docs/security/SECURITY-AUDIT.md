@@ -62,11 +62,10 @@ AssetHub demonstrates a **strong security posture** for an internal/team-facing 
 - Privilege escalation prevention: `CanGrantRole` / `CanRevokeRole` enforce level checks
 - Admin endpoints are behind `RequireAdmin` policy
 - Share operations verify `CreatedByUserId` ownership (`ShareAccessService.cs:267`)
-- Hangfire dashboard requires admin role (`WebApplicationExtensions.cs:371-380`)
 
 ### Findings
 
-**[LOW] No fallback authorization policy**
+**[LOW] No fallback authorization policy** ✅ RESOLVED
 Endpoints without an explicit `.RequireAuthorization()` or `.AllowAnonymous()` are open by default. ASP.NET Core Minimal APIs don't have a global fallback policy.
 
 > **Recommendation:** Add a fallback authorization policy:
@@ -76,6 +75,8 @@ Endpoints without an explicit `.RequireAuthorization()` or `.AllowAnonymous()` a
 >     .Build();
 > ```
 > and explicitly mark anonymous endpoints with `.AllowAnonymous()`.
+>
+> **Status (2026-02-22):** Resolved. FallbackPolicy configured to require authenticated user.
 
 ---
 
@@ -99,10 +100,12 @@ Endpoints without an explicit `.RequireAuthorization()` or `.AllowAnonymous()` a
 >
 > **Status (2026-02-22):** Resolved. `FileMagicValidator.cs` validates file signatures for images, video, audio, documents, and fonts. Validation runs on both direct uploads and presigned upload confirmations.
 
-**[LOW] SVG upload allowed — potential stored XSS vector**
+**[LOW] SVG upload allowed — potential stored XSS vector** ✅ RESOLVED
 `application/svg+xml` is in the allowed list (`Constants.cs:140`). SVGs can contain embedded JavaScript.
 
 > **Recommendation:** Either sanitize SVG uploads (strip `<script>`, `onload`, etc.) or serve them with `Content-Disposition: attachment` and a strict CSP. Alternatively, consider whether SVG upload is necessary.
+>
+> **Status (2026-02-22):** Resolved. `application/svg+xml` is now explicitly blacklisted in `AllowedUploadTypes`.
 
 **[INFO] No request body size validation on some endpoints**
 While Kestrel has a global `MaxRequestBodySize`, individual endpoints don't validate the actual file size against business rules before processing.
@@ -165,7 +168,7 @@ Both the application and Keycloak use the same `POSTGRES_USER`/`POSTGRES_PASSWOR
 
 ### Findings
 
-**[MEDIUM] No HSTS configuration — uses defaults**
+**[MEDIUM] No HSTS configuration — uses defaults** ✅ RESOLVED
 `app.UseHsts()` is called without configuring `MaxAge`, `IncludeSubDomains`, or `Preload`. The default max-age is only 30 days.
 
 > **Recommendation:** Configure HSTS explicitly:
@@ -176,6 +179,8 @@ Both the application and Keycloak use the same `POSTGRES_USER`/`POSTGRES_PASSWOR
 >     options.Preload = true;
 > });
 > ```
+>
+> **Status (2026-02-22):** Resolved. HSTS configured with 365-day max-age, subdomain inclusion, and preload.
 
 **[LOW] MinIO internal communication uses HTTP**
 `MinIO__UseSSL: "false"` is set in both dev and production compose files (`docker-compose.prod.yml:141`). While traffic stays within the Docker network, encryption in transit is best practice.
@@ -272,7 +277,7 @@ The Dockerfile installs `imagemagick` and `ffmpeg` (`Dockerfile:33-36`) without 
 **[LOW] No virus/malware scanning on uploads** ✅ RESOLVED
 Files are stored and served without any malware scanning.
 
-> **Recommendation:** Integrate ClamAV or a similar scanner, either inline or as an async background job via Hangfire.
+> **Recommendation:** Integrate ClamAV or a similar scanner, either inline or as an async background job.
 >
 > **Status (2026-02-22):** Resolved. ClamAV integration implemented:
 > - `IMalwareScannerService` interface and `ClamAvScannerService` implementation using clamd TCP protocol
@@ -297,10 +302,12 @@ Files are stored and served without any malware scanning.
 
 ### Findings
 
-**[MEDIUM] Base images use floating tags**
+**[MEDIUM] Base images use floating tags** ✅ RESOLVED
 `mcr.microsoft.com/dotnet/sdk:9.0` and `aspnet:9.0` use major version tags (`Dockerfile:1,28`). These can receive unexpected updates.
 
 > **Recommendation:** Pin to specific digest or patch version: `aspnet:9.0.x-bookworm-slim`.
+>
+> **Status (2026-02-22):** Resolved. Dockerfiles now use pinned versions: `sdk:9.0.312-bookworm-slim` and `aspnet:9.0.14-bookworm-slim`.
 
 **[LOW] MinIO uses `latest` tag in dev compose**
 `docker-compose.yml:27` — `minio/minio:latest` is unpinned.
@@ -372,9 +379,11 @@ Most NuGet packages use `9.0.*` or `1.8.*` ranges. While convenient, this can pu
 
 > **Recommendation:** Pin to specific patch versions in production builds and use Dependabot or similar for controlled updates.
 
-**[INFO] No `dotnet list package --vulnerable` in CI**
+**[INFO] No `dotnet list package --vulnerable` in CI** ✅ RESOLVED
 
 > **Recommendation:** Add `dotnet list package --vulnerable --include-transitive` to the CI pipeline.
+>
+> **Status (2026-02-22):** Resolved. Security audit job added to CI pipeline that fails on CRITICAL/HIGH vulnerabilities.
 
 ---
 

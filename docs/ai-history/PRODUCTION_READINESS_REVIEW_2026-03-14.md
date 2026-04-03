@@ -172,4 +172,4 @@ This is a well-architected, security-conscious application with mature engineeri
 ### Deployment
 - Docker multi-stage builds, non-root user, cap_drop ALL, read-only root
 - Production compose with log rotation, resource limits, network segmentation
-- Hangfire recurring jobs for maintenance tasks
+- Wolverine + RabbitMQ message consumers for media processing; IHostedService for recurring maintenance tasks

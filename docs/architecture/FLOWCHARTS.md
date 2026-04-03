@@ -171,7 +171,7 @@ flowchart TD
 
     W --> X[Add to Collection<br/>AssetCollections join]
     X --> Y[Write Audit Log<br/>asset.created]
-    Y --> Z[Schedule Hangfire Job<br/>Media Processing]
+    Y --> Z[Publish Wolverine Command<br/>via RabbitMQ]
     Z --> AA[Return 201 Created<br/>with AssetDto]
 
     style C fill:#f66,color:#fff
@@ -396,14 +396,14 @@ flowchart TD
 
 ## 7. Background Job Processing
 
-Media processing pipeline for uploaded assets, executed by the Hangfire Worker.
+Media processing pipeline for uploaded assets, executed by the Wolverine Worker via RabbitMQ.
 
-### Job Dispatch
+### Message Dispatch
 
 ```mermaid
 flowchart TD
-    A[Asset Upload Complete] --> B[Enqueue Hangfire Job<br/>media-processing queue]
-    B --> C[Worker Picks Up Job]
+    A[Asset Upload Complete] --> B[Publish Wolverine Command<br/>via RabbitMQ]
+    B --> C[Worker Consumes Message]
     C --> D[Create DI Scope]
     D --> E[Resolve Scoped Services]
     E --> F{Asset type?}
