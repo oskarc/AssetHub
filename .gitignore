@@ -86,3 +86,5 @@ Thumbs.db
 
 certs/
 .claude/settings.local.json
+Claude-Processing.md
+Copilot-Processing.md
