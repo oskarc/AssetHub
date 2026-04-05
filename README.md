@@ -11,7 +11,7 @@ Organise images, videos, and documents into collections. Control access with per
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](#quick-start)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](#modular-components)
 
-<img src="docs/screen%20shots/dashboard%201.png" alt="AssetHub Dashboard" width="720" />
+<img src="docs/screenshots/dashboard%201.png" alt="AssetHub Dashboard" width="720" />
 
 </div>
 
@@ -99,55 +99,55 @@ Navigate to **https://assethub.local:7252** and sign in:
 <details>
 <summary><strong>Dashboard</strong></summary>
 <br/>
-<img src="docs/screen%20shots/dashboard%201.png" alt="Dashboard overview" width="720" />
+<img src="docs/screenshots/dashboard%201.png" alt="Dashboard overview" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/dashboard%202.png" alt="Dashboard storage chart" width="720" />
+<img src="docs/screenshots/dashboard%202.png" alt="Dashboard storage chart" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/dashboard%203.png" alt="Dashboard activity" width="720" />
+<img src="docs/screenshots/dashboard%203.png" alt="Dashboard activity" width="720" />
 </details>
 
 <details>
 <summary><strong>Collections</strong></summary>
 <br/>
-<img src="docs/screen%20shots/Collections.png" alt="Collections overview" width="720" />
+<img src="docs/screenshots/Collections.png" alt="Collections overview" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Collections%202.png" alt="Collection detail" width="720" />
+<img src="docs/screenshots/Collections%202.png" alt="Collection detail" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Collection%203.png" alt="Collection management" width="720" />
+<img src="docs/screenshots/Collection%203.png" alt="Collection management" width="720" />
 </details>
 
 <details>
 <summary><strong>Assets</strong></summary>
 <br/>
-<img src="docs/screen%20shots/All%20assets.png" alt="All assets" width="720" />
+<img src="docs/screenshots/All%20assets.png" alt="All assets" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Asset%201.png" alt="Asset detail" width="720" />
+<img src="docs/screenshots/Asset%201.png" alt="Asset detail" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Asset%202.png" alt="Asset preview" width="720" />
+<img src="docs/screenshots/Asset%202.png" alt="Asset preview" width="720" />
 </details>
 
 <details>
 <summary><strong>Sharing</strong></summary>
 <br/>
-<img src="docs/screen%20shots/Access%20share%201.png" alt="Share link creation" width="720" />
+<img src="docs/screenshots/Access%20share%201.png" alt="Share link creation" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Access%20share%202.png" alt="Share access view" width="720" />
+<img src="docs/screenshots/Access%20share%202.png" alt="Share access view" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Access%20share%203.png" alt="Share download" width="720" />
+<img src="docs/screenshots/Access%20share%203.png" alt="Share download" width="720" />
 </details>
 
 <details>
 <summary><strong>Administration</strong></summary>
 <br/>
-<img src="docs/screen%20shots/Admin%201.png" alt="Admin dashboard" width="720" />
+<img src="docs/screenshots/Admin%201.png" alt="Admin dashboard" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Admin%202.png" alt="User management" width="720" />
+<img src="docs/screenshots/Admin%202.png" alt="User management" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Admin%203.png" alt="Share management" width="720" />
+<img src="docs/screenshots/Admin%203.png" alt="Share management" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Admin%204.png" alt="Audit log" width="720" />
+<img src="docs/screenshots/Admin%204.png" alt="Audit log" width="720" />
 <br/><br/>
-<img src="docs/screen%20shots/Admin%205.png" alt="Admin settings" width="720" />
+<img src="docs/screenshots/Admin%205.png" alt="Admin settings" width="720" />
 </details>
 
 ---
