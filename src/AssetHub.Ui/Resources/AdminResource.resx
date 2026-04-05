@@ -65,6 +65,7 @@
   <data name="Event_asset.malware_detected" xml:space="preserve"><value>Malware Detected</value></data>
   <data name="Event_asset.downloaded" xml:space="preserve"><value>Asset Downloaded</value></data>
   <data name="Event_asset.processing_failed" xml:space="preserve"><value>Processing Failed</value></data>
+  <data name="Event_asset.image_saved_as_copy" xml:space="preserve"><value>Image Saved as Copy</value></data>
   <data name="Event_collection.created" xml:space="preserve"><value>Collection Created</value></data>
   <data name="Event_collection.updated" xml:space="preserve"><value>Collection Updated</value></data>
   <data name="Event_collection.deleted" xml:space="preserve"><value>Collection Deleted</value></data>

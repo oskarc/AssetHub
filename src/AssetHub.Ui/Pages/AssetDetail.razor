@@ -15,6 +15,7 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<ImageEditorResource> EditorLoc
 @inject LocalizedDisplayService Display
 
 <PageTitle>@(_isLoading ? AssetLoc["LoadingAsset"] : _asset?.Title ?? AssetLoc["AssetNotFound"]) - @CommonLoc["AppName"]</PageTitle>
@@ -228,6 +229,16 @@ else
                             </MudAlert>
                         }
 
+                        @if (_isPollingProcessing)
+                        {
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" NoIcon="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Info" />
+                                    <MudText Typo="Typo.body2">@AssetLoc["ProcessingBanner"]</MudText>
+                                </MudStack>
+                            </MudAlert>
+                        }
+
                         <!-- Metadata (Expandable) -->
                         @if (_asset.MetadataJson.Where(k => k.Key != "error").Any())
                         {
@@ -314,6 +325,18 @@ else
                             </MudButton>
                             }
 
+                            @if (RolePermissions.CanEdit(_asset?.UserRole)
+                                 && _asset?.AssetType == Constants.AssetTypeFilters.Image
+                                 && _asset?.Status == Constants.AssetStatus.Ready)
+                            {
+                            <MudButton Variant="Variant.Outlined"
+                                       StartIcon="@Icons.Material.Filled.Tune"
+                                       FullWidth="true"
+                                       OnClick="@(() => Nav.NavigateTo($"/assets/{AssetId}/edit" + (ReturnUrl != null ? $"?returnUrl={Uri.EscapeDataString(ReturnUrl)}" : "")))">
+                                @EditorLoc["Btn_EditImage"]
+                            </MudButton>
+                            }
+
                             @if (RolePermissions.CanDelete(_asset?.UserRole))
                             {
                             <MudButton Variant="Variant.Outlined"
@@ -342,6 +365,7 @@ else
     private AssetResponseDto? _asset;
     private List<AssetCollectionDto> _assetCollections = new();
     private bool _isLoading = true;
+    private bool _isPollingProcessing;
     private CancellationTokenSource _cts = new();
 
     protected override async Task OnParametersSetAsync()
@@ -373,6 +397,51 @@ else
         finally
         {
             _isLoading = false;
+        }
+
+        if (_asset?.Status == Constants.AssetStatus.Processing)
+        {
+            _ = PollUntilProcessedAsync();
+        }
+    }
+
+    private async Task PollUntilProcessedAsync()
+    {
+        const int maxAttempts = 40;
+        const int pollIntervalMs = 3000;
+
+        _isPollingProcessing = true;
+
+        try
+        {
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                await Task.Delay(pollIntervalMs, _cts.Token);
+
+                try
+                {
+                    var refreshed = await Api.GetAssetAsync(AssetId, _cts.Token);
+
+                    if (refreshed is null || refreshed.Status == Constants.AssetStatus.Failed
+                        || refreshed.Status == Constants.AssetStatus.Ready)
+                    {
+                        _asset = refreshed;
+                        _isPollingProcessing = false;
+                        await InvokeAsync(StateHasChanged);
+                        return;
+                    }
+                }
+                catch (OperationCanceledException) { return; }
+                catch { /* polling error — retry next attempt */ }
+            }
+
+            // Timeout — stop polling, asset stays in current state
+            _isPollingProcessing = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed or navigated away
         }
     }
 

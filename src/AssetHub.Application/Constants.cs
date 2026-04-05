@@ -222,6 +222,9 @@ public static class Constants
         /// <summary>Default maximum upload size in MB.</summary>
         public const int DefaultMaxUploadSizeMb = 1500;
 
+        /// <summary>Maximum image size in MB for the browser-based image editor.</summary>
+        public const int MaxEditorImageSizeMb = 50;
+
         /// <summary>Maximum page size for paginated list endpoints.</summary>
         public const int MaxPageSize = 200;
 

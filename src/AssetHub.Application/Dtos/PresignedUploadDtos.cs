@@ -37,3 +37,40 @@ public class InitUploadResponse
     public string UploadUrl { get; set; } = "";
     public int ExpiresInSeconds { get; set; }
 }
+
+/// <summary>
+/// Request DTO for saving an edited image as a new copy.
+/// The server copies metadata from the source asset, creates a new asset record,
+/// and returns a presigned URL for the browser to upload the edited image.
+/// </summary>
+public class SaveImageCopyRequest
+{
+    [Required]
+    public required string ContentType { get; set; }
+
+    [Required]
+    [Range(1, long.MaxValue)]
+    public required long FileSize { get; set; }
+
+    [StringLength(255)]
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Optional collection to assign the copy to. If null, the copy is not assigned to any collection.
+    /// </summary>
+    public Guid? CollectionId { get; set; }
+}
+
+/// <summary>
+/// Request DTO for replacing an existing asset's file with an edited version.
+/// Only requires content type and file size — no title or collection since the asset already exists.
+/// </summary>
+public class ReplaceImageFileRequest
+{
+    [Required]
+    public required string ContentType { get; set; }
+
+    [Required]
+    [Range(1, long.MaxValue)]
+    public required long FileSize { get; set; }
+}

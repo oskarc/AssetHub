@@ -101,6 +101,7 @@
 
   <!-- Processing -->
   <data name="ProcessingFailedMessage" xml:space="preserve"><value>Bearbetningen misslyckades för denna tillgång. Försök ladda upp igen eller kontakta en administratör.</value></data>
+  <data name="ProcessingBanner" xml:space="preserve"><value>Denna tillgång bearbetas fortfarande. Sidan uppdateras automatiskt när den är klar.</value></data>
 
   <!-- Admin Upload -->
   <data name="UploadToCollection" xml:space="preserve"><value>Ladda upp till samling</value></data>

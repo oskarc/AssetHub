@@ -101,6 +101,7 @@
 
   <!-- Processing -->
   <data name="ProcessingFailedMessage" xml:space="preserve"><value>Processing failed for this asset. Please try uploading again or contact an administrator.</value></data>
+  <data name="ProcessingBanner" xml:space="preserve"><value>This asset is still being processed. The page will update automatically when ready.</value></data>
 
   <!-- Admin Upload -->
   <data name="UploadToCollection" xml:space="preserve"><value>Upload to collection</value></data>

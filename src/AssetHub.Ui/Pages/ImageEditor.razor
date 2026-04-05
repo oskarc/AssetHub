@@ -1,0 +1,499 @@
+@page "/assets/{Id:guid}/edit"
+@attribute [Authorize]
+@implements IAsyncDisposable
+
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Application.Helpers
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.JSInterop
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject IStringLocalizer<ImageEditorResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IJSRuntime JS
+@inject ThemeService Theme
+
+<PageTitle>@(_isLoading ? Loc["Editor_Loading"] : _asset?.Title ?? Loc["Error_AssetNotFound"]) - @CommonLoc["AppName"]</PageTitle>
+
+@if (_isLoading)
+{
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+        <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+            <MudText Typo="Typo.body1" Class="mt-4">@Loc["Editor_Loading"]</MudText>
+        </MudStack>
+    </MudContainer>
+}
+else if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+        <EmptyState Title="@Loc["Error_AssetNotFound"]"
+                    Description="@_errorMessage"
+                    Icon="@Icons.Material.Filled.BrokenImage"
+                    ActionText="@Loc["Btn_BackToAsset"]"
+                    ActionIcon="@Icons.Material.Filled.ArrowBack"
+                    OnAction="@NavigateBack" />
+    </MudContainer>
+}
+else
+{
+    <div class="editor-page">
+        <MudOverlay Visible="_isSaving" Absolute="true" ZIndex="99999" Class="saving-overlay">
+            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="saving-overlay-content">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                <MudText Typo="Typo.h6" Class="saving-overlay-title">@_savingOverlayText</MudText>
+                <MudText Typo="Typo.body2" Class="saving-overlay-hint">@_savingOverlayHint</MudText>
+            </MudStack>
+        </MudOverlay>
+        <MudPaper Class="editor-toolbar d-flex align-center gap-2 px-4 py-2" Elevation="0" Square="true">
+            <MudButton Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       Color="Color.Default"
+                       Size="Size.Small"
+                       OnClick="NavigateBack">
+                @Loc["Btn_BackToAsset"]
+            </MudButton>
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.ContentCopy"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       Disabled="@(!_hasUnsavedChanges || _isSaving)"
+                       OnClick="@(() => SaveWithMethodAsync(SaveMethod.Copy))">
+                @Loc["Btn_SaveAsCopy"]
+            </MudButton>
+            <MudButton Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       Disabled="@(!_hasUnsavedChanges || _isSaving)"
+                       OnClick="@(() => SaveWithMethodAsync(SaveMethod.Replace))">
+                @Loc["Btn_ReplaceOriginal"]
+            </MudButton>
+        </MudPaper>
+        <div id="@EditorContainerId" class="editor-container"></div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private const string EditorContainerId = "image-editor-container";
+
+    private AssetResponseDto? _asset;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private bool _hasUnsavedChanges;
+    private bool _isSaving;
+    private bool _navigationConfirmed;
+    private bool _editorInitStarted;
+    private string _savingOverlayText = "";
+    private string _savingOverlayHint = "";
+
+    private enum SaveMethod { Replace, Copy }
+    private SaveMethod _lastSaveMethod = SaveMethod.Replace;
+
+    private IJSObjectReference? _jsModule;
+    private DotNetObjectReference<ImageEditor>? _dotNetRef;
+    private IDisposable? _locationChangingRegistration;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+        _cts = new CancellationTokenSource();
+        await LoadAssetAsync();
+    }
+
+    private async Task LoadAssetAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            _asset = await Api.GetAssetAsync(Id, _cts.Token);
+
+            if (_asset == null)
+            {
+                _errorMessage = Loc["Error_AssetNotFound"];
+                return;
+            }
+
+            if (_asset.AssetType != Constants.AssetTypeFilters.Image)
+            {
+                _errorMessage = Loc["Error_NotAnImage"];
+                return;
+            }
+
+            if (_asset.Status != Constants.AssetStatus.Ready)
+            {
+                _errorMessage = Loc["Error_NotReady"];
+                return;
+            }
+
+            if (!RolePermissions.CanEdit(_asset.UserRole))
+            {
+                _errorMessage = Loc["Error_NoPermission"];
+                return;
+            }
+
+            // Warn if image is very large — browser may struggle
+            const long maxSizeBytes = (long)Constants.Limits.MaxEditorImageSizeMb * 1024 * 1024;
+            if (_asset.SizeBytes > maxSizeBytes)
+            {
+                _errorMessage = Loc["Error_TooLarge"];
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Navigation to different asset or disposal — ignore
+        }
+        catch (Exception)
+        {
+            _errorMessage = Loc["Error_AssetNotFound"];
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChanging);
+        }
+
+        if (!_editorInitStarted && _asset != null && string.IsNullOrEmpty(_errorMessage))
+        {
+            _editorInitStarted = true;
+            await InitEditorAsync();
+        }
+    }
+
+    private async Task InitEditorAsync()
+    {
+        try
+        {
+            _jsModule = await JS.InvokeAsync<IJSObjectReference>(
+                "import", "./_content/AssetHub.Ui/js/imageEditor.js");
+
+            _dotNetRef = DotNetObjectReference.Create(this);
+
+            var imageUrl = $"/api/v1/assets/{Id}/download";
+
+            var themeColors = Theme.IsDarkMode
+                ? new { primary = "#7ba3d4", primaryLight = "#2a3450", surface = "#1e2030", textPrimary = "#d0d1dc" }
+                : new { primary = "#4a6fa5", primaryLight = "#e8eef5", surface = "#ffffff", textPrimary = "#1a2332" };
+
+            await _jsModule.InvokeVoidAsync("initEditor",
+                EditorContainerId, imageUrl, themeColors, _dotNetRef);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected — ignore
+        }
+        catch (Exception)
+        {
+            _errorMessage = Loc["Error_EditorLoadFailed"];
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void OnEditorReady()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnEditorModified()
+    {
+        if (!_hasUnsavedChanges)
+        {
+            _hasUnsavedChanges = true;
+            _ = EnableBeforeUnloadAsync();
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    [JSInvokable]
+    public void OnEditorSaveRequested()
+    {
+        InvokeAsync(() => SaveWithLastMethodAsync());
+    }
+
+    private Task SaveWithLastMethodAsync() => SaveWithMethodAsync(_lastSaveMethod);
+
+    private async Task SaveWithMethodAsync(SaveMethod method)
+    {
+        _lastSaveMethod = method;
+
+        if (method == SaveMethod.Replace)
+        {
+            var confirmed = await DialogService.ShowConfirmAsync(
+                Loc["SaveDialog_ConfirmReplaceTitle"],
+                Loc["SaveDialog_ConfirmReplaceMessage"],
+                Loc["Btn_ReplaceOriginal"],
+                Icons.Material.Filled.Warning,
+                Color.Warning,
+                Color.Error);
+
+            if (!confirmed) return;
+
+            await ShowSavingOverlayAsync();
+            await SaveImageAsync(overwrite: true, format: null, title: null);
+        }
+        else
+        {
+            var defaultFormat = _asset!.ContentType == "image/png" ? "png" : "jpeg";
+            var defaultTitle = $"{_asset.Title} (edited)";
+
+            Guid? sourceCollectionId = null;
+            try
+            {
+                var assetCollections = await Api.GetAssetCollectionsAsync(Id, _cts.Token);
+                sourceCollectionId = assetCollections.FirstOrDefault()?.Id;
+            }
+            catch { /* Non-critical — dialog will default to None */ }
+
+            var copyParams = new DialogParameters<SaveImageCopyDialog>
+            {
+                { x => x.DefaultTitle, defaultTitle },
+                { x => x.DefaultFormat, defaultFormat },
+                { x => x.SourceCollectionId, sourceCollectionId }
+            };
+            var copyOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+            var copyDialog = await DialogService.ShowAsync<SaveImageCopyDialog>(
+                Loc["SaveCopyDialog_Title"], copyParams, copyOptions);
+            var copyResult = await copyDialog.Result;
+
+            if (copyResult is null || copyResult.Canceled) return;
+            if (copyResult.Data is not SaveImageCopyDialog.SaveCopyResult copyData) return;
+
+            await ShowSavingOverlayAsync();
+            await SaveImageAsync(overwrite: false, format: copyData.Format, title: copyData.Title, collectionId: copyData.CollectionId);
+        }
+    }
+
+    private async Task ShowSavingOverlayAsync()
+    {
+        _isSaving = true;
+        _savingOverlayText = Loc["Progress_SavingOverlay"];
+        _savingOverlayHint = Loc["Progress_SavingOverlayHint"];
+        StateHasChanged();
+        await Task.Delay(50);
+    }
+
+    private async Task SaveImageAsync(bool overwrite, string? format, string? title, Guid? collectionId = null)
+    {
+        if (_jsModule is null) return;
+
+        try
+        {
+            var outputFormat = format ?? (_asset!.ContentType == "image/png" ? "png" : "jpeg");
+            var quality = 0.92;
+
+            // Get the edited image info (content type & size) without uploading
+            var imageInfo = await _jsModule.InvokeAsync<SaveUploadResult>("getEditedImageInfo", outputFormat, quality);
+
+            if (!imageInfo.Success || imageInfo.Size <= 0)
+            {
+                return;
+            }
+
+            // Request a presigned upload URL from the API
+            InitUploadResponse initResponse;
+            if (overwrite)
+            {
+                initResponse = await Api.ReplaceImageFileAsync(Id, imageInfo.ContentType, imageInfo.Size, _cts.Token);
+            }
+            else
+            {
+                initResponse = await Api.SaveImageCopyAsync(Id, imageInfo.ContentType, imageInfo.Size, title, collectionId, _cts.Token);
+            }
+
+            // Upload the edited image to the presigned URL
+            var uploadResult = await _jsModule.InvokeAsync<SaveUploadResult>(
+                "saveAndUpload", initResponse.UploadUrl, outputFormat, quality);
+
+            if (!uploadResult.Success)
+            {
+                return;
+            }
+
+            // Confirm the upload to trigger processing
+            await Api.ConfirmUploadAsync(initResponse.AssetId, _cts.Token);
+
+            _hasUnsavedChanges = false;
+            await DisableBeforeUnloadAsync();
+            if (_jsModule != null)
+            {
+                try { await _jsModule.InvokeVoidAsync("clearUnsavedChanges"); }
+                catch (JSDisconnectedException) { }
+            }
+
+            // Update overlay to show processing state
+            _savingOverlayText = Loc["Progress_ProcessingOverlay"];
+            _savingOverlayHint = Loc["Progress_ProcessingOverlayHint"];
+            StateHasChanged();
+
+            // Wait for processing to complete before navigating
+            var targetAssetId = overwrite ? Id : initResponse.AssetId;
+            var processed = await WaitForProcessingAsync(targetAssetId);
+
+            _navigationConfirmed = true;
+
+            if (overwrite)
+            {
+                Nav.NavigateTo($"/assets/{Id}" + (ReturnUrl != null ? $"?returnUrl={Uri.EscapeDataString(ReturnUrl)}" : ""));
+            }
+            else
+            {
+                Nav.NavigateTo($"/assets/{initResponse.AssetId}");
+            }
+        }
+        catch (JSDisconnectedException) { }
+        catch
+        {
+            // Overlay dismisses — user can retry from the editor
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<bool> WaitForProcessingAsync(Guid assetId)
+    {
+        const int maxAttempts = 40;
+        const int pollIntervalMs = 3000;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            await Task.Delay(pollIntervalMs, _cts.Token);
+
+            try
+            {
+                var asset = await Api.GetAssetAsync(assetId, _cts.Token);
+
+                if (asset is null || asset.Status != Constants.AssetStatus.Processing)
+                    return asset?.Status == Constants.AssetStatus.Ready;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch { /* polling error — retry next attempt */ }
+        }
+
+        return false;
+    }
+
+    private sealed class SaveUploadResult
+    {
+        public bool Success { get; set; }
+        public string ContentType { get; set; } = "";
+        public long Size { get; set; }
+        public string? Error { get; set; }
+    }
+
+    [JSInvokable]
+    public void OnEditorClose()
+    {
+        InvokeAsync(() => NavigateBack());
+    }
+
+    [JSInvokable]
+    public void OnEditorError(string message)
+    {
+        InvokeAsync(() =>
+        {
+            _errorMessage = Loc["Error_EditorLoadFailed"];
+            StateHasChanged();
+        });
+    }
+
+    [JSInvokable]
+    public void OnUploadProgress(int percent)
+    {
+        // Phase 2/3: update upload progress bar
+    }
+
+    private async ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        if (!_hasUnsavedChanges || _navigationConfirmed) return;
+
+        context.PreventNavigation();
+
+        var confirmed = await DialogService.ShowConfirmAsync(
+            CommonLoc["Title_LeavePageConfirm"],
+            Loc["Text_UnsavedChanges"],
+            CommonLoc["Btn_LeavePage"],
+            Icons.Material.Filled.Warning,
+            Color.Warning,
+            Color.Error);
+
+        if (confirmed)
+        {
+            _navigationConfirmed = true;
+            await _cts.CancelAsync();
+            Nav.NavigateTo(context.TargetLocation);
+        }
+    }
+
+    private void NavigateBack()
+    {
+        _navigationConfirmed = true;
+        Nav.NavigateTo($"/assets/{Id}" + (ReturnUrl != null ? $"?returnUrl={Uri.EscapeDataString(ReturnUrl)}" : ""));
+    }
+
+    private async Task EnableBeforeUnloadAsync()
+    {
+        if (_jsModule != null)
+        {
+            try { await _jsModule.InvokeVoidAsync("enableBeforeUnload"); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+
+    private async Task DisableBeforeUnloadAsync()
+    {
+        if (_jsModule != null)
+        {
+            try { await _jsModule.InvokeVoidAsync("disableBeforeUnload"); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+        _locationChangingRegistration?.Dispose();
+        await DisableBeforeUnloadAsync();
+
+        if (_jsModule != null)
+        {
+            try
+            {
+                await _jsModule.InvokeVoidAsync("destroyEditor");
+                await _jsModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+
+        _dotNetRef?.Dispose();
+    }
+}

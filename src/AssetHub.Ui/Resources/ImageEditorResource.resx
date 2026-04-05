@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Page -->
+  <data name="Editor_Title" xml:space="preserve"><value>Edit Image</value></data>
+  <data name="Editor_Loading" xml:space="preserve"><value>Loading editor...</value></data>
+  <data name="Editor_PageTitle" xml:space="preserve"><value>Edit Image - {0}</value></data>
+
+  <!-- Buttons -->
+  <data name="Btn_ReplaceOriginal" xml:space="preserve"><value>Replace original</value></data>
+  <data name="Btn_SaveAsCopy" xml:space="preserve"><value>Save as copy</value></data>
+  <data name="Btn_BackToAsset" xml:space="preserve"><value>Back to asset</value></data>
+  <data name="Btn_EditImage" xml:space="preserve"><value>Edit Image</value></data>
+  <data name="Btn_Retry" xml:space="preserve"><value>Try again</value></data>
+
+  <!-- Save Dialog -->
+  <data name="SaveDialog_Title" xml:space="preserve"><value>Save edited image</value></data>
+  <data name="SaveDialog_ReplaceDescription" xml:space="preserve"><value>Overwrite the current image. The previous version will be permanently replaced.</value></data>
+  <data name="SaveDialog_CopyDescription" xml:space="preserve"><value>Create a new asset with the edited image. The original stays untouched.</value></data>
+  <data name="SaveDialog_ConfirmReplaceTitle" xml:space="preserve"><value>Replace original?</value></data>
+  <data name="SaveDialog_ConfirmReplaceMessage" xml:space="preserve"><value>The original image will be overwritten and cannot be recovered.</value></data>
+  <data name="SaveDialog_ConfirmCopyTitle" xml:space="preserve"><value>Save as new asset?</value></data>
+  <data name="SaveDialog_ConfirmCopyMessage" xml:space="preserve"><value>A new asset will be created with your edits. The original image will not be changed.</value></data>
+
+  <!-- Save Copy Dialog -->
+  <data name="SaveCopyDialog_Title" xml:space="preserve"><value>Save as copy</value></data>
+  <data name="SaveCopyDialog_NameLabel" xml:space="preserve"><value>File name</value></data>
+  <data name="SaveCopyDialog_FormatLabel" xml:space="preserve"><value>File format</value></data>
+  <data name="SaveCopyDialog_Hint" xml:space="preserve"><value>The original image will not be changed.</value></data>
+  <data name="SaveCopyDialog_CollectionLabel" xml:space="preserve"><value>Assign to collection</value></data>
+
+  <!-- Progress -->
+  <data name="Progress_Uploading" xml:space="preserve"><value>Uploading edited image...</value></data>
+  <data name="Progress_Processing" xml:space="preserve"><value>Processing...</value></data>
+  <data name="Progress_SavingOverlay" xml:space="preserve"><value>Saving your image...</value></data>
+  <data name="Progress_SavingOverlayHint" xml:space="preserve"><value>Uploading and processing — this may take a moment.</value></data>
+  <data name="Progress_ProcessingOverlay" xml:space="preserve"><value>Processing your image...</value></data>
+  <data name="Progress_ProcessingOverlayHint" xml:space="preserve"><value>Generating thumbnails and extracting metadata. Almost there.</value></data>
+  <data name="Progress_ProcessingTimeout" xml:space="preserve"><value>Processing is taking longer than expected. You’ll be redirected — the asset will finish processing in the background.</value></data>
+
+  <!-- Errors -->
+  <data name="Error_AssetNotFound" xml:space="preserve"><value>This asset doesn't exist or has been deleted.</value></data>
+  <data name="Error_NotAnImage" xml:space="preserve"><value>Only image assets can be edited.</value></data>
+  <data name="Error_NotReady" xml:space="preserve"><value>This image is currently being processed. Please try again later.</value></data>
+  <data name="Error_NoPermission" xml:space="preserve"><value>You don't have permission to edit this asset.</value></data>
+  <data name="Error_EditorLoadFailed" xml:space="preserve"><value>The image editor failed to load. Please refresh the page or try again later.</value></data>
+  <data name="Error_TooLarge" xml:space="preserve"><value>This image is too large to edit in the browser ({0}). Consider downloading, editing locally, and re-uploading.</value></data>
+  <data name="Error_SaveFailed" xml:space="preserve"><value>Failed to save the edited image. Your changes have not been lost — please try saving again.</value></data>
+  <data name="Error_ConcurrentEdit" xml:space="preserve"><value>This image was modified by another user while you were editing. Please reload and try again.</value></data>
+
+  <!-- Tips -->
+  <data name="Text_UnsavedChanges" xml:space="preserve"><value>You have unsaved changes. Are you sure you want to leave?</value></data>
+  <data name="Tip_OriginalPreserved" xml:space="preserve"><value>Tip: Your original image is preserved when you choose 'Save as copy'.</value></data>
+
+  <!-- Success -->
+  <data name="Success_Replaced" xml:space="preserve"><value>Image replaced successfully. Processing will start shortly.</value></data>
+  <data name="Success_SavedAsCopy" xml:space="preserve"><value>Copy saved successfully. Redirecting to the new asset...</value></data>
+</root>

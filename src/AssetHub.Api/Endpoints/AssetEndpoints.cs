@@ -38,6 +38,9 @@ public static class AssetEndpoints
         group.MapPost("init-upload", InitUpload).AddEndpointFilter<ValidationFilter<InitUploadRequest>>().DisableAntiforgery().WithName("InitUpload");
         group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).DisableAntiforgery().WithName("ConfirmUpload");
 
+        group.MapPost("{id:guid}/save-copy", SaveImageCopy).AddEndpointFilter<ValidationFilter<SaveImageCopyRequest>>().DisableAntiforgery().WithName("SaveImageCopy");
+        group.MapPost("{id:guid}/replace-file", ReplaceImageFile).AddEndpointFilter<ValidationFilter<ReplaceImageFileRequest>>().DisableAntiforgery().WithName("ReplaceImageFile");
+
         group.MapGet("{id:guid}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
         group.MapGet("{id:guid}/preview", GetRendition("original", forceDownload: false)).WithName("PreviewOriginal");
         group.MapGet("{id:guid}/thumb", GetRendition("thumb", forceDownload: false)).WithName("GetThumbnail");
@@ -149,6 +152,24 @@ public static class AssetEndpoints
         Guid id, [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
         var result = await svc.ConfirmUploadAsync(id, ct);
+        return result.ToHttpResult();
+    }
+
+    // ── Image Editing ────────────────────────────────────────────────────────
+
+    private static async Task<IResult> SaveImageCopy(
+        Guid id, SaveImageCopyRequest request,
+        [FromServices] IAssetUploadService svc, CancellationToken ct)
+    {
+        var result = await svc.SaveImageCopyAsync(id, request, ct);
+        return result.ToHttpResult(value => Results.Created($"/api/v1/assets/{value.AssetId}", value));
+    }
+
+    private static async Task<IResult> ReplaceImageFile(
+        Guid id, ReplaceImageFileRequest request,
+        [FromServices] IAssetUploadService svc, CancellationToken ct)
+    {
+        var result = await svc.ReplaceImageFileAsync(id, request, ct);
         return result.ToHttpResult();
     }
 

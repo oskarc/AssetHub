@@ -33,4 +33,18 @@ public interface IAssetUploadService
     Task<ServiceResult<AssetUploadResult>> UploadAsync(
         Stream fileStream, string fileName, string contentType, long fileSize,
         Guid collectionId, string title, CancellationToken ct);
+
+    /// <summary>
+    /// Save an edited image as a new copy. Creates a new asset record with metadata
+    /// copied from the source, adds it to the same collections, and returns a presigned URL.
+    /// </summary>
+    Task<ServiceResult<InitUploadResponse>> SaveImageCopyAsync(
+        Guid sourceAssetId, SaveImageCopyRequest request, CancellationToken ct);
+
+    /// <summary>
+    /// Replace the original file of an existing asset with an edited version.
+    /// Returns a presigned URL for the browser to upload the replacement file.
+    /// </summary>
+    Task<ServiceResult<InitUploadResponse>> ReplaceImageFileAsync(
+        Guid assetId, ReplaceImageFileRequest request, CancellationToken ct);
 }

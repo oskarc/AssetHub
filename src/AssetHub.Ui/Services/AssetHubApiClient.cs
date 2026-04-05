@@ -358,6 +358,32 @@ public class AssetHubApiClient
     }
 
     /// <summary>
+    /// Save an edited image as a new copy of the source asset.
+    /// Returns a presigned URL for uploading the edited file.
+    /// </summary>
+    public virtual async Task<InitUploadResponse> SaveImageCopyAsync(
+        Guid sourceAssetId, string contentType, long fileSize, string? title = null, Guid? collectionId = null, CancellationToken ct = default)
+    {
+        var request = new { contentType, fileSize, title, collectionId };
+        var response = await _http.PostAsJsonAsync($"/api/v1/assets/{sourceAssetId}/save-copy", request, ct);
+        await EnsureSuccessAsync(response, "Save image copy");
+        return await ReadRequiredJsonAsync<InitUploadResponse>(response, "Save image copy");
+    }
+
+    /// <summary>
+    /// Replace the original file of an asset with an edited version.
+    /// Returns a presigned URL for uploading the replacement file.
+    /// </summary>
+    public virtual async Task<InitUploadResponse> ReplaceImageFileAsync(
+        Guid assetId, string contentType, long fileSize, CancellationToken ct = default)
+    {
+        var request = new { contentType, fileSize };
+        var response = await _http.PostAsJsonAsync($"/api/v1/assets/{assetId}/replace-file", request, ct);
+        await EnsureSuccessAsync(response, "Replace image file");
+        return await ReadRequiredJsonAsync<InitUploadResponse>(response, "Replace image file");
+    }
+
+    /// <summary>
     /// Deletes an asset. When fromCollectionId is set the asset is removed from that
     /// collection (and auto-deleted by the backend when orphaned). Without fromCollectionId
     /// a full permanent delete is performed.

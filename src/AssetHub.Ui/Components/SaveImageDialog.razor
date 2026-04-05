@@ -1,0 +1,49 @@
+@inject IStringLocalizer<ImageEditorResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.Save" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@Loc["SaveDialog_Title"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2" Class="dialog-min-width">
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="@(() => MudDialog.Close(DialogResult.Ok(SaveImageChoice.Replace)))">
+                <MudStack Spacing="0" AlignItems="AlignItems.Start">
+                    <MudText Typo="Typo.body1">@Loc["Btn_ReplaceOriginal"]</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@Loc["SaveDialog_ReplaceDescription"]</MudText>
+                </MudStack>
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.ContentCopy"
+                       OnClick="@(() => MudDialog.Close(DialogResult.Ok(SaveImageChoice.Copy)))">
+                <MudStack Spacing="0" AlignItems="AlignItems.Start">
+                    <MudText Typo="Typo.body1">@Loc["Btn_SaveAsCopy"]</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@Loc["SaveDialog_CopyDescription"]</MudText>
+                </MudStack>
+            </MudButton>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())">@CommonLoc["Btn_Cancel"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    public enum SaveImageChoice
+    {
+        Replace,
+        Copy
+    }
+}

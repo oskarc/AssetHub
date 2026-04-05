@@ -65,6 +65,7 @@
   <data name="Event_asset.malware_detected" xml:space="preserve"><value>Skadlig kod upptäckt</value></data>
   <data name="Event_asset.downloaded" xml:space="preserve"><value>Tillgång nedladdad</value></data>
   <data name="Event_asset.processing_failed" xml:space="preserve"><value>Bearbetning misslyckades</value></data>
+  <data name="Event_asset.image_saved_as_copy" xml:space="preserve"><value>Bild sparad som kopia</value></data>
   <data name="Event_collection.created" xml:space="preserve"><value>Samling skapad</value></data>
   <data name="Event_collection.updated" xml:space="preserve"><value>Samling uppdaterad</value></data>
   <data name="Event_collection.deleted" xml:space="preserve"><value>Samling raderad</value></data>

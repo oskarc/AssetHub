@@ -1,0 +1,139 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Application.Helpers
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<ImageEditorResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@Loc["SaveCopyDialog_Title"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Class="dialog-min-width py-2">
+            <MudTextField @bind-Value="_title"
+                          Label="@CommonLoc["Label_Title"]"
+                          Variant="Variant.Outlined"
+                          MaxLength="255"
+                          Immediate="true"
+                          Validation="@((string v) => InputValidation.ValidateAssetTitle(v))"
+                          aria-required="true" />
+            <MudSelect @bind-Value="_format"
+                       Label="@Loc["SaveCopyDialog_FormatLabel"]"
+                       Variant="Variant.Outlined"
+                       AnchorOrigin="Origin.BottomCenter"
+                       aria-required="true">
+                <MudSelectItem Value="@("jpeg")">JPEG</MudSelectItem>
+                <MudSelectItem Value="@("png")">PNG</MudSelectItem>
+                <MudSelectItem Value="@("webp")">WebP</MudSelectItem>
+            </MudSelect>
+            @if (_isLoadingCollections)
+            {
+                <MudStack AlignItems="AlignItems.Center" Class="py-4">
+                    <MudProgressCircular Indeterminate="true" Size="Size.Medium" />
+                </MudStack>
+            }
+            else
+            {
+                <MudSelect T="Guid?"
+                           @bind-Value="_selectedCollectionId"
+                           Label="@Loc["SaveCopyDialog_CollectionLabel"]"
+                           Variant="Variant.Outlined"
+                           AnchorOrigin="Origin.BottomCenter"
+                           Clearable="true">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">
+                        @CommonLoc["Text_None"]
+                    </MudSelectItem>
+                    @foreach (var collection in _collections)
+                    {
+                        <MudSelectItem T="Guid?" Value="@collection.Id">
+                            @collection.Name
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                @Loc["SaveCopyDialog_Hint"]
+            </MudText>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!IsValid)"
+                   OnClick="Submit">
+            @Loc["Btn_SaveAsCopy"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public string DefaultTitle { get; set; } = "";
+
+    [Parameter]
+    public string DefaultFormat { get; set; } = "jpeg";
+
+    [Parameter]
+    public Guid? SourceCollectionId { get; set; }
+
+    private string _title = "";
+    private string _format = "jpeg";
+    private Guid? _selectedCollectionId;
+    private List<CollectionResponseDto> _collections = [];
+    private bool _isLoadingCollections = true;
+
+    protected override void OnParametersSet()
+    {
+        _title = DefaultTitle;
+        _format = DefaultFormat;
+        _selectedCollectionId = SourceCollectionId;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var allCollections = await Api.GetCollectionsAsync();
+            _collections = allCollections
+                .Where(c => RolePermissions.CanEdit(c.UserRole))
+                .OrderBy(c => c.Name, new NaturalSortComparer())
+                .ToList();
+
+            // Clear pre-selection if the source collection isn't in the editable list
+            if (_selectedCollectionId.HasValue && _collections.All(c => c.Id != _selectedCollectionId.Value))
+            {
+                _selectedCollectionId = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+        }
+        finally
+        {
+            _isLoadingCollections = false;
+        }
+    }
+
+    private bool IsValid =>
+        !string.IsNullOrWhiteSpace(_title) && _title.Length <= 255;
+
+    private void Submit()
+    {
+        if (!IsValid) return;
+        MudDialog.Close(DialogResult.Ok(new SaveCopyResult(_title.Trim(), _format, _selectedCollectionId)));
+    }
+
+    public sealed record SaveCopyResult(string Title, string Format, Guid? CollectionId);
+}

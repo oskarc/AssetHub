@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Page -->
+  <data name="Editor_Title" xml:space="preserve"><value>Redigera bild</value></data>
+  <data name="Editor_Loading" xml:space="preserve"><value>Laddar redigerare...</value></data>
+  <data name="Editor_PageTitle" xml:space="preserve"><value>Redigera bild - {0}</value></data>
+
+  <!-- Buttons -->
+  <data name="Btn_ReplaceOriginal" xml:space="preserve"><value>Ersätt original</value></data>
+  <data name="Btn_SaveAsCopy" xml:space="preserve"><value>Spara som kopia</value></data>
+  <data name="Btn_BackToAsset" xml:space="preserve"><value>Tillbaka till tillgång</value></data>
+  <data name="Btn_EditImage" xml:space="preserve"><value>Redigera bild</value></data>
+  <data name="Btn_Retry" xml:space="preserve"><value>Försök igen</value></data>
+
+  <!-- Save Dialog -->
+  <data name="SaveDialog_Title" xml:space="preserve"><value>Spara redigerad bild</value></data>
+  <data name="SaveDialog_ReplaceDescription" xml:space="preserve"><value>Skriv över den nuvarande bilden. Den tidigare versionen ersätts permanent.</value></data>
+  <data name="SaveDialog_CopyDescription" xml:space="preserve"><value>Skapa en ny tillgång med den redigerade bilden. Originalet förblir orört.</value></data>
+  <data name="SaveDialog_ConfirmReplaceTitle" xml:space="preserve"><value>Ersätt originalet?</value></data>
+  <data name="SaveDialog_ConfirmReplaceMessage" xml:space="preserve"><value>Originalbilden skrivs över och kan inte återställas.</value></data>
+  <data name="SaveDialog_ConfirmCopyTitle" xml:space="preserve"><value>Spara som ny tillgång?</value></data>
+  <data name="SaveDialog_ConfirmCopyMessage" xml:space="preserve"><value>En ny tillgång skapas med dina redigeringar. Originalbilden ändras inte.</value></data>
+
+  <!-- Save Copy Dialog -->
+  <data name="SaveCopyDialog_Title" xml:space="preserve"><value>Spara som kopia</value></data>
+  <data name="SaveCopyDialog_NameLabel" xml:space="preserve"><value>Filnamn</value></data>
+  <data name="SaveCopyDialog_FormatLabel" xml:space="preserve"><value>Filformat</value></data>
+  <data name="SaveCopyDialog_Hint" xml:space="preserve"><value>Originalbilden kommer inte att ändras.</value></data>
+  <data name="SaveCopyDialog_CollectionLabel" xml:space="preserve"><value>Tilldela till samling</value></data>
+
+  <!-- Progress -->
+  <data name="Progress_Uploading" xml:space="preserve"><value>Laddar upp redigerad bild...</value></data>
+  <data name="Progress_Processing" xml:space="preserve"><value>Bearbetar...</value></data>
+  <data name="Progress_SavingOverlay" xml:space="preserve"><value>Sparar din bild...</value></data>
+  <data name="Progress_SavingOverlayHint" xml:space="preserve"><value>Laddar upp och bearbetar — det kan ta en stund.</value></data>
+  <data name="Progress_ProcessingOverlay" xml:space="preserve"><value>Bearbetar din bild...</value></data>
+  <data name="Progress_ProcessingOverlayHint" xml:space="preserve"><value>Genererar miniatyrer och extraherar metadata. Snart klar.</value></data>
+  <data name="Progress_ProcessingTimeout" xml:space="preserve"><value>Bearbetningen tar längre än väntat. Du omdirigeras — tillgången bearbetas klart i bakgrunden.</value></data>
+
+  <!-- Errors -->
+  <data name="Error_AssetNotFound" xml:space="preserve"><value>Denna tillgång finns inte eller har tagits bort.</value></data>
+  <data name="Error_NotAnImage" xml:space="preserve"><value>Endast bildtillgångar kan redigeras.</value></data>
+  <data name="Error_NotReady" xml:space="preserve"><value>Denna bild bearbetas just nu. Försök igen senare.</value></data>
+  <data name="Error_NoPermission" xml:space="preserve"><value>Du har inte behörighet att redigera denna tillgång.</value></data>
+  <data name="Error_EditorLoadFailed" xml:space="preserve"><value>Bildredigeraren kunde inte laddas. Uppdatera sidan eller försök igen senare.</value></data>
+  <data name="Error_TooLarge" xml:space="preserve"><value>Denna bild är för stor för att redigera i webbläsaren ({0}). Överväg att ladda ner, redigera lokalt och ladda upp igen.</value></data>
+  <data name="Error_SaveFailed" xml:space="preserve"><value>Det gick inte att spara den redigerade bilden. Dina ändringar har inte gått förlorade — försök spara igen.</value></data>
+  <data name="Error_ConcurrentEdit" xml:space="preserve"><value>Denna bild ändrades av en annan användare medan du redigerade. Ladda om och försök igen.</value></data>
+
+  <!-- Tips -->
+  <data name="Text_UnsavedChanges" xml:space="preserve"><value>Du har osparade ändringar. Är du säker på att du vill lämna?</value></data>
+  <data name="Tip_OriginalPreserved" xml:space="preserve"><value>Tips: Ditt originalbild bevaras när du väljer 'Spara som kopia'.</value></data>
+
+  <!-- Success -->
+  <data name="Success_Replaced" xml:space="preserve"><value>Bilden har ersatts. Bearbetning startar snart.</value></data>
+  <data name="Success_SavedAsCopy" xml:space="preserve"><value>Kopia sparad. Omdirigerar till den nya tillgången...</value></data>
+</root>
