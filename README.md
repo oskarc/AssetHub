@@ -71,6 +71,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Asset Management**
 - Drag-and-drop upload with multi-collection organisation
 - Full-text trigram search across names, descriptions, and tags (GIN-indexed)
+- In-browser image editor — crop, resize, adjust, filter, annotate, and watermark with save-as-copy or replace-original
 - Video poster extraction via ffmpeg with inline playback
 - Download collections or shared content as zip archives
 - Auto-generated thumbnails, previews, and video posters
@@ -275,6 +276,7 @@ cd tests/E2E && npx playwright test
 - Office document preview (Word, Excel, PowerPoint)
 - Video transcoding (HLS/DASH adaptive streaming)
 - Group-based ACLs (Keycloak groups/roles)
+- ~~In-browser image editor~~ ✓
 
 ---
 
