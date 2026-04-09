@@ -9,27 +9,13 @@ namespace AssetHub.Infrastructure.Services;
 /// <summary>
 /// Orchestrates user provisioning steps: collection validation, access granting, and welcome emails.
 /// </summary>
-public class UserProvisioningService : IUserProvisioningService
+public sealed class UserProvisioningService(
+    ICollectionRepository collectionRepo,
+    ICollectionAclRepository aclRepo,
+    IEmailService emailService,
+    IAuditService audit,
+    ILogger<UserProvisioningService> logger) : IUserProvisioningService
 {
-    private readonly ICollectionRepository _collectionRepo;
-    private readonly ICollectionAclRepository _aclRepo;
-    private readonly IEmailService _emailService;
-    private readonly IAuditService _audit;
-    private readonly ILogger<UserProvisioningService> _logger;
-
-    public UserProvisioningService(
-        ICollectionRepository collectionRepo,
-        ICollectionAclRepository aclRepo,
-        IEmailService emailService,
-        IAuditService audit,
-        ILogger<UserProvisioningService> logger)
-    {
-        _collectionRepo = collectionRepo;
-        _aclRepo = aclRepo;
-        _emailService = emailService;
-        _audit = audit;
-        _logger = logger;
-    }
 
     /// <inheritdoc />
     public async Task<Dictionary<string, string>> ValidateCollectionsExistAsync(
@@ -38,7 +24,7 @@ public class UserProvisioningService : IUserProvisioningService
         var errors = new Dictionary<string, string>();
         foreach (var id in collectionIds)
         {
-            if (!await _collectionRepo.ExistsAsync(id, ct))
+            if (!await collectionRepo.ExistsAsync(id, ct))
                 errors[$"collection_{id}"] = $"Collection {id} not found";
         }
         return errors;
@@ -53,15 +39,15 @@ public class UserProvisioningService : IUserProvisioningService
         {
             try
             {
-                await _aclRepo.SetAccessAsync(collectionId, Constants.PrincipalTypes.User, userId, role, ct);
-                await _audit.LogAsync("user.access_granted", Constants.ScopeTypes.Collection, collectionId, userId,
+                await aclRepo.SetAccessAsync(collectionId, Constants.PrincipalTypes.User, userId, role, ct);
+                await audit.LogAsync("user.access_granted", Constants.ScopeTypes.Collection, collectionId, userId,
                     new() { ["role"] = role, ["username"] = username }, ct);
-                _logger.LogInformation("Granted '{Role}' access on collection {CollectionId} to new user '{Username}'",
+                logger.LogInformation("Granted '{Role}' access on collection {CollectionId} to new user '{Username}'",
                     role, collectionId, username);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to grant access on collection {CollectionId} for new user '{Username}'",
+                logger.LogWarning(ex, "Failed to grant access on collection {CollectionId} for new user '{Username}'",
                     collectionId, username);
             }
         }
@@ -79,12 +65,12 @@ public class UserProvisioningService : IUserProvisioningService
             var emailTemplate = new WelcomeEmailTemplate(
                 username, password, loginUrl, requirePasswordChange, adminUsername);
 
-            await _emailService.SendEmailAsync(email, emailTemplate, ct);
-            _logger.LogInformation("Welcome email sent to '{Email}' for new user '{Username}'", email, username);
+            await emailService.SendEmailAsync(email, emailTemplate, ct);
+            logger.LogInformation("Welcome email sent to '{Email}' for new user '{Username}'", email, username);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to send welcome email to '{Email}' for new user '{Username}'", email, username);
+            logger.LogWarning(ex, "Failed to send welcome email to '{Email}' for new user '{Username}'", email, username);
         }
     }
 }

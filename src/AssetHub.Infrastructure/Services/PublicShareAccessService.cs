@@ -35,14 +35,14 @@ public sealed class PublicShareAccessService(
         string token, string? password, int skip, int take, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
-        if (error != null) return error;
+        if (error is not null) return error;
 
         await shareRepo.IncrementAccessAsync(share!.Id, ct);
 
         if (share.ScopeType == ShareScopeType.Asset)
         {
             var asset = await assetRepo.GetByIdAsync(share.ScopeId, ct);
-            if (asset == null)
+            if (asset is null)
                 return ServiceError.NotFound("Asset not found");
 
             return BuildSharedAssetDto(asset, token, share.PermissionsJson);
@@ -51,7 +51,7 @@ public sealed class PublicShareAccessService(
         if (share.ScopeType == ShareScopeType.Collection)
         {
             var collection = await collectionRepo.GetByIdAsync(share.ScopeId, ct: ct);
-            if (collection == null)
+            if (collection is null)
                 return ServiceError.NotFound("Collection not found");
 
             var totalAssets = await assetRepo.CountByCollectionAsync(share.ScopeId, ct);
@@ -78,13 +78,13 @@ public sealed class PublicShareAccessService(
         string token, string? password, Guid? assetId, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
-        if (error != null) return error;
+        if (error is not null) return error;
 
         if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
             return ServiceError.Forbidden("Download permission not granted");
 
         var (targetAsset, resolveError) = await ResolveTargetAssetAsync(share, assetId, ct);
-        if (resolveError != null) return resolveError;
+        if (resolveError is not null) return resolveError;
 
         if (string.IsNullOrEmpty(targetAsset!.OriginalObjectKey))
             return ServiceError.BadRequest("Asset file not available");
@@ -105,7 +105,7 @@ public sealed class PublicShareAccessService(
         string token, string? password, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
-        if (error != null) return error!;
+        if (error is not null) return error!;
 
         if (!share!.PermissionsJson.TryGetValue("download", out var canDownload) || !canDownload)
             return ServiceError.Forbidden("Download permission not granted");
@@ -114,7 +114,7 @@ public sealed class PublicShareAccessService(
             return ServiceError.BadRequest("Download all is only available for collection shares");
 
         var collection = await collectionRepo.GetByIdAsync(share.ScopeId, ct: ct);
-        if (collection == null)
+        if (collection is null)
             return ServiceError.NotFound("Collection not found");
 
         await shareRepo.IncrementAccessAsync(share.Id, ct);
@@ -127,10 +127,10 @@ public sealed class PublicShareAccessService(
         string token, string? password, string? size, Guid? assetId, bool forceDownload, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
-        if (error != null) return error;
+        if (error is not null) return error;
 
         var (targetAsset, resolveError) = await ResolveTargetAssetAsync(share!, assetId, ct);
-        if (resolveError != null) return resolveError;
+        if (resolveError is not null) return resolveError;
 
         // PDF → serve original for inline preview
         if (string.Equals(targetAsset!.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
@@ -139,7 +139,7 @@ public sealed class PublicShareAccessService(
         }
 
         // Video/audio without specific size → serve original for playback
-        if (string.IsNullOrEmpty(size) && targetAsset.ContentType != null
+        if (string.IsNullOrEmpty(size) && targetAsset.ContentType is not null
             && (targetAsset.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
                 || targetAsset.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)))
         {
@@ -165,7 +165,7 @@ public sealed class PublicShareAccessService(
         string token, string? password, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
-        if (error != null) return error;
+        if (error is not null) return error;
 
         var lifetimeMinutes = Constants.Limits.ShareAccessTokenLifetimeMinutes;
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(lifetimeMinutes).ToUnixTimeSeconds();
@@ -189,11 +189,11 @@ public sealed class PublicShareAccessService(
     {
         var tokenHash = ShareHelpers.ComputeTokenHash(token);
         var share = await shareRepo.GetByTokenHashAsync(tokenHash, ct);
-        if (share == null)
+        if (share is null)
             return (null, ServiceError.NotFound("Share link not found or invalid"));
 
         var accessError = ShareHelpers.ValidateShareAccess(share.RevokedAt, share.ExpiresAt);
-        if (accessError != null)
+        if (accessError is not null)
         {
             var err = accessError == Constants.ShareErrorCodes.Revoked
                 ? ServiceError.ShareRevoked()
@@ -289,7 +289,7 @@ public sealed class PublicShareAccessService(
         if (share.ScopeType == ShareScopeType.Asset)
         {
             var asset = await assetRepo.GetByIdAsync(share.ScopeId, ct);
-            return asset != null
+            return asset is not null
                 ? (asset, null)
                 : (null, ServiceError.NotFound("Asset not found"));
         }
@@ -300,7 +300,7 @@ public sealed class PublicShareAccessService(
                 return (null, ServiceError.BadRequest("assetId query parameter is required for collection shares"));
 
             var asset = await assetRepo.GetByIdAsync(assetId.Value, ct);
-            if (asset == null)
+            if (asset is null)
                 return (null, ServiceError.NotFound("Asset not found in this shared collection"));
 
             var belongsToCollection = await assetCollectionRepo.BelongsToCollectionAsync(assetId.Value, share.ScopeId, ct);

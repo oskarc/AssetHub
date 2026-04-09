@@ -13,7 +13,7 @@ public sealed class AssetProcessingCompletedHandler(
         logger.LogInformation("Processing completed for asset {AssetId}", evt.AssetId);
 
         var asset = await assetRepository.GetByIdAsync(evt.AssetId, cancellationToken);
-        if (asset == null)
+        if (asset is null)
         {
             logger.LogWarning("Asset {AssetId} not found, skipping completion update", evt.AssetId);
             return;
@@ -21,7 +21,7 @@ public sealed class AssetProcessingCompletedHandler(
 
         asset.MarkReady(evt.ThumbObjectKey, evt.MediumObjectKey, evt.PosterObjectKey);
 
-        if (evt.MetadataJson != null)
+        if (evt.MetadataJson is not null)
         {
             asset.MetadataJson ??= new();
             foreach (var kvp in evt.MetadataJson)

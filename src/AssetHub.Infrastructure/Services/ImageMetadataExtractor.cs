@@ -55,11 +55,11 @@ public sealed class ImageMetadataExtractor(
     private static void ExtractExifData(IReadOnlyList<MetadataExtractor.Directory> directories, Dictionary<string, object> result)
     {
         var exifIfd0 = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-        if (exifIfd0 != null)
+        if (exifIfd0 is not null)
             ExtractExifIfd0Data(exifIfd0, result);
 
         var exifSubIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-        if (exifSubIfd != null)
+        if (exifSubIfd is not null)
             ExtractExifSubIfdData(exifSubIfd, result);
     }
 
@@ -117,7 +117,7 @@ public sealed class ImageMetadataExtractor(
     private static void ExtractIptcData(IReadOnlyList<MetadataExtractor.Directory> directories, Dictionary<string, object> result)
     {
         var iptc = directories.OfType<IptcDirectory>().FirstOrDefault();
-        if (iptc == null) return;
+        if (iptc is null) return;
 
         var byLine = iptc.GetString(IptcDirectory.TagByLine);
         if (!string.IsNullOrWhiteSpace(byLine) && !result.ContainsKey("artist"))
@@ -136,17 +136,17 @@ public sealed class ImageMetadataExtractor(
             result["source"] = source;
 
         var keywords = iptc.GetStringArray(IptcDirectory.TagKeywords);
-        if (keywords != null && keywords.Length > 0)
+        if (keywords is not null && keywords.Length > 0)
             result["keywords"] = string.Join(", ", keywords);
     }
 
     private static void ExtractGpsData(IReadOnlyList<MetadataExtractor.Directory> directories, Dictionary<string, object> result)
     {
         var gps = directories.OfType<MetadataExtractor.Formats.Exif.GpsDirectory>().FirstOrDefault();
-        if (gps == null) return;
+        if (gps is null) return;
 
         var location = gps.GetGeoLocation();
-        if (location != null)
+        if (location is not null)
         {
             result["gpsLatitude"] = location.Latitude;
             result["gpsLongitude"] = location.Longitude;

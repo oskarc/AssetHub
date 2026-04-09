@@ -14,22 +14,15 @@ namespace AssetHub.Infrastructure.Services;
 /// against the database. Isolates all direct <see cref="AssetHubDbContext"/> access from
 /// the orchestrating <see cref="DashboardService"/>.
 /// </summary>
-public class DashboardQueryService : IDashboardQueryService
+public sealed class DashboardQueryService(
+    AssetHubDbContext db,
+    IUserLookupService userLookup,
+    HybridCache cache) : IDashboardQueryService
 {
-    private readonly AssetHubDbContext _db;
-    private readonly IUserLookupService _userLookup;
-    private readonly HybridCache _cache;
-
-    public DashboardQueryService(AssetHubDbContext db, IUserLookupService userLookup, HybridCache cache)
-    {
-        _db = db;
-        _userLookup = userLookup;
-        _cache = cache;
-    }
 
     public async Task<string> GetHighestRoleAsync(string userId, CancellationToken ct)
     {
-        var acls = await _db.CollectionAcls
+        var acls = await db.CollectionAcls
             .Where(a => a.PrincipalId == userId)
             .Select(a => a.Role)
             .Distinct()
@@ -47,7 +40,7 @@ public class DashboardQueryService : IDashboardQueryService
     public async Task<Dictionary<Guid, DateTime>> GetLatestUpdatesByCollectionAsync(
         IEnumerable<Guid> collectionIds, CancellationToken ct)
     {
-        return await _db.AssetCollections
+        return await db.AssetCollections
             .AsNoTracking()
             .Where(ac => collectionIds.Contains(ac.CollectionId))
             .GroupBy(ac => ac.CollectionId)
@@ -58,8 +51,8 @@ public class DashboardQueryService : IDashboardQueryService
     public async Task<List<DashboardShareDto>> GetRecentSharesAsync(
         string? userId, int take, CancellationToken ct)
     {
-        var query = _db.Shares.AsNoTracking();
-        if (userId != null)
+        var query = db.Shares.AsNoTracking();
+        if (userId is not null)
             query = query.Where(s => s.CreatedByUserId == userId);
 
         var shares = await query
@@ -75,11 +68,11 @@ public class DashboardQueryService : IDashboardQueryService
             .Select(s => s.ScopeId).Distinct().ToList();
 
         var assetNames = assetScopeIds.Count > 0
-            ? await _db.Assets.Where(a => assetScopeIds.Contains(a.Id))
+            ? await db.Assets.Where(a => assetScopeIds.Contains(a.Id))
                 .ToDictionaryAsync(a => a.Id, a => a.Title, ct)
             : new Dictionary<Guid, string>();
         var collectionNames = collectionScopeIds.Count > 0
-            ? await _db.Collections.Where(c => collectionScopeIds.Contains(c.Id))
+            ? await db.Collections.Where(c => collectionScopeIds.Contains(c.Id))
                 .ToDictionaryAsync(c => c.Id, c => c.Name, ct)
             : new Dictionary<Guid, string>();
 
@@ -100,7 +93,7 @@ public class DashboardQueryService : IDashboardQueryService
                 CreatedAt = s.CreatedAt,
                 ExpiresAt = s.ExpiresAt,
                 AccessCount = s.AccessCount,
-                HasPassword = s.PasswordHash != null,
+                HasPassword = s.PasswordHash is not null,
                 Status = ShareHelpers.GetShareStatus(s.RevokedAt, s.ExpiresAt).ToLowerInvariant()
             };
         }).ToList();
@@ -109,8 +102,8 @@ public class DashboardQueryService : IDashboardQueryService
     public async Task<List<AuditEventDto>> GetRecentActivityAsync(
         string? userId, int take, CancellationToken ct)
     {
-        var query = _db.AuditEvents.AsNoTracking();
-        if (userId != null)
+        var query = db.AuditEvents.AsNoTracking();
+        if (userId is not null)
             query = query.Where(e => e.ActorUserId == userId);
 
         var events = await query
@@ -120,7 +113,7 @@ public class DashboardQueryService : IDashboardQueryService
 
         var actorIds = events.Select(e => e.ActorUserId)
             .Where(id => !string.IsNullOrEmpty(id)).Distinct();
-        var actorNames = await _userLookup.GetUserNamesAsync(actorIds!, ct);
+        var actorNames = await userLookup.GetUserNamesAsync(actorIds!, ct);
 
         var assetIds = events
             .Where(e => e.TargetId.HasValue && e.TargetType == Constants.ScopeTypes.Asset)
@@ -129,12 +122,12 @@ public class DashboardQueryService : IDashboardQueryService
             .Where(e => e.TargetId.HasValue && e.TargetType == Constants.ScopeTypes.Collection)
             .Select(e => e.TargetId!.Value).Distinct().ToList();
 
-        var assetNames = await _db.Assets.AsNoTracking()
+        var assetNames = await db.Assets.AsNoTracking()
             .Where(a => assetIds.Contains(a.Id))
             .Select(a => new { a.Id, a.Title })
             .ToDictionaryAsync(a => a.Id, a => a.Title, ct);
 
-        var collectionNames = await _db.Collections.AsNoTracking()
+        var collectionNames = await db.Collections.AsNoTracking()
             .Where(c => collectionIds.Contains(c.Id))
             .Select(c => new { c.Id, c.Name })
             .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
@@ -146,7 +139,7 @@ public class DashboardQueryService : IDashboardQueryService
             TargetId = e.TargetId,
             TargetName = ResolveTargetName(e.TargetType, e.TargetId, assetNames, collectionNames),
             ActorUserId = e.ActorUserId,
-            ActorUserName = e.ActorUserId != null ? actorNames.GetValueOrDefault(e.ActorUserId) : null,
+            ActorUserName = e.ActorUserId is not null ? actorNames.GetValueOrDefault(e.ActorUserId) : null,
             CreatedAt = e.CreatedAt,
             Details = e.DetailsJson
         }).ToList();
@@ -158,21 +151,21 @@ public class DashboardQueryService : IDashboardQueryService
             CacheKeys.DashboardSummary("global"),
             async cancel =>
             {
-                var totalAssets = await _db.Assets.CountAsync(cancel);
-                var totalStorage = await _db.Assets
+                var totalAssets = await db.Assets.CountAsync(cancel);
+                var totalStorage = await db.Assets
                     .Where(a => a.Status == AssetStatus.Ready)
                     .SumAsync(a => a.SizeBytes, cancel);
-                var totalCollections = await _db.Collections.CountAsync(cancel);
-                var totalShares = await _db.Shares.CountAsync(cancel);
-                var activeShares = await _db.Shares
-                    .CountAsync(s => s.RevokedAt == null && s.ExpiresAt > DateTime.UtcNow, cancel);
-                var expiredShares = await _db.Shares
-                    .CountAsync(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow, cancel);
-                var revokedShares = await _db.Shares
-                    .CountAsync(s => s.RevokedAt != null, cancel);
+                var totalCollections = await db.Collections.CountAsync(cancel);
+                var totalShares = await db.Shares.CountAsync(cancel);
+                var activeShares = await db.Shares
+                    .CountAsync(s => s.RevokedAt is null && s.ExpiresAt > DateTime.UtcNow, cancel);
+                var expiredShares = await db.Shares
+                    .CountAsync(s => s.RevokedAt is null && s.ExpiresAt <= DateTime.UtcNow, cancel);
+                var revokedShares = await db.Shares
+                    .CountAsync(s => s.RevokedAt is not null, cancel);
 
                 // Aggregate role counts in the database instead of loading all ACLs into memory
-                var roleCounts = await _db.CollectionAcls
+                var roleCounts = await db.CollectionAcls
                     .Where(a => a.PrincipalType == PrincipalType.User)
                     .GroupBy(a => a.PrincipalId)
                     .Select(g => g.Max(a => a.Role))
@@ -185,7 +178,7 @@ public class DashboardQueryService : IDashboardQueryService
                 var managerCount = roleCounts.FirstOrDefault(r => r.Role == AclRole.Manager)?.Count ?? 0;
                 var totalUsers = roleCounts.Sum(r => r.Count);
 
-                var totalAuditEvents = await _db.AuditEvents.CountAsync(cancel);
+                var totalAuditEvents = await db.AuditEvents.CountAsync(cancel);
 
                 return new DashboardStatsDto
                 {
@@ -201,7 +194,7 @@ public class DashboardQueryService : IDashboardQueryService
                     ContributorCount = contributorCount,
                     ManagerCount = managerCount,
                     TotalAuditEvents = totalAuditEvents,
-                    StorageByType = await _db.Assets
+                    StorageByType = await db.Assets
                         .Where(a => a.Status == AssetStatus.Ready)
                         .GroupBy(a => a.AssetType)
                         .Select(g => new StorageByTypeDto

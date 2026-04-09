@@ -20,44 +20,26 @@ public sealed record CollectionAclRepositories(
 /// Unified ACL management for collections. Replaces the duplicated logic
 /// that existed in both CollectionEndpoints and AdminEndpoints.
 /// </summary>
-public class CollectionAclService : ICollectionAclService, IAdminCollectionAclService
+public sealed class CollectionAclService(
+    CollectionAclRepositories repos,
+    ICollectionAuthorizationService authService,
+    IUserLookupService userLookup,
+    IKeycloakUserService keycloakUserService,
+    IAuditService audit,
+    HybridCache cache,
+    CurrentUser currentUser) : ICollectionAclService, IAdminCollectionAclService
 {
-    private readonly ICollectionRepository _collectionRepo;
-    private readonly ICollectionAclRepository _aclRepo;
-    private readonly ICollectionAuthorizationService _authService;
-    private readonly IUserLookupService _userLookup;
-    private readonly IKeycloakUserService _keycloakUserService;
-    private readonly IAuditService _audit;
-    private readonly HybridCache _cache;
-    private readonly CurrentUser _currentUser;
-
-    public CollectionAclService(
-        CollectionAclRepositories repos,
-        ICollectionAuthorizationService authService,
-        IUserLookupService userLookup,
-        IKeycloakUserService keycloakUserService,
-        IAuditService audit,
-        HybridCache cache,
-        CurrentUser currentUser)
-    {
-        _collectionRepo = repos.CollectionRepo;
-        _aclRepo = repos.AclRepo;
-        _authService = authService;
-        _userLookup = userLookup;
-        _keycloakUserService = keycloakUserService;
-        _audit = audit;
-        _cache = cache;
-        _currentUser = currentUser;
-    }
+    private readonly ICollectionRepository _collectionRepo = repos.CollectionRepo;
+    private readonly ICollectionAclRepository _aclRepo = repos.AclRepo;
 
     // ── Manager self-service (used by CollectionEndpoints) ───────────────────
 
     public async Task<ServiceResult<IEnumerable<CollectionAclResponseDto>>> GetAclsAsync(
         Guid collectionId, CancellationToken ct)
     {
-        var userId = _currentUser.UserId;
+        var userId = currentUser.UserId;
 
-        var canManage = await _authService.CanManageAclAsync(userId, collectionId, ct);
+        var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
         if (!canManage)
             return ServiceError.Forbidden();
 
@@ -65,9 +47,9 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         var userIds = acls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId);
 
         // These are independent Keycloak DB/API calls — run in parallel
-        var nameMapTask = _userLookup.GetUserNamesAsync(userIds, ct);
-        var emailMapTask = _userLookup.GetUserEmailsAsync(userIds, ct);
-        var adminIdsTask = _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        var nameMapTask = userLookup.GetUserNamesAsync(userIds, ct);
+        var emailMapTask = userLookup.GetUserEmailsAsync(userIds, ct);
+        var adminIdsTask = keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
         await Task.WhenAll(nameMapTask, emailMapTask, adminIdsTask);
         var nameMap = nameMapTask.Result;
         var emailMap = emailMapTask.Result;
@@ -92,9 +74,9 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         Guid collectionId, string principalType, string principalId, string role,
         CancellationToken ct)
     {
-        var userId = _currentUser.UserId;
+        var userId = currentUser.UserId;
 
-        var canManage = await _authService.CanManageAclAsync(userId, collectionId, ct);
+        var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
         if (!canManage)
             return ServiceError.Forbidden();
 
@@ -105,26 +87,26 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
             return ServiceError.BadRequest("Invalid role");
 
         // Role escalation guard
-        var callerRole = await _authService.GetUserRoleAsync(userId, collectionId, ct);
+        var callerRole = await authService.GetUserRoleAsync(userId, collectionId, ct);
         if (!RoleHierarchy.CanGrantRole(callerRole, role))
             return ServiceError.BadRequest($"You cannot grant the '{role}' role because it exceeds your own access level");
 
         var acl = await _aclRepo.SetAccessAsync(collectionId, principalType, principalId, role, ct);
 
-        await _audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, userId,
+        await audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, userId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = role },
             ct);
 
         if (principalType == Constants.PrincipalTypes.User)
-            await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
-        await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
+            await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
+        await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
 
         string? principalName = null;
         string? principalEmail = null;
         if (principalType == Constants.PrincipalTypes.User)
         {
-            var nameTask = _userLookup.GetUserNameAsync(principalId, ct);
-            var emailMapTask = _userLookup.GetUserEmailsAsync(new[] { principalId }, ct);
+            var nameTask = userLookup.GetUserNameAsync(principalId, ct);
+            var emailMapTask = userLookup.GetUserEmailsAsync(new[] { principalId }, ct);
             await Task.WhenAll(nameTask, emailMapTask);
             principalName = nameTask.Result;
             emailMapTask.Result.TryGetValue(principalId, out principalEmail);
@@ -145,27 +127,27 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
     public async Task<ServiceResult> RevokeAccessAsync(
         Guid collectionId, string principalType, string principalId, CancellationToken ct)
     {
-        var userId = _currentUser.UserId;
+        var userId = currentUser.UserId;
 
-        var canManage = await _authService.CanManageAclAsync(userId, collectionId, ct);
+        var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
         if (!canManage)
             return ServiceError.Forbidden();
 
         // Role escalation guard
-        var callerRole = await _authService.GetUserRoleAsync(userId, collectionId, ct);
+        var callerRole = await authService.GetUserRoleAsync(userId, collectionId, ct);
         var targetAcl = await _aclRepo.GetByPrincipalAsync(collectionId, principalType, principalId, ct);
-        if (targetAcl != null && !RoleHierarchy.CanRevokeRole(callerRole, targetAcl.Role.ToDbString()))
+        if (targetAcl is not null && !RoleHierarchy.CanRevokeRole(callerRole, targetAcl.Role.ToDbString()))
             return ServiceError.BadRequest($"You cannot revoke a '{targetAcl.Role.ToDbString()}' role because it exceeds your own access level");
 
         await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
 
-        await _audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, userId,
+        await audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, userId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId },
             ct);
 
         if (principalType == Constants.PrincipalTypes.User)
-            await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
-        await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
+            await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
+        await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
 
         return ServiceResult.Success;
     }
@@ -173,9 +155,9 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
     public async Task<ServiceResult<List<UserSearchResultDto>>> SearchUsersForAclAsync(
         Guid collectionId, string? query, CancellationToken ct)
     {
-        var userId = _currentUser.UserId;
+        var userId = currentUser.UserId;
 
-        var canManage = await _authService.CanManageAclAsync(userId, collectionId, ct);
+        var canManage = await authService.CanManageAclAsync(userId, collectionId, ct);
         if (!canManage)
             return ServiceError.Forbidden();
 
@@ -183,11 +165,11 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            matchedUsers = await _userLookup.SearchUsersAsync(query.Trim(), 50, ct);
+            matchedUsers = await userLookup.SearchUsersAsync(query.Trim(), 50, ct);
         }
         else
         {
-            var allUsers = await _userLookup.GetAllUsersAsync(ct);
+            var allUsers = await userLookup.GetAllUsersAsync(ct);
             matchedUsers = allUsers.Select(u => (u.Id, u.Username, u.Email)).ToList();
         }
 
@@ -225,15 +207,15 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
         {
             if (!Guid.TryParse(request.PrincipalId, out _))
             {
-                var resolvedUserId = await _userLookup.GetUserIdByUsernameAsync(request.PrincipalId, ct);
-                if (resolvedUserId == null)
+                var resolvedUserId = await userLookup.GetUserIdByUsernameAsync(request.PrincipalId, ct);
+                if (resolvedUserId is null)
                     return ServiceError.BadRequest($"User '{request.PrincipalId}' not found");
                 principalId = resolvedUserId;
             }
             else
             {
-                var username = await _userLookup.GetUserNameAsync(request.PrincipalId, ct);
-                if (username == null)
+                var username = await userLookup.GetUserNameAsync(request.PrincipalId, ct);
+                if (username is null)
                     return ServiceError.BadRequest($"User with ID '{request.PrincipalId}' not found");
             }
         }
@@ -244,14 +226,14 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
 
         var acl = await _aclRepo.SetAccessAsync(collectionId, principalType, principalId, targetRole, ct);
 
-        var adminUserId = _currentUser.UserId;
-        await _audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, adminUserId,
+        var adminUserId = currentUser.UserId;
+        await audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, adminUserId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = targetRole, ["admin"] = true },
             ct);
 
         if (principalType == Constants.PrincipalTypes.User)
-            await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
-        await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
+            await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
+        await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
 
         return new AccessUpdatedResponse
         {
@@ -270,14 +252,14 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
 
         await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
 
-        var adminUserId = _currentUser.UserId;
-        await _audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, adminUserId,
+        var adminUserId = currentUser.UserId;
+        await audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, adminUserId,
             new() { ["principalType"] = principalType, ["principalId"] = principalId, ["admin"] = true },
             ct);
 
         if (principalType == Constants.PrincipalTypes.User)
-            await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
-        await _cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
+            await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
+        await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);
 
         return new AccessRevokedResponse
         {
@@ -296,9 +278,9 @@ public class CollectionAclService : ICollectionAclService, IAdminCollectionAclSe
             .SelectMany(c => c.Acls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId))
             .Distinct()
             .ToList();
-        var userNames = await _userLookup.GetUserNamesAsync(allUserIds, ct);
-        var userEmails = await _userLookup.GetUserEmailsAsync(allUserIds, ct);
-        var adminIds = await _keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        var userNames = await userLookup.GetUserNamesAsync(allUserIds, ct);
+        var userEmails = await userLookup.GetUserEmailsAsync(allUserIds, ct);
+        var adminIds = await keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
 
         var result = allCollections
             .Select(c => CollectionTreeHelper.ToAccessDto(c, userNames, userEmails, adminIds))

@@ -38,7 +38,7 @@ public class ShareService(
         if (dto.ScopeType == Constants.ScopeTypes.Asset)
         {
             var asset = await repos.AssetRepo.GetByIdAsync(dto.ScopeId, ct);
-            if (asset == null)
+            if (asset is null)
                 return new ShareScopeValidation { ErrorMessage = "Asset not found", ErrorStatusCode = 404 };
 
             var assetCollections = await repos.AssetCollectionRepo.GetCollectionsForAssetAsync(dto.ScopeId, ct);
@@ -55,7 +55,7 @@ public class ShareService(
 
         // Collection scope
         var collection = await repos.CollectionRepo.GetByIdAsync(dto.ScopeId, ct: ct);
-        if (collection == null)
+        if (collection is null)
             return new ShareScopeValidation { ErrorMessage = "Collection not found", ErrorStatusCode = 404 };
 
         return new ShareScopeValidation
@@ -75,7 +75,7 @@ public class ShareService(
             return ShareCreationResult.Error(validation.ErrorMessage!);
 
         var inputError = ValidateShareInputs(dto);
-        if (inputError != null)
+        if (inputError is not null)
             return ShareCreationResult.Error(inputError);
 
         // Generate secure token
@@ -89,7 +89,7 @@ public class ShareService(
         else
         {
             var pwError = InputValidation.ValidateSharePassword(plainPassword);
-            if (pwError != null)
+            if (pwError is not null)
                 return ShareCreationResult.Error(pwError);
         }
 
@@ -182,7 +182,7 @@ public class ShareService(
         if (dto.NotifyEmails?.Count > 0)
         {
             var invalidEmails = dto.NotifyEmails
-                .Where(e => InputValidation.ValidateEmail(e) != null)
+                .Where(e => InputValidation.ValidateEmail(e) is not null)
                 .ToList();
             if (invalidEmails.Count > 0)
                 return "One or more notification email addresses are invalid";

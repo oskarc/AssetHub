@@ -16,7 +16,7 @@ namespace AssetHub.Infrastructure.Services;
 /// Uses client credentials (admin username/password) to obtain an admin access token,
 /// then calls the Keycloak Admin API to create users.
 /// </summary>
-public class KeycloakUserService : IKeycloakUserService
+public sealed class KeycloakUserService : IKeycloakUserService
 {
     private readonly ILogger<KeycloakUserService> _logger;
     private readonly HttpClient _httpClient;
@@ -367,14 +367,14 @@ public class KeycloakUserService : IKeycloakUserService
     private async Task<string> GetAdminTokenAsync(CancellationToken ct)
     {
         // Fast path: return cached token if still valid (with 30s buffer)
-        if (_cachedToken != null && DateTime.UtcNow < _tokenExpiry.AddSeconds(-30))
+        if (_cachedToken is not null && DateTime.UtcNow < _tokenExpiry.AddSeconds(-30))
             return _cachedToken;
 
         await _tokenLock.WaitAsync(ct);
         try
         {
             // Double-check after acquiring lock — another thread may have refreshed
-            if (_cachedToken != null && DateTime.UtcNow < _tokenExpiry.AddSeconds(-30))
+            if (_cachedToken is not null && DateTime.UtcNow < _tokenExpiry.AddSeconds(-30))
                 return _cachedToken;
 
             var tokenUrl = $"{_keycloakBaseUrl}/realms/master/protocol/openid-connect/token";

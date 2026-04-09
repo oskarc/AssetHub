@@ -13,7 +13,7 @@ namespace AssetHub.Infrastructure.Services;
 /// Supports INSTREAM command for streaming file content directly to clamd.
 /// Wraps TCP operations with a Polly resilience pipeline for retry and circuit-breaker.
 /// </summary>
-public class ClamAvScannerService : IMalwareScannerService
+public sealed class ClamAvScannerService : IMalwareScannerService
 {
     private readonly ILogger<ClamAvScannerService> _logger;
     private readonly string _host;

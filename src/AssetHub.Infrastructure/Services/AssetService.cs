@@ -62,14 +62,14 @@ public sealed class AssetService : IAssetService
         Guid id, UpdateAssetDto dto, CancellationToken ct)
     {
         var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound(AssetNotFoundMessage);
 
         if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Contributor, ct))
             return ServiceError.Forbidden();
 
         var validationError = ApplyFieldUpdates(asset, dto);
-        if (validationError != null)
+        if (validationError is not null)
             return validationError;
 
         asset.UpdatedAt = DateTime.UtcNow;
@@ -94,18 +94,18 @@ public sealed class AssetService : IAssetService
 
     private static ServiceError? ApplyTitle(Domain.Entities.Asset asset, UpdateAssetDto dto)
     {
-        if (dto.Title == null) return null;
+        if (dto.Title is null) return null;
         var error = InputValidation.ValidateAssetTitle(dto.Title);
-        if (error != null) return ServiceError.BadRequest(error);
+        if (error is not null) return ServiceError.BadRequest(error);
         asset.Title = dto.Title;
         return null;
     }
 
     private static ServiceError? ApplyDescription(Domain.Entities.Asset asset, UpdateAssetDto dto)
     {
-        if (dto.Description == null) return null;
+        if (dto.Description is null) return null;
         var desc = InputValidation.NormalizeToNull(dto.Description);
-        if (desc != null && desc.Length > 2000)
+        if (desc is not null && desc.Length > 2000)
             return ServiceError.BadRequest("Description must be 2000 characters or fewer");
         asset.Description = desc;
         return null;
@@ -113,9 +113,9 @@ public sealed class AssetService : IAssetService
 
     private static ServiceError? ApplyCopyright(Domain.Entities.Asset asset, UpdateAssetDto dto)
     {
-        if (dto.Copyright == null) return null;
+        if (dto.Copyright is null) return null;
         var copyright = InputValidation.NormalizeToNull(dto.Copyright);
-        if (copyright != null && copyright.Length > 500)
+        if (copyright is not null && copyright.Length > 500)
             return ServiceError.BadRequest("Copyright must be 500 characters or fewer");
         asset.Copyright = copyright;
         return null;
@@ -123,7 +123,7 @@ public sealed class AssetService : IAssetService
 
     private static ServiceError? ApplyTags(Domain.Entities.Asset asset, UpdateAssetDto dto)
     {
-        if (dto.Tags == null) return null;
+        if (dto.Tags is null) return null;
         if (dto.Tags.Count > Constants.Limits.MaxTagsPerAsset)
             return ServiceError.BadRequest($"Cannot have more than {Constants.Limits.MaxTagsPerAsset} tags");
         if (dto.Tags.Any(t => t.Length > Constants.Limits.MaxTagLength))
@@ -134,7 +134,7 @@ public sealed class AssetService : IAssetService
 
     private static ServiceError? ApplyMetadata(Domain.Entities.Asset asset, UpdateAssetDto dto)
     {
-        if (dto.MetadataJson == null) return null;
+        if (dto.MetadataJson is null) return null;
         if (dto.MetadataJson.Count > Constants.Limits.MaxMetadataEntries)
             return ServiceError.BadRequest($"Metadata cannot exceed {Constants.Limits.MaxMetadataEntries} entries");
         if (dto.MetadataJson.Keys.Any(k => k.Length > Constants.Limits.MaxMetadataKeyLength))
@@ -150,7 +150,7 @@ public sealed class AssetService : IAssetService
     {
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound(AssetNotFoundMessage);
 
         // "Remove from this collection" mode — backend decides if it becomes a permanent delete
@@ -185,7 +185,7 @@ public sealed class AssetService : IAssetService
         // Full permanent delete (no specific collection context)
         var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
         var partialDelete = await TryPartialDeleteAsync(id, asset.Title, userId, assetCollections, ct);
-        if (partialDelete != null)
+        if (partialDelete is not null)
             return partialDelete;
 
         await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
@@ -232,7 +232,7 @@ public sealed class AssetService : IAssetService
     {
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(assetId, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound(AssetNotFoundMessage);
 
         if (!_currentUser.IsSystemAdmin)
@@ -256,7 +256,7 @@ public sealed class AssetService : IAssetService
             return ServiceError.NotFound("Collection not found");
 
         var result = await _assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
-        if (result == null)
+        if (result is null)
             return ServiceError.Conflict("Asset is already linked to this collection");
 
         await _audit.LogAsync("asset.added_to_collection", Constants.ScopeTypes.Asset, assetId, userId,
@@ -276,7 +276,7 @@ public sealed class AssetService : IAssetService
     {
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(assetId, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound(AssetNotFoundMessage);
 
         if (!_currentUser.IsSystemAdmin)

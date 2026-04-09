@@ -35,7 +35,7 @@ public sealed class CollectionQueryService(
             return ServiceError.Forbidden();
 
         var collection = await collectionRepo.GetByIdAsync(id, ct: ct);
-        if (collection == null)
+        if (collection is null)
             return ServiceError.NotFound("Collection not found");
 
         var assetCounts = await collectionRepo.GetAssetCountsAsync([id], ct);

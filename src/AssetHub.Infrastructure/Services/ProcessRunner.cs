@@ -11,7 +11,7 @@ internal static class ProcessRunner
     internal static async Task RunAsync(string toolName, ProcessStartInfo startInfo, TimeSpan timeout, ILogger logger, CancellationToken ct)
     {
         using var process = Process.Start(startInfo);
-        if (process == null)
+        if (process is null)
             throw new InvalidOperationException($"{toolName} process failed to start");
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);

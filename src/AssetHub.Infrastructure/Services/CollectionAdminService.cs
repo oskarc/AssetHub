@@ -47,7 +47,7 @@ public sealed class CollectionAdminService(
             try
             {
                 var collection = await repos.CollectionRepo.GetByIdAsync(id, ct: ct);
-                if (collection == null)
+                if (collection is null)
                 {
                     errors.Add(new BulkOperationError { CollectionId = id, Error = "Collection not found" });
                     continue;
@@ -104,7 +104,7 @@ public sealed class CollectionAdminService(
             try
             {
                 var collection = await repos.CollectionRepo.GetByIdAsync(collectionId, ct: ct);
-                if (collection == null)
+                if (collection is null)
                 {
                     errors.Add(new BulkOperationError { CollectionId = collectionId, Error = "Collection not found" });
                     continue;

@@ -108,7 +108,7 @@ public sealed class AssetQueryService : IAssetQueryService
 
         // Batch-resolve roles for all accessible collections (single query, no N+1)
         var collectionRoles = (await _authService.GetUserRolesAsync(userId, accessibleCollectionIds, ct))
-            .Where(kv => kv.Value != null)
+            .Where(kv => kv.Value is not null)
             .ToDictionary(kv => kv.Key, kv => kv.Value!);
 
         // If a specific collection is requested, filter to just that one (if accessible)
@@ -163,7 +163,7 @@ public sealed class AssetQueryService : IAssetQueryService
     public async Task<ServiceResult<AssetResponseDto>> GetAssetAsync(Guid id, CancellationToken ct)
     {
         var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound(AssetNotFound);
 
         if (_currentUser.IsSystemAdmin)
@@ -174,7 +174,7 @@ public sealed class AssetQueryService : IAssetQueryService
         var roleMap = await _authService.GetUserRolesAsync(_currentUser.UserId, collectionIds, ct);
         foreach (var collection in linkedCollections)
         {
-            if (roleMap.TryGetValue(collection.Id, out var role) && role != null)
+            if (roleMap.TryGetValue(collection.Id, out var role) && role is not null)
                 return AssetMapper.ToDto(asset, role);
         }
 
@@ -193,7 +193,7 @@ public sealed class AssetQueryService : IAssetQueryService
         else
         {
             var role = await _authService.GetUserRoleAsync(_currentUser.UserId, collectionId, ct);
-            if (role == null)
+            if (role is null)
                 return ServiceError.Forbidden();
             userRole = role;
         }
@@ -212,7 +212,7 @@ public sealed class AssetQueryService : IAssetQueryService
         Guid id, CancellationToken ct)
     {
         var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound(AssetNotFound);
 
         if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Viewer, ct))
@@ -239,7 +239,7 @@ public sealed class AssetQueryService : IAssetQueryService
         Guid id, CancellationToken ct)
     {
         var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound(AssetNotFound);
 
         if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Viewer, ct))
@@ -260,14 +260,14 @@ public sealed class AssetQueryService : IAssetQueryService
         Guid id, string size, bool forceDownload, CancellationToken ct)
     {
         var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound(AssetNotFound);
 
         if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Viewer, ct))
             return ServiceError.Forbidden();
 
         var statusError = ValidateAssetStatus(asset, size, forceDownload);
-        if (statusError != null)
+        if (statusError is not null)
             return statusError;
 
         var objectKey = ResolveObjectKey(asset, size);

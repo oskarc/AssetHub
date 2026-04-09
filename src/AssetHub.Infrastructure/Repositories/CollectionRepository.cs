@@ -84,7 +84,7 @@ public class CollectionRepository(
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var collection = await dbContext.Collections.FindAsync([id], ct);
-        if (collection == null)
+        if (collection is null)
         {
             logger.LogWarning("Attempted to delete non-existent collection {CollectionId}", id);
             return;
@@ -106,7 +106,7 @@ public class CollectionRepository(
     {
         return await dbContext.Collections
             .Where(c => c.Name.ToLower() == name.ToLower())
-            .Where(c => excludeId == null || c.Id != excludeId.Value)
+            .Where(c => excludeId is null || c.Id != excludeId.Value)
             .AnyAsync(ct);
     }
 

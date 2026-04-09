@@ -44,7 +44,7 @@ public sealed class MediaProcessingService(
             logger.LogInformation("No processing required for asset {AssetId} of type {AssetType}", assetId, assetType);
             // For documents and other types, mark as ready immediately
             var asset = await assetRepository.GetByIdAsync(assetId, cancellationToken);
-            if (asset != null)
+            if (asset is not null)
             {
                 asset.MarkReady();
                 await assetRepository.UpdateAsync(asset, cancellationToken);

@@ -14,21 +14,13 @@ namespace AssetHub.Infrastructure.Services;
 /// SMTP-based email service implementation.
 /// Wraps send operations with a Polly resilience pipeline for retry on transient failures.
 /// </summary>
-public class SmtpEmailService : IEmailService
+public sealed class SmtpEmailService(
+    IOptions<EmailSettings> settings,
+    ILogger<SmtpEmailService> logger,
+    ResiliencePipelineProvider<string> pipelineProvider) : IEmailService
 {
-    private readonly EmailSettings _settings;
-    private readonly ILogger<SmtpEmailService> _logger;
-    private readonly ResiliencePipeline _pipeline;
-
-    public SmtpEmailService(
-        IOptions<EmailSettings> settings,
-        ILogger<SmtpEmailService> logger,
-        ResiliencePipelineProvider<string> pipelineProvider)
-    {
-        _settings = settings.Value;
-        _logger = logger;
-        _pipeline = pipelineProvider.GetPipeline("smtp");
-    }
+    private readonly EmailSettings _settings = settings.Value;
+    private readonly ResiliencePipeline _pipeline = pipelineProvider.GetPipeline("smtp");
 
     public async Task SendEmailAsync(string to, IEmailTemplate template, CancellationToken cancellationToken = default)
     {
@@ -41,13 +33,13 @@ public class SmtpEmailService : IEmailService
         
         if (!recipientList.Any())
         {
-            _logger.LogWarning("No valid recipients provided for email: {Subject}", template.Subject);
+            logger.LogWarning("No valid recipients provided for email: {Subject}", template.Subject);
             return;
         }
 
         if (!_settings.Enabled)
         {
-            _logger.LogInformation("Email sending is disabled. Would have sent '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
+            logger.LogInformation("Email sending is disabled. Would have sent '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
             return;
         }
 
@@ -59,7 +51,7 @@ public class SmtpEmailService : IEmailService
             await client.SendMailAsync(message, ct);
         }, cancellationToken);
 
-        _logger.LogInformation("Successfully sent email '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
+        logger.LogInformation("Successfully sent email '{Subject}' to {RecipientCount} recipient(s)", template.Subject, recipientList.Count);
     }
 
     private SmtpClient CreateSmtpClient()

@@ -78,7 +78,7 @@ public class AuditQueryService(
             TargetId = e.TargetId,
             TargetName = ResolveTargetName(e.TargetType, e.TargetId, assetNames, collectionNames),
             ActorUserId = e.ActorUserId,
-            ActorUserName = e.ActorUserId != null ? actorNames.GetValueOrDefault(e.ActorUserId) : null,
+            ActorUserName = e.ActorUserId is not null ? actorNames.GetValueOrDefault(e.ActorUserId) : null,
             CreatedAt = e.CreatedAt,
             Details = e.DetailsJson
         }).ToList();

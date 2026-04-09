@@ -24,44 +24,27 @@ public sealed record UserLifecycleServices(
 /// <summary>
 /// Admin user lifecycle management: listing, creation, password reset, sync, and deletion.
 /// </summary>
-public class UserAdminService : IUserAdminQueryService, IUserAdminService
+public sealed class UserAdminService(
+    ICollectionAclRepository aclRepo,
+    ICollectionRepository collectionRepo,
+    UserLifecycleServices lifecycle,
+    IAuditService audit,
+    IOptions<KeycloakSettings> keycloakSettings,
+    CurrentUser currentUser,
+    ILogger<UserAdminService> logger) : IUserAdminQueryService, IUserAdminService
 {
     private const string AuditKeyUsername = "username";
     private const string UnexpectedError = "An unexpected error occurred";
 
-    private readonly ICollectionAclRepository _aclRepo;
-    private readonly ICollectionRepository _collectionRepo;
-    private readonly UserLifecycleServices _lifecycle;
-    private readonly IAuditService _audit;
-    private readonly CurrentUser _currentUser;
-    private readonly string _adminUsername;
-    private readonly ILogger<UserAdminService> _logger;
-
-    public UserAdminService(
-        ICollectionAclRepository aclRepo,
-        ICollectionRepository collectionRepo,
-        UserLifecycleServices lifecycle,
-        IAuditService audit,
-        IOptions<KeycloakSettings> keycloakSettings,
-        CurrentUser currentUser,
-        ILogger<UserAdminService> logger)
-    {
-        _aclRepo = aclRepo;
-        _collectionRepo = collectionRepo;
-        _lifecycle = lifecycle;
-        _audit = audit;
-        _currentUser = currentUser;
-        _adminUsername = keycloakSettings.Value.AdminUsername;
-        _logger = logger;
-    }
+    private readonly string _adminUsername = keycloakSettings.Value.AdminUsername;
 
     public async Task<ServiceResult<List<UserAccessSummaryDto>>> GetUsersAsync(CancellationToken ct)
     {
-        var allAcls = await _aclRepo.GetAllAsync(ct);
-        var allCollections = (await _collectionRepo.GetAllWithAclsAsync(ct)).ToDictionary(c => c.Id);
+        var allAcls = await aclRepo.GetAllAsync(ct);
+        var allCollections = (await collectionRepo.GetAllWithAclsAsync(ct)).ToDictionary(c => c.Id);
 
         var userIds = allAcls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId).Distinct().ToList();
-        var userNames = await _lifecycle.UserLookup.GetUserNamesAsync(userIds, ct);
+        var userNames = await lifecycle.UserLookup.GetUserNamesAsync(userIds, ct);
 
         var userAccess = allAcls
             .Where(a => a.PrincipalType == PrincipalType.User)
@@ -87,7 +70,7 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
 
     public async Task<ServiceResult<List<KeycloakUserDto>>> GetKeycloakUsersAsync(CancellationToken ct)
     {
-        var allUsers = await _lifecycle.UserLookup.GetAllUsersAsync(ct);
+        var allUsers = await lifecycle.UserLookup.GetAllUsersAsync(ct);
 
         // Filter out Keycloak admin accounts and service accounts
         allUsers = allUsers
@@ -96,8 +79,8 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
             .ToList();
 
         // Start Keycloak API call in parallel with EF Core query
-        var adminUserIdsTask = _lifecycle.KeycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
-        var allAcls = await _aclRepo.GetAllAsync(ct);
+        var adminUserIdsTask = lifecycle.KeycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        var allAcls = await aclRepo.GetAllAsync(ct);
         var adminUserIds = await adminUserIdsTask;
 
         var userAclGroups = allAcls
@@ -216,42 +199,42 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         else
         {
             var pwError = InputValidation.ValidatePassword(password);
-            if (pwError != null)
+            if (pwError is not null)
                 return ServiceError.Validation("Validation failed", new Dictionary<string, string> { ["password"] = pwError });
         }
 
-        var collectionErrors = await _lifecycle.Provisioning.ValidateCollectionsExistAsync(request.InitialCollectionIds, ct);
+        var collectionErrors = await lifecycle.Provisioning.ValidateCollectionsExistAsync(request.InitialCollectionIds, ct);
         if (collectionErrors.Count > 0)
             return ServiceError.Validation("One or more collections not found", collectionErrors);
 
         try
         {
-            var userId = await _lifecycle.KeycloakUserService.CreateUserAsync(
+            var userId = await lifecycle.KeycloakUserService.CreateUserAsync(
                 username, email, firstName, lastName,
                 password, true /* always temporary */, ct);
 
-            _logger.LogInformation("Admin created user '{Username}' (ID: {UserId})", username, userId);
+            logger.LogInformation("Admin created user '{Username}' (ID: {UserId})", username, userId);
 
             // Assign system admin realm role if requested
             if (request.IsSystemAdmin)
             {
-                await _lifecycle.KeycloakUserService.AssignRealmRoleAsync(userId, "admin", ct);
-                _logger.LogInformation("Assigned 'admin' realm role to user '{Username}'", username);
+                await lifecycle.KeycloakUserService.AssignRealmRoleAsync(userId, "admin", ct);
+                logger.LogInformation("Assigned 'admin' realm role to user '{Username}'", username);
             }
 
             // Grant collection access (skip if system admin since they have implicit access)
             if (!request.IsSystemAdmin && request.InitialCollectionIds.Count > 0)
             {
                 var role = RoleHierarchy.ResolveRole(request.InitialRole);
-                await _lifecycle.Provisioning.GrantCollectionAccessAsync(request.InitialCollectionIds, userId, role, username, ct);
+                await lifecycle.Provisioning.GrantCollectionAccessAsync(request.InitialCollectionIds, userId, role, username, ct);
             }
 
             // Send password setup email via Keycloak (user sets their own password)
             if (!string.IsNullOrWhiteSpace(email))
                 await TrySendPasswordSetupEmailAsync(userId, email, username, ct);
 
-            await _audit.LogAsync("user.created", Constants.ScopeTypes.User,
-                Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
+            await audit.LogAsync("user.created", Constants.ScopeTypes.User,
+                Guid.TryParse(userId, out var uid) ? uid : null, currentUser.UserId,
                 new() { [AuditKeyUsername] = username, ["email"] = email, ["isSystemAdmin"] = request.IsSystemAdmin.ToString() },
                 ct);
 
@@ -267,9 +250,9 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         }
         catch (KeycloakApiException ex)
         {
-            _logger.LogWarning(ex, "Keycloak API error creating user '{Username}'", username);
+            logger.LogWarning(ex, "Keycloak API error creating user '{Username}'", username);
 
-            await _audit.LogAsync("user.create_failed", Constants.ScopeTypes.User, null, _currentUser.UserId,
+            await audit.LogAsync("user.create_failed", Constants.ScopeTypes.User, null, currentUser.UserId,
                 new() { [AuditKeyUsername] = username, ["error"] = ex.Message },
                 ct);
 
@@ -279,7 +262,7 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error creating user '{Username}'", username);
+            logger.LogError(ex, "Unexpected error creating user '{Username}'", username);
             return ServiceError.Server(UnexpectedError);
         }
     }
@@ -292,13 +275,13 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
 
         try
         {
-            await _lifecycle.KeycloakUserService.SendExecuteActionsEmailAsync(
+            await lifecycle.KeycloakUserService.SendExecuteActionsEmailAsync(
                 userId, new[] { "UPDATE_PASSWORD" }, lifespan: 86400, ct);
 
-            _logger.LogInformation("Admin sent password reset email for user '{UserId}'", userId);
+            logger.LogInformation("Admin sent password reset email for user '{UserId}'", userId);
 
-            await _audit.LogAsync("user.password_reset_email", Constants.ScopeTypes.User,
-                Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
+            await audit.LogAsync("user.password_reset_email", Constants.ScopeTypes.User,
+                Guid.TryParse(userId, out var uid) ? uid : null, currentUser.UserId,
                 new() { ["targetUserId"] = userId },
                 ct);
 
@@ -306,14 +289,14 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         }
         catch (KeycloakApiException ex)
         {
-            _logger.LogWarning(ex, "Keycloak API error sending password reset email for user '{UserId}'", userId);
+            logger.LogWarning(ex, "Keycloak API error sending password reset email for user '{UserId}'", userId);
             return ex.StatusCode == 404
                 ? ServiceError.NotFound(ex.Message)
                 : ServiceError.BadRequest(ex.Message);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error sending password reset email for user '{UserId}'", userId);
+            logger.LogError(ex, "Unexpected error sending password reset email for user '{UserId}'", userId);
             return ServiceError.Server(UnexpectedError);
         }
     }
@@ -322,11 +305,11 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
     {
         try
         {
-            var result = await _lifecycle.SyncService.SyncDeletedUsersAsync(dryRun, ct);
+            var result = await lifecycle.SyncService.SyncDeletedUsersAsync(dryRun, ct);
 
             if (!dryRun && result.DeletedUsers > 0)
             {
-                await _audit.LogAsync("user.sync.completed", "system", null, _currentUser.UserId,
+                await audit.LogAsync("user.sync.completed", "system", null, currentUser.UserId,
                     new()
                     {
                         ["deletedUsers"] = result.DeletedUsers,
@@ -339,7 +322,7 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during user sync");
+            logger.LogError(ex, "Error during user sync");
             return ServiceError.Server(UnexpectedError);
         }
     }
@@ -349,30 +332,30 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         if (string.IsNullOrWhiteSpace(userId))
             return ServiceError.BadRequest("User ID is required");
 
-        if (string.Equals(userId, _currentUser.UserId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(userId, currentUser.UserId, StringComparison.OrdinalIgnoreCase))
             return ServiceError.BadRequest("You cannot delete your own account");
 
-        var username = await _lifecycle.UserLookup.GetUserNameAsync(userId, ct);
+        var username = await lifecycle.UserLookup.GetUserNameAsync(userId, ct);
 
         try
         {
-            if (username != null)
+            if (username is not null)
             {
-                await _lifecycle.KeycloakUserService.DeleteUserAsync(userId, ct);
+                await lifecycle.KeycloakUserService.DeleteUserAsync(userId, ct);
             }
             else
             {
-                _logger.LogInformation("User '{UserId}' already absent from Keycloak, cleaning up app data only", userId);
+                logger.LogInformation("User '{UserId}' already absent from Keycloak, cleaning up app data only", userId);
                 username = userId;
             }
 
-            var (aclsRemoved, sharesRevoked) = await _lifecycle.CleanupService.CleanupUserDataAsync(userId, ct);
+            var (aclsRemoved, sharesRevoked) = await lifecycle.CleanupService.CleanupUserDataAsync(userId, ct);
 
-            _logger.LogInformation("Admin deleted user '{Username}' ({UserId}): removed {Acls} ACLs, revoked {Shares} shares",
+            logger.LogInformation("Admin deleted user '{Username}' ({UserId}): removed {Acls} ACLs, revoked {Shares} shares",
                 username, userId, aclsRemoved, sharesRevoked);
 
-            await _audit.LogAsync("user.deleted", Constants.ScopeTypes.User,
-                Guid.TryParse(userId, out var uid) ? uid : null, _currentUser.UserId,
+            await audit.LogAsync("user.deleted", Constants.ScopeTypes.User,
+                Guid.TryParse(userId, out var uid) ? uid : null, currentUser.UserId,
                 new()
                 {
                     [AuditKeyUsername] = username,
@@ -389,14 +372,14 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
         }
         catch (KeycloakApiException ex)
         {
-            _logger.LogWarning(ex, "Keycloak API error deleting user '{UserId}'", userId);
+            logger.LogWarning(ex, "Keycloak API error deleting user '{UserId}'", userId);
             return ex.StatusCode == 404
                 ? ServiceError.NotFound(ex.Message)
                 : ServiceError.BadRequest(ex.Message);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error deleting user '{UserId}'", userId);
+            logger.LogError(ex, "Unexpected error deleting user '{UserId}'", userId);
             return ServiceError.Server(UnexpectedError);
         }
     }
@@ -422,15 +405,15 @@ public class UserAdminService : IUserAdminQueryService, IUserAdminService
     {
         try
         {
-            await _lifecycle.KeycloakUserService.SendExecuteActionsEmailAsync(
+            await lifecycle.KeycloakUserService.SendExecuteActionsEmailAsync(
                 userId, new[] { "UPDATE_PASSWORD" }, lifespan: 86400, ct);
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Sent password setup email to '{Email}' for new user '{Username}'",
                 email, username);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
+            logger.LogWarning(ex,
                 "Failed to send password setup email to '{Email}' for new user '{Username}'",
                 email, username);
         }

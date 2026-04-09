@@ -47,7 +47,7 @@ public class CollectionAclRepository(
         {
             var existing = await GetByPrincipalAsync(collectionId, principalType, principalId, ct);
 
-            if (existing != null)
+            if (existing is not null)
             {
                 existing.Role = Enum.Parse<AclRole>(role, true);
                 dbContext.CollectionAcls.Update(existing);
@@ -92,7 +92,7 @@ public class CollectionAclRepository(
     public async Task RevokeAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
         var acl = await GetByPrincipalAsync(collectionId, principalType, principalId, ct);
-        if (acl == null)
+        if (acl is null)
         {
             logger.LogDebug(
                 "No ACL found to revoke for {PrincipalType} {PrincipalId} on collection {CollectionId}",

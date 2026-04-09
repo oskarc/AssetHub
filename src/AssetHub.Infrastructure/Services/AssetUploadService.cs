@@ -86,7 +86,7 @@ public sealed class AssetUploadService : IAssetUploadService
             return ServiceError.BadRequest("File is required");
 
         var sizeError = ValidateFileSize(fileSize);
-        if (sizeError != null) return sizeError;
+        if (sizeError is not null) return sizeError;
 
         if (!Constants.AllowedUploadTypes.IsAllowed(contentType))
             return ServiceError.BadRequest($"Content type '{contentType}' is not allowed. Only images, videos, audio, documents, and other safe file types are permitted.");
@@ -159,7 +159,7 @@ public sealed class AssetUploadService : IAssetUploadService
         var userId = _currentUser.UserId;
 
         var sizeError = ValidateFileSize(request.FileSize);
-        if (sizeError != null) return sizeError;
+        if (sizeError is not null) return sizeError;
 
         if (!Constants.AllowedUploadTypes.IsAllowed(request.ContentType))
             return ServiceError.BadRequest($"Content type '{request.ContentType}' is not allowed. Only images, videos, audio, documents, and other safe file types are permitted.");
@@ -215,7 +215,7 @@ public sealed class AssetUploadService : IAssetUploadService
     {
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset == null)
+        if (asset is null)
             return ServiceError.NotFound("Asset not found");
 
         // Allow the original uploader OR any user with Contributor access (e.g. image editor replace flow)
@@ -226,7 +226,7 @@ public sealed class AssetUploadService : IAssetUploadService
             return ServiceError.BadRequest("Asset is not in uploading state");
 
         var stat = await _minioAdapter.StatObjectAsync(_bucketName, asset.OriginalObjectKey, ct);
-        if (stat == null)
+        if (stat is null)
             return ServiceError.BadRequest("File not found in storage. Upload may have failed or expired.");
 
         // Validate file magic bytes match claimed content type (prevents Content-Type spoofing)
@@ -357,7 +357,7 @@ public sealed class AssetUploadService : IAssetUploadService
             return ServiceError.Forbidden();
 
         var sizeError = ValidateFileSize(request.FileSize);
-        if (sizeError != null) return sizeError;
+        if (sizeError is not null) return sizeError;
 
         // Validate target collection access before creating the asset
         if (request.CollectionId.HasValue)
@@ -426,7 +426,7 @@ public sealed class AssetUploadService : IAssetUploadService
             return ServiceError.Forbidden();
 
         var sizeError = ValidateFileSize(request.FileSize);
-        if (sizeError != null) return sizeError;
+        if (sizeError is not null) return sizeError;
 
         // Unique object key per edit to avoid overwrites and cache issues
         var extension = MimeTypeToExtension(request.ContentType);

@@ -65,7 +65,7 @@ public sealed class AuthenticatedShareAccessService(
     public async Task<ServiceResult> RevokeShareAsync(Guid shareId, CancellationToken ct)
     {
         var share = await shareRepo.GetByIdAsync(shareId, ct);
-        if (share == null)
+        if (share is null)
             return ServiceError.NotFound("Share not found");
 
         var userId = currentUser.UserId;
@@ -86,7 +86,7 @@ public sealed class AuthenticatedShareAccessService(
         Guid shareId, string password, CancellationToken ct)
     {
         var share = await shareRepo.GetByIdAsync(shareId, ct);
-        if (share == null)
+        if (share is null)
             return ServiceError.NotFound("Share not found");
 
         var userId = currentUser.UserId;
@@ -97,7 +97,7 @@ public sealed class AuthenticatedShareAccessService(
         if (string.IsNullOrWhiteSpace(password))
             return ServiceError.BadRequest("Password cannot be empty");
         var pwError = InputValidation.ValidateSharePassword(password);
-        if (pwError != null)
+        if (pwError is not null)
             return ServiceError.BadRequest(pwError);
 
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);

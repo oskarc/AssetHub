@@ -124,7 +124,7 @@ public class ShareRepository(
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var share = await dbContext.Shares.FindAsync(new object[] { id }, cancellationToken);
-        if (share != null)
+        if (share is not null)
         {
             dbContext.Shares.Remove(share);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -200,7 +200,7 @@ public class ShareRepository(
     public async Task<int> DeleteExpiredAsync(CancellationToken cancellationToken = default)
     {
         var deleted = await dbContext.Shares
-            .Where(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow)
+            .Where(s => s.RevokedAt is null && s.ExpiresAt <= DateTime.UtcNow)
             .ExecuteDeleteAsync(cancellationToken);
 
         logger.LogInformation("Deleted {Deleted} expired shares", deleted);
@@ -210,7 +210,7 @@ public class ShareRepository(
     public async Task<int> DeleteRevokedAsync(CancellationToken cancellationToken = default)
     {
         var deleted = await dbContext.Shares
-            .Where(s => s.RevokedAt != null)
+            .Where(s => s.RevokedAt is not null)
             .ExecuteDeleteAsync(cancellationToken);
 
         logger.LogInformation("Deleted {Deleted} revoked shares", deleted);

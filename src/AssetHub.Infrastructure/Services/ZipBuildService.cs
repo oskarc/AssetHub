@@ -27,34 +27,18 @@ public sealed record ZipBuildDataDependencies(
 /// Manages queued ZIP download builds via Wolverine.
 /// Builds ZIP files in the background and stores them as temporary MinIO objects.
 /// </summary>
-public class ZipBuildService : IZipBuildService
+public sealed class ZipBuildService(
+    ZipBuildDataDependencies data,
+    IMinIOAdapter minioAdapter,
+    IMessageBus messageBus,
+    IAuditService audit,
+    IOptions<MinIOSettings> minioSettings,
+    ILogger<ZipBuildService> logger) : IZipBuildService
 {
-    private readonly IDbContextFactory<AssetHubDbContext> _dbFactory;
-    private readonly IAssetRepository _assetRepo;
-    private readonly ICollectionRepository _collectionRepo;
-    private readonly IMinIOAdapter _minioAdapter;
-    private readonly IMessageBus _messageBus;
-    private readonly IAuditService _audit;
-    private readonly string _bucketName;
-    private readonly ILogger<ZipBuildService> _logger;
-
-    public ZipBuildService(
-        ZipBuildDataDependencies data,
-        IMinIOAdapter minioAdapter,
-        IMessageBus messageBus,
-        IAuditService audit,
-        IOptions<MinIOSettings> minioSettings,
-        ILogger<ZipBuildService> logger)
-    {
-        _dbFactory = data.DbFactory;
-        _assetRepo = data.AssetRepo;
-        _collectionRepo = data.CollectionRepo;
-        _minioAdapter = minioAdapter;
-        _messageBus = messageBus;
-        _audit = audit;
-        _bucketName = minioSettings.Value.BucketName;
-        _logger = logger;
-    }
+    private readonly IDbContextFactory<AssetHubDbContext> _dbFactory = data.DbFactory;
+    private readonly IAssetRepository _assetRepo = data.AssetRepo;
+    private readonly ICollectionRepository _collectionRepo = data.CollectionRepo;
+    private readonly string _bucketName = minioSettings.Value.BucketName;
 
 
     public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> EnqueueCollectionZipAsync(
@@ -72,7 +56,7 @@ public class ZipBuildService : IZipBuildService
                 $"You already have {activeCount} ZIP downloads in progress. Please wait for them to complete.");
 
         var collection = await _collectionRepo.GetByIdAsync(collectionId, ct: ct);
-        if (collection == null)
+        if (collection is null)
             return ServiceError.NotFound("Collection not found");
 
         var zipFileName = $"{collection.Name.Replace(" ", "_")}_assets.zip";
@@ -81,9 +65,9 @@ public class ZipBuildService : IZipBuildService
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);
 
-        await _messageBus.PublishAsync(new BuildZipCommand { ZipDownloadId = zipDownload.Id });
+        await messageBus.PublishAsync(new BuildZipCommand { ZipDownloadId = zipDownload.Id });
 
-        _logger.LogInformation("Enqueued ZIP build {ZipDownloadId} for collection {CollectionId} by user {UserId}",
+        logger.LogInformation("Enqueued ZIP build {ZipDownloadId} for collection {CollectionId} by user {UserId}",
             zipDownload.Id, collectionId, userId);
 
         return new ZipDownloadEnqueuedResponse
@@ -114,9 +98,9 @@ public class ZipBuildService : IZipBuildService
         db.ZipDownloads.Add(zipDownload);
         await db.SaveChangesAsync(ct);
 
-        await _messageBus.PublishAsync(new BuildZipCommand { ZipDownloadId = zipDownload.Id });
+        await messageBus.PublishAsync(new BuildZipCommand { ZipDownloadId = zipDownload.Id });
 
-        _logger.LogInformation("Enqueued ZIP build {ZipDownloadId} for shared collection {CollectionId}",
+        logger.LogInformation("Enqueued ZIP build {ZipDownloadId} for shared collection {CollectionId}",
             zipDownload.Id, collectionId);
 
         return new ZipDownloadEnqueuedResponse
@@ -133,15 +117,15 @@ public class ZipBuildService : IZipBuildService
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
         var zip = await db.ZipDownloads.FirstOrDefaultAsync(z => z.Id == jobId, ct);
-        if (zip == null)
+        if (zip is null)
             return ServiceError.NotFound("ZIP download not found");
 
         // Ensure the requester owns this download
-        if (userId != null && zip.RequestedByUserId != userId)
+        if (userId is not null && zip.RequestedByUserId != userId)
             return ServiceError.Forbidden();
-        if (shareTokenHash != null && zip.ShareTokenHash != shareTokenHash)
+        if (shareTokenHash is not null && zip.ShareTokenHash != shareTokenHash)
             return ServiceError.Forbidden();
-        if (userId == null && shareTokenHash == null)
+        if (userId is null && shareTokenHash is null)
             return ServiceError.Forbidden();
 
         var response = new ZipDownloadStatusResponse
@@ -162,7 +146,7 @@ public class ZipBuildService : IZipBuildService
                 return response with { Status = "expired", Error = "This download has expired." };
             }
 
-            var downloadUrl = await _minioAdapter.GetPresignedDownloadUrlAsync(
+            var downloadUrl = await minioAdapter.GetPresignedDownloadUrlAsync(
                 _bucketName, zip.ZipObjectKey,
                 expirySeconds: (int)(zip.ExpiresAt - DateTime.UtcNow).TotalSeconds,
                 forceDownload: true,
@@ -184,9 +168,9 @@ public class ZipBuildService : IZipBuildService
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
         var zip = await db.ZipDownloads.FirstOrDefaultAsync(z => z.Id == zipDownloadId, ct);
-        if (zip == null)
+        if (zip is null)
         {
-            _logger.LogWarning("ZIP download record {ZipDownloadId} not found, skipping", zipDownloadId);
+            logger.LogWarning("ZIP download record {ZipDownloadId} not found, skipping", zipDownloadId);
             return;
         }
 
@@ -226,7 +210,7 @@ public class ZipBuildService : IZipBuildService
                         ct.ThrowIfCancellationRequested();
                         try
                         {
-                            await using var assetStream = await _minioAdapter.DownloadAsync(
+                            await using var assetStream = await minioAdapter.DownloadAsync(
                                 _bucketName, asset.OriginalObjectKey!, ct);
 
                             var fileName = FileHelpers.GetSafeFileName(
@@ -239,7 +223,7 @@ public class ZipBuildService : IZipBuildService
                         catch (OperationCanceledException) { throw; }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex,
+                            logger.LogWarning(ex,
                                 "Failed to include asset {AssetId} in ZIP build {ZipDownloadId}",
                                 asset.Id, zipDownloadId);
                             errors.Add($"{asset.Title ?? asset.Id.ToString()} — {ex.Message}");
@@ -262,7 +246,7 @@ public class ZipBuildService : IZipBuildService
                 var fileInfo = new FileInfo(tempPath);
                 await using (var uploadStream = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    await _minioAdapter.UploadAsync(_bucketName, objectKey, uploadStream, "application/zip", ct);
+                    await minioAdapter.UploadAsync(_bucketName, objectKey, uploadStream, "application/zip", ct);
                 }
 
                 zip.ZipObjectKey = objectKey;
@@ -271,12 +255,12 @@ public class ZipBuildService : IZipBuildService
                 zip.CompletedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
 
-                await _audit.LogAsync("collection.downloaded", Constants.ScopeTypes.Collection, zip.ScopeId,
+                await audit.LogAsync("collection.downloaded", Constants.ScopeTypes.Collection, zip.ScopeId,
                     zip.RequestedByUserId,
                     new() { ["assetCount"] = zip.AssetCount, ["sizeBytes"] = zip.SizeBytes },
                     ct);
 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "ZIP build {ZipDownloadId} completed: {AssetCount} assets, {SizeBytes} bytes",
                     zipDownloadId, zip.AssetCount, zip.SizeBytes);
             }
@@ -288,7 +272,7 @@ public class ZipBuildService : IZipBuildService
                     try { File.Delete(tempPath); }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to delete temp file {TempPath}", tempPath);
+                        logger.LogWarning(ex, "Failed to delete temp file {TempPath}", tempPath);
                     }
                 }
             }
@@ -303,7 +287,7 @@ public class ZipBuildService : IZipBuildService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ZIP build {ZipDownloadId} failed", zipDownloadId);
+            logger.LogError(ex, "ZIP build {ZipDownloadId} failed", zipDownloadId);
             zip.Status = ZipDownloadStatus.Failed;
             zip.ErrorMessage = "An error occurred while building the ZIP file";
             zip.CompletedAt = DateTime.UtcNow;
@@ -321,7 +305,7 @@ public class ZipBuildService : IZipBuildService
 
         if (expired.Count == 0) return;
 
-        _logger.LogInformation("Cleaning up {Count} expired ZIP downloads", expired.Count);
+        logger.LogInformation("Cleaning up {Count} expired ZIP downloads", expired.Count);
 
         foreach (var objectKey in expired
             .Select(z => z.ZipObjectKey)
@@ -329,11 +313,11 @@ public class ZipBuildService : IZipBuildService
         {
             try
             {
-                await _minioAdapter.DeleteAsync(_bucketName, objectKey!, ct);
+                await minioAdapter.DeleteAsync(_bucketName, objectKey!, ct);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to delete ZIP object {ObjectKey}", objectKey);
+                logger.LogWarning(ex, "Failed to delete ZIP object {ObjectKey}", objectKey);
             }
         }
 

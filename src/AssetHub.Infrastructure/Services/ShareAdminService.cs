@@ -12,49 +12,31 @@ namespace AssetHub.Infrastructure.Services;
 /// <summary>
 /// Admin share management: listing, token retrieval, and revocation.
 /// </summary>
-public class ShareAdminService : IShareAdminService
+public sealed class ShareAdminService(
+    IShareRepository shareRepo,
+    ICollectionRepository collectionRepo,
+    IUserLookupService userLookup,
+    IAuditService audit,
+    IDataProtectionProvider dataProtection,
+    CurrentUser currentUser,
+    ILogger<ShareAdminService> logger) : IShareAdminService
 {
-    private readonly IShareRepository _shareRepo;
-    private readonly ICollectionRepository _collectionRepo;
-    private readonly IUserLookupService _userLookup;
-    private readonly IAuditService _audit;
-    private readonly IDataProtectionProvider _dataProtection;
-    private readonly CurrentUser _currentUser;
-    private readonly ILogger<ShareAdminService> _logger;
-
-    public ShareAdminService(
-        IShareRepository shareRepo,
-        ICollectionRepository collectionRepo,
-        IUserLookupService userLookup,
-        IAuditService audit,
-        IDataProtectionProvider dataProtection,
-        CurrentUser currentUser,
-        ILogger<ShareAdminService> logger)
-    {
-        _shareRepo = shareRepo;
-        _collectionRepo = collectionRepo;
-        _userLookup = userLookup;
-        _audit = audit;
-        _dataProtection = dataProtection;
-        _currentUser = currentUser;
-        _logger = logger;
-    }
 
     public async Task<ServiceResult<AdminSharesResponse>> GetAllSharesAsync(int skip, int take, CancellationToken ct)
     {
         take = Math.Clamp(take, 1, Constants.Limits.AdminShareQueryLimit);
-        var total = await _shareRepo.CountAllAsync(ct);
-        var shares = await _shareRepo.GetAllAsync(new ShareQueryOptions(IncludeAsset: true, IncludeCollection: true, Skip: skip, Take: take), ct);
+        var total = await shareRepo.CountAllAsync(ct);
+        var shares = await shareRepo.GetAllAsync(new ShareQueryOptions(IncludeAsset: true, IncludeCollection: true, Skip: skip, Take: take), ct);
         var userIds = shares.Select(s => s.CreatedByUserId).Distinct().ToList();
-        var userNames = await _userLookup.GetUserNamesAsync(userIds, ct);
+        var userNames = await userLookup.GetUserNamesAsync(userIds, ct);
 
         // Load collection memberships for asset-type shares
-        var assetShares = shares.Where(s => s.ScopeType == ShareScopeType.Asset && s.Asset != null).ToList();
+        var assetShares = shares.Where(s => s.ScopeType == ShareScopeType.Asset && s.Asset is not null).ToList();
         var assetCollectionMap = new Dictionary<Guid, List<string>>();
         if (assetShares.Count > 0)
         {
             var assetIds = assetShares.Select(s => s.ScopeId).Distinct().ToList();
-            assetCollectionMap = await _collectionRepo.GetCollectionNamesForAssetsAsync(assetIds, ct);
+            assetCollectionMap = await collectionRepo.GetCollectionNamesForAssetsAsync(assetIds, ct);
         }
 
         var result = shares.Select(s => new AdminShareDto
@@ -84,8 +66,8 @@ public class ShareAdminService : IShareAdminService
 
     public async Task<ServiceResult<ShareTokenResponse>> GetShareTokenAsync(Guid shareId, CancellationToken ct)
     {
-        var share = await _shareRepo.GetByIdAsync(shareId, ct);
-        if (share == null)
+        var share = await shareRepo.GetByIdAsync(shareId, ct);
+        if (share is null)
             return ServiceError.NotFound("Share not found");
 
         if (string.IsNullOrEmpty(share.TokenEncrypted))
@@ -93,27 +75,27 @@ public class ShareAdminService : IShareAdminService
 
         try
         {
-            var protector = _dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
+            var protector = dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
             var protectedBytes = Convert.FromBase64String(share.TokenEncrypted);
             var token = System.Text.Encoding.UTF8.GetString(protector.Unprotect(protectedBytes));
             return new ShareTokenResponse { Token = token };
         }
         catch (System.Security.Cryptography.CryptographicException ex)
         {
-            _logger.LogError(ex, "Failed to decrypt share token for share {ShareId}. Data Protection keys may have been rotated.", shareId);
+            logger.LogError(ex, "Failed to decrypt share token for share {ShareId}. Data Protection keys may have been rotated.", shareId);
             return ServiceError.Server("Unable to decrypt share token — encryption keys may have changed");
         }
         catch (FormatException ex)
         {
-            _logger.LogError(ex, "Corrupted TokenEncrypted data for share {ShareId}", shareId);
+            logger.LogError(ex, "Corrupted TokenEncrypted data for share {ShareId}", shareId);
             return ServiceError.Server("Share token data is corrupted");
         }
     }
 
     public async Task<ServiceResult<SharePasswordResponse>> GetSharePasswordAsync(Guid shareId, CancellationToken ct)
     {
-        var share = await _shareRepo.GetByIdAsync(shareId, ct);
-        if (share == null)
+        var share = await shareRepo.GetByIdAsync(shareId, ct);
+        if (share is null)
             return ServiceError.NotFound("Share not found");
 
         if (string.IsNullOrEmpty(share.PasswordEncrypted))
@@ -121,36 +103,36 @@ public class ShareAdminService : IShareAdminService
 
         try
         {
-            var protector = _dataProtection.CreateProtector(Constants.DataProtection.SharePasswordProtector);
+            var protector = dataProtection.CreateProtector(Constants.DataProtection.SharePasswordProtector);
             var protectedBytes = Convert.FromBase64String(share.PasswordEncrypted);
             var password = System.Text.Encoding.UTF8.GetString(protector.Unprotect(protectedBytes));
             return new SharePasswordResponse { Password = password };
         }
         catch (System.Security.Cryptography.CryptographicException ex)
         {
-            _logger.LogError(ex, "Failed to decrypt share password for share {ShareId}. Data Protection keys may have been rotated.", shareId);
+            logger.LogError(ex, "Failed to decrypt share password for share {ShareId}. Data Protection keys may have been rotated.", shareId);
             return ServiceError.Server("Unable to decrypt share password — encryption keys may have changed");
         }
         catch (FormatException ex)
         {
-            _logger.LogError(ex, "Corrupted PasswordEncrypted data for share {ShareId}", shareId);
+            logger.LogError(ex, "Corrupted PasswordEncrypted data for share {ShareId}", shareId);
             return ServiceError.Server("Share password data is corrupted");
         }
     }
 
     public async Task<ServiceResult> AdminRevokeShareAsync(Guid shareId, CancellationToken ct)
     {
-        var share = await _shareRepo.GetByIdAsync(shareId, ct);
-        if (share == null)
+        var share = await shareRepo.GetByIdAsync(shareId, ct);
+        if (share is null)
             return ServiceError.NotFound("Share not found");
 
         if (share.RevokedAt.HasValue)
             return ServiceError.BadRequest("Share is already revoked");
 
         share.RevokedAt = DateTime.UtcNow;
-        await _shareRepo.UpdateAsync(share, ct);
+        await shareRepo.UpdateAsync(share, ct);
 
-        await _audit.LogAsync("share.revoked", Constants.ScopeTypes.Share, shareId, _currentUser.UserId,
+        await audit.LogAsync("share.revoked", Constants.ScopeTypes.Share, shareId, currentUser.UserId,
             new() { ["admin"] = true }, ct);
 
         return ServiceResult.Success;
@@ -158,16 +140,16 @@ public class ShareAdminService : IShareAdminService
 
     public async Task<ServiceResult> DeleteShareAsync(Guid shareId, CancellationToken ct)
     {
-        var share = await _shareRepo.GetByIdAsync(shareId, ct);
-        if (share == null)
+        var share = await shareRepo.GetByIdAsync(shareId, ct);
+        if (share is null)
             return ServiceError.NotFound("Share not found");
 
-        if (share.RevokedAt == null && share.ExpiresAt > DateTime.UtcNow)
+        if (share.RevokedAt is null && share.ExpiresAt > DateTime.UtcNow)
             return ServiceError.BadRequest("Cannot delete an active share — revoke it first");
 
-        await _shareRepo.DeleteAsync(shareId, ct);
+        await shareRepo.DeleteAsync(shareId, ct);
 
-        await _audit.LogAsync("share.deleted", Constants.ScopeTypes.Share, shareId, _currentUser.UserId,
+        await audit.LogAsync("share.deleted", Constants.ScopeTypes.Share, shareId, currentUser.UserId,
             new() { ["admin"] = true }, ct);
 
         return ServiceResult.Success;
@@ -177,13 +159,13 @@ public class ShareAdminService : IShareAdminService
     {
         int deleted;
         if (status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase))
-            deleted = await _shareRepo.DeleteExpiredAsync(ct);
+            deleted = await shareRepo.DeleteExpiredAsync(ct);
         else if (status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase))
-            deleted = await _shareRepo.DeleteRevokedAsync(ct);
+            deleted = await shareRepo.DeleteRevokedAsync(ct);
         else
             return ServiceError.BadRequest($"Invalid status: {status}. Must be 'expired' or 'revoked'.");
 
-        await _audit.LogAsync("shares.bulk_deleted", Constants.ScopeTypes.Share, Guid.Empty, _currentUser.UserId,
+        await audit.LogAsync("shares.bulk_deleted", Constants.ScopeTypes.Share, Guid.Empty, currentUser.UserId,
             new() { ["status"] = status, ["count"] = deleted }, ct);
 
         return deleted;

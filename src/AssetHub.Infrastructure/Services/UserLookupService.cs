@@ -136,7 +136,7 @@ public class UserLookupService(
     public async Task<bool> UserExistsAsync(string username, CancellationToken ct = default)
     {
         var userId = await GetUserIdByUsernameAsync(username, ct);
-        return userId != null;
+        return userId is not null;
     }
     
     public async Task<List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>> GetAllUsersAsync(CancellationToken ct = default)

@@ -42,7 +42,7 @@ public sealed class CollectionService(
         if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 255)
             return ServiceError.BadRequest("Name must be 1-255 characters");
 
-        if (dto.Description != null && !string.IsNullOrWhiteSpace(dto.Description) && dto.Description.Length > 1000)
+        if (dto.Description is not null && !string.IsNullOrWhiteSpace(dto.Description) && dto.Description.Length > 1000)
             return ServiceError.BadRequest("Description must be 1000 characters or fewer");
 
         var descToStore = InputValidation.NormalizeToNull(dto.Description);
@@ -106,7 +106,7 @@ public sealed class CollectionService(
             return ServiceError.Forbidden();
 
         var collection = await repos.CollectionRepo.GetByIdAsync(id, ct: ct);
-        if (collection == null)
+        if (collection is null)
             return ServiceError.NotFound("Collection not found");
 
         if (!string.IsNullOrWhiteSpace(dto.Name))
@@ -121,10 +121,10 @@ public sealed class CollectionService(
             }
             collection.Name = dto.Name;
         }
-        if (dto.Description != null)
+        if (dto.Description is not null)
         {
             var desc = InputValidation.NormalizeToNull(dto.Description);
-            if (desc != null && desc.Length > 1000)
+            if (desc is not null && desc.Length > 1000)
                 return ServiceError.BadRequest("Description must be 1000 characters or fewer");
             collection.Description = desc;
         }
@@ -156,7 +156,7 @@ public sealed class CollectionService(
             return ServiceError.Forbidden();
 
         var collection = await repos.CollectionRepo.GetByIdAsync(id, ct: ct);
-        if (collection == null)
+        if (collection is null)
             return ServiceError.NotFound("Collection not found");
 
         var collectionName = collection.Name;

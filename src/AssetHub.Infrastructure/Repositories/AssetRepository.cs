@@ -112,7 +112,7 @@ public class AssetRepository(
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var asset = await dbContext.Assets.FindAsync(new object[] { id }, cancellationToken);
-        if (asset != null)
+        if (asset is not null)
         {
             dbContext.Assets.Remove(asset);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -209,7 +209,7 @@ public class AssetRepository(
             var searchPattern = $"%{query}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
-                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)) ||
+                (a.Description is not null && EF.Functions.ILike(a.Description, searchPattern)) ||
                 a.Tags.Any(t => EF.Functions.ILike(t, searchPattern)));
         }
 
@@ -243,7 +243,7 @@ public class AssetRepository(
 
         // Filter to assets in allowed collections (ACL enforcement)
         // Use explicit join for more predictable query plans on large datasets
-        if (filter.AllowedCollectionIds != null)
+        if (filter.AllowedCollectionIds is not null)
         {
             queryable = queryable
                 .Join(
@@ -260,7 +260,7 @@ public class AssetRepository(
             var searchPattern = $"%{filter.Query}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
-                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)) ||
+                (a.Description is not null && EF.Functions.ILike(a.Description, searchPattern)) ||
                 a.Tags.Any(t => EF.Functions.ILike(t, searchPattern)));
         }
 
