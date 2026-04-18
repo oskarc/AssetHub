@@ -95,6 +95,25 @@ If findings exist, fix them now.
 
 ---
 
+## Phase 5b: README updates
+
+If the changes include **new user-facing features, architecture changes, or capability additions**, update the relevant README sections to reflect reality:
+
+1. **`README.md`** (root) — Check these sections:
+   - **Feature bullets** (Asset Management, Access Control & Sharing, Security) — add/update bullets for new capabilities.
+   - **Architecture table** — update project purpose descriptions if scope changed.
+   - **Quick-start / configuration** — update if new settings, env vars, or setup steps were added.
+2. **`tests/E2E/README.md`** — Update if new E2E test pages, helpers, or config were added.
+3. **`CONTRIBUTING.md`** — Update if conventions, build steps, or project structure changed.
+
+**Rules:**
+- Only update sections that are directly affected — do not rewrite unrelated content.
+- Keep bullet style and tone consistent with existing text.
+- If unsure whether a change warrants a README update, err on the side of updating — stale docs are worse than minor over-documentation.
+- Do NOT update READMEs for internal refactors, test-only changes, or bug fixes that don't change user-visible behavior.
+
+---
+
 ## Phase 6: Build
 
 ```powershell

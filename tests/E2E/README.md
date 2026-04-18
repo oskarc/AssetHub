@@ -80,7 +80,9 @@ tests/E2E/
 │       ├── 10-viewer-role.spec.ts  # Viewer role restrictions
 │       ├── 11-edge-cases.spec.ts   # Error handling, 404s, back/forward
 │       ├── 12-responsive-a11y.spec.ts  # Responsive design, accessibility
-│       └── 13-workflows.spec.ts    # Full end-to-end workflow scenarios
+│       ├── 13-workflows.spec.ts    # Full end-to-end workflow scenarios
+│       ├── 14-language.spec.ts     # Locale switching, translations
+│       └── 15-ui-features.spec.ts  # Image editor, export presets, migrations
 ```
 
 ## Test Coverage
@@ -94,7 +96,7 @@ tests/E2E/
 | **Collections** | 03-collections | CRUD, tree, breadcrumbs, context menu, sub-collections |
 | **Assets** | 04-assets | Upload, browse, search, filter, sort, view modes, detail, edit, delete |
 | **Shares** | 05-shares | Create, password protection, public access, revocation |
-| **Admin Panel** | 06-admin | Share management, collection access, user management, create user |
+| **Admin Panel** | 06-admin | Share management, collection access, user management, export presets, migrations |
 | **All Assets** | 07-all-assets | Cross-collection search, filters, pagination, card actions |
 | **API** | 08-api | Health, CRUD endpoints, file endpoints, auth guards |
 | **ACL** | 09-acl | Grant/revoke access, role upgrades, UI visibility |
@@ -102,6 +104,8 @@ tests/E2E/
 | **Edge Cases** | 11-edge-cases | 404s, invalid GUIDs, rapid navigation, browser back/forward |
 | **Responsive/A11y** | 12-responsive-a11y | Mobile/tablet viewports, keyboard navigation, theme persistence |
 | **Workflows** | 13-workflows | Full create→upload→edit→share→admin workflows |
+| **Language** | 14-language | Locale switching, Swedish/English translations |
+| **UI Features** | 15-ui-features | Image editor, export presets, bulk migration UI |
 
 ### Seeded Test Accounts
 

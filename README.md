@@ -71,15 +71,18 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Asset Management**
 - Drag-and-drop upload with multi-collection organisation
 - Full-text trigram search across names, descriptions, and tags (GIN-indexed)
-- In-browser image editor — crop, resize, adjust, filter, annotate, and watermark with save-as-copy or replace-original
+- Canvas-based image editor (Fabric.js) — crop, rotate, flip, resize, draw, text overlays, and multi-layer composition with save-as-copy or replace-original
+- Export presets — admin-defined output formats, dimensions, quality, and fit modes applied automatically on save
+- Asset lineage tracking — derivatives link back to their parent/original asset
+- Bulk migration toolkit — import thousands of assets from external sources with progress tracking and resumability
 - Video poster extraction via ffmpeg with inline playback
 - Download collections or shared content as zip archives
 - Auto-generated thumbnails, previews, and video posters
 
 **Access Control & Sharing**
-- Per-collection RBAC — Viewer, Contributor, Manager, Admin
+- Per-collection RBAC — Viewer, Contributor, Manager, Admin (system admins bypass all ACLs)
 - Password-protected, time-limited share links
-- Admin dashboard with user management, share admin, and paginated audit log
+- Admin dashboard with user management, share admin, export preset management, bulk migrations, and paginated audit log with filterable event types
 
 **Security**
 - ClamAV malware scanning on every upload
@@ -165,12 +168,12 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 
 | Project | Purpose |
 |---------|---------|
-| `AssetHub.Domain` | Entities, enums, value objects — zero dependencies |
+| `AssetHub.Domain` | Entities, enums — zero dependencies |
 | `AssetHub.Application` | Service interfaces, DTOs, constants, business rules |
 | `AssetHub.Infrastructure` | EF Core, MinIO, SMTP, ClamAV, Keycloak implementations |
 | `AssetHub.Api` | Composition root — Minimal APIs, auth, DI wiring, Blazor host |
 | `AssetHub.Ui` | Blazor Server components and pages (Razor Class Library) |
-| `AssetHub.Worker` | Wolverine message consumer — media processing, cleanup jobs (separate container) |
+| `AssetHub.Worker` | Wolverine message consumer — media processing, export presets, migrations, cleanup jobs (separate container) |
 
 > Full architecture diagram, layer details, and resilience patterns in **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**.
 
@@ -248,7 +251,7 @@ dotnet test --configuration Release
 cd tests/E2E && npx playwright test
 ```
 
-700+ test methods across 53 .NET test files + 15 E2E specs (Chromium, Firefox, WebKit, mobile).
+787 test methods across 57 .NET test files + 15 E2E specs (Chromium, Firefox, WebKit, mobile).
 
 ---
 
@@ -272,11 +275,20 @@ cd tests/E2E && npx playwright test
 
 **Production-ready** — all core features implemented and tested. Builds with zero errors and zero warnings.
 
+**Recent additions:**
+- ~~In-browser image editor~~ ✓ — Fabric.js canvas editor with multi-layer support
+- ~~Export presets~~ ✓ — admin-managed format/dimension/quality presets
+- ~~Bulk migration toolkit~~ ✓ — import assets from external sources with progress tracking
+
 **Roadmap:**
+- S3/Dropbox/SharePoint migration connectors
 - Office document preview (Word, Excel, PowerPoint)
 - Video transcoding (HLS/DASH adaptive streaming)
+- AI-powered auto-tagging and visual search
 - Group-based ACLs (Keycloak groups/roles)
-- ~~In-browser image editor~~ ✓
+- Brand portal and public distribution
+
+> See **[ROADMAP.md](docs/planned-features/ROADMAP.md)** for the full tiered roadmap.
 
 ---
 
@@ -287,6 +299,7 @@ cd tests/E2E && npx playwright test
 | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) | System design, layer dependencies, modular interfaces, resilience patterns |
 | [SECURITY.md](docs/security/SECURITY.md) | Auth, RBAC, rate limiting, upload security, container hardening, audit |
 | [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) | Production setup, certificates, CI/CD, monitoring, backups, troubleshooting |
+| [ROADMAP.md](docs/planned-features/ROADMAP.md) | Tiered feature roadmap with commercial-parity analysis |
 | [CREDENTIALS.md](CREDENTIALS.md) | Default passwords, OAuth config, connection strings |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, code style, PR guidelines |
 
