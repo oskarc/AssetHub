@@ -1,0 +1,162 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@AdminLoc["Migration_CreateNew"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formIsValid">
+            <MudStack Spacing="3" Class="dialog-min-width">
+                <MudTextField @bind-Value="_name" Label="@AdminLoc["Migration_Label_Name"]" Required="true"
+                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_Label_Name"].Value)"
+                              Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
+                              Counter="255" MaxLength="255"
+                              HelperText="@AdminLoc["Migration_Label_NameHelper"]" />
+
+                <MudStack Spacing="1">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.body1">@AdminLoc["Migration_Label_DefaultCollection"]</MudText>
+                        <MudToggleGroup T="string" @bind-Value="_collectionMode" Color="Color.Primary"
+                                        Size="Size.Small" Rounded="true" SelectionMode="SelectionMode.SingleSelection">
+                            <MudToggleItem T="string" Value="@("existing")" Text="@AdminLoc["Migration_CollectionMode_Existing"]" />
+                            <MudToggleItem T="string" Value="@("new")" Text="@AdminLoc["Migration_CollectionMode_New"]" />
+                        </MudToggleGroup>
+                    </MudStack>
+
+                    @if (_collectionMode == "existing")
+                    {
+                        <MudSelect T="Guid?" @bind-Value="_defaultCollectionId"
+                                   Label="@AdminLoc["Migration_Label_DefaultCollection"]"
+                                   Variant="Variant.Outlined"
+                                   Clearable="true"
+                                   HelperText="@AdminLoc["Migration_Label_DefaultCollectionHelper"]">
+                            @if (_collections is not null)
+                            {
+                                @foreach (var c in _collections)
+                                {
+                                    <MudSelectItem T="Guid?" Value="@c.Id">@c.Name</MudSelectItem>
+                                }
+                            }
+                        </MudSelect>
+                    }
+                    else
+                    {
+                        <MudTextField @bind-Value="_newCollectionName"
+                                      Label="@AdminLoc["Migration_Label_NewCollectionName"]"
+                                      Variant="Variant.Outlined"
+                                      Immediate="true"
+                                      Counter="255" MaxLength="255"
+                                      HelperText="@AdminLoc["Migration_Label_NewCollectionNameHelper"]" />
+                    }
+                </MudStack>
+
+                <MudSwitch T="bool" @bind-Value="_dryRun" Color="Color.Primary"
+                           Label="@AdminLoc["Migration_Label_DryRun"]" />
+                <MudText Typo="Typo.caption" Color="Color.Default">
+                    @AdminLoc["Migration_Label_DryRunHelper"]
+                </MudText>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_errorMessage</MudAlert>
+                }
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(!_formIsValid || _submitting)"
+                   StartIcon="@(_submitting ? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.Add)">
+            @if (_submitting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @AdminLoc["Migration_CreateNew"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm _form = null!;
+    private bool _formIsValid;
+    private bool _submitting;
+    private string? _errorMessage;
+
+    private string _name = string.Empty;
+    private Guid? _defaultCollectionId;
+    private string _newCollectionName = string.Empty;
+    private string _collectionMode = "existing";
+    private bool _dryRun;
+
+    private List<CollectionResponseDto>? _collections;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _collections = await Api.GetCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+        }
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid)
+            return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var dto = new CreateMigrationDto
+            {
+                Name = _name.Trim(),
+                SourceType = "csv_upload",
+                DefaultCollectionId = _collectionMode == "existing" ? _defaultCollectionId : null,
+                DefaultCollectionName = _collectionMode == "new" && !string.IsNullOrWhiteSpace(_newCollectionName)
+                    ? _newCollectionName.Trim()
+                    : null,
+                DryRun = _dryRun
+            };
+
+            var created = await Api.CreateMigrationAsync(dto);
+            Feedback.ShowSuccess(string.Format(AdminLoc["Migration_CreatedSuccess"].Value, created.Name));
+            MudDialog.Close(DialogResult.Ok(created));
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "create migration");
+            _errorMessage = CommonLoc["Error_UnexpectedError"].Value;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

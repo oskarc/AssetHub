@@ -1,0 +1,115 @@
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddMigrationEntities : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.CreateTable(
+                name: "Migrations",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    SourceType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    DefaultCollectionId = table.Column<Guid>(type: "uuid", nullable: true),
+                    SourceConfig = table.Column<string>(type: "jsonb", nullable: false),
+                    FieldMapping = table.Column<string>(type: "jsonb", nullable: false),
+                    DryRun = table.Column<bool>(type: "boolean", nullable: false),
+                    ItemsTotal = table.Column<int>(type: "integer", nullable: false),
+                    ItemsSucceeded = table.Column<int>(type: "integer", nullable: false),
+                    ItemsFailed = table.Column<int>(type: "integer", nullable: false),
+                    ItemsSkipped = table.Column<int>(type: "integer", nullable: false),
+                    CreatedByUserId = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    FinishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Migrations", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MigrationItems",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    MigrationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    ExternalId = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    IdempotencyKey = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    FileName = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    SourcePath = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
+                    Title = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    Copyright = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    Tags = table.Column<List<string>>(type: "text[]", nullable: false),
+                    CollectionNames = table.Column<List<string>>(type: "text[]", nullable: false),
+                    MetadataJson = table.Column<string>(type: "jsonb", nullable: false),
+                    Sha256 = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
+                    ErrorCode = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    ErrorMessage = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    AttemptCount = table.Column<int>(type: "integer", nullable: false),
+                    AssetId = table.Column<Guid>(type: "uuid", nullable: true),
+                    RowNumber = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ProcessedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MigrationItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MigrationItems_Migrations_MigrationId",
+                        column: x => x.MigrationId,
+                        principalTable: "Migrations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "idx_migration_items_idempotency_unique",
+                table: "MigrationItems",
+                column: "IdempotencyKey",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "idx_migration_items_migration_row",
+                table: "MigrationItems",
+                columns: new[] { "MigrationId", "RowNumber" });
+
+            migrationBuilder.CreateIndex(
+                name: "idx_migration_items_migration_status",
+                table: "MigrationItems",
+                columns: new[] { "MigrationId", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "idx_migrations_created_by",
+                table: "Migrations",
+                column: "CreatedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "idx_migrations_status",
+                table: "Migrations",
+                column: "Status");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "MigrationItems");
+
+            migrationBuilder.DropTable(
+                name: "Migrations");
+        }
+    }
+}

@@ -1,0 +1,599 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@implements IAsyncDisposable
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@(_migration?.Name ?? AdminLoc["Migration_Detail"].Value)</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_migration is null)
+        {
+            <MudAlert Severity="Severity.Error">@AdminLoc["Migration_NotFound"]</MudAlert>
+        }
+        else
+        {
+            <MudStack Spacing="4" Style="min-width: 500px;">
+                @* Status & Summary *@
+                <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.caption">@AdminLoc["Migration_ColStatus"]</MudText>
+                        <MudChip T="string" Color="@GetStatusColor(_migration.Status)" Size="Size.Small" Variant="Variant.Filled">
+                            @GetStatusLabel(_migration.Status)
+                        </MudChip>
+                    </MudStack>
+                    @if (_migration.DryRun)
+                    {
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.caption">@AdminLoc["Migration_Label_DryRun"]</MudText>
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Science">
+                                @CommonLoc["Yes"]
+                            </MudChip>
+                        </MudStack>
+                    }
+                </MudStack>
+
+                @* Progress *@
+                @if (_migration.ItemsTotal > 0)
+                {
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_ColProgress"]</MudText>
+                        @{
+                            var processed = _migration.ItemsSucceeded + _migration.ItemsFailed + _migration.ItemsSkipped;
+                            var pct = (int)(processed * 100.0 / _migration.ItemsTotal);
+                        }
+                        <MudProgressLinear Value="@pct" Color="Color.Primary" Rounded="true" Size="Size.Large">
+                            <MudText Typo="Typo.caption">@pct%</MudText>
+                        </MudProgressLinear>
+                        <MudGrid>
+                            <MudItem xs="3">
+                                <MudText Typo="Typo.caption">@AdminLoc["Migration_Total"]: @_migration.ItemsTotal</MudText>
+                            </MudItem>
+                            <MudItem xs="3">
+                                <MudText Typo="Typo.caption" Color="Color.Success">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                                    @_migration.ItemsSucceeded
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="3">
+                                <MudText Typo="Typo.caption" Color="Color.Error">
+                                    <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" />
+                                    @_migration.ItemsFailed
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="3">
+                                <MudText Typo="Typo.caption" Color="Color.Warning">
+                                    <MudIcon Icon="@Icons.Material.Filled.SkipNext" Size="Size.Small" />
+                                    @_migration.ItemsSkipped
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+
+                        @* Staged files info *@
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.CloudDone" Size="Size.Small" Color="Color.Info" />
+                            <MudText Typo="Typo.caption">
+                                @string.Format(AdminLoc["Migration_FilesStaged"].Value, _migration.ItemsStaged, _migration.ItemsTotal)
+                            </MudText>
+                        </MudStack>
+                    </MudStack>
+                }
+
+                @* CSV Manifest Upload (draft only) *@
+                @if (_migration.Status is "draft")
+                {
+                    <MudDivider />
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_UploadManifest"]</MudText>
+
+                        <MudExpansionPanels Elevation="0">
+                            <MudExpansionPanel @bind-Expanded="_instructionsExpanded"
+                                               Text="@AdminLoc["Migration_Instructions_Title"].Value">
+                                <MudStack Spacing="2" Class="pa-2">
+                                    <MudText Typo="Typo.body2">@AdminLoc["Migration_ManifestHelp_Intro"]</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@AdminLoc["Migration_ManifestHelp_RequiredHeader"]</MudText>
+                                    <MudText Typo="Typo.body2">
+                                        <code>filename</code> — @AdminLoc["Migration_ManifestHelp_Filename"]
+                                    </MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@AdminLoc["Migration_ManifestHelp_OptionalHeader"]</MudText>
+                                    <MudText Typo="Typo.body2">
+                                        <code>external_id</code> — @AdminLoc["Migration_ManifestHelp_ExternalId"]<br />
+                                        <code>title</code> — @AdminLoc["Migration_ManifestHelp_TitleCol"]<br />
+                                        <code>description</code> — @AdminLoc["Migration_ManifestHelp_Description"]<br />
+                                        <code>copyright</code> — @AdminLoc["Migration_ManifestHelp_Copyright"]<br />
+                                        <code>tags</code> — @AdminLoc["Migration_ManifestHelp_Tags"]<br />
+                                        <code>collection_names</code> — @AdminLoc["Migration_ManifestHelp_Collections"]<br />
+                                        <code>sha256</code> — @AdminLoc["Migration_ManifestHelp_Sha256"]<br />
+                                        <code>metadata.*</code> — @AdminLoc["Migration_ManifestHelp_Metadata"]
+                                    </MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@AdminLoc["Migration_ManifestHelp_ExampleHeader"]</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.75rem; white-space: pre-wrap;">@AdminLoc["Migration_ManifestHelp_Example"]</MudText>
+                                </MudStack>
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
+
+                        <MudFileUpload T="IBrowserFile"
+                                       Accept=".csv"
+                                       FilesChanged="OnManifestSelected"
+                                       MaximumFileCount="1">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.UploadFile"
+                                           Disabled="@_uploadingManifest">
+                                    @if (_uploadingManifest)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                    @AdminLoc["Migration_SelectCsvFile"]
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+
+                        @if (_manifestUploaded)
+                        {
+                            <MudAlert Severity="Severity.Success" Dense="true">
+                                @AdminLoc["Migration_ManifestUploaded"]
+                            </MudAlert>
+                        }
+                    </MudStack>
+                }
+
+                @* File Upload (draft or after failure — allows uploading missing files before retry) *@
+                @if (_migration is { ItemsTotal: > 0, Status: "draft" or "partially_completed" or "completed_with_errors" or "failed" })
+                {
+                    <MudDivider />
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_UploadFiles"]</MudText>
+                        <MudText Typo="Typo.caption">@AdminLoc["Migration_UploadFilesHelper"]</MudText>
+
+                        <MudFileUpload T="IReadOnlyList<IBrowserFile>"
+                                       FilesChanged="OnFilesSelected"
+                                       MaximumFileCount="100"
+                                       InputClass="d-none"
+                                       @ref="_fileUpload">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.AttachFile"
+                                           Disabled="@_uploadingFiles">
+                                    @if (_uploadingFiles)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                    @AdminLoc["Migration_SelectFiles"]
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+
+                        @if (_totalFilesUploaded > 0)
+                        {
+                            <MudAlert Severity="Severity.Success" Dense="true">
+                                @string.Format(AdminLoc["Migration_FilesUploaded"].Value, _totalFilesUploaded)
+                            </MudAlert>
+                        }
+
+                        @if (_totalFilesUploaded > 0 && _totalFilesUploaded != _migration.ItemsTotal)
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true" Icon="@Icons.Material.Filled.Warning">
+                                @string.Format(AdminLoc["Migration_FilesCountMismatch"].Value, _totalFilesUploaded, _migration.ItemsTotal)
+                            </MudAlert>
+                        }
+                    </MudStack>
+                }
+
+                @* Items Table *@
+                @if (_migration.ItemsTotal > 0)
+                {
+                    <MudDivider />
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_Items"]</MudText>
+                            <MudSelect T="string" Value="_itemStatusFilter" ValueChanged="OnFilterChanged" Variant="Variant.Outlined"
+                                       Dense="true" Style="max-width: 200px;"
+                                       Label="@AdminLoc["Migration_FilterByStatus"]"
+                                       Clearable="true">
+                                <MudSelectItem T="string" Value="@("pending")">@AdminLoc["Migration_ItemStatus_Pending"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("processing")">@AdminLoc["Migration_ItemStatus_Processing"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("succeeded")">@AdminLoc["Migration_ItemStatus_Succeeded"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("failed")">@AdminLoc["Migration_ItemStatus_Failed"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("skipped")">@AdminLoc["Migration_ItemStatus_Skipped"]</MudSelectItem>
+                            </MudSelect>
+                        </MudStack>
+
+                        @if (_loadingItems)
+                        {
+                            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                        }
+                        else if (_items is not null && _items.Count > 0)
+                        {
+                            <MudTable Items="@_items" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm"
+                                      Style="max-height: 400px; overflow-y: auto;">
+                                <HeaderContent>
+                                    <MudTh>#</MudTh>
+                                    <MudTh>@AdminLoc["Migration_ItemCol_FileName"]</MudTh>
+                                    <MudTh>@AdminLoc["Migration_ItemCol_Staged"]</MudTh>
+                                    <MudTh>@AdminLoc["Migration_ColStatus"]</MudTh>
+                                    <MudTh>@AdminLoc["Migration_ItemCol_Error"]</MudTh>
+                                    @if (CanModifyStaging)
+                                    {
+                                        <MudTh Style="width: 60px;"></MudTh>
+                                    }
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.RowNumber</MudTd>
+                                    <MudTd>
+                                        <MudText Typo="Typo.body2">@(context.FileName ?? context.ExternalId ?? "—")</MudText>
+                                    </MudTd>
+                                    <MudTd>
+                                        @if (context.IsFileStaged)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CloudDone" Size="Size.Small" Color="Color.Success"
+                                                     aria-label="@AdminLoc["Migration_FileStaged_Yes"].Value" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CloudOff" Size="Size.Small" Color="Color.Default"
+                                                     aria-label="@AdminLoc["Migration_FileStaged_No"].Value" />
+                                        }
+                                    </MudTd>
+                                    <MudTd>
+                                        <MudChip T="string" Color="@GetItemStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">
+                                            @GetItemStatusLabel(context.Status)
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd>
+                                        @if (!string.IsNullOrEmpty(context.ErrorMessage))
+                                        {
+                                            <MudTooltip Text="@context.ErrorMessage">
+                                                <MudText Typo="Typo.caption" Color="Color.Error" Style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                    @context.ErrorMessage
+                                                </MudText>
+                                            </MudTooltip>
+                                        }
+                                    </MudTd>
+                                    @if (CanModifyStaging)
+                                    {
+                                        <MudTd>
+                                            @if (context.IsFileStaged && context.Status is "pending")
+                                            {
+                                                <MudTooltip Text="@AdminLoc["Migration_UnstageFile"].Value">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
+                                                                   Color="Color.Warning"
+                                                                   Size="Size.Small"
+                                                                   aria-label="@AdminLoc["Migration_UnstageFile"].Value"
+                                                                   OnClick="@(() => UnstageItemAsync(context))" />
+                                                </MudTooltip>
+                                            }
+                                        </MudTd>
+                                    }
+                                </RowTemplate>
+                            </MudTable>
+
+                            @if (_itemsHasMore)
+                            {
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="LoadMoreItemsAsync" FullWidth="true">
+                                    @CommonLoc["Btn_LoadMore"]
+                                </MudButton>
+                            }
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption">@AdminLoc["Migration_NoItems"]</MudText>
+                        }
+                    </MudStack>
+                }
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">@CommonLoc["Btn_Close"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public Guid MigrationId { get; set; }
+
+    private MigrationResponseDto? _migration;
+    private List<MigrationItemResponseDto>? _items;
+    private bool _loading = true;
+    private bool _loadingItems;
+    private bool _uploadingManifest;
+    private bool _uploadingFiles;
+    private bool _manifestUploaded;
+    private int _totalFilesUploaded;
+    private bool _instructionsExpanded;
+    private bool _itemsHasMore;
+    private int _itemsTotal;
+    private string? _itemStatusFilter;
+    private MudFileUpload<IReadOnlyList<IBrowserFile>>? _fileUpload;
+    private CancellationTokenSource? _pollCts;
+
+    private const int ItemsPageSize = 50;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMigrationAsync();
+        // Collapse instructions if manifest already loaded
+        _instructionsExpanded = _migration is not null && _migration.ItemsTotal == 0;
+        StartPollingIfNeeded();
+    }
+
+    private bool IsActive() =>
+        _migration?.Status is "running" or "validating";
+
+    private void StartPollingIfNeeded()
+    {
+        if (!IsActive() || _pollCts is not null) return;
+
+        _pollCts = new CancellationTokenSource();
+        _ = PollProgressAsync(_pollCts.Token);
+    }
+
+    private void StopPolling()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = null;
+    }
+
+    private async Task PollProgressAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(3));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                var progress = await Api.GetMigrationProgressAsync(MigrationId, ct);
+                if (_migration is not null)
+                {
+                    _migration.Status = progress.Status;
+                    _migration.ItemsSucceeded = progress.ItemsSucceeded;
+                    _migration.ItemsFailed = progress.ItemsFailed;
+                    _migration.ItemsSkipped = progress.ItemsSkipped;
+                    _migration.ItemsStaged = progress.ItemsStaged;
+                    await InvokeAsync(StateHasChanged);
+                }
+
+                if (!IsActive())
+                {
+                    // Migration finished — reload full data including items
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadMigrationAsync();
+                        StateHasChanged();
+                    });
+                    StopPolling();
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task OnFilterChanged(string? value)
+    {
+        _itemStatusFilter = value;
+        await LoadItemsAsync(reset: true);
+    }
+
+    private async Task LoadMigrationAsync()
+    {
+        try
+        {
+            _loading = true;
+            _migration = await Api.GetMigrationAsync(MigrationId);
+            await LoadItemsAsync(reset: true);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load migration details");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadItemsAsync(bool reset = false)
+    {
+        if (_migration is null || _migration.ItemsTotal == 0) return;
+
+        try
+        {
+            _loadingItems = true;
+            StateHasChanged();
+
+            var skip = reset ? 0 : (_items?.Count ?? 0);
+            var response = await Api.GetMigrationItemsAsync(
+                MigrationId, _itemStatusFilter, skip, ItemsPageSize);
+
+            if (reset || _items is null)
+                _items = response.Items;
+            else
+                _items.AddRange(response.Items);
+
+            _itemsTotal = response.TotalCount;
+            _itemsHasMore = _items.Count < _itemsTotal;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load migration items");
+        }
+        finally
+        {
+            _loadingItems = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMoreItemsAsync() => await LoadItemsAsync(reset: false);
+
+    private async Task OnManifestSelected(IBrowserFile file)
+    {
+        if (file is null) return;
+
+        _uploadingManifest = true;
+        _manifestUploaded = false;
+        StateHasChanged();
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024); // 50 MB max
+            await Api.UploadMigrationManifestAsync(MigrationId, stream, file.Name);
+            _manifestUploaded = true;
+            _instructionsExpanded = false;
+
+            // Reload migration to get updated item counts
+            await LoadMigrationAsync();
+
+            Feedback.ShowSuccess(AdminLoc["Migration_ManifestUploaded"].Value);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "upload manifest");
+        }
+        finally
+        {
+            _uploadingManifest = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnFilesSelected(IReadOnlyList<IBrowserFile> files)
+    {
+        if (files is null || files.Count == 0) return;
+
+        _uploadingFiles = true;
+        StateHasChanged();
+
+        try
+        {
+            var fileData = files.Select(f => (
+                f.Name,
+                (Stream)f.OpenReadStream(maxAllowedSize: 500 * 1024 * 1024), // 500 MB max
+                f.ContentType ?? "application/octet-stream"
+            ));
+
+            await Api.UploadMigrationFilesAsync(MigrationId, fileData);
+            _totalFilesUploaded += files.Count;
+
+            // Reload to refresh staged counts and item list
+            await LoadMigrationAsync();
+
+            Feedback.ShowSuccess(string.Format(AdminLoc["Migration_FilesUploaded"].Value, _totalFilesUploaded));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "upload files");
+        }
+        finally
+        {
+            _uploadingFiles = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Close()
+    {
+        StopPolling();
+        MudDialog.Close();
+    }
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "draft" => Color.Default,
+        "validating" => Color.Info,
+        "running" => Color.Primary,
+        "completed" => Color.Success,
+        "partially_completed" => Color.Info,
+        "completed_with_errors" => Color.Warning,
+        "failed" => Color.Error,
+        "cancelled" => Color.Dark,
+        _ => Color.Default
+    };
+
+    private string GetStatusLabel(string status) => status switch
+    {
+        "draft" => AdminLoc["Migration_Status_Draft"].Value,
+        "validating" => AdminLoc["Migration_Status_Validating"].Value,
+        "running" => AdminLoc["Migration_Status_Running"].Value,
+        "completed" => AdminLoc["Migration_Status_Completed"].Value,
+        "partially_completed" => AdminLoc["Migration_Status_PartiallyCompleted"].Value,
+        "completed_with_errors" => AdminLoc["Migration_Status_CompletedWithErrors"].Value,
+        "failed" => AdminLoc["Migration_Status_Failed"].Value,
+        "cancelled" => AdminLoc["Migration_Status_Cancelled"].Value,
+        _ => status
+    };
+
+    private static Color GetItemStatusColor(string status) => status switch
+    {
+        "pending" => Color.Default,
+        "processing" => Color.Info,
+        "succeeded" => Color.Success,
+        "failed" => Color.Error,
+        "skipped" => Color.Warning,
+        _ => Color.Default
+    };
+
+    private string GetItemStatusLabel(string status) => status switch
+    {
+        "pending" => AdminLoc["Migration_ItemStatus_Pending"].Value,
+        "processing" => AdminLoc["Migration_ItemStatus_Processing"].Value,
+        "succeeded" => AdminLoc["Migration_ItemStatus_Succeeded"].Value,
+        "failed" => AdminLoc["Migration_ItemStatus_Failed"].Value,
+        "skipped" => AdminLoc["Migration_ItemStatus_Skipped"].Value,
+        _ => status
+    };
+
+    private bool CanModifyStaging =>
+        _migration?.Status is "draft" or "partially_completed" or "completed_with_errors" or "failed";
+
+    private async Task UnstageItemAsync(MigrationItemResponseDto item)
+    {
+        if (_migration is null) return;
+
+        // Optimistic update
+        item.IsFileStaged = false;
+        _migration.ItemsStaged = Math.Max(0, _migration.ItemsStaged - 1);
+        StateHasChanged();
+
+        try
+        {
+            await Api.UnstageMigrationItemAsync(MigrationId, item.Id);
+            Feedback.ShowSuccess(AdminLoc["Migration_FileUnstaged"].Value);
+        }
+        catch (Exception ex)
+        {
+            // Rollback
+            item.IsFileStaged = true;
+            _migration.ItemsStaged++;
+            StateHasChanged();
+            Feedback.HandleError(ex, "unstage file");
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        StopPolling();
+        return ValueTask.CompletedTask;
+    }
+}
