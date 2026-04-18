@@ -34,6 +34,7 @@ public static class AssetEndpoints
         group.MapPost("{id:guid}/collections/{collectionId:guid}", AddAssetToCollection).DisableAntiforgery().WithName("AddAssetToCollection");
         group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).DisableAntiforgery().WithName("RemoveAssetFromCollection");
         group.MapGet("{id:guid}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
+        group.MapGet("{id:guid}/derivatives", GetDerivatives).WithName("GetDerivatives");
 
         group.MapPost("init-upload", InitUpload).AddEndpointFilter<ValidationFilter<InitUploadRequest>>().DisableAntiforgery().WithName("InitUpload");
         group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).DisableAntiforgery().WithName("ConfirmUpload");
@@ -90,6 +91,13 @@ public static class AssetEndpoints
         Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetDeletionContextAsync(id, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetDerivatives(
+        Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
+    {
+        var result = await svc.GetDerivativesAsync(id, ct);
         return result.ToHttpResult();
     }
 

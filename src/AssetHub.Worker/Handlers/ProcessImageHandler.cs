@@ -14,7 +14,7 @@ public sealed class ProcessImageHandler(
         logger.LogInformation("Received image processing command for asset {AssetId}", command.AssetId);
 
         var result = await imageProcessingService.ProcessImageAsync(
-            command.AssetId, command.OriginalObjectKey, cancellationToken);
+            command.AssetId, command.OriginalObjectKey, command.SkipMetadataExtraction, cancellationToken);
 
         if (result.Succeeded)
         {

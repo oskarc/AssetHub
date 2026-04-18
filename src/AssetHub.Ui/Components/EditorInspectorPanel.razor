@@ -1,0 +1,200 @@
+@using MudBlazor.Utilities
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Pages
+
+@inject IStringLocalizer<ImageEditorResource> Loc
+
+<MudPaper Class="editor-inspector-panel" Elevation="0" Square="true">
+    <div class="inspector-panel-header px-2 py-1">
+        <MudText Typo="Typo.subtitle2">@Loc["Panel_Inspector"]</MudText>
+    </div>
+    <MudDivider />
+    @if (SelectedLayerProps is null)
+    {
+        <MudText Typo="Typo.caption" Class="px-2 py-4 mud-text-secondary" Align="Align.Center">
+            @Loc["Inspector_NoSelection"]
+        </MudText>
+    }
+    else
+    {
+        <div class="inspector-content px-2 py-2">
+            @switch (SelectedLayerProps.Kind)
+            {
+                case "text":
+                    <MudTextField T="string"
+                                  Label="@Loc["Inspector_Text"]"
+                                  Value="SelectedLayerProps.Text"
+                                  ValueChanged="@(v => OnUpdateProp.InvokeAsync(("text", (object?)v)))"
+                                  Immediate="true"
+                                  Margin="Margin.Dense"
+                                  Variant="Variant.Outlined" />
+                    <MudSelect T="string"
+                               Label="@Loc["Inspector_FontFamily"]"
+                               Value="SelectedLayerProps.FontFamily"
+                               ValueChanged="@(v => OnUpdateProp.InvokeAsync(("fontFamily", (object?)v)))"
+                               Margin="Margin.Dense"
+                               Variant="Variant.Outlined"
+                               Dense="true">
+                        <MudSelectItem Value="@("Arial")">Arial</MudSelectItem>
+                        <MudSelectItem Value="@("Helvetica")">Helvetica</MudSelectItem>
+                        <MudSelectItem Value="@("Georgia")">Georgia</MudSelectItem>
+                        <MudSelectItem Value="@("Times New Roman")">Times New Roman</MudSelectItem>
+                        <MudSelectItem Value="@("Courier New")">Courier New</MudSelectItem>
+                        <MudSelectItem Value="@("Verdana")">Verdana</MudSelectItem>
+                    </MudSelect>
+                    <MudNumericField T="int"
+                                     Label="@Loc["Inspector_FontSize"]"
+                                     Value="@(SelectedLayerProps.FontSize ?? 32)"
+                                     ValueChanged="@(v => OnUpdateProp.InvokeAsync(("fontSize", (object?)v)))"
+                                     Min="8"
+                                     Max="200"
+                                     Margin="Margin.Dense"
+                                     Variant="Variant.Outlined" />
+                    <MudColorPicker Label="@Loc["Inspector_FillColor"]"
+                                    Value="@(new MudColor(SelectedLayerProps.Fill ?? "#000000"))"
+                                    ValueChanged="@(c => OnUpdateProp.InvokeAsync(("fill", (object?)c.ToString(MudColorOutputFormats.Hex))))"
+                                    Variant="Variant.Outlined"
+                                    ShowAlpha="false"
+                                    Margin="Margin.Dense" />
+                    <div class="d-flex gap-1 mt-1">
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatBold"
+                                       Size="Size.Small"
+                                       Variant="@(SelectedLayerProps.FontWeight == "bold" ? Variant.Filled : Variant.Outlined)"
+                                       Color="Color.Default"
+                                       OnClick="@(() => OnToggleFontStyle.InvokeAsync("bold"))"
+                                       aria-label="@Loc["Aria_Bold"]" />
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatItalic"
+                                       Size="Size.Small"
+                                       Variant="@(SelectedLayerProps.FontStyle == "italic" ? Variant.Filled : Variant.Outlined)"
+                                       Color="Color.Default"
+                                       OnClick="@(() => OnToggleFontStyle.InvokeAsync("italic"))"
+                                       aria-label="@Loc["Aria_Italic"]" />
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatAlignLeft"
+                                       Size="Size.Small"
+                                       Variant="@(SelectedLayerProps.TextAlign == "left" ? Variant.Filled : Variant.Outlined)"
+                                       Color="Color.Default"
+                                       OnClick="@(() => OnUpdateProp.InvokeAsync(("textAlign", (object?)"left")))"
+                                       aria-label="@Loc["Aria_AlignLeft"]" />
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatAlignCenter"
+                                       Size="Size.Small"
+                                       Variant="@(SelectedLayerProps.TextAlign == "center" ? Variant.Filled : Variant.Outlined)"
+                                       Color="Color.Default"
+                                       OnClick="@(() => OnUpdateProp.InvokeAsync(("textAlign", (object?)"center")))"
+                                       aria-label="@Loc["Aria_AlignCenter"]" />
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatAlignRight"
+                                       Size="Size.Small"
+                                       Variant="@(SelectedLayerProps.TextAlign == "right" ? Variant.Filled : Variant.Outlined)"
+                                       Color="Color.Default"
+                                       OnClick="@(() => OnUpdateProp.InvokeAsync(("textAlign", (object?)"right")))"
+                                       aria-label="@Loc["Aria_AlignRight"]" />
+                    </div>
+                    break;
+
+                case "rect":
+                    @RenderFillColor()
+                    @RenderStrokeColor()
+                    @RenderStrokeWidth()
+                    <MudNumericField T="int"
+                                     Label="@Loc["Inspector_CornerRadius"]"
+                                     Value="@(SelectedLayerProps.Rx ?? 0)"
+                                     ValueChanged="@(v => OnCornerRadiusChanged.InvokeAsync(v))"
+                                     Min="0"
+                                     Max="100"
+                                     Margin="Margin.Dense"
+                                     Variant="Variant.Outlined" />
+                    @RenderOpacity()
+                    break;
+
+                case "ellipse":
+                    @RenderFillColor()
+                    @RenderStrokeColor()
+                    @RenderStrokeWidth()
+                    @RenderOpacity()
+                    break;
+
+                case "line":
+                case "arrow":
+                    @RenderStrokeColor()
+                    <MudNumericField T="int"
+                                     Label="@Loc["Inspector_StrokeWidth"]"
+                                     Value="@(SelectedLayerProps.StrokeWidth ?? 2)"
+                                     ValueChanged="@(v => OnUpdateProp.InvokeAsync(("strokeWidth", (object?)v)))"
+                                     Min="1"
+                                     Max="50"
+                                     Margin="Margin.Dense"
+                                     Variant="Variant.Outlined" />
+                    break;
+
+                case "redaction":
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        @Loc["Inspector_RedactionHint"]
+                    </MudText>
+                    break;
+
+                case "image":
+                    @RenderOpacity()
+                    break;
+            }
+        </div>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public LayerProps? SelectedLayerProps { get; set; }
+
+    [Parameter] public EventCallback<(string PropName, object? Value)> OnUpdateProp { get; set; }
+    [Parameter] public EventCallback<string> OnToggleFontStyle { get; set; }
+    [Parameter] public EventCallback<int> OnCornerRadiusChanged { get; set; }
+
+    private RenderFragment RenderFillColor() => __builder =>
+    {
+        <MudColorPicker Label="@Loc["Inspector_FillColor"]"
+                        Value="@(ParseColor(SelectedLayerProps?.Fill))"
+                        ValueChanged="@(c => OnUpdateProp.InvokeAsync(("fill", (object?)c.ToString(MudColorOutputFormats.Hex))))"
+                        Variant="Variant.Outlined"
+                        ShowAlpha="false"
+                        Margin="Margin.Dense" />
+    };
+
+    private RenderFragment RenderStrokeColor() => __builder =>
+    {
+        <MudColorPicker Label="@Loc["Inspector_StrokeColor"]"
+                        Value="@(ParseColor(SelectedLayerProps?.Stroke))"
+                        ValueChanged="@(c => OnUpdateProp.InvokeAsync(("stroke", (object?)c.ToString(MudColorOutputFormats.Hex))))"
+                        Variant="Variant.Outlined"
+                        ShowAlpha="false"
+                        Margin="Margin.Dense" />
+    };
+
+    private RenderFragment RenderStrokeWidth() => __builder =>
+    {
+        <MudNumericField T="int"
+                         Label="@Loc["Inspector_StrokeWidth"]"
+                         Value="@(SelectedLayerProps?.StrokeWidth ?? 2)"
+                         ValueChanged="@(v => OnUpdateProp.InvokeAsync(("strokeWidth", (object?)v)))"
+                         Min="0"
+                         Max="50"
+                         Margin="Margin.Dense"
+                         Variant="Variant.Outlined" />
+    };
+
+    private RenderFragment RenderOpacity() => __builder =>
+    {
+        <MudSlider T="double"
+                   Value="@(SelectedLayerProps?.Opacity ?? 1.0)"
+                   ValueChanged="@(v => OnUpdateProp.InvokeAsync(("opacity", (object?)v)))"
+                   Min="0"
+                   Max="1"
+                   Step="0.05">
+            @Loc["Inspector_Opacity"]
+        </MudSlider>
+    };
+
+    private static MudColor ParseColor(string? color)
+    {
+        if (string.IsNullOrEmpty(color) || color == "transparent")
+            return new MudColor("#000000");
+        try { return new MudColor(color); }
+        catch { return new MudColor("#000000"); }
+    }
+}

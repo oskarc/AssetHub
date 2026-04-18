@@ -1,0 +1,108 @@
+@inject IStringLocalizer<ImageEditorResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.AspectRatio" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@Loc["Resize_Title"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Class="py-2" Style="min-width: 280px;">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                @Loc["Resize_CurrentSize"]: @CurrentWidth × @CurrentHeight px
+            </MudText>
+            <MudNumericField T="int"
+                             Value="_width"
+                             ValueChanged="OnWidthChanged"
+                             Label="@Loc["Resize_WidthLabel"]"
+                             Variant="Variant.Outlined"
+                             Min="1"
+                             Max="10000"
+                             Immediate="true"
+                             aria-required="true" />
+            <MudNumericField T="int"
+                             Value="_height"
+                             ValueChanged="OnHeightChanged"
+                             Label="@Loc["Resize_HeightLabel"]"
+                             Variant="Variant.Outlined"
+                             Min="1"
+                             Max="10000"
+                             Immediate="true"
+                             aria-required="true" />
+            <MudCheckBox @bind-Value="_lockAspectRatio"
+                         Label="@Loc["Resize_LockAspect"]"
+                         Color="Color.Primary"
+                         Size="Size.Small" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!IsValid)"
+                   OnClick="Submit">
+            @Loc["Btn_Resize"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public int CurrentWidth { get; set; }
+
+    [Parameter]
+    public int CurrentHeight { get; set; }
+
+    private int _width;
+    private int _height;
+    private bool _lockAspectRatio = true;
+    private double _aspectRatio;
+    private bool _updatingFromLock;
+
+    private bool IsValid => _width > 0 && _height > 0 && _width <= 10000 && _height <= 10000;
+
+    protected override void OnParametersSet()
+    {
+        _width = CurrentWidth;
+        _height = CurrentHeight;
+        _aspectRatio = CurrentHeight > 0 ? (double)CurrentWidth / CurrentHeight : 1.0;
+    }
+
+    private void OnWidthChanged(int newWidth)
+    {
+        if (_updatingFromLock) return;
+        _width = newWidth;
+
+        if (_lockAspectRatio && _aspectRatio > 0 && _width > 0)
+        {
+            _updatingFromLock = true;
+            _height = (int)Math.Round(_width / _aspectRatio);
+            _updatingFromLock = false;
+        }
+    }
+
+    private void OnHeightChanged(int newHeight)
+    {
+        if (_updatingFromLock) return;
+        _height = newHeight;
+
+        if (_lockAspectRatio && _aspectRatio > 0 && _height > 0)
+        {
+            _updatingFromLock = true;
+            _width = (int)Math.Round(_height * _aspectRatio);
+            _updatingFromLock = false;
+        }
+    }
+
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(new ResizeResult(_width, _height)));
+    }
+
+    public sealed record ResizeResult(int Width, int Height);
+}

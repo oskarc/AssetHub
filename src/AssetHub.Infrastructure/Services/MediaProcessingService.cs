@@ -17,7 +17,10 @@ public sealed class MediaProcessingService(
     IMessageBus messageBus,
     ILogger<MediaProcessingService> logger) : IMediaProcessingService
 {
-    public async Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, CancellationToken cancellationToken = default)
+    public Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, CancellationToken cancellationToken = default)
+        => ScheduleProcessingAsync(assetId, assetType, originalObjectKey, skipMetadata: false, cancellationToken);
+
+    public async Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, bool skipMetadata, CancellationToken cancellationToken = default)
     {
         var correlationId = Guid.NewGuid();
 
@@ -27,7 +30,8 @@ public sealed class MediaProcessingService(
             await messageBus.PublishAsync(new ProcessImageCommand
             {
                 AssetId = assetId,
-                OriginalObjectKey = originalObjectKey
+                OriginalObjectKey = originalObjectKey,
+                SkipMetadataExtraction = skipMetadata
             });
         }
         else if (assetType == Constants.AssetTypeFilters.Video)

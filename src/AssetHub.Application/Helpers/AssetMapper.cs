@@ -11,7 +11,7 @@ public static class AssetMapper
     /// <summary>
     /// Maps an Asset entity to an AssetResponseDto.
     /// </summary>
-    public static AssetResponseDto ToDto(Asset asset, string userRole = RoleHierarchy.Roles.Viewer, string? createdByUserName = null)
+    public static AssetResponseDto ToDto(Asset asset, string userRole = RoleHierarchy.Roles.Viewer, string? createdByUserName = null, int derivativeCount = 0, bool includeEditDocument = false)
     {
         return new AssetResponseDto
         {
@@ -33,6 +33,10 @@ public static class AssetMapper
             CreatedByUserId = asset.CreatedByUserId,
             CreatedByUserName = createdByUserName,
             UpdatedAt = asset.UpdatedAt,
+            SourceAssetId = asset.SourceAssetId,
+            HasEditDocument = asset.EditDocument is not null,
+            EditDocument = includeEditDocument ? asset.EditDocument : null,
+            DerivativeCount = derivativeCount,
             UserRole = userRole
         };
     }

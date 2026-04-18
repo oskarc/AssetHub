@@ -1,0 +1,104 @@
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Pages
+
+@inject IStringLocalizer<ImageEditorResource> Loc
+
+<MudPaper Class="editor-layer-panel" Elevation="0" Square="true">
+    <div class="layer-panel-header d-flex align-center justify-space-between px-2 py-1">
+        <MudText Typo="Typo.subtitle2">@Loc["Panel_Layers"]</MudText>
+        <div class="d-flex gap-1">
+            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                           Size="Size.Small"
+                           Disabled="@(SelectedLayerId is null)"
+                           OnClick="OnDuplicateSelected"
+                           aria-label="@Loc["Btn_DuplicateLayer"]" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                           Size="Size.Small"
+                           Color="Color.Error"
+                           Disabled="@(SelectedLayerId is null)"
+                           OnClick="OnDeleteSelected"
+                           aria-label="@Loc["Btn_DeleteLayer"]" />
+        </div>
+    </div>
+    <MudDivider />
+    @if (Layers.Count == 0)
+    {
+        <MudText Typo="Typo.caption" Class="px-2 py-4 mud-text-secondary" Align="Align.Center">
+            @Loc["Layers_Empty"]
+        </MudText>
+    }
+    else
+    {
+        <MudList T="string"
+                 Dense="true"
+                 Class="layer-list pa-0"
+                 @bind-SelectedValue="SelectedLayerIdInternal"
+                 SelectionMode="SelectionMode.SingleSelection">
+            @foreach (var layer in Enumerable.Reverse(Layers))
+            {
+                <MudListItem T="string"
+                             Value="@layer.Id"
+                             Class="@(layer.Id == SelectedLayerId ? "mud-selected-item" : "")"
+                             OnClick="@(() => OnSelectLayer.InvokeAsync(layer.Id))">
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@GetLayerIcon(layer.Kind)" Size="Size.Small" />
+                        <MudText Typo="Typo.body2" Class="flex-grow-1 text-truncate" Style="max-width: 100px;">
+                            @layer.Label
+                        </MudText>
+                        <MudIconButton Icon="@(layer.Visible ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                       Size="Size.Small"
+                                       OnClick="@(() => OnToggleLayerVisible.InvokeAsync(layer.Id))"
+                                       OnClick:stopPropagation
+                                       aria-label="@Loc["Btn_ToggleVisibility"]" />
+                        <MudIconButton Icon="@(layer.Locked ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                                       Size="Size.Small"
+                                       OnClick="@(() => OnToggleLayerLocked.InvokeAsync(layer.Id))"
+                                       OnClick:stopPropagation
+                                       aria-label="@Loc["Btn_ToggleLock"]" />
+                        <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward"
+                                       Size="Size.Small"
+                                       OnClick="@(() => OnReorderLayer.InvokeAsync((layer.Id, "up")))"
+                                       OnClick:stopPropagation
+                                       aria-label="@Loc["Btn_MoveLayerUp"]" />
+                        <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward"
+                                       Size="Size.Small"
+                                       OnClick="@(() => OnReorderLayer.InvokeAsync((layer.Id, "down")))"
+                                       OnClick:stopPropagation
+                                       aria-label="@Loc["Btn_MoveLayerDown"]" />
+                    </div>
+                </MudListItem>
+            }
+        </MudList>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public List<LayerInfo> Layers { get; set; } = new();
+    [Parameter] public string? SelectedLayerId { get; set; }
+
+    [Parameter] public EventCallback OnDuplicateSelected { get; set; }
+    [Parameter] public EventCallback OnDeleteSelected { get; set; }
+    [Parameter] public EventCallback<string> OnSelectLayer { get; set; }
+    [Parameter] public EventCallback<string> OnToggleLayerVisible { get; set; }
+    [Parameter] public EventCallback<string> OnToggleLayerLocked { get; set; }
+    [Parameter] public EventCallback<(string LayerId, string Direction)> OnReorderLayer { get; set; }
+
+    // MudList binding — kept in sync with the parent's SelectedLayerId
+    private string? SelectedLayerIdInternal
+    {
+        get => SelectedLayerId;
+        set { /* Selection handled via OnSelectLayer callback */ }
+    }
+
+    private static string GetLayerIcon(string kind) => kind switch
+    {
+        "text" => Icons.Material.Filled.TextFields,
+        "rect" => Icons.Material.Filled.Rectangle,
+        "ellipse" => Icons.Material.Filled.Circle,
+        "line" => Icons.Material.Filled.HorizontalRule,
+        "arrow" => Icons.Material.Filled.ArrowRightAlt,
+        "redaction" => Icons.Material.Filled.HideImage,
+        "image" => Icons.Material.Filled.Image,
+        _ => Icons.Material.Filled.Layers,
+    };
+}

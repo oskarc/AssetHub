@@ -6,6 +6,7 @@ public record ProcessImageCommand
 {
     public Guid AssetId { get; init; }
     public string OriginalObjectKey { get; init; } = string.Empty;
+    public bool SkipMetadataExtraction { get; init; }
 }
 
 public record ProcessVideoCommand
@@ -17,6 +18,13 @@ public record ProcessVideoCommand
 public record BuildZipCommand
 {
     public Guid ZipDownloadId { get; init; }
+}
+
+public record ApplyExportPresetsCommand
+{
+    public Guid SourceAssetId { get; init; }
+    public List<Guid> PresetIds { get; init; } = new();
+    public string RequestedByUserId { get; init; } = string.Empty;
 }
 
 // ── Events (published for any interested subscriber) ─────────────────────

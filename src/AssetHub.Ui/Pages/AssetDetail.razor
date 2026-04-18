@@ -75,10 +75,17 @@ else
                         <MudStack>
                             <MudText Typo="Typo.h5">@_asset.Title</MudText>
                             <MudStack Row="true" Spacing="1">
-                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetTypeColor(_asset.AssetType)" Variant="Variant.Outlined">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Color="@AssetDisplayHelpers.GetAssetTypeColor(_asset.AssetType)"
+                                         Variant="Variant.Outlined"
+                                         Icon="@AssetDisplayHelpers.GetAssetIcon(_asset.AssetType)">
                                     @Display.AssetType(_asset.AssetType)
                                 </MudChip>
-                                <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetAssetStatusColor(_asset.Status)">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Color="@AssetDisplayHelpers.GetAssetStatusColor(_asset.Status)"
+                                         Icon="@AssetDisplayHelpers.GetAssetStatusIcon(_asset.Status)">
                                     @CommonLoc[AssetDisplayHelpers.GetAssetStatusKey(_asset.Status)]
                                 </MudChip>
                             </MudStack>
@@ -224,19 +231,23 @@ else
                         @if (_asset.Status == Constants.AssetStatus.Failed)
                         {
                             <MudDivider />
-                            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true">
-                                @AssetLoc["ProcessingFailedMessage"]
-                            </MudAlert>
+                            <div role="alert" aria-live="assertive">
+                                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true">
+                                    @AssetLoc["ProcessingFailedMessage"]
+                                </MudAlert>
+                            </div>
                         }
 
                         @if (_isPollingProcessing)
                         {
-                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" NoIcon="true">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Info" />
-                                    <MudText Typo="Typo.body2">@AssetLoc["ProcessingBanner"]</MudText>
-                                </MudStack>
-                            </MudAlert>
+                            <div role="status" aria-live="polite" aria-label="@CommonLoc["Aria_ProcessingInProgress"]">
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" NoIcon="true">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Info" />
+                                        <MudText Typo="Typo.body2">@AssetLoc["ProcessingBanner"]</MudText>
+                                    </MudStack>
+                                </MudAlert>
+                            </div>
                         }
 
                         <!-- Metadata (Expandable) -->
@@ -269,6 +280,8 @@ else
                                 </MudExpansionPanel>
                             </MudExpansionPanels>
                         }
+
+                        <DerivativesPanel Derivatives="_derivatives" />
 
                         <MudDivider />
 
@@ -337,6 +350,19 @@ else
                             </MudButton>
                             }
 
+                            @if (RolePermissions.CanEdit(_asset?.UserRole)
+                                 && _asset is { HasEditDocument: true }
+                                 && _asset.AssetType == Constants.AssetTypeFilters.Image
+                                 && _asset.Status == Constants.AssetStatus.Ready)
+                            {
+                            <MudButton Variant="Variant.Outlined"
+                                       StartIcon="@Icons.Material.Filled.History"
+                                       FullWidth="true"
+                                       OnClick="@(() => Nav.NavigateTo($"/assets/{AssetId}/edit?reedit=true" + (ReturnUrl != null ? $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}" : "")))">
+                                @EditorLoc["Btn_ReEdit"]
+                            </MudButton>
+                            }
+
                             @if (RolePermissions.CanDelete(_asset?.UserRole))
                             {
                             <MudButton Variant="Variant.Outlined"
@@ -364,6 +390,7 @@ else
 
     private AssetResponseDto? _asset;
     private List<AssetCollectionDto> _assetCollections = new();
+    private List<AssetDerivativeDto> _derivatives = new();
     private bool _isLoading = true;
     private bool _isPollingProcessing;
     private CancellationTokenSource _cts = new();
@@ -384,6 +411,7 @@ else
             _isLoading = true;
             _asset = await Api.GetAssetAsync(AssetId, _cts.Token);
             await LoadAssetCollectionsAsync();
+            await LoadDerivativesAsync();
         }
         catch (OperationCanceledException)
         {
@@ -459,6 +487,22 @@ else
         {
             _assetCollections = new();
             Feedback.HandleError(ex, "load collections");
+        }
+    }
+
+    private async Task LoadDerivativesAsync()
+    {
+        try
+        {
+            _derivatives = await Api.GetAssetDerivativesAsync(AssetId, _cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled — ignore
+        }
+        catch
+        {
+            _derivatives = new();
         }
     }
 

@@ -27,6 +27,13 @@ public interface IAssetUploadService
     Task<ServiceResult<AssetUploadResult>> ConfirmUploadAsync(Guid id, CancellationToken ct);
 
     /// <summary>
+    /// Confirm a pre-scanned upload — skips malware scan and magic byte validation.
+    /// Use only when the caller has already performed ClamAV scanning on the stream
+    /// before uploading to storage (e.g. image edit flow).
+    /// </summary>
+    Task<ServiceResult<AssetUploadResult>> ConfirmPreScannedUploadAsync(Guid id, bool skipMetadata = false, CancellationToken ct = default);
+
+    /// <summary>
     /// Upload a file directly through the API (synchronous upload path).
     /// Use for small/medium files when presigned upload isn't needed.
     /// </summary>

@@ -68,6 +68,70 @@ public enum ZipDownloadStatus
 }
 
 /// <summary>
+/// Source type for a bulk import migration.
+/// </summary>
+public enum MigrationSourceType
+{
+    CsvUpload
+}
+
+/// <summary>
+/// Overall status of a migration job.
+/// </summary>
+public enum MigrationStatus
+{
+    Draft,
+    Validating,
+    Running,
+    Completed,
+    PartiallyCompleted,
+    CompletedWithErrors,
+    Failed,
+    Cancelled
+}
+
+/// <summary>
+/// Status of an individual migration item.
+/// </summary>
+public enum MigrationItemStatus
+{
+    Pending,
+    Processing,
+    Succeeded,
+    Failed,
+    Skipped
+}
+
+/// <summary>
+/// How a preset resizes the source image to fit the target dimensions.
+/// </summary>
+public enum ExportPresetFitMode
+{
+    /// <summary>Scale to fit within the target box, preserving aspect ratio.</summary>
+    Contain,
+    /// <summary>Scale to cover the target box, cropping excess.</summary>
+    Cover,
+    /// <summary>Stretch to exact target dimensions, ignoring aspect ratio.</summary>
+    Stretch,
+    /// <summary>Scale to target width, height determined by aspect ratio.</summary>
+    Width,
+    /// <summary>Scale to target height, width determined by aspect ratio.</summary>
+    Height
+}
+
+/// <summary>
+/// Output image format for an export preset.
+/// </summary>
+public enum ExportPresetFormat
+{
+    /// <summary>Keep the same format as the source image.</summary>
+    Original,
+    Jpeg,
+    Png,
+    WebP
+}
+
+/// <summary>
 /// Extension methods for enum ↔ string conversion.
 /// These map between the new enums and existing lowercase string values
 /// stored in the database, maintaining backward compatibility.
@@ -130,6 +194,54 @@ public static class DomainEnumExtensions
         _ => Unknown // Fallback for future values
     };
 
+    public static string ToDbString(this MigrationSourceType type) => type switch
+    {
+        MigrationSourceType.CsvUpload => "csv_upload",
+        _ => throw new ArgumentOutOfRangeException(nameof(type))
+    };
+
+    public static string ToDbString(this MigrationStatus status) => status switch
+    {
+        MigrationStatus.Draft => "draft",
+        MigrationStatus.Validating => "validating",
+        MigrationStatus.Running => "running",
+        MigrationStatus.Completed => "completed",
+        MigrationStatus.PartiallyCompleted => "partially_completed",
+        MigrationStatus.CompletedWithErrors => "completed_with_errors",
+        MigrationStatus.Failed => Failed,
+        MigrationStatus.Cancelled => "cancelled",
+        _ => throw new ArgumentOutOfRangeException(nameof(status))
+    };
+
+    public static string ToDbString(this MigrationItemStatus status) => status switch
+    {
+        MigrationItemStatus.Pending => "pending",
+        MigrationItemStatus.Processing => "processing",
+        MigrationItemStatus.Succeeded => "succeeded",
+        MigrationItemStatus.Failed => Failed,
+        MigrationItemStatus.Skipped => "skipped",
+        _ => throw new ArgumentOutOfRangeException(nameof(status))
+    };
+
+    public static string ToDbString(this ExportPresetFitMode mode) => mode switch
+    {
+        ExportPresetFitMode.Contain => "contain",
+        ExportPresetFitMode.Cover => "cover",
+        ExportPresetFitMode.Stretch => "stretch",
+        ExportPresetFitMode.Width => "width",
+        ExportPresetFitMode.Height => "height",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
+
+    public static string ToDbString(this ExportPresetFormat format) => format switch
+    {
+        ExportPresetFormat.Original => "original",
+        ExportPresetFormat.Jpeg => "jpeg",
+        ExportPresetFormat.Png => "png",
+        ExportPresetFormat.WebP => "webp",
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
+    };
+
     // ── String → Enum conversions ───────────────────────────────────────
 
     public static AssetStatus ToAssetStatus(this string value) => value switch
@@ -179,4 +291,56 @@ public static class DomainEnumExtensions
         Failed => ZipDownloadStatus.Failed,
         _ => ZipDownloadStatus.Unknown // Graceful fallback for unknown database values
     };
+
+    public static MigrationSourceType ToMigrationSourceType(this string value) => value switch
+    {
+        "csv_upload" => MigrationSourceType.CsvUpload,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown migration source type: {value}")
+    };
+
+    public static MigrationStatus ToMigrationStatus(this string value) => value switch
+    {
+        "draft" => MigrationStatus.Draft,
+        "validating" => MigrationStatus.Validating,
+        "running" => MigrationStatus.Running,
+        "completed" => MigrationStatus.Completed,
+        "partially_completed" => MigrationStatus.PartiallyCompleted,
+        "completed_with_errors" => MigrationStatus.CompletedWithErrors,
+        Failed => MigrationStatus.Failed,
+        "cancelled" => MigrationStatus.Cancelled,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown migration status: {value}")
+    };
+
+    public static MigrationItemStatus ToMigrationItemStatus(this string value) => value switch
+    {
+        "pending" => MigrationItemStatus.Pending,
+        "processing" => MigrationItemStatus.Processing,
+        "succeeded" => MigrationItemStatus.Succeeded,
+        Failed => MigrationItemStatus.Failed,
+        "skipped" => MigrationItemStatus.Skipped,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown migration item status: {value}")
+    };
+
+    public static ExportPresetFitMode ToExportPresetFitMode(this string value) => value switch
+    {
+        "contain" => ExportPresetFitMode.Contain,
+        "cover" => ExportPresetFitMode.Cover,
+        "stretch" => ExportPresetFitMode.Stretch,
+        "width" => ExportPresetFitMode.Width,
+        "height" => ExportPresetFitMode.Height,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown export preset fit mode: {value}")
+    };
+
+    public static ExportPresetFormat ToExportPresetFormat(this string value) => value switch
+    {
+        "original" => ExportPresetFormat.Original,
+        "jpeg" => ExportPresetFormat.Jpeg,
+        "png" => ExportPresetFormat.Png,
+        "webp" => ExportPresetFormat.WebP,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown export preset format: {value}")
+    };
+
+    public static bool IsValidExportPresetFitMode(string value) => value is "contain" or "cover" or "stretch" or "width" or "height";
+
+    public static bool IsValidExportPresetFormat(string value) => value is "original" or "jpeg" or "png" or "webp";
 }

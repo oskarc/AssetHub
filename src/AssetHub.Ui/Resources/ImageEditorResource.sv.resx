@@ -75,6 +75,7 @@
   <data name="Error_EditorLoadFailed" xml:space="preserve"><value>Bildredigeraren kunde inte laddas. Uppdatera sidan eller försök igen senare.</value></data>
   <data name="Error_TooLarge" xml:space="preserve"><value>Denna bild är för stor för att redigera i webbläsaren ({0}). Överväg att ladda ner, redigera lokalt och ladda upp igen.</value></data>
   <data name="Error_SaveFailed" xml:space="preserve"><value>Det gick inte att spara den redigerade bilden. Dina ändringar har inte gått förlorade — försök spara igen.</value></data>
+  <data name="Error_ReplaceFailed" xml:space="preserve"><value>Det gick inte att ersätta originalbilden, men exportkopior skapas ändå.</value></data>
   <data name="Error_ConcurrentEdit" xml:space="preserve"><value>Denna bild ändrades av en annan användare medan du redigerade. Ladda om och försök igen.</value></data>
 
   <!-- Tips -->
@@ -84,4 +85,75 @@
   <!-- Success -->
   <data name="Success_Replaced" xml:space="preserve"><value>Bilden har ersatts. Bearbetning startar snart.</value></data>
   <data name="Success_SavedAsCopy" xml:space="preserve"><value>Kopia sparad. Omdirigerar till den nya tillgången...</value></data>
+
+  <!-- Crop -->
+  <data name="Btn_Crop" xml:space="preserve"><value>Beskär</value></data>
+  <data name="Btn_ApplyCrop" xml:space="preserve"><value>Tillämpa beskärning</value></data>
+  <data name="Crop_AspectLabel" xml:space="preserve"><value>Format:</value></data>
+  <data name="Crop_Free" xml:space="preserve"><value>Fritt</value></data>
+
+  <!-- Rotate -->
+  <data name="Btn_Rotate" xml:space="preserve"><value>Rotera</value></data>
+  <data name="Rotate_90" xml:space="preserve"><value>Rotera 90°</value></data>
+  <data name="Rotate_180" xml:space="preserve"><value>Rotera 180°</value></data>
+  <data name="Rotate_270" xml:space="preserve"><value>Rotera 270°</value></data>
+
+  <!-- Flip -->
+  <data name="Btn_Flip" xml:space="preserve"><value>Spegelvänd</value></data>
+  <data name="Flip_Horizontal" xml:space="preserve"><value>Spegelvänd horisontellt</value></data>
+  <data name="Flip_Vertical" xml:space="preserve"><value>Spegelvänd vertikalt</value></data>
+
+  <!-- Resize -->
+  <data name="Btn_Resize" xml:space="preserve"><value>Ändra storlek</value></data>
+  <data name="Resize_Title" xml:space="preserve"><value>Ändra bildstorlek</value></data>
+  <data name="Resize_WidthLabel" xml:space="preserve"><value>Bredd (px)</value></data>
+  <data name="Resize_HeightLabel" xml:space="preserve"><value>Höjd (px)</value></data>
+  <data name="Resize_LockAspect" xml:space="preserve"><value>Lås bildförhållande</value></data>
+  <data name="Resize_CurrentSize" xml:space="preserve"><value>Nuvarande storlek</value></data>
+
+  <!-- Layer Toolbar -->
+  <data name="Btn_AddText" xml:space="preserve"><value>Text</value></data>
+  <data name="Btn_AddShape" xml:space="preserve"><value>Form</value></data>
+  <data name="Btn_Redact" xml:space="preserve"><value>Maskera</value></data>
+  <data name="Shape_Rectangle" xml:space="preserve"><value>Rektangel</value></data>
+  <data name="Shape_Ellipse" xml:space="preserve"><value>Ellips</value></data>
+  <data name="Shape_Line" xml:space="preserve"><value>Linje</value></data>
+  <data name="Shape_Arrow" xml:space="preserve"><value>Pil</value></data>
+
+  <!-- Layer Panel -->
+  <data name="Panel_Layers" xml:space="preserve"><value>Lager</value></data>
+  <data name="Layers_Empty" xml:space="preserve"><value>Inga lager tillagda än</value></data>
+  <data name="Btn_DuplicateLayer" xml:space="preserve"><value>Duplicera lager</value></data>
+  <data name="Btn_DeleteLayer" xml:space="preserve"><value>Ta bort lager</value></data>
+  <data name="Btn_ToggleVisibility" xml:space="preserve"><value>Växla synlighet</value></data>
+  <data name="Btn_ToggleLock" xml:space="preserve"><value>Växla lås</value></data>
+  <data name="Btn_MoveLayerUp" xml:space="preserve"><value>Flytta lager uppåt</value></data>
+  <data name="Btn_MoveLayerDown" xml:space="preserve"><value>Flytta lager nedåt</value></data>
+
+  <!-- Inspector Panel -->
+  <data name="Panel_Inspector" xml:space="preserve"><value>Egenskaper</value></data>
+  <data name="Inspector_NoSelection" xml:space="preserve"><value>Välj ett lager för att redigera egenskaper</value></data>
+  <data name="Inspector_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="Inspector_FontFamily" xml:space="preserve"><value>Typsnitt</value></data>
+  <data name="Inspector_FontSize" xml:space="preserve"><value>Storlek</value></data>
+  <data name="Inspector_FillColor" xml:space="preserve"><value>Fyllningsfärg</value></data>
+  <data name="Inspector_StrokeColor" xml:space="preserve"><value>Linjefärg</value></data>
+  <data name="Inspector_StrokeWidth" xml:space="preserve"><value>Linjebredd</value></data>
+  <data name="Inspector_CornerRadius" xml:space="preserve"><value>Hörnradie</value></data>
+  <data name="Inspector_Opacity" xml:space="preserve"><value>Opacitet</value></data>
+  <data name="Inspector_RedactionHint" xml:space="preserve"><value>Maskeringsområden är ogenomskinligt svarta och kan inte anpassas.</value></data>
+  <data name="ExportPresets_Title" xml:space="preserve"><value>Exportera med förval</value></data>
+  <data name="ExportPresets_NoPresets" xml:space="preserve"><value>Inga exportförval tillgängliga. Be en administratör skapa förval.</value></data>
+  <data name="ExportPresets_Description" xml:space="preserve"><value>Välj förval för att generera derivatkopior.</value></data>
+  <data name="ExportPresets_AlsoReplace" xml:space="preserve"><value>Ersätt även originalbilden</value></data>
+  <data name="ExportPresets_Export" xml:space="preserve"><value>Exportera</value></data>
+  <data name="Btn_ExportWithPresets" xml:space="preserve"><value>Exportera med förval</value></data>
+  <data name="ExportPresets_Success" xml:space="preserve"><value>{0} derivatkopior köade för bearbetning</value></data>
+  <data name="Btn_ReEdit" xml:space="preserve"><value>Redigera om (återställ lager)</value></data>
+  <data name="Derivatives_Title" xml:space="preserve"><value>Derivat</value></data>
+  <data name="Aria_Bold" xml:space="preserve"><value>Fet</value></data>
+  <data name="Aria_Italic" xml:space="preserve"><value>Kursiv</value></data>
+  <data name="Aria_AlignLeft" xml:space="preserve"><value>Vänsterjustera</value></data>
+  <data name="Aria_AlignCenter" xml:space="preserve"><value>Centrera</value></data>
+  <data name="Aria_AlignRight" xml:space="preserve"><value>Högerjustera</value></data>
 </root>

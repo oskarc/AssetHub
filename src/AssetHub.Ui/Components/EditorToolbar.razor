@@ -1,0 +1,217 @@
+@using AssetHub.Ui.Resources
+
+@inject IStringLocalizer<ImageEditorResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudPaper Class="editor-toolbar" Elevation="0" Square="true">
+    <div class="toolbar-row d-flex align-center gap-1 px-3 py-1">
+        <MudButton Variant="Variant.Text"
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   Color="Color.Default"
+                   Size="Size.Small"
+                   OnClick="OnNavigateBack">
+            @Loc["Btn_BackToAsset"]
+        </MudButton>
+
+        <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
+
+        @* Crop *@
+        @if (IsCropping)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Check"
+                       Disabled="IsSaving"
+                       OnClick="OnApplyCrop">
+                @Loc["Btn_ApplyCrop"]
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Default"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Close"
+                       OnClick="OnCancelCrop">
+                @CommonLoc["Btn_Cancel"]
+            </MudButton>
+            <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Loc["Crop_AspectLabel"]</MudText>
+            <MudButtonGroup OverrideStyles="false" Size="Size.Small">
+                <MudButton Variant="@(CropAspect is null ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           OnClick="@(() => OnSetCropAspect.InvokeAsync(null))">@Loc["Crop_Free"]</MudButton>
+                <MudButton Variant="@(CropAspect == 1.0 ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           OnClick="@(() => OnSetCropAspect.InvokeAsync(1.0))">1:1</MudButton>
+                <MudButton Variant="@(IsApprox(CropAspect, 16.0/9.0) ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           OnClick="@(() => OnSetCropAspect.InvokeAsync(16.0/9.0))">16:9</MudButton>
+                <MudButton Variant="@(IsApprox(CropAspect, 4.0/3.0) ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           OnClick="@(() => OnSetCropAspect.InvokeAsync(4.0/3.0))">4:3</MudButton>
+            </MudButtonGroup>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.Crop"
+                       Color="Color.Default"
+                       Size="Size.Small"
+                       Disabled="IsSaving"
+                       OnClick="OnStartCrop">
+                @Loc["Btn_Crop"]
+            </MudButton>
+
+            @* Rotate *@
+            <MudMenu Icon="@Icons.Material.Filled.RotateRight"
+                     Size="Size.Small"
+                     Variant="Variant.Text"
+                     Color="Color.Default"
+                     Label="@Loc["Btn_Rotate"]"
+                     Disabled="IsSaving"
+                     AnchorOrigin="Origin.BottomCenter">
+                <MudMenuItem Icon="@Icons.Material.Filled.RotateRight"
+                             OnClick="@(() => OnRotate.InvokeAsync(90))">
+                    @Loc["Rotate_90"]
+                </MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.RotateRight"
+                             OnClick="@(() => OnRotate.InvokeAsync(180))">
+                    @Loc["Rotate_180"]
+                </MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.RotateLeft"
+                             OnClick="@(() => OnRotate.InvokeAsync(270))">
+                    @Loc["Rotate_270"]
+                </MudMenuItem>
+            </MudMenu>
+
+            @* Flip *@
+            <MudMenu Icon="@Icons.Material.Filled.Flip"
+                     Size="Size.Small"
+                     Variant="Variant.Text"
+                     Color="Color.Default"
+                     Label="@Loc["Btn_Flip"]"
+                     Disabled="IsSaving"
+                     AnchorOrigin="Origin.BottomCenter">
+                <MudMenuItem Icon="@Icons.Material.Filled.Flip"
+                             OnClick='@(() => OnFlip.InvokeAsync("horizontal"))'>
+                    @Loc["Flip_Horizontal"]
+                </MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.Flip"
+                             OnClick='@(() => OnFlip.InvokeAsync("vertical"))'>
+                    @Loc["Flip_Vertical"]
+                </MudMenuItem>
+            </MudMenu>
+
+            @* Resize *@
+            <MudButton Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.AspectRatio"
+                       Color="Color.Default"
+                       Size="Size.Small"
+                       Disabled="IsSaving"
+                       OnClick="OnResize">
+                @Loc["Btn_Resize"]
+            </MudButton>
+
+            <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
+
+            @* Layer tools *@
+            <MudButton Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.TextFields"
+                       Color="Color.Default"
+                       Size="Size.Small"
+                       Disabled="IsSaving"
+                       OnClick="OnAddText">
+                @Loc["Btn_AddText"]
+            </MudButton>
+
+            <MudMenu Icon="@Icons.Material.Filled.Category"
+                     Size="Size.Small"
+                     Variant="Variant.Text"
+                     Color="Color.Default"
+                     Label="@Loc["Btn_AddShape"]"
+                     Disabled="IsSaving"
+                     AnchorOrigin="Origin.BottomCenter">
+                <MudMenuItem Icon="@Icons.Material.Filled.Rectangle"
+                             OnClick="@(() => OnAddShape.InvokeAsync("rect"))">
+                    @Loc["Shape_Rectangle"]
+                </MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.Circle"
+                             OnClick="@(() => OnAddShape.InvokeAsync("ellipse"))">
+                    @Loc["Shape_Ellipse"]
+                </MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.HorizontalRule"
+                             OnClick="@(() => OnAddShape.InvokeAsync("line"))">
+                    @Loc["Shape_Line"]
+                </MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.ArrowRightAlt"
+                             OnClick="@(() => OnAddShape.InvokeAsync("arrow"))">
+                    @Loc["Shape_Arrow"]
+                </MudMenuItem>
+            </MudMenu>
+
+            <MudButton Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.HideImage"
+                       Color="Color.Default"
+                       Size="Size.Small"
+                       Disabled="IsSaving"
+                       OnClick="OnAddRedaction">
+                @Loc["Btn_Redact"]
+            </MudButton>
+        }
+
+        <MudSpacer />
+
+        @* Save buttons *@
+        <MudButton Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.ContentCopy"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   Disabled="@(!HasUnsavedChanges || IsSaving || IsCropping)"
+                   OnClick="@(() => OnSave.InvokeAsync(SaveMethod.Copy))">
+            @Loc["Btn_SaveAsCopy"]
+        </MudButton>
+        <MudButton Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Tune"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   Disabled="@(!HasUnsavedChanges || IsSaving || IsCropping)"
+                   OnClick="@(() => OnSave.InvokeAsync(SaveMethod.ExportWithPresets))">
+            @Loc["Btn_ExportWithPresets"]
+        </MudButton>
+        <MudButton Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   Disabled="@(!HasUnsavedChanges || IsSaving || IsCropping)"
+                   OnClick="@(() => OnSave.InvokeAsync(SaveMethod.Replace))">
+            @Loc["Btn_ReplaceOriginal"]
+        </MudButton>
+    </div>
+</MudPaper>
+
+@code {
+    public enum SaveMethod { Replace, Copy, ExportWithPresets }
+
+    [Parameter] public bool IsCropping { get; set; }
+    [Parameter] public bool IsSaving { get; set; }
+    [Parameter] public bool HasUnsavedChanges { get; set; }
+    [Parameter] public double? CropAspect { get; set; }
+
+    [Parameter] public EventCallback OnNavigateBack { get; set; }
+    [Parameter] public EventCallback OnStartCrop { get; set; }
+    [Parameter] public EventCallback OnApplyCrop { get; set; }
+    [Parameter] public EventCallback OnCancelCrop { get; set; }
+    [Parameter] public EventCallback<double?> OnSetCropAspect { get; set; }
+    [Parameter] public EventCallback<int> OnRotate { get; set; }
+    [Parameter] public EventCallback<string> OnFlip { get; set; }
+    [Parameter] public EventCallback OnResize { get; set; }
+    [Parameter] public EventCallback OnAddText { get; set; }
+    [Parameter] public EventCallback<string> OnAddShape { get; set; }
+    [Parameter] public EventCallback OnAddRedaction { get; set; }
+    [Parameter] public EventCallback<SaveMethod> OnSave { get; set; }
+
+    private static bool IsApprox(double? a, double b) => a.HasValue && Math.Abs(a.Value - b) < 0.01;
+}

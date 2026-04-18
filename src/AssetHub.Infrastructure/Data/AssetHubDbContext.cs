@@ -21,6 +21,9 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Share> Shares { get; set; } = null!;
     public DbSet<AuditEvent> AuditEvents { get; set; } = null!;
     public DbSet<ZipDownload> ZipDownloads { get; set; } = null!;
+    public DbSet<ExportPreset> ExportPresets { get; set; } = null!;
+    public DbSet<Migration> Migrations { get; set; } = null!;
+    public DbSet<MigrationItem> MigrationItems { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -102,6 +105,15 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
                     c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
                     c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+
+            // Source asset self-FK for derivative lineage
+            entity.HasIndex(e => e.SourceAssetId).HasDatabaseName("idx_assets_source_asset_id");
+            entity.HasOne(e => e.SourceAsset)
+                .WithMany(e => e.Derivatives)
+                .HasForeignKey(e => e.SourceAssetId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(e => e.EditDocument).HasColumnType(Jsonb);
         });
 
         // AssetCollection (many-to-many join table)
@@ -196,6 +208,112 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.RequestedByUserId).HasMaxLength(255);
             entity.Property(e => e.ShareTokenHash).HasMaxLength(255);
             entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
+        });
+
+        // ExportPreset
+        modelBuilder.Entity<ExportPreset>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("idx_export_presets_name_unique");
+
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.FitMode)
+                .HasConversion(v => v.ToDbString(), v => v.ToExportPresetFitMode())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Format)
+                .HasConversion(v => v.ToDbString(), v => v.ToExportPresetFormat())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
+        });
+
+        // Migration
+        modelBuilder.Entity<Migration>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Status).HasDatabaseName("idx_migrations_status");
+            entity.HasIndex(e => e.CreatedByUserId).HasDatabaseName("idx_migrations_created_by");
+
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.SourceType)
+                .HasConversion(v => v.ToDbString(), v => v.ToMigrationSourceType())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Status)
+                .HasConversion(v => v.ToDbString(), v => v.ToMigrationStatus())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
+
+            entity.Property(e => e.SourceConfig)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasColumnType(Jsonb)
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+
+            entity.Property(e => e.FieldMapping)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, string>())
+                .HasColumnType(Jsonb)
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, string>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, string>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+
+            entity.HasMany(e => e.Items)
+                .WithOne(i => i.Migration)
+                .HasForeignKey(i => i.MigrationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MigrationItem
+        modelBuilder.Entity<MigrationItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.MigrationId, e.Status }).HasDatabaseName("idx_migration_items_migration_status");
+            entity.HasIndex(e => new { e.MigrationId, e.RowNumber }).HasDatabaseName("idx_migration_items_migration_row");
+            entity.HasIndex(e => e.IdempotencyKey).IsUnique().HasDatabaseName("idx_migration_items_idempotency_unique");
+
+            entity.Property(e => e.Status)
+                .HasConversion(v => v.ToDbString(), v => v.ToMigrationItemStatus())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ExternalId).HasMaxLength(255);
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.FileName).HasMaxLength(512).IsRequired();
+            entity.Property(e => e.SourcePath).HasMaxLength(1024);
+            entity.Property(e => e.Title).HasMaxLength(255);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.Copyright).HasMaxLength(500);
+            entity.Property(e => e.Sha256).HasMaxLength(64);
+            entity.Property(e => e.ErrorCode).HasMaxLength(100);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
+            entity.Property(e => e.IsFileStaged).HasDefaultValue(false);
+
+            entity.Property(e => e.Tags)
+                .HasColumnType("text[]")
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
+
+            entity.Property(e => e.CollectionNames)
+                .HasColumnType("text[]")
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
+
+            entity.Property(e => e.MetadataJson)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasColumnType(Jsonb)
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
         });
     }
 }

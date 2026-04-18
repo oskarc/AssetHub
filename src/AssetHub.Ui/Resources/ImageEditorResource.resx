@@ -75,6 +75,7 @@
   <data name="Error_EditorLoadFailed" xml:space="preserve"><value>The image editor failed to load. Please refresh the page or try again later.</value></data>
   <data name="Error_TooLarge" xml:space="preserve"><value>This image is too large to edit in the browser ({0}). Consider downloading, editing locally, and re-uploading.</value></data>
   <data name="Error_SaveFailed" xml:space="preserve"><value>Failed to save the edited image. Your changes have not been lost — please try saving again.</value></data>
+  <data name="Error_ReplaceFailed" xml:space="preserve"><value>Failed to replace the original image, but export copies will still be created.</value></data>
   <data name="Error_ConcurrentEdit" xml:space="preserve"><value>This image was modified by another user while you were editing. Please reload and try again.</value></data>
 
   <!-- Tips -->
@@ -84,4 +85,75 @@
   <!-- Success -->
   <data name="Success_Replaced" xml:space="preserve"><value>Image replaced successfully. Processing will start shortly.</value></data>
   <data name="Success_SavedAsCopy" xml:space="preserve"><value>Copy saved successfully. Redirecting to the new asset...</value></data>
+
+  <!-- Crop -->
+  <data name="Btn_Crop" xml:space="preserve"><value>Crop</value></data>
+  <data name="Btn_ApplyCrop" xml:space="preserve"><value>Apply crop</value></data>
+  <data name="Crop_AspectLabel" xml:space="preserve"><value>Aspect:</value></data>
+  <data name="Crop_Free" xml:space="preserve"><value>Free</value></data>
+
+  <!-- Rotate -->
+  <data name="Btn_Rotate" xml:space="preserve"><value>Rotate</value></data>
+  <data name="Rotate_90" xml:space="preserve"><value>Rotate 90°</value></data>
+  <data name="Rotate_180" xml:space="preserve"><value>Rotate 180°</value></data>
+  <data name="Rotate_270" xml:space="preserve"><value>Rotate 270°</value></data>
+
+  <!-- Flip -->
+  <data name="Btn_Flip" xml:space="preserve"><value>Flip</value></data>
+  <data name="Flip_Horizontal" xml:space="preserve"><value>Flip horizontal</value></data>
+  <data name="Flip_Vertical" xml:space="preserve"><value>Flip vertical</value></data>
+
+  <!-- Resize -->
+  <data name="Btn_Resize" xml:space="preserve"><value>Resize</value></data>
+  <data name="Resize_Title" xml:space="preserve"><value>Resize image</value></data>
+  <data name="Resize_WidthLabel" xml:space="preserve"><value>Width (px)</value></data>
+  <data name="Resize_HeightLabel" xml:space="preserve"><value>Height (px)</value></data>
+  <data name="Resize_LockAspect" xml:space="preserve"><value>Lock aspect ratio</value></data>
+  <data name="Resize_CurrentSize" xml:space="preserve"><value>Current size</value></data>
+
+  <!-- Layer Toolbar -->
+  <data name="Btn_AddText" xml:space="preserve"><value>Text</value></data>
+  <data name="Btn_AddShape" xml:space="preserve"><value>Shape</value></data>
+  <data name="Btn_Redact" xml:space="preserve"><value>Redact</value></data>
+  <data name="Shape_Rectangle" xml:space="preserve"><value>Rectangle</value></data>
+  <data name="Shape_Ellipse" xml:space="preserve"><value>Ellipse</value></data>
+  <data name="Shape_Line" xml:space="preserve"><value>Line</value></data>
+  <data name="Shape_Arrow" xml:space="preserve"><value>Arrow</value></data>
+
+  <!-- Layer Panel -->
+  <data name="Panel_Layers" xml:space="preserve"><value>Layers</value></data>
+  <data name="Layers_Empty" xml:space="preserve"><value>No layers added yet</value></data>
+  <data name="Btn_DuplicateLayer" xml:space="preserve"><value>Duplicate layer</value></data>
+  <data name="Btn_DeleteLayer" xml:space="preserve"><value>Delete layer</value></data>
+  <data name="Btn_ToggleVisibility" xml:space="preserve"><value>Toggle visibility</value></data>
+  <data name="Btn_ToggleLock" xml:space="preserve"><value>Toggle lock</value></data>
+  <data name="Btn_MoveLayerUp" xml:space="preserve"><value>Move layer up</value></data>
+  <data name="Btn_MoveLayerDown" xml:space="preserve"><value>Move layer down</value></data>
+
+  <!-- Inspector Panel -->
+  <data name="Panel_Inspector" xml:space="preserve"><value>Properties</value></data>
+  <data name="Inspector_NoSelection" xml:space="preserve"><value>Select a layer to edit properties</value></data>
+  <data name="Inspector_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="Inspector_FontFamily" xml:space="preserve"><value>Font</value></data>
+  <data name="Inspector_FontSize" xml:space="preserve"><value>Size</value></data>
+  <data name="Inspector_FillColor" xml:space="preserve"><value>Fill color</value></data>
+  <data name="Inspector_StrokeColor" xml:space="preserve"><value>Stroke color</value></data>
+  <data name="Inspector_StrokeWidth" xml:space="preserve"><value>Stroke width</value></data>
+  <data name="Inspector_CornerRadius" xml:space="preserve"><value>Corner radius</value></data>
+  <data name="Inspector_Opacity" xml:space="preserve"><value>Opacity</value></data>
+  <data name="Inspector_RedactionHint" xml:space="preserve"><value>Redaction areas are opaque black and cannot be customized.</value></data>
+  <data name="ExportPresets_Title" xml:space="preserve"><value>Export with Presets</value></data>
+  <data name="ExportPresets_NoPresets" xml:space="preserve"><value>No export presets available. Ask an admin to create presets.</value></data>
+  <data name="ExportPresets_Description" xml:space="preserve"><value>Select the presets to generate derivative copies.</value></data>
+  <data name="ExportPresets_AlsoReplace" xml:space="preserve"><value>Also replace the original image</value></data>
+  <data name="ExportPresets_Export" xml:space="preserve"><value>Export</value></data>
+  <data name="Btn_ExportWithPresets" xml:space="preserve"><value>Export with presets</value></data>
+  <data name="ExportPresets_Success" xml:space="preserve"><value>{0} derivative copies queued for processing</value></data>
+  <data name="Btn_ReEdit" xml:space="preserve"><value>Re-edit (restore layers)</value></data>
+  <data name="Derivatives_Title" xml:space="preserve"><value>Derivatives</value></data>
+  <data name="Aria_Bold" xml:space="preserve"><value>Bold</value></data>
+  <data name="Aria_Italic" xml:space="preserve"><value>Italic</value></data>
+  <data name="Aria_AlignLeft" xml:space="preserve"><value>Align left</value></data>
+  <data name="Aria_AlignCenter" xml:space="preserve"><value>Align center</value></data>
+  <data name="Aria_AlignRight" xml:space="preserve"><value>Align right</value></data>
 </root>

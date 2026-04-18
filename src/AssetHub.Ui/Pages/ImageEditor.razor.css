@@ -1,6 +1,6 @@
 .editor-page {
     position: fixed;
-    top: 64px; /* MudAppBar default height */
+    top: var(--mud-appbar-height, 64px);
     left: var(--mud-drawer-width-left, 0px);
     right: 0;
     bottom: 0;
@@ -14,45 +14,74 @@
     border-bottom: 1px solid var(--mud-palette-lines-default);
 }
 
-.editor-container {
+.toolbar-row {
+    flex-wrap: wrap;
+    min-height: 48px;
+}
+
+.editor-main {
     flex: 1;
     min-height: 0;
+    display: flex;
     overflow: hidden;
 }
 
-/* Filerobot undo / redo / reset button overrides */
-::deep .FIE_topbar-history-buttons button,
-::deep .FIE_topbar-reset-button button,
-::deep [data-phone="false"] .FIE_topbar-history-buttons button {
-    opacity: 1 !important;
-    border: 1px solid var(--mud-palette-lines-default) !important;
-    border-radius: 4px !important;
-    padding: 6px !important;
-    margin: 0 2px !important;
-    min-width: 36px;
-    min-height: 36px;
+.editor-layer-panel {
+    width: 240px;
+    min-width: 200px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--mud-palette-lines-default);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-::deep .FIE_topbar-history-buttons button:not(:disabled):hover,
-::deep .FIE_topbar-reset-button button:not(:disabled):hover {
-    background-color: rgba(255, 255, 255, 0.15) !important;
+.layer-panel-header {
+    flex-shrink: 0;
 }
 
-::deep .FIE_topbar-history-buttons button:disabled {
-    opacity: 0.35 !important;
+::deep .layer-list {
+    flex: 1;
+    overflow-y: auto;
 }
 
-::deep .FIE_topbar-history-buttons svg,
-::deep .FIE_topbar-reset-button svg {
-    width: 20px !important;
-    height: 20px !important;
+.editor-canvas-area {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--mud-palette-background);
+    padding: 16px;
 }
 
+.editor-container {
+    max-width: 100%;
+    max-height: 100%;
+}
 
+.editor-inspector-panel {
+    width: 260px;
+    min-width: 220px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--mud-palette-lines-default);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
 
-/* Hide Filerobot's built-in save button — we use our own toolbar save */
-::deep .FIE_topbar-save-button {
-    display: none !important;
+.inspector-panel-header {
+    flex-shrink: 0;
+}
+
+.inspector-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 /* Saving/processing overlay */
@@ -74,4 +103,12 @@
 ::deep .saving-overlay-hint {
     color: var(--mud-palette-text-secondary);
     line-height: 1.5;
+}
+
+/* Responsive: collapse panels on narrow viewports */
+@media (max-width: 900px) {
+    .editor-layer-panel,
+    .editor-inspector-panel {
+        display: none;
+    }
 }

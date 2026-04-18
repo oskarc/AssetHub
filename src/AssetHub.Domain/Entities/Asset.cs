@@ -25,6 +25,24 @@ public class Asset
     public DateTime UpdatedAt { get; set; }
 
     /// <summary>
+    /// References the source asset this was derived from (via image editing / export presets).
+    /// Null for original assets.
+    /// </summary>
+    public Guid? SourceAssetId { get; set; }
+    public Asset? SourceAsset { get; set; }
+
+    /// <summary>
+    /// Assets derived from this one (edited copies, preset exports).
+    /// </summary>
+    public ICollection<Asset> Derivatives { get; set; } = new List<Asset>();
+
+    /// <summary>
+    /// Persisted edit document (fabric.js layer JSON) for re-opening edits.
+    /// Stored as JSONB. Versioned: {"v":1,"layers":[...],"canvas":{...}}
+    /// </summary>
+    public string? EditDocument { get; set; }
+
+    /// <summary>
     /// All collections this asset belongs to. All collections are equal - no hierarchy.
     /// </summary>
     public ICollection<AssetCollection> AssetCollections { get; set; } = new List<AssetCollection>();

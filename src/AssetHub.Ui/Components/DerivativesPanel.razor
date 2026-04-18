@@ -1,0 +1,71 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Application.Helpers
+@using AssetHub.Ui.Resources
+
+@inject NavigationManager Nav
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<ImageEditorResource> EditorLoc
+
+@if (Derivatives.Count > 0)
+{
+    <MudExpansionPanels Elevation="0" Class="share-panel-reset">
+        <MudExpansionPanel MaxHeight="400"
+                           Class="share-panel-header pa-0 ma-0">
+            <TitleContent>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudText Typo="Typo.subtitle2">@EditorLoc["Derivatives_Title"]</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                        @Derivatives.Count
+                    </MudChip>
+                </MudStack>
+            </TitleContent>
+            <ChildContent>
+                <MudStack Spacing="1">
+                    @foreach (var d in Derivatives)
+                    {
+                        <MudStack @key="d.Id" Row="true" AlignItems="AlignItems.Center" Spacing="2"
+                                   Class="pa-1 rounded cursor-pointer"
+                                   @onclick="@(() => Nav.NavigateTo($"/assets/{d.Id}"))">
+                            @if (!string.IsNullOrEmpty(d.ThumbObjectKey))
+                            {
+                                <MudAvatar Size="Size.Medium" Rounded="true" Class="border">
+                                    <MudImage Src="@($"/api/v1/assets/{d.Id}/thumb")" Alt="@d.Title" />
+                                </MudAvatar>
+                            }
+                            else
+                            {
+                                <MudAvatar Size="Size.Medium" Rounded="true" Color="Color.Surface">
+                                    <MudIcon Icon="@Icons.Material.Filled.Image" />
+                                </MudAvatar>
+                            }
+                            <MudStack Spacing="0" Class="flex-grow-1 overflow-hidden">
+                                <MudText Typo="Typo.body2" Class="text-truncate">@d.Title</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    @FormatDerivativeInfo(d)
+                                </MudText>
+                            </MudStack>
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@AssetDisplayHelpers.GetAssetStatusColor(d.Status)">
+                                @CommonLoc[AssetDisplayHelpers.GetAssetStatusKey(d.Status)]
+                            </MudChip>
+                        </MudStack>
+                    }
+                </MudStack>
+            </ChildContent>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+}
+
+@code {
+    [Parameter, EditorRequired] public List<AssetDerivativeDto> Derivatives { get; set; } = new();
+
+    private static string FormatDerivativeInfo(AssetDerivativeDto d)
+    {
+        var parts = new List<string>();
+        if (d.Width.HasValue && d.Height.HasValue)
+            parts.Add($"{d.Width}×{d.Height}");
+        parts.Add(d.ContentType.Split('/').LastOrDefault() ?? d.ContentType);
+        parts.Add(AssetDisplayHelpers.FormatFileSize(d.SizeBytes));
+        return string.Join(" · ", parts);
+    }
+}

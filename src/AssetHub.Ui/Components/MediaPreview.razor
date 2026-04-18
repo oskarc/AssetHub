@@ -25,7 +25,7 @@ else if (AssetDisplayHelpers.IsPdfContentType(ContentType))
 else
 {
     <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
-        <MudIcon Icon="@AssetDisplayHelpers.GetAssetIcon(AssetType)" Size="Size.Large" Color="Color.Primary" />
+        <MudIcon Icon="@AssetDisplayHelpers.GetAssetIcon(AssetType)" Size="Size.Large" Color="Color.Primary" aria-hidden="true" />
         <MudText Typo="Typo.h6">@Title</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">
             @PreviewNotAvailableText

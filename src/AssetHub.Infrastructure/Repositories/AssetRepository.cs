@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public class AssetRepository(
+public sealed class AssetRepository(
     AssetHubDbContext dbContext,
     HybridCache cache,
     ILogger<AssetRepository> logger) : IAssetRepository
@@ -209,7 +209,7 @@ public class AssetRepository(
             var searchPattern = $"%{query}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
-                (a.Description is not null && EF.Functions.ILike(a.Description, searchPattern)) ||
+                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)) ||
                 a.Tags.Any(t => EF.Functions.ILike(t, searchPattern)));
         }
 
@@ -260,7 +260,7 @@ public class AssetRepository(
             var searchPattern = $"%{filter.Query}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
-                (a.Description is not null && EF.Functions.ILike(a.Description, searchPattern)) ||
+                (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)) ||
                 a.Tags.Any(t => EF.Functions.ILike(t, searchPattern)));
         }
 
@@ -309,5 +309,27 @@ public class AssetRepository(
             .Where(a => ids.Contains(a.Id))
             .Select(a => new { a.Id, a.Title })
             .ToDictionaryAsync(a => a.Id, a => a.Title, cancellationToken);
+    }
+
+    public async Task<int> CountDerivativesAsync(Guid sourceAssetId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Assets
+            .CountAsync(a => a.SourceAssetId == sourceAssetId, cancellationToken);
+    }
+
+    public async Task<List<Asset>> GetDerivativesAsync(Guid sourceAssetId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Assets
+            .AsNoTracking()
+            .Where(a => a.SourceAssetId == sourceAssetId)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Asset?> GetBySha256Async(string sha256, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Assets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Sha256 == sha256, cancellationToken);
     }
 }

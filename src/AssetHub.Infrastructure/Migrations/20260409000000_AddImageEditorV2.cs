@@ -1,0 +1,89 @@
+using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddImageEditorV2 : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<Guid>(
+                name: "SourceAssetId",
+                table: "Assets",
+                type: "uuid",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "EditDocument",
+                table: "Assets",
+                type: "jsonb",
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "idx_assets_source_asset_id",
+                table: "Assets",
+                column: "SourceAssetId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Assets_Assets_SourceAssetId",
+                table: "Assets",
+                column: "SourceAssetId",
+                principalTable: "Assets",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.SetNull);
+
+            migrationBuilder.CreateTable(
+                name: "ExportPresets",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    Width = table.Column<int>(type: "integer", nullable: true),
+                    Height = table.Column<int>(type: "integer", nullable: true),
+                    FitMode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Format = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Quality = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedByUserId = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ExportPresets", x => x.Id);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "idx_export_presets_name_unique",
+                table: "ExportPresets",
+                column: "Name",
+                unique: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "ExportPresets");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_Assets_Assets_SourceAssetId",
+                table: "Assets");
+
+            migrationBuilder.DropIndex(
+                name: "idx_assets_source_asset_id",
+                table: "Assets");
+
+            migrationBuilder.DropColumn(
+                name: "EditDocument",
+                table: "Assets");
+
+            migrationBuilder.DropColumn(
+                name: "SourceAssetId",
+                table: "Assets");
+        }
+    }
+}

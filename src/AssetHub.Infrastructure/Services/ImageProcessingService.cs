@@ -2,6 +2,7 @@ using System.Diagnostics;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Services;
+using AssetHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -52,7 +53,8 @@ public sealed class ImageProcessingService(
 
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
 
-    public async Task<ImageProcessingResult> ProcessImageAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
+    public async Task<ImageProcessingResult> ProcessImageAsync(
+        Guid assetId, string originalObjectKey, bool skipMetadata = false, CancellationToken ct = default)
     {
         var tempOriginal = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
@@ -70,37 +72,40 @@ public sealed class ImageProcessingService(
                 await originalStream.CopyToAsync(fs, ct);
             }
 
-            // Extract EXIF metadata
+            // Extract EXIF metadata (skip for canvas-rendered edits — no EXIF in those PNGs)
             Dictionary<string, object> metadata = new();
             string? copyright = null;
-            try
+            if (!skipMetadata)
             {
-                logger.LogInformation("Starting metadata extraction for asset {AssetId}, file: {FilePath}", assetId, tempOriginal);
-                metadata = metadataExtractor.ExtractImageMetadata(tempOriginal);
-                if (metadata.Count > 0)
+                try
                 {
-                    logger.LogInformation("Extracted {MetadataCount} metadata fields for asset {AssetId}: {MetadataKeys}",
-                        metadata.Count, assetId, string.Join(", ", metadata.Keys));
-
-                    // Extract copyright from metadata if available
-                    if (metadata.TryGetValue("copyright", out var extractedCopyright) &&
-                        extractedCopyright is string copyrightStr &&
-                        !string.IsNullOrWhiteSpace(copyrightStr))
+                    logger.LogInformation("Starting metadata extraction for asset {AssetId}, file: {FilePath}", assetId, tempOriginal);
+                    metadata = metadataExtractor.ExtractImageMetadata(tempOriginal);
+                    if (metadata.Count > 0)
                     {
-                        copyright = copyrightStr;
-                        logger.LogInformation("Found Copyright in EXIF for asset {AssetId}: {Copyright}",
-                            assetId, copyrightStr);
+                        logger.LogInformation("Extracted {MetadataCount} metadata fields for asset {AssetId}: {MetadataKeys}",
+                            metadata.Count, assetId, string.Join(", ", metadata.Keys));
+
+                        // Extract copyright from metadata if available
+                        if (metadata.TryGetValue("copyright", out var extractedCopyright) &&
+                            extractedCopyright is string copyrightStr &&
+                            !string.IsNullOrWhiteSpace(copyrightStr))
+                        {
+                            copyright = copyrightStr;
+                            logger.LogInformation("Found Copyright in EXIF for asset {AssetId}: {Copyright}",
+                                assetId, copyrightStr);
+                        }
+                    }
+                    else
+                    {
+                        logger.LogInformation("No metadata found in image for asset {AssetId}. File may not contain EXIF/IPTC data.", assetId);
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    logger.LogInformation("No metadata found in image for asset {AssetId}. File may not contain EXIF/IPTC data.", assetId);
+                    logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}: {ErrorMessage}", assetId, ex.Message);
+                    metadata["metadataExtractionError"] = ex.Message;
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}: {ErrorMessage}", assetId, ex.Message);
-                metadata["metadataExtractionError"] = ex.Message;
             }
 
             // Create thumbnail and medium in a single ImageMagick invocation
@@ -140,8 +145,8 @@ public sealed class ImageProcessingService(
 
     /// <summary>
     /// Creates both thumbnail and medium renditions using two separate ImageMagick calls.
-    /// ImageMagick 6.x's (+clone +write) pipeline pattern silently drops the image after
-    /// the closing parenthesis, so the medium rendition was never created.
+    /// Runs sequentially to stay within the worker container's 1 GB memory limit —
+    /// two concurrent ImageMagick processes on large images cause OOM (exit code 137).
     /// </summary>
     private async Task CreateRenditionsAsync(string inputPath, string thumbPath, string mediumPath, CancellationToken ct)
     {
@@ -149,7 +154,6 @@ public sealed class ImageProcessingService(
 
         await CreateRenditionAsync(executable, inputPath, thumbPath,
             $"{_imageSettings.ThumbnailWidth}x{_imageSettings.ThumbnailHeight}>", ct);
-
         await CreateRenditionAsync(executable, inputPath, mediumPath,
             $"{_imageSettings.MediumWidth}x{_imageSettings.MediumHeight}>", ct);
     }
@@ -173,4 +177,96 @@ public sealed class ImageProcessingService(
 
         await ProcessRunner.RunAsync(executable, command, ProcessTimeout, logger, ct);
     }
+
+    /// <summary>
+    /// Resize an image per export preset dimensions using ImageMagick.
+    /// Downloads the source from MinIO, resizes to a temp file, uploads to the derivative key.
+    /// </summary>
+    /// <returns>The file size of the resized image in bytes.</returns>
+    public async Task<long> ResizeForPresetAsync(
+        string sourceObjectKey, string targetObjectKey, string targetContentType,
+        ExportPreset preset, CancellationToken ct)
+    {
+        var width = preset.Width;
+        var height = preset.Height;
+        var fitMode = preset.FitMode;
+        var quality = preset.Quality;
+
+        // Defense-in-depth: validate dimensions even though presets are validated at creation
+        const int maxDimension = 10000;
+        if (width.HasValue && (width.Value < 1 || width.Value > maxDimension))
+            throw new ArgumentOutOfRangeException(nameof(preset), $"Width must be between 1 and {maxDimension}");
+        if (height.HasValue && (height.Value < 1 || height.Value > maxDimension))
+            throw new ArgumentOutOfRangeException(nameof(preset), $"Height must be between 1 and {maxDimension}");
+        if (quality < 1 || quality > 100)
+            throw new ArgumentOutOfRangeException(nameof(preset), "Quality must be between 1 and 100");
+
+        var extension = targetContentType switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/webp" => ".webp",
+            _ => ".png"
+        };
+        var tempInput = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var tempOutput = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}{extension}");
+
+        try
+        {
+            using var sourceStream = await minioAdapter.DownloadAsync(_bucketName, sourceObjectKey, ct);
+            await using (var fs = File.Create(tempInput))
+            {
+                await sourceStream.CopyToAsync(fs, ct);
+            }
+
+            var executable = OperatingSystem.IsWindows() ? "magick" : "/usr/bin/convert";
+            var command = ProcessRunner.CreateStartInfo(executable);
+            command.ArgumentList.Add($"{tempInput}[0]");
+            command.ArgumentList.Add("-auto-orient");
+            command.ArgumentList.Add("-colorspace");
+            command.ArgumentList.Add("sRGB");
+            command.ArgumentList.Add("-strip");
+
+            var geometry = BuildPresetGeometry(width, height, fitMode);
+            if (geometry is not null)
+            {
+                command.ArgumentList.Add("-resize");
+                command.ArgumentList.Add(geometry);
+
+                if (fitMode == ExportPresetFitMode.Cover && width.HasValue && height.HasValue)
+                {
+                    command.ArgumentList.Add("-gravity");
+                    command.ArgumentList.Add("center");
+                    command.ArgumentList.Add("-extent");
+                    command.ArgumentList.Add($"{width.Value}x{height.Value}");
+                }
+            }
+
+            command.ArgumentList.Add("-quality");
+            command.ArgumentList.Add(quality.ToString());
+            command.ArgumentList.Add(tempOutput);
+
+            await ProcessRunner.RunAsync(executable, command, ProcessTimeout, logger, ct);
+
+            var fileInfo = new FileInfo(tempOutput);
+            using var outputStream = File.OpenRead(tempOutput);
+            await minioAdapter.UploadAsync(_bucketName, targetObjectKey, outputStream, targetContentType, ct);
+
+            return fileInfo.Length;
+        }
+        finally
+        {
+            ProcessRunner.CleanupTempFile(tempInput, logger);
+            ProcessRunner.CleanupTempFile(tempOutput, logger);
+        }
+    }
+
+    private static string? BuildPresetGeometry(int? width, int? height, ExportPresetFitMode fitMode) => fitMode switch
+    {
+        ExportPresetFitMode.Contain when width.HasValue && height.HasValue => $"{width.Value}x{height.Value}",
+        ExportPresetFitMode.Cover when width.HasValue && height.HasValue => $"{width.Value}x{height.Value}^",
+        ExportPresetFitMode.Stretch when width.HasValue && height.HasValue => $"{width.Value}x{height.Value}!",
+        ExportPresetFitMode.Width when width.HasValue => $"{width.Value}x",
+        ExportPresetFitMode.Height when height.HasValue => $"x{height.Value}",
+        _ => null
+    };
 }

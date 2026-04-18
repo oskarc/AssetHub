@@ -1,14 +1,11 @@
 @page "/assets/{Id:guid}/edit"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.Extensions.Logging
 @attribute [Authorize]
 @implements IAsyncDisposable
 
-@using AssetHub.Application
-@using AssetHub.Application.Dtos
 @using AssetHub.Application.Helpers
-@using AssetHub.Ui.Services
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Routing
-@using Microsoft.JSInterop
+@using AssetHub.Ui.Components
 
 @inject AssetHubApiClient Api
 @inject NavigationManager Nav
@@ -16,7 +13,8 @@
 @inject IStringLocalizer<ImageEditorResource> Loc
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IJSRuntime JS
-@inject ThemeService Theme
+@inject IUserFeedbackService Feedback
+@inject ILogger<ImageEditor> Logger
 
 <PageTitle>@(_isLoading ? Loc["Editor_Loading"] : _asset?.Title ?? Loc["Error_AssetNotFound"]) - @CommonLoc["AppName"]</PageTitle>
 
@@ -50,33 +48,45 @@ else
                 <MudText Typo="Typo.body2" Class="saving-overlay-hint">@_savingOverlayHint</MudText>
             </MudStack>
         </MudOverlay>
-        <MudPaper Class="editor-toolbar d-flex align-center gap-2 px-4 py-2" Elevation="0" Square="true">
-            <MudButton Variant="Variant.Text"
-                       StartIcon="@Icons.Material.Filled.ArrowBack"
-                       Color="Color.Default"
-                       Size="Size.Small"
-                       OnClick="NavigateBack">
-                @Loc["Btn_BackToAsset"]
-            </MudButton>
-            <MudSpacer />
-            <MudButton Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.ContentCopy"
-                       Color="Color.Primary"
-                       Size="Size.Small"
-                       Disabled="@(!_hasUnsavedChanges || _isSaving)"
-                       OnClick="@(() => SaveWithMethodAsync(SaveMethod.Copy))">
-                @Loc["Btn_SaveAsCopy"]
-            </MudButton>
-            <MudButton Variant="Variant.Filled"
-                       StartIcon="@Icons.Material.Filled.Save"
-                       Color="Color.Primary"
-                       Size="Size.Small"
-                       Disabled="@(!_hasUnsavedChanges || _isSaving)"
-                       OnClick="@(() => SaveWithMethodAsync(SaveMethod.Replace))">
-                @Loc["Btn_ReplaceOriginal"]
-            </MudButton>
-        </MudPaper>
-        <div id="@EditorContainerId" class="editor-container"></div>
+
+        <EditorToolbar IsCropping="_isCropping"
+                       IsSaving="_isSaving"
+                       HasUnsavedChanges="_hasUnsavedChanges"
+                       CropAspect="_cropAspect"
+                       OnNavigateBack="NavigateBack"
+                       OnStartCrop="@(() => StartCropAsync(null))"
+                       OnApplyCrop="ApplyCropAsync"
+                       OnCancelCrop="CancelCropAsync"
+                       OnSetCropAspect="SetCropAspectAsync"
+                       OnRotate="RotateAsync"
+                       OnFlip="FlipAsync"
+                       OnResize="OpenResizeDialogAsync"
+                       OnAddText="AddTextLayerAsync"
+                       OnAddShape="AddShapeAsync"
+                       OnAddRedaction="AddRedactionAsync"
+                       OnSave="OnToolbarSaveAsync" />
+
+        @* ── Main Content: Layers | Canvas | Inspector ── *@
+        <div class="editor-main">
+            <EditorLayerPanel Layers="_layers"
+                              SelectedLayerId="_selectedLayerId"
+                              OnDuplicateSelected="DuplicateSelectedAsync"
+                              OnDeleteSelected="DeleteSelectedAsync"
+                              OnSelectLayer="SelectLayerAsync"
+                              OnToggleLayerVisible="ToggleLayerVisibleAsync"
+                              OnToggleLayerLocked="ToggleLayerLockedAsync"
+                              OnReorderLayer="OnReorderLayerAsync" />
+
+            @* ── Canvas ── *@
+            <div class="editor-canvas-area">
+                <div id="@EditorContainerId" class="editor-container"></div>
+            </div>
+
+            <EditorInspectorPanel SelectedLayerProps="_selectedLayerProps"
+                                  OnUpdateProp="OnInspectorUpdatePropAsync"
+                                  OnToggleFontStyle="ToggleFontStyleAsync"
+                                  OnCornerRadiusChanged="OnCornerRadiusChangedAsync" />
+        </div>
     </div>
 }
 
@@ -87,6 +97,9 @@ else
     [SupplyParameterFromQuery(Name = "returnUrl")]
     public string? ReturnUrl { get; set; }
 
+    [SupplyParameterFromQuery(Name = "reedit")]
+    public bool ReEdit { get; set; }
+
     private const string EditorContainerId = "image-editor-container";
 
     private AssetResponseDto? _asset;
@@ -94,13 +107,17 @@ else
     private string? _errorMessage;
     private bool _hasUnsavedChanges;
     private bool _isSaving;
+    private bool _isCropping;
+    private double? _cropAspect;
     private bool _navigationConfirmed;
     private bool _editorInitStarted;
     private string _savingOverlayText = "";
     private string _savingOverlayHint = "";
 
-    private enum SaveMethod { Replace, Copy }
-    private SaveMethod _lastSaveMethod = SaveMethod.Replace;
+    // Layer state
+    private List<LayerInfo> _layers = new();
+    private string? _selectedLayerId;
+    private LayerProps? _selectedLayerProps;
 
     private IJSObjectReference? _jsModule;
     private DotNetObjectReference<ImageEditor>? _dotNetRef;
@@ -112,6 +129,19 @@ else
         await _cts.CancelAsync();
         _cts.Dispose();
         _cts = new CancellationTokenSource();
+
+        // Dispose the previous JS editor when parameters change (e.g. navigating
+        // from one asset's editor to another) so InitEditorAsync re-runs.
+        if (_editorInitStarted)
+        {
+            _editorInitStarted = false;
+            if (_jsModule is not null)
+            {
+                try { await _jsModule.InvokeVoidAsync("dispose"); }
+                catch (JSDisconnectedException) { }
+            }
+        }
+
         await LoadAssetAsync();
     }
 
@@ -122,46 +152,54 @@ else
             _isLoading = true;
             _errorMessage = null;
 
+            Logger.LogDebug("Loading asset {AssetId} for image editor", Id);
             _asset = await Api.GetAssetAsync(Id, _cts.Token);
 
-            if (_asset == null)
+            if (_asset is null)
             {
+                Logger.LogWarning("Asset {AssetId} not found", Id);
                 _errorMessage = Loc["Error_AssetNotFound"];
                 return;
             }
 
+            Logger.LogDebug("Asset {AssetId} loaded: Type={AssetType}, Status={Status}, Size={SizeBytes}",
+                Id, _asset.AssetType, _asset.Status, _asset.SizeBytes);
+
             if (_asset.AssetType != Constants.AssetTypeFilters.Image)
             {
+                Logger.LogWarning("Asset {AssetId} is not an image: {AssetType}", Id, _asset.AssetType);
                 _errorMessage = Loc["Error_NotAnImage"];
                 return;
             }
 
             if (_asset.Status != Constants.AssetStatus.Ready)
             {
+                Logger.LogWarning("Asset {AssetId} is not ready: {Status}", Id, _asset.Status);
                 _errorMessage = Loc["Error_NotReady"];
                 return;
             }
 
             if (!RolePermissions.CanEdit(_asset.UserRole))
             {
+                Logger.LogWarning("User lacks edit permission for asset {AssetId}, role: {UserRole}", Id, _asset.UserRole);
                 _errorMessage = Loc["Error_NoPermission"];
                 return;
             }
 
-            // Warn if image is very large — browser may struggle
             const long maxSizeBytes = (long)Constants.Limits.MaxEditorImageSizeMb * 1024 * 1024;
             if (_asset.SizeBytes > maxSizeBytes)
             {
+                Logger.LogWarning("Asset {AssetId} too large for editor: {SizeBytes} > {MaxBytes}", Id, _asset.SizeBytes, maxSizeBytes);
                 _errorMessage = Loc["Error_TooLarge"];
                 return;
             }
+
+            Logger.LogDebug("Asset {AssetId} passed all validation checks for editing", Id);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
         {
-            // Navigation to different asset or disposal — ignore
-        }
-        catch (Exception)
-        {
+            Logger.LogError(ex, "Failed to load asset {AssetId} for image editor", Id);
             _errorMessage = Loc["Error_AssetNotFound"];
         }
         finally
@@ -177,7 +215,7 @@ else
             _locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChanging);
         }
 
-        if (!_editorInitStarted && _asset != null && string.IsNullOrEmpty(_errorMessage))
+        if (!_editorInitStarted && _asset is not null && string.IsNullOrEmpty(_errorMessage))
         {
             _editorInitStarted = true;
             await InitEditorAsync();
@@ -188,26 +226,35 @@ else
     {
         try
         {
+            Logger.LogDebug("Initializing image editor JS module for asset {AssetId}", Id);
+
             _jsModule = await JS.InvokeAsync<IJSObjectReference>(
-                "import", "./_content/AssetHub.Ui/js/imageEditor.js");
+                "import", $"./_content/AssetHub.Ui/js/imageEditor.js?v={BuildInfo.Stamp}");
 
             _dotNetRef = DotNetObjectReference.Create(this);
 
-            var imageUrl = $"/api/v1/assets/{Id}/download";
+            // When re-editing, load the source asset's original image (without baked-in layers)
+            // so that restored layers don't appear duplicated on top of the rendered preview.
+            var imageUrl = ReEdit && _asset?.SourceAssetId is not null
+                ? $"/api/v1/assets/{_asset.SourceAssetId}/preview"
+                : $"/api/v1/assets/{Id}/preview";
+            var options = new { maxDisplaySize = 2048 };
 
-            var themeColors = Theme.IsDarkMode
-                ? new { primary = "#7ba3d4", primaryLight = "#2a3450", surface = "#1e2030", textPrimary = "#d0d1dc" }
-                : new { primary = "#4a6fa5", primaryLight = "#e8eef5", surface = "#ffffff", textPrimary = "#1a2332" };
+            Logger.LogDebug("Calling JS init with imageUrl={ImageUrl}, container={ContainerId}", imageUrl, EditorContainerId);
 
-            await _jsModule.InvokeVoidAsync("initEditor",
-                EditorContainerId, imageUrl, themeColors, _dotNetRef);
+            await _jsModule.InvokeVoidAsync("init",
+                EditorContainerId, imageUrl, options, _dotNetRef);
+
+            if (ReEdit && !string.IsNullOrEmpty(_asset?.EditDocument))
+            {
+                Logger.LogDebug("Loading edit document for asset {AssetId}", Id);
+                await _jsModule.InvokeVoidAsync("loadEditDocument", _asset.EditDocument);
+            }
         }
-        catch (JSDisconnectedException)
+        catch (JSDisconnectedException) { }
+        catch (Exception ex)
         {
-            // Circuit disconnected — ignore
-        }
-        catch (Exception)
-        {
+            Logger.LogError(ex, "Failed to initialize image editor for asset {AssetId}", Id);
             _errorMessage = Loc["Error_EditorLoadFailed"];
             StateHasChanged();
         }
@@ -216,6 +263,7 @@ else
     [JSInvokable]
     public void OnEditorReady()
     {
+        Logger.LogDebug("Image editor ready for asset {AssetId}", Id);
         InvokeAsync(StateHasChanged);
     }
 
@@ -231,18 +279,190 @@ else
     }
 
     [JSInvokable]
-    public void OnEditorSaveRequested()
+    public void OnEditorError(string message)
     {
-        InvokeAsync(() => SaveWithLastMethodAsync());
+        Logger.LogError("Image editor JS error for asset {AssetId}: {ErrorMessage}", Id, message);
+        InvokeAsync(() =>
+        {
+            _errorMessage = Loc["Error_EditorLoadFailed"];
+            StateHasChanged();
+        });
     }
 
-    private Task SaveWithLastMethodAsync() => SaveWithMethodAsync(_lastSaveMethod);
-
-    private async Task SaveWithMethodAsync(SaveMethod method)
+    [JSInvokable]
+    public void OnCropStateChanged(bool isCropping)
     {
-        _lastSaveMethod = method;
+        InvokeAsync(() =>
+        {
+            _isCropping = isCropping;
+            StateHasChanged();
+        });
+    }
 
-        if (method == SaveMethod.Replace)
+    [JSInvokable]
+    public void OnSelectionChanged(string? layerId)
+    {
+        InvokeAsync(async () =>
+        {
+            _selectedLayerId = layerId;
+            await RefreshSelectedLayerPropsAsync();
+            StateHasChanged();
+        });
+    }
+
+    [JSInvokable]
+    public void OnLayersChanged(LayerInfo[] layers)
+    {
+        InvokeAsync(() =>
+        {
+            _layers = layers?.ToList() ?? new();
+            StateHasChanged();
+        });
+    }
+
+    // ── JS Interop Helpers ──────────────────────────────────────
+
+    private async Task InvokeJsVoidAsync(string identifier, params object?[] args)
+    {
+        if (_jsModule is null) return;
+        try { await _jsModule.InvokeVoidAsync(identifier, args); }
+        catch (JSDisconnectedException) { }
+    }
+
+    private async Task<T?> InvokeJsAsync<T>(string identifier, params object?[] args)
+    {
+        if (_jsModule is null) return default;
+        try { return await _jsModule.InvokeAsync<T>(identifier, args); }
+        catch (JSDisconnectedException) { return default; }
+    }
+
+    // ── Crop Methods ───────────────────────────────────────────────
+
+    private async Task StartCropAsync(double? aspect)
+    {
+        _isCropping = true;
+        _cropAspect = aspect;
+        StateHasChanged();
+        await InvokeJsVoidAsync("startCrop", aspect);
+    }
+
+    private async Task SetCropAspectAsync(double? aspect)
+    {
+        _cropAspect = aspect;
+        await InvokeJsVoidAsync("startCrop", aspect);
+    }
+
+    private async Task ApplyCropAsync()
+    {
+        await InvokeJsVoidAsync("applyCrop");
+        _isCropping = false;
+        _cropAspect = null;
+    }
+
+    private async Task CancelCropAsync()
+    {
+        await InvokeJsVoidAsync("cancelCrop");
+        _isCropping = false;
+        _cropAspect = null;
+    }
+
+    // ── Layer Methods ──────────────────────────────────────────────
+
+    private Task AddTextLayerAsync() => InvokeJsAsync<string>("addText", (object?)null);
+    private Task AddShapeAsync(string kind) => InvokeJsAsync<string>("addShape", kind, (object?)null);
+    private Task AddRedactionAsync() => InvokeJsAsync<string>("addRedaction");
+    private Task DuplicateSelectedAsync() => InvokeJsVoidAsync("duplicateSelected");
+    private Task ToggleLayerVisibleAsync(string layerId) => InvokeJsVoidAsync("toggleLayerVisible", layerId);
+    private Task ToggleLayerLockedAsync(string layerId) => InvokeJsVoidAsync("toggleLayerLocked", layerId);
+    private Task ReorderLayerAsync(string layerId, string direction) => InvokeJsVoidAsync("reorderLayer", layerId, direction);
+
+    private async Task DeleteSelectedAsync()
+    {
+        await InvokeJsVoidAsync("deleteSelected");
+        _selectedLayerId = null;
+        _selectedLayerProps = null;
+    }
+
+    private async Task SelectLayerAsync(string layerId)
+    {
+        _selectedLayerId = layerId;
+        await InvokeJsVoidAsync("selectLayer", layerId);
+        await RefreshSelectedLayerPropsAsync();
+    }
+
+    private async Task RefreshSelectedLayerPropsAsync()
+    {
+        if (_selectedLayerId is null) { _selectedLayerProps = null; return; }
+        _selectedLayerProps = await InvokeJsAsync<LayerProps>("getSelectedLayerProps");
+    }
+
+    private async Task UpdatePropAsync(string propName, object? value)
+    {
+        var props = new Dictionary<string, object?> { [propName] = value };
+        await InvokeJsVoidAsync("updateSelectedProps", props);
+        await RefreshSelectedLayerPropsAsync();
+        StateHasChanged();
+    }
+
+    private async Task ToggleFontStyleAsync(string style)
+    {
+        if (_selectedLayerProps is null) return;
+
+        if (style == "bold")
+        {
+            var newWeight = _selectedLayerProps.FontWeight == "bold" ? "normal" : "bold";
+            await UpdatePropAsync("fontWeight", newWeight);
+        }
+        else if (style == "italic")
+        {
+            var newStyle = _selectedLayerProps.FontStyle == "italic" ? "normal" : "italic";
+            await UpdatePropAsync("fontStyle", newStyle);
+        }
+    }
+
+    // ── Bridge methods for child component callbacks ──────────────
+
+    private Task OnReorderLayerAsync((string LayerId, string Direction) args) =>
+        ReorderLayerAsync(args.LayerId, args.Direction);
+
+    private Task OnInspectorUpdatePropAsync((string PropName, object? Value) args) =>
+        UpdatePropAsync(args.PropName, args.Value);
+
+    private async Task OnCornerRadiusChangedAsync(int value)
+    {
+        await UpdatePropAsync("rx", value);
+        await UpdatePropAsync("ry", value);
+    }
+
+    private Task RotateAsync(int degrees) => InvokeJsVoidAsync("rotate", degrees);
+    private Task FlipAsync(string axis) => InvokeJsVoidAsync("flip", axis);
+
+    private async Task OpenResizeDialogAsync()
+    {
+        var sizeInfo = await InvokeJsAsync<CanvasSizeInfo>("getCanvasSize");
+        if (sizeInfo is null) return;
+
+        var parameters = new DialogParameters<ResizeDialog>
+        {
+            { x => x.CurrentWidth, sizeInfo.FullResWidth > 0 ? sizeInfo.FullResWidth : sizeInfo.Width },
+            { x => x.CurrentHeight, sizeInfo.FullResHeight > 0 ? sizeInfo.FullResHeight : sizeInfo.Height }
+        };
+        var dlgOptions = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<ResizeDialog>(
+            Loc["Btn_Resize"], parameters, dlgOptions);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled) return;
+        if (result.Data is not ResizeDialog.ResizeResult resizeData) return;
+
+        await InvokeJsVoidAsync("resize", resizeData.Width, resizeData.Height);
+    }
+
+    private Task OnToolbarSaveAsync(EditorToolbar.SaveMethod method) => SaveWithMethodAsync(method);
+
+    private async Task SaveWithMethodAsync(EditorToolbar.SaveMethod method)
+    {
+        if (method == EditorToolbar.SaveMethod.Replace)
         {
             var confirmed = await DialogService.ShowConfirmAsync(
                 Loc["SaveDialog_ConfirmReplaceTitle"],
@@ -255,12 +475,30 @@ else
             if (!confirmed) return;
 
             await ShowSavingOverlayAsync();
-            await SaveImageAsync(overwrite: true, format: null, title: null);
+            await SaveAsReplaceAsync();
+        }
+        else if (method == EditorToolbar.SaveMethod.ExportWithPresets)
+        {
+            var isManager = RolePermissions.CanDelete(_asset?.UserRole);
+            var presetsParams = new DialogParameters<ExportPresetsDialog>
+            {
+                { x => x.ShowReplaceToggle, isManager }
+            };
+            var presetsOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+            var presetsDialog = await DialogService.ShowAsync<ExportPresetsDialog>(
+                Loc["ExportPresets_Title"], presetsParams, presetsOptions);
+            var presetsResult = await presetsDialog.Result;
+
+            if (presetsResult is null || presetsResult.Canceled) return;
+            if (presetsResult.Data is not ExportPresetsDialog.ExportPresetsResult presetsData) return;
+
+            await ShowSavingOverlayAsync();
+            await SaveWithPresetsAsync(presetsData.PresetIds, presetsData.AlsoReplace);
         }
         else
         {
             var defaultFormat = _asset!.ContentType == "image/png" ? "png" : "jpeg";
-            var defaultTitle = $"{_asset.Title} (edited)";
+            var defaultTitle = _asset.Title + " (edited)";
 
             Guid? sourceCollectionId = null;
             try
@@ -268,7 +506,7 @@ else
                 var assetCollections = await Api.GetAssetCollectionsAsync(Id, _cts.Token);
                 sourceCollectionId = assetCollections.FirstOrDefault()?.Id;
             }
-            catch { /* Non-critical — dialog will default to None */ }
+            catch { /* Non-critical */ }
 
             var copyParams = new DialogParameters<SaveImageCopyDialog>
             {
@@ -285,7 +523,7 @@ else
             if (copyResult.Data is not SaveImageCopyDialog.SaveCopyResult copyData) return;
 
             await ShowSavingOverlayAsync();
-            await SaveImageAsync(overwrite: false, format: copyData.Format, title: copyData.Title, collectionId: copyData.CollectionId);
+            await SaveAsCopyAsync(copyData.Title, copyData.CollectionId);
         }
     }
 
@@ -295,81 +533,68 @@ else
         _savingOverlayText = Loc["Progress_SavingOverlay"];
         _savingOverlayHint = Loc["Progress_SavingOverlayHint"];
         StateHasChanged();
-        await Task.Delay(50);
+        await Task.Yield();
     }
 
-    private async Task SaveImageAsync(bool overwrite, string? format, string? title, Guid? collectionId = null)
+    /// <summary>
+    /// Result from the JS saveEdit fetch call.
+    /// </summary>
+    private sealed class JsSaveResult
+    {
+        public bool Ok { get; set; }
+        public int Status { get; set; }
+        public ImageEditResultDto? Body { get; set; }
+    }
+
+    private async Task ExecuteSaveAsync(
+        string logDescription,
+        string fileName,
+        string saveMode,
+        object? options = null,
+        Func<ImageEditResultDto, string>? getNavigateUrl = null,
+        Action<ImageEditResultDto>? onBeforeNavigate = null)
     {
         if (_jsModule is null) return;
 
         try
         {
-            var outputFormat = format ?? (_asset!.ContentType == "image/png" ? "png" : "jpeg");
-            var quality = 0.92;
+            // The JS saveEdit function exports the canvas and POSTs it directly
+            // to the API via fetch(), bypassing the SignalR circuit entirely.
+            Logger.LogInformation("Saving image via JS fetch: {Description} for asset {AssetId}", logDescription, Id);
+            var result = await _jsModule.InvokeAsync<JsSaveResult?>("saveEdit",
+                Id.ToString(), fileName, saveMode, options);
 
-            // Get the edited image info (content type & size) without uploading
-            var imageInfo = await _jsModule.InvokeAsync<SaveUploadResult>("getEditedImageInfo", outputFormat, quality);
-
-            if (!imageInfo.Success || imageInfo.Size <= 0)
+            if (result is null || !result.Ok || result.Body is null)
             {
+                var status = result?.Status ?? 0;
+                Logger.LogError("JS saveEdit failed for asset {AssetId}: HTTP {StatusCode}", Id, status);
+                Feedback.ShowError(status > 0
+                    ? $"{Loc["Error_SaveFailed"].Value} ({status})"
+                    : Loc["Error_SaveFailed"].Value);
                 return;
             }
-
-            // Request a presigned upload URL from the API
-            InitUploadResponse initResponse;
-            if (overwrite)
-            {
-                initResponse = await Api.ReplaceImageFileAsync(Id, imageInfo.ContentType, imageInfo.Size, _cts.Token);
-            }
-            else
-            {
-                initResponse = await Api.SaveImageCopyAsync(Id, imageInfo.ContentType, imageInfo.Size, title, collectionId, _cts.Token);
-            }
-
-            // Upload the edited image to the presigned URL
-            var uploadResult = await _jsModule.InvokeAsync<SaveUploadResult>(
-                "saveAndUpload", initResponse.UploadUrl, outputFormat, quality);
-
-            if (!uploadResult.Success)
-            {
-                return;
-            }
-
-            // Confirm the upload to trigger processing
-            await Api.ConfirmUploadAsync(initResponse.AssetId, _cts.Token);
 
             _hasUnsavedChanges = false;
             await DisableBeforeUnloadAsync();
-            if (_jsModule != null)
-            {
-                try { await _jsModule.InvokeVoidAsync("clearUnsavedChanges"); }
-                catch (JSDisconnectedException) { }
-            }
+            await InvokeJsVoidAsync("clearUnsavedChanges");
 
-            // Update overlay to show processing state
+            onBeforeNavigate?.Invoke(result.Body);
+
             _savingOverlayText = Loc["Progress_ProcessingOverlay"];
             _savingOverlayHint = Loc["Progress_ProcessingOverlayHint"];
             StateHasChanged();
 
-            // Wait for processing to complete before navigating
-            var targetAssetId = overwrite ? Id : initResponse.AssetId;
-            var processed = await WaitForProcessingAsync(targetAssetId);
+            await WaitForProcessingAsync(result.Body.AssetId);
 
             _navigationConfirmed = true;
-
-            if (overwrite)
-            {
-                Nav.NavigateTo($"/assets/{Id}" + (ReturnUrl != null ? $"?returnUrl={Uri.EscapeDataString(ReturnUrl)}" : ""));
-            }
-            else
-            {
-                Nav.NavigateTo($"/assets/{initResponse.AssetId}");
-            }
+            var url = getNavigateUrl?.Invoke(result.Body) ?? "/assets/" + result.Body.AssetId;
+            Nav.NavigateTo(url);
         }
         catch (JSDisconnectedException) { }
-        catch
+        catch (Exception ex)
         {
-            // Overlay dismisses — user can retry from the editor
+            Logger.LogError(ex, "Failed {Description} for asset {AssetId}", logDescription, Id);
+            Feedback.ShowError(Loc["Error_SaveFailed"].Value);
         }
         finally
         {
@@ -378,57 +603,93 @@ else
         }
     }
 
-    private async Task<bool> WaitForProcessingAsync(Guid assetId)
-    {
-        const int maxAttempts = 40;
-        const int pollIntervalMs = 3000;
-
-        for (int attempt = 0; attempt < maxAttempts; attempt++)
+    private Task SaveAsReplaceAsync() => ExecuteSaveAsync(
+        "saving image replacement",
+        _asset!.Title + ".png",
+        "Replace",
+        getNavigateUrl: _ =>
         {
-            await Task.Delay(pollIntervalMs, _cts.Token);
+            var returnUrl = ReturnUrl is not null ? "?returnUrl=" + Uri.EscapeDataString(ReturnUrl) : "";
+            return "/assets/" + Id + returnUrl;
+        });
+
+    private Task SaveAsCopyAsync(string title, Guid? collectionId) => ExecuteSaveAsync(
+        "saving image copy",
+        title + ".png",
+        "Copy",
+        options: new { title, destinationCollectionId = collectionId?.ToString() });
+
+    private Task SaveWithPresetsAsync(Guid[] presetIds, bool alsoReplace) => ExecuteSaveWithPresetsAsync(presetIds, alsoReplace);
+
+    private async Task ExecuteSaveWithPresetsAsync(Guid[] presetIds, bool alsoReplace)
+    {
+        if (_jsModule is null) return;
+
+        try
+        {
+            var fileName = _asset!.Title + ".png";
+
+            // If also replacing, do that first via a separate saveEdit call.
+            if (alsoReplace)
+            {
+                Logger.LogInformation("Replacing original before preset export for asset {AssetId}", Id);
+                var replaceResult = await _jsModule.InvokeAsync<JsSaveResult?>("saveEdit",
+                    Id.ToString(), fileName, "Replace", null);
+
+                if (replaceResult is null || !replaceResult.Ok)
+                {
+                    Logger.LogError("Failed to replace original for asset {AssetId} during preset export: HTTP {StatusCode}",
+                        Id, replaceResult?.Status ?? 0);
+                    Feedback.ShowError(Loc["Error_ReplaceFailed"].Value);
+                }
+            }
+
+            // Now do the CopyWithPresets save.
+            await ExecuteSaveAsync(
+                "saving image with presets",
+                fileName,
+                "CopyWithPresets",
+                options: new
+                {
+                    title = _asset.Title,
+                    presetIds = presetIds.Select(p => p.ToString()).ToArray()
+                },
+                onBeforeNavigate: _ =>
+                {
+                    Feedback.ShowSuccess(string.Format(Loc["ExportPresets_Success"].Value, presetIds.Length));
+                });
+        }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed saving with presets for asset {AssetId}", Id);
+            Feedback.ShowError(Loc["Error_SaveFailed"].Value);
+            _isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task WaitForProcessingAsync(Guid assetId)
+    {
+        const int maxAttempts = 30;
+        var delayMs = 500;
+
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            await Task.Delay(delayMs, _cts.Token);
 
             try
             {
                 var asset = await Api.GetAssetAsync(assetId, _cts.Token);
-
                 if (asset is null || asset.Status != Constants.AssetStatus.Processing)
-                    return asset?.Status == Constants.AssetStatus.Ready;
+                    return;
             }
             catch (OperationCanceledException) { throw; }
-            catch { /* polling error — retry next attempt */ }
+            catch { /* polling error — retry */ }
+
+            // Exponential backoff: 500ms, 1s, 2s, 3s, 3s, ...
+            delayMs = Math.Min(delayMs * 2, 3000);
         }
-
-        return false;
-    }
-
-    private sealed class SaveUploadResult
-    {
-        public bool Success { get; set; }
-        public string ContentType { get; set; } = "";
-        public long Size { get; set; }
-        public string? Error { get; set; }
-    }
-
-    [JSInvokable]
-    public void OnEditorClose()
-    {
-        InvokeAsync(() => NavigateBack());
-    }
-
-    [JSInvokable]
-    public void OnEditorError(string message)
-    {
-        InvokeAsync(() =>
-        {
-            _errorMessage = Loc["Error_EditorLoadFailed"];
-            StateHasChanged();
-        });
-    }
-
-    [JSInvokable]
-    public void OnUploadProgress(int percent)
-    {
-        // Phase 2/3: update upload progress bar
     }
 
     private async ValueTask OnLocationChanging(LocationChangingContext context)
@@ -455,27 +716,16 @@ else
 
     private void NavigateBack()
     {
-        _navigationConfirmed = true;
-        Nav.NavigateTo($"/assets/{Id}" + (ReturnUrl != null ? $"?returnUrl={Uri.EscapeDataString(ReturnUrl)}" : ""));
+        // Do NOT set _navigationConfirmed here — let OnLocationChanging show
+        // the unsaved-changes dialog when _hasUnsavedChanges is true.
+        var returnUrl = ReturnUrl is not null ? "?returnUrl=" + Uri.EscapeDataString(ReturnUrl) : "";
+        Nav.NavigateTo("/assets/" + Id + returnUrl);
     }
 
-    private async Task EnableBeforeUnloadAsync()
-    {
-        if (_jsModule != null)
-        {
-            try { await _jsModule.InvokeVoidAsync("enableBeforeUnload"); }
-            catch (JSDisconnectedException) { }
-        }
-    }
+    private Task EnableBeforeUnloadAsync() => InvokeJsVoidAsync("enableBeforeUnload");
+    private Task DisableBeforeUnloadAsync() => InvokeJsVoidAsync("disableBeforeUnload");
 
-    private async Task DisableBeforeUnloadAsync()
-    {
-        if (_jsModule != null)
-        {
-            try { await _jsModule.InvokeVoidAsync("disableBeforeUnload"); }
-            catch (JSDisconnectedException) { }
-        }
-    }
+
 
     public async ValueTask DisposeAsync()
     {
@@ -484,11 +734,11 @@ else
         _locationChangingRegistration?.Dispose();
         await DisableBeforeUnloadAsync();
 
-        if (_jsModule != null)
+        if (_jsModule is not null)
         {
             try
             {
-                await _jsModule.InvokeVoidAsync("destroyEditor");
+                await _jsModule.InvokeVoidAsync("dispose");
                 await _jsModule.DisposeAsync();
             }
             catch (JSDisconnectedException) { }

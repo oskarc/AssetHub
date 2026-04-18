@@ -27,7 +27,7 @@
             <MudSelect @bind-Value="_format"
                        Label="@Loc["SaveCopyDialog_FormatLabel"]"
                        Variant="Variant.Outlined"
-                       AnchorOrigin="Origin.BottomCenter"
+                       AnchorOrigin="Origin.BottomLeft"
                        aria-required="true">
                 <MudSelectItem Value="@("jpeg")">JPEG</MudSelectItem>
                 <MudSelectItem Value="@("png")">PNG</MudSelectItem>
@@ -45,7 +45,7 @@
                            @bind-Value="_selectedCollectionId"
                            Label="@Loc["SaveCopyDialog_CollectionLabel"]"
                            Variant="Variant.Outlined"
-                           AnchorOrigin="Origin.BottomCenter"
+                           AnchorOrigin="Origin.BottomLeft"
                            Clearable="true">
                     <MudSelectItem T="Guid?" Value="@((Guid?)null)">
                         @CommonLoc["Text_None"]

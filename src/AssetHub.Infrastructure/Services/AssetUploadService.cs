@@ -296,6 +296,59 @@ public sealed class AssetUploadService : IAssetUploadService
         };
     }
 
+    public async Task<ServiceResult<AssetUploadResult>> ConfirmPreScannedUploadAsync(Guid id, bool skipMetadata = false, CancellationToken ct = default)
+    {
+        var userId = _currentUser.UserId;
+        var asset = await _assetRepo.GetByIdAsync(id, ct);
+        if (asset is null)
+            return ServiceError.NotFound("Asset not found");
+
+        if (asset.CreatedByUserId != userId && !await CanAccessAssetAsync(id, userId, RoleHierarchy.Roles.Contributor, ct))
+            return ServiceError.Forbidden();
+
+        if (asset.Status != AssetStatus.Uploading)
+            return ServiceError.BadRequest("Asset is not in uploading state");
+
+        var stat = await _minioAdapter.StatObjectAsync(_bucketName, asset.OriginalObjectKey, ct);
+        if (stat is null)
+            return ServiceError.BadRequest("File not found in storage. Upload may have failed or expired.");
+
+        // Clean up old object from a replace-file operation
+        if (asset.MetadataJson.TryGetValue("_pendingDeleteKey", out var pendingKeyObj)
+            && pendingKeyObj is string pendingDeleteKey
+            && !string.IsNullOrEmpty(pendingDeleteKey))
+        {
+            asset.MetadataJson.Remove("_pendingDeleteKey");
+            try
+            {
+                await _minioAdapter.DeleteAsync(_bucketName, pendingDeleteKey, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete old object key {OldKey} for replaced asset {AssetId}", pendingDeleteKey, asset.Id);
+            }
+        }
+
+        asset.SizeBytes = stat.Size;
+        asset.Status = AssetStatus.Processing;
+        asset.UpdatedAt = DateTime.UtcNow;
+        await _assetRepo.UpdateAsync(asset, ct);
+
+        await _audit.LogAsync("asset.upload_confirmed", Constants.ScopeTypes.Asset, asset.Id, userId,
+            new() { ["title"] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
+
+        var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, skipMetadata, ct);
+
+        return new AssetUploadResult
+        {
+            Id = asset.Id,
+            Status = AssetStatus.Processing.ToDbString(),
+            SizeBytes = stat.Size,
+            JobId = jobId,
+            Message = "Upload confirmed. Processing in progress."
+        };
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private ServiceError? ValidateFileSize(long fileSize)
