@@ -1,0 +1,190 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.Tune" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@(_isEdit ? AdminLoc["ExportPresets_EditPreset"] : AdminLoc["ExportPresets_CreatePreset"])</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formIsValid">
+            <MudStack Spacing="2" Class="dialog-min-width">
+                <MudTextField @bind-Value="_name" Label="@AdminLoc["ExportPresets_Label_Name"]" Required="true"
+                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["ExportPresets_Label_Name"].Value)"
+                              Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
+                              Counter="255" MaxLength="255" />
+
+                <MudGrid>
+                    <MudItem xs="6">
+                        <MudNumericField T="int?" @bind-Value="_width" Label="@AdminLoc["ExportPresets_Label_Width"]"
+                                         Variant="Variant.Outlined" Min="1" Max="10000" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField T="int?" @bind-Value="_height" Label="@AdminLoc["ExportPresets_Label_Height"]"
+                                         Variant="Variant.Outlined" Min="1" Max="10000" />
+                    </MudItem>
+                </MudGrid>
+
+                @if (!_dimensionValid)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">
+                        @AdminLoc["ExportPresets_WidthOrHeightRequired"]
+                    </MudAlert>
+                }
+
+                <MudSelect T="string" @bind-Value="_fitMode" Label="@AdminLoc["ExportPresets_Label_FitMode"]"
+                           Variant="Variant.Outlined" Required="true"
+                           RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["ExportPresets_Label_FitMode"].Value)">
+                    <MudSelectItem T="string" Value="@("contain")">@AdminLoc["ExportPresets_FitMode_Contain"]</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("cover")">@AdminLoc["ExportPresets_FitMode_Cover"]</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("stretch")">@AdminLoc["ExportPresets_FitMode_Stretch"]</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("width")">@AdminLoc["ExportPresets_FitMode_Width"]</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("height")">@AdminLoc["ExportPresets_FitMode_Height"]</MudSelectItem>
+                </MudSelect>
+
+                <MudSelect T="string" @bind-Value="_format" Label="@AdminLoc["ExportPresets_Label_Format"]"
+                           Variant="Variant.Outlined" Required="true"
+                           RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["ExportPresets_Label_Format"].Value)">
+                    <MudSelectItem T="string" Value="@("original")">Original</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("jpeg")">JPEG</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("png")">PNG</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("webp")">WebP</MudSelectItem>
+                </MudSelect>
+
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.body2">@AdminLoc["ExportPresets_Label_Quality"]: @_quality%</MudText>
+                    <MudSlider T="int" @bind-Value="_quality" Min="1" Max="100" Step="1" Color="Color.Primary" />
+                </MudStack>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_errorMessage</MudAlert>
+                }
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(!_formIsValid || _submitting)"
+                   StartIcon="@(_submitting ? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.Save)">
+            @if (_submitting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @(_isEdit ? CommonLoc["Btn_Save"] : AdminLoc["ExportPresets_CreatePreset"])
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>
+    /// When set, the dialog opens in edit mode with the preset's values pre-filled.
+    /// </summary>
+    [Parameter]
+    public ExportPresetDto? Preset { get; set; }
+
+    private MudForm _form = null!;
+    private bool _formIsValid;
+    private bool _submitting;
+    private string? _errorMessage;
+    private bool _isEdit;
+
+    private string _name = string.Empty;
+    private int? _width;
+    private int? _height;
+    private string _fitMode = "contain";
+    private string _format = "original";
+    private int _quality = 85;
+
+    private bool _dimensionValid => _width.HasValue || _height.HasValue;
+
+    protected override void OnInitialized()
+    {
+        if (Preset is not null)
+        {
+            _isEdit = true;
+            _name = Preset.Name;
+            _width = Preset.Width;
+            _height = Preset.Height;
+            _fitMode = Preset.FitMode;
+            _format = Preset.Format;
+            _quality = Preset.Quality;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid || !_dimensionValid)
+            return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            if (_isEdit)
+            {
+                var dto = new UpdateExportPresetDto
+                {
+                    Name = _name.Trim(),
+                    Width = _width,
+                    Height = _height,
+                    FitMode = _fitMode,
+                    Format = _format,
+                    Quality = _quality
+                };
+
+                await Api.UpdateExportPresetAsync(Preset!.Id, dto);
+                Feedback.ShowSuccess(string.Format(AdminLoc["ExportPresets_UpdatedSuccess"].Value, _name));
+
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var dto = new CreateExportPresetDto
+                {
+                    Name = _name.Trim(),
+                    Width = _width,
+                    Height = _height,
+                    FitMode = _fitMode,
+                    Format = _format,
+                    Quality = _quality
+                };
+
+                var created = await Api.CreateExportPresetAsync(dto);
+                Feedback.ShowSuccess(string.Format(AdminLoc["ExportPresets_CreatedSuccess"].Value, created.Name));
+
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, _isEdit ? "update export preset" : "create export preset");
+            _errorMessage = CommonLoc["Error_UnexpectedError"].Value;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

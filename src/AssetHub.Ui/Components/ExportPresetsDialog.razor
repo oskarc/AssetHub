@@ -1,0 +1,138 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IStringLocalizer<ImageEditorResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IUserFeedbackService Feedback
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.Tune" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@Loc["ExportPresets_Title"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Class="py-2" Style="min-width: 400px;">
+            @if (_isLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (_loadError)
+            {
+                <MudAlert Severity="Severity.Error">@CommonLoc["Error_UnexpectedError"]</MudAlert>
+            }
+            else if (_presets.Count == 0)
+            {
+                <MudText Typo="Typo.body1" Class="mud-text-secondary">
+                    @Loc["ExportPresets_NoPresets"]
+                </MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    @Loc["ExportPresets_Description"]
+                </MudText>
+
+                <MudList T="Guid" Dense="true" Class="pa-0" SelectionMode="SelectionMode.MultiSelection"
+                         @bind-SelectedValues="_selectedPresetIds">
+                    @foreach (var preset in _presets)
+                    {
+                        <MudListItem T="Guid" Value="@preset.Id">
+                            <div class="d-flex align-center justify-space-between">
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body2">@preset.Name</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @FormatPresetDetails(preset)
+                                    </MudText>
+                                </MudStack>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+
+                @if (ShowReplaceToggle)
+                {
+                    <MudDivider />
+                    <MudSwitch T="bool"
+                               @bind-Value="_alsoReplace"
+                               Label="@Loc["ExportPresets_AlsoReplace"]"
+                               Color="Color.Warning" />
+                }
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Default"
+                   OnClick="Cancel">
+            @CommonLoc["Btn_Cancel"]
+        </MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(!_selectedPresetIds.Any())"
+                   OnClick="Submit">
+            @Loc["ExportPresets_Export"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public bool ShowReplaceToggle { get; set; }
+
+    private List<ExportPresetDto> _presets = new();
+    private IReadOnlyCollection<Guid> _selectedPresetIds = Array.Empty<Guid>();
+    private bool _alsoReplace;
+    private bool _isLoading = true;
+    private bool _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _presets = await Api.GetExportPresetsAsync();
+        }
+        catch (Exception)
+        {
+            _presets = new();
+            _loadError = true;
+            Feedback.ShowError(CommonLoc["Error_UnexpectedError"].Value);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        var result = new ExportPresetsResult(
+            PresetIds: _selectedPresetIds.ToArray(),
+            AlsoReplace: _alsoReplace);
+        MudDialog.Close(DialogResult.Ok(result));
+    }
+
+    private static string FormatPresetDetails(ExportPresetDto preset)
+    {
+        var parts = new List<string>();
+        if (preset.Width.HasValue || preset.Height.HasValue)
+        {
+            var w = preset.Width?.ToString() ?? "auto";
+            var h = preset.Height?.ToString() ?? "auto";
+            parts.Add(w + " × " + h);
+        }
+        parts.Add(preset.Format.ToUpperInvariant());
+        parts.Add("Q" + preset.Quality);
+        return string.Join(" · ", parts);
+    }
+
+    public record ExportPresetsResult(Guid[] PresetIds, bool AlsoReplace);
+}
