@@ -394,6 +394,15 @@ else if (_uploads.Any())
                     _ = PollSingleAssetCompletion(upload);
                 }
             }
+            catch (ApiException apiEx) when (apiEx.ErrorCode == "DUPLICATE_ASSET")
+            {
+                upload.Status = UploadStatus.Failed;
+                upload.ErrorMessage = ClassifyUploadError(apiEx.Message, upload);
+                upload.ErrorCategory = UploadErrorsDialog.ErrorCategory.Duplicate;
+                upload.DuplicateAssetId = apiEx.Details?.GetValueOrDefault("existingAssetId") is string existingId
+                    && Guid.TryParse(existingId, out var parsed) ? parsed : null;
+                upload.DuplicateTitle = apiEx.Details?.GetValueOrDefault("existingTitle");
+            }
             catch (Exception ex)
             {
                 upload.Status = UploadStatus.Failed;
@@ -523,7 +532,9 @@ else if (_uploads.Any())
                 Size = u.Size,
                 ContentType = u.ContentType,
                 ErrorMessage = u.ErrorMessage,
-                Category = u.ErrorCategory
+                Category = u.ErrorCategory,
+                DuplicateAssetId = u.DuplicateAssetId,
+                DuplicateTitle = u.DuplicateTitle
             })
             .ToList();
 
@@ -666,6 +677,12 @@ else if (_uploads.Any())
         if (errorMessage.Contains("content does not match", StringComparison.OrdinalIgnoreCase))
             return CommonLoc["Error_ContentTypeMismatch"].Value;
 
+        if (errorMessage.Contains("identical content already exists", StringComparison.OrdinalIgnoreCase))
+        {
+            if (upload != null) upload.ErrorCategory = UploadErrorsDialog.ErrorCategory.Duplicate;
+            return CommonLoc["Error_DuplicateAsset"].Value;
+        }
+
         return errorMessage;
     }
 
@@ -681,6 +698,8 @@ else if (_uploads.Any())
         public string? Message { get; set; }
         public string? ErrorMessage { get; set; }
         public UploadErrorsDialog.ErrorCategory ErrorCategory { get; set; }
+        public Guid? DuplicateAssetId { get; set; }
+        public string? DuplicateTitle { get; set; }
     }
 
     private enum UploadStatus

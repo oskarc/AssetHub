@@ -371,6 +371,9 @@
   <data name="Error_UploadGeneric" xml:space="preserve"><value>Upload failed. Please try again.</value></data>
   <data name="Alert_ScannerDown" xml:space="preserve"><value>The virus scanner is currently unavailable. All uploads are blocked until scanning is restored. Please notify your system administrator.</value></data>
   <data name="Alert_MalwareBlocked" xml:space="preserve"><value>One or more files were identified as security threats and have been automatically removed.</value></data>
+  <data name="Alert_DuplicateBlocked" xml:space="preserve"><value>One or more files were skipped because identical content already exists in the library.</value></data>
+  <data name="Error_DuplicateAsset" xml:space="preserve"><value>A file with identical content already exists.</value></data>
+  <data name="Link_GoToExisting" xml:space="preserve"><value>Go to existing: {0}</value></data>
 
   <!-- Upload Errors Dialog -->
   <data name="Title_UploadErrors" xml:space="preserve"><value>Upload Errors</value></data>

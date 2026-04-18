@@ -367,6 +367,9 @@
   <data name="Error_UploadGeneric" xml:space="preserve"><value>Uppladdningen misslyckades. Försök igen.</value></data>
   <data name="Alert_ScannerDown" xml:space="preserve"><value>Virusskannern är för närvarande otillgänglig. Alla uppladdningar blockeras tills skanning återställs. Vänligen meddela din systemadministratör.</value></data>
   <data name="Alert_MalwareBlocked" xml:space="preserve"><value>En eller flera filer identifierades som säkerhetshot och har tagits bort automatiskt.</value></data>
+  <data name="Alert_DuplicateBlocked" xml:space="preserve"><value>En eller flera filer hoppades över eftersom identiskt innehåll redan finns i biblioteket.</value></data>
+  <data name="Error_DuplicateAsset" xml:space="preserve"><value>En fil med identiskt innehåll finns redan.</value></data>
+  <data name="Link_GoToExisting" xml:space="preserve"><value>Gå till befintlig: {0}</value></data>
 
   <!-- Upload Errors Dialog -->
   <data name="Title_UploadErrors" xml:space="preserve"><value>Uppladdningsfel</value></data>

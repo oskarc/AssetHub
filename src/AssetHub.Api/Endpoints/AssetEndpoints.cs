@@ -105,6 +105,7 @@ public static class AssetEndpoints
 
     private static async Task<IResult> UploadAsset(
         IFormFile file, [FromForm] Guid collectionId, [FromForm] string title,
+        [FromQuery] bool force,
         [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
         if (file == null || file.Length == 0)
@@ -118,7 +119,7 @@ public static class AssetEndpoints
             return Results.BadRequest(new { error = titleError });
 
         using var stream = file.OpenReadStream();
-        var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, ct);
+        var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, skipDuplicateCheck: force, ct: ct);
         return result.ToHttpResult(v => Results.Accepted($"/api/v1/assets/{v.Id}", v));
     }
 
@@ -157,9 +158,9 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> ConfirmUpload(
-        Guid id, [FromServices] IAssetUploadService svc, CancellationToken ct)
+        Guid id, [FromQuery] bool force, [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
-        var result = await svc.ConfirmUploadAsync(id, ct);
+        var result = await svc.ConfirmUploadAsync(id, skipDuplicateCheck: force, ct: ct);
         return result.ToHttpResult();
     }
 

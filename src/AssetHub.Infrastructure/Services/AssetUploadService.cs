@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Security.Cryptography;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
@@ -74,7 +75,7 @@ public sealed class AssetUploadService : IAssetUploadService
 
     public async Task<ServiceResult<AssetUploadResult>> UploadAsync(
         Stream fileStream, string fileName, string contentType, long fileSize,
-        Guid collectionId, string title, CancellationToken ct)
+        Guid collectionId, string title, bool skipDuplicateCheck = false, CancellationToken ct = default)
     {
         var userId = _currentUser.UserId;
 
@@ -110,7 +111,32 @@ public sealed class AssetUploadService : IAssetUploadService
             return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
         }
 
+        // Compute SHA256 hash for duplicate detection
+        fileStream.Position = 0;
+        var hashBytes = await SHA256.HashDataAsync(fileStream, ct);
+        var sha256Hash = Convert.ToHexStringLower(hashBytes);
+        fileStream.Position = 0;
+
+        // Check for duplicate unless explicitly skipped (admin override)
+        if (!skipDuplicateCheck)
+        {
+            var existing = await _assetRepo.GetBySha256Async(sha256Hash, ct);
+            if (existing is not null)
+            {
+                _logger.LogInformation("Duplicate asset detected for upload {FileName}: existing asset {ExistingAssetId} ({ExistingTitle})",
+                    fileName, existing.Id, existing.Title);
+                return ServiceError.DuplicateAsset(
+                    "A file with identical content already exists.",
+                    new Dictionary<string, string>
+                    {
+                        ["existingAssetId"] = existing.Id.ToString(),
+                        ["existingTitle"] = existing.Title
+                    });
+            }
+        }
+
         var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, AssetStatus.Processing);
+        asset.Sha256 = sha256Hash;
         if (!string.IsNullOrEmpty(title))
             asset.Title = title;
 
@@ -211,7 +237,7 @@ public sealed class AssetUploadService : IAssetUploadService
         };
     }
 
-    public async Task<ServiceResult<AssetUploadResult>> ConfirmUploadAsync(Guid id, CancellationToken ct)
+    public async Task<ServiceResult<AssetUploadResult>> ConfirmUploadAsync(Guid id, bool skipDuplicateCheck = false, CancellationToken ct = default)
     {
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(id, ct);
@@ -259,6 +285,32 @@ public sealed class AssetUploadService : IAssetUploadService
             await _assetRepo.DeleteAsync(asset.Id, ct);
             return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
         }
+
+        // Compute SHA256 hash for duplicate detection
+        fileStream.Position = 0;
+        var hashBytes = await SHA256.HashDataAsync(fileStream, ct);
+        var sha256Hash = Convert.ToHexStringLower(hashBytes);
+
+        // Check for duplicate unless explicitly skipped (admin override).
+        // The asset stays in "Uploading" state so the user can retry with force=true.
+        if (!skipDuplicateCheck)
+        {
+            var existing = await _assetRepo.GetBySha256Async(sha256Hash, ct);
+            if (existing is not null)
+            {
+                _logger.LogInformation("Duplicate asset detected during confirm for {AssetId}: existing asset {ExistingAssetId} ({ExistingTitle})",
+                    id, existing.Id, existing.Title);
+                return ServiceError.DuplicateAsset(
+                    "A file with identical content already exists.",
+                    new Dictionary<string, string>
+                    {
+                        ["existingAssetId"] = existing.Id.ToString(),
+                        ["existingTitle"] = existing.Title
+                    });
+            }
+        }
+
+        asset.Sha256 = sha256Hash;
 
         // Clean up old object from a replace-file operation (deferred to after successful upload)
         if (asset.MetadataJson.TryGetValue("_pendingDeleteKey", out var pendingKeyObj)

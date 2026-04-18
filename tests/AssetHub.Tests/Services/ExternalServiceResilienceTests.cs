@@ -142,7 +142,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         var contentType = "image/jpeg";
 
         // Act
-        var result = await sut.UploadAsync(stream, "test.jpg", contentType, 100, collectionId, "Test", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "test.jpg", contentType, 100, collectionId, "Test", ct: CancellationToken.None);
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -166,7 +166,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         using var stream = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
         // Act
-        await sut.UploadAsync(stream, "test.jpg", "image/jpeg", 100, collectionId, "Test", CancellationToken.None);
+        await sut.UploadAsync(stream, "test.jpg", "image/jpeg", 100, collectionId, "Test", ct: CancellationToken.None);
 
         // Assert - no asset should be in the database
         var assetCount = await _assetRepo.CountByStatusAsync("processing", CancellationToken.None);
@@ -221,7 +221,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         using var stream = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
         // Act
-        var result = await sut.UploadAsync(stream, "test.jpg", "image/jpeg", 100, collectionId, "Test", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "test.jpg", "image/jpeg", 100, collectionId, "Test", ct: CancellationToken.None);
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -243,7 +243,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         using var stream = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
         // Act
-        await sut.UploadAsync(stream, "test.jpg", "image/jpeg", 100, collectionId, "Test", CancellationToken.None);
+        await sut.UploadAsync(stream, "test.jpg", "image/jpeg", 100, collectionId, "Test", ct: CancellationToken.None);
 
         // Assert - MinIO upload should NOT have been called
         _minioMock.Verify(m => m.UploadAsync(

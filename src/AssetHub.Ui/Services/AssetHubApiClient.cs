@@ -36,54 +36,62 @@ public class AssetHubApiClient
         if (!response.IsSuccessStatusCode)
         {
             var errorContent = await response.Content.ReadAsStringAsync();
-            var message = ExtractErrorMessage(errorContent, operation, response);
-            throw new ApiException(message, response.StatusCode);
+            var (message, errorCode, details) = ExtractErrorInfo(errorContent, operation, response);
+            throw new ApiException(message, response.StatusCode, errorCode, details);
         }
     }
     
     /// <summary>
-    /// Extracts a user-friendly error message from the response content.
-    /// Handles JSON error responses like {"error": "message"}.
+    /// Extracts a user-friendly error message, error code, and details from the response content.
+    /// Handles JSON error responses like {"code": "...", "message": "...", "details": {...}}.
     /// </summary>
-    private static string ExtractErrorMessage(string errorContent, string operation, HttpResponseMessage response)
+    private static (string Message, string? Code, Dictionary<string, string>? Details) ExtractErrorInfo(
+        string errorContent, string operation, HttpResponseMessage response)
     {
         if (string.IsNullOrWhiteSpace(errorContent))
-            return $"{operation} failed with status {(int)response.StatusCode} ({response.ReasonPhrase})";
-        
-        // Try to parse as JSON error object
+            return ($"{operation} failed with status {(int)response.StatusCode} ({response.ReasonPhrase})", null, null);
+
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(errorContent);
             var root = doc.RootElement;
 
-            // Standard {"error": "..."} format
+            string? code = null;
+            Dictionary<string, string>? details = null;
+
+            // Extract error code
+            if (root.TryGetProperty("code", out var codeProp))
+                code = codeProp.GetString();
+
+            // Extract details dictionary
+            if (root.TryGetProperty("details", out var detailsProp) && detailsProp.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                details = new Dictionary<string, string>();
+                foreach (var prop in detailsProp.EnumerateObject())
+                {
+                    details[prop.Name] = prop.Value.GetString() ?? prop.Value.ToString();
+                }
+            }
+
+            // Extract message (same priority chain as before)
+            string? message = null;
             if (root.TryGetProperty("error", out var errorProp))
-                return errorProp.GetString() ?? errorContent;
+                message = errorProp.GetString();
+            if (message is null && root.TryGetProperty("message", out var messageProp))
+                message = messageProp.GetString();
+            if (message is null && root.TryGetProperty("detail", out var detailProp))
+                message = detailProp.GetString();
+            if (message is null && root.TryGetProperty("title", out var titleProp))
+                message = titleProp.GetString();
 
-            // Standard {"message": "..."} format
-            if (root.TryGetProperty("message", out var messageProp))
-                return messageProp.GetString() ?? errorContent;
-
-            // RFC 7807 ProblemDetails format {"title": "...", "detail": "..."}
-            if (root.TryGetProperty("detail", out var detailProp))
-            {
-                var detail = detailProp.GetString();
-                if (!string.IsNullOrWhiteSpace(detail))
-                    return detail;
-            }
-            if (root.TryGetProperty("title", out var titleProp))
-            {
-                var title = titleProp.GetString();
-                if (!string.IsNullOrWhiteSpace(title))
-                    return title;
-            }
+            return (message ?? errorContent, code, details);
         }
         catch
         {
             // Not JSON, return as-is
         }
-        
-        return errorContent;
+
+        return (errorContent, null, null);
     }
 
     /// <summary>
@@ -350,9 +358,13 @@ public class AssetHubApiClient
     /// <summary>
     /// Step 2 of presigned upload: Confirms the file was uploaded to MinIO and triggers processing.
     /// </summary>
-    public virtual async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, CancellationToken ct = default)
+    /// <param name="force">When true, skip duplicate detection (admin override).</param>
+    public virtual async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, bool force = false, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/assets/{assetId}/confirm-upload", null, ct);
+        var url = force
+            ? $"/api/v1/assets/{assetId}/confirm-upload?force=true"
+            : $"/api/v1/assets/{assetId}/confirm-upload";
+        var response = await _http.PostAsync(url, null, ct);
         await EnsureSuccessAsync(response, "Confirm upload");
         return await ReadRequiredJsonAsync<AssetUploadResult>(response, "Confirm upload");
     }
@@ -1040,13 +1052,25 @@ public class ApiException : Exception
     /// </summary>
     public System.Net.HttpStatusCode StatusCode { get; }
 
-    public ApiException(string message, System.Net.HttpStatusCode statusCode) : base(message)
+    /// <summary>
+    /// The structured error code from the API (e.g. "DUPLICATE_ASSET", "NOT_FOUND").
+    /// </summary>
+    public string? ErrorCode { get; }
+
+    /// <summary>
+    /// Additional structured details from the error response.
+    /// </summary>
+    public Dictionary<string, string>? Details { get; }
+
+    public ApiException(string message, System.Net.HttpStatusCode statusCode, string? errorCode = null, Dictionary<string, string>? details = null) : base(message)
     {
         StatusCode = statusCode;
+        ErrorCode = errorCode;
+        Details = details;
     }
 
     public override string ToString()
     {
-        return $"ApiException: {Message} (HTTP {(int)StatusCode})";
+        return $"ApiException: {Message} (HTTP {(int)StatusCode}, Code={ErrorCode})";
     }
 }

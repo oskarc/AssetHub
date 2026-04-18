@@ -24,7 +24,8 @@ public interface IAssetUploadService
     /// Step 2: Confirm that the browser upload completed, trigger media processing.
     /// Call this after the client has successfully uploaded to the presigned URL.
     /// </summary>
-    Task<ServiceResult<AssetUploadResult>> ConfirmUploadAsync(Guid id, CancellationToken ct);
+    /// <param name="skipDuplicateCheck">When true, skip SHA256 duplicate detection (admin override).</param>
+    Task<ServiceResult<AssetUploadResult>> ConfirmUploadAsync(Guid id, bool skipDuplicateCheck = false, CancellationToken ct = default);
 
     /// <summary>
     /// Confirm a pre-scanned upload — skips malware scan and magic byte validation.
@@ -37,9 +38,10 @@ public interface IAssetUploadService
     /// Upload a file directly through the API (synchronous upload path).
     /// Use for small/medium files when presigned upload isn't needed.
     /// </summary>
+    /// <param name="skipDuplicateCheck">When true, skip SHA256 duplicate detection (admin override).</param>
     Task<ServiceResult<AssetUploadResult>> UploadAsync(
         Stream fileStream, string fileName, string contentType, long fileSize,
-        Guid collectionId, string title, CancellationToken ct);
+        Guid collectionId, string title, bool skipDuplicateCheck = false, CancellationToken ct = default);
 
     /// <summary>
     /// Save an edited image as a new copy. Creates a new asset record with metadata

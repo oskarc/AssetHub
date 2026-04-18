@@ -146,7 +146,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
 
         using var stream = new MemoryStream(new byte[] { 0x00, 0x01, 0x02, 0x03 });
 
-        var result = await sut.UploadAsync(stream, "malicious.exe", contentType, 100, collectionId, "Evil File", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "malicious.exe", contentType, 100, collectionId, "Evil File", ct: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
@@ -168,7 +168,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var magicBytes = GetMagicBytesForContentType(contentType);
         using var stream = new MemoryStream(magicBytes);
 
-        var result = await sut.UploadAsync(stream, "valid-file", contentType, magicBytes.Length, collectionId, "Valid File", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "valid-file", contentType, magicBytes.Length, collectionId, "Valid File", ct: CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("processing", result.Value!.Status);
@@ -186,7 +186,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var jpegHeader = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 };
         using var stream = new MemoryStream(jpegHeader);
 
-        var result = await sut.UploadAsync(stream, "fake.png", "image/png", jpegHeader.Length, collectionId, "Spoofed PNG", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "fake.png", "image/png", jpegHeader.Length, collectionId, "Spoofed PNG", ct: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
@@ -203,7 +203,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var garbage = new byte[] { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 };
         using var stream = new MemoryStream(garbage);
 
-        var result = await sut.UploadAsync(stream, "fake.jpg", "image/jpeg", garbage.Length, collectionId, "Not a JPEG", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "fake.jpg", "image/jpeg", garbage.Length, collectionId, "Not a JPEG", ct: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
@@ -220,7 +220,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var jpegHeader = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 };
         using var stream = new MemoryStream(jpegHeader);
 
-        var result = await sut.UploadAsync(stream, "valid.jpg", "image/jpeg", jpegHeader.Length, collectionId, "Valid JPEG", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "valid.jpg", "image/jpeg", jpegHeader.Length, collectionId, "Valid JPEG", ct: CancellationToken.None);
 
         Assert.True(result.IsSuccess);
     }
@@ -237,7 +237,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var oversizedFileSize = (long)(MaxUploadSizeMb + 50) * 1024 * 1024;
         using var stream = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
-        var result = await sut.UploadAsync(stream, "huge.jpg", "image/jpeg", oversizedFileSize, collectionId, "Too Big", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "huge.jpg", "image/jpeg", oversizedFileSize, collectionId, "Too Big", ct: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
@@ -256,7 +256,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var jpegHeader = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 };
         using var stream = new MemoryStream(jpegHeader);
 
-        var result = await sut.UploadAsync(stream, "max.jpg", "image/jpeg", atLimitFileSize, collectionId, "At Limit", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "max.jpg", "image/jpeg", atLimitFileSize, collectionId, "At Limit", ct: CancellationToken.None);
 
         Assert.True(result.IsSuccess);
     }
@@ -269,7 +269,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
 
         using var stream = new MemoryStream();
 
-        var result = await sut.UploadAsync(stream, "empty.jpg", "image/jpeg", 0, collectionId, "Empty", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "empty.jpg", "image/jpeg", 0, collectionId, "Empty", ct: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
@@ -287,7 +287,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var jpegHeader = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 };
         using var stream = new MemoryStream(jpegHeader);
 
-        var result = await sut.UploadAsync(stream, "test.jpg", "image/jpeg", jpegHeader.Length, collectionId, "Test", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "test.jpg", "image/jpeg", jpegHeader.Length, collectionId, "Test", ct: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(403, result.Error!.StatusCode);
@@ -302,7 +302,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var jpegHeader = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 };
         using var stream = new MemoryStream(jpegHeader);
 
-        var result = await sut.UploadAsync(stream, "test.jpg", "image/jpeg", jpegHeader.Length, collectionId, "Test", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "test.jpg", "image/jpeg", jpegHeader.Length, collectionId, "Test", ct: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(403, result.Error!.StatusCode);
@@ -317,7 +317,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var jpegHeader = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 };
         using var stream = new MemoryStream(jpegHeader);
 
-        var result = await sut.UploadAsync(stream, "test.jpg", "image/jpeg", jpegHeader.Length, collectionId, "Test", CancellationToken.None);
+        var result = await sut.UploadAsync(stream, "test.jpg", "image/jpeg", jpegHeader.Length, collectionId, "Test", ct: CancellationToken.None);
 
         Assert.True(result.IsSuccess);
     }
@@ -481,7 +481,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
             .ReturnsAsync(new MemoryStream(mp4Header));
 
         // Step 2: Confirm upload
-        var confirmResult = await sut.ConfirmUploadAsync(assetId, CancellationToken.None);
+        var confirmResult = await sut.ConfirmUploadAsync(assetId, ct: CancellationToken.None);
 
         Assert.True(confirmResult.IsSuccess);
         Assert.Equal("processing", confirmResult.Value!.Status);
@@ -509,7 +509,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         _minioMock.Setup(m => m.StatObjectAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ObjectStatInfo?)null);
 
-        var confirmResult = await sut.ConfirmUploadAsync(assetId, CancellationToken.None);
+        var confirmResult = await sut.ConfirmUploadAsync(assetId, ct: CancellationToken.None);
 
         Assert.False(confirmResult.IsSuccess);
         Assert.Equal(400, confirmResult.Error!.StatusCode);
@@ -541,7 +541,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         _minioMock.Setup(m => m.DownloadRangeAsync(BucketName, It.IsAny<string>(), 0, It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(jpegHeader);
 
-        var confirmResult = await sut.ConfirmUploadAsync(assetId, CancellationToken.None);
+        var confirmResult = await sut.ConfirmUploadAsync(assetId, ct: CancellationToken.None);
 
         Assert.False(confirmResult.IsSuccess);
         Assert.Equal(400, confirmResult.Error!.StatusCode);
@@ -583,7 +583,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         _malwareMock.Setup(m => m.ScanAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(MalwareScanResult.Infected("Test.Malware.Eicar"));
 
-        var confirmResult = await sut.ConfirmUploadAsync(assetId, CancellationToken.None);
+        var confirmResult = await sut.ConfirmUploadAsync(assetId, ct: CancellationToken.None);
 
         Assert.False(confirmResult.IsSuccess);
         Assert.Equal(400, confirmResult.Error!.StatusCode);
@@ -621,7 +621,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var assetId = initResult.Value!.AssetId;
 
         // Different user tries to confirm
-        var confirmResult = await viewerSut.ConfirmUploadAsync(assetId, CancellationToken.None);
+        var confirmResult = await viewerSut.ConfirmUploadAsync(assetId, ct: CancellationToken.None);
 
         Assert.False(confirmResult.IsSuccess);
         Assert.Equal(403, confirmResult.Error!.StatusCode);
@@ -632,10 +632,148 @@ public class AssetUploadServiceTests : IAsyncLifetime
     {
         var sut = CreateSut(ContributorUser);
 
-        var result = await sut.ConfirmUploadAsync(Guid.NewGuid(), CancellationToken.None);
+        var result = await sut.ConfirmUploadAsync(Guid.NewGuid(), ct: CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(404, result.Error!.StatusCode);
+    }
+
+    // ── Duplicate Detection Tests ──────────────────────────────────────────
+
+    [Fact]
+    public async Task UploadAsync_ExistingSha256_ReturnsConflict()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser);
+
+        // First upload: succeeds and stores the SHA256
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        using var stream1 = new MemoryStream(jpegBytes);
+        var firstResult = await sut.UploadAsync(stream1, "photo.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo", ct: CancellationToken.None);
+        Assert.True(firstResult.IsSuccess);
+
+        // Second upload: same content → duplicate
+        using var stream2 = new MemoryStream(jpegBytes);
+        var secondResult = await sut.UploadAsync(stream2, "photo-copy.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo Copy", ct: CancellationToken.None);
+
+        Assert.False(secondResult.IsSuccess);
+        Assert.Equal(409, secondResult.Error!.StatusCode);
+        Assert.Equal("DUPLICATE_ASSET", secondResult.Error.Code);
+        Assert.NotNull(secondResult.Error.Details);
+        Assert.Equal(firstResult.Value!.Id.ToString(), secondResult.Error.Details["existingAssetId"]);
+    }
+
+    [Fact]
+    public async Task UploadAsync_ExistingSha256_ForceOverride_Succeeds()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser);
+
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        using var stream1 = new MemoryStream(jpegBytes);
+        var firstResult = await sut.UploadAsync(stream1, "photo.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo", ct: CancellationToken.None);
+        Assert.True(firstResult.IsSuccess);
+
+        // Second upload with force=true → succeeds despite duplicate
+        using var stream2 = new MemoryStream(jpegBytes);
+        var secondResult = await sut.UploadAsync(stream2, "photo-copy.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo Copy", skipDuplicateCheck: true, ct: CancellationToken.None);
+
+        Assert.True(secondResult.IsSuccess);
+        Assert.NotEqual(firstResult.Value!.Id, secondResult.Value!.Id);
+    }
+
+    [Fact]
+    public async Task UploadAsync_DifferentContent_NoDuplicate()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser);
+
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        using var stream1 = new MemoryStream(jpegBytes);
+        var firstResult = await sut.UploadAsync(stream1, "photo1.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo 1", ct: CancellationToken.None);
+        Assert.True(firstResult.IsSuccess);
+
+        // Different content → no duplicate
+        var pngBytes = GetMagicBytesForContentType("image/png");
+        using var stream2 = new MemoryStream(pngBytes);
+        var secondResult = await sut.UploadAsync(stream2, "photo2.png", "image/png", pngBytes.Length, collectionId, "Photo 2", ct: CancellationToken.None);
+
+        Assert.True(secondResult.IsSuccess);
+    }
+
+    [Fact]
+    public async Task ConfirmUploadAsync_DuplicateSha256_ReturnsConflict()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser);
+
+        // First: create a ready asset with a known SHA256
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        using var stream1 = new MemoryStream(jpegBytes);
+        var firstResult = await sut.UploadAsync(stream1, "original.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Original", ct: CancellationToken.None);
+        Assert.True(firstResult.IsSuccess);
+
+        // Second: init presigned upload then confirm — same content should be duplicate
+        var initResult = await sut.InitUploadAsync(new InitUploadRequest
+        {
+            FileName = "duplicate.jpg",
+            ContentType = "image/jpeg",
+            FileSize = jpegBytes.Length,
+            Title = "Duplicate",
+            CollectionId = collectionId
+        }, CancellationToken.None);
+        Assert.True(initResult.IsSuccess);
+
+        // Mock MinIO to return the same file content for stat + download
+                _minioMock.Setup(m => m.StatObjectAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(jpegBytes.Length, "image/jpeg", "etag"));
+        _minioMock.Setup(m => m.DownloadRangeAsync(BucketName, It.IsAny<string>(), 0, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(jpegBytes);
+        _minioMock.Setup(m => m.DownloadAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MemoryStream(jpegBytes));
+
+        var confirmResult = await sut.ConfirmUploadAsync(initResult.Value!.AssetId, ct: CancellationToken.None);
+
+        Assert.False(confirmResult.IsSuccess);
+        Assert.Equal(409, confirmResult.Error!.StatusCode);
+        Assert.Equal("DUPLICATE_ASSET", confirmResult.Error.Code);
+        Assert.NotNull(confirmResult.Error.Details);
+        Assert.Equal(firstResult.Value!.Id.ToString(), confirmResult.Error.Details["existingAssetId"]);
+    }
+
+    [Fact]
+    public async Task ConfirmUploadAsync_DuplicateSha256_ForceOverride_Succeeds()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser);
+
+        // First: create a ready asset
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        using var stream1 = new MemoryStream(jpegBytes);
+        var firstResult = await sut.UploadAsync(stream1, "original.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Original", ct: CancellationToken.None);
+        Assert.True(firstResult.IsSuccess);
+
+        // Second: init + confirm with force=true
+        var initResult = await sut.InitUploadAsync(new InitUploadRequest
+        {
+            FileName = "duplicate.jpg",
+            ContentType = "image/jpeg",
+            FileSize = jpegBytes.Length,
+            Title = "Duplicate",
+            CollectionId = collectionId
+        }, CancellationToken.None);
+        Assert.True(initResult.IsSuccess);
+
+        _minioMock.Setup(m => m.StatObjectAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(jpegBytes.Length, "image/jpeg", "etag"));
+        _minioMock.Setup(m => m.DownloadRangeAsync(BucketName, It.IsAny<string>(), 0, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(jpegBytes);
+        _minioMock.Setup(m => m.DownloadAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MemoryStream(jpegBytes));
+
+        var confirmResult = await sut.ConfirmUploadAsync(initResult.Value!.AssetId, skipDuplicateCheck: true, ct: CancellationToken.None);
+
+        Assert.True(confirmResult.IsSuccess);
     }
 
     // ── Helper Methods ───────────────────────────────────────────────────────

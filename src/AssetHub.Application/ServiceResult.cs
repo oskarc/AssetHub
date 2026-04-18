@@ -48,6 +48,12 @@ public record ServiceError(int StatusCode, string Code, string Message, Dictiona
     public static ServiceError Conflict(string message)
         => new(409, "CONFLICT", message);
 
+    public static ServiceError Conflict(string message, Dictionary<string, string> details)
+        => new(409, "CONFLICT", message, details);
+
+    public static ServiceError DuplicateAsset(string message, Dictionary<string, string> details)
+        => new(409, "DUPLICATE_ASSET", message, details);
+
     public static ServiceError Validation(string message, Dictionary<string, string> details)
         => new(400, "VALIDATION_ERROR", message, details);
 
