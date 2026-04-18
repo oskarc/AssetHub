@@ -11,9 +11,11 @@ using Microsoft.Extensions.Logging;
 /// Collection authorization service with request-scoped role caching.
 /// Registered as Scoped — the private dictionary lives for exactly one HTTP request,
 /// so revoked permissions take effect immediately on the next request.
+/// System admins bypass all ACL checks and are treated as having the "admin" role on every collection.
 /// </summary>
 public class CollectionAuthorizationService(
     AssetHubDbContext dbContext,
+    CurrentUser currentUser,
     ILogger<CollectionAuthorizationService> logger) : ICollectionAuthorizationService
 {
     // Request-scoped cache: userId:collectionId → role (or null).
@@ -23,12 +25,16 @@ public class CollectionAuthorizationService(
 
     public async Task<bool> CheckAccessAsync(string userId, Guid collectionId, string requiredRole, CancellationToken ct = default)
     {
+        if (currentUser.IsSystemAdmin) return true;
+
         var userRole = await GetUserRoleAsync(userId, collectionId, ct);
         return RoleHierarchy.MeetsRequirement(userRole, requiredRole);
     }
 
     public async Task<string?> GetUserRoleAsync(string userId, Guid collectionId, CancellationToken ct = default)
     {
+        if (currentUser.IsSystemAdmin) return "admin";
+
         var cacheKey = $"{userId}:{collectionId}";
 
         if (_roleCache.TryGetValue(cacheKey, out var cachedRole))
@@ -61,6 +67,8 @@ public class CollectionAuthorizationService(
 
     public async Task<bool> CanManageAclAsync(string userId, Guid collectionId, CancellationToken ct = default)
     {
+        if (currentUser.IsSystemAdmin) return true;
+
         // User must have manager role or higher on the collection
         return await CheckAccessAsync(userId, collectionId, "manager", ct);
     }
@@ -75,6 +83,9 @@ public class CollectionAuthorizationService(
     {
         var ids = collectionIds.ToList();
         if (ids.Count == 0) return new();
+
+        if (currentUser.IsSystemAdmin)
+            return ids.ToDictionary(id => id, _ => (string?)"admin");
 
         // Pre-warm the cache by loading all direct ACLs for this user in one query
         await PreloadUserAclsAsync(userId, ids, ct);
@@ -91,6 +102,8 @@ public class CollectionAuthorizationService(
     {
         var ids = collectionIds.ToList();
         if (ids.Count == 0) return new();
+
+        if (currentUser.IsSystemAdmin) return ids;
 
         // Pre-warm the cache by loading all direct ACLs for this user in one query
         await PreloadUserAclsAsync(userId, ids, ct);

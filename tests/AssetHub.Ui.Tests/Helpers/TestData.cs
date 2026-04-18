@@ -157,4 +157,29 @@ public static class TestData
             Description = null
         };
     }
+
+    public static ExportPresetDto CreateExportPreset(
+        Guid? id = null,
+        string? name = null,
+        int? width = 1920,
+        int? height = 1080,
+        string fitMode = "contain",
+        string format = "jpeg",
+        int quality = 85)
+    {
+        var counter = Interlocked.Increment(ref _counter);
+        return new ExportPresetDto
+        {
+            Id = id ?? Guid.NewGuid(),
+            Name = name ?? $"Preset {counter}",
+            Width = width,
+            Height = height,
+            FitMode = fitMode,
+            Format = format,
+            Quality = quality,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedByUserId = "test-user-id"
+        };
+    }
 }

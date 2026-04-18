@@ -59,6 +59,7 @@
                                   InputType="@(_showPassword ? InputType.Text : InputType.Password)"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  AdornmentAriaLabel="@CommonLoc["Aria_TogglePasswordVisibility"]"
                                   OnAdornmentClick="TogglePasswordVisibility" />
 
                     <MudButton Size="Size.Small"

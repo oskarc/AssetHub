@@ -114,6 +114,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAssetCollectionRepository, AssetCollectionRepository>();
         services.AddScoped<IShareRepository, ShareRepository>();
         services.AddScoped<IAuditEventRepository, AuditEventRepository>();
+        services.AddScoped<IExportPresetRepository, ExportPresetRepository>();
+        services.AddScoped<IMigrationRepository, MigrationRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);
@@ -137,6 +139,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ZipBuildService>();
         services.AddScoped<IZipBuildService>(sp => sp.GetRequiredService<ZipBuildService>());
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
+        services.AddScoped<IMigrationService, MigrationService>();
 
         return services;
     }

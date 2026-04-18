@@ -169,7 +169,7 @@ public class SecurityTests : IAsyncLifetime
     public async Task UserA_CannotModify_UserBs_Collection()
     {
         var (colId, _) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
+        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         var patchContent = JsonContent.Create(new { Name = "Stolen Collection" });
         var response = await clientA.PatchAsync($"/api/v1/collections/{colId}", patchContent);
@@ -203,7 +203,7 @@ public class SecurityTests : IAsyncLifetime
     public async Task UserA_CannotCreateShare_For_UserBs_Asset()
     {
         var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
+        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         var dto = new CreateShareDto
         {
@@ -263,7 +263,7 @@ public class SecurityTests : IAsyncLifetime
     public async Task Random_CollectionId_Guessing_Returns403_Or_404()
     {
         var (colId, _) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
+        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
         var response = await clientA.GetAsync($"/api/v1/collections/{colId}");
 

@@ -4,6 +4,13 @@ description: "Use when writing or editing unit tests, integration tests, bUnit c
 ---
 # Testing Conventions
 
+## Reference files — read before writing tests
+- `tests/AssetHub.Tests/Fixtures/PostgresFixture.cs` — shared Testcontainer DB fixture
+- `tests/AssetHub.Tests/Fixtures/CustomWebApplicationFactory.cs` — HTTP integration test factory
+- `tests/AssetHub.Tests/Fixtures/TestAuthHandler.cs` + `TestClaimsProvider.cs` — fake auth
+- `tests/AssetHub.Tests/Helpers/TestData.cs` — factory methods for test entities
+- An existing test in the same domain (e.g., `Services/AssetServiceTests.cs`) — follow the same pattern
+
 ## Naming
 `MethodName_Condition_ExpectedResult` — e.g., `UpdateAsync_EmptyTitle_ReturnsBadRequest`.
 

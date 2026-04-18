@@ -170,4 +170,26 @@ public static class TestData
             DetailsJson = new Dictionary<string, object> { ["test"] = true }
         };
     }
+
+    public static ExportPreset CreateExportPreset(
+        Guid? id = null,
+        string name = "Web Large",
+        Action<ExportPreset>? configure = null)
+    {
+        var preset = new ExportPreset
+        {
+            Id = id ?? Guid.NewGuid(),
+            Name = name,
+            Width = 1920,
+            Height = 1080,
+            FitMode = ExportPresetFitMode.Contain,
+            Format = ExportPresetFormat.Jpeg,
+            Quality = 85,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedByUserId = DefaultUserId
+        };
+        configure?.Invoke(preset);
+        return preset;
+    }
 }

@@ -4,6 +4,13 @@ description: "Use when creating or editing Minimal API endpoints, middleware, fi
 ---
 # API Layer Conventions (AssetHub.Api)
 
+## Reference files — read before editing
+- An existing endpoint file (e.g., `src/AssetHub.Api/Endpoints/AssetEndpoints.cs`) — follow the same structure
+- `src/AssetHub.Api/Extensions/WebApplicationExtensions.cs` — where endpoints are registered via `MapAssetHubEndpoints()`
+- `src/AssetHub.Application/ServiceResult.cs` — `ServiceResult<T>` and `ServiceError` factories
+- `src/AssetHub.Api/Extensions/ServiceResultExtensions.cs` — `.ToHttpResult()` mapping
+- `src/AssetHub.Api/Filters/ValidationFilter.cs` — endpoint validation filter
+
 AssetHub.Api is the composition root — it wires DI, hosts Blazor Server, and exposes Minimal API endpoints.
 
 ## Endpoint Structure

@@ -36,7 +36,7 @@ public class AuthorizationEdgeCaseTests : IAsyncLifetime
         _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
         _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
         _authService = new CollectionAuthorizationService(
-            _db, NullLogger<CollectionAuthorizationService>.Instance);
+            _db, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
     }
 
     public async Task DisposeAsync()

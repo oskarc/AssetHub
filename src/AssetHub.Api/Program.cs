@@ -62,6 +62,12 @@ try
             .ToRabbitQueue("process-video");
         opts.PublishMessage<BuildZipCommand>()
             .ToRabbitQueue("build-zip");
+        opts.PublishMessage<ApplyExportPresetsCommand>()
+            .ToRabbitQueue("apply-export-presets");
+        opts.PublishMessage<StartMigrationCommand>()
+            .ToRabbitQueue("start-migration");
+        opts.PublishMessage<ProcessMigrationItemCommand>()
+            .ToRabbitQueue("process-migration-item");
 
         // Listen for events from Worker
         opts.ListenToRabbitQueue("asset-processing-completed");

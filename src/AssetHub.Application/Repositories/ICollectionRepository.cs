@@ -14,6 +14,11 @@ public interface ICollectionRepository
     Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, CancellationToken ct = default);
 
     /// <summary>
+    /// Gets a collection by exact name (case-insensitive).
+    /// </summary>
+    Task<Collection?> GetByNameAsync(string name, CancellationToken ct = default);
+
+    /// <summary>
     /// Gets all collections.
     /// </summary>
     Task<IEnumerable<Collection>> GetRootCollectionsAsync(CancellationToken ct = default);

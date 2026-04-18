@@ -145,6 +145,7 @@
   <data name="ScopeType_Collection" xml:space="preserve"><value>Collection</value></data>
   <data name="ScopeType_Share" xml:space="preserve"><value>Share</value></data>
   <data name="ScopeType_User" xml:space="preserve"><value>User</value></data>
+  <data name="ScopeType_Migration" xml:space="preserve"><value>Migration</value></data>
 
   <!-- Sort Options -->
   <data name="Sort_NewestFirst" xml:space="preserve"><value>Newest First</value></data>
@@ -245,6 +246,11 @@
   <data name="Error_Reload" xml:space="preserve"><value>Reload</value></data>
   <data name="Error_UploadFailed" xml:space="preserve"><value>Upload failed: {0}</value></data>
   <data name="Error_UnexpectedError" xml:space="preserve"><value>An unexpected error occurred. Please try again.</value></data>
+  <data name="Error_DeleteFailed" xml:space="preserve"><value>Failed to delete. Please try again.</value></data>
+
+  <!-- General -->
+  <data name="Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="No" xml:space="preserve"><value>No</value></data>
 
   <!-- Expiration Options -->
   <data name="Expiry_1Day" xml:space="preserve"><value>1 day</value></data>
@@ -444,4 +450,8 @@
   <data name="Aria_SelectItem" xml:space="preserve"><value>Select item</value></data>
   <data name="Aria_SelectAll" xml:space="preserve"><value>Select all</value></data>
   <data name="Aria_DeselectAll" xml:space="preserve"><value>Deselect all</value></data>
+  <data name="Aria_AssetThumbnail" xml:space="preserve"><value>Thumbnail: {0} ({1})</value><comment>{0}=asset title, {1}=asset type</comment></data>
+  <data name="Aria_StatusLive" xml:space="preserve"><value>Status message</value></data>
+  <data name="Aria_TogglePasswordVisibility" xml:space="preserve"><value>Toggle password visibility</value></data>
+  <data name="Aria_ProcessingInProgress" xml:space="preserve"><value>Processing in progress</value></data>
 </root>

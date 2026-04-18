@@ -50,7 +50,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         var cache = TestCacheHelper.CreateHybridCache();
         _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_db, cache, NullLogger<AssetCollectionRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_db, NullLogger<CollectionAuthorizationService>.Instance);
+        _authService = new CollectionAuthorizationService(_db, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();

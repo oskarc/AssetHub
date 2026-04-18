@@ -147,7 +147,7 @@ public sealed class DashboardQueryService(
 
     public async Task<DashboardStatsDto> GetGlobalStatsAsync(CancellationToken ct)
     {
-        return await _cache.GetOrCreateAsync(
+        return await cache.GetOrCreateAsync(
             CacheKeys.DashboardSummary("global"),
             async cancel =>
             {
@@ -158,11 +158,11 @@ public sealed class DashboardQueryService(
                 var totalCollections = await db.Collections.CountAsync(cancel);
                 var totalShares = await db.Shares.CountAsync(cancel);
                 var activeShares = await db.Shares
-                    .CountAsync(s => s.RevokedAt is null && s.ExpiresAt > DateTime.UtcNow, cancel);
+                    .CountAsync(s => s.RevokedAt == null && s.ExpiresAt > DateTime.UtcNow, cancel);
                 var expiredShares = await db.Shares
-                    .CountAsync(s => s.RevokedAt is null && s.ExpiresAt <= DateTime.UtcNow, cancel);
+                    .CountAsync(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow, cancel);
                 var revokedShares = await db.Shares
-                    .CountAsync(s => s.RevokedAt is not null, cancel);
+                    .CountAsync(s => s.RevokedAt != null, cancel);
 
                 // Aggregate role counts in the database instead of loading all ACLs into memory
                 var roleCounts = await db.CollectionAcls

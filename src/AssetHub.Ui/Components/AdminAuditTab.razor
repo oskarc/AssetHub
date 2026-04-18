@@ -26,6 +26,7 @@ else
                     <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Class="chip-clickable">@CommonLoc["ScopeType_Collection"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Collection, StringComparison.OrdinalIgnoreCase))</MudChip>
                     <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Class="chip-clickable">@CommonLoc["ScopeType_Asset"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Asset, StringComparison.OrdinalIgnoreCase))</MudChip>
                     <MudChip T="string" Color="@(_showShares ? Color.Primary : Color.Default)" Size="Size.Small" OnClick="ToggleShares" Class="chip-clickable">@CommonLoc["ScopeType_Share"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Share, StringComparison.OrdinalIgnoreCase))</MudChip>
+                    <MudChip T="string" Color="@(_showMigrations ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleMigrations" Class="chip-clickable">@CommonLoc["ScopeType_Migration"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Migration, StringComparison.OrdinalIgnoreCase))</MudChip>
                 </MudStack>
             </MudItem>
             <MudItem xs="12" sm="6">
@@ -37,6 +38,7 @@ else
                     <MudChip T="string" Color="@(_showDownload ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleDownload" Class="chip-clickable">@AdminLoc["AuditAction_Download"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "download")</MudChip>
                     <MudChip T="string" Color="@(_showAccessGranted ? Color.Secondary : Color.Default)" Size="Size.Small" OnClick="ToggleAccessGranted" Class="chip-clickable">@AdminLoc["AuditAction_AccessGranted"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "access")</MudChip>
                     <MudChip T="string" Color="@(_showSecurity ? Color.Error : Color.Default)" Size="Size.Small" OnClick="ToggleSecurity" Class="chip-clickable">@AdminLoc["AuditAction_Security"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "security")</MudChip>
+                    <MudChip T="string" Color="@(_showEdit ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleEdit" Class="chip-clickable">@AdminLoc["AuditAction_Edit"]: @_auditEvents.Count(e => GetActionCategory(e.EventType) == "edit")</MudChip>
                 </MudStack>
             </MudItem>
         </MudGrid>
@@ -158,21 +160,25 @@ else
     private bool _showCollections = true;
     private bool _showAssets = true;
     private bool _showShares = true;
+    private bool _showMigrations = true;
     private bool _showCreate = true;
     private bool _showUpdate = true;
     private bool _showDelete = true;
     private bool _showDownload = true;
     private bool _showAccessGranted = true;
     private bool _showSecurity = true;
+    private bool _showEdit = true;
 
     private const string StorageKeyShowCollections = "auditLog_showCollections";
     private const string StorageKeyShowAssets = "auditLog_showAssets";
     private const string StorageKeyShowShares = "auditLog_showShares";
+    private const string StorageKeyShowMigrations = "auditLog_showMigrations";
     private const string StorageKeyShowCreate = "auditLog_showCreate";
     private const string StorageKeyShowUpdate = "auditLog_showUpdate";
     private const string StorageKeyShowDelete = "auditLog_showDelete";
     private const string StorageKeyShowDownload = "auditLog_showDownload";
     private const string StorageKeyShowAccessGranted = "auditLog_showAccessGranted";
+    private const string StorageKeyShowEdit = "auditLog_showEdit";
     private const string StorageKeyShowSecurity = "auditLog_showSecurity";
 
     protected override async Task OnInitializedAsync()
@@ -187,12 +193,14 @@ else
             _showCollections = await LocalStorage.GetBoolAsync(StorageKeyShowCollections, true);
             _showAssets = await LocalStorage.GetBoolAsync(StorageKeyShowAssets, true);
             _showShares = await LocalStorage.GetBoolAsync(StorageKeyShowShares, true);
+            _showMigrations = await LocalStorage.GetBoolAsync(StorageKeyShowMigrations, true);
             _showCreate = await LocalStorage.GetBoolAsync(StorageKeyShowCreate, true);
             _showUpdate = await LocalStorage.GetBoolAsync(StorageKeyShowUpdate, true);
             _showDelete = await LocalStorage.GetBoolAsync(StorageKeyShowDelete, true);
             _showDownload = await LocalStorage.GetBoolAsync(StorageKeyShowDownload, true);
             _showAccessGranted = await LocalStorage.GetBoolAsync(StorageKeyShowAccessGranted, true);
             _showSecurity = await LocalStorage.GetBoolAsync(StorageKeyShowSecurity, true);
+            _showEdit = await LocalStorage.GetBoolAsync(StorageKeyShowEdit, true);
             StateHasChanged();
         }
     }
@@ -238,7 +246,16 @@ else
 
     private async Task LoadMoreAsync()
     {
-        await LoadAsync(reset: false);
+        const int maxAttempts = 5;
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            var countBefore = _auditEvents?.Count ?? 0;
+            await LoadAsync(reset: false);
+
+            var newItems = _auditEvents?.Skip(countBefore) ?? Enumerable.Empty<AuditEventDto>();
+            if (newItems.Any(AuditFilter) || !_hasMore)
+                break;
+        }
     }
 
     private bool AuditFilter(AuditEventDto evt)
@@ -248,6 +265,7 @@ else
         if (targetType == Constants.ScopeTypes.Collection && !_showCollections) return false;
         if (targetType == Constants.ScopeTypes.Asset && !_showAssets) return false;
         if (targetType == Constants.ScopeTypes.Share && !_showShares) return false;
+        if (targetType == Constants.ScopeTypes.Migration && !_showMigrations) return false;
 
         // Action type filter
         var action = GetActionCategory(evt.EventType);
@@ -257,6 +275,7 @@ else
         if (action == "download" && !_showDownload) return false;
         if (action == "access" && !_showAccessGranted) return false;
         if (action == "security" && !_showSecurity) return false;
+        if (action == "edit" && !_showEdit) return false;
 
         if (string.IsNullOrWhiteSpace(_searchString))
             return true;
@@ -274,6 +293,7 @@ else
     {
         var et = eventType.ToLowerInvariant();
         if (et.Contains("malware") || et.Contains("password_failed") || et.Contains("processing_failed")) return "security";
+        if (et.Contains("edited") || et.Contains("replaced_via_edit") || et.Contains("copy_created_via_edit") || et.Contains("exported_with_preset")) return "edit";
         if (et.Contains("download")) return "download";
         if (et.Contains("acl.set") || et.Contains("access_granted") || et.Contains("access_set")) return "access";
         if (et.Contains("created") || et.Contains("upload")) return "create";
@@ -298,6 +318,12 @@ else
     {
         _showShares = !_showShares;
         await LocalStorage.SetBoolAsync(StorageKeyShowShares, _showShares);
+    }
+
+    private async Task ToggleMigrations()
+    {
+        _showMigrations = !_showMigrations;
+        await LocalStorage.SetBoolAsync(StorageKeyShowMigrations, _showMigrations);
     }
 
     private async Task ToggleCreate()
@@ -334,6 +360,12 @@ else
     {
         _showSecurity = !_showSecurity;
         await LocalStorage.SetBoolAsync(StorageKeyShowSecurity, _showSecurity);
+    }
+
+    private async Task ToggleEdit()
+    {
+        _showEdit = !_showEdit;
+        await LocalStorage.SetBoolAsync(StorageKeyShowEdit, _showEdit);
     }
 
     private static Color GetEventColor(string eventType) =>

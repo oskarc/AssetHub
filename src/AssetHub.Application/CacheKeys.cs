@@ -18,6 +18,8 @@ public static class CacheKeys
     private const string CollectionNamePrefix = "collection:name:";
     private const string CollectionCountPrefix = "collection:count:";
     private const string DashboardSummaryPrefix = "dashboard:summary:";
+    private const string ExportPresetPrefix = "export-preset:";
+    private const string ExportPresetsAllKey = "export-presets:all";
 
     // ── TTLs ──────────────────────────────────────────────────────────
 
@@ -41,6 +43,9 @@ public static class CacheKeys
 
     /// <summary>Dashboard summary data. Invalidated on asset/collection changes.</summary>
     public static readonly TimeSpan DashboardSummaryTtl = TimeSpan.FromMinutes(2);
+
+    /// <summary>Export presets. Invalidated on preset create/update/delete.</summary>
+    public static readonly TimeSpan ExportPresetTtl = TimeSpan.FromMinutes(10);
 
     // ── Key Builders ──────────────────────────────────────────────────
 
@@ -71,6 +76,13 @@ public static class CacheKeys
     public static string DashboardSummary(string userId)
         => $"{DashboardSummaryPrefix}{userId}";
 
+    /// <summary>Cache key for a single export preset.</summary>
+    public static string ExportPreset(Guid id)
+        => $"{ExportPresetPrefix}{id}";
+
+    /// <summary>Cache key for the all export presets list.</summary>
+    public static string ExportPresetsAll() => ExportPresetsAllKey;
+
     // ── Tag Definitions (for HybridCache tag-based invalidation) ─────
 
     /// <summary>
@@ -95,5 +107,8 @@ public static class CacheKeys
 
         /// <summary>Tag for all dashboard summary entries.</summary>
         public const string Dashboard = "dashboard";
+
+        /// <summary>Tag for all export preset entries.</summary>
+        public const string ExportPresets = "export-presets";
     }
 }

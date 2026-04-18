@@ -25,7 +25,9 @@
                 <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)"
                               Height="160"
                               Class="asset-thumbnail"
-                              loading="lazy" />
+                              loading="lazy"
+                              role="img"
+                              aria-label="@ThumbnailLabel(asset)" />
                 <MudCardContent Class="pa-2">
                     <MudText Typo="Typo.body2" Class="text-truncate">
                         @asset.Title
@@ -34,7 +36,8 @@
                         <MudChip T="string"
                                  Size="Size.Small"
                                  Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
-                                 Variant="Variant.Outlined">
+                                 Variant="Variant.Outlined"
+                                 Icon="@AssetDisplayHelpers.GetAssetIcon(asset.AssetType)">
                             @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
                         </MudChip>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -112,4 +115,10 @@
         SelectedAssetIds.Contains(id)
             ? "asset-card mud-border-primary"
             : "asset-card";
+
+    private string ThumbnailLabel(AssetResponseDto asset)
+    {
+        var type = CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)].Value;
+        return string.Format(CommonLoc["Aria_AssetThumbnail"].Value, asset.Title, type);
+    }
 }

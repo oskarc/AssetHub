@@ -4,6 +4,13 @@ description: "Use when creating or editing services, repositories, EF Core confi
 ---
 # Infrastructure Layer Conventions (AssetHub.Infrastructure)
 
+## Reference files — read before editing
+- An existing service in the same domain (e.g., `AssetService.cs` for commands, `AssetQueryService.cs` for queries) — follow the same structure
+- An existing repository (e.g., `AssetRepository.cs`) — follow the caching, pagination, and query patterns
+- `src/AssetHub.Infrastructure/Data/AssetHubDbContext.cs` — entity configuration in `OnModelCreating()`
+- `src/AssetHub.Infrastructure/DependencyInjection/InfrastructureServiceExtensions.cs` — DI registration
+- `src/AssetHub.Application/CacheKeys.cs` — cache key definitions (see also `caching-patterns.instructions.md`)
+
 AssetHub.Infrastructure implements all service interfaces and repository interfaces defined in Application. It references Application + Domain.
 
 ## Services

@@ -6,6 +6,10 @@ description: "Use when implementing caching, cache invalidation, or HybridCache 
 
 AssetHub uses **HybridCache** (L1 in-memory + L2 Redis). All cache configuration is centralized in `Application/CacheKeys.cs`.
 
+## Reference files — read before editing
+- `src/AssetHub.Application/CacheKeys.cs` — all key prefixes, TTLs, tags, and builder methods
+- Any existing repository using `HybridCache` (e.g., `CollectionRepository.cs`) — follow the same pattern
+
 ## Adding a New Cache Key
 
 1. Add a private prefix constant in `CacheKeys`.

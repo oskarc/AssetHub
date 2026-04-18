@@ -18,7 +18,7 @@ namespace AssetHub.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.14")
+                .HasAnnotation("ProductVersion", "9.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -54,6 +54,9 @@ namespace AssetHub.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<string>("EditDocument")
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("MediumObjectKey")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
@@ -76,6 +79,9 @@ namespace AssetHub.Infrastructure.Migrations
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
+
+                    b.Property<Guid?>("SourceAssetId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -111,6 +117,9 @@ namespace AssetHub.Infrastructure.Migrations
 
                     b.HasIndex("OriginalObjectKey")
                         .HasDatabaseName("idx_assets_original_object_key");
+
+                    b.HasIndex("SourceAssetId")
+                        .HasDatabaseName("idx_assets_source_asset_id");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("idx_assets_status");
@@ -270,6 +279,231 @@ namespace AssetHub.Infrastructure.Migrations
                         .HasDatabaseName("idx_collection_acl_unique");
 
                     b.ToTable("CollectionAcls");
+                });
+
+            modelBuilder.Entity("AssetHub.Domain.Entities.ExportPreset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FitMode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int>("Quality")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("idx_export_presets_name_unique");
+
+                    b.ToTable("ExportPresets");
+                });
+
+            modelBuilder.Entity("AssetHub.Domain.Entities.Migration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid?>("DefaultCollectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("DryRun")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FieldMapping")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ItemsFailed")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ItemsSkipped")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ItemsSucceeded")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ItemsTotal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("SourceConfig")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId")
+                        .HasDatabaseName("idx_migrations_created_by");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_migrations_status");
+
+                    b.ToTable("Migrations");
+                });
+
+            modelBuilder.Entity("AssetHub.Domain.Entities.MigrationItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<List<string>>("CollectionNames")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("Copyright")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("IsFileStaged")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("MetadataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("MigrationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Sha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("SourcePath")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.PrimitiveCollection<List<string>>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("idx_migration_items_idempotency_unique");
+
+                    b.HasIndex("MigrationId", "RowNumber")
+                        .HasDatabaseName("idx_migration_items_migration_row");
+
+                    b.HasIndex("MigrationId", "Status")
+                        .HasDatabaseName("idx_migration_items_migration_status");
+
+                    b.ToTable("MigrationItems");
                 });
 
             modelBuilder.Entity("AssetHub.Domain.Entities.Share", b =>
@@ -435,6 +669,16 @@ namespace AssetHub.Infrastructure.Migrations
                     b.ToTable("DataProtectionKeys");
                 });
 
+            modelBuilder.Entity("AssetHub.Domain.Entities.Asset", b =>
+                {
+                    b.HasOne("AssetHub.Domain.Entities.Asset", "SourceAsset")
+                        .WithMany("Derivatives")
+                        .HasForeignKey("SourceAssetId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("SourceAsset");
+                });
+
             modelBuilder.Entity("AssetHub.Domain.Entities.AssetCollection", b =>
                 {
                     b.HasOne("AssetHub.Domain.Entities.Asset", "Asset")
@@ -465,9 +709,22 @@ namespace AssetHub.Infrastructure.Migrations
                     b.Navigation("Collection");
                 });
 
+            modelBuilder.Entity("AssetHub.Domain.Entities.MigrationItem", b =>
+                {
+                    b.HasOne("AssetHub.Domain.Entities.Migration", "Migration")
+                        .WithMany("Items")
+                        .HasForeignKey("MigrationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Migration");
+                });
+
             modelBuilder.Entity("AssetHub.Domain.Entities.Asset", b =>
                 {
                     b.Navigation("AssetCollections");
+
+                    b.Navigation("Derivatives");
                 });
 
             modelBuilder.Entity("AssetHub.Domain.Entities.Collection", b =>
@@ -475,6 +732,11 @@ namespace AssetHub.Infrastructure.Migrations
                     b.Navigation("Acls");
 
                     b.Navigation("AssetCollections");
+                });
+
+            modelBuilder.Entity("AssetHub.Domain.Entities.Migration", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

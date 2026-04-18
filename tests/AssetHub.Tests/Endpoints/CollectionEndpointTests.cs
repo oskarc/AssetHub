@@ -89,7 +89,7 @@ public class CollectionEndpointTests : IAsyncLifetime
     public async Task GetCollectionById_NoAccess_Returns403()
     {
         // Non-existent collection → no ACL → auth check fails before existence check
-        var client = AdminClient();
+        var client = ViewerClient();
         var response = await client.GetAsync($"/api/v1/collections/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -236,7 +236,7 @@ public class CollectionEndpointTests : IAsyncLifetime
     [Fact]
     public async Task UpdateCollection_NonExistentCollection_Returns403()
     {
-        var client = AdminClient();
+        var client = ViewerClient();
         var patchContent = JsonContent.Create(new { Name = "Updated" });
         var response = await client.PatchAsync($"/api/v1/collections/{Guid.NewGuid()}", patchContent);
 
@@ -267,7 +267,7 @@ public class CollectionEndpointTests : IAsyncLifetime
     [Fact]
     public async Task DeleteCollection_NonExistentCollection_Returns403()
     {
-        var client = AdminClient();
+        var client = ViewerClient();
         var response = await client.DeleteAsync($"/api/v1/collections/{Guid.NewGuid()}");
         // No ACL → 403
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -278,7 +278,7 @@ public class CollectionEndpointTests : IAsyncLifetime
     [Fact]
     public async Task GetCollectionAcls_NonExistentCollection_Returns403()
     {
-        var client = AdminClient();
+        var client = ViewerClient();
         var response = await client.GetAsync($"/api/v1/collections/{Guid.NewGuid()}/acl");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -322,7 +322,7 @@ public class CollectionEndpointTests : IAsyncLifetime
     [Fact]
     public async Task SetCollectionAccess_NonExistentCollection_Returns403()
     {
-        var client = AdminClient();
+        var client = ViewerClient();
         var aclDto = new SetCollectionAccessDto
         {
             PrincipalType = Constants.PrincipalTypes.User,
@@ -336,7 +336,7 @@ public class CollectionEndpointTests : IAsyncLifetime
     [Fact]
     public async Task RevokeCollectionAccess_NonExistentCollection_Returns403()
     {
-        var client = AdminClient();
+        var client = ViewerClient();
         var response = await client.DeleteAsync($"/api/v1/collections/{Guid.NewGuid()}/acl/user/someone");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }

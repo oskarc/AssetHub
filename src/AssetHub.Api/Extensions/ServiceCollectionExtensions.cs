@@ -179,6 +179,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAssetService, AssetService>();           // Commands: update, delete, collection membership
         services.AddScoped<IAssetQueryService, AssetQueryService>(); // Queries: get, list, rendition URLs
         services.AddScoped<IAssetUploadService, AssetUploadService>(); // Uploads: streaming and presigned
+
+        // Image editing services
+        services.AddScoped<IExportPresetService, ExportPresetService>();
+        services.AddScoped<IExportPresetQueryService, ExportPresetQueryService>();
+        services.AddScoped<IImageEditingService, ImageEditingService>();
         
         // Collection services split by responsibility (Interface Segregation Principle)
         services.AddScoped<CollectionServiceRepositories>();

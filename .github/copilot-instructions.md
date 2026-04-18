@@ -19,7 +19,7 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 
 | Project | Role |
 |---------|------|
-| `AssetHub.Domain` | Entities, enums, value objects — zero dependencies |
+| `AssetHub.Domain` | Entities, enums — zero dependencies |
 | `AssetHub.Application` | Service interfaces, DTOs, config, `ServiceResult<T>`, `CurrentUser` |
 | `AssetHub.Infrastructure` | EF Core repos, MinIO, SMTP, ClamAV, Keycloak, Polly pipelines |
 | `AssetHub.Api` | Composition root — Minimal API endpoints, auth, DI wiring, Blazor host |

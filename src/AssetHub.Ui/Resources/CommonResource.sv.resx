@@ -142,6 +142,7 @@
   <data name="ScopeType_Collection" xml:space="preserve"><value>Samling</value></data>
   <data name="ScopeType_Share" xml:space="preserve"><value>Delning</value></data>
   <data name="ScopeType_User" xml:space="preserve"><value>Användare</value></data>
+  <data name="ScopeType_Migration" xml:space="preserve"><value>Migrering</value></data>
 
   <!-- Sort Options -->
   <data name="Sort_NewestFirst" xml:space="preserve"><value>Nyast först</value></data>
@@ -242,6 +243,11 @@
   <data name="Error_Reload" xml:space="preserve"><value>Ladda om</value></data>
   <data name="Error_UploadFailed" xml:space="preserve"><value>Uppladdning misslyckades: {0}</value></data>
   <data name="Error_UnexpectedError" xml:space="preserve"><value>Ett oväntat fel inträffade. Försök igen.</value></data>
+  <data name="Error_DeleteFailed" xml:space="preserve"><value>Kunde inte radera. Försök igen.</value></data>
+
+  <!-- General -->
+  <data name="Yes" xml:space="preserve"><value>Ja</value></data>
+  <data name="No" xml:space="preserve"><value>Nej</value></data>
 
   <!-- Expiration Options -->
   <data name="Expiry_1Day" xml:space="preserve"><value>1 dag</value></data>
@@ -440,4 +446,8 @@
   <data name="Aria_SelectItem" xml:space="preserve"><value>Välj objekt</value></data>
   <data name="Aria_SelectAll" xml:space="preserve"><value>Markera alla</value></data>
   <data name="Aria_DeselectAll" xml:space="preserve"><value>Avmarkera alla</value></data>
+  <data name="Aria_AssetThumbnail" xml:space="preserve"><value>Miniatyr: {0} ({1})</value><comment>{0}=tillgångens titel, {1}=tillgångstyp</comment></data>
+  <data name="Aria_StatusLive" xml:space="preserve"><value>Statusmeddelande</value></data>
+  <data name="Aria_TogglePasswordVisibility" xml:space="preserve"><value>Växla lösenordssynlighet</value></data>
+  <data name="Aria_ProcessingInProgress" xml:space="preserve"><value>Bearbetning pågår</value></data>
 </root>

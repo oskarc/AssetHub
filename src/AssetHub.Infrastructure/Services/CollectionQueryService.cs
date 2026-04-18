@@ -17,7 +17,14 @@ public sealed class CollectionQueryService(
     public async Task<ServiceResult<List<CollectionResponseDto>>> GetRootCollectionsAsync(CancellationToken ct)
     {
         var userId = currentUser.UserId;
-        var collections = await collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
+
+        // System admins see all collections; regular users see only those they have ACL entries for.
+        // The authorization service also bypasses ACL checks for admins, but the repository
+        // query itself filters by ACL entries — so we use a different query path.
+        var collections = currentUser.IsSystemAdmin
+            ? await collectionRepo.GetRootCollectionsAsync(ct)
+            : await collectionRepo.GetAccessibleCollectionsAsync(userId, ct);
+
         var collectionList = collections.ToList();
         var collectionIds = collectionList.Select(c => c.Id);
         var assetCounts = await collectionRepo.GetAssetCountsAsync(collectionIds, ct);

@@ -4,6 +4,12 @@ description: "Use when implementing error handling, service results, or HTTP res
 ---
 # Error Handling Conventions
 
+## Reference files — read before editing
+- `src/AssetHub.Application/ServiceResult.cs` — `ServiceResult<T>`, `ServiceError`, error factories
+- `src/AssetHub.Api/Extensions/ServiceResultExtensions.cs` — `.ToHttpResult()` HTTP mapping
+- `src/AssetHub.Application/Dtos/ApiError.cs` — error response body shape
+- `src/AssetHub.Api/Extensions/WebApplicationExtensions.cs` — global exception middleware
+
 ## ServiceResult — The Only Way Services Report Errors
 
 Services **never throw** for business errors. All service methods return `ServiceResult` (void) or `ServiceResult<T>`:

@@ -512,6 +512,79 @@ Mirror source tree: `Services/`, `Repositories/`, `Endpoints/`, `EdgeCases/`.
 
 ---
 
+## Quality Guardrails (apply on the fly)
+
+Short checklists that trigger by file type. Walk through the relevant block before reporting a task done — these are where regressions from past reviews keep surfacing. For deeper audits use `/a11y-check`, `/ux-check`, `/security-review`, or `/review`.
+
+### When editing Blazor UI (`src/AssetHub.Ui/**/*.razor{,.cs,.css}`)
+
+**Accessibility (WCAG 2.2 AA):**
+- Every image/thumbnail (`MudCardMedia`, `MudImage`, `<img>`) has a meaningful `alt`, or `aria-hidden="true"` if purely decorative. Asset media: `alt="@($"{asset.Title} ({asset.Type})")"`.
+- Every icon-only button has `aria-label` (MudBlazor icons inside meaningful buttons too).
+- Every `MudDialog` has an accessible name — `TitleContent` with `id="dialog-title"` + `aria-labelledby` on the wrapper.
+- Dynamic status/validation messages are wrapped in `role="status" aria-live="polite"` (or `role="alert"` for errors).
+- State is never conveyed by color alone — pair `Color.Success`/`Error`/`Warning` with an icon or text label.
+- `<PageTitle>` set on every page.
+- Form controls have labels and `For=` expressions when validated.
+- Any custom keyboard/mouse interaction (drag, canvas) has a keyboard equivalent (arrow keys, +/-, Delete, Esc).
+- `App.razor` → `<html lang>` binds to current culture, never hardcoded.
+- `MainLayout` and `ShareLayout` both include a skip-to-main-content link.
+
+**Usability (Nielsen + house rules):**
+- List mutations follow **Optimistic UI** (CLAUDE.md § Blazor): update local state first, roll back + `IUserFeedbackService.ShowError` on failure. Don't forget edit/rename.
+- Destructive mutations go through `ConfirmDialog`. Bulk permanent delete gets a second confirm with an explicit count.
+- Long-running actions (upload, save, zip build, media processing) surface progress — never a frozen button.
+- Edit dialogs with non-trivial input track dirty state and warn before discarding (`OnLocationChanging` on full pages, dialog guard on dialogs).
+- Every icon-only button has `MudTooltip`; ImageEditor tool tooltips include keyboard shortcuts.
+- `EmptyState` components include an action CTA, not just a headline.
+- User-visible error text is localized and action-oriented — never raw `ServiceError.Message`.
+- Button naming: **Delete** = permanent, **Remove** = unlink from parent, **Discard** = cancel changes. Stay consistent.
+- No raw HTML form elements where a MudBlazor equivalent exists.
+
+**Localization:**
+- Every user-visible string lives in `.resx`. When you add a key, add it to **both** `.resx` and `.sv.resx` in the same change — missing Swedish falls back to English silently.
+- Key pattern `Area_Context_Element`. `Common_` prefix only for genuinely shared strings.
+- Inject the most specific `IStringLocalizer<T>` — don't default to `CommonResource`.
+
+### When editing API endpoints (`src/AssetHub.Api/Endpoints/`)
+
+- Group has `.RequireAuthorization("Require…")` — never rely on per-endpoint auth alone.
+- POST/PATCH/DELETE endpoints have `.DisableAntiforgery()` (JWT + same-origin assumption).
+- Route params use `{id:guid}` constraint.
+- Collection-scoped operations call `ICollectionAuthorizationService` before touching entity data.
+- Input DTOs apply `ValidationFilter<T>`.
+- Return via `.ToHttpResult(...)` — never manually inspect `IsSuccess`.
+
+### When editing services / repositories (`src/AssetHub.Infrastructure/**`)
+
+- No `FromSqlRaw` / `FromSqlInterpolated` / string-built SQL — LINQ only. PostgreSQL fuzzy search via `EF.Functions.ILike`.
+- Any external process launch uses `ProcessStartInfo.ArgumentList`, never a single command string.
+- Any filename derived from user input passes through `FileHelpers.GetSafeFileName`; any ZIP entry uses sanitized names.
+- New cache entries go through `CacheKeys` with tags for invalidation. Never cache ACL/roles.
+- Background services create a scope per iteration; never inject scoped services into singletons directly.
+- Return `ServiceResult<T>` — never throw for business errors. Catch infra exceptions and wrap as `ServiceError.Server(...)`.
+
+### When editing DTOs (`src/AssetHub.Application/Dtos/`)
+
+- `[Required]`, `[StringLength]`, `[Range]` on every user-bound field.
+- Lists: `[MaxLength]` on the list and per-item length validation where it matters (e.g., individual tag length).
+- Nullable ref types honored — required inputs are non-nullable; optional inputs are `?`.
+
+### When editing configuration
+
+- New settings class: `const string SectionName`, DataAnnotations on fields, `ValidateOnStart()` for critical infra.
+- Never hardcode secrets — placeholders in `appsettings.json`, real values from env / Docker secrets.
+- Production `AllowedHosts` must be a specific hostname, not `"*"`.
+
+### When editing Worker handlers / background services (`src/AssetHub.Worker/`)
+
+- Handlers are per-item try/catch in batch loops — one bad message doesn't poison the queue.
+- `ct.ThrowIfCancellationRequested()` inside long loops; catch `OperationCanceledException` at the top level.
+- Use `IServiceScopeFactory` for scoped dependencies; one scope per iteration.
+- Log with counts at `Information` (start/summary), `Debug` (per-batch), `Warning` (per-item failures).
+
+---
+
 ## Task Processing Log
 
 For non-trivial tasks (multi-step changes, new features, bug investigations), maintain a `Claude-Processing.md` file in the workspace root to track progress:

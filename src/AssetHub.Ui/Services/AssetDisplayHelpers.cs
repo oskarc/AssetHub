@@ -158,6 +158,18 @@ public static class AssetDisplayHelpers
     };
 
     /// <summary>
+    /// Returns a MudBlazor icon for an asset processing status, so that status is not conveyed
+    /// by color alone (WCAG 1.4.1).
+    /// </summary>
+    public static string GetAssetStatusIcon(string? status) => (status?.ToLowerInvariant()) switch
+    {
+        "ready" => MudBlazor.Icons.Material.Filled.CheckCircle,
+        "processing" => MudBlazor.Icons.Material.Filled.HourglassTop,
+        "failed" => MudBlazor.Icons.Material.Filled.Error,
+        _ => MudBlazor.Icons.Material.Filled.Circle
+    };
+
+    /// <summary>
     /// Gets the MudBlazor color for a share status (Active/Expired/Revoked).
     /// </summary>
     public static MudBlazor.Color GetShareStatusColor(string? status)

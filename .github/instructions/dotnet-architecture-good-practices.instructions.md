@@ -52,79 +52,23 @@ The generic guidance on SOLID principles remains valid:
 
 ## Quality Checklist
 
-**MANDATORY VERIFICATION PROCESS**: Before delivering any code, you MUST explicitly confirm each item:
+Before delivering code, verify these AssetHub-specific items:
 
-### Domain Design Validation
+### Architecture Validation
+- Layer dependency rules respected (Domain → nothing, Application → Domain, Ui → Application only).
+- No patterns from the "What AssetHub Does NOT Use" list introduced.
+- Repository interfaces in Application, implementations in Infrastructure.
+- Services return `ServiceResult<T>` — no thrown exceptions for business errors.
 
-* **Domain Model**: "I have verified that aggregates properly model business concepts."
-* **Ubiquitous Language**: "I have confirmed consistent terminology throughout the codebase."
-* **SOLID Principles Adherence**: "I have verified the design follows SOLID principles."
-* **Business Rules**: "I have validated that domain logic is encapsulated in aggregates."
-* **Event Handling**: "I have confirmed domain events are properly published and handled."
+### Implementation Quality
+- Tests follow `MethodName_Condition_ExpectedResult` naming.
+- `sealed` on service/repository implementations.
+- Primary constructors for DI injection.
+- Structured logging with named arguments.
+- Async/await for all I/O-bound operations.
+- Nullable reference types handled correctly (`is null` / `is not null`).
 
-### Implementation Quality Validation
-
-* **Test Coverage**: "I have written comprehensive tests following `MethodName_Condition_ExpectedResult()` naming."
-* **Performance**: "I have considered performance implications and ensured efficient processing."
-* **Security**: "I have implemented authorization at aggregate boundaries."
-* **Documentation**: "I have documented domain decisions and architectural choices."
-* **.NET Best Practices**: "I have followed .NET best practices for async, DI, and error handling."
-
-### Financial Domain Validation
-
-* **Monetary Precision**: "I have used `decimal` types and proper rounding for financial calculations."
-* **Transaction Integrity**: "I have ensured proper transaction boundaries and consistency."
-* **Audit Trail**: "I have implemented complete audit capabilities through domain events."
-* **Compliance**: "I have addressed PCI-DSS, SOX, and LGPD requirements."
-
-**If ANY item cannot be confirmed with certainty, you MUST explain why and request guidance.**
-
-### Monetary Values
-
-* Use `decimal` type for all monetary calculations.
-* Implement currency-aware value objects.
-* Handle rounding according to financial standards.
-* Maintain precision throughout calculation chains.
-
-### Transaction Processing
-
-* Implement proper saga patterns for distributed transactions.
-* Use domain events for eventual consistency.
-* Maintain strong consistency within aggregate boundaries.
-* Implement compensation patterns for rollback scenarios.
-
-### Audit and Compliance
-
-* Capture all financial operations as domain events.
-* Implement immutable audit trails.
-* Design aggregates to support regulatory reporting.
-* Maintain data lineage for compliance audits.
-
-### Financial Calculations
-
-* Encapsulate calculation logic in domain services.
-* Implement proper validation for financial rules.
-* Use specifications for complex business criteria.
-* Maintain calculation history for audit purposes.
-
-### Platform Integration
-
-* Use system standard DDD libraries and frameworks.
-* Implement proper bounded context integration.
-* Maintain backward compatibility in public contracts.
-* Use domain events for cross-context communication.
-
-**Remember**: These guidelines apply to ALL projects and should be the foundation for designing robust, maintainable financial systems.
-
-## CRITICAL REMINDERS
-
-**YOU MUST ALWAYS:**
-
-* Show your thinking process before implementing.
-* Explicitly validate against these guidelines.
-* Use the mandatory verification statements.
-* Follow the `MethodName_Condition_ExpectedResult()` test naming pattern.
-* Confirm financial domain considerations are addressed.
-* Stop and ask for clarification if any guideline is unclear.
-
-**FAILURE TO FOLLOW THIS PROCESS IS UNACCEPTABLE** - The user expects rigorous adherence to these guidelines and code standards.
+### Security
+- Authorization checks use `CurrentUser` and `RoleHierarchy` — no hardcoded role strings.
+- Collection-scoped operations check `ICollectionAuthorizationService` before entity access.
+- No secrets hardcoded — use configuration/environment variables.

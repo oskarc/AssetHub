@@ -4,6 +4,12 @@ description: "Use when implementing authorization checks, role-based access cont
 ---
 # Security & Authorization Conventions
 
+## Reference files — read before editing
+- `src/AssetHub.Application/CurrentUser.cs` — scoped identity accessor
+- `src/AssetHub.Application/RoleHierarchy.cs` — role level predicates (`CanUpload`, `CanDelete`, `HasSufficientLevel`)
+- `src/AssetHub.Infrastructure/Services/CollectionAuthorizationService.cs` — per-collection RBAC checks
+- `src/AssetHub.Api/Extensions/AuthenticationExtensions.cs` — auth scheme and policy configuration
+
 ## CurrentUser — The Only Way to Access Identity
 
 Inject `CurrentUser` (scoped service) — never access `HttpContext.User` or `ClaimsPrincipal` directly in services:

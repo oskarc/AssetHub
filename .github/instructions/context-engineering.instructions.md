@@ -1,44 +1,54 @@
 ---
-description: 'Guidelines for structuring code and projects to maximize GitHub Copilot effectiveness through better context management'
+description: 'AssetHub task-to-file maps — which files to read before working on a given area'
 applyTo: '**'
 ---
+# Context Maps — AssetHub
 
-# Context Engineering
+Before starting work in any area, read the files listed below to understand existing patterns.
 
-Principles for helping GitHub Copilot understand your codebase and provide better suggestions.
+## Authentication & Authorization
+- `src/AssetHub.Application/CurrentUser.cs`
+- `src/AssetHub.Application/RoleHierarchy.cs`
+- `src/AssetHub.Api/Extensions/AuthenticationExtensions.cs`
+- `src/AssetHub.Infrastructure/Services/CollectionAuthorizationService.cs`
 
-## Project Structure
+## Adding an API endpoint
+- An existing endpoint in `src/AssetHub.Api/Endpoints/` (e.g., `AssetEndpoints.cs`)
+- `src/AssetHub.Api/Extensions/WebApplicationExtensions.cs` (registration)
+- `src/AssetHub.Api/Extensions/ServiceResultExtensions.cs` (result mapping)
+- `src/AssetHub.Api/Filters/ValidationFilter.cs`
 
-- **Use descriptive file paths**: `src/auth/middleware.ts` > `src/utils/m.ts`. Copilot uses paths to infer intent.
-- **Colocate related code**: Keep components, tests, types, and hooks together. One search pattern should find everything related.
-- **Export public APIs from index files**: What's exported is the contract; what's not is internal. This helps Copilot understand boundaries.
+## Adding a service or repository
+- An existing service pair (e.g., `AssetService.cs` + `AssetQueryService.cs`)
+- `src/AssetHub.Infrastructure/DependencyInjection/InfrastructureServiceExtensions.cs`
+- `src/AssetHub.Application/ServiceResult.cs`
 
-## Code Patterns
+## Caching
+- `src/AssetHub.Application/CacheKeys.cs`
+- An existing repo using `HybridCache` (e.g., `CollectionRepository.cs`)
 
-- **Prefer explicit types over inference**: Type annotations are context. `function getUser(id: string): Promise<User>` tells Copilot more than `function getUser(id)`.
-- **Use semantic names**: `activeAdultUsers` > `x`. Self-documenting code is AI-readable code.
-- **Define constants**: `MAX_RETRY_ATTEMPTS = 3` > magic number `3`. Named values carry meaning.
+## Blazor UI
+- An existing page in `src/AssetHub.Ui/Pages/` for layout patterns
+- `src/AssetHub.Ui/Services/AssetHubApiClient.cs`
+- `src/AssetHub.Ui/Resources/ResourceMarkers.cs`
+- The matching `.resx` + `.sv.resx` resource files
 
-## Working with Copilot
+## Database changes
+- `src/AssetHub.Infrastructure/Data/AssetHubDbContext.cs` (entity config)
+- `src/AssetHub.Domain/Entities/` (entity definitions)
+- Use the `migration` agent for generating migrations
 
-- **Keep relevant files open in tabs**: Copilot uses open tabs as context signals. Working on auth? Open auth-related files.
-- **Position cursor intentionally**: Copilot prioritizes code near your cursor. Put cursor where context matters.
-- **Use Copilot Chat for complex tasks**: Inline completions have minimal context. Chat mode sees more files.
+## Worker / background jobs
+- An existing handler in `src/AssetHub.Worker/Handlers/`
+- `src/AssetHub.Application/Messages/` (commands and events)
+- `src/AssetHub.Worker/Program.cs` (Wolverine + RabbitMQ config)
 
-## Context Hints
+## Tests
+- `tests/AssetHub.Tests/Fixtures/` (PostgresFixture, CustomWebApplicationFactory, TestAuthHandler)
+- `tests/AssetHub.Tests/Helpers/TestData.cs`
+- An existing test class in the same domain area
 
-- **Add a COPILOT.md file**: Document architecture decisions, patterns, and conventions Copilot should follow.
-- **Use strategic comments**: At the top of complex modules, briefly describe the flow or purpose.
-- **Reference patterns explicitly**: "Follow the same pattern as `src/api/users.ts`" gives Copilot a concrete example.
-
-## Multi-File Changes
-
-- **Describe scope first**: Tell Copilot all files involved before asking for changes. "I need to update the User model, API endpoint, and tests."
-- **Work incrementally**: One file at a time, verifying each change. Don't ask for everything at once.
-- **Check understanding**: Ask "What files would you need to see?" before complex refactors.
-
-## When Copilot Struggles
-
-- **Missing context**: Open the relevant files in tabs, or explicitly paste code snippets.
-- **Stale suggestions**: Copilot may not see recent changes. Re-open files or restart the session.
-- **Generic answers**: Be more specific. Add constraints, mention frameworks, reference existing code.
+## Configuration
+- `src/AssetHub.Application/Configuration/` (settings classes)
+- `src/AssetHub.Api/appsettings.json` + `appsettings.Development.json`
+- `src/AssetHub.Api/Extensions/ServiceCollectionExtensions.cs` (options registration)

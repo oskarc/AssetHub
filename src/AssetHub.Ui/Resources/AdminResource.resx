@@ -66,6 +66,7 @@
   <data name="Event_asset.downloaded" xml:space="preserve"><value>Asset Downloaded</value></data>
   <data name="Event_asset.processing_failed" xml:space="preserve"><value>Processing Failed</value></data>
   <data name="Event_asset.image_saved_as_copy" xml:space="preserve"><value>Image Saved as Copy</value></data>
+  <data name="Event_asset.image_replaced" xml:space="preserve"><value>Image Replaced</value></data>
   <data name="Event_collection.created" xml:space="preserve"><value>Collection Created</value></data>
   <data name="Event_collection.updated" xml:space="preserve"><value>Collection Updated</value></data>
   <data name="Event_collection.deleted" xml:space="preserve"><value>Collection Deleted</value></data>
@@ -128,6 +129,7 @@
   <!-- Audit Action Categories -->
   <data name="AuditAction_Download" xml:space="preserve"><value>Download</value></data>
   <data name="AuditAction_Security" xml:space="preserve"><value>Security</value></data>
+  <data name="AuditAction_Edit" xml:space="preserve"><value>Edit</value></data>
 
   <!-- Share Management -->
   <data name="AllSharedLinks" xml:space="preserve"><value>All Shared Links</value></data>
@@ -242,4 +244,151 @@
   <data name="NoMatchingUsersDesc" xml:space="preserve"><value>Try adjusting your search or filter criteria.</value></data>
   <data name="NoMatchingAuditEvents" xml:space="preserve"><value>No audit events match your filters</value></data>
   <data name="NoMatchingAuditEventsDesc" xml:space="preserve"><value>Try adjusting your search or filter criteria.</value></data>
+
+  <!-- Export Presets -->
+  <data name="Tab_ExportPresets" xml:space="preserve"><value>Export Presets</value></data>
+  <data name="ExportPresets_Title" xml:space="preserve"><value>Export Presets</value></data>
+  <data name="ExportPresets_Desc" xml:space="preserve"><value>Manage export presets that define how image derivatives are generated (dimensions, format, quality).</value></data>
+  <data name="ExportPresets_NoPresetsYet" xml:space="preserve"><value>No export presets yet</value></data>
+  <data name="ExportPresets_NoPresetsDesc" xml:space="preserve"><value>Create export presets to define output formats for image derivatives. Users can select presets when saving edited images.</value></data>
+  <data name="ExportPresets_CreatePreset" xml:space="preserve"><value>Create Preset</value></data>
+  <data name="ExportPresets_EditPreset" xml:space="preserve"><value>Edit Preset</value></data>
+  <data name="ExportPresets_DeletePreset" xml:space="preserve"><value>Delete Preset</value></data>
+  <data name="ExportPresets_ConfirmDelete" xml:space="preserve"><value>Are you sure you want to delete the export preset "{0}"? This action cannot be undone.</value></data>
+  <data name="ExportPresets_DeletedSuccess" xml:space="preserve"><value>Export preset "{0}" deleted</value></data>
+  <data name="ExportPresets_CreatedSuccess" xml:space="preserve"><value>Export preset "{0}" created</value></data>
+  <data name="ExportPresets_UpdatedSuccess" xml:space="preserve"><value>Export preset "{0}" updated</value></data>
+  <data name="ExportPresets_Header_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="ExportPresets_Header_Dimensions" xml:space="preserve"><value>Dimensions</value></data>
+  <data name="ExportPresets_Header_FitMode" xml:space="preserve"><value>Fit Mode</value></data>
+  <data name="ExportPresets_Header_Format" xml:space="preserve"><value>Format</value></data>
+  <data name="ExportPresets_Header_Quality" xml:space="preserve"><value>Quality</value></data>
+  <data name="ExportPresets_Header_Created" xml:space="preserve"><value>Created</value></data>
+  <data name="ExportPresets_Label_Name" xml:space="preserve"><value>Preset Name</value></data>
+  <data name="ExportPresets_Label_Width" xml:space="preserve"><value>Width (px)</value></data>
+  <data name="ExportPresets_Label_Height" xml:space="preserve"><value>Height (px)</value></data>
+  <data name="ExportPresets_Label_FitMode" xml:space="preserve"><value>Fit Mode</value></data>
+  <data name="ExportPresets_Label_Format" xml:space="preserve"><value>Output Format</value></data>
+  <data name="ExportPresets_Label_Quality" xml:space="preserve"><value>Quality</value></data>
+  <data name="ExportPresets_DimensionsAny" xml:space="preserve"><value>Any</value></data>
+  <data name="ExportPresets_FitMode_Contain" xml:space="preserve"><value>Contain</value></data>
+  <data name="ExportPresets_FitMode_Cover" xml:space="preserve"><value>Cover</value></data>
+  <data name="ExportPresets_FitMode_Stretch" xml:space="preserve"><value>Stretch</value></data>
+  <data name="ExportPresets_FitMode_Width" xml:space="preserve"><value>Fit to Width</value></data>
+  <data name="ExportPresets_FitMode_Height" xml:space="preserve"><value>Fit to Height</value></data>
+  <data name="ExportPresets_WidthOrHeightRequired" xml:space="preserve"><value>At least one dimension (width or height) must be specified.</value></data>
+
+  <!-- Audit Events: Export Presets & Image Editing -->
+  <data name="Event_exportpreset.created" xml:space="preserve"><value>Export Preset Created</value></data>
+  <data name="Event_exportpreset.updated" xml:space="preserve"><value>Export Preset Updated</value></data>
+  <data name="Event_exportpreset.deleted" xml:space="preserve"><value>Export Preset Deleted</value></data>
+  <data name="Event_asset.edited" xml:space="preserve"><value>Image Edited</value></data>
+  <data name="Event_asset.replaced_via_edit" xml:space="preserve"><value>Image Replaced via Edit</value></data>
+  <data name="Event_asset.copy_created_via_edit" xml:space="preserve"><value>Image Copy Created via Edit</value></data>
+  <data name="Event_asset.exported_with_preset" xml:space="preserve"><value>Image Exported with Preset</value></data>
+
+  <!-- Migrations -->
+  <data name="Tab_Migrations" xml:space="preserve"><value>Bulk Import</value></data>
+  <data name="Migration_Title" xml:space="preserve"><value>Bulk Import Migrations</value></data>
+  <data name="Migration_CreateNew" xml:space="preserve"><value>New Migration</value></data>
+  <data name="Migration_Empty" xml:space="preserve"><value>No migrations yet. Create one to import assets in bulk.</value></data>
+  <data name="Migration_Detail" xml:space="preserve"><value>Migration Details</value></data>
+  <data name="Migration_NotFound" xml:space="preserve"><value>Migration not found.</value></data>
+  <data name="Migration_ColName" xml:space="preserve"><value>Name</value></data>
+  <data name="Migration_ColStatus" xml:space="preserve"><value>Status</value></data>
+  <data name="Migration_ColProgress" xml:space="preserve"><value>Progress</value></data>
+  <data name="Migration_ColCreated" xml:space="preserve"><value>Created</value></data>
+  <data name="Migration_Start" xml:space="preserve"><value>Start</value></data>
+  <data name="Migration_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Migration_Retry" xml:space="preserve"><value>Retry Failed</value></data>
+  <data name="Migration_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Migration_DownloadOutcome" xml:space="preserve"><value>Download Outcome CSV</value></data>
+  <data name="Migration_Label_Name" xml:space="preserve"><value>Migration Name</value></data>
+  <data name="Migration_Label_NameHelper" xml:space="preserve"><value>A descriptive name for this import batch.</value></data>
+  <data name="Migration_Label_DefaultCollection" xml:space="preserve"><value>Default Collection</value></data>
+  <data name="Migration_Label_DefaultCollectionHelper" xml:space="preserve"><value>All imported assets will be added to this collection. Assets can also be assigned to additional collections per row via the collection_names CSV column.</value></data>
+  <data name="Migration_CollectionMode_Existing" xml:space="preserve"><value>Existing</value></data>
+  <data name="Migration_CollectionMode_New" xml:space="preserve"><value>Create New</value></data>
+  <data name="Migration_Label_NewCollectionName" xml:space="preserve"><value>New Collection Name</value></data>
+  <data name="Migration_Label_NewCollectionNameHelper" xml:space="preserve"><value>A new collection will be created with this name. If a collection with this name already exists, it will be reused.</value></data>
+  <data name="Migration_Label_DryRun" xml:space="preserve"><value>Dry Run</value></data>
+  <data name="Migration_Label_DryRunHelper" xml:space="preserve"><value>When enabled, the migration validates data without creating assets.</value></data>
+  <data name="Migration_CreatedSuccess" xml:space="preserve"><value>Migration "{0}" created.</value></data>
+  <data name="Migration_ConfirmStartTitle" xml:space="preserve"><value>Start Migration</value></data>
+  <data name="Migration_ConfirmStartMessage" xml:space="preserve"><value>Are you sure you want to start processing this migration? This will begin importing all items.</value></data>
+  <data name="Migration_StartedSuccess" xml:space="preserve"><value>Migration started.</value></data>
+  <data name="Migration_ConfirmCancelTitle" xml:space="preserve"><value>Cancel Migration</value></data>
+  <data name="Migration_ConfirmCancelMessage" xml:space="preserve"><value>Are you sure you want to cancel this migration? Items already processed will be kept.</value></data>
+  <data name="Migration_CancelledSuccess" xml:space="preserve"><value>Migration cancelled.</value></data>
+  <data name="Migration_RetryStartedSuccess" xml:space="preserve"><value>Retry started for failed items.</value></data>
+  <data name="Migration_ConfirmDeleteTitle" xml:space="preserve"><value>Delete Migration</value></data>
+  <data name="Migration_ConfirmDeleteMessage" xml:space="preserve"><value>Are you sure you want to permanently delete this migration? This cannot be undone.</value></data>
+  <data name="Migration_BulkDelete" xml:space="preserve"><value>Bulk Delete</value></data>
+  <data name="Migration_BulkDelete_Completed" xml:space="preserve"><value>Completed migrations</value></data>
+  <data name="Migration_BulkDelete_Draft" xml:space="preserve"><value>Draft migrations</value></data>
+  <data name="Migration_BulkDelete_All" xml:space="preserve"><value>All migrations</value></data>
+  <data name="Migration_ConfirmBulkDeleteTitle" xml:space="preserve"><value>Bulk Delete Migrations</value></data>
+  <data name="Migration_ConfirmBulkDeleteMessage" xml:space="preserve"><value>Are you sure you want to permanently delete all {0}? Running migrations will not be affected.</value></data>
+  <data name="Migration_BulkDeleteSuccess" xml:space="preserve"><value>{0} migration(s) deleted.</value></data>
+  <data name="Migration_OutcomeDownloaded" xml:space="preserve"><value>Outcome CSV downloaded.</value></data>
+  <data name="Migration_UploadManifest" xml:space="preserve"><value>CSV Manifest</value></data>
+  <data name="Migration_SelectCsvFile" xml:space="preserve"><value>Select CSV File</value></data>
+  <data name="Migration_ManifestUploaded" xml:space="preserve"><value>Manifest uploaded and items created.</value></data>
+  <data name="Migration_ManifestHelp_Intro" xml:space="preserve"><value>Create a UTF-8 encoded CSV file. The first row must contain column headers. Each subsequent row represents one asset to import.</value></data>
+  <data name="Migration_ManifestHelp_RequiredHeader" xml:space="preserve"><value>Required column:</value></data>
+  <data name="Migration_ManifestHelp_Filename" xml:space="preserve"><value>Name of the asset file (must match the uploaded file exactly).</value></data>
+  <data name="Migration_ManifestHelp_OptionalHeader" xml:space="preserve"><value>Optional columns:</value></data>
+  <data name="Migration_ManifestHelp_ExternalId" xml:space="preserve"><value>Unique identifier from the source system. Defaults to filename if omitted.</value></data>
+  <data name="Migration_ManifestHelp_TitleCol" xml:space="preserve"><value>Display title for the asset. Defaults to filename without extension.</value></data>
+  <data name="Migration_ManifestHelp_Description" xml:space="preserve"><value>Free-text description of the asset.</value></data>
+  <data name="Migration_ManifestHelp_Copyright" xml:space="preserve"><value>Copyright or license information.</value></data>
+  <data name="Migration_ManifestHelp_Tags" xml:space="preserve"><value>Semicolon-separated tags, e.g. "nature;landscape;summer".</value></data>
+  <data name="Migration_ManifestHelp_Collections" xml:space="preserve"><value>Semicolon-separated collection names to assign the asset to, in addition to the default collection chosen above. Collections are matched by name and created if they don't exist.</value></data>
+  <data name="Migration_ManifestHelp_Sha256" xml:space="preserve"><value>Pre-computed SHA-256 hash for duplicate detection.</value></data>
+  <data name="Migration_ManifestHelp_Metadata" xml:space="preserve"><value>Custom metadata. Use "metadata." prefix, e.g. "metadata.photographer" becomes a metadata field named "photographer".</value></data>
+  <data name="Migration_ManifestHelp_ExampleHeader" xml:space="preserve"><value>Example:</value></data>
+  <data name="Migration_ManifestHelp_Example" xml:space="preserve"><value>filename,title,tags,collection_names
+photo1.jpg,Sunset Beach,"nature;sunset",Landscapes
+logo.png,Company Logo,branding,"Brand Assets;Marketing"</value></data>
+  <data name="Migration_UploadFiles" xml:space="preserve"><value>Upload Asset Files</value></data>
+  <data name="Migration_UploadFilesHelper" xml:space="preserve"><value>Upload the actual asset files referenced in the manifest. Filenames must match the "filename" column.</value></data>
+  <data name="Migration_SelectFiles" xml:space="preserve"><value>Select Files</value></data>
+  <data name="Migration_FilesUploaded" xml:space="preserve"><value>{0} file(s) uploaded to staging.</value></data>
+  <data name="Migration_Items" xml:space="preserve"><value>Items</value></data>
+  <data name="Migration_NoItems" xml:space="preserve"><value>No items match the current filter.</value></data>
+  <data name="Migration_FilterByStatus" xml:space="preserve"><value>Filter by Status</value></data>
+  <data name="Migration_Total" xml:space="preserve"><value>Total</value></data>
+  <data name="Migration_ItemCol_FileName" xml:space="preserve"><value>File Name</value></data>
+  <data name="Migration_ItemCol_Staged" xml:space="preserve"><value>Staged</value></data>
+  <data name="Migration_ItemCol_Error" xml:space="preserve"><value>Error</value></data>
+  <data name="Migration_FilesStaged" xml:space="preserve"><value>{0} of {1} files staged</value></data>
+  <data name="Migration_FileStaged_Yes" xml:space="preserve"><value>File uploaded</value></data>
+  <data name="Migration_FileStaged_No" xml:space="preserve"><value>File not uploaded</value></data>
+  <data name="Migration_UnstageFile" xml:space="preserve"><value>Remove staged file</value></data>
+  <data name="Migration_FileUnstaged" xml:space="preserve"><value>File removed from staging</value></data>
+  <data name="Migration_StartTooltip" xml:space="preserve"><value>Start migration ({0} of {1} files ready)</value></data>
+  <data name="Migration_Staged" xml:space="preserve"><value>staged</value></data>
+  <data name="Migration_Status_Draft" xml:space="preserve"><value>Draft</value></data>
+  <data name="Migration_Status_Validating" xml:space="preserve"><value>Validating</value></data>
+  <data name="Migration_Status_Running" xml:space="preserve"><value>Running</value></data>
+  <data name="Migration_Status_Completed" xml:space="preserve"><value>Completed</value></data>
+  <data name="Migration_Status_PartiallyCompleted" xml:space="preserve"><value>Partially Completed</value></data>
+  <data name="Migration_Status_CompletedWithErrors" xml:space="preserve"><value>Completed with Errors</value></data>
+  <data name="Migration_Status_Failed" xml:space="preserve"><value>Failed</value></data>
+  <data name="Migration_Status_Cancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="Migration_ItemStatus_Pending" xml:space="preserve"><value>Pending</value></data>
+  <data name="Migration_ItemStatus_Processing" xml:space="preserve"><value>Processing</value></data>
+  <data name="Migration_ItemStatus_Succeeded" xml:space="preserve"><value>Succeeded</value></data>
+  <data name="Migration_ItemStatus_Failed" xml:space="preserve"><value>Failed</value></data>
+  <data name="Migration_ItemStatus_Skipped" xml:space="preserve"><value>Skipped</value></data>
+  <data name="Migration_Instructions_Title" xml:space="preserve"><value>CSV Format Instructions</value></data>
+  <data name="Migration_FilesCountMismatch" xml:space="preserve"><value>You have uploaded {0} file(s) but the manifest contains {1} item(s). Make sure all files referenced in the manifest are uploaded before starting.</value></data>
+
+  <!-- Audit Events: Migrations -->
+  <data name="Event_migration.created" xml:space="preserve"><value>Migration Created</value></data>
+  <data name="Event_migration.started" xml:space="preserve"><value>Migration Started</value></data>
+  <data name="Event_migration.cancelled" xml:space="preserve"><value>Migration Cancelled</value></data>
+  <data name="Event_migration.deleted" xml:space="preserve"><value>Migration Deleted</value></data>
+  <data name="Event_migration.retried" xml:space="preserve"><value>Migration Retried</value></data>
+  <data name="Event_migration.bulk_deleted" xml:space="preserve"><value>Migrations Bulk Deleted</value></data>
 </root>

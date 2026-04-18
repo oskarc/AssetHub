@@ -42,6 +42,7 @@ public static class Constants
         public const string Collection = "collection";
         public const string Share = "share";
         public const string User = "user";
+        public const string Migration = "migration";
     }
 
     /// <summary>

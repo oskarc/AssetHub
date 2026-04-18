@@ -28,8 +28,14 @@
         <MudTabPanel Text="@AdminLoc["Tab_UserManagement"]" Icon="@Icons.Material.Filled.ManageAccounts">
             <AdminUsersTab OnChanged="OnUsersChanged" />
         </MudTabPanel>
+        <MudTabPanel Text="@AdminLoc["Tab_ExportPresets"]" Icon="@Icons.Material.Filled.Tune">
+            <AdminExportPresetsTab />
+        </MudTabPanel>
         <MudTabPanel Text="@AdminLoc["Tab_AuditLog"]" Icon="@Icons.Material.Filled.History">
             <AdminAuditTab />
+        </MudTabPanel>
+        <MudTabPanel Text="@AdminLoc["Tab_Migrations"]" Icon="@Icons.Material.Filled.CloudUpload">
+            <AdminMigrationsTab />
         </MudTabPanel>
     </MudTabs>
 </MudContainer>
@@ -42,7 +48,7 @@
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("tab", out var tabValue)
-            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 3)
+            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 5)
             _activeTabIndex = tab;
     }
 

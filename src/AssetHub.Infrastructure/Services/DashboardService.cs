@@ -126,7 +126,7 @@ public sealed class DashboardService(
         var topCollections = collectionList.Take(QuickAccessCollectionsLimit).ToList();
         var collectionIds = topCollections.Select(c => c.Id).ToList();
         var assetCounts = await collectionRepo.GetAssetCountsAsync(collectionIds, ct);
-        var dtos = await CollectionMapper.ToDtoListAsync(topCollections, userId, _authService, assetCounts, ct);
+        var dtos = await CollectionMapper.ToDtoListAsync(topCollections, userId, authService, assetCounts, ct);
 
         var latestUpdates = await queryService.GetLatestUpdatesByCollectionAsync(collectionIds, ct);
 

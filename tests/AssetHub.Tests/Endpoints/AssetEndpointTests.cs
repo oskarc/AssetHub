@@ -517,7 +517,7 @@ public class AssetEndpointTests : IAsyncLifetime
     [Fact]
     public async Task InitUpload_NonExistentCollection_Returns403Or404()
     {
-        var client = AdminClient();
+        var client = ViewerClient();
         var request = new InitUploadRequest
         {
             CollectionId = Guid.NewGuid(),

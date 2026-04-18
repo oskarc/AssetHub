@@ -23,6 +23,13 @@ public class CollectionRepository(
         return await query.FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
+    public async Task<Collection?> GetByNameAsync(string name, CancellationToken ct = default)
+    {
+        return await dbContext.Collections
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower(), ct);
+    }
+
     public async Task<IEnumerable<Collection>> GetRootCollectionsAsync(CancellationToken ct = default)
     {
         return await dbContext.Collections
@@ -106,7 +113,7 @@ public class CollectionRepository(
     {
         return await dbContext.Collections
             .Where(c => c.Name.ToLower() == name.ToLower())
-            .Where(c => excludeId is null || c.Id != excludeId.Value)
+            .Where(c => !excludeId.HasValue || c.Id != excludeId.Value)
             .AnyAsync(ct);
     }
 

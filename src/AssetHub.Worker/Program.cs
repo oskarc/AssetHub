@@ -41,6 +41,9 @@ static class Program
                 opts.ListenToRabbitQueue("process-image");
                 opts.ListenToRabbitQueue("process-video");
                 opts.ListenToRabbitQueue("build-zip");
+                opts.ListenToRabbitQueue("apply-export-presets");
+                opts.ListenToRabbitQueue("start-migration");
+                opts.ListenToRabbitQueue("process-migration-item");
 
                 // Route events back to API
                 opts.PublishMessage<AssetProcessingCompletedEvent>()

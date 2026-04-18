@@ -384,6 +384,48 @@ public class AssetHubApiClient
     }
 
     /// <summary>
+    /// Optional parameters for <see cref="AssetHubApiClient.ApplyEditAsync"/>.
+    /// </summary>
+    public record ImageEditOptions(
+        string? Title = null,
+        string? EditDocument = null,
+        Guid? DestinationCollectionId = null,
+        Guid[]? PresetIds = null);
+
+    /// <summary>
+    /// Apply an image edit by uploading a rendered PNG and edit metadata via multipart form.
+    /// </summary>
+    public virtual async Task<ImageEditResultDto> ApplyEditAsync(
+        Guid assetId, Stream renderedPng, string fileName, ImageEditSaveMode saveMode,
+        ImageEditOptions? options = null, CancellationToken ct = default)
+    {
+        options ??= new ImageEditOptions();
+
+        using var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(renderedPng), "file", fileName);
+        content.Add(new StringContent(saveMode.ToString()), "SaveMode");
+
+        if (!string.IsNullOrEmpty(options.Title))
+            content.Add(new StringContent(options.Title), "Title");
+
+        if (!string.IsNullOrEmpty(options.EditDocument))
+            content.Add(new StringContent(options.EditDocument), "EditDocument");
+
+        if (options.DestinationCollectionId.HasValue)
+            content.Add(new StringContent(options.DestinationCollectionId.Value.ToString()), "DestinationCollectionId");
+
+        if (options.PresetIds is { Length: > 0 })
+        {
+            foreach (var pid in options.PresetIds)
+                content.Add(new StringContent(pid.ToString()), "PresetIds");
+        }
+
+        var response = await _http.PostAsync($"/api/v1/assets/{assetId}/edit", content, ct);
+        await EnsureSuccessAsync(response, "Apply image edit");
+        return await ReadRequiredJsonAsync<ImageEditResultDto>(response, "Apply image edit");
+    }
+
+    /// <summary>
     /// Deletes an asset. When fromCollectionId is set the asset is removed from that
     /// collection (and auto-deleted by the backend when orphaned). Without fromCollectionId
     /// a full permanent delete is performed.
@@ -775,6 +817,173 @@ public class AssetHubApiClient
         return await response.Content.ReadFromJsonAsync<AuditQueryResponse>(ct) ?? new();
     }
 
+    /// <summary>
+    /// Gets all export presets (available to all authenticated users).
+    /// </summary>
+    public virtual async Task<List<ExportPresetDto>> GetExportPresetsAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/export-presets", ct);
+        await EnsureSuccessAsync(response, "Get export presets");
+        return await response.Content.ReadFromJsonAsync<List<ExportPresetDto>>(ct) ?? new();
+    }
+
+    /// <summary>
+    /// Gets a single export preset by ID (admin only).
+    /// </summary>
+    public virtual async Task<ExportPresetDto?> GetExportPresetAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/admin/export-presets/{id}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+        await EnsureSuccessAsync(response, "Get export preset");
+        return await response.Content.ReadFromJsonAsync<ExportPresetDto>(ct);
+    }
+
+    /// <summary>
+    /// Creates a new export preset (admin only).
+    /// </summary>
+    public virtual async Task<ExportPresetDto> CreateExportPresetAsync(CreateExportPresetDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/export-presets", dto, ct);
+        await EnsureSuccessAsync(response, "Create export preset");
+        return await ReadRequiredJsonAsync<ExportPresetDto>(response, "Create export preset");
+    }
+
+    /// <summary>
+    /// Updates an existing export preset (admin only).
+    /// </summary>
+    public virtual async Task UpdateExportPresetAsync(Guid id, UpdateExportPresetDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/export-presets/{id}", dto, ct);
+        await EnsureSuccessAsync(response, "Update export preset");
+    }
+
+    /// <summary>
+    /// Deletes an export preset (admin only).
+    /// </summary>
+    public virtual async Task DeleteExportPresetAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/export-presets/{id}", ct);
+        await EnsureSuccessAsync(response, "Delete export preset");
+    }
+
+    #endregion
+
+    #region Migrations (Admin)
+
+    public virtual async Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/admin/migrations?skip={skip}&take={take}", ct);
+        await EnsureSuccessAsync(response, "Get migrations");
+        return await response.Content.ReadFromJsonAsync<MigrationListResponse>(ct)
+            ?? new() { Migrations = [], TotalCount = 0 };
+    }
+
+    public virtual async Task<MigrationResponseDto> GetMigrationAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/admin/migrations/{id}", ct);
+        await EnsureSuccessAsync(response, "Get migration");
+        return await response.Content.ReadFromJsonAsync<MigrationResponseDto>(ct)
+            ?? throw new ApiException("Failed to deserialize migration", System.Net.HttpStatusCode.InternalServerError);
+    }
+
+    public virtual async Task<MigrationResponseDto> CreateMigrationAsync(CreateMigrationDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/migrations", dto, ct);
+        await EnsureSuccessAsync(response, "Create migration");
+        return await response.Content.ReadFromJsonAsync<MigrationResponseDto>(ct)
+            ?? throw new ApiException("Failed to deserialize migration", System.Net.HttpStatusCode.InternalServerError);
+    }
+
+    public virtual async Task UploadMigrationManifestAsync(Guid id, Stream csvStream, string fileName, CancellationToken ct = default)
+    {
+        using var content = new MultipartFormDataContent();
+        var streamContent = new StreamContent(csvStream);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+        content.Add(streamContent, "file", fileName);
+
+        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/manifest", content, ct);
+        await EnsureSuccessAsync(response, "Upload migration manifest");
+    }
+
+    public virtual async Task UploadMigrationFilesAsync(Guid id, IEnumerable<(string FileName, Stream Stream, string ContentType)> files, CancellationToken ct = default)
+    {
+        using var content = new MultipartFormDataContent();
+        foreach (var (fileName, stream, contentType) in files)
+        {
+            var streamContent = new StreamContent(stream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            content.Add(streamContent, "files", fileName);
+        }
+
+        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/files", content, ct);
+        await EnsureSuccessAsync(response, "Upload migration files");
+    }
+
+    public virtual async Task StartMigrationAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/start", null, ct);
+        await EnsureSuccessAsync(response, "Start migration");
+    }
+
+    public virtual async Task CancelMigrationAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/cancel", null, ct);
+        await EnsureSuccessAsync(response, "Cancel migration");
+    }
+
+    public virtual async Task RetryFailedMigrationAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/retry", null, ct);
+        await EnsureSuccessAsync(response, "Retry failed migration items");
+    }
+
+    public virtual async Task<MigrationProgressDto> GetMigrationProgressAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/admin/migrations/{id}/progress", ct);
+        await EnsureSuccessAsync(response, "Get migration progress");
+        return await response.Content.ReadFromJsonAsync<MigrationProgressDto>(ct)
+            ?? throw new ApiException("Failed to deserialize migration progress", System.Net.HttpStatusCode.InternalServerError);
+    }
+
+    public virtual async Task<MigrationItemListResponse> GetMigrationItemsAsync(Guid id, string? statusFilter = null, int skip = 0, int take = 50, CancellationToken ct = default)
+    {
+        var url = $"/api/v1/admin/migrations/{id}/items?skip={skip}&take={take}";
+        if (!string.IsNullOrEmpty(statusFilter))
+            url += $"&status={statusFilter}";
+
+        var response = await _http.GetAsync(url, ct);
+        await EnsureSuccessAsync(response, "Get migration items");
+        return await response.Content.ReadFromJsonAsync<MigrationItemListResponse>(ct)
+            ?? new() { Items = [], TotalCount = 0 };
+    }
+
+    public virtual async Task DeleteMigrationAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/migrations/{id}", ct);
+        await EnsureSuccessAsync(response, "Delete migration");
+    }
+
+    public virtual async Task<Stream> DownloadMigrationOutcomeAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/admin/migrations/{id}/outcome.csv", ct);
+        await EnsureSuccessAsync(response, "Download migration outcome");
+        return await response.Content.ReadAsStreamAsync(ct);
+    }
+
+    public virtual async Task UnstageMigrationItemAsync(Guid migrationId, Guid itemId, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/migrations/{migrationId}/items/{itemId}/unstage", ct);
+        await EnsureSuccessAsync(response, "Unstage migration item");
+    }
+
+    public virtual async Task<int> BulkDeleteMigrationsAsync(string filter, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/migrations/bulk?filter={Uri.EscapeDataString(filter)}", ct);
+        await EnsureSuccessAsync(response, "Bulk delete migrations");
+        return await response.Content.ReadFromJsonAsync<int>(ct);
+    }
+
     #endregion
 
     #region Asset Collections (Multi-Collection)
@@ -787,6 +996,16 @@ public class AssetHubApiClient
         var response = await _http.GetAsync($"/api/v1/assets/{assetId}/collections", ct);
         await EnsureSuccessAsync(response, "Get asset collections");
         return await response.Content.ReadFromJsonAsync<List<AssetCollectionDto>>(ct) ?? new();
+    }
+
+    /// <summary>
+    /// Gets derivative assets created from a source asset via image editing.
+    /// </summary>
+    public virtual async Task<List<AssetDerivativeDto>> GetAssetDerivativesAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/derivatives", ct);
+        await EnsureSuccessAsync(response, "Get asset derivatives");
+        return await response.Content.ReadFromJsonAsync<List<AssetDerivativeDto>>(ct) ?? new();
     }
 
     /// <summary>
