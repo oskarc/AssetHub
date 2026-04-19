@@ -9,7 +9,7 @@ End-to-end quality gate: review → build → test → fix → commit → push. 
 
 ## How to run
 
-Execute phases 1–8 in order. **Stop and fix** when a phase fails — do not skip ahead. After fixing, re-run the failed phase before continuing.
+Execute phases 1–9 in order. **Stop and fix** when a phase fails — do not skip ahead. After fixing, re-run the failed phase before continuing.
 
 ---
 
@@ -126,7 +126,45 @@ dotnet build --configuration Release
 
 ---
 
-## Phase 7: Tests
+## Phase 7: SonarQube analysis
+
+Static analysis of every file changed in this session, via the SonarQube MCP server (see `.github/instructions/sonarqube_mcp.instructions.md`).
+
+### Preparation
+1. Disable automatic analysis if the tool exists: call `toggle_automatic_analysis` (off). If the tool is unavailable, note that and proceed.
+2. Build the **file list** — every path reported by `git status --porcelain` plus any deletions that could leave dangling references. Exclude generated files (`*.Designer.cs`, `*.g.cs`, migration snapshot), binary assets, and `.resx` files (Sonar rules don't apply).
+
+### Run
+3. Call `analyze_file_list` with the file list. If the MCP tool isn't available on this machine, fall back to:
+   - Skip this phase with a clearly-flagged warning in the final summary (`SonarQube analysis: SKIPPED (MCP tool unavailable)`).
+   - Do **not** attempt to run `dotnet sonarscanner` locally unless the user confirms — it needs a server, token, and project key the skill cannot guess.
+
+### Triage findings
+
+Group issues by severity (`BLOCKER` / `CRITICAL` / `MAJOR` / `MINOR` / `INFO`) and by rule. Apply this triage:
+
+- **BLOCKER / CRITICAL** — fix before continuing. These catch real bugs, security flaws, and contract violations.
+- **MAJOR** — fix if the fix is local and contained; flag to the user if the fix would require broader refactoring.
+- **MINOR / INFO** — fix only if trivial. Report the rest so the user can decide.
+- **False positives** — do not mark anything as "won't fix" or silence rules without the user's explicit OK. Report suspected false positives and move on.
+
+### Fix and re-check
+
+4. For every BLOCKER/CRITICAL/fixed-MAJOR:
+   - Read the file, apply the narrowest fix that resolves the rule.
+   - Do **not** re-call `search_sonar_issues_in_projects` afterwards — per the MCP instructions, the server may not reflect updates immediately.
+   - Re-run `analyze_file_list` on just the changed files after fixes — that gives a local re-check.
+5. If fixing Sonar findings added new files, add those to the file list and re-analyze.
+6. After fixing, return to Phase 6 (Build) to confirm the fixes compile, then resume from there.
+
+### Exit
+
+7. Re-enable automatic analysis: call `toggle_automatic_analysis` (on).
+8. Record the final finding counts per severity for the summary section.
+
+---
+
+## Phase 8: Tests
 
 ```powershell
 dotnet test --configuration Release --no-build
@@ -139,11 +177,11 @@ dotnet test --configuration Release --no-build
   3. Fix the root cause (prefer fixing production code if the test expectation is correct).
   4. Re-run `dotnet build --configuration Release` then `dotnet test --configuration Release --no-build`.
   5. Repeat until all tests pass.
-- After fixing, return to Phase 2 for any newly modified files.
+- After fixing, return to Phase 2 for any newly modified files. Any new source edits must also be re-analyzed in Phase 7 before reaching Phase 9.
 
 ---
 
-## Phase 8: Commit & push
+## Phase 9: Commit & push
 
 ### Compose the commit message
 
@@ -190,6 +228,7 @@ git push
 
 Stop the entire flow and report to the user if:
 - Build fails after 3 fix attempts on the same error.
+- SonarQube BLOCKER/CRITICAL findings after 3 fix attempts on the same rule.
 - Tests fail after 3 fix attempts on the same test.
 - A security finding cannot be resolved without architectural changes.
 - Merge conflicts arise during push that require manual resolution.
@@ -202,4 +241,5 @@ After successful push, report:
 - Branch and remote pushed to.
 - Commit hash and message.
 - Count of files changed, insertions, deletions (`git diff --stat HEAD~1`).
+- SonarQube finding counts per severity (or `SKIPPED` with reason if the MCP tool was unavailable).
 - Any warnings or notes from the review phases.
