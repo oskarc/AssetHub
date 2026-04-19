@@ -83,7 +83,10 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Access Control & Sharing**
 - Per-collection RBAC — Viewer, Contributor, Manager, Admin (system admins bypass all ACLs)
 - Password-protected, time-limited share links
-- Admin dashboard with user management, share admin, export preset management, metadata schema and taxonomy management, bulk migrations, and paginated audit log with filterable event types
+- Admin dashboard with user management, share admin, export preset management, metadata schema and taxonomy management, bulk migrations, paginated audit log with filterable event types, and a Trash tab for restoring soft-deleted assets
+
+**Lifecycle**
+- Soft-delete with restore — deleted assets land in Trash with a configurable retention window (default 30 days), then a background worker purges them permanently. An optimistic-undo snackbar in the asset grid and detail page makes single-click recovery the norm
 
 **Security**
 - ClamAV malware scanning on every upload

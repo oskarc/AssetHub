@@ -69,7 +69,7 @@ Domain has **zero project references** — only entities, enums, and extension m
   - `ActorUserId` — audit records (AuditEvent, nullable for system events)
   - `RequestedByUserId` — request entities (ZipDownload, nullable for anonymous)
 - `UpdatedAt` on `Asset`; new mutable entities should include it.
-- No soft delete — use status-based lifecycle or hard delete.
+- No soft delete by default — use status-based lifecycle or hard delete. **Exception**: `Asset` uses soft delete via nullable `DeletedAt` + `DeletedByUserId` (T1-LIFE-01). Repositories filter on `DeletedAt IS NULL` via a global EF query filter; trash and purge paths use `IgnoreQueryFilters()`. The `TrashPurgeBackgroundService` hard-deletes rows older than `AssetLifecycleSettings.TrashRetentionDays`.
 - JSONB fields: `List<string>` for tags, `Dictionary<string, object>` for metadata. Initialize with `new()`.
 - Navigation properties: `ICollection<T>` with `new List<T>()` default.
 
