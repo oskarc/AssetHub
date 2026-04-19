@@ -258,32 +258,6 @@ public class AssetHubApiClient
     }
 
     /// <summary>
-    /// Gets all assets across all collections with optional filtering.
-    /// </summary>
-    public virtual async Task<AllAssetsListResponse> GetAllAssetsAsync(
-        string? query = null,
-        string? type = null,
-        Guid? collectionId = null,
-        string sortBy = Constants.SortBy.CreatedDesc,
-        int skip = 0,
-        int take = 50,
-        CancellationToken ct = default)
-    {
-        var url = $"/api/v1/assets/all?skip={skip}&take={take}&sortBy={sortBy}";
-        if (!string.IsNullOrWhiteSpace(query))
-            url += $"&query={Uri.EscapeDataString(query)}";
-        if (!string.IsNullOrWhiteSpace(type))
-            url += $"&type={Uri.EscapeDataString(type)}";
-        if (collectionId.HasValue)
-            url += $"&collectionId={collectionId.Value}";
-
-        var response = await _http.GetAsync(url, ct);
-        await EnsureSuccessAsync(response, "Get all assets");
-        return await response.Content.ReadFromJsonAsync<AllAssetsListResponse>(ct)
-            ?? new AllAssetsListResponse { Total = 0, Items = new() };
-    }
-
-    /// <summary>
     /// Gets a single asset by ID.
     /// </summary>
     /// <returns>The asset, or null if not found.</returns>

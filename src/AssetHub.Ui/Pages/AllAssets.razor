@@ -423,17 +423,10 @@
             _isLoading = true;
             StateHasChanged();
 
-            var response = await Api.GetAllAssetsAsync(
-                _searchQuery,
-                _filterType,
-                _filterCollectionId,
-                Constants.SortBy.CreatedDesc,
-                _skip,
-                _take,
-                _cts.Token);
-            
+            var response = await Api.SearchAssetsAsync(BuildSearchRequest(_skip), _cts.Token);
+
             _assets.AddRange(response.Items);
-            _total = response.Total;
+            _total = response.TotalCount;
         }
         catch (OperationCanceledException)
         {
@@ -453,20 +446,13 @@
     {
         _isLoadingMore = true;
         _skip = _assets.Count;
-        
+
         try
         {
-            var response = await Api.GetAllAssetsAsync(
-                _searchQuery,
-                _filterType,
-                _filterCollectionId,
-                Constants.SortBy.CreatedDesc,
-                _skip,
-                _take,
-                _cts.Token);
-            
+            var response = await Api.SearchAssetsAsync(BuildSearchRequest(_skip), _cts.Token);
+
             _assets.AddRange(response.Items);
-            _total = response.Total;
+            _total = response.TotalCount;
         }
         catch (OperationCanceledException)
         {
@@ -648,4 +634,18 @@
         _cts.Dispose();
         return ValueTask.CompletedTask;
     }
+
+    /// <summary>
+    /// Maps the page's simple-filter state to the faceted-search request the backend expects.
+    /// Facets are not requested here — this page doesn't render a sidebar.
+    /// </summary>
+    private AssetSearchRequest BuildSearchRequest(int skip) => new()
+    {
+        Text = string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery,
+        AssetTypes = string.IsNullOrWhiteSpace(_filterType) ? null : new List<string> { _filterType },
+        CollectionIds = _filterCollectionId.HasValue ? new List<Guid> { _filterCollectionId.Value } : null,
+        Sort = "created_desc",
+        Skip = skip,
+        Take = _take
+    };
 }

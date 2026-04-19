@@ -20,13 +20,6 @@ public interface IAssetQueryService
         string status, int skip, int take, CancellationToken ct);
 
     /// <summary>
-    /// Search all accessible assets with filters (respects per-user authorization).
-    /// </summary>
-    Task<ServiceResult<AllAssetsListResponse>> GetAllAssetsAsync(
-        string? query, string? type, Guid? collectionId,
-        string sortBy, int skip, int take, CancellationToken ct);
-
-    /// <summary>
     /// Get a single asset by ID (checks access via collections).
     /// </summary>
     Task<ServiceResult<AssetResponseDto>> GetAssetAsync(Guid id, CancellationToken ct);

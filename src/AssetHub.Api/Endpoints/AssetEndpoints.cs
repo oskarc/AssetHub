@@ -18,7 +18,7 @@ public static class AssetEndpoints
             .WithTags("Assets");
 
         group.MapGet("", GetAssets).RequireAuthorization("RequireAdmin").WithName("GetAssets");
-        group.MapGet("all", GetAllAssets).RequireAuthorization("RequireAdmin").WithName("GetAllAssets");
+        // GET /all retired — POST /search (AssetSearchEndpoints) is the single asset-listing path.
         group.MapGet("{id:guid}", GetAsset).WithName("GetAsset");
         // .DisableAntiforgery() is required because antiforgery tokens cannot be
         // provided by either caller: the Blazor Server HttpClient (cookie-auth,
@@ -59,15 +59,6 @@ public static class AssetEndpoints
     {
         take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
         var result = await svc.GetAssetsByStatusAsync(AssetStatus.Ready.ToDbString(), skip, take, ct);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> GetAllAssets(
-        [AsParameters] AllAssetsQuery q,
-        [FromServices] IAssetQueryService svc, CancellationToken ct)
-    {
-        var take = Math.Clamp(q.Take, 1, Constants.Limits.MaxPageSize);
-        var result = await svc.GetAllAssetsAsync(q.Query, q.Type, q.CollectionId, q.SortBy, q.Skip, take, ct);
         return result.ToHttpResult();
     }
 

@@ -11,15 +11,6 @@ public class AssetListResponse
 }
 
 /// <summary>
-/// Paginated response for assets across all collections.
-/// </summary>
-public class AllAssetsListResponse
-{
-    public int Total { get; set; }
-    public List<AssetResponseDto> Items { get; set; } = new();
-}
-
-/// <summary>
 /// Result returned after uploading or confirming an asset upload.
 /// </summary>
 public class AssetUploadResult
@@ -30,17 +21,6 @@ public class AssetUploadResult
     public string? JobId { get; set; }
     public string? Message { get; set; }
 }
-
-/// <summary>
-/// Query parameters for the all-assets endpoint (includes optional collection filter).
-/// </summary>
-public record AllAssetsQuery(
-    Guid? CollectionId = null,
-    string? Query = null,
-    string? Type = null,
-    string SortBy = "created_desc",
-    int Skip = 0,
-    int Take = 50);
 
 /// <summary>
 /// Query parameters for the collection-scoped asset list endpoint.
