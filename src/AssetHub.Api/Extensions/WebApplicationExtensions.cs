@@ -265,6 +265,8 @@ public static class WebApplicationExtensions
         app.MapMetadataSchemaEndpoints();
         app.MapTaxonomyEndpoints();
         app.MapAssetMetadataEndpoints();
+        app.MapAssetSearchEndpoints();
+        app.MapSavedSearchEndpoints();
 
         // Blazor
         app.MapRazorComponents<App>()

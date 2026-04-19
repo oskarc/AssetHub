@@ -191,7 +191,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITaxonomyService, TaxonomyService>();
         services.AddScoped<ITaxonomyQueryService, TaxonomyQueryService>();
         services.AddScoped<IAssetMetadataService, AssetMetadataService>();
-        
+
+        // Search
+        services.AddScoped<IAssetSearchService, AssetSearchService>();
+        services.AddScoped<ISavedSearchService, SavedSearchService>();
+
         // Collection services split by responsibility (Interface Segregation Principle)
         services.AddScoped<CollectionServiceRepositories>();
         services.AddScoped<ICollectionQueryService, CollectionQueryService>(); // Queries: list, get by ID

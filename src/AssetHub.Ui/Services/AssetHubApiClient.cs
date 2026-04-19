@@ -1153,6 +1153,56 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Asset Search
+
+    public virtual async Task<AssetSearchResponse> SearchAssetsAsync(AssetSearchRequest request, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/assets/search", request, ct);
+        await EnsureSuccessAsync(response, "Search assets");
+        return await ReadRequiredJsonAsync<AssetSearchResponse>(response, "Search assets");
+    }
+
+    #endregion
+
+    #region Saved Searches
+
+    public virtual async Task<List<SavedSearchDto>> GetSavedSearchesAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/saved-searches", ct);
+        await EnsureSuccessAsync(response, "Get saved searches");
+        return await response.Content.ReadFromJsonAsync<List<SavedSearchDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<SavedSearchDto?> GetSavedSearchAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/saved-searches/{id}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, "Get saved search");
+        return await response.Content.ReadFromJsonAsync<SavedSearchDto>(ct);
+    }
+
+    public virtual async Task<SavedSearchDto> CreateSavedSearchAsync(CreateSavedSearchDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/saved-searches", dto, ct);
+        await EnsureSuccessAsync(response, "Create saved search");
+        return await ReadRequiredJsonAsync<SavedSearchDto>(response, "Create saved search");
+    }
+
+    public virtual async Task<SavedSearchDto> UpdateSavedSearchAsync(Guid id, UpdateSavedSearchDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync($"/api/v1/saved-searches/{id}", dto, ct);
+        await EnsureSuccessAsync(response, "Update saved search");
+        return await ReadRequiredJsonAsync<SavedSearchDto>(response, "Update saved search");
+    }
+
+    public virtual async Task DeleteSavedSearchAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/saved-searches/{id}", ct);
+        await EnsureSuccessAsync(response, "Delete saved search");
+    }
+
+    #endregion
 }
 
 /// <summary>

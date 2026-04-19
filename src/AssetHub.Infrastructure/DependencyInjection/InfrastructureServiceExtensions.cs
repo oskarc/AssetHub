@@ -119,6 +119,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMetadataSchemaRepository, MetadataSchemaRepository>();
         services.AddScoped<ITaxonomyRepository, TaxonomyRepository>();
         services.AddScoped<IAssetMetadataRepository, AssetMetadataRepository>();
+        services.AddScoped<ISavedSearchRepository, SavedSearchRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);
