@@ -39,10 +39,14 @@
                 <MudMenuItem OnClick="@(() => ApplySavedSearch(s))">
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="2">
                         <MudText Typo="Typo.body2">@s.Name</MudText>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                       aria-label="@CommonLoc["Btn_Delete"]"
-                                       OnClick="@(() => DeleteAsync(s))"
-                                       OnClickStopPropagation="true" />
+                        @* DOM-level stopPropagation so the delete click doesn't also fire the
+                           menu-item's OnClick (ApplySavedSearch). MudIconButton has no
+                           OnClickStopPropagation prop; the analyzer flags it as MUD0002. *@
+                        <span @onclick:stopPropagation="true">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           aria-label="@CommonLoc["Btn_Delete"]"
+                                           OnClick="@(() => DeleteAsync(s))" />
+                        </span>
                     </MudStack>
                 </MudMenuItem>
             }

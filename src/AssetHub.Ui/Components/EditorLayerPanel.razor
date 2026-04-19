@@ -45,26 +45,36 @@
                         <MudText Typo="Typo.body2" Class="flex-grow-1 text-truncate" Style="max-width: 100px;">
                             @layer.Label
                         </MudText>
-                        <MudIconButton Icon="@(layer.Visible ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
-                                       Size="Size.Small"
-                                       OnClick="@(() => OnToggleLayerVisible.InvokeAsync(layer.Id))"
-                                       OnClick:stopPropagation
-                                       aria-label="@Loc["Btn_ToggleVisibility"]" />
-                        <MudIconButton Icon="@(layer.Locked ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
-                                       Size="Size.Small"
-                                       OnClick="@(() => OnToggleLayerLocked.InvokeAsync(layer.Id))"
-                                       OnClick:stopPropagation
-                                       aria-label="@Loc["Btn_ToggleLock"]" />
-                        <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward"
-                                       Size="Size.Small"
-                                       OnClick="@(() => OnReorderLayer.InvokeAsync((layer.Id, "up")))"
-                                       OnClick:stopPropagation
-                                       aria-label="@Loc["Btn_MoveLayerUp"]" />
-                        <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward"
-                                       Size="Size.Small"
-                                       OnClick="@(() => OnReorderLayer.InvokeAsync((layer.Id, "down")))"
-                                       OnClick:stopPropagation
-                                       aria-label="@Loc["Btn_MoveLayerDown"]" />
+                        @* Wrap each action button in a span that stops DOM propagation. MudIconButton
+                           exposes an OnClick EventCallback, not a raw DOM event, so the old
+                           `OnClick:stopPropagation` attribute wasn't a real thing — the analyzer's
+                           MUD0002 caught it. Wrapping in a <span> with @onclick:stopPropagation="true"
+                           keeps the desired UX (toggling visibility / lock / reorder without also
+                           activating the parent MudListItem's selection). *@
+                        <span @onclick:stopPropagation="true">
+                            <MudIconButton Icon="@(layer.Visible ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                           Size="Size.Small"
+                                           OnClick="@(() => OnToggleLayerVisible.InvokeAsync(layer.Id))"
+                                           aria-label="@Loc["Btn_ToggleVisibility"]" />
+                        </span>
+                        <span @onclick:stopPropagation="true">
+                            <MudIconButton Icon="@(layer.Locked ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                                           Size="Size.Small"
+                                           OnClick="@(() => OnToggleLayerLocked.InvokeAsync(layer.Id))"
+                                           aria-label="@Loc["Btn_ToggleLock"]" />
+                        </span>
+                        <span @onclick:stopPropagation="true">
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward"
+                                           Size="Size.Small"
+                                           OnClick="@(() => OnReorderLayer.InvokeAsync((layer.Id, "up")))"
+                                           aria-label="@Loc["Btn_MoveLayerUp"]" />
+                        </span>
+                        <span @onclick:stopPropagation="true">
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward"
+                                           Size="Size.Small"
+                                           OnClick="@(() => OnReorderLayer.InvokeAsync((layer.Id, "down")))"
+                                           aria-label="@Loc["Btn_MoveLayerDown"]" />
+                        </span>
                     </div>
                 </MudListItem>
             }

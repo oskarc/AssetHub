@@ -3,7 +3,6 @@ using AssetHub.Application.Dtos;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -16,8 +15,7 @@ public sealed class AuthenticatedShareAccessService(
     IShareService shareService,
     IAuditService audit,
     IDataProtectionProvider dataProtection,
-    CurrentUser currentUser,
-    ILogger<AuthenticatedShareAccessService> logger) : IAuthenticatedShareAccessService
+    CurrentUser currentUser) : IAuthenticatedShareAccessService
 {
     public async Task<ServiceResult<ShareResponseDto>> CreateShareAsync(
         CreateShareDto dto, string baseUrl, CancellationToken ct)

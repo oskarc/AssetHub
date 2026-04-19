@@ -2,13 +2,11 @@ using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class MigrationRepository(
-    AssetHubDbContext dbContext,
-    ILogger<MigrationRepository> logger) : IMigrationRepository
+    AssetHubDbContext dbContext) : IMigrationRepository
 {
     public async Task<Migration?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {

@@ -28,7 +28,7 @@
                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                         <MudText Typo="Typo.body1">@AdminLoc["Migration_Label_DefaultCollection"]</MudText>
                         <MudToggleGroup T="string" @bind-Value="_collectionMode" Color="Color.Primary"
-                                        Size="Size.Small" Rounded="true" SelectionMode="SelectionMode.SingleSelection">
+                                        Size="Size.Small" SelectionMode="SelectionMode.SingleSelection">
                             <MudToggleItem T="string" Value="@("existing")" Text="@AdminLoc["Migration_CollectionMode_Existing"]" />
                             <MudToggleItem T="string" Value="@("new")" Text="@AdminLoc["Migration_CollectionMode_New"]" />
                         </MudToggleGroup>

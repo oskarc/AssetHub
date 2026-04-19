@@ -96,7 +96,7 @@ else
         var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<TaxonomyDialog>(AdminLoc["Taxonomies_CreateTaxonomy"].Value, options);
         var result = await dialog.Result;
-        if (!result.Canceled)
+        if (result is { Canceled: false })
             await LoadAsync();
     }
 
@@ -114,7 +114,7 @@ else
         var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<TaxonomyDialog>(AdminLoc["Taxonomies_EditTaxonomy"].Value, parameters, options);
         var result = await dialog.Result;
-        if (!result.Canceled)
+        if (result is { Canceled: false })
             await LoadAsync();
     }
 

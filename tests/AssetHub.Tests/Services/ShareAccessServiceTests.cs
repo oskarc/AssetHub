@@ -89,8 +89,7 @@ public class ShareAccessServiceTests
             _shareServiceMock.Object,
             _auditMock.Object,
             _dataProtectionMock.Object,
-            currentUser ?? CurrentUser.Anonymous,
-            NullLogger<AuthenticatedShareAccessService>.Instance);
+            currentUser ?? CurrentUser.Anonymous);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

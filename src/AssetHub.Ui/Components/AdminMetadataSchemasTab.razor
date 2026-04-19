@@ -114,7 +114,7 @@ else
         var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<MetadataSchemaDialog>(AdminLoc["MetadataSchemas_CreateSchema"].Value, options);
         var result = await dialog.Result;
-        if (!result.Canceled)
+        if (result is { Canceled: false })
             await LoadAsync();
     }
 
@@ -127,7 +127,7 @@ else
         var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<MetadataSchemaDialog>(AdminLoc["MetadataSchemas_EditSchema"].Value, parameters, options);
         var result = await dialog.Result;
-        if (!result.Canceled)
+        if (result is { Canceled: false })
             await LoadAsync();
     }
 
