@@ -391,4 +391,90 @@ logo.png,Company Logo,branding,"Brand Assets;Marketing"</value></data>
   <data name="Event_migration.deleted" xml:space="preserve"><value>Migration Deleted</value></data>
   <data name="Event_migration.retried" xml:space="preserve"><value>Migration Retried</value></data>
   <data name="Event_migration.bulk_deleted" xml:space="preserve"><value>Migrations Bulk Deleted</value></data>
+
+  <!-- Metadata Schemas -->
+  <data name="Tab_MetadataSchemas" xml:space="preserve"><value>Metadata Schemas</value></data>
+  <data name="MetadataSchemas_Desc" xml:space="preserve"><value>Manage metadata schemas that define custom fields for assets.</value></data>
+  <data name="MetadataSchemas_NoSchemasYet" xml:space="preserve"><value>No metadata schemas yet</value></data>
+  <data name="MetadataSchemas_NoSchemasDesc" xml:space="preserve"><value>Create metadata schemas to define structured custom fields for your assets.</value></data>
+  <data name="MetadataSchemas_CreateSchema" xml:space="preserve"><value>Create Schema</value></data>
+  <data name="MetadataSchemas_EditSchema" xml:space="preserve"><value>Edit Schema</value></data>
+  <data name="MetadataSchemas_DeleteSchema" xml:space="preserve"><value>Delete Schema</value></data>
+  <data name="MetadataSchemas_DeleteConfirmTitle" xml:space="preserve"><value>Delete Metadata Schema</value></data>
+  <data name="MetadataSchemas_DeleteConfirmText" xml:space="preserve"><value>Are you sure you want to delete the schema "{0}"? This action cannot be undone.</value></data>
+  <data name="MetadataSchemas_ForceDeleteTitle" xml:space="preserve"><value>Schema Has Existing Values</value></data>
+  <data name="MetadataSchemas_ForceDeleteText" xml:space="preserve"><value>This schema has metadata values stored for assets. Do you want to delete the schema and all associated values?</value></data>
+  <data name="MetadataSchemas_Header_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="MetadataSchemas_Header_Scope" xml:space="preserve"><value>Scope</value></data>
+  <data name="MetadataSchemas_Header_Fields" xml:space="preserve"><value>Fields</value></data>
+  <data name="MetadataSchemas_Header_Created" xml:space="preserve"><value>Created</value></data>
+  <data name="MetadataSchemas_Label_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="MetadataSchemas_Label_Description" xml:space="preserve"><value>Description</value></data>
+  <data name="MetadataSchemas_Label_Scope" xml:space="preserve"><value>Scope</value></data>
+  <data name="MetadataSchemas_Label_AssetType" xml:space="preserve"><value>Asset Type</value></data>
+  <data name="MetadataSchemas_Label_Fields" xml:space="preserve"><value>Fields</value></data>
+  <data name="MetadataSchemas_Scope_Global" xml:space="preserve"><value>Global (all assets)</value></data>
+  <data name="MetadataSchemas_Scope_AssetType" xml:space="preserve"><value>Asset type specific</value></data>
+  <data name="MetadataSchemas_AddField" xml:space="preserve"><value>Add Field</value></data>
+  <data name="MetadataSchemas_RemoveField" xml:space="preserve"><value>Remove Field</value></data>
+  <data name="MetadataSchemas_NoFieldsYet" xml:space="preserve"><value>No fields yet. Add fields to define the schema structure.</value></data>
+  <data name="MetadataSchemas_Field_Label" xml:space="preserve"><value>Field</value></data>
+  <data name="MetadataSchemas_Field_Key" xml:space="preserve"><value>Key (snake_case)</value></data>
+  <data name="MetadataSchemas_Field_Label_En" xml:space="preserve"><value>Label (English)</value></data>
+  <data name="MetadataSchemas_Field_Label_Sv" xml:space="preserve"><value>Label (Swedish)</value></data>
+  <data name="MetadataSchemas_Field_Type" xml:space="preserve"><value>Type</value></data>
+  <data name="MetadataSchemas_Field_Required" xml:space="preserve"><value>Required</value></data>
+  <data name="MetadataSchemas_Field_Searchable" xml:space="preserve"><value>Searchable</value></data>
+  <data name="MetadataSchemas_Field_Facetable" xml:space="preserve"><value>Facetable</value></data>
+  <data name="MetadataSchemas_Field_Type_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="MetadataSchemas_Field_Type_LongText" xml:space="preserve"><value>Long text</value></data>
+  <data name="MetadataSchemas_Field_Type_Number" xml:space="preserve"><value>Number</value></data>
+  <data name="MetadataSchemas_Field_Type_Decimal" xml:space="preserve"><value>Decimal</value></data>
+  <data name="MetadataSchemas_Field_Type_Boolean" xml:space="preserve"><value>Boolean</value></data>
+  <data name="MetadataSchemas_Field_Type_Date" xml:space="preserve"><value>Date</value></data>
+  <data name="MetadataSchemas_Field_Type_DateTime" xml:space="preserve"><value>Date and time</value></data>
+  <data name="MetadataSchemas_Field_Type_Select" xml:space="preserve"><value>Select (single)</value></data>
+  <data name="MetadataSchemas_Field_Type_MultiSelect" xml:space="preserve"><value>Select (multi)</value></data>
+  <data name="MetadataSchemas_Field_Type_Taxonomy" xml:space="preserve"><value>Taxonomy</value></data>
+  <data name="MetadataSchemas_Field_Type_Url" xml:space="preserve"><value>URL</value></data>
+  <data name="MetadataSchemas_Scope_Collection" xml:space="preserve"><value>Collection specific</value></data>
+  <data name="MetadataSchemas_Label_Collection" xml:space="preserve"><value>Collection</value></data>
+  <data name="MetadataSchemas_Field_MaxLength" xml:space="preserve"><value>Max length</value></data>
+  <data name="MetadataSchemas_Field_PatternRegex" xml:space="preserve"><value>Pattern (regex)</value></data>
+  <data name="MetadataSchemas_Field_NumericMin" xml:space="preserve"><value>Minimum value</value></data>
+  <data name="MetadataSchemas_Field_NumericMax" xml:space="preserve"><value>Maximum value</value></data>
+  <data name="MetadataSchemas_Field_SelectOptions" xml:space="preserve"><value>Options (one per line)</value></data>
+  <data name="MetadataSchemas_Field_Taxonomy" xml:space="preserve"><value>Taxonomy</value></data>
+  <data name="MetadataSchemas_Validation_KeyPattern" xml:space="preserve"><value>Key must use lowercase letters, digits, and underscores, starting with a letter.</value></data>
+  <data name="MetadataSchemas_Validation_TaxonomyRequired" xml:space="preserve"><value>Select a taxonomy for this field.</value></data>
+  <data name="MetadataSchemas_Validation_SelectOptionsRequired" xml:space="preserve"><value>Add at least one option for this field type.</value></data>
+  <data name="MetadataSchemas_UnsavedChangesTitle" xml:space="preserve"><value>Discard changes?</value></data>
+  <data name="MetadataSchemas_UnsavedChangesText" xml:space="preserve"><value>You have unsaved changes to this schema. Close anyway?</value></data>
+
+  <!-- Taxonomies -->
+  <data name="Tab_Taxonomies" xml:space="preserve"><value>Taxonomies</value></data>
+  <data name="Taxonomies_Desc" xml:space="preserve"><value>Manage controlled vocabularies and classification hierarchies for metadata fields.</value></data>
+  <data name="Taxonomies_NoTaxonomiesYet" xml:space="preserve"><value>No taxonomies yet</value></data>
+  <data name="Taxonomies_NoTaxonomiesDesc" xml:space="preserve"><value>Create taxonomies to provide structured term lists for metadata fields.</value></data>
+  <data name="Taxonomies_CreateTaxonomy" xml:space="preserve"><value>Create Taxonomy</value></data>
+  <data name="Taxonomies_EditTaxonomy" xml:space="preserve"><value>Edit Taxonomy</value></data>
+  <data name="Taxonomies_DeleteTaxonomy" xml:space="preserve"><value>Delete Taxonomy</value></data>
+  <data name="Taxonomies_DeleteConfirmTitle" xml:space="preserve"><value>Delete Taxonomy</value></data>
+  <data name="Taxonomies_DeleteConfirmText" xml:space="preserve"><value>Are you sure you want to delete the taxonomy "{0}"? This action cannot be undone.</value></data>
+  <data name="Taxonomies_Header_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Taxonomies_Header_Terms" xml:space="preserve"><value>Terms</value></data>
+  <data name="Taxonomies_Label_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Taxonomies_Label_Description" xml:space="preserve"><value>Description</value></data>
+  <data name="Taxonomies_Label_Terms" xml:space="preserve"><value>Terms</value></data>
+  <data name="Taxonomies_AddTerm" xml:space="preserve"><value>Add Term</value></data>
+  <data name="Taxonomies_RemoveTerm" xml:space="preserve"><value>Remove Term</value></data>
+  <data name="Taxonomies_NoTermsYet" xml:space="preserve"><value>No terms yet. Add terms to define the vocabulary.</value></data>
+  <data name="Taxonomies_Term_Label" xml:space="preserve"><value>Term</value></data>
+  <data name="Taxonomies_Term_Label_En" xml:space="preserve"><value>Label (English)</value></data>
+  <data name="Taxonomies_Term_Label_Sv" xml:space="preserve"><value>Label (Swedish)</value></data>
+  <data name="Taxonomies_Term_Parent" xml:space="preserve"><value>Parent term</value></data>
+  <data name="Taxonomies_Term_ParentNone" xml:space="preserve"><value>(none — root term)</value></data>
+  <data name="Taxonomies_Term_Slug" xml:space="preserve"><value>Slug (optional)</value></data>
+  <data name="Taxonomies_UnsavedChangesTitle" xml:space="preserve"><value>Discard changes?</value></data>
+  <data name="Taxonomies_UnsavedChangesText" xml:space="preserve"><value>You have unsaved changes to this taxonomy. Close anyway?</value></data>
 </root>

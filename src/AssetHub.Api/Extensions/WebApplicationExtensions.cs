@@ -262,6 +262,9 @@ public static class WebApplicationExtensions
         app.MapImageEditEndpoints();
         app.MapZipDownloadEndpoints();
         app.MapMigrationEndpoints();
+        app.MapMetadataSchemaEndpoints();
+        app.MapTaxonomyEndpoints();
+        app.MapAssetMetadataEndpoints();
 
         // Blazor
         app.MapRazorComponents<App>()

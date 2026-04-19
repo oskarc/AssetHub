@@ -116,6 +116,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAuditEventRepository, AuditEventRepository>();
         services.AddScoped<IExportPresetRepository, ExportPresetRepository>();
         services.AddScoped<IMigrationRepository, MigrationRepository>();
+        services.AddScoped<IMetadataSchemaRepository, MetadataSchemaRepository>();
+        services.AddScoped<ITaxonomyRepository, TaxonomyRepository>();
+        services.AddScoped<IAssetMetadataRepository, AssetMetadataRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);

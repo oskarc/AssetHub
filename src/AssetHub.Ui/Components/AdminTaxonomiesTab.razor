@@ -1,0 +1,148 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+@if (_loading && _taxonomies == null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_taxonomies == null || !_taxonomies.Any())
+{
+    <EmptyState Title="@AdminLoc["Taxonomies_NoTaxonomiesYet"]"
+                Description="@AdminLoc["Taxonomies_NoTaxonomiesDesc"]"
+                Icon="@Icons.Material.Filled.AccountTree"
+                ActionText="@AdminLoc["Taxonomies_CreateTaxonomy"]"
+                ActionIcon="@Icons.Material.Filled.Add"
+                OnAction="OpenCreateDialog" />
+}
+else
+{
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @AdminLoc["Taxonomies_Desc"]
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateDialog">
+                @AdminLoc["Taxonomies_CreateTaxonomy"]
+            </MudButton>
+        </MudStack>
+
+        <MudTable Items="@_taxonomies" Hover="true" Dense="true" Striped="true" Loading="@_loading"
+                  FixedHeader="true">
+            <HeaderContent>
+                <MudTh>@AdminLoc["Taxonomies_Header_Name"]</MudTh>
+                <MudTh>@AdminLoc["Taxonomies_Header_Terms"]</MudTh>
+                <MudTh Style="width: 120px;"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@AdminLoc["Taxonomies_Header_Name"]">
+                    <MudText Typo="Typo.body2" Class="font-semibold">@context.Name</MudText>
+                </MudTd>
+                <MudTd DataLabel="@AdminLoc["Taxonomies_Header_Terms"]">
+                    @context.TermCount
+                </MudTd>
+                <MudTd>
+                    <MudStack Row="true" Spacing="1">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       aria-label="@AdminLoc["Taxonomies_EditTaxonomy"]"
+                                       OnClick="@(() => OpenEditDialog(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       aria-label="@AdminLoc["Taxonomies_DeleteTaxonomy"]"
+                                       OnClick="@(() => DeleteTaxonomyAsync(context))" />
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudStack>
+}
+
+@code {
+    private List<TaxonomySummaryDto>? _taxonomies;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _taxonomies = await Api.GetTaxonomiesAsync();
+        }
+        catch
+        {
+            Feedback.ShowError(CommonLoc["Error_LoadFailed"].Value);
+            _taxonomies = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<TaxonomyDialog>(AdminLoc["Taxonomies_CreateTaxonomy"].Value, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+            await LoadAsync();
+    }
+
+    private async Task OpenEditDialog(TaxonomySummaryDto taxonomy)
+    {
+        TaxonomyDto? full = null;
+        try { full = await Api.GetTaxonomyAsync(taxonomy.Id); }
+        catch { Feedback.ShowError(CommonLoc["Error_LoadFailed"].Value); return; }
+        if (full is null) { await LoadAsync(); return; }
+
+        var parameters = new DialogParameters<TaxonomyDialog>
+        {
+            { x => x.Taxonomy, full }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<TaxonomyDialog>(AdminLoc["Taxonomies_EditTaxonomy"].Value, parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+            await LoadAsync();
+    }
+
+    private async Task DeleteTaxonomyAsync(TaxonomySummaryDto taxonomy)
+    {
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["Taxonomies_DeleteConfirmTitle"].Value,
+            string.Format(AdminLoc["Taxonomies_DeleteConfirmText"].Value, taxonomy.Name),
+            CommonLoc["Btn_Delete"].Value,
+            iconColor: Color.Error,
+            confirmColor: Color.Error);
+
+        if (!confirmed) return;
+
+        // Optimistic remove
+        _taxonomies!.Remove(taxonomy);
+        StateHasChanged();
+
+        try
+        {
+            await Api.DeleteTaxonomyAsync(taxonomy.Id);
+        }
+        catch
+        {
+            // Rollback
+            _taxonomies!.Add(taxonomy);
+            StateHasChanged();
+            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
+        }
+    }
+}

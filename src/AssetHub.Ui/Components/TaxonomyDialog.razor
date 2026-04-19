@@ -1,0 +1,310 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.AccountTree" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" id="taxonomy-dialog-title">
+                @(_isEdit ? AdminLoc["Taxonomies_EditTaxonomy"] : AdminLoc["Taxonomies_CreateTaxonomy"])
+            </MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formIsValid">
+            <MudStack Spacing="3" Class="dialog-min-width">
+
+                <MudTextField @bind-Value="_name" Label="@AdminLoc["Taxonomies_Label_Name"]" Required="true"
+                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Taxonomies_Label_Name"].Value)"
+                              Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
+                              Counter="255" MaxLength="255" />
+
+                <MudTextField @bind-Value="_description" Label="@AdminLoc["Taxonomies_Label_Description"]"
+                              Variant="Variant.Outlined" Lines="2" MaxLength="1000" />
+
+                <MudDivider />
+
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.subtitle1">@AdminLoc["Taxonomies_Label_Terms"]</MudText>
+                    <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                               OnClick="AddTerm">
+                        @AdminLoc["Taxonomies_AddTerm"]
+                    </MudButton>
+                </MudStack>
+
+                @if (!_terms.Any())
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@AdminLoc["Taxonomies_NoTermsYet"]</MudText>
+                }
+
+                @foreach (var (term, index) in _terms.Select((t, i) => (t, i)))
+                {
+                    <MudPaper Elevation="1" Class="pa-3">
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.subtitle2">@AdminLoc["Taxonomies_Term_Label"] @(index + 1)</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               aria-label="@AdminLoc["Taxonomies_RemoveTerm"]"
+                                               OnClick="@(() => RemoveTerm(term))" />
+                            </MudStack>
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudTextField @bind-Value="term.Label" Label="@AdminLoc["Taxonomies_Term_Label_En"]" Required="true"
+                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Taxonomies_Term_Label_En"].Value)"
+                                                  Variant="Variant.Outlined" Immediate="true" MaxLength="255" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTextField @bind-Value="term.LabelSv" Label="@AdminLoc["Taxonomies_Term_Label_Sv"]"
+                                                  Variant="Variant.Outlined" MaxLength="255" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTextField @bind-Value="term.Slug" Label="@AdminLoc["Taxonomies_Term_Slug"]"
+                                                  Variant="Variant.Outlined" MaxLength="255" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudSelect T="Guid?" @bind-Value="term.ParentLocalId" Label="@AdminLoc["Taxonomies_Term_Parent"]"
+                                               Variant="Variant.Outlined">
+                                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">@AdminLoc["Taxonomies_Term_ParentNone"]</MudSelectItem>
+                                        @foreach (var candidate in ParentCandidatesFor(term))
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@candidate.LocalId">@IndentLabel(candidate)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                            </MudGrid>
+                        </MudStack>
+                    </MudPaper>
+                }
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" role="alert">@_errorMessage</MudAlert>
+                }
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(!_formIsValid || _submitting)"
+                   StartIcon="@(_submitting ? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.Save)">
+            @if (_submitting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @CommonLoc["Btn_Save"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public TaxonomyDto? Taxonomy { get; set; }
+
+    private MudForm? _form;
+    private bool _formIsValid;
+    private bool _submitting;
+    private bool _isEdit;
+    private string? _errorMessage;
+
+    private string _name = string.Empty;
+    private string? _description;
+    private List<TermModel> _terms = new();
+    private string _initialSnapshot = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        _isEdit = Taxonomy is not null;
+        if (Taxonomy is not null)
+        {
+            _name = Taxonomy.Name;
+            _description = Taxonomy.Description;
+            _terms = FlattenFromDtos(Taxonomy.Terms, null);
+        }
+        _initialSnapshot = CaptureSnapshot();
+    }
+
+    private List<TermModel> FlattenFromDtos(IEnumerable<TaxonomyTermDto>? dtos, Guid? parentLocalId)
+    {
+        var result = new List<TermModel>();
+        if (dtos is null) return result;
+
+        foreach (var dto in dtos.OrderBy(t => t.SortOrder))
+        {
+            var localId = Guid.NewGuid();
+            result.Add(new TermModel
+            {
+                LocalId = localId,
+                ServerId = dto.Id,
+                Label = dto.Label,
+                LabelSv = dto.LabelSv,
+                Slug = dto.Slug,
+                SortOrder = dto.SortOrder,
+                ParentLocalId = parentLocalId
+            });
+            result.AddRange(FlattenFromDtos(dto.Children, localId));
+        }
+        return result;
+    }
+
+    private void AddTerm() =>
+        _terms.Add(new TermModel { LocalId = Guid.NewGuid(), SortOrder = _terms.Count });
+
+    private void RemoveTerm(TermModel term)
+    {
+        // Reparent any descendants to the removed term's parent so they don't turn into orphans.
+        foreach (var child in _terms.Where(t => t.ParentLocalId == term.LocalId))
+            child.ParentLocalId = term.ParentLocalId;
+        _terms.Remove(term);
+    }
+
+    // Candidates for a term's parent: anything that isn't itself or one of its own descendants,
+    // to prevent cycles.
+    private IEnumerable<TermModel> ParentCandidatesFor(TermModel term)
+    {
+        var descendants = new HashSet<Guid> { term.LocalId };
+        bool added;
+        do
+        {
+            added = false;
+            foreach (var t in _terms.Where(t => t.ParentLocalId.HasValue && descendants.Contains(t.ParentLocalId!.Value)))
+            {
+                if (descendants.Add(t.LocalId)) added = true;
+            }
+        } while (added);
+
+        return _terms.Where(t => !descendants.Contains(t.LocalId));
+    }
+
+    private string IndentLabel(TermModel term)
+    {
+        var depth = 0;
+        var current = term.ParentLocalId;
+        while (current.HasValue && depth < 10)
+        {
+            depth++;
+            current = _terms.FirstOrDefault(t => t.LocalId == current)?.ParentLocalId;
+        }
+        return new string('—', depth) + (depth > 0 ? " " : "") + term.Label;
+    }
+
+    private async Task Submit()
+    {
+        await _form!.Validate();
+        if (!_formIsValid) return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            // Build hierarchical DTOs from the flat list keyed by LocalId.
+            var rootDtos = BuildDtoTree(null);
+
+            if (_isEdit)
+            {
+                await Api.UpdateTaxonomyAsync(Taxonomy!.Id, new UpdateTaxonomyDto
+                {
+                    Name = _name,
+                    Description = _description
+                });
+                var termDtos = BuildUpsertTree(null);
+                await Api.ReplaceTaxonomyTermsAsync(Taxonomy!.Id, termDtos);
+            }
+            else
+            {
+                await Api.CreateTaxonomyAsync(new CreateTaxonomyDto
+                {
+                    Name = _name,
+                    Description = _description,
+                    Terms = rootDtos
+                });
+            }
+
+            _initialSnapshot = CaptureSnapshot();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private List<CreateTaxonomyTermDto> BuildDtoTree(Guid? parentLocalId)
+    {
+        var children = _terms.Where(t => t.ParentLocalId == parentLocalId)
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.Label).ToList();
+        return children.Select(c => new CreateTaxonomyTermDto
+        {
+            Label = c.Label,
+            LabelSv = c.LabelSv,
+            Slug = string.IsNullOrWhiteSpace(c.Slug) ? null : c.Slug,
+            SortOrder = c.SortOrder,
+            Children = BuildDtoTree(c.LocalId)
+        }).ToList();
+    }
+
+    private List<UpsertTaxonomyTermDto> BuildUpsertTree(Guid? parentLocalId)
+    {
+        var children = _terms.Where(t => t.ParentLocalId == parentLocalId)
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.Label).ToList();
+        return children.Select(c => new UpsertTaxonomyTermDto
+        {
+            Id = c.ServerId,
+            Label = c.Label,
+            LabelSv = c.LabelSv,
+            Slug = string.IsNullOrWhiteSpace(c.Slug) ? null : c.Slug,
+            SortOrder = c.SortOrder,
+            Children = BuildUpsertTree(c.LocalId)
+        }).ToList();
+    }
+
+    private async Task Cancel()
+    {
+        if (!IsDirty())
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["Taxonomies_UnsavedChangesTitle"].Value,
+            AdminLoc["Taxonomies_UnsavedChangesText"].Value,
+            CommonLoc["Btn_Discard"].Value,
+            iconColor: Color.Warning);
+        if (confirmed) MudDialog.Cancel();
+    }
+
+    private bool IsDirty() => CaptureSnapshot() != _initialSnapshot;
+
+    private string CaptureSnapshot() =>
+        System.Text.Json.JsonSerializer.Serialize(new
+        {
+            _name,
+            _description,
+            Terms = _terms.Select(t => new { t.LocalId, t.ServerId, t.Label, t.LabelSv, t.Slug, t.SortOrder, t.ParentLocalId })
+        });
+
+    private sealed class TermModel
+    {
+        public Guid LocalId { get; set; }
+        public Guid? ServerId { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public string? LabelSv { get; set; }
+        public string? Slug { get; set; }
+        public int SortOrder { get; set; }
+        public Guid? ParentLocalId { get; set; }
+    }
+}

@@ -184,6 +184,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExportPresetService, ExportPresetService>();
         services.AddScoped<IExportPresetQueryService, ExportPresetQueryService>();
         services.AddScoped<IImageEditingService, ImageEditingService>();
+
+        // Metadata schemas and taxonomies
+        services.AddScoped<IMetadataSchemaService, MetadataSchemaService>();
+        services.AddScoped<IMetadataSchemaQueryService, MetadataSchemaQueryService>();
+        services.AddScoped<ITaxonomyService, TaxonomyService>();
+        services.AddScoped<ITaxonomyQueryService, TaxonomyQueryService>();
+        services.AddScoped<IAssetMetadataService, AssetMetadataService>();
         
         // Collection services split by responsibility (Interface Segregation Principle)
         services.AddScoped<CollectionServiceRepositories>();

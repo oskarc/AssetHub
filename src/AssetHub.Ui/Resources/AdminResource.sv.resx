@@ -389,4 +389,90 @@ logo.png,Företagslogotyp,varumärke,"Varumärkesresurser;Marknadsföring"</valu
   <data name="Event_migration.deleted" xml:space="preserve"><value>Migrering raderad</value></data>
   <data name="Event_migration.retried" xml:space="preserve"><value>Migrering omförsökt</value></data>
   <data name="Event_migration.bulk_deleted" xml:space="preserve"><value>Migreringar massraderade</value></data>
+
+  <!-- Metadata Schemas -->
+  <data name="Tab_MetadataSchemas" xml:space="preserve"><value>Metadatascheman</value></data>
+  <data name="MetadataSchemas_Desc" xml:space="preserve"><value>Hantera metadatascheman som definierar anpassade fält för tillgångar.</value></data>
+  <data name="MetadataSchemas_NoSchemasYet" xml:space="preserve"><value>Inga metadatascheman ännu</value></data>
+  <data name="MetadataSchemas_NoSchemasDesc" xml:space="preserve"><value>Skapa metadatascheman för att definiera strukturerade anpassade fält för dina tillgångar.</value></data>
+  <data name="MetadataSchemas_CreateSchema" xml:space="preserve"><value>Skapa schema</value></data>
+  <data name="MetadataSchemas_EditSchema" xml:space="preserve"><value>Redigera schema</value></data>
+  <data name="MetadataSchemas_DeleteSchema" xml:space="preserve"><value>Ta bort schema</value></data>
+  <data name="MetadataSchemas_DeleteConfirmTitle" xml:space="preserve"><value>Ta bort metadataschema</value></data>
+  <data name="MetadataSchemas_DeleteConfirmText" xml:space="preserve"><value>Är du säker på att du vill ta bort schemat "{0}"? Åtgärden kan inte ångras.</value></data>
+  <data name="MetadataSchemas_ForceDeleteTitle" xml:space="preserve"><value>Schemat har befintliga värden</value></data>
+  <data name="MetadataSchemas_ForceDeleteText" xml:space="preserve"><value>Det här schemat har metadatavärden lagrade för tillgångar. Vill du ta bort schemat och alla tillhörande värden?</value></data>
+  <data name="MetadataSchemas_Header_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="MetadataSchemas_Header_Scope" xml:space="preserve"><value>Räckvidd</value></data>
+  <data name="MetadataSchemas_Header_Fields" xml:space="preserve"><value>Fält</value></data>
+  <data name="MetadataSchemas_Header_Created" xml:space="preserve"><value>Skapad</value></data>
+  <data name="MetadataSchemas_Label_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="MetadataSchemas_Label_Description" xml:space="preserve"><value>Beskrivning</value></data>
+  <data name="MetadataSchemas_Label_Scope" xml:space="preserve"><value>Räckvidd</value></data>
+  <data name="MetadataSchemas_Label_AssetType" xml:space="preserve"><value>Tillgångstyp</value></data>
+  <data name="MetadataSchemas_Label_Fields" xml:space="preserve"><value>Fält</value></data>
+  <data name="MetadataSchemas_Scope_Global" xml:space="preserve"><value>Global (alla tillgångar)</value></data>
+  <data name="MetadataSchemas_Scope_AssetType" xml:space="preserve"><value>Tillgångstypspecifik</value></data>
+  <data name="MetadataSchemas_AddField" xml:space="preserve"><value>Lägg till fält</value></data>
+  <data name="MetadataSchemas_RemoveField" xml:space="preserve"><value>Ta bort fält</value></data>
+  <data name="MetadataSchemas_NoFieldsYet" xml:space="preserve"><value>Inga fält ännu. Lägg till fält för att definiera schemastrukturen.</value></data>
+  <data name="MetadataSchemas_Field_Label" xml:space="preserve"><value>Fält</value></data>
+  <data name="MetadataSchemas_Field_Key" xml:space="preserve"><value>Nyckel (snake_case)</value></data>
+  <data name="MetadataSchemas_Field_Label_En" xml:space="preserve"><value>Etikett (engelska)</value></data>
+  <data name="MetadataSchemas_Field_Label_Sv" xml:space="preserve"><value>Etikett (svenska)</value></data>
+  <data name="MetadataSchemas_Field_Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="MetadataSchemas_Field_Required" xml:space="preserve"><value>Obligatorisk</value></data>
+  <data name="MetadataSchemas_Field_Searchable" xml:space="preserve"><value>Sökbar</value></data>
+  <data name="MetadataSchemas_Field_Facetable" xml:space="preserve"><value>Fasetterbar</value></data>
+  <data name="MetadataSchemas_Field_Type_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="MetadataSchemas_Field_Type_LongText" xml:space="preserve"><value>Lång text</value></data>
+  <data name="MetadataSchemas_Field_Type_Number" xml:space="preserve"><value>Heltal</value></data>
+  <data name="MetadataSchemas_Field_Type_Decimal" xml:space="preserve"><value>Decimaltal</value></data>
+  <data name="MetadataSchemas_Field_Type_Boolean" xml:space="preserve"><value>Ja/Nej</value></data>
+  <data name="MetadataSchemas_Field_Type_Date" xml:space="preserve"><value>Datum</value></data>
+  <data name="MetadataSchemas_Field_Type_DateTime" xml:space="preserve"><value>Datum och tid</value></data>
+  <data name="MetadataSchemas_Field_Type_Select" xml:space="preserve"><value>Val (ett)</value></data>
+  <data name="MetadataSchemas_Field_Type_MultiSelect" xml:space="preserve"><value>Val (flera)</value></data>
+  <data name="MetadataSchemas_Field_Type_Taxonomy" xml:space="preserve"><value>Taxonomi</value></data>
+  <data name="MetadataSchemas_Field_Type_Url" xml:space="preserve"><value>URL</value></data>
+  <data name="MetadataSchemas_Scope_Collection" xml:space="preserve"><value>Samlingsspecifik</value></data>
+  <data name="MetadataSchemas_Label_Collection" xml:space="preserve"><value>Samling</value></data>
+  <data name="MetadataSchemas_Field_MaxLength" xml:space="preserve"><value>Maxlängd</value></data>
+  <data name="MetadataSchemas_Field_PatternRegex" xml:space="preserve"><value>Mönster (regex)</value></data>
+  <data name="MetadataSchemas_Field_NumericMin" xml:space="preserve"><value>Minvärde</value></data>
+  <data name="MetadataSchemas_Field_NumericMax" xml:space="preserve"><value>Maxvärde</value></data>
+  <data name="MetadataSchemas_Field_SelectOptions" xml:space="preserve"><value>Alternativ (ett per rad)</value></data>
+  <data name="MetadataSchemas_Field_Taxonomy" xml:space="preserve"><value>Taxonomi</value></data>
+  <data name="MetadataSchemas_Validation_KeyPattern" xml:space="preserve"><value>Nyckeln måste vara i snake_case (små bokstäver, siffror och understreck, börja med bokstav).</value></data>
+  <data name="MetadataSchemas_Validation_TaxonomyRequired" xml:space="preserve"><value>Välj en taxonomi för detta fält.</value></data>
+  <data name="MetadataSchemas_Validation_SelectOptionsRequired" xml:space="preserve"><value>Lägg till minst ett alternativ för denna fälttyp.</value></data>
+  <data name="MetadataSchemas_UnsavedChangesTitle" xml:space="preserve"><value>Kasta ändringar?</value></data>
+  <data name="MetadataSchemas_UnsavedChangesText" xml:space="preserve"><value>Du har osparade ändringar i detta schema. Stäng ändå?</value></data>
+
+  <!-- Taxonomies -->
+  <data name="Tab_Taxonomies" xml:space="preserve"><value>Taxonomier</value></data>
+  <data name="Taxonomies_Desc" xml:space="preserve"><value>Hantera kontrollerade ordlistor och klassificeringshierarkier för metadatafält.</value></data>
+  <data name="Taxonomies_NoTaxonomiesYet" xml:space="preserve"><value>Inga taxonomier ännu</value></data>
+  <data name="Taxonomies_NoTaxonomiesDesc" xml:space="preserve"><value>Skapa taxonomier för att tillhandahålla strukturerade termlistor för metadatafält.</value></data>
+  <data name="Taxonomies_CreateTaxonomy" xml:space="preserve"><value>Skapa taxonomi</value></data>
+  <data name="Taxonomies_EditTaxonomy" xml:space="preserve"><value>Redigera taxonomi</value></data>
+  <data name="Taxonomies_DeleteTaxonomy" xml:space="preserve"><value>Ta bort taxonomi</value></data>
+  <data name="Taxonomies_DeleteConfirmTitle" xml:space="preserve"><value>Ta bort taxonomi</value></data>
+  <data name="Taxonomies_DeleteConfirmText" xml:space="preserve"><value>Är du säker på att du vill ta bort taxonomin "{0}"? Åtgärden kan inte ångras.</value></data>
+  <data name="Taxonomies_Header_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="Taxonomies_Header_Terms" xml:space="preserve"><value>Termer</value></data>
+  <data name="Taxonomies_Label_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="Taxonomies_Label_Description" xml:space="preserve"><value>Beskrivning</value></data>
+  <data name="Taxonomies_Label_Terms" xml:space="preserve"><value>Termer</value></data>
+  <data name="Taxonomies_AddTerm" xml:space="preserve"><value>Lägg till term</value></data>
+  <data name="Taxonomies_RemoveTerm" xml:space="preserve"><value>Ta bort term</value></data>
+  <data name="Taxonomies_NoTermsYet" xml:space="preserve"><value>Inga termer ännu. Lägg till termer för att definiera ordlistan.</value></data>
+  <data name="Taxonomies_Term_Label" xml:space="preserve"><value>Term</value></data>
+  <data name="Taxonomies_Term_Label_En" xml:space="preserve"><value>Etikett (engelska)</value></data>
+  <data name="Taxonomies_Term_Label_Sv" xml:space="preserve"><value>Etikett (svenska)</value></data>
+  <data name="Taxonomies_Term_Parent" xml:space="preserve"><value>Överordnad term</value></data>
+  <data name="Taxonomies_Term_ParentNone" xml:space="preserve"><value>(ingen — rotterm)</value></data>
+  <data name="Taxonomies_Term_Slug" xml:space="preserve"><value>Slug (valfritt)</value></data>
+  <data name="Taxonomies_UnsavedChangesTitle" xml:space="preserve"><value>Kasta ändringar?</value></data>
+  <data name="Taxonomies_UnsavedChangesText" xml:space="preserve"><value>Du har osparade ändringar i denna taxonomi. Stäng ändå?</value></data>
 </root>

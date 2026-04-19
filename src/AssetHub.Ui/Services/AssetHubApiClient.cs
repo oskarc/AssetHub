@@ -1039,6 +1039,120 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Metadata Schemas
+
+    public virtual async Task<List<MetadataSchemaDto>> GetMetadataSchemasAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/metadata-schemas", ct);
+        await EnsureSuccessAsync(response, "Get metadata schemas");
+        return await response.Content.ReadFromJsonAsync<List<MetadataSchemaDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<MetadataSchemaDto?> GetMetadataSchemaAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/metadata-schemas/{id}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, "Get metadata schema");
+        return await response.Content.ReadFromJsonAsync<MetadataSchemaDto>(ct);
+    }
+
+    public virtual async Task<List<MetadataSchemaDto>> GetApplicableMetadataSchemasAsync(string? assetType = null, Guid? collectionId = null, CancellationToken ct = default)
+    {
+        var qs = new List<string>();
+        if (!string.IsNullOrEmpty(assetType)) qs.Add($"assetType={Uri.EscapeDataString(assetType)}");
+        if (collectionId.HasValue) qs.Add($"collectionId={collectionId}");
+        var url = "/api/v1/metadata-schemas/applicable" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+        var response = await _http.GetAsync(url, ct);
+        await EnsureSuccessAsync(response, "Get applicable metadata schemas");
+        return await response.Content.ReadFromJsonAsync<List<MetadataSchemaDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<MetadataSchemaDto> CreateMetadataSchemaAsync(CreateMetadataSchemaDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/metadata-schemas", dto, ct);
+        await EnsureSuccessAsync(response, "Create metadata schema");
+        return await ReadRequiredJsonAsync<MetadataSchemaDto>(response, "Create metadata schema");
+    }
+
+    public virtual async Task<MetadataSchemaDto> UpdateMetadataSchemaAsync(Guid id, UpdateMetadataSchemaDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/metadata-schemas/{id}", dto, ct);
+        await EnsureSuccessAsync(response, "Update metadata schema");
+        return await ReadRequiredJsonAsync<MetadataSchemaDto>(response, "Update metadata schema");
+    }
+
+    public virtual async Task DeleteMetadataSchemaAsync(Guid id, bool force = false, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/metadata-schemas/{id}?force={force}", ct);
+        await EnsureSuccessAsync(response, "Delete metadata schema");
+    }
+
+    #endregion
+
+    #region Taxonomies
+
+    public virtual async Task<List<TaxonomySummaryDto>> GetTaxonomiesAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/taxonomies", ct);
+        await EnsureSuccessAsync(response, "Get taxonomies");
+        return await response.Content.ReadFromJsonAsync<List<TaxonomySummaryDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<TaxonomyDto?> GetTaxonomyAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/taxonomies/{id}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, "Get taxonomy");
+        return await response.Content.ReadFromJsonAsync<TaxonomyDto>(ct);
+    }
+
+    public virtual async Task<TaxonomyDto> CreateTaxonomyAsync(CreateTaxonomyDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/taxonomies", dto, ct);
+        await EnsureSuccessAsync(response, "Create taxonomy");
+        return await ReadRequiredJsonAsync<TaxonomyDto>(response, "Create taxonomy");
+    }
+
+    public virtual async Task<TaxonomyDto> UpdateTaxonomyAsync(Guid id, UpdateTaxonomyDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/taxonomies/{id}", dto, ct);
+        await EnsureSuccessAsync(response, "Update taxonomy");
+        return await ReadRequiredJsonAsync<TaxonomyDto>(response, "Update taxonomy");
+    }
+
+    public virtual async Task<TaxonomyDto> ReplaceTaxonomyTermsAsync(Guid id, List<UpsertTaxonomyTermDto> terms, CancellationToken ct = default)
+    {
+        var response = await _http.PutAsJsonAsync($"/api/v1/admin/taxonomies/{id}/terms", terms, ct);
+        await EnsureSuccessAsync(response, "Replace taxonomy terms");
+        return await ReadRequiredJsonAsync<TaxonomyDto>(response, "Replace taxonomy terms");
+    }
+
+    public virtual async Task DeleteTaxonomyAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/taxonomies/{id}", ct);
+        await EnsureSuccessAsync(response, "Delete taxonomy");
+    }
+
+    #endregion
+
+    #region Asset Metadata
+
+    public virtual async Task<List<AssetMetadataValueDto>> GetAssetMetadataAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/metadata", ct);
+        await EnsureSuccessAsync(response, "Get asset metadata");
+        return await response.Content.ReadFromJsonAsync<List<AssetMetadataValueDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<List<AssetMetadataValueDto>> SetAssetMetadataAsync(Guid assetId, SetAssetMetadataDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PutAsJsonAsync($"/api/v1/assets/{assetId}/metadata", dto, ct);
+        await EnsureSuccessAsync(response, "Set asset metadata");
+        return await ReadRequiredJsonAsync<List<AssetMetadataValueDto>>(response, "Set asset metadata");
+    }
+
+    #endregion
 }
 
 /// <summary>

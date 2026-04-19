@@ -71,6 +71,7 @@
   <data name="Btn_BackToCollection" xml:space="preserve"><value>Tillbaka till samling</value></data>
   <data name="Btn_GoToHome" xml:space="preserve"><value>Gå till startsidan</value></data>
   <data name="Btn_SaveChanges" xml:space="preserve"><value>Spara ändringar</value></data>
+  <data name="Btn_Discard" xml:space="preserve"><value>Kasta</value></data>
   <data name="Btn_AccessContent" xml:space="preserve"><value>Visa innehåll</value></data>
   <data name="Btn_ManageAccess" xml:space="preserve"><value>Hantera åtkomst</value></data>
   <data name="Btn_CreateUser" xml:space="preserve"><value>Skapa användare</value></data>

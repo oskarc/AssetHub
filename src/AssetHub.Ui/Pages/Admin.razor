@@ -31,6 +31,12 @@
         <MudTabPanel Text="@AdminLoc["Tab_ExportPresets"]" Icon="@Icons.Material.Filled.Tune">
             <AdminExportPresetsTab />
         </MudTabPanel>
+        <MudTabPanel Text="@AdminLoc["Tab_MetadataSchemas"]" Icon="@Icons.Material.Filled.Schema">
+            <AdminMetadataSchemasTab />
+        </MudTabPanel>
+        <MudTabPanel Text="@AdminLoc["Tab_Taxonomies"]" Icon="@Icons.Material.Filled.AccountTree">
+            <AdminTaxonomiesTab />
+        </MudTabPanel>
         <MudTabPanel Text="@AdminLoc["Tab_AuditLog"]" Icon="@Icons.Material.Filled.History">
             <AdminAuditTab />
         </MudTabPanel>
@@ -48,7 +54,7 @@
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("tab", out var tabValue)
-            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 5)
+            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 7)
             _activeTabIndex = tab;
     }
 

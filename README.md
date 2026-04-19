@@ -71,6 +71,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Asset Management**
 - Drag-and-drop upload with multi-collection organisation
 - Full-text trigram search across names, descriptions, and tags (GIN-indexed)
+- Custom metadata schemas and taxonomies — admin-defined structured fields (text, numeric, date, select, taxonomy) scoped globally, per asset type, or per collection, with required-field and pattern validation
 - Canvas-based image editor (Fabric.js) — crop, rotate, flip, resize, draw, text overlays, and multi-layer composition with save-as-copy or replace-original
 - Export presets — admin-defined output formats, dimensions, quality, and fit modes applied automatically on save
 - Asset lineage tracking — derivatives link back to their parent/original asset
@@ -82,7 +83,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Access Control & Sharing**
 - Per-collection RBAC — Viewer, Contributor, Manager, Admin (system admins bypass all ACLs)
 - Password-protected, time-limited share links
-- Admin dashboard with user management, share admin, export preset management, bulk migrations, and paginated audit log with filterable event types
+- Admin dashboard with user management, share admin, export preset management, metadata schema and taxonomy management, bulk migrations, and paginated audit log with filterable event types
 
 **Security**
 - ClamAV malware scanning on every upload

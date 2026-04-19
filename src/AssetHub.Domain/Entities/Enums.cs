@@ -132,6 +132,34 @@ public enum ExportPresetFormat
 }
 
 /// <summary>
+/// Scope of a metadata schema — determines which assets it applies to.
+/// </summary>
+public enum MetadataSchemaScope
+{
+    Global,
+    AssetType,
+    Collection
+}
+
+/// <summary>
+/// Data type for a metadata field.
+/// </summary>
+public enum MetadataFieldType
+{
+    Text,
+    LongText,
+    Number,
+    Decimal,
+    Boolean,
+    Date,
+    DateTime,
+    Select,
+    MultiSelect,
+    Taxonomy,
+    Url
+}
+
+/// <summary>
 /// Extension methods for enum ↔ string conversion.
 /// These map between the new enums and existing lowercase string values
 /// stored in the database, maintaining backward compatibility.
@@ -242,6 +270,30 @@ public static class DomainEnumExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(format))
     };
 
+    public static string ToDbString(this MetadataSchemaScope scope) => scope switch
+    {
+        MetadataSchemaScope.Global => "global",
+        MetadataSchemaScope.AssetType => "asset_type",
+        MetadataSchemaScope.Collection => "collection",
+        _ => throw new ArgumentOutOfRangeException(nameof(scope))
+    };
+
+    public static string ToDbString(this MetadataFieldType type) => type switch
+    {
+        MetadataFieldType.Text => "text",
+        MetadataFieldType.LongText => "long_text",
+        MetadataFieldType.Number => "number",
+        MetadataFieldType.Decimal => "decimal",
+        MetadataFieldType.Boolean => "boolean",
+        MetadataFieldType.Date => "date",
+        MetadataFieldType.DateTime => "date_time",
+        MetadataFieldType.Select => "select",
+        MetadataFieldType.MultiSelect => "multi_select",
+        MetadataFieldType.Taxonomy => "taxonomy",
+        MetadataFieldType.Url => "url",
+        _ => throw new ArgumentOutOfRangeException(nameof(type))
+    };
+
     // ── String → Enum conversions ───────────────────────────────────────
 
     public static AssetStatus ToAssetStatus(this string value) => value switch
@@ -343,4 +395,34 @@ public static class DomainEnumExtensions
     public static bool IsValidExportPresetFitMode(string value) => value is "contain" or "cover" or "stretch" or "width" or "height";
 
     public static bool IsValidExportPresetFormat(string value) => value is "original" or "jpeg" or "png" or "webp";
+
+    public static MetadataSchemaScope ToMetadataSchemaScope(this string value) => value switch
+    {
+        "global" => MetadataSchemaScope.Global,
+        "asset_type" => MetadataSchemaScope.AssetType,
+        "collection" => MetadataSchemaScope.Collection,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown metadata schema scope: {value}")
+    };
+
+    public static MetadataFieldType ToMetadataFieldType(this string value) => value switch
+    {
+        "text" => MetadataFieldType.Text,
+        "long_text" => MetadataFieldType.LongText,
+        "number" => MetadataFieldType.Number,
+        "decimal" => MetadataFieldType.Decimal,
+        "boolean" => MetadataFieldType.Boolean,
+        "date" => MetadataFieldType.Date,
+        "date_time" => MetadataFieldType.DateTime,
+        "select" => MetadataFieldType.Select,
+        "multi_select" => MetadataFieldType.MultiSelect,
+        "taxonomy" => MetadataFieldType.Taxonomy,
+        "url" => MetadataFieldType.Url,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown metadata field type: {value}")
+    };
+
+    public static bool IsValidMetadataSchemaScope(string value) => value is "global" or "asset_type" or "collection";
+
+    public static bool IsValidMetadataFieldType(string value) => value is "text" or "long_text" or "number" or "decimal" or "boolean" or "date" or "date_time" or "select" or "multi_select" or "taxonomy" or "url";
+
+    public static bool IsValidAssetType(string value) => value is "image" or "video" or "document";
 }

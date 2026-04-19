@@ -24,6 +24,11 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ExportPreset> ExportPresets { get; set; } = null!;
     public DbSet<Migration> Migrations { get; set; } = null!;
     public DbSet<MigrationItem> MigrationItems { get; set; } = null!;
+    public DbSet<MetadataSchema> MetadataSchemas { get; set; } = null!;
+    public DbSet<MetadataField> MetadataFields { get; set; } = null!;
+    public DbSet<Taxonomy> Taxonomies { get; set; } = null!;
+    public DbSet<TaxonomyTerm> TaxonomyTerms { get; set; } = null!;
+    public DbSet<AssetMetadataValue> AssetMetadataValues { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -314,6 +319,130 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
                     c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
                     c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+        });
+
+        // MetadataSchema
+        modelBuilder.Entity<MetadataSchema>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("idx_metadata_schemas_name_unique");
+            entity.HasIndex(e => e.Scope).HasDatabaseName("idx_metadata_schemas_scope");
+            entity.HasIndex(e => e.CollectionId).HasDatabaseName("idx_metadata_schemas_collection_id");
+
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Scope)
+                .HasConversion(v => v.ToDbString(), v => v.ToMetadataSchemaScope())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.AssetType)
+                .HasConversion(
+                    v => v.HasValue ? v.Value.ToDbString() : null,
+                    v => v != null ? v.ToAssetType() : null)
+                .HasMaxLength(50);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
+
+            entity.HasOne<Collection>()
+                .WithMany()
+                .HasForeignKey(e => e.CollectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Fields)
+                .WithOne(f => f.MetadataSchema)
+                .HasForeignKey(f => f.MetadataSchemaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MetadataField
+        modelBuilder.Entity<MetadataField>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.MetadataSchemaId, e.Key }).IsUnique().HasDatabaseName("idx_metadata_fields_schema_key_unique");
+            entity.HasIndex(e => new { e.MetadataSchemaId, e.SortOrder }).HasDatabaseName("idx_metadata_fields_schema_sort");
+
+            entity.Property(e => e.Key).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Label).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.LabelSv).HasMaxLength(255);
+            entity.Property(e => e.Type)
+                .HasConversion(v => v.ToDbString(), v => v.ToMetadataFieldType())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.PatternRegex).HasMaxLength(500);
+            entity.Property(e => e.NumericMin).HasColumnType("numeric");
+            entity.Property(e => e.NumericMax).HasColumnType("numeric");
+
+            entity.Property(e => e.SelectOptions)
+                .HasColumnType("text[]")
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
+
+            entity.HasOne(e => e.Taxonomy)
+                .WithMany()
+                .HasForeignKey(e => e.TaxonomyId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Taxonomy
+        modelBuilder.Entity<Taxonomy>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("idx_taxonomies_name_unique");
+
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
+
+            entity.HasMany(e => e.Terms)
+                .WithOne(t => t.Taxonomy)
+                .HasForeignKey(t => t.TaxonomyId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // TaxonomyTerm
+        modelBuilder.Entity<TaxonomyTerm>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.TaxonomyId, e.Slug }).IsUnique().HasDatabaseName("idx_taxonomy_terms_taxonomy_slug_unique");
+            entity.HasIndex(e => new { e.TaxonomyId, e.SortOrder }).HasDatabaseName("idx_taxonomy_terms_taxonomy_sort");
+            entity.HasIndex(e => e.ParentTermId).HasDatabaseName("idx_taxonomy_terms_parent");
+
+            entity.Property(e => e.Label).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.LabelSv).HasMaxLength(255);
+            entity.Property(e => e.Slug).HasMaxLength(255).IsRequired();
+
+            entity.HasOne(e => e.ParentTerm)
+                .WithMany(e => e.Children)
+                .HasForeignKey(e => e.ParentTermId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // AssetMetadataValue
+        modelBuilder.Entity<AssetMetadataValue>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.MetadataFieldId, e.AssetId }).HasDatabaseName("idx_asset_metadata_values_field_asset");
+            entity.HasIndex(e => e.AssetId).HasDatabaseName("idx_asset_metadata_values_asset");
+            entity.HasIndex(e => e.ValueTaxonomyTermId)
+                .HasFilter("\"ValueTaxonomyTermId\" IS NOT NULL")
+                .HasDatabaseName("idx_asset_metadata_values_taxonomy_term");
+
+            entity.Property(e => e.ValueText).HasMaxLength(4000);
+            entity.Property(e => e.ValueNumeric).HasColumnType("numeric");
+
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MetadataField)
+                .WithMany()
+                .HasForeignKey(e => e.MetadataFieldId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ValueTaxonomyTerm)
+                .WithMany()
+                .HasForeignKey(e => e.ValueTaxonomyTermId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

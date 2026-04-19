@@ -74,6 +74,7 @@
   <data name="Btn_BackToCollection" xml:space="preserve"><value>Back to Collection</value></data>
   <data name="Btn_GoToHome" xml:space="preserve"><value>Go to Home</value></data>
   <data name="Btn_SaveChanges" xml:space="preserve"><value>Save Changes</value></data>
+  <data name="Btn_Discard" xml:space="preserve"><value>Discard</value></data>
   <data name="Btn_AccessContent" xml:space="preserve"><value>Access Content</value></data>
   <data name="Btn_ManageAccess" xml:space="preserve"><value>Manage Access</value></data>
   <data name="Btn_CreateUser" xml:space="preserve"><value>Create User</value></data>

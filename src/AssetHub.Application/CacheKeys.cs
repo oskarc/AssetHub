@@ -20,6 +20,10 @@ public static class CacheKeys
     private const string DashboardSummaryPrefix = "dashboard:summary:";
     private const string ExportPresetPrefix = "export-preset:";
     private const string ExportPresetsAllKey = "export-presets:all";
+    private const string MetadataSchemaPrefix = "metadata-schema:";
+    private const string MetadataSchemasAllKey = "metadata-schemas:all";
+    private const string TaxonomyPrefix = "taxonomy:";
+    private const string TaxonomiesAllKey = "taxonomies:all";
 
     // ── TTLs ──────────────────────────────────────────────────────────
 
@@ -46,6 +50,12 @@ public static class CacheKeys
 
     /// <summary>Export presets. Invalidated on preset create/update/delete.</summary>
     public static readonly TimeSpan ExportPresetTtl = TimeSpan.FromMinutes(10);
+
+    /// <summary>Metadata schemas. Invalidated on schema create/update/delete.</summary>
+    public static readonly TimeSpan MetadataSchemaTtl = TimeSpan.FromMinutes(10);
+
+    /// <summary>Taxonomies. Invalidated on taxonomy create/update/delete.</summary>
+    public static readonly TimeSpan TaxonomyTtl = TimeSpan.FromMinutes(10);
 
     // ── Key Builders ──────────────────────────────────────────────────
 
@@ -83,6 +93,20 @@ public static class CacheKeys
     /// <summary>Cache key for the all export presets list.</summary>
     public static string ExportPresetsAll() => ExportPresetsAllKey;
 
+    /// <summary>Cache key for a single metadata schema.</summary>
+    public static string MetadataSchema(Guid id)
+        => $"{MetadataSchemaPrefix}{id}";
+
+    /// <summary>Cache key for the all metadata schemas list.</summary>
+    public static string MetadataSchemasAll() => MetadataSchemasAllKey;
+
+    /// <summary>Cache key for a single taxonomy.</summary>
+    public static string Taxonomy(Guid id)
+        => $"{TaxonomyPrefix}{id}";
+
+    /// <summary>Cache key for the all taxonomies list.</summary>
+    public static string TaxonomiesAll() => TaxonomiesAllKey;
+
     // ── Tag Definitions (for HybridCache tag-based invalidation) ─────
 
     /// <summary>
@@ -110,5 +134,11 @@ public static class CacheKeys
 
         /// <summary>Tag for all export preset entries.</summary>
         public const string ExportPresets = "export-presets";
+
+        /// <summary>Tag for all metadata schema entries.</summary>
+        public const string MetadataSchemas = "metadata-schemas";
+
+        /// <summary>Tag for all taxonomy entries.</summary>
+        public const string Taxonomies = "taxonomies";
     }
 }

@@ -1,0 +1,188 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+@if (_loading && _schemas == null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_schemas == null || !_schemas.Any())
+{
+    <EmptyState Title="@AdminLoc["MetadataSchemas_NoSchemasYet"]"
+                Description="@AdminLoc["MetadataSchemas_NoSchemasDesc"]"
+                Icon="@Icons.Material.Filled.Schema"
+                ActionText="@AdminLoc["MetadataSchemas_CreateSchema"]"
+                ActionIcon="@Icons.Material.Filled.Add"
+                OnAction="OpenCreateDialog" />
+}
+else
+{
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @AdminLoc["MetadataSchemas_Desc"]
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateDialog">
+                @AdminLoc["MetadataSchemas_CreateSchema"]
+            </MudButton>
+        </MudStack>
+
+        <MudTable Items="@_schemas" Hover="true" Dense="true" Striped="true" Loading="@_loading"
+                  FixedHeader="true">
+            <HeaderContent>
+                <MudTh>@AdminLoc["MetadataSchemas_Header_Name"]</MudTh>
+                <MudTh>@AdminLoc["MetadataSchemas_Header_Scope"]</MudTh>
+                <MudTh>@AdminLoc["MetadataSchemas_Header_Fields"]</MudTh>
+                <MudTh>@AdminLoc["MetadataSchemas_Header_Created"]</MudTh>
+                <MudTh Style="width: 120px;"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@AdminLoc["MetadataSchemas_Header_Name"]">
+                    <MudText Typo="Typo.body2" Class="font-semibold">@context.Name</MudText>
+                    @if (!string.IsNullOrEmpty(context.Description))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="@AdminLoc["MetadataSchemas_Header_Scope"]">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.Scope</MudChip>
+                    @if (!string.IsNullOrEmpty(context.AssetType))
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary">@context.AssetType</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="@AdminLoc["MetadataSchemas_Header_Fields"]">
+                    @context.Fields.Count
+                </MudTd>
+                <MudTd DataLabel="@AdminLoc["MetadataSchemas_Header_Created"]">
+                    <MudTooltip Text="@context.CreatedAt.ToLocalTime().ToString("F")">
+                        <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("d")</MudText>
+                    </MudTooltip>
+                </MudTd>
+                <MudTd>
+                    <MudStack Row="true" Spacing="1">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       aria-label="@AdminLoc["MetadataSchemas_EditSchema"]"
+                                       OnClick="@(() => OpenEditDialog(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       aria-label="@AdminLoc["MetadataSchemas_DeleteSchema"]"
+                                       OnClick="@(() => DeleteSchemaAsync(context))" />
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudStack>
+}
+
+@code {
+    private List<MetadataSchemaDto>? _schemas;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _schemas = await Api.GetMetadataSchemasAsync();
+        }
+        catch
+        {
+            Feedback.ShowError(CommonLoc["Error_LoadFailed"].Value);
+            _schemas = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<MetadataSchemaDialog>(AdminLoc["MetadataSchemas_CreateSchema"].Value, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+            await LoadAsync();
+    }
+
+    private async Task OpenEditDialog(MetadataSchemaDto schema)
+    {
+        var parameters = new DialogParameters<MetadataSchemaDialog>
+        {
+            { x => x.Schema, schema }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<MetadataSchemaDialog>(AdminLoc["MetadataSchemas_EditSchema"].Value, parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+            await LoadAsync();
+    }
+
+    private async Task DeleteSchemaAsync(MetadataSchemaDto schema)
+    {
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["MetadataSchemas_DeleteConfirmTitle"].Value,
+            string.Format(AdminLoc["MetadataSchemas_DeleteConfirmText"].Value, schema.Name),
+            CommonLoc["Btn_Delete"].Value,
+            iconColor: Color.Error,
+            confirmColor: Color.Error);
+
+        if (!confirmed) return;
+
+        // Optimistic remove
+        _schemas!.Remove(schema);
+        StateHasChanged();
+
+        try
+        {
+            await Api.DeleteMetadataSchemaAsync(schema.Id);
+        }
+        catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            // Has values — ask if force delete
+            var force = await DialogService.ShowConfirmAsync(
+                AdminLoc["MetadataSchemas_ForceDeleteTitle"].Value,
+                AdminLoc["MetadataSchemas_ForceDeleteText"].Value,
+                CommonLoc["Btn_Delete"].Value,
+                iconColor: Color.Error,
+                confirmColor: Color.Error);
+
+            if (force)
+            {
+                try
+                {
+                    await Api.DeleteMetadataSchemaAsync(schema.Id, force: true);
+                    return;
+                }
+                catch
+                {
+                    Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
+                }
+            }
+
+            // Rollback
+            _schemas.Add(schema);
+            StateHasChanged();
+        }
+        catch
+        {
+            // Rollback
+            _schemas!.Add(schema);
+            StateHasChanged();
+            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
+        }
+    }
+}

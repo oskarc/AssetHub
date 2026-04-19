@@ -1,0 +1,457 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using System.Text.RegularExpressions
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.Schema" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" id="schema-dialog-title">
+                @(_isEdit ? AdminLoc["MetadataSchemas_EditSchema"] : AdminLoc["MetadataSchemas_CreateSchema"])
+            </MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formIsValid">
+            <MudStack Spacing="3" Class="dialog-min-width">
+
+                <MudTextField @bind-Value="_name" Label="@AdminLoc["MetadataSchemas_Label_Name"]" Required="true"
+                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Label_Name"].Value)"
+                              Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
+                              Counter="255" MaxLength="255" />
+
+                <MudTextField @bind-Value="_description" Label="@AdminLoc["MetadataSchemas_Label_Description"]"
+                              Variant="Variant.Outlined" Lines="2" MaxLength="1000" />
+
+                @if (!_isEdit)
+                {
+                    <MudSelect T="string" Value="_scope" ValueChanged="OnScopeChanged"
+                               Label="@AdminLoc["MetadataSchemas_Label_Scope"]"
+                               Variant="Variant.Outlined" Required="true"
+                               RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Label_Scope"].Value)">
+                        <MudSelectItem T="string" Value="@("global")">@AdminLoc["MetadataSchemas_Scope_Global"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("asset_type")">@AdminLoc["MetadataSchemas_Scope_AssetType"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("collection")">@AdminLoc["MetadataSchemas_Scope_Collection"]</MudSelectItem>
+                    </MudSelect>
+
+                    @if (_scope == "asset_type")
+                    {
+                        <MudSelect T="string" @bind-Value="_assetType" Label="@AdminLoc["MetadataSchemas_Label_AssetType"]"
+                                   Variant="Variant.Outlined" Required="true"
+                                   RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Label_AssetType"].Value)">
+                            <MudSelectItem T="string" Value="@("image")">@CommonLoc["AssetType_Image"]</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("video")">@CommonLoc["AssetType_Video"]</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("document")">@CommonLoc["AssetType_Document"]</MudSelectItem>
+                        </MudSelect>
+                    }
+                    else if (_scope == "collection")
+                    {
+                        <MudSelect T="Guid?" @bind-Value="_collectionId" Label="@AdminLoc["MetadataSchemas_Label_Collection"]"
+                                   Variant="Variant.Outlined" Required="true"
+                                   RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Label_Collection"].Value)">
+                            @foreach (var c in _collections)
+                            {
+                                <MudSelectItem T="Guid?" Value="@c.Id">@c.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                }
+
+                <MudDivider />
+
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.subtitle1">@AdminLoc["MetadataSchemas_Label_Fields"]</MudText>
+                    <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                               OnClick="AddField">
+                        @AdminLoc["MetadataSchemas_AddField"]
+                    </MudButton>
+                </MudStack>
+
+                @if (!_fields.Any())
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@AdminLoc["MetadataSchemas_NoFieldsYet"]</MudText>
+                }
+
+                @foreach (var (field, index) in _fields.Select((f, i) => (f, i)))
+                {
+                    <MudPaper Elevation="1" Class="pa-3">
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.subtitle2">@AdminLoc["MetadataSchemas_Field_Label"] @(index + 1)</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               aria-label="@AdminLoc["MetadataSchemas_RemoveField"]"
+                                               OnClick="@(() => RemoveField(field))" />
+                            </MudStack>
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudTextField @bind-Value="field.Key" Label="@AdminLoc["MetadataSchemas_Field_Key"]" Required="true"
+                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Field_Key"].Value)"
+                                                  Validation="@((string v) => ValidateKey(v))"
+                                                  Variant="Variant.Outlined" Immediate="true" MaxLength="100" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTextField @bind-Value="field.Label" Label="@AdminLoc["MetadataSchemas_Field_Label_En"]" Required="true"
+                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Field_Label_En"].Value)"
+                                                  Variant="Variant.Outlined" Immediate="true" MaxLength="255" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTextField @bind-Value="field.LabelSv" Label="@AdminLoc["MetadataSchemas_Field_Label_Sv"]"
+                                                  Variant="Variant.Outlined" MaxLength="255" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudSelect T="string" Value="field.Type" ValueChanged="@(v => OnFieldTypeChanged(field, v))"
+                                               Label="@AdminLoc["MetadataSchemas_Field_Type"]"
+                                               Variant="Variant.Outlined" Required="true"
+                                               RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Field_Type"].Value)">
+                                        <MudSelectItem T="string" Value="@("text")">@AdminLoc["MetadataSchemas_Field_Type_Text"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("long_text")">@AdminLoc["MetadataSchemas_Field_Type_LongText"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("number")">@AdminLoc["MetadataSchemas_Field_Type_Number"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("decimal")">@AdminLoc["MetadataSchemas_Field_Type_Decimal"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("boolean")">@AdminLoc["MetadataSchemas_Field_Type_Boolean"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("date")">@AdminLoc["MetadataSchemas_Field_Type_Date"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("date_time")">@AdminLoc["MetadataSchemas_Field_Type_DateTime"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("select")">@AdminLoc["MetadataSchemas_Field_Type_Select"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("multi_select")">@AdminLoc["MetadataSchemas_Field_Type_MultiSelect"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("taxonomy")">@AdminLoc["MetadataSchemas_Field_Type_Taxonomy"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("url")">@AdminLoc["MetadataSchemas_Field_Type_Url"]</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+
+                                @if (field.Type is "text" or "long_text")
+                                {
+                                    <MudItem xs="6">
+                                        <MudNumericField @bind-Value="field.MaxLength" Label="@AdminLoc["MetadataSchemas_Field_MaxLength"]"
+                                                         Variant="Variant.Outlined" Min="1" Max="10000" />
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudTextField @bind-Value="field.PatternRegex" Label="@AdminLoc["MetadataSchemas_Field_PatternRegex"]"
+                                                      Variant="Variant.Outlined" MaxLength="500" />
+                                    </MudItem>
+                                }
+                                else if (field.Type is "number" or "decimal")
+                                {
+                                    <MudItem xs="6">
+                                        <MudNumericField T="decimal?" @bind-Value="field.NumericMin" Label="@AdminLoc["MetadataSchemas_Field_NumericMin"]"
+                                                         Variant="Variant.Outlined" />
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudNumericField T="decimal?" @bind-Value="field.NumericMax" Label="@AdminLoc["MetadataSchemas_Field_NumericMax"]"
+                                                         Variant="Variant.Outlined" />
+                                    </MudItem>
+                                }
+                                else if (field.Type is "select" or "multi_select")
+                                {
+                                    <MudItem xs="12">
+                                        <MudTextField @bind-Value="field.SelectOptionsRaw" Label="@AdminLoc["MetadataSchemas_Field_SelectOptions"]"
+                                                      Variant="Variant.Outlined" Lines="4"
+                                                      Validation="@((string v) => ValidateSelectOptions(field, v))"
+                                                      HelperText="@AdminLoc["MetadataSchemas_Field_SelectOptions"].Value" />
+                                    </MudItem>
+                                }
+                                else if (field.Type == "taxonomy")
+                                {
+                                    <MudItem xs="12">
+                                        <MudSelect T="Guid?" @bind-Value="field.TaxonomyId" Label="@AdminLoc["MetadataSchemas_Field_Taxonomy"]"
+                                                   Variant="Variant.Outlined" Required="true"
+                                                   RequiredError="@AdminLoc["MetadataSchemas_Validation_TaxonomyRequired"].Value">
+                                            @foreach (var t in _taxonomies)
+                                            {
+                                                <MudSelectItem T="Guid?" Value="@t.Id">@t.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    </MudItem>
+                                }
+
+                                <MudItem xs="4">
+                                    <MudCheckBox @bind-Value="field.Required" Label="@AdminLoc["MetadataSchemas_Field_Required"]" />
+                                </MudItem>
+                                <MudItem xs="4">
+                                    <MudCheckBox @bind-Value="field.Searchable" Label="@AdminLoc["MetadataSchemas_Field_Searchable"]" />
+                                </MudItem>
+                                <MudItem xs="4">
+                                    <MudCheckBox @bind-Value="field.Facetable" Label="@AdminLoc["MetadataSchemas_Field_Facetable"]" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudStack>
+                    </MudPaper>
+                }
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" role="alert">@_errorMessage</MudAlert>
+                }
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(!_formIsValid || _submitting)"
+                   StartIcon="@(_submitting ? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.Save)">
+            @if (_submitting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @CommonLoc["Btn_Save"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public MetadataSchemaDto? Schema { get; set; }
+
+    private static readonly Regex KeyPattern = new(@"^[a-z][a-z0-9_]*$", RegexOptions.Compiled);
+
+    private MudForm? _form;
+    private bool _formIsValid;
+    private bool _submitting;
+    private bool _isEdit;
+    private string? _errorMessage;
+
+    private string _name = string.Empty;
+    private string? _description;
+    private string _scope = "global";
+    private string? _assetType;
+    private Guid? _collectionId;
+    private List<FieldModel> _fields = new();
+
+    private List<CollectionResponseDto> _collections = new();
+    private List<TaxonomySummaryDto> _taxonomies = new();
+
+    private string _initialSnapshot = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isEdit = Schema is not null;
+        if (Schema is not null)
+        {
+            _name = Schema.Name;
+            _description = Schema.Description;
+            _scope = Schema.Scope;
+            _assetType = Schema.AssetType;
+            _collectionId = Schema.CollectionId;
+            _fields = Schema.Fields.OrderBy(f => f.SortOrder).Select(FieldModel.FromDto).ToList();
+        }
+
+        // Load reference lists used by the scope selector and taxonomy field picker.
+        try { _taxonomies = await Api.GetTaxonomiesAsync(); }
+        catch { _taxonomies = new(); }
+
+        try { _collections = await Api.GetCollectionsAsync(); }
+        catch { _collections = new(); }
+
+        _initialSnapshot = CaptureSnapshot();
+    }
+
+    private void OnScopeChanged(string value)
+    {
+        _scope = value;
+        if (value != "asset_type") _assetType = null;
+        if (value != "collection") _collectionId = null;
+    }
+
+    private static void OnFieldTypeChanged(FieldModel field, string value)
+    {
+        field.Type = value;
+        // Reset type-specific props so stale values don't sneak in after a type switch.
+        if (value is not ("text" or "long_text")) { field.MaxLength = null; field.PatternRegex = null; }
+        if (value is not ("number" or "decimal")) { field.NumericMin = null; field.NumericMax = null; }
+        if (value is not ("select" or "multi_select")) field.SelectOptionsRaw = string.Empty;
+        if (value != "taxonomy") field.TaxonomyId = null;
+    }
+
+    private string? ValidateKey(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return null;
+        return KeyPattern.IsMatch(value) ? null : AdminLoc["MetadataSchemas_Validation_KeyPattern"].Value;
+    }
+
+    private string? ValidateSelectOptions(FieldModel field, string value)
+    {
+        if (field.Type is not ("select" or "multi_select")) return null;
+        var parts = SplitOptions(value);
+        return parts.Count == 0 ? AdminLoc["MetadataSchemas_Validation_SelectOptionsRequired"].Value : null;
+    }
+
+    private static List<string> SplitOptions(string? raw) =>
+        string.IsNullOrWhiteSpace(raw)
+            ? new()
+            : raw.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                 .Select(s => s.Trim())
+                 .Where(s => s.Length > 0)
+                 .ToList();
+
+    private void AddField()
+    {
+        _fields.Add(new FieldModel { Type = "text", Searchable = true, SortOrder = _fields.Count });
+    }
+
+    private void RemoveField(FieldModel field) => _fields.Remove(field);
+
+    private async Task Submit()
+    {
+        await _form!.Validate();
+        if (!_formIsValid) return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var fieldDtos = _fields.Select((f, i) => new UpdateMetadataFieldDto
+            {
+                Id = f.Id,
+                Key = f.Key,
+                Label = f.Label,
+                LabelSv = f.LabelSv,
+                Type = f.Type,
+                Required = f.Required,
+                Searchable = f.Searchable,
+                Facetable = f.Facetable,
+                PatternRegex = string.IsNullOrWhiteSpace(f.PatternRegex) ? null : f.PatternRegex,
+                MaxLength = f.MaxLength,
+                NumericMin = f.NumericMin,
+                NumericMax = f.NumericMax,
+                SelectOptions = f.Type is "select" or "multi_select" ? SplitOptions(f.SelectOptionsRaw) : null,
+                TaxonomyId = f.TaxonomyId,
+                SortOrder = f.SortOrder != 0 ? f.SortOrder : i
+            }).ToList();
+
+            if (_isEdit)
+            {
+                await Api.UpdateMetadataSchemaAsync(Schema!.Id, new UpdateMetadataSchemaDto
+                {
+                    Name = _name,
+                    Description = _description,
+                    Fields = fieldDtos
+                });
+            }
+            else
+            {
+                await Api.CreateMetadataSchemaAsync(new CreateMetadataSchemaDto
+                {
+                    Name = _name,
+                    Description = _description,
+                    Scope = _scope,
+                    AssetType = _assetType,
+                    CollectionId = _collectionId,
+                    Fields = fieldDtos.Select(f => new CreateMetadataFieldDto
+                    {
+                        Key = f.Key,
+                        Label = f.Label,
+                        LabelSv = f.LabelSv,
+                        Type = f.Type,
+                        Required = f.Required,
+                        Searchable = f.Searchable,
+                        Facetable = f.Facetable,
+                        PatternRegex = f.PatternRegex,
+                        MaxLength = f.MaxLength,
+                        NumericMin = f.NumericMin,
+                        NumericMax = f.NumericMax,
+                        SelectOptions = f.SelectOptions,
+                        TaxonomyId = f.TaxonomyId,
+                        SortOrder = f.SortOrder
+                    }).ToList()
+                });
+            }
+
+            _initialSnapshot = CaptureSnapshot();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private async Task Cancel()
+    {
+        if (!IsDirty())
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["MetadataSchemas_UnsavedChangesTitle"].Value,
+            AdminLoc["MetadataSchemas_UnsavedChangesText"].Value,
+            CommonLoc["Btn_Discard"].Value,
+            iconColor: Color.Warning);
+        if (confirmed) MudDialog.Cancel();
+    }
+
+    private bool IsDirty() => CaptureSnapshot() != _initialSnapshot;
+
+    private string CaptureSnapshot() =>
+        System.Text.Json.JsonSerializer.Serialize(new
+        {
+            _name,
+            _description,
+            _scope,
+            _assetType,
+            _collectionId,
+            Fields = _fields.Select(f => new
+            {
+                f.Id, f.Key, f.Label, f.LabelSv, f.Type, f.Required, f.Searchable, f.Facetable,
+                f.PatternRegex, f.MaxLength, f.NumericMin, f.NumericMax, f.SelectOptionsRaw, f.TaxonomyId, f.SortOrder
+            })
+        });
+
+    private sealed class FieldModel
+    {
+        public Guid? Id { get; set; }
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string? LabelSv { get; set; }
+        public string Type { get; set; } = "text";
+        public bool Required { get; set; }
+        public bool Searchable { get; set; } = true;
+        public bool Facetable { get; set; }
+        public string? PatternRegex { get; set; }
+        public int? MaxLength { get; set; }
+        public decimal? NumericMin { get; set; }
+        public decimal? NumericMax { get; set; }
+        public string SelectOptionsRaw { get; set; } = string.Empty;
+        public List<string> SelectOptions =>
+            string.IsNullOrWhiteSpace(SelectOptionsRaw)
+                ? new()
+                : SelectOptionsRaw.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .Where(s => s.Length > 0)
+                    .ToList();
+        public Guid? TaxonomyId { get; set; }
+        public int SortOrder { get; set; }
+
+        public static FieldModel FromDto(MetadataFieldDto dto) => new()
+        {
+            Id = dto.Id,
+            Key = dto.Key,
+            Label = dto.Label,
+            LabelSv = dto.LabelSv,
+            Type = dto.Type,
+            Required = dto.Required,
+            Searchable = dto.Searchable,
+            Facetable = dto.Facetable,
+            PatternRegex = dto.PatternRegex,
+            MaxLength = dto.MaxLength,
+            NumericMin = dto.NumericMin,
+            NumericMax = dto.NumericMax,
+            SelectOptionsRaw = dto.SelectOptions is { Count: > 0 } ? string.Join("\n", dto.SelectOptions) : string.Empty,
+            TaxonomyId = dto.TaxonomyId,
+            SortOrder = dto.SortOrder
+        };
+    }
+}
