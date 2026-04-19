@@ -163,15 +163,17 @@ public sealed class AssetService : IAssetService
                     return ServiceError.Forbidden();
             }
 
-            var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, _bucketName, ct);
+            var (removed, softDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, userId, _bucketName, ct);
             if (!removed)
                 return ServiceError.NotFound("Asset is not linked to this collection");
 
-            if (permanentlyDeleted)
+            if (softDeleted)
             {
+                // Asset was orphaned by removing its last collection — moved to Trash, recoverable.
                 await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
                     new() { [AuditKeyTitle] = asset.Title, ["reason"] = "last_collection" },
                     ct);
+                await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
             }
             else
             {
@@ -182,13 +184,14 @@ public sealed class AssetService : IAssetService
             return ServiceResult.Success;
         }
 
-        // Full permanent delete (no specific collection context)
+        // Full delete (no specific collection context) — soft-delete to Trash. Permanent purge
+        // happens via the AdminTrash endpoints or the TrashPurge background worker after TTL.
         var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
         var partialDelete = await TryPartialDeleteAsync(id, asset.Title, userId, assetCollections, ct);
         if (partialDelete is not null)
             return partialDelete;
 
-        await _deletionService.PermanentDeleteAsync(asset, _bucketName, ct);
+        await _deletionService.SoftDeleteAsync(asset, userId, ct);
         await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
             new() { [AuditKeyTitle] = asset.Title }, ct);
 
@@ -286,11 +289,11 @@ public sealed class AssetService : IAssetService
                 return ServiceError.Forbidden("You don't have permission to manage this asset in this collection");
         }
 
-        var (removed, permanentlyDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, _bucketName, ct);
+        var (removed, softDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, userId, _bucketName, ct);
         if (!removed)
             return ServiceError.NotFound("Asset is not linked to this collection");
 
-        if (permanentlyDeleted)
+        if (softDeleted)
         {
             await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, assetId, userId,
                 new() { [AuditKeyTitle] = asset.Title, ["reason"] = "orphaned" }, ct);

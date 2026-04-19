@@ -332,4 +332,39 @@ public sealed class AssetRepository(
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Sha256 == sha256, cancellationToken);
     }
+
+    public async Task<Asset?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Assets
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+    }
+
+    public async Task<(List<Asset> Assets, int Total)> GetTrashAsync(
+        int skip = 0, int take = 50, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Assets
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(a => a.DeletedAt != null);
+
+        var total = await query.CountAsync(cancellationToken);
+        var assets = await query
+            .OrderByDescending(a => a.DeletedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+        return (assets, total);
+    }
+
+    public async Task<List<Asset>> GetTrashOlderThanAsync(
+        DateTime cutoff, int batchSize = 100, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Assets
+            .IgnoreQueryFilters()
+            .Where(a => a.DeletedAt != null && a.DeletedAt < cutoff)
+            .OrderBy(a => a.DeletedAt)
+            .Take(batchSize)
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -267,6 +267,7 @@ public static class WebApplicationExtensions
         app.MapAssetMetadataEndpoints();
         app.MapAssetSearchEndpoints();
         app.MapSavedSearchEndpoints();
+        app.MapAdminTrashEndpoints();
 
         // Blazor
         app.MapRazorComponents<App>()

@@ -54,7 +54,7 @@ public class AssetDeletionServiceTests : IAsyncLifetime
     // ── PermanentDeleteAsync ────────────────────────────────────────
 
     [Fact]
-    public async Task PermanentDelete_RemovesAssetSharesAndDbRow()
+    public async Task Purge_RemovesAssetSharesAndDbRow()
     {
         var col = TestData.CreateCollection(name: "C1");
         var asset = TestData.CreateAsset(title: "ToDelete");
@@ -64,10 +64,10 @@ public class AssetDeletionServiceTests : IAsyncLifetime
         _db.Shares.Add(TestData.CreateShare(scopeType: ShareScopeType.Asset, scopeId: asset.Id, createdByUserId: "u1"));
         await _db.SaveChangesAsync();
 
-        await _sut.PermanentDeleteAsync(asset, BucketName);
+        await _sut.PurgeAsync(asset, BucketName);
 
-        // Asset gone
-        var found = await _assetRepo.GetByIdAsync(asset.Id);
+        // Asset gone (hard-deleted; not just soft-deleted)
+        var found = await _assetRepo.GetByIdIncludingDeletedAsync(asset.Id);
         Assert.Null(found);
 
         // Share gone
@@ -79,22 +79,60 @@ public class AssetDeletionServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PermanentDelete_CallsMinIODeleteForAssetObjects()
+    public async Task Purge_CallsMinIODeleteForAssetObjects()
     {
         var asset = TestData.CreateAsset(title: "MinIOTarget");
         _db.Assets.Add(asset);
         await _db.SaveChangesAsync();
 
-        await _sut.PermanentDeleteAsync(asset, BucketName);
+        await _sut.PurgeAsync(asset, BucketName);
 
         // Should clean up original + any thumbnails
         _minioMock.Verify(m => m.DeleteAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
+    // ── SoftDeleteAsync / RestoreAsync ──────────────────────────────
+
+    [Fact]
+    public async Task SoftDelete_StampsDeletedAtAndDeletedByUserIdButLeavesRow()
+    {
+        var asset = TestData.CreateAsset(title: "Trashable");
+        _db.Assets.Add(asset);
+        await _db.SaveChangesAsync();
+
+        await _sut.SoftDeleteAsync(asset, "alice");
+
+        // Row still exists when ignoring filters
+        var found = await _assetRepo.GetByIdIncludingDeletedAsync(asset.Id);
+        Assert.NotNull(found);
+        Assert.NotNull(found!.DeletedAt);
+        Assert.Equal("alice", found.DeletedByUserId);
+
+        // Default queries hide it via the global filter
+        var hidden = await _assetRepo.GetByIdAsync(asset.Id);
+        Assert.Null(hidden);
+    }
+
+    [Fact]
+    public async Task RestoreAsync_ClearsDeletedAtAndMakesAssetVisibleAgain()
+    {
+        var asset = TestData.CreateAsset(title: "Returnable");
+        asset.MarkDeleted("alice");
+        _db.Assets.Add(asset);
+        await _db.SaveChangesAsync();
+
+        await _sut.RestoreAsync(asset);
+
+        var found = await _assetRepo.GetByIdAsync(asset.Id);
+        Assert.NotNull(found);
+        Assert.Null(found!.DeletedAt);
+        Assert.Null(found.DeletedByUserId);
+    }
+
     // ── RemoveFromCollectionAsync ───────────────────────────────────
 
     [Fact]
-    public async Task RemoveFromCollection_OnlyCollection_PermanentlyDeletes()
+    public async Task RemoveFromCollection_OnlyCollection_SoftDeletesOrphan()
     {
         var col = TestData.CreateCollection(name: "OnlyCol");
         var asset = TestData.CreateAsset(title: "SingleRef");
@@ -103,14 +141,15 @@ public class AssetDeletionServiceTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, col.Id));
         await _db.SaveChangesAsync();
 
-        var (removed, permanentlyDeleted) = await _sut.RemoveFromCollectionAsync(asset, col.Id, BucketName);
+        var (removed, softDeleted) = await _sut.RemoveFromCollectionAsync(asset, col.Id, "alice", BucketName);
 
         Assert.True(removed);
-        Assert.True(permanentlyDeleted);
+        Assert.True(softDeleted);
 
-        // Asset should be gone from DB
-        var found = await _assetRepo.GetByIdAsync(asset.Id);
-        Assert.Null(found);
+        // Asset still in DB but soft-deleted; restorable from Trash
+        var found = await _assetRepo.GetByIdIncludingDeletedAsync(asset.Id);
+        Assert.NotNull(found);
+        Assert.NotNull(found!.DeletedAt);
     }
 
     [Fact]
@@ -125,14 +164,15 @@ public class AssetDeletionServiceTests : IAsyncLifetime
         _db.AssetCollections.Add(TestData.CreateAssetCollection(asset.Id, col2.Id));
         await _db.SaveChangesAsync();
 
-        var (removed, permanentlyDeleted) = await _sut.RemoveFromCollectionAsync(asset, col1.Id, BucketName);
+        var (removed, softDeleted) = await _sut.RemoveFromCollectionAsync(asset, col1.Id, "alice", BucketName);
 
         Assert.True(removed);
-        Assert.False(permanentlyDeleted);
+        Assert.False(softDeleted);
 
-        // Asset still exists
+        // Asset still exists and is not in trash
         var found = await _assetRepo.GetByIdAsync(asset.Id);
         Assert.NotNull(found);
+        Assert.Null(found!.DeletedAt);
 
         // Only the col1 link is gone
         var remainingIds = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(asset.Id);
@@ -149,10 +189,10 @@ public class AssetDeletionServiceTests : IAsyncLifetime
         _db.Assets.Add(asset);
         await _db.SaveChangesAsync();
 
-        var (removed, permanentlyDeleted) = await _sut.RemoveFromCollectionAsync(asset, col.Id, BucketName);
+        var (removed, softDeleted) = await _sut.RemoveFromCollectionAsync(asset, col.Id, "alice", BucketName);
 
         Assert.False(removed);
-        Assert.False(permanentlyDeleted);
+        Assert.False(softDeleted);
     }
 
     // ── DeleteCollectionAssetsAsync ─────────────────────────────────

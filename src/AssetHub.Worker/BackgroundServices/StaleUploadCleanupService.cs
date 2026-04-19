@@ -75,7 +75,9 @@ public sealed class StaleUploadCleanupService(
             {
                 try
                 {
-                    await deletionService.PermanentDeleteAsync(asset, bucketName, ct);
+                    // Stale never-completed uploads go straight to hard purge — they have no
+                    // recoverable value, so the trash detour would just delay the cleanup.
+                    await deletionService.PurgeAsync(asset, bucketName, ct);
                     cleaned++;
                     batchCleaned++;
                     logger.LogInformation("Cleaned up stale upload: {AssetId} ({Title}, created {CreatedAt})",

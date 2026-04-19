@@ -196,6 +196,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAssetSearchService, AssetSearchService>();
         services.AddScoped<ISavedSearchService, SavedSearchService>();
 
+        // Trash (T1-LIFE-01)
+        services.AddScoped<IAssetTrashService, AssetTrashService>();
+
         // Collection services split by responsibility (Interface Segregation Principle)
         services.AddScoped<CollectionServiceRepositories>();
         services.AddScoped<ICollectionQueryService, CollectionQueryService>(); // Queries: list, get by ID

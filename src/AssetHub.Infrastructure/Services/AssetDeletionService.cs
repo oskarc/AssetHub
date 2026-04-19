@@ -13,16 +13,34 @@ public class AssetDeletionService(
     IShareRepository shareRepository,
     IMinIOAdapter minioAdapter) : IAssetDeletionService
 {
-    public async Task PermanentDeleteAsync(Asset asset, string bucketName, CancellationToken ct = default)
+    public async Task SoftDeleteAsync(Asset asset, string userId, CancellationToken ct = default)
+    {
+        if (asset.DeletedAt is not null) return;
+        asset.MarkDeleted(userId);
+        await assetRepository.UpdateAsync(asset, ct);
+    }
+
+    public async Task RestoreAsync(Asset asset, CancellationToken ct = default)
+    {
+        if (asset.DeletedAt is null) return;
+        asset.MarkRestored();
+        await assetRepository.UpdateAsync(asset, ct);
+    }
+
+    public async Task PurgeAsync(Asset asset, string bucketName, CancellationToken ct = default)
     {
         await shareRepository.DeleteByScopeAsync(Constants.ScopeTypes.Asset, asset.Id, ct);
         await minioAdapter.DeleteAssetObjectsAsync(bucketName, asset, ct);
         await assetRepository.DeleteAsync(asset.Id, ct);
     }
 
-    public async Task<(bool Removed, bool PermanentlyDeleted)> RemoveFromCollectionAsync(
-        Asset asset, Guid collectionId, string bucketName, CancellationToken ct = default)
+    public async Task<(bool Removed, bool SoftDeleted)> RemoveFromCollectionAsync(
+        Asset asset, Guid collectionId, string userId, string bucketName, CancellationToken ct = default)
     {
+        // bucketName retained on the signature for symmetry with other methods even though
+        // the soft-delete path doesn't touch storage — purge happens later via the worker.
+        _ = bucketName;
+
         var removed = await assetCollectionRepo.RemoveFromCollectionAsync(asset.Id, collectionId, ct);
         if (!removed)
             return (false, false);
@@ -30,7 +48,7 @@ public class AssetDeletionService(
         var remaining = await assetCollectionRepo.GetCollectionIdsForAssetAsync(asset.Id, ct);
         if (remaining.Count == 0)
         {
-            await PermanentDeleteAsync(asset, bucketName, ct);
+            await SoftDeleteAsync(asset, userId, ct);
             return (true, true);
         }
 
@@ -40,6 +58,8 @@ public class AssetDeletionService(
     public async Task<List<Asset>> DeleteCollectionAssetsAsync(
         Guid collectionId, string bucketName, CancellationToken ct = default)
     {
+        // Collection deletion still hard-purges exclusive assets — collection-level soft-delete
+        // is tracked separately as T1-LIFE-02. Behaviour unchanged from before T1-LIFE-01.
         var deletedAssets = await assetRepository.DeleteByCollectionAsync(collectionId, ct);
         var assetIds = deletedAssets.Select(a => a.Id).ToList();
         await shareRepository.DeleteByScopeBatchAsync(Constants.ScopeTypes.Asset, assetIds, ct);

@@ -62,4 +62,23 @@ public interface IAssetRepository
     /// Find an existing asset by SHA256 hash (for duplicate detection during migration).
     /// </summary>
     Task<Asset?> GetBySha256Async(string sha256, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads an asset including soft-deleted rows (IgnoreQueryFilters). For trash operations
+    /// where a deleted asset must be restored or purged.
+    /// </summary>
+    Task<Asset?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Paginated list of soft-deleted assets ordered by DeletedAt descending. Newest in trash first.
+    /// </summary>
+    Task<(List<Asset> Assets, int Total)> GetTrashAsync(
+        int skip = 0, int take = 50, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns soft-deleted assets whose DeletedAt is older than the given cutoff.
+    /// Bounded by `batchSize` so the purge worker doesn't pull millions of rows in one shot.
+    /// </summary>
+    Task<List<Asset>> GetTrashOlderThanAsync(
+        DateTime cutoff, int batchSize = 100, CancellationToken cancellationToken = default);
 }
