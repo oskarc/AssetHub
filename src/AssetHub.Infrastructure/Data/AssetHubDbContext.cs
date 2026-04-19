@@ -31,6 +31,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<TaxonomyTerm> TaxonomyTerms { get; set; } = null!;
     public DbSet<AssetMetadataValue> AssetMetadataValues { get; set; } = null!;
     public DbSet<SavedSearch> SavedSearches { get; set; } = null!;
+    public DbSet<AssetVersion> AssetVersions { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -480,6 +481,45 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.Notify)
                 .HasConversion(v => v.ToDbString(), v => v.ToSavedSearchNotifyCadence())
                 .HasMaxLength(50).IsRequired();
+        });
+
+        // AssetVersion
+        modelBuilder.Entity<AssetVersion>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.AssetId, e.VersionNumber })
+                .IsUnique()
+                .HasDatabaseName("idx_asset_version_asset_version_unique");
+
+            entity.Property(e => e.OriginalObjectKey).HasMaxLength(512).IsRequired();
+            entity.Property(e => e.ThumbObjectKey).HasMaxLength(512);
+            entity.Property(e => e.MediumObjectKey).HasMaxLength(512);
+            entity.Property(e => e.PosterObjectKey).HasMaxLength(512);
+            entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Sha256).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.ChangeNote).HasMaxLength(1000);
+
+            entity.Property(e => e.EditDocument).HasColumnType(Jsonb);
+
+            entity.Property(e => e.MetadataSnapshot)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasColumnType(Jsonb)
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+
+            // Cascade with the Asset row so a hard purge (TTL or admin delete-forever)
+            // takes the version history with it. Soft delete is hidden by Asset's global
+            // query filter, which leaves AssetVersions visible — fine, they're orphans
+            // until restore brings the Asset back, and we never query Versions in isolation.
+            entity.HasOne(e => e.Asset)
+                .WithMany(a => a.Versions)
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
