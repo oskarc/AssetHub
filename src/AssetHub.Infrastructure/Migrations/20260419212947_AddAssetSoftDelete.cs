@@ -1,0 +1,49 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddAssetSoftDelete : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<DateTime>(
+                name: "DeletedAt",
+                table: "Assets",
+                type: "timestamp with time zone",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "DeletedByUserId",
+                table: "Assets",
+                type: "text",
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "idx_assets_deleted_at",
+                table: "Assets",
+                column: "DeletedAt",
+                filter: "\"DeletedAt\" IS NOT NULL");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropIndex(
+                name: "idx_assets_deleted_at",
+                table: "Assets");
+
+            migrationBuilder.DropColumn(
+                name: "DeletedAt",
+                table: "Assets");
+
+            migrationBuilder.DropColumn(
+                name: "DeletedByUserId",
+                table: "Assets");
+        }
+    }
+}

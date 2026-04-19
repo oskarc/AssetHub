@@ -80,6 +80,15 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasIndex(e => new { e.CreatedAt }).HasDatabaseName("idx_assets_created_at");
             entity.HasIndex(e => e.CreatedByUserId).HasDatabaseName("idx_assets_created_by_user_id");
             entity.HasIndex(e => e.OriginalObjectKey).HasDatabaseName("idx_assets_original_object_key");
+            // Partial index — only rows in Trash get indexed. Keeps the index tiny since most
+            // assets are never deleted; the purge worker queries DeletedAt < cutoff hourly.
+            entity.HasIndex(e => e.DeletedAt)
+                .HasDatabaseName("idx_assets_deleted_at")
+                .HasFilter("\"DeletedAt\" IS NOT NULL");
+
+            // Soft delete via global query filter. Admin trash endpoints must call
+            // IgnoreQueryFilters() to see deleted rows; the purge worker does the same.
+            entity.HasQueryFilter(a => a.DeletedAt == null);
 
             entity.Property(e => e.Title).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);

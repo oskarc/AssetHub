@@ -25,6 +25,17 @@ public class Asset
     public DateTime UpdatedAt { get; set; }
 
     /// <summary>
+    /// When non-null, the asset is soft-deleted and lives in Trash. A background worker
+    /// purges rows where DeletedAt is older than AssetLifecycleSettings.TrashRetentionDays.
+    /// Queries filter on DeletedAt IS NULL via a global EF query filter; admin-trash endpoints
+    /// use IgnoreQueryFilters() to see soft-deleted rows.
+    /// </summary>
+    public DateTime? DeletedAt { get; set; }
+
+    /// <summary>Who soft-deleted the asset. Null for never-deleted assets.</summary>
+    public string? DeletedByUserId { get; set; }
+
+    /// <summary>
     /// References the source asset this was derived from (via image editing / export presets).
     /// Null for original assets.
     /// </summary>
@@ -67,6 +78,26 @@ public class Asset
         Status = AssetStatus.Failed;
         UpdatedAt = DateTime.UtcNow;
         MetadataJson["error"] = errorMessage;
+    }
+
+    /// <summary>
+    /// Move the asset to Trash. Idempotent — soft-deleting an already-deleted asset is a no-op.
+    /// The actual row stays; a background worker purges it after the configured TTL.
+    /// </summary>
+    public void MarkDeleted(string userId)
+    {
+        if (DeletedAt is not null) return;
+        DeletedAt = DateTime.UtcNow;
+        DeletedByUserId = userId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Restore a soft-deleted asset. Idempotent on already-restored rows.</summary>
+    public void MarkRestored()
+    {
+        DeletedAt = null;
+        DeletedByUserId = null;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>

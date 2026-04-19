@@ -76,6 +76,7 @@ public static class InfrastructureServiceExtensions
             .ValidateOnStart();
 
         services.Configure<ImageProcessingSettings>(configuration.GetSection(ImageProcessingSettings.SectionName));
+        services.Configure<AssetLifecycleSettings>(configuration.GetSection(AssetLifecycleSettings.SectionName));
 
         // ── Caching (Redis L2 + HybridCache L1/L2) ────────────────────────
         var redisConnectionString = configuration["Redis:ConnectionString"];
