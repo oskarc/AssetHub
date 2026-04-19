@@ -126,41 +126,90 @@ dotnet build --configuration Release
 
 ---
 
-## Phase 7: SonarQube analysis
+## Phase 7: SonarCloud analysis
 
-Static analysis of every file changed in this session, via the SonarQube MCP server (see `.github/instructions/sonarqube_mcp.instructions.md`).
+Static analysis of every changed file against the project's SonarCloud rules
+(org `oskarc`, project key `oskarc_AssetHub`, configured via
+`.vscode/settings.json` → `sonarlint.connectedMode.project`). SonarCloud and
+SonarQube share the rule engine and MCP tool names, so the same
+`analyze_file_list` / `toggle_automatic_analysis` guidance in
+`.github/instructions/sonarqube_mcp.instructions.md` applies verbatim.
 
-### Preparation
-1. Disable automatic analysis if the tool exists: call `toggle_automatic_analysis` (off). If the tool is unavailable, note that and proceed.
-2. Build the **file list** — every path reported by `git status --porcelain` plus any deletions that could leave dangling references. Exclude generated files (`*.Designer.cs`, `*.g.cs`, migration snapshot), binary assets, and `.resx` files (Sonar rules don't apply).
+### File list
 
-### Run
-3. Call `analyze_file_list` with the file list. If the MCP tool isn't available on this machine, fall back to:
-   - Skip this phase with a clearly-flagged warning in the final summary (`SonarQube analysis: SKIPPED (MCP tool unavailable)`).
-   - Do **not** attempt to run `dotnet sonarscanner` locally unless the user confirms — it needs a server, token, and project key the skill cannot guess.
+Build the list before choosing a path:
 
-### Triage findings
+- Every path reported by `git status --porcelain` plus deletions that could
+  leave dangling references.
+- Exclude: generated files (`*.Designer.cs`, `*.g.cs`,
+  `AssetHubDbContextModelSnapshot.cs`), binary assets, `.resx` files (Sonar
+  rules don't apply), markdown in `.claude/skills/` (skill docs are not
+  code).
 
-Group issues by severity (`BLOCKER` / `CRITICAL` / `MAJOR` / `MINOR` / `INFO`) and by rule. Apply this triage:
+### Pick the path that matches available tooling
 
-- **BLOCKER / CRITICAL** — fix before continuing. These catch real bugs, security flaws, and contract violations.
-- **MAJOR** — fix if the fix is local and contained; flag to the user if the fix would require broader refactoring.
-- **MINOR / INFO** — fix only if trivial. Report the rest so the user can decide.
-- **False positives** — do not mark anything as "won't fix" or silence rules without the user's explicit OK. Report suspected false positives and move on.
+Check which path is live and take **one**:
 
-### Fix and re-check
+1. **Sonar MCP server available** — if the session exposes
+   `analyze_file_list`, `toggle_automatic_analysis`, or
+   `search_my_sonarqube_projects`:
+   1. Call `toggle_automatic_analysis` (off) — if present.
+   2. Call `analyze_file_list` on the file list.
+   3. Group issues by severity and rule.
+   4. Apply the triage rules below.
+   5. Do **not** call `search_sonar_issues_in_projects` to verify fixes —
+      the MCP guidance says the server may not reflect updates yet.
+   6. Re-run `analyze_file_list` on just the fixed files for a local re-check.
+   7. Call `toggle_automatic_analysis` (on) on the way out.
+   8. Record final counts per severity for the summary.
 
-4. For every BLOCKER/CRITICAL/fixed-MAJOR:
-   - Read the file, apply the narrowest fix that resolves the rule.
-   - Do **not** re-call `search_sonar_issues_in_projects` afterwards — per the MCP instructions, the server may not reflect updates immediately.
-   - Re-run `analyze_file_list` on just the changed files after fixes — that gives a local re-check.
-5. If fixing Sonar findings added new files, add those to the file list and re-analyze.
-6. After fixing, return to Phase 6 (Build) to confirm the fixes compile, then resume from there.
+2. **SonarLint VSCode only (connected mode)** — no MCP, but SonarLint has
+   been analysing files as they were saved and publishing issues to the
+   VSCode **Problems** panel. Claude cannot read that panel, so:
+   1. List the file list to the user and ask: *"Any unresolved SonarLint
+      issues in the Problems panel for these files? Paste the rule ids
+      (e.g., csharpsquid:S1125) and I'll triage."*
+   2. If the user reports issues, apply the triage rules below and fix
+      in-place.
+   3. If the user confirms the panel is clean for the listed files,
+      record `SonarCloud analysis: clean via SonarLint (user-confirmed)`
+      in the summary and proceed.
+   4. Do **not** attempt to read `~/.sonarlint` cache or VSCode state — it
+      is not a documented export format.
 
-### Exit
+3. **Neither available, fallback CLI** — only if the user explicitly opts
+   in. Requires `SONAR_TOKEN` env var and `dotnet-sonarscanner` installed:
+   ```
+   dotnet sonarscanner begin /k:"oskarc_AssetHub" /o:"oskarc" \
+     /d:sonar.host.url="https://sonarcloud.io" \
+     /d:sonar.login="$SONAR_TOKEN"
+   dotnet build --configuration Release
+   dotnet sonarscanner end /d:sonar.login="$SONAR_TOKEN"
+   ```
+   This performs a full branch analysis and publishes to SonarCloud — it's
+   not a dry run. Ask the user before running.
 
-7. Re-enable automatic analysis: call `toggle_automatic_analysis` (on).
-8. Record the final finding counts per severity for the summary section.
+4. **Nothing works, last resort** — record
+   `SonarCloud analysis: SKIPPED (no scanner available)` in the summary
+   and flag it to the user as a coverage gap. Do not block the commit on
+   this alone if everything else passed, but do include a post-push
+   reminder to check
+   `https://sonarcloud.io/project/overview?id=oskarc_AssetHub` once CI has
+   published analysis.
+
+### Triage rules (shared across paths)
+
+- **BLOCKER / CRITICAL** — fix before continuing. Real bugs, security
+  flaws, contract violations.
+- **MAJOR** — fix if local and contained; flag to the user if it would
+  need broader refactoring.
+- **MINOR / INFO** — fix only if trivial. Report the rest so the user can
+  decide.
+- **False positives** — do not mark "won't fix" or silence rules without
+  the user's explicit OK. Report suspected false positives and move on.
+- **New files from fixes** — add them to the file list and re-analyze.
+- After any fix, return to Phase 6 (Build) to confirm compilation, then
+  resume from here.
 
 ---
 
@@ -228,7 +277,7 @@ git push
 
 Stop the entire flow and report to the user if:
 - Build fails after 3 fix attempts on the same error.
-- SonarQube BLOCKER/CRITICAL findings after 3 fix attempts on the same rule.
+- SonarCloud BLOCKER/CRITICAL findings after 3 fix attempts on the same rule.
 - Tests fail after 3 fix attempts on the same test.
 - A security finding cannot be resolved without architectural changes.
 - Merge conflicts arise during push that require manual resolution.
@@ -241,5 +290,5 @@ After successful push, report:
 - Branch and remote pushed to.
 - Commit hash and message.
 - Count of files changed, insertions, deletions (`git diff --stat HEAD~1`).
-- SonarQube finding counts per severity (or `SKIPPED` with reason if the MCP tool was unavailable).
+- SonarCloud finding counts per severity, or the fallback status used (`clean via SonarLint`, `SKIPPED`, etc.) with reason.
 - Any warnings or notes from the review phases.
