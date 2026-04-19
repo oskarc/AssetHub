@@ -70,7 +70,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 
 **Asset Management**
 - Drag-and-drop upload with multi-collection organisation
-- Full-text trigram search across names, descriptions, and tags (GIN-indexed)
+- Faceted search — Postgres `tsvector` full-text over title, description, tags, and searchable metadata values with live facet counts (asset type, collection, tags, status) and saved searches per user
 - Custom metadata schemas and taxonomies — admin-defined structured fields (text, numeric, date, select, taxonomy) scoped globally, per asset type, or per collection, with required-field and pattern validation
 - Canvas-based image editor (Fabric.js) — crop, rotate, flip, resize, draw, text overlays, and multi-layer composition with save-as-copy or replace-original
 - Export presets — admin-defined output formats, dimensions, quality, and fit modes applied automatically on save

@@ -1,0 +1,140 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.BookmarkAdd" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" id="save-search-dialog-title">
+                @(_isEdit ? AssetLoc["SavedSearch_DialogTitle_Edit"] : AssetLoc["SavedSearch_DialogTitle_Save"])
+            </MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formIsValid">
+            <MudStack Spacing="3" Class="dialog-min-width">
+
+                <MudTextField @bind-Value="_name" Label="@AssetLoc["SavedSearch_Name"]" Required="true"
+                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AssetLoc["SavedSearch_Name"].Value)"
+                              Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
+                              MaxLength="255" />
+
+                <MudSelect T="string" @bind-Value="_notify" Label="@AssetLoc["SavedSearch_Notify"]"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem T="string" Value="@("none")">@AssetLoc["SavedSearch_Notify_None"]</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("on_new_match")">@AssetLoc["SavedSearch_Notify_OnNewMatch"]</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("daily")">@AssetLoc["SavedSearch_Notify_Daily"]</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("weekly")">@AssetLoc["SavedSearch_Notify_Weekly"]</MudSelectItem>
+                </MudSelect>
+
+                @if (_notify != "none")
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" role="status" aria-live="polite">
+                        @AssetLoc["SavedSearch_NotifyPreviewBanner"]
+                    </MudAlert>
+                }
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" role="alert">@_errorMessage</MudAlert>
+                }
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(!_formIsValid || _submitting)"
+                   StartIcon="@Icons.Material.Filled.Save">
+            @CommonLoc["Btn_Save"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>The search request being saved. Required for new saves; ignored when editing an existing saved search.</summary>
+    [Parameter] public AssetSearchRequest? Request { get; set; }
+
+    /// <summary>When editing, the existing saved search. When null, this dialog creates a new saved search.</summary>
+    [Parameter] public SavedSearchDto? Existing { get; set; }
+
+    private MudForm? _form;
+    private bool _formIsValid;
+    private bool _submitting;
+    private bool _isEdit;
+    private string _name = string.Empty;
+    private string _notify = "none";
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        _isEdit = Existing is not null;
+        if (Existing is not null)
+        {
+            _name = Existing.Name;
+            _notify = Existing.Notify;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await _form!.Validate();
+        if (!_formIsValid) return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            SavedSearchDto saved;
+            if (_isEdit)
+            {
+                saved = await Api.UpdateSavedSearchAsync(Existing!.Id, new UpdateSavedSearchDto
+                {
+                    Name = _name,
+                    Notify = _notify
+                });
+            }
+            else
+            {
+                if (Request is null)
+                {
+                    _errorMessage = "No search request provided.";
+                    return;
+                }
+                saved = await Api.CreateSavedSearchAsync(new CreateSavedSearchDto
+                {
+                    Name = _name,
+                    Request = Request,
+                    Notify = _notify
+                });
+            }
+
+            Feedback.ShowSuccess(string.Format(AssetLoc["SavedSearch_Saved"].Value, saved.Name));
+            MudDialog.Close(DialogResult.Ok(saved));
+        }
+        catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            _errorMessage = AssetLoc["SavedSearch_DuplicateName"].Value;
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

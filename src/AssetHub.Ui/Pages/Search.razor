@@ -1,0 +1,214 @@
+@page "/search"
+@attribute [Authorize]
+
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Components
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@AssetLoc["Search_PageTitle"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h4">@AssetLoc["Search_PageTitle"]</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.BookmarkAdd"
+                   OnClick="OpenSaveDialog"
+                   Disabled="@(!HasAnyFilter() || _loading)">
+            @AssetLoc["Search_SaveSearch"]
+        </MudButton>
+    </MudStack>
+
+    <MudGrid>
+        <!-- Sidebar -->
+        <MudItem xs="12" md="3">
+            <SearchSidebar Request="_request" Facets="_facets" OnRequestChanged="OnRequestChanged" />
+        </MudItem>
+
+        <!-- Results -->
+        <MudItem xs="12" md="9">
+            @if (_loading)
+            {
+                <MudStack AlignItems="AlignItems.Center" Class="py-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                </MudStack>
+            }
+            else if (_total == 0)
+            {
+                <EmptyState Title="@AssetLoc["Search_NoResults"]"
+                            Description="@AssetLoc["Search_NoResultsDesc"]"
+                            Icon="@Icons.Material.Filled.SearchOff" />
+            }
+            else
+            {
+                <div role="status" aria-live="polite">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                        @string.Format(AssetLoc["Search_ResultsSummary"], _items.Count, _total)
+                    </MudText>
+                </div>
+
+                <MudGrid Spacing="3">
+                    @foreach (var asset in _items)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudCard Elevation="2" Class="clickable" @onclick="() => OpenAsset(asset.Id)">
+                                <MudCardMedia Image="@AssetDisplayHelpers.GetThumbnailUrl(asset.Id, asset.ThumbObjectKey, asset.AssetType, asset.PosterObjectKey)"
+                                              Height="160"
+                                              Class="asset-thumbnail" />
+                                <MudCardContent Class="pa-2">
+                                    <MudText Typo="Typo.body2" Class="text-truncate">@asset.Title</MudText>
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@AssetDisplayHelpers.GetAssetTypeColor(asset.AssetType)"
+                                                 Variant="Variant.Outlined">
+                                            @CommonLoc[AssetDisplayHelpers.GetAssetTypeKey(asset.AssetType)]
+                                        </MudChip>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @AssetDisplayHelpers.FormatFileSize(asset.SizeBytes)
+                                        </MudText>
+                                    </MudStack>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+
+                @if (_items.Count < _total)
+                {
+                    <MudStack AlignItems="AlignItems.Center" Class="mt-4">
+                        <MudButton Variant="Variant.Outlined" Disabled="@_loadingMore" OnClick="LoadMoreAsync">
+                            @CommonLoc["Btn_LoadMore"]
+                        </MudButton>
+                    </MudStack>
+                }
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private AssetSearchRequest _request = new()
+    {
+        Sort = "created_desc",
+        Take = 60,
+        Facets = new() { "asset_type", "status", "collection", "tag" }
+    };
+    private Dictionary<string, List<FacetBucket>> _facets = new();
+    private List<AssetResponseDto> _items = new();
+    private int _total;
+    private bool _loading;
+    private bool _loadingMore;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // If arriving with ?savedId=..., load that saved search and replay its request.
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query)
+                .TryGetValue("savedId", out var sidStr) && Guid.TryParse(sidStr, out var sid))
+        {
+            try
+            {
+                var saved = await Api.GetSavedSearchAsync(sid);
+                if (saved is not null)
+                {
+                    _request = saved.Request;
+                    _request.Skip = 0;
+                    _request.Facets ??= new() { "asset_type", "status", "collection", "tag" };
+                }
+            }
+            catch { /* fall through to default search */ }
+        }
+
+        await RunSearchAsync();
+    }
+
+    private async Task OnRequestChanged(AssetSearchRequest next)
+    {
+        _request = next;
+        await RunSearchAsync();
+    }
+
+    private async Task RunSearchAsync()
+    {
+        _loading = true;
+        try
+        {
+            var response = await Api.SearchAssetsAsync(_request);
+            _items = response.Items;
+            _total = response.TotalCount;
+            _facets = response.Facets;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "search assets");
+            _items = new();
+            _total = 0;
+            _facets = new();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        try
+        {
+            var paged = new AssetSearchRequest
+            {
+                Text = _request.Text,
+                AssetTypes = _request.AssetTypes,
+                Statuses = _request.Statuses,
+                CollectionIds = _request.CollectionIds,
+                Tags = _request.Tags,
+                MetadataFilters = _request.MetadataFilters,
+                CreatedAfter = _request.CreatedAfter,
+                CreatedBefore = _request.CreatedBefore,
+                Sort = _request.Sort,
+                Skip = _items.Count,
+                Take = _request.Take,
+                Facets = null   // don't re-aggregate facets on pagination
+            };
+            var response = await Api.SearchAssetsAsync(paged);
+            _items.AddRange(response.Items);
+            _total = response.TotalCount;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load more results");
+        }
+        finally
+        {
+            _loadingMore = false;
+        }
+    }
+
+    private async Task OpenSaveDialog()
+    {
+        var parameters = new DialogParameters<SaveSearchDialog>
+        {
+            { x => x.Request, _request }
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        await DialogService.ShowAsync<SaveSearchDialog>(AssetLoc["SavedSearch_DialogTitle_Save"].Value, parameters, options);
+    }
+
+    private void OpenAsset(Guid id) => Nav.NavigateTo($"/assets/{id}?returnUrl=/search");
+
+    private bool HasAnyFilter() =>
+        !string.IsNullOrWhiteSpace(_request.Text)
+        || (_request.AssetTypes?.Count ?? 0) > 0
+        || (_request.Statuses?.Count ?? 0) > 0
+        || (_request.CollectionIds?.Count ?? 0) > 0
+        || (_request.Tags?.Count ?? 0) > 0;
+}

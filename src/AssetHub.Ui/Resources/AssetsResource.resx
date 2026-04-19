@@ -125,4 +125,48 @@
   <data name="BulkAssetRemoveFinalConfirm" xml:space="preserve"><value>Are you sure you want to remove {0} asset(s) from this collection? Orphaned assets will be permanently deleted.</value></data>
   <data name="BulkAssetDeletePartial" xml:space="preserve"><value>Deleted {0} asset(s), {1} failed</value></data>
   <data name="BulkAssetDeleteSuccess" xml:space="preserve"><value>Successfully deleted {0} asset(s)</value></data>
+
+  <!-- Search -->
+  <data name="Search_PageTitle" xml:space="preserve"><value>Search</value></data>
+  <data name="Search_Placeholder" xml:space="preserve"><value>Search title, description, tags, and metadata…</value></data>
+  <data name="Search_FilterSection" xml:space="preserve"><value>Filters</value></data>
+  <data name="Search_FacetSection" xml:space="preserve"><value>Refine by</value></data>
+  <data name="Search_ClearAll" xml:space="preserve"><value>Clear all filters</value></data>
+  <data name="Search_ActiveFilters" xml:space="preserve"><value>Active filters</value></data>
+  <data name="Search_NoResults" xml:space="preserve"><value>No assets match your filters</value></data>
+  <data name="Search_NoResultsDesc" xml:space="preserve"><value>Try removing a filter or broadening your search text.</value></data>
+  <data name="Search_Facet_AssetType" xml:space="preserve"><value>Asset type</value></data>
+  <data name="Search_Facet_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Search_Facet_Collection" xml:space="preserve"><value>Collection</value></data>
+  <data name="Search_Facet_Tag" xml:space="preserve"><value>Tags</value></data>
+  <data name="Search_SaveSearch" xml:space="preserve"><value>Save this search</value></data>
+  <data name="Search_ShowSidebar" xml:space="preserve"><value>Show filters</value></data>
+  <data name="Search_HideSidebar" xml:space="preserve"><value>Hide filters</value></data>
+  <data name="Search_Sort" xml:space="preserve"><value>Sort by</value></data>
+  <data name="Search_Sort_Relevance" xml:space="preserve"><value>Relevance</value></data>
+  <data name="Search_Sort_CreatedDesc" xml:space="preserve"><value>Newest first</value></data>
+  <data name="Search_Sort_CreatedAsc" xml:space="preserve"><value>Oldest first</value></data>
+  <data name="Search_Sort_TitleAsc" xml:space="preserve"><value>Title A–Z</value></data>
+  <data name="Search_Sort_TitleDesc" xml:space="preserve"><value>Title Z–A</value></data>
+  <data name="Search_CreatedAfter" xml:space="preserve"><value>Created after</value></data>
+  <data name="Search_CreatedBefore" xml:space="preserve"><value>Created before</value></data>
+  <data name="Search_ResultsSummary" xml:space="preserve"><value>Showing {0} of {1} assets</value></data>
+
+  <!-- Saved Searches -->
+  <data name="SavedSearch_Menu" xml:space="preserve"><value>Saved searches</value></data>
+  <data name="SavedSearch_MenuEmpty" xml:space="preserve"><value>No saved searches yet</value></data>
+  <data name="SavedSearch_Manage" xml:space="preserve"><value>Manage saved searches</value></data>
+  <data name="SavedSearch_DialogTitle_Save" xml:space="preserve"><value>Save search</value></data>
+  <data name="SavedSearch_DialogTitle_Edit" xml:space="preserve"><value>Edit saved search</value></data>
+  <data name="SavedSearch_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="SavedSearch_Notify" xml:space="preserve"><value>Notify me</value></data>
+  <data name="SavedSearch_Notify_None" xml:space="preserve"><value>Never</value></data>
+  <data name="SavedSearch_Notify_OnNewMatch" xml:space="preserve"><value>When a new asset matches</value></data>
+  <data name="SavedSearch_Notify_Daily" xml:space="preserve"><value>Daily digest</value></data>
+  <data name="SavedSearch_Notify_Weekly" xml:space="preserve"><value>Weekly digest</value></data>
+  <data name="SavedSearch_NotifyPreviewBanner" xml:space="preserve"><value>Notifications are coming soon — your preference will be honoured once email digests ship.</value></data>
+  <data name="SavedSearch_Saved" xml:space="preserve"><value>Saved search '{0}' saved.</value></data>
+  <data name="SavedSearch_Deleted" xml:space="preserve"><value>Saved search deleted.</value></data>
+  <data name="SavedSearch_DeleteConfirm" xml:space="preserve"><value>Delete saved search '{0}'?</value></data>
+  <data name="SavedSearch_DuplicateName" xml:space="preserve"><value>You already have a saved search with that name.</value></data>
 </root>

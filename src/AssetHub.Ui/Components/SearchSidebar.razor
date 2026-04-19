@@ -1,0 +1,260 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+
+@inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudPaper Class="pa-3" Elevation="0" Outlined="true" aria-label="@AssetLoc["Search_FilterSection"]">
+    <MudStack Spacing="3">
+
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.subtitle1">@AssetLoc["Search_FilterSection"]</MudText>
+            @if (Request is not null && HasActiveFilters())
+            {
+                <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.Clear"
+                           OnClick="ClearAll">
+                    @AssetLoc["Search_ClearAll"]
+                </MudButton>
+            }
+        </MudStack>
+
+        <!-- Active filter chips -->
+        @if (Request is not null && HasActiveFilters())
+        {
+            <div role="status" aria-live="polite">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@AssetLoc["Search_ActiveFilters"]</MudText>
+                <MudChipSet T="string" AllClosable="true" OnClose="OnChipClosed">
+                    @foreach (var chip in BuildActiveChips())
+                    {
+                        <MudChip T="string" Value="@chip.Token" Text="@chip.Label" Size="Size.Small" />
+                    }
+                </MudChipSet>
+            </div>
+        }
+
+        <!-- Free text -->
+        <MudTextField T="string" Value="@(Request?.Text ?? string.Empty)"
+                      ValueChanged="OnTextChanged"
+                      Label="@AssetLoc["Search_Placeholder"]"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Immediate="true" DebounceInterval="400" MaxLength="500" />
+
+        <!-- Sort -->
+        <MudSelect T="string" Value="@(Request?.Sort ?? "created_desc")"
+                   ValueChanged="OnSortChanged"
+                   Label="@AssetLoc["Search_Sort"]"
+                   Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelectItem Value="@("relevance")" Disabled="@(string.IsNullOrWhiteSpace(Request?.Text))">
+                @AssetLoc["Search_Sort_Relevance"]
+            </MudSelectItem>
+            <MudSelectItem Value="@("created_desc")">@AssetLoc["Search_Sort_CreatedDesc"]</MudSelectItem>
+            <MudSelectItem Value="@("created_asc")">@AssetLoc["Search_Sort_CreatedAsc"]</MudSelectItem>
+            <MudSelectItem Value="@("title_asc")">@AssetLoc["Search_Sort_TitleAsc"]</MudSelectItem>
+            <MudSelectItem Value="@("title_desc")">@AssetLoc["Search_Sort_TitleDesc"]</MudSelectItem>
+        </MudSelect>
+
+        <MudDivider />
+
+        <!-- Facet accordions -->
+        <MudText Typo="Typo.subtitle2">@AssetLoc["Search_FacetSection"]</MudText>
+
+        <MudExpansionPanels MultiExpansion="true" Elevation="0" Dense="true">
+            <MudExpansionPanel Text="@AssetLoc["Search_Facet_AssetType"]" Expanded="true">
+                @RenderFacet("asset_type")
+            </MudExpansionPanel>
+            <MudExpansionPanel Text="@AssetLoc["Search_Facet_Collection"]">
+                @RenderFacet("collection")
+            </MudExpansionPanel>
+            <MudExpansionPanel Text="@AssetLoc["Search_Facet_Tag"]">
+                @RenderFacet("tag")
+            </MudExpansionPanel>
+            <MudExpansionPanel Text="@AssetLoc["Search_Facet_Status"]">
+                @RenderFacet("status")
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public AssetSearchRequest? Request { get; set; }
+    [Parameter, EditorRequired] public Dictionary<string, List<FacetBucket>>? Facets { get; set; }
+
+    /// <summary>Emitted when the request should be re-run. Parent is responsible for calling the API.</summary>
+    [Parameter] public EventCallback<AssetSearchRequest> OnRequestChanged { get; set; }
+
+    private RenderFragment RenderFacet(string dimension) => __builder =>
+    {
+        if (Facets is null || !Facets.TryGetValue(dimension, out var buckets) || buckets.Count == 0)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary">—</MudText>
+            return;
+        }
+
+        <MudStack Spacing="1">
+            @foreach (var bucket in buckets)
+            {
+                var isActive = IsFacetValueActive(dimension, bucket.Value);
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudCheckBox T="bool"
+                                 Value="@isActive"
+                                 ValueChanged="@((bool on) => ToggleFacetValue(dimension, bucket.Value, on))"
+                                 Size="Size.Small"
+                                 Class="ma-0"
+                                 Label="@bucket.Label" />
+                    <MudSpacer />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@bucket.Count</MudText>
+                </MudStack>
+            }
+        </MudStack>
+    };
+
+    private bool HasActiveFilters() =>
+        Request is not null && (
+            !string.IsNullOrWhiteSpace(Request.Text)
+            || (Request.AssetTypes?.Count ?? 0) > 0
+            || (Request.Statuses?.Count ?? 0) > 0
+            || (Request.CollectionIds?.Count ?? 0) > 0
+            || (Request.Tags?.Count ?? 0) > 0
+            || (Request.MetadataFilters?.Values.Sum(v => v.Count) ?? 0) > 0
+            || Request.CreatedAfter.HasValue || Request.CreatedBefore.HasValue);
+
+    private bool IsFacetValueActive(string dimension, string value) => dimension switch
+    {
+        "asset_type" => Request?.AssetTypes?.Contains(value) ?? false,
+        "status" => Request?.Statuses?.Contains(value) ?? false,
+        "collection" => Guid.TryParse(value, out var gid) && (Request?.CollectionIds?.Contains(gid) ?? false),
+        "tag" => Request?.Tags?.Contains(value) ?? false,
+        _ => false
+    };
+
+    private async Task ToggleFacetValue(string dimension, string value, bool on)
+    {
+        if (Request is null) return;
+        var next = Clone(Request);
+
+        switch (dimension)
+        {
+            case "asset_type":
+                next.AssetTypes = Toggle(next.AssetTypes, value, on);
+                break;
+            case "status":
+                next.Statuses = Toggle(next.Statuses, value, on);
+                break;
+            case "collection" when Guid.TryParse(value, out var gid):
+                next.CollectionIds = Toggle(next.CollectionIds, gid, on);
+                break;
+            case "tag":
+                next.Tags = Toggle(next.Tags, value, on);
+                break;
+        }
+
+        next.Skip = 0;
+        await OnRequestChanged.InvokeAsync(next);
+    }
+
+    private async Task OnTextChanged(string text)
+    {
+        if (Request is null) return;
+        var next = Clone(Request);
+        next.Text = string.IsNullOrWhiteSpace(text) ? null : text;
+        next.Skip = 0;
+        await OnRequestChanged.InvokeAsync(next);
+    }
+
+    private async Task OnSortChanged(string sort)
+    {
+        if (Request is null) return;
+        var next = Clone(Request);
+        next.Sort = sort;
+        next.Skip = 0;
+        await OnRequestChanged.InvokeAsync(next);
+    }
+
+    private async Task ClearAll()
+    {
+        if (Request is null) return;
+        await OnRequestChanged.InvokeAsync(new AssetSearchRequest
+        {
+            Sort = Request.Sort,
+            Take = Request.Take,
+            Facets = Request.Facets
+        });
+    }
+
+    private async Task OnChipClosed(MudChip<string> chip)
+    {
+        if (Request is null || chip.Value is null) return;
+        var token = chip.Value;
+
+        // Tokens use the form "dimension:value"; metadata uses "meta:{guid}:value".
+        var colon = token.IndexOf(':');
+        if (colon < 0) return;
+
+        var dimension = token[..colon];
+        var value = token[(colon + 1)..];
+        await ToggleFacetValue(dimension, value, on: false);
+    }
+
+    private IEnumerable<(string Token, string Label)> BuildActiveChips()
+    {
+        if (Request is null) yield break;
+
+        if (!string.IsNullOrWhiteSpace(Request.Text))
+            yield return ("text:" + Request.Text, $"\"{Request.Text}\"");
+
+        if (Request.AssetTypes is not null)
+            foreach (var t in Request.AssetTypes)
+                yield return ("asset_type:" + t, $"{AssetLoc["Search_Facet_AssetType"].Value}: {t}");
+
+        if (Request.Statuses is not null)
+            foreach (var s in Request.Statuses)
+                yield return ("status:" + s, $"{AssetLoc["Search_Facet_Status"].Value}: {s}");
+
+        if (Request.CollectionIds is not null && Facets is not null && Facets.TryGetValue("collection", out var cbuckets))
+        {
+            foreach (var cid in Request.CollectionIds)
+            {
+                var label = cbuckets.FirstOrDefault(b => b.Value == cid.ToString())?.Label ?? cid.ToString();
+                yield return ("collection:" + cid, $"{AssetLoc["Search_Facet_Collection"].Value}: {label}");
+            }
+        }
+
+        if (Request.Tags is not null)
+            foreach (var t in Request.Tags)
+                yield return ("tag:" + t, $"{AssetLoc["Search_Facet_Tag"].Value}: {t}");
+    }
+
+    private static List<T> Toggle<T>(List<T>? list, T value, bool on) where T : notnull
+    {
+        var next = list is null ? new List<T>() : new List<T>(list);
+        if (on)
+        {
+            if (!next.Contains(value)) next.Add(value);
+        }
+        else
+        {
+            next.RemoveAll(v => EqualityComparer<T>.Default.Equals(v, value));
+        }
+        return next;
+    }
+
+    private static AssetSearchRequest Clone(AssetSearchRequest r) => new()
+    {
+        Text = r.Text,
+        AssetTypes = r.AssetTypes is null ? null : new List<string>(r.AssetTypes),
+        Statuses = r.Statuses is null ? null : new List<string>(r.Statuses),
+        CollectionIds = r.CollectionIds is null ? null : new List<Guid>(r.CollectionIds),
+        Tags = r.Tags is null ? null : new List<string>(r.Tags),
+        MetadataFilters = r.MetadataFilters is null ? null
+            : r.MetadataFilters.ToDictionary(kv => kv.Key, kv => new List<string>(kv.Value)),
+        CreatedAfter = r.CreatedAfter,
+        CreatedBefore = r.CreatedBefore,
+        Sort = r.Sort,
+        Skip = r.Skip,
+        Take = r.Take,
+        Facets = r.Facets is null ? null : new List<string>(r.Facets)
+    };
+}

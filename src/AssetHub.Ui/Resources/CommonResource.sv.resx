@@ -37,6 +37,7 @@
   <!-- Navigation -->
   <data name="Nav_Home" xml:space="preserve"><value>Hem</value></data>
   <data name="Nav_Collections" xml:space="preserve"><value>Samlingar</value></data>
+  <data name="Nav_Search" xml:space="preserve"><value>Sök</value></data>
   <data name="Nav_AllAssets" xml:space="preserve"><value>Alla tillgångar</value></data>
   <data name="Nav_Admin" xml:space="preserve"><value>Administration</value></data>
 

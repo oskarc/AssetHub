@@ -125,4 +125,48 @@
   <data name="BulkAssetRemoveFinalConfirm" xml:space="preserve"><value>Är du säker på att du vill ta bort {0} tillgång(ar) från denna samling? Föräldralösa tillgångar tas bort permanent.</value></data>
   <data name="BulkAssetDeletePartial" xml:space="preserve"><value>Tog bort {0} tillgång(ar), {1} misslyckades</value></data>
   <data name="BulkAssetDeleteSuccess" xml:space="preserve"><value>Tog bort {0} tillgång(ar) framgångsrikt</value></data>
+
+  <!-- Search -->
+  <data name="Search_PageTitle" xml:space="preserve"><value>Sök</value></data>
+  <data name="Search_Placeholder" xml:space="preserve"><value>Sök titel, beskrivning, taggar och metadata…</value></data>
+  <data name="Search_FilterSection" xml:space="preserve"><value>Filter</value></data>
+  <data name="Search_FacetSection" xml:space="preserve"><value>Förfina</value></data>
+  <data name="Search_ClearAll" xml:space="preserve"><value>Rensa alla filter</value></data>
+  <data name="Search_ActiveFilters" xml:space="preserve"><value>Aktiva filter</value></data>
+  <data name="Search_NoResults" xml:space="preserve"><value>Inga tillgångar matchar dina filter</value></data>
+  <data name="Search_NoResultsDesc" xml:space="preserve"><value>Försök ta bort ett filter eller bredda söktexten.</value></data>
+  <data name="Search_Facet_AssetType" xml:space="preserve"><value>Tillgångstyp</value></data>
+  <data name="Search_Facet_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Search_Facet_Collection" xml:space="preserve"><value>Samling</value></data>
+  <data name="Search_Facet_Tag" xml:space="preserve"><value>Taggar</value></data>
+  <data name="Search_SaveSearch" xml:space="preserve"><value>Spara sökning</value></data>
+  <data name="Search_ShowSidebar" xml:space="preserve"><value>Visa filter</value></data>
+  <data name="Search_HideSidebar" xml:space="preserve"><value>Dölj filter</value></data>
+  <data name="Search_Sort" xml:space="preserve"><value>Sortera efter</value></data>
+  <data name="Search_Sort_Relevance" xml:space="preserve"><value>Relevans</value></data>
+  <data name="Search_Sort_CreatedDesc" xml:space="preserve"><value>Nyast först</value></data>
+  <data name="Search_Sort_CreatedAsc" xml:space="preserve"><value>Äldst först</value></data>
+  <data name="Search_Sort_TitleAsc" xml:space="preserve"><value>Titel A–Ö</value></data>
+  <data name="Search_Sort_TitleDesc" xml:space="preserve"><value>Titel Ö–A</value></data>
+  <data name="Search_CreatedAfter" xml:space="preserve"><value>Skapad efter</value></data>
+  <data name="Search_CreatedBefore" xml:space="preserve"><value>Skapad före</value></data>
+  <data name="Search_ResultsSummary" xml:space="preserve"><value>Visar {0} av {1} tillgångar</value></data>
+
+  <!-- Saved Searches -->
+  <data name="SavedSearch_Menu" xml:space="preserve"><value>Sparade sökningar</value></data>
+  <data name="SavedSearch_MenuEmpty" xml:space="preserve"><value>Inga sparade sökningar ännu</value></data>
+  <data name="SavedSearch_Manage" xml:space="preserve"><value>Hantera sparade sökningar</value></data>
+  <data name="SavedSearch_DialogTitle_Save" xml:space="preserve"><value>Spara sökning</value></data>
+  <data name="SavedSearch_DialogTitle_Edit" xml:space="preserve"><value>Redigera sparad sökning</value></data>
+  <data name="SavedSearch_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="SavedSearch_Notify" xml:space="preserve"><value>Notifiera mig</value></data>
+  <data name="SavedSearch_Notify_None" xml:space="preserve"><value>Aldrig</value></data>
+  <data name="SavedSearch_Notify_OnNewMatch" xml:space="preserve"><value>När en ny tillgång matchar</value></data>
+  <data name="SavedSearch_Notify_Daily" xml:space="preserve"><value>Dagligt sammandrag</value></data>
+  <data name="SavedSearch_Notify_Weekly" xml:space="preserve"><value>Veckovis sammandrag</value></data>
+  <data name="SavedSearch_NotifyPreviewBanner" xml:space="preserve"><value>Notifieringar kommer snart — din inställning sparas och aktiveras när e-postsammandrag levereras.</value></data>
+  <data name="SavedSearch_Saved" xml:space="preserve"><value>Sparade sökning '{0}'.</value></data>
+  <data name="SavedSearch_Deleted" xml:space="preserve"><value>Sparad sökning raderad.</value></data>
+  <data name="SavedSearch_DeleteConfirm" xml:space="preserve"><value>Ta bort sparad sökning '{0}'?</value></data>
+  <data name="SavedSearch_DuplicateName" xml:space="preserve"><value>Du har redan en sparad sökning med det namnet.</value></data>
 </root>

@@ -1,0 +1,103 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+@inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudMenu Icon="@Icons.Material.Filled.BookmarkBorder" Color="Color.Inherit"
+         TransformOrigin="Origin.TopRight" AnchorOrigin="Origin.BottomRight"
+         Dense="true" aria-label="@AssetLoc["SavedSearch_Menu"]">
+    <ChildContent>
+        <MudMenuItem Disabled="true">
+            <MudText Typo="Typo.subtitle2">@AssetLoc["SavedSearch_Menu"]</MudText>
+        </MudMenuItem>
+
+        @if (_loading)
+        {
+            <MudMenuItem Disabled="true">
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+            </MudMenuItem>
+        }
+        else if (_saved.Count == 0)
+        {
+            <MudMenuItem Disabled="true">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @AssetLoc["SavedSearch_MenuEmpty"]
+                </MudText>
+            </MudMenuItem>
+        }
+        else
+        {
+            foreach (var s in _saved)
+            {
+                <MudMenuItem OnClick="@(() => ApplySavedSearch(s))">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudText Typo="Typo.body2">@s.Name</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       aria-label="@CommonLoc["Btn_Delete"]"
+                                       OnClick="@(() => DeleteAsync(s))"
+                                       OnClickStopPropagation="true" />
+                    </MudStack>
+                </MudMenuItem>
+            }
+        }
+    </ChildContent>
+</MudMenu>
+
+@code {
+    private bool _loading = true;
+    private List<SavedSearchDto> _saved = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try { _saved = await Api.GetSavedSearchesAsync(); }
+        catch { _saved = new(); }
+        finally { _loading = false; }
+    }
+
+    /// <summary>Re-exposed so parents can refresh after creating a new saved search.</summary>
+    public Task RefreshAsync() => LoadAsync();
+
+    private void ApplySavedSearch(SavedSearchDto s)
+    {
+        // Route to /search with the saved id in the query so the Search page can load and replay it.
+        Nav.NavigateTo($"/search?savedId={s.Id}");
+    }
+
+    private async Task DeleteAsync(SavedSearchDto s)
+    {
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AssetLoc["SavedSearch_Menu"].Value,
+            string.Format(AssetLoc["SavedSearch_DeleteConfirm"].Value, s.Name),
+            CommonLoc["Btn_Delete"].Value,
+            iconColor: Color.Error,
+            confirmColor: Color.Error);
+        if (!confirmed) return;
+
+        // Optimistic remove
+        var removed = s;
+        _saved.Remove(s);
+        StateHasChanged();
+
+        try
+        {
+            await Api.DeleteSavedSearchAsync(s.Id);
+            Feedback.ShowSuccess(AssetLoc["SavedSearch_Deleted"].Value);
+        }
+        catch
+        {
+            _saved.Add(removed);
+            StateHasChanged();
+            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
+        }
+    }
+}
