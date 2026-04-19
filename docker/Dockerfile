@@ -31,11 +31,15 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0.14-bookworm-slim AS final
 # Install ffmpeg for video processing (poster frames)
 # Install curl for Docker health checks
 # Install ca-certificates for SSL trust
+#
+# Patch known HIGH CVEs in Debian base packages until the upstream image is rebuilt:
+# - CVE-2026-28390: OpenSSL NULL-ptr DoS in CMS (fixed in 3.0.19-1~deb12u2)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     ffmpeg \
     curl \
     ca-certificates \
+    && apt-get install -y --only-upgrade libssl3 openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Apply restrictive ImageMagick policy to disable dangerous coders (SVG, MVG, etc.)
