@@ -15,10 +15,9 @@ public sealed class PersonalAccessTokenService(
     ILogger<PersonalAccessTokenService> logger) : IPersonalAccessTokenService
 {
     /// <summary>
-    /// Plaintext token format: "pat_" + 32 base64url chars (24 bytes of CSPRNG entropy).
-    /// The prefix lets the auth scheme selector route quickly without trying to decode JWT.
+    /// Plaintext token format: <see cref="IPersonalAccessTokenService.TokenPrefix"/> + 32 base64url
+    /// chars (24 bytes of CSPRNG entropy).
     /// </summary>
-    public const string TokenPrefix = "pat_";
     private const int TokenEntropyBytes = 24;
 
     public async Task<ServiceResult<CreatedPersonalAccessTokenDto>> CreateAsync(
@@ -124,7 +123,7 @@ public sealed class PersonalAccessTokenService(
     public async Task<PersonalAccessToken?> VerifyAndStampAsync(string plaintextToken, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(plaintextToken)) return null;
-        if (!plaintextToken.StartsWith(TokenPrefix, StringComparison.Ordinal)) return null;
+        if (!plaintextToken.StartsWith(IPersonalAccessTokenService.TokenPrefix, StringComparison.Ordinal)) return null;
 
         var hash = ComputeHash(plaintextToken);
         var token = await repo.GetByHashAsync(hash, ct);
@@ -159,7 +158,7 @@ public sealed class PersonalAccessTokenService(
             .TrimEnd('=')
             .Replace('+', '-')
             .Replace('/', '_');
-        return $"{TokenPrefix}{encoded}";
+        return $"{IPersonalAccessTokenService.TokenPrefix}{encoded}";
     }
 
     private static PersonalAccessTokenDto ToDto(PersonalAccessToken t) => new()

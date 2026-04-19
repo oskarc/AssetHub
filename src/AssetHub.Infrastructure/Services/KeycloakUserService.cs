@@ -545,6 +545,55 @@ public sealed class KeycloakUserService : IKeycloakUserService
     }
 
     /// <inheritdoc />
+    public async Task<HashSet<string>> GetUserRealmRolesAsync(string userId, CancellationToken ct = default)
+    {
+        var roles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var token = await GetAdminTokenAsync(ct);
+            var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users/{Uri.EscapeDataString(userId)}/role-mappings/realm";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
+
+            using var response = await _httpClient.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to get realm roles for user {UserId}. Status: {Status}", userId, response.StatusCode);
+                return roles;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+            if (payload.ValueKind != JsonValueKind.Array) return roles;
+
+            foreach (var role in payload.EnumerateArray())
+            {
+                if (role.TryGetProperty("name", out var nameProp) && nameProp.GetString() is { } name)
+                    roles.Add(name);
+            }
+        }
+        catch (KeycloakApiException ex)
+        {
+            _logger.LogWarning(ex, "Failed to get realm roles for user {UserId}", userId);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Network error while getting realm roles for user {UserId}", userId);
+        }
+        catch (SocketException ex)
+        {
+            _logger.LogWarning(ex, "Connection error while getting realm roles for user {UserId}", userId);
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            _logger.LogWarning(ex, "Timeout while getting realm roles for user {UserId}", userId);
+        }
+
+        return roles;
+    }
+
+    /// <inheritdoc />
     public async Task AssignRealmRoleAsync(string userId, string roleName, CancellationToken ct = default)
     {
         try

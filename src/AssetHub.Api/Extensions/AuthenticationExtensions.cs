@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using AssetHub.Api.Authentication;
 using AssetHub.Application;
+using AssetHub.Application.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -43,7 +45,15 @@ public static class AuthenticationExtensions
                 string? authorization = context.Request.Headers.Authorization;
                 if (!string.IsNullOrEmpty(authorization) &&
                     authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    // PAT prefix is the cheap discriminator — if the bearer starts with "pat_"
+                    // the JWT validator would just reject it after parse work, so route directly.
+                    var bearer = authorization.Substring("Bearer ".Length).TrimStart();
+                    if (bearer.StartsWith(IPersonalAccessTokenService.TokenPrefix, StringComparison.Ordinal))
+                        return PersonalAccessTokenAuthenticationHandler.SchemeName;
+
                     return Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+                }
                 return CookieAuthenticationDefaults.AuthenticationScheme;
             };
         })
@@ -51,6 +61,8 @@ public static class AuthenticationExtensions
         {
             ConfigureJwtBearer(options, keycloakAuthority, clientId, requireHttpsMetadata, environment);
         })
+        .AddScheme<AuthenticationSchemeOptions, PersonalAccessTokenAuthenticationHandler>(
+            PersonalAccessTokenAuthenticationHandler.SchemeName, _ => { })
         .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
         {
             options.Cookie.Name = "__Host.assethub.auth";

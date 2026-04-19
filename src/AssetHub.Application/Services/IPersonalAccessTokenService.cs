@@ -12,6 +12,13 @@ namespace AssetHub.Application.Services;
 public interface IPersonalAccessTokenService
 {
     /// <summary>
+    /// Plaintext token prefix. Lets the auth scheme selector route quickly without parsing a JWT.
+    /// Lives on the contract so all layers (auth handler, smart selector, tests) agree on the value.
+    /// </summary>
+    public const string TokenPrefix = "pat_";
+
+
+    /// <summary>
     /// Mints a new PAT for the current user. Returns the plaintext token in the response —
     /// the caller MUST surface it to the user immediately because the server only persists
     /// the SHA-256 hash. Validates that ExpiresAt (if set) is in the future and that every

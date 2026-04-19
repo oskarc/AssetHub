@@ -24,6 +24,7 @@ public static class CacheKeys
     private const string MetadataSchemasAllKey = "metadata-schemas:all";
     private const string TaxonomyPrefix = "taxonomy:";
     private const string TaxonomiesAllKey = "taxonomies:all";
+    private const string UserRealmRolesPrefix = "user:realmroles:";
 
     // ── TTLs ──────────────────────────────────────────────────────────
 
@@ -56,6 +57,13 @@ public static class CacheKeys
 
     /// <summary>Taxonomies. Invalidated on taxonomy create/update/delete.</summary>
     public static readonly TimeSpan TaxonomyTtl = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Realm roles for a single user (PAT auth path). Short TTL — role changes
+    /// in Keycloak take effect within this window without an explicit invalidation.
+    /// Not an ACL lookup — those remain request-scoped per CLAUDE.md.
+    /// </summary>
+    public static readonly TimeSpan UserRealmRolesTtl = TimeSpan.FromMinutes(1);
 
     // ── Key Builders ──────────────────────────────────────────────────
 
@@ -106,6 +114,10 @@ public static class CacheKeys
 
     /// <summary>Cache key for the all taxonomies list.</summary>
     public static string TaxonomiesAll() => TaxonomiesAllKey;
+
+    /// <summary>Cache key for a user's realm role set (used by PAT auth).</summary>
+    public static string UserRealmRoles(string userId)
+        => $"{UserRealmRolesPrefix}{userId}";
 
     // ── Tag Definitions (for HybridCache tag-based invalidation) ─────
 
