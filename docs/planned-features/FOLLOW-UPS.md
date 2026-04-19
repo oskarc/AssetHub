@@ -69,6 +69,55 @@ yet and is broader than this feature.
 cycle end-to-end and pins behaviour against a regression in the trigger /
 filter / repo-method chain.
 
+### T1-VER-01 — version thumbnail preview in history panel
+
+**Deferred from**: `4007449` (T1-VER-01 phase 4-5)
+**Why deferred**: The backend exposes `ThumbObjectKey` per version and the DTO
+ships it, but `AssetVersionHistoryPanel` currently renders the timeline as a
+plain table. Visual scanability is one small avatar away.
+**Sketch**:
+- Add a `MudAvatar` with `Image="@AssetDisplayHelpers.GetThumbnailUrl(assetId, version.ThumbObjectKey, assetType, version.PosterObjectKey)"`
+  to the version column in `AssetVersionHistoryPanel.razor`.
+- Asset type isn't on `AssetVersionDto` today — either add it (tiny API change)
+  or pass the parent asset's type through as a panel parameter (cheaper).
+**Acceptance**: each row in the panel shows a 40 px thumbnail of that
+version's bytes; current version is visually identical to the asset page's
+main thumbnail.
+
+### T1-VER-01 — SaveImageCopy versioning interpretation
+
+**Deferred from**: `a4fe14e` (T1-VER-01 phase 2-3)
+**Why deferred**: The roadmap line "Replace + image-save-copy create a new
+version" was interpreted as Replace only, because save-copy already creates a
+separate derivative asset (with its own `SourceAssetId` trail) and versioning
+on top would duplicate history. Flag a design decision, not a bug.
+**Sketch**:
+- If the intent is "save-copy also snapshots the source", then before writing
+  the derivative, capture the source's current state to an AssetVersion on
+  the SOURCE asset — same pattern as ReplaceImageFile.
+- If the current interpretation stays, no work needed; document it under
+  T1-VER-01's `Out of scope` section in ROADMAP.md when promoting this entry.
+**Acceptance**: either the save-copy path creates a source-asset AssetVersion
+alongside the derivative, or the ROADMAP entry explicitly confirms
+single-interpretation.
+
+### T1-VER-01 — AssetVersionService integration test against real Postgres
+
+**Deferred from**: `4007449` (T1-VER-01 phase 4-5)
+**Why deferred**: Same fixture gap as the T1-LIFE-01 purge-worker test.
+Unit-test coverage via Moq is in; the cascade-on-purge invariant and the
+restore-of-same-keys-shared-with-live-asset scenario are better exercised
+against a real DbContext.
+**Sketch**:
+- Use `PostgresFixture.CreateMigratedDbContextAsync` (already exists from
+  T1-SRCH-01) so the AssetVersions table and its unique index are live.
+- Test: seed asset with 3 versions, restore v1, assert the asset row's keys
+  match v1 AND a v4 row was created capturing the pre-restore state.
+- Test: purge an asset with versions, assert version rows cascade-deleted
+  AND MinIO was called for version-only keys (not shared ones).
+**Acceptance**: `[Collection("Database")]` test class covers restore
+round-trip and purge cascade, both against real EF with migrations applied.
+
 ### Test infra — full Release suite EF flake
 
 **Deferred from**: noted across multiple sessions
