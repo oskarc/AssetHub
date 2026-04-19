@@ -409,14 +409,17 @@ test.describe('API Endpoint Tests @api', () => {
       expect(typeof user.collectionCount).toBe('number');
     });
 
-    test('admin all assets returns paginated response', async () => {
-      const res = await api.get(`${env.baseUrl}/api/v1/assets/all?skip=0&take=10`);
+    test('admin search assets returns paginated response', async () => {
+      // GET /api/v1/assets/all was retired in T1-SRCH-01; POST /search replaces it.
+      const res = await api.post(`${env.baseUrl}/api/v1/assets/search`, {
+        data: { take: 10 },
+      });
       expect(res.status()).toBe(200);
       const data = await res.json();
       expect(data).toHaveProperty('items');
-      expect(data).toHaveProperty('total');
+      expect(data).toHaveProperty('totalCount');
       expect(Array.isArray(data.items)).toBe(true);
-      expect(typeof data.total).toBe('number');
+      expect(typeof data.totalCount).toBe('number');
       if (data.items.length > 0) {
         const asset = data.items[0];
         expect(asset).toHaveProperty('id');

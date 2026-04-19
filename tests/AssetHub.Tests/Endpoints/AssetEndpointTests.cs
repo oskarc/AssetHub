@@ -77,20 +77,29 @@ public class AssetEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    // GET /api/v1/assets/all was retired in T1-SRCH-01 follow-up. POST /api/v1/assets/search is
+    // the replacement; these endpoint tests exercise its surface. Full RBAC + facet behaviour
+    // lives in AssetSearchServiceTests.
+
     [Fact]
-    public async Task GetAllAssets_AdminOnly_Returns200()
+    public async Task SearchAssets_Admin_Returns200WithPagedShape()
     {
         var client = AdminClient();
-        var response = await client.GetAsync("/api/v1/assets/all");
+        var response = await client.PostAsJsonAsync("/api/v1/assets/search", new AssetSearchRequest { Take = 10 });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<AssetSearchResponse>();
+        Assert.NotNull(payload);
+        Assert.NotNull(payload!.Items);
     }
 
     [Fact]
-    public async Task GetAllAssets_Viewer_Returns403()
+    public async Task SearchAssets_Viewer_Returns200_ServiceScopesByACL()
     {
+        // The /search endpoint is RequireViewer; per-collection filtering happens server-side in
+        // AssetSearchService, so viewers without ACLs legitimately see an empty response, not 403.
         var client = ViewerClient();
-        var response = await client.GetAsync("/api/v1/assets/all");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var response = await client.PostAsJsonAsync("/api/v1/assets/search", new AssetSearchRequest { Take = 10 });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     // ── GetAsset ────────────────────────────────────────────────────
