@@ -224,6 +224,43 @@ public class AssetMetadataServiceTests
     }
 
     [Fact]
+    public async Task SetAsync_MalformedPatternRegex_ReturnsBadRequestWithoutThrowing()
+    {
+        var svc = CreateService();
+        var (asset, field) = SetupHappyPath(customizeField: f => f.PatternRegex = "[unterminated");
+
+        var result = await svc.SetAsync(asset.Id,
+            new SetAssetMetadataDto { Values = new() { NewValue(field.Id, text: "anything") } },
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+        Assert.Contains("invalid pattern", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task SetAsync_CatastrophicBacktrackingPattern_TimesOutWithBadRequest()
+    {
+        // ReDoS regression guard (Sonar S6444). Classic nested-quantifier pattern + a non-matching
+        // tail would spin forever without the timeout; with the 100 ms cap the matcher bails and
+        // the service returns BadRequest instead of hanging the request thread.
+        var svc = CreateService();
+        var (asset, field) = SetupHappyPath(customizeField: f => f.PatternRegex = "^(a+)+$");
+        var abusiveInput = new string('a', 40) + "!";
+
+        var start = DateTime.UtcNow;
+        var result = await svc.SetAsync(asset.Id,
+            new SetAssetMetadataDto { Values = new() { NewValue(field.Id, text: abusiveInput) } },
+            CancellationToken.None);
+        var elapsed = DateTime.UtcNow - start;
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+        // The timeout is 100 ms; total should be well under a second even with mocking overhead.
+        Assert.True(elapsed < TimeSpan.FromSeconds(2), $"Regex evaluation took {elapsed.TotalMilliseconds} ms — timeout not enforced");
+    }
+
+    [Fact]
     public async Task SetAsync_TextPatternMismatch_ReturnsBadRequest()
     {
         var svc = CreateService();

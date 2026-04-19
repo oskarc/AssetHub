@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Repositories;
@@ -214,9 +215,27 @@ public sealed class AssetMetadataService(
                 if (v.ValueText is null) return ServiceError.BadRequest($"Field '{field.Key}' expects text");
                 if (field.MaxLength.HasValue && v.ValueText.Length > field.MaxLength.Value)
                     return ServiceError.BadRequest($"Field '{field.Key}' exceeds max length {field.MaxLength}");
-                if (!string.IsNullOrEmpty(field.PatternRegex)
-                    && !System.Text.RegularExpressions.Regex.IsMatch(v.ValueText, field.PatternRegex))
-                    return ServiceError.BadRequest($"Field '{field.Key}' does not match required pattern");
+                if (!string.IsNullOrEmpty(field.PatternRegex))
+                {
+                    // Admin-authored patterns are trusted-ish but still run against user-supplied values.
+                    // A catastrophic-backtracking pattern + crafted input would otherwise hang the request
+                    // thread (Sonar S6444 / ReDoS). A 100 ms ceiling is generous for metadata validation
+                    // and short enough that an attacker can't amplify into a DoS.
+                    try
+                    {
+                        if (!Regex.IsMatch(v.ValueText, field.PatternRegex, RegexOptions.None, TimeSpan.FromMilliseconds(100)))
+                            return ServiceError.BadRequest($"Field '{field.Key}' does not match required pattern");
+                    }
+                    catch (RegexMatchTimeoutException)
+                    {
+                        return ServiceError.BadRequest($"Field '{field.Key}' pattern evaluation timed out");
+                    }
+                    catch (ArgumentException)
+                    {
+                        // Schema admin saved a malformed pattern — surface it cleanly instead of 500ing.
+                        return ServiceError.BadRequest($"Field '{field.Key}' has an invalid pattern configured");
+                    }
+                }
                 return null;
 
             case MetadataFieldType.Url:
