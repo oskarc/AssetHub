@@ -30,7 +30,9 @@
     <MudGrid>
         <!-- Sidebar -->
         <MudItem xs="12" md="3">
-            <SearchSidebar Request="_request" Facets="_facets" OnRequestChanged="OnRequestChanged" />
+            <SearchSidebar Request="_request" Facets="_facets"
+                           FacetableFields="_facetableFields"
+                           OnRequestChanged="OnRequestChanged" />
         </MudItem>
 
         <!-- Results -->
@@ -103,12 +105,33 @@
     };
     private Dictionary<string, List<FacetBucket>> _facets = new();
     private List<AssetResponseDto> _items = new();
+    private List<MetadataFieldDto> _facetableFields = new();
     private int _total;
     private bool _loading;
     private bool _loadingMore;
 
     protected override async Task OnInitializedAsync()
     {
+        // Pull facetable metadata fields once on mount — the set doesn't change during a session.
+        // Each field adds a "meta:{id}" facet dimension to the request so the backend aggregates counts for it.
+        try
+        {
+            var schemas = await Api.GetMetadataSchemasAsync();
+            _facetableFields = schemas
+                .SelectMany(s => s.Fields)
+                .Where(f => f.Facetable)
+                .OrderBy(f => f.Label, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            _request.Facets ??= new();
+            foreach (var f in _facetableFields)
+            {
+                var token = "meta:" + f.Id;
+                if (!_request.Facets.Contains(token))
+                    _request.Facets.Add(token);
+            }
+        }
+        catch { /* non-fatal — the built-in facets still render */ }
+
         // If arriving with ?savedId=..., load that saved search and replay its request.
         var uri = Nav.ToAbsoluteUri(Nav.Uri);
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query)
@@ -122,6 +145,12 @@
                     _request = saved.Request;
                     _request.Skip = 0;
                     _request.Facets ??= new() { "asset_type", "status", "collection", "tag" };
+                    foreach (var f in _facetableFields)
+                    {
+                        var token = "meta:" + f.Id;
+                        if (!_request.Facets.Contains(token))
+                            _request.Facets.Add(token);
+                    }
                 }
             }
             catch { /* fall through to default search */ }

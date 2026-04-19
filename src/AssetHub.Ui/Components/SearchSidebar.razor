@@ -73,6 +73,16 @@
             <MudExpansionPanel Text="@AssetLoc["Search_Facet_Status"]">
                 @RenderFacet("status")
             </MudExpansionPanel>
+
+            @if (FacetableFields is { Count: > 0 })
+            {
+                @foreach (var field in FacetableFields)
+                {
+                    <MudExpansionPanel Text="@field.Label">
+                        @RenderMetadataFacet(field)
+                    </MudExpansionPanel>
+                }
+            }
         </MudExpansionPanels>
 
     </MudStack>
@@ -81,6 +91,9 @@
 @code {
     [Parameter, EditorRequired] public AssetSearchRequest? Request { get; set; }
     [Parameter, EditorRequired] public Dictionary<string, List<FacetBucket>>? Facets { get; set; }
+
+    /// <summary>Facetable metadata fields to render as dynamic accordion panels.</summary>
+    [Parameter] public List<MetadataFieldDto>? FacetableFields { get; set; }
 
     /// <summary>Emitted when the request should be re-run. Parent is responsible for calling the API.</summary>
     [Parameter] public EventCallback<AssetSearchRequest> OnRequestChanged { get; set; }
@@ -110,6 +123,64 @@
             }
         </MudStack>
     };
+
+    private RenderFragment RenderMetadataFacet(MetadataFieldDto field) => __builder =>
+    {
+        var dimension = "meta:" + field.Id;
+        if (Facets is null || !Facets.TryGetValue(dimension, out var buckets) || buckets.Count == 0)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary">—</MudText>
+            return;
+        }
+
+        <MudStack Spacing="1">
+            @foreach (var bucket in buckets)
+            {
+                var isActive = IsMetadataValueActive(field.Id, bucket.Value);
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudCheckBox T="bool"
+                                 Value="@isActive"
+                                 ValueChanged="@((bool on) => ToggleMetadataValue(field.Id, bucket.Value, on))"
+                                 Size="Size.Small"
+                                 Class="ma-0"
+                                 Label="@bucket.Label" />
+                    <MudSpacer />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@bucket.Count</MudText>
+                </MudStack>
+            }
+        </MudStack>
+    };
+
+    private bool IsMetadataValueActive(Guid fieldId, string value)
+        => Request?.MetadataFilters is { } dict
+           && dict.TryGetValue(fieldId, out var vs)
+           && vs.Contains(value);
+
+    private async Task ToggleMetadataValue(Guid fieldId, string value, bool on)
+    {
+        if (Request is null) return;
+        var next = Clone(Request);
+        next.MetadataFilters ??= new Dictionary<Guid, List<string>>();
+
+        if (!next.MetadataFilters.TryGetValue(fieldId, out var values))
+        {
+            values = new List<string>();
+            next.MetadataFilters[fieldId] = values;
+        }
+
+        if (on)
+        {
+            if (!values.Contains(value)) values.Add(value);
+        }
+        else
+        {
+            values.RemoveAll(v => v == value);
+            if (values.Count == 0) next.MetadataFilters.Remove(fieldId);
+        }
+
+        next.Skip = 0;
+        await OnRequestChanged.InvokeAsync(next);
+    }
 
     private bool HasActiveFilters() =>
         Request is not null && (
@@ -189,7 +260,26 @@
         if (Request is null || chip.Value is null) return;
         var token = chip.Value;
 
-        // Tokens use the form "dimension:value"; metadata uses "meta:{guid}:value".
+        // Metadata tokens: "meta:{guid}:value" — close removes the value from that field's filter.
+        if (token.StartsWith("meta:", StringComparison.Ordinal))
+        {
+            var body = token[5..];
+            var secondColon = body.IndexOf(':');
+            if (secondColon < 0) return;
+            if (!Guid.TryParse(body[..secondColon], out var fid)) return;
+            var val = body[(secondColon + 1)..];
+            await ToggleMetadataValue(fid, val, on: false);
+            return;
+        }
+
+        // Text chip — clear the free-text query.
+        if (token.StartsWith("text:", StringComparison.Ordinal))
+        {
+            await OnTextChanged(string.Empty);
+            return;
+        }
+
+        // Built-in dimension: "dimension:value".
         var colon = token.IndexOf(':');
         if (colon < 0) return;
 
@@ -225,6 +315,26 @@
         if (Request.Tags is not null)
             foreach (var t in Request.Tags)
                 yield return ("tag:" + t, $"{AssetLoc["Search_Facet_Tag"].Value}: {t}");
+
+        if (Request.MetadataFilters is not null && FacetableFields is not null)
+        {
+            var labelsByField = FacetableFields.ToDictionary(f => f.Id, f => f.Label);
+            foreach (var (fid, values) in Request.MetadataFilters)
+            {
+                var fieldLabel = labelsByField.TryGetValue(fid, out var fl) ? fl : fid.ToString();
+                foreach (var v in values)
+                {
+                    // Resolve taxonomy term labels when the facet buckets carry them.
+                    var valueLabel = v;
+                    if (Facets is not null && Facets.TryGetValue("meta:" + fid, out var buckets))
+                    {
+                        var bucket = buckets.FirstOrDefault(b => b.Value == v);
+                        if (bucket is not null) valueLabel = bucket.Label;
+                    }
+                    yield return ($"meta:{fid}:{v}", $"{fieldLabel}: {valueLabel}");
+                }
+            }
+        }
     }
 
     private static List<T> Toggle<T>(List<T>? list, T value, bool on) where T : notnull
