@@ -202,6 +202,9 @@ public static class ServiceCollectionExtensions
         // Versioning (T1-VER-01)
         services.AddScoped<IAssetVersionService, AssetVersionService>();
 
+        // Personal access tokens (T1-API-01)
+        services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();
+
         // Collection services split by responsibility (Interface Segregation Principle)
         services.AddScoped<CollectionServiceRepositories>();
         services.AddScoped<ICollectionQueryService, CollectionQueryService>(); // Queries: list, get by ID

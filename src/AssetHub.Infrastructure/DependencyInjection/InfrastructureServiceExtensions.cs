@@ -122,6 +122,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAssetMetadataRepository, AssetMetadataRepository>();
         services.AddScoped<ISavedSearchRepository, SavedSearchRepository>();
         services.AddScoped<IAssetVersionRepository, AssetVersionRepository>();
+        services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);
