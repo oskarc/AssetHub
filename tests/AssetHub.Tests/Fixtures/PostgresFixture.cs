@@ -95,6 +95,32 @@ public class PostgresFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Creates a new DbContext with the full EF migration set applied (including raw-SQL functions
+    /// and triggers). Use this when the test exercises Postgres-specific behaviour that migrations
+    /// install — the search_vector tsvector + its triggers, pg_trgm GIN indexes, etc.
+    /// </summary>
+    public async Task<AssetHubDbContext> CreateMigratedDbContextAsync(string? dbName = null)
+    {
+        dbName ??= $"test_{Guid.NewGuid():N}";
+
+        await using var adminConn = new NpgsqlConnection(ConnectionString);
+        await adminConn.OpenAsync();
+        await using var cmd = adminConn.CreateCommand();
+        cmd.CommandText = $"CREATE DATABASE \"{dbName}\"";
+        await cmd.ExecuteNonQueryAsync();
+
+        var dataSource = GetOrCreateDataSource(dbName);
+        var options = new DbContextOptionsBuilder<AssetHubDbContext>()
+            .UseNpgsql(dataSource)
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        var db = new AssetHubDbContext(options);
+        await db.Database.MigrateAsync();
+        return db;
+    }
+
+    /// <summary>
     /// Creates a new DbContext for an already-existing database.
     /// Useful when you need a fresh change tracker to avoid navigation property bleed.
     /// </summary>
