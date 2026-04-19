@@ -32,6 +32,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AssetMetadataValue> AssetMetadataValues { get; set; } = null!;
     public DbSet<SavedSearch> SavedSearches { get; set; } = null!;
     public DbSet<AssetVersion> AssetVersions { get; set; } = null!;
+    public DbSet<PersonalAccessToken> PersonalAccessTokens { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -520,6 +521,26 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .WithMany(a => a.Versions)
                 .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // PersonalAccessToken
+        modelBuilder.Entity<PersonalAccessToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            // Lookup happens by hash on every PAT-authenticated request — must be unique + indexed.
+            entity.HasIndex(e => e.TokenHash).IsUnique().HasDatabaseName("idx_pat_token_hash_unique");
+            entity.HasIndex(e => new { e.OwnerUserId, e.CreatedAt }).HasDatabaseName("idx_pat_owner_created");
+
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.OwnerUserId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.TokenHash).HasMaxLength(64).IsRequired();
+
+            entity.Property(e => e.Scopes)
+                .HasColumnType("text[]")
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
         });
     }
 }
