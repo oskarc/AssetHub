@@ -78,6 +78,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         return new AssetUploadService(
             repos,
             pipeline,
+            new AssetVersionRepository(_db, NullLogger<AssetVersionRepository>.Instance),
             _authService,
             _auditMock.Object,
             currentUser,

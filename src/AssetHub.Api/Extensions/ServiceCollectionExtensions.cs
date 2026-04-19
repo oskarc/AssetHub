@@ -199,6 +199,9 @@ public static class ServiceCollectionExtensions
         // Trash (T1-LIFE-01)
         services.AddScoped<IAssetTrashService, AssetTrashService>();
 
+        // Versioning (T1-VER-01)
+        services.AddScoped<IAssetVersionService, AssetVersionService>();
+
         // Collection services split by responsibility (Interface Segregation Principle)
         services.AddScoped<CollectionServiceRepositories>();
         services.AddScoped<ICollectionQueryService, CollectionQueryService>(); // Queries: list, get by ID

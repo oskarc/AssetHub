@@ -38,6 +38,7 @@ public sealed class AssetUploadService : IAssetUploadService
 {
     private readonly IAssetRepository _assetRepo;
     private readonly IAssetCollectionRepository _assetCollectionRepo;
+    private readonly IAssetVersionRepository _versionRepo;
     private readonly ICollectionAuthorizationService _authService;
     private readonly IMinIOAdapter _minioAdapter;
     private readonly IMediaProcessingService _mediaProcessing;
@@ -51,6 +52,7 @@ public sealed class AssetUploadService : IAssetUploadService
     public AssetUploadService(
         AssetUploadRepositories repos,
         AssetUploadPipeline pipeline,
+        IAssetVersionRepository versionRepo,
         ICollectionAuthorizationService authService,
         IAuditService audit,
         CurrentUser currentUser,
@@ -59,6 +61,7 @@ public sealed class AssetUploadService : IAssetUploadService
     {
         _assetRepo = repos.AssetRepo;
         _assetCollectionRepo = repos.AssetCollectionRepo;
+        _versionRepo = versionRepo;
         _authService = authService;
         _minioAdapter = pipeline.MinioAdapter;
         _mediaProcessing = pipeline.MediaProcessing;
@@ -66,8 +69,8 @@ public sealed class AssetUploadService : IAssetUploadService
         _audit = audit;
         _currentUser = currentUser;
         _bucketName = pipeline.BucketName;
-        _maxUploadSizeMb = appSettings.Value.MaxUploadSizeMb > 0 
-            ? appSettings.Value.MaxUploadSizeMb 
+        _maxUploadSizeMb = appSettings.Value.MaxUploadSizeMb > 0
+            ? appSettings.Value.MaxUploadSizeMb
             : Constants.Limits.DefaultMaxUploadSizeMb;
         _logger = logger;
     }
@@ -539,18 +542,39 @@ public sealed class AssetUploadService : IAssetUploadService
         var newObjectKey = $"originals/{assetId}-edited-{shortId}{extension}";
         var oldObjectKey = asset.OriginalObjectKey;
 
+        // Snapshot the asset's current state into a new AssetVersion BEFORE mutating the row.
+        // T1-VER-01 keeps every prior set of bytes/keys/edit-document so the user can roll back
+        // a Replace from the version-history panel; the old MinIO objects are intentionally
+        // NOT deleted here (the version row references them).
+        var snapshot = new AssetVersion
+        {
+            AssetId = asset.Id,
+            VersionNumber = asset.CurrentVersionNumber,
+            OriginalObjectKey = asset.OriginalObjectKey,
+            ThumbObjectKey = asset.ThumbObjectKey,
+            MediumObjectKey = asset.MediumObjectKey,
+            PosterObjectKey = asset.PosterObjectKey,
+            SizeBytes = asset.SizeBytes,
+            ContentType = asset.ContentType,
+            Sha256 = asset.Sha256 ?? string.Empty,
+            EditDocument = asset.EditDocument,
+            MetadataSnapshot = new Dictionary<string, object>(asset.MetadataJson),
+            CreatedByUserId = userId,
+            ChangeNote = request.ChangeNote
+        };
+        await _versionRepo.CreateAsync(snapshot, ct);
+
         // Update asset metadata — processing will happen after confirm-upload
         asset.ContentType = request.ContentType;
         asset.SizeBytes = request.FileSize;
         asset.OriginalObjectKey = newObjectKey;
         asset.Status = AssetStatus.Uploading;
-        // Store the old object key so ConfirmUploadAsync can clean it up after successful upload
-        asset.MetadataJson["_pendingDeleteKey"] = oldObjectKey;
+        asset.CurrentVersionNumber = snapshot.VersionNumber + 1;
         asset.UpdatedAt = DateTime.UtcNow;
         await _assetRepo.UpdateAsync(asset, ct);
 
         await _audit.LogAsync("asset.image_replaced", Constants.ScopeTypes.Asset, assetId, userId,
-            new() { ["title"] = asset.Title, ["oldObjectKey"] = oldObjectKey, ["newContentType"] = request.ContentType }, ct);
+            new() { ["title"] = asset.Title, ["oldObjectKey"] = oldObjectKey, ["newContentType"] = request.ContentType, ["newVersion"] = asset.CurrentVersionNumber }, ct);
 
         string presignedUrl;
         try

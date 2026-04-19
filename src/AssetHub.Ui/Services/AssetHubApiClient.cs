@@ -1207,6 +1207,30 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Asset Versions
+
+    public virtual async Task<List<AssetVersionDto>> GetAssetVersionsAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/versions", ct);
+        await EnsureSuccessAsync(response, "Get asset versions");
+        return await response.Content.ReadFromJsonAsync<List<AssetVersionDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<AssetVersionDto> RestoreAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/assets/{assetId}/versions/{versionNumber}/restore", content: null, ct);
+        await EnsureSuccessAsync(response, "Restore asset version");
+        return await ReadRequiredJsonAsync<AssetVersionDto>(response, "Restore asset version");
+    }
+
+    public virtual async Task PruneAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/assets/{assetId}/versions/{versionNumber}", ct);
+        await EnsureSuccessAsync(response, "Prune asset version");
+    }
+
+    #endregion
 }
 
 /// <summary>

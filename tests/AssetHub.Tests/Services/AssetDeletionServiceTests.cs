@@ -23,6 +23,7 @@ public class AssetDeletionServiceTests : IAsyncLifetime
     private AssetRepository _assetRepo = null!;
     private AssetCollectionRepository _assetCollectionRepo = null!;
     private ShareRepository _shareRepo = null!;
+    private AssetVersionRepository _versionRepo = null!;
     private Mock<IMinIOAdapter> _minioMock = null!;
     private AssetDeletionService _sut = null!;
 
@@ -40,9 +41,11 @@ public class AssetDeletionServiceTests : IAsyncLifetime
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AssetCollectionRepository>.Instance);
         _shareRepo = new ShareRepository(_db,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareRepository>.Instance);
+        _versionRepo = new AssetVersionRepository(_db,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<AssetVersionRepository>.Instance);
         _minioMock = new Mock<IMinIOAdapter>();
 
-        _sut = new AssetDeletionService(_assetRepo, _assetCollectionRepo, _shareRepo, _minioMock.Object);
+        _sut = new AssetDeletionService(_assetRepo, _assetCollectionRepo, _versionRepo, _shareRepo, _minioMock.Object);
     }
 
     public async Task DisposeAsync()

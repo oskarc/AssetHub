@@ -73,4 +73,12 @@ public class ReplaceImageFileRequest
     [Required]
     [Range(1, long.MaxValue)]
     public required long FileSize { get; set; }
+
+    /// <summary>
+    /// Optional free-text note recorded on the AssetVersion captured before the replace
+    /// (T1-VER-01). Surfaces in the version-history panel so users can recall why they
+    /// replaced. Capped at 1000 chars to match the DB column.
+    /// </summary>
+    [StringLength(1000)]
+    public string? ChangeNote { get; set; }
 }

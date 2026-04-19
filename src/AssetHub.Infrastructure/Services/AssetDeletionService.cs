@@ -10,6 +10,7 @@ namespace AssetHub.Infrastructure.Services;
 public class AssetDeletionService(
     IAssetRepository assetRepository,
     IAssetCollectionRepository assetCollectionRepo,
+    IAssetVersionRepository versionRepository,
     IShareRepository shareRepository,
     IMinIOAdapter minioAdapter) : IAssetDeletionService
 {
@@ -30,6 +31,28 @@ public class AssetDeletionService(
     public async Task PurgeAsync(Asset asset, string bucketName, CancellationToken ct = default)
     {
         await shareRepository.DeleteByScopeAsync(Constants.ScopeTypes.Asset, asset.Id, ct);
+
+        // T1-VER-01: clean up MinIO objects referenced by version rows before the FK cascade
+        // drops them. Skip keys that are still in use by the live asset row to avoid
+        // double-deletes (DeleteAssetObjectsAsync below will handle those).
+        var liveKeys = new HashSet<string>(StringComparer.Ordinal);
+        if (!string.IsNullOrEmpty(asset.OriginalObjectKey)) liveKeys.Add(asset.OriginalObjectKey);
+        if (!string.IsNullOrEmpty(asset.ThumbObjectKey)) liveKeys.Add(asset.ThumbObjectKey!);
+        if (!string.IsNullOrEmpty(asset.MediumObjectKey)) liveKeys.Add(asset.MediumObjectKey!);
+        if (!string.IsNullOrEmpty(asset.PosterObjectKey)) liveKeys.Add(asset.PosterObjectKey!);
+
+        var versions = await versionRepository.GetByAssetIdAsync(asset.Id, ct);
+        var versionKeys = versions
+            .SelectMany(v => new[] { v.OriginalObjectKey, v.ThumbObjectKey, v.MediumObjectKey, v.PosterObjectKey })
+            .Where(k => !string.IsNullOrEmpty(k) && !liveKeys.Contains(k!))
+            .Distinct()
+            .ToList();
+        foreach (var key in versionKeys)
+        {
+            try { await minioAdapter.DeleteAsync(bucketName, key!, ct); }
+            catch { /* best-effort cleanup; the DB cascade still removes the row */ }
+        }
+
         await minioAdapter.DeleteAssetObjectsAsync(bucketName, asset, ct);
         await assetRepository.DeleteAsync(asset.Id, ct);
     }
