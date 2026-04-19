@@ -1,0 +1,162 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AssetsResource> AssetLoc
+
+<MudPaper Class="pa-3" Elevation="0" Outlined="true" aria-label="@AssetLoc["Versions_Section_Title"]">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.subtitle1">@AssetLoc["Versions_Section_Title"]</MudText>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_versions == null || _versions.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@AssetLoc["Versions_None"]</MudText>
+        }
+        else
+        {
+            <MudTable Items="@_versions" Hover="true" Dense="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>@AssetLoc["Versions_Header_Version"]</MudTh>
+                    <MudTh>@AssetLoc["Versions_Header_When"]</MudTh>
+                    <MudTh>@AssetLoc["Versions_Header_By"]</MudTh>
+                    <MudTh>@AssetLoc["Versions_Header_Note"]</MudTh>
+                    <MudTh>@AssetLoc["Versions_Header_Size"]</MudTh>
+                    <MudTh Style="width: 200px;"></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="@AssetLoc["Versions_Header_Version"]">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.body2" Class="font-semibold">v@(context.VersionNumber)</MudText>
+                            @if (context.IsCurrent)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled">
+                                    @AssetLoc["Versions_Current"]
+                                </MudChip>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="@AssetLoc["Versions_Header_When"]">
+                        <MudTooltip Text="@context.CreatedAt.ToLocalTime().ToString("F")">
+                            <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("d")</MudText>
+                        </MudTooltip>
+                    </MudTd>
+                    <MudTd DataLabel="@AssetLoc["Versions_Header_By"]">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.CreatedByUserId</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="@AssetLoc["Versions_Header_Note"]">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@(context.ChangeNote ?? "—")</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="@AssetLoc["Versions_Header_Size"]">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@AssetDisplayHelpers.FormatFileSize(context.SizeBytes)</MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudStack Row="true" Spacing="1">
+                            @if (!context.IsCurrent)
+                            {
+                                <MudTooltip Text="@AssetLoc["Versions_Btn_Restore"]">
+                                    <MudIconButton Icon="@Icons.Material.Filled.RestorePage" Size="Size.Small" Color="Color.Primary"
+                                                   aria-label="@AssetLoc["Versions_Btn_Restore"]"
+                                                   OnClick="@(() => RestoreAsync(context))" />
+                                </MudTooltip>
+                                @if (CanPrune)
+                                {
+                                    <MudTooltip Text="@AssetLoc["Versions_Btn_Prune"]">
+                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Size="Size.Small" Color="Color.Error"
+                                                       aria-label="@AssetLoc["Versions_Btn_Prune"]"
+                                                       OnClick="@(() => PruneAsync(context))" />
+                                    </MudTooltip>
+                                }
+                            }
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+
+    /// <summary>True when the current user can prune individual versions (system admin only).
+    /// The Prune endpoint enforces this server-side; this just hides the button for non-admins.</summary>
+    [Parameter] public bool CanPrune { get; set; }
+
+    /// <summary>Fired after a successful Restore so the parent (AssetDetail) can refresh its
+    /// view of the asset — thumbnails, current version, edit document, etc.</summary>
+    [Parameter] public EventCallback OnVersionRestored { get; set; }
+
+    private List<AssetVersionDto>? _versions;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    public async Task RefreshAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try { _versions = await Api.GetAssetVersionsAsync(AssetId); }
+        catch { _versions = new(); }
+        finally { _loading = false; }
+    }
+
+    private async Task RestoreAsync(AssetVersionDto v)
+    {
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AssetLoc["Versions_Confirm_Restore_Title"].Value,
+            string.Format(AssetLoc["Versions_Confirm_Restore_Text"].Value, v.VersionNumber),
+            AssetLoc["Versions_Btn_Restore"].Value);
+        if (!confirmed) return;
+
+        try
+        {
+            await Api.RestoreAssetVersionAsync(AssetId, v.VersionNumber);
+            Feedback.ShowSuccess(string.Format(AssetLoc["Versions_Restored"].Value, v.VersionNumber));
+            await LoadAsync();
+            await OnVersionRestored.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "restore version");
+        }
+    }
+
+    private async Task PruneAsync(AssetVersionDto v)
+    {
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AssetLoc["Versions_Confirm_Prune_Title"].Value,
+            string.Format(AssetLoc["Versions_Confirm_Prune_Text"].Value, v.VersionNumber),
+            AssetLoc["Versions_Btn_Prune"].Value,
+            iconColor: Color.Error,
+            confirmColor: Color.Error);
+        if (!confirmed) return;
+
+        // Optimistic remove
+        var removed = v;
+        _versions!.Remove(v);
+        StateHasChanged();
+
+        try
+        {
+            await Api.PruneAssetVersionAsync(AssetId, v.VersionNumber);
+            Feedback.ShowSuccess(string.Format(AssetLoc["Versions_Pruned"].Value, v.VersionNumber));
+        }
+        catch
+        {
+            _versions!.Add(removed);
+            _versions = _versions.OrderByDescending(x => x.VersionNumber).ToList();
+            StateHasChanged();
+            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
+        }
+    }
+}

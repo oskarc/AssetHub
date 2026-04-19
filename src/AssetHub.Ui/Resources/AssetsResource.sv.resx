@@ -169,4 +169,22 @@
   <data name="SavedSearch_Deleted" xml:space="preserve"><value>Sparad sökning raderad.</value></data>
   <data name="SavedSearch_DeleteConfirm" xml:space="preserve"><value>Ta bort sparad sökning '{0}'?</value></data>
   <data name="SavedSearch_DuplicateName" xml:space="preserve"><value>Du har redan en sparad sökning med det namnet.</value></data>
+
+  <!-- Versions -->
+  <data name="Versions_Section_Title" xml:space="preserve"><value>Versionshistorik</value></data>
+  <data name="Versions_None" xml:space="preserve"><value>Inga tidigare versioner ännu. Första gången du ersätter den här tillgången sparas originalet här.</value></data>
+  <data name="Versions_Header_Version" xml:space="preserve"><value>Version</value></data>
+  <data name="Versions_Header_When" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Versions_Header_By" xml:space="preserve"><value>Av</value></data>
+  <data name="Versions_Header_Note" xml:space="preserve"><value>Ändringsnotering</value></data>
+  <data name="Versions_Header_Size" xml:space="preserve"><value>Storlek</value></data>
+  <data name="Versions_Current" xml:space="preserve"><value>aktuell</value></data>
+  <data name="Versions_Btn_Restore" xml:space="preserve"><value>Återställ</value></data>
+  <data name="Versions_Btn_Prune" xml:space="preserve"><value>Ta bort version</value></data>
+  <data name="Versions_Confirm_Restore_Title" xml:space="preserve"><value>Återställ version?</value></data>
+  <data name="Versions_Confirm_Restore_Text" xml:space="preserve"><value>Återställ version {0}? Ditt nuvarande tillstånd sparas först som en ny version, så detta är reversibelt.</value></data>
+  <data name="Versions_Confirm_Prune_Title" xml:space="preserve"><value>Ta bort den här versionen?</value></data>
+  <data name="Versions_Confirm_Prune_Text" xml:space="preserve"><value>Ta bort version {0} permanent? Bytena tas bort från lagringen och versionen kan inte återställas.</value></data>
+  <data name="Versions_Restored" xml:space="preserve"><value>Återställde från version {0}</value></data>
+  <data name="Versions_Pruned" xml:space="preserve"><value>Tog bort version {0}</value></data>
 </root>

@@ -87,6 +87,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 
 **Lifecycle**
 - Soft-delete with restore — deleted assets land in Trash with a configurable retention window (default 30 days), then a background worker purges them permanently. An optimistic-undo snackbar in the asset grid and detail page makes single-click recovery the norm
+- Asset versioning — replacing an asset's bytes via the image editor captures a snapshot of the prior state, with a per-version change note. Restoring a prior version is reversible (the current state is auto-snapshotted first); admins can prune individual versions to free storage
 
 **Security**
 - ClamAV malware scanning on every upload

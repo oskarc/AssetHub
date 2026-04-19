@@ -169,4 +169,22 @@
   <data name="SavedSearch_Deleted" xml:space="preserve"><value>Saved search deleted.</value></data>
   <data name="SavedSearch_DeleteConfirm" xml:space="preserve"><value>Delete saved search '{0}'?</value></data>
   <data name="SavedSearch_DuplicateName" xml:space="preserve"><value>You already have a saved search with that name.</value></data>
+
+  <!-- Versions -->
+  <data name="Versions_Section_Title" xml:space="preserve"><value>Version history</value></data>
+  <data name="Versions_None" xml:space="preserve"><value>No prior versions yet. The first time you replace this asset, the original will appear here.</value></data>
+  <data name="Versions_Header_Version" xml:space="preserve"><value>Version</value></data>
+  <data name="Versions_Header_When" xml:space="preserve"><value>Created</value></data>
+  <data name="Versions_Header_By" xml:space="preserve"><value>By</value></data>
+  <data name="Versions_Header_Note" xml:space="preserve"><value>Change note</value></data>
+  <data name="Versions_Header_Size" xml:space="preserve"><value>Size</value></data>
+  <data name="Versions_Current" xml:space="preserve"><value>current</value></data>
+  <data name="Versions_Btn_Restore" xml:space="preserve"><value>Restore</value></data>
+  <data name="Versions_Btn_Prune" xml:space="preserve"><value>Delete version</value></data>
+  <data name="Versions_Confirm_Restore_Title" xml:space="preserve"><value>Restore version?</value></data>
+  <data name="Versions_Confirm_Restore_Text" xml:space="preserve"><value>Restore version {0}? Your current state will be saved as a new version first, so this is reversible.</value></data>
+  <data name="Versions_Confirm_Prune_Title" xml:space="preserve"><value>Delete this version?</value></data>
+  <data name="Versions_Confirm_Prune_Text" xml:space="preserve"><value>Permanently delete version {0}? Its bytes are removed from storage and the version cannot be restored.</value></data>
+  <data name="Versions_Restored" xml:space="preserve"><value>Restored from version {0}</value></data>
+  <data name="Versions_Pruned" xml:space="preserve"><value>Deleted version {0}</value></data>
 </root>

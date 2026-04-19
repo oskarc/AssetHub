@@ -8,6 +8,7 @@
 @using AssetHub.Ui.Components
 @using AssetHub.Ui.Services
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject AssetHubApiClient Api
 @inject NavigationManager Nav
@@ -284,6 +285,11 @@ else
 
                         <DerivativesPanel Derivatives="_derivatives" />
 
+                        <AssetVersionHistoryPanel @ref="_versionPanel"
+                                                  AssetId="@AssetId"
+                                                  CanPrune="@_isAdmin"
+                                                  OnVersionRestored="OnVersionRestored" />
+
                         <MudDivider />
 
                         <!-- Actions -->
@@ -392,9 +398,29 @@ else
     private AssetResponseDto? _asset;
     private List<AssetCollectionDto> _assetCollections = new();
     private List<AssetDerivativeDto> _derivatives = new();
+    private AssetVersionHistoryPanel? _versionPanel;
+    private bool _isAdmin;
     private bool _isLoading = true;
     private bool _isPollingProcessing;
     private CancellationTokenSource _cts = new();
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask is not null)
+        {
+            var state = await AuthStateTask;
+            _isAdmin = state.User.IsInRole("admin");
+        }
+    }
+
+    private async Task OnVersionRestored()
+    {
+        // Restore changes the asset's bytes/keys/edit-document — pull a fresh copy so the
+        // detail view (thumbnails, edit panel, current-version badge) reflects the new state.
+        await LoadAssetAsync();
+    }
 
     protected override async Task OnParametersSetAsync()
     {
