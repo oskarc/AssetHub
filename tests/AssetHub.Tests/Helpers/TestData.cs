@@ -171,6 +171,137 @@ public static class TestData
         };
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Test factory with optional defaults — callers only specify what they need")]
+    public static MetadataSchema CreateMetadataSchema(
+        Guid? id = null,
+        string name = "Test Schema",
+        string? description = null,
+        MetadataSchemaScope scope = MetadataSchemaScope.Global,
+        AssetType? assetType = null,
+        Guid? collectionId = null,
+        int version = 1,
+        string? createdByUserId = null,
+        List<MetadataField>? fields = null)
+    {
+        var schemaId = id ?? Guid.NewGuid();
+        var resolvedFields = fields ?? new List<MetadataField>();
+        foreach (var f in resolvedFields)
+            f.MetadataSchemaId = schemaId;
+
+        return new MetadataSchema
+        {
+            Id = schemaId,
+            Name = name,
+            Description = description,
+            Scope = scope,
+            AssetType = assetType,
+            CollectionId = collectionId,
+            Version = version,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = createdByUserId ?? DefaultUserId,
+            Fields = resolvedFields
+        };
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Test factory with optional defaults")]
+    public static MetadataField CreateMetadataField(
+        Guid? id = null,
+        Guid? schemaId = null,
+        string key = "test_field",
+        string label = "Test Field",
+        MetadataFieldType type = MetadataFieldType.Text,
+        bool required = false,
+        int? maxLength = null,
+        string? patternRegex = null,
+        decimal? numericMin = null,
+        decimal? numericMax = null,
+        List<string>? selectOptions = null,
+        Guid? taxonomyId = null,
+        int sortOrder = 0)
+    {
+        return new MetadataField
+        {
+            Id = id ?? Guid.NewGuid(),
+            MetadataSchemaId = schemaId ?? Guid.NewGuid(),
+            Key = key,
+            Label = label,
+            Type = type,
+            Required = required,
+            Searchable = true,
+            Facetable = false,
+            MaxLength = maxLength,
+            PatternRegex = patternRegex,
+            NumericMin = numericMin,
+            NumericMax = numericMax,
+            SelectOptions = selectOptions ?? new(),
+            TaxonomyId = taxonomyId,
+            SortOrder = sortOrder
+        };
+    }
+
+    public static Taxonomy CreateTaxonomy(
+        Guid? id = null,
+        string name = "Test Taxonomy",
+        string? description = null,
+        string? createdByUserId = null,
+        List<TaxonomyTerm>? terms = null)
+    {
+        var taxonomyId = id ?? Guid.NewGuid();
+        var resolvedTerms = terms ?? new List<TaxonomyTerm>();
+        foreach (var t in resolvedTerms)
+            t.TaxonomyId = taxonomyId;
+
+        return new Taxonomy
+        {
+            Id = taxonomyId,
+            Name = name,
+            Description = description,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = createdByUserId ?? DefaultUserId,
+            Terms = resolvedTerms
+        };
+    }
+
+    public static TaxonomyTerm CreateTaxonomyTerm(
+        Guid? id = null,
+        Guid? taxonomyId = null,
+        Guid? parentTermId = null,
+        string label = "Test Term",
+        string? slug = null,
+        int sortOrder = 0)
+    {
+        return new TaxonomyTerm
+        {
+            Id = id ?? Guid.NewGuid(),
+            TaxonomyId = taxonomyId ?? Guid.NewGuid(),
+            ParentTermId = parentTermId,
+            Label = label,
+            Slug = slug ?? label.ToLowerInvariant().Replace(' ', '-'),
+            SortOrder = sortOrder
+        };
+    }
+
+    public static AssetMetadataValue CreateAssetMetadataValue(
+        Guid? id = null,
+        Guid? assetId = null,
+        Guid? fieldId = null,
+        string? valueText = null,
+        decimal? valueNumeric = null,
+        DateTime? valueDate = null,
+        Guid? valueTaxonomyTermId = null)
+    {
+        return new AssetMetadataValue
+        {
+            Id = id ?? Guid.NewGuid(),
+            AssetId = assetId ?? Guid.NewGuid(),
+            MetadataFieldId = fieldId ?? Guid.NewGuid(),
+            ValueText = valueText,
+            ValueNumeric = valueNumeric,
+            ValueDate = valueDate,
+            ValueTaxonomyTermId = valueTaxonomyTermId
+        };
+    }
+
     public static ExportPreset CreateExportPreset(
         Guid? id = null,
         string name = "Web Large",
