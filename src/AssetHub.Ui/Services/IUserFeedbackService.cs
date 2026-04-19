@@ -14,6 +14,17 @@ public interface IUserFeedbackService
     void ShowSuccess(string message);
 
     /// <summary>
+    /// Shows an info-severity snackbar with a clickable action button (typically "Undo"). The
+    /// snackbar stays visible for the configured window so the user has time to react. When the
+    /// action is invoked, the snackbar dismisses itself before the callback runs.
+    /// </summary>
+    /// <param name="message">Snackbar text shown to the user.</param>
+    /// <param name="actionLabel">Button text — e.g., "Undo".</param>
+    /// <param name="onAction">Async callback invoked when the user clicks the action.</param>
+    /// <param name="durationMs">How long the snackbar stays visible (default 10 s).</param>
+    void ShowActionableInfo(string message, string actionLabel, Func<Task> onAction, int durationMs = 10000);
+
+    /// <summary>
     /// Shows an informational message.
     /// </summary>
     void ShowInfo(string message);

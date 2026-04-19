@@ -16,6 +16,7 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
 @inject IStringLocalizer<ImageEditorResource> EditorLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
 @inject LocalizedDisplayService Display
 
 <PageTitle>@(_isLoading ? AssetLoc["LoadingAsset"] : _asset?.Title ?? AssetLoc["AssetNotFound"]) - @CommonLoc["AppName"]</PageTitle>
@@ -647,14 +648,28 @@ else
 
         if (result != null && !result.Canceled && result.Data is string)
         {
+            var deletedTitle = _asset.Title;
+            var deletedId = _asset.Id;
+
             var success = await Feedback.ExecuteWithFeedbackAsync(
-                () => Api.DeleteAssetAsync(_asset.Id),
+                () => Api.DeleteAssetAsync(deletedId),
                 "delete asset",
-                AssetLoc["AssetDeletedSuccess"]);
+                successMessage: null);
 
             if (success)
             {
+                // Soft-delete (T1-LIFE-01). Show an undo snackbar AFTER navigating back so the
+                // user lands on the listing where the asset has already disappeared and can
+                // hit Undo within 10 s to restore it without browsing the admin Trash tab.
                 NavigateBackToAssets();
+                Feedback.ShowActionableInfo(
+                    string.Format(AdminLoc["Trash_DeleteSnackbar"].Value, deletedTitle),
+                    AdminLoc["Trash_DeleteSnackbar_Undo"].Value,
+                    async () =>
+                    {
+                        try { await Api.RestoreFromTrashAsync(deletedId); }
+                        catch { Feedback.ShowError(CommonLoc["Error_RestoreFailed"].Value); }
+                    });
             }
         }
     }

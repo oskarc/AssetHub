@@ -249,6 +249,7 @@
   <data name="Error_UploadFailed" xml:space="preserve"><value>Upload failed: {0}</value></data>
   <data name="Error_UnexpectedError" xml:space="preserve"><value>An unexpected error occurred. Please try again.</value></data>
   <data name="Error_DeleteFailed" xml:space="preserve"><value>Failed to delete. Please try again.</value></data>
+  <data name="Error_RestoreFailed" xml:space="preserve"><value>Failed to restore. Please try again.</value></data>
 
   <!-- General -->
   <data name="Yes" xml:space="preserve"><value>Yes</value></data>

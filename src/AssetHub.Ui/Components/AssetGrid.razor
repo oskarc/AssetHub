@@ -8,6 +8,7 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
 
 @if (_isLoading)
 {
@@ -239,10 +240,34 @@ else
             }
             else
             {
+                // Full delete is now soft (T1-LIFE-01) — show an undo snackbar so users can recover
+                // within the 10 s window without bouncing through the admin Trash tab.
                 success = await Feedback.ExecuteWithFeedbackAsync(
                     () => Api.DeleteAssetAsync(asset.Id),
                     "delete asset",
-                    AssetLoc["AssetDeletedSuccess"]);
+                    successMessage: null);
+                if (success)
+                {
+                    var deletedAsset = asset;
+                    Feedback.ShowActionableInfo(
+                        string.Format(AdminLoc["Trash_DeleteSnackbar"].Value, deletedAsset.Title),
+                        AdminLoc["Trash_DeleteSnackbar_Undo"].Value,
+                        async () =>
+                        {
+                            try
+                            {
+                                await Api.RestoreFromTrashAsync(deletedAsset.Id);
+                                _assets.Insert(0, deletedAsset);
+                                _total++;
+                                await OnAssetsChanged.InvokeAsync();
+                                StateHasChanged();
+                            }
+                            catch
+                            {
+                                Feedback.ShowError(CommonLoc["Error_RestoreFailed"].Value);
+                            }
+                        });
+                }
             }
 
             if (success)

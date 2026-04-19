@@ -477,4 +477,31 @@ logo.png,Company Logo,branding,"Brand Assets;Marketing"</value></data>
   <data name="Taxonomies_Term_Slug" xml:space="preserve"><value>Slug (optional)</value></data>
   <data name="Taxonomies_UnsavedChangesTitle" xml:space="preserve"><value>Discard changes?</value></data>
   <data name="Taxonomies_UnsavedChangesText" xml:space="preserve"><value>You have unsaved changes to this taxonomy. Close anyway?</value></data>
+
+  <!-- Trash -->
+  <data name="Tab_Trash" xml:space="preserve"><value>Trash</value></data>
+  <data name="Trash_Desc" xml:space="preserve"><value>Soft-deleted assets. Restore any item before it expires, or purge permanently to free storage.</value></data>
+  <data name="Trash_Empty_Title" xml:space="preserve"><value>Trash is empty</value></data>
+  <data name="Trash_Empty_Desc" xml:space="preserve"><value>Deleted assets will appear here for the configured retention window before being permanently removed.</value></data>
+  <data name="Trash_Header_Title" xml:space="preserve"><value>Title</value></data>
+  <data name="Trash_Header_Type" xml:space="preserve"><value>Type</value></data>
+  <data name="Trash_Header_DeletedAt" xml:space="preserve"><value>Deleted</value></data>
+  <data name="Trash_Header_DeletedBy" xml:space="preserve"><value>By</value></data>
+  <data name="Trash_Header_Expires" xml:space="preserve"><value>Expires</value></data>
+  <data name="Trash_Btn_Restore" xml:space="preserve"><value>Restore</value></data>
+  <data name="Trash_Btn_Purge" xml:space="preserve"><value>Delete forever</value></data>
+  <data name="Trash_Btn_Empty" xml:space="preserve"><value>Empty Trash</value></data>
+  <data name="Trash_Confirm_Purge_Title" xml:space="preserve"><value>Delete permanently?</value></data>
+  <data name="Trash_Confirm_Purge_Text" xml:space="preserve"><value>Permanently delete '{0}'? This cannot be undone.</value></data>
+  <data name="Trash_Confirm_Empty_Title" xml:space="preserve"><value>Empty Trash?</value></data>
+  <data name="Trash_Confirm_Empty_Text" xml:space="preserve"><value>Permanently delete all {0} items in Trash? This cannot be undone.</value></data>
+  <data name="Trash_Restored" xml:space="preserve"><value>Restored '{0}'</value></data>
+  <data name="Trash_Purged" xml:space="preserve"><value>Deleted '{0}' permanently</value></data>
+  <data name="Trash_Emptied" xml:space="preserve"><value>Trash emptied — {0} purged, {1} failed</value></data>
+  <data name="Trash_ExpiresRelative_Today" xml:space="preserve"><value>today</value></data>
+  <data name="Trash_ExpiresRelative_Tomorrow" xml:space="preserve"><value>tomorrow</value></data>
+  <data name="Trash_ExpiresRelative_InDays" xml:space="preserve"><value>in {0} days</value></data>
+  <data name="Trash_ExpiresRelative_Overdue" xml:space="preserve"><value>overdue</value></data>
+  <data name="Trash_DeleteSnackbar" xml:space="preserve"><value>Moved '{0}' to Trash</value></data>
+  <data name="Trash_DeleteSnackbar_Undo" xml:space="preserve"><value>Undo</value></data>
 </root>

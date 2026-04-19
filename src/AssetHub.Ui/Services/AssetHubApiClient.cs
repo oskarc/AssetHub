@@ -1177,6 +1177,36 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Admin Trash
+
+    public virtual async Task<TrashListResponse> GetTrashAsync(int skip = 0, int take = 50, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/admin/trash?skip={skip}&take={take}", ct);
+        await EnsureSuccessAsync(response, "Get trash");
+        return await ReadRequiredJsonAsync<TrashListResponse>(response, "Get trash");
+    }
+
+    public virtual async Task RestoreFromTrashAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/admin/trash/{id}/restore", content: null, ct);
+        await EnsureSuccessAsync(response, "Restore from trash");
+    }
+
+    public virtual async Task PurgeFromTrashAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/trash/{id}", ct);
+        await EnsureSuccessAsync(response, "Purge from trash");
+    }
+
+    public virtual async Task<EmptyTrashResponse> EmptyTrashAsync(CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync("/api/v1/admin/trash/empty", content: null, ct);
+        await EnsureSuccessAsync(response, "Empty trash");
+        return await ReadRequiredJsonAsync<EmptyTrashResponse>(response, "Empty trash");
+    }
+
+    #endregion
 }
 
 /// <summary>

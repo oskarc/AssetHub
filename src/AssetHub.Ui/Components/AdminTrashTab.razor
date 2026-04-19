@@ -1,0 +1,196 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+@if (_loading && _items == null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_items == null || _items.Count == 0)
+{
+    <EmptyState Title="@AdminLoc["Trash_Empty_Title"]"
+                Description="@AdminLoc["Trash_Empty_Desc"]"
+                Icon="@Icons.Material.Filled.Delete" />
+}
+else
+{
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @AdminLoc["Trash_Desc"]
+            </MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.DeleteForever"
+                       OnClick="EmptyAsync">
+                @AdminLoc["Trash_Btn_Empty"]
+            </MudButton>
+        </MudStack>
+
+        <MudTable Items="@_items" Hover="true" Dense="true" Striped="true" Loading="@_loading"
+                  FixedHeader="true">
+            <HeaderContent>
+                <MudTh>@AdminLoc["Trash_Header_Title"]</MudTh>
+                <MudTh>@AdminLoc["Trash_Header_Type"]</MudTh>
+                <MudTh>@AdminLoc["Trash_Header_DeletedAt"]</MudTh>
+                <MudTh>@AdminLoc["Trash_Header_DeletedBy"]</MudTh>
+                <MudTh>@AdminLoc["Trash_Header_Expires"]</MudTh>
+                <MudTh Style="width: 200px;"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@AdminLoc["Trash_Header_Title"]">
+                    <MudText Typo="Typo.body2" Class="font-semibold">@context.Title</MudText>
+                </MudTd>
+                <MudTd DataLabel="@AdminLoc["Trash_Header_Type"]">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.AssetType</MudChip>
+                </MudTd>
+                <MudTd DataLabel="@AdminLoc["Trash_Header_DeletedAt"]">
+                    <MudTooltip Text="@context.DeletedAt.ToLocalTime().ToString("F")">
+                        <MudText Typo="Typo.body2">@context.DeletedAt.ToLocalTime().ToString("d")</MudText>
+                    </MudTooltip>
+                </MudTd>
+                <MudTd DataLabel="@AdminLoc["Trash_Header_DeletedBy"]">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@(context.DeletedByUserId ?? "—")</MudText>
+                </MudTd>
+                <MudTd DataLabel="@AdminLoc["Trash_Header_Expires"]">
+                    <MudText Typo="Typo.body2" Color="@ExpiresColor(context.ExpiresAt)">@FormatExpires(context.ExpiresAt)</MudText>
+                </MudTd>
+                <MudTd>
+                    <MudStack Row="true" Spacing="1">
+                        <MudTooltip Text="@AdminLoc["Trash_Btn_Restore"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small" Color="Color.Primary"
+                                           aria-label="@AdminLoc["Trash_Btn_Restore"]"
+                                           OnClick="@(() => RestoreAsync(context))" />
+                        </MudTooltip>
+                        <MudTooltip Text="@AdminLoc["Trash_Btn_Purge"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Size="Size.Small" Color="Color.Error"
+                                           aria-label="@AdminLoc["Trash_Btn_Purge"]"
+                                           OnClick="@(() => PurgeAsync(context))" />
+                        </MudTooltip>
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudStack>
+}
+
+@code {
+    private List<TrashedAssetDto>? _items;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var response = await Api.GetTrashAsync();
+            _items = response.Items;
+        }
+        catch
+        {
+            Feedback.ShowError(CommonLoc["Error_LoadFailed"].Value);
+            _items = new();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task RestoreAsync(TrashedAssetDto item)
+    {
+        // Optimistic remove from the trash list — the asset is no longer in trash after restore.
+        var removed = item;
+        _items!.Remove(item);
+        StateHasChanged();
+
+        try
+        {
+            await Api.RestoreFromTrashAsync(item.Id);
+            Feedback.ShowSuccess(string.Format(AdminLoc["Trash_Restored"].Value, item.Title));
+        }
+        catch
+        {
+            _items!.Add(removed);
+            StateHasChanged();
+            Feedback.ShowError(CommonLoc["Error_RestoreFailed"].Value);
+        }
+    }
+
+    private async Task PurgeAsync(TrashedAssetDto item)
+    {
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["Trash_Confirm_Purge_Title"].Value,
+            string.Format(AdminLoc["Trash_Confirm_Purge_Text"].Value, item.Title),
+            AdminLoc["Trash_Btn_Purge"].Value,
+            iconColor: Color.Error,
+            confirmColor: Color.Error);
+        if (!confirmed) return;
+
+        var removed = item;
+        _items!.Remove(item);
+        StateHasChanged();
+
+        try
+        {
+            await Api.PurgeFromTrashAsync(item.Id);
+            Feedback.ShowSuccess(string.Format(AdminLoc["Trash_Purged"].Value, item.Title));
+        }
+        catch
+        {
+            _items!.Add(removed);
+            StateHasChanged();
+            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
+        }
+    }
+
+    private async Task EmptyAsync()
+    {
+        if (_items is null || _items.Count == 0) return;
+
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc["Trash_Confirm_Empty_Title"].Value,
+            string.Format(AdminLoc["Trash_Confirm_Empty_Text"].Value, _items.Count),
+            AdminLoc["Trash_Btn_Empty"].Value,
+            iconColor: Color.Error,
+            confirmColor: Color.Error);
+        if (!confirmed) return;
+
+        try
+        {
+            var response = await Api.EmptyTrashAsync();
+            Feedback.ShowSuccess(string.Format(AdminLoc["Trash_Emptied"].Value, response.Purged, response.Failed));
+            await LoadAsync();
+        }
+        catch
+        {
+            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
+        }
+    }
+
+    // Colour-code the expires column so admins can see what's closest to auto-purge.
+    private static Color ExpiresColor(DateTime expiresAt)
+    {
+        var hours = (expiresAt - DateTime.UtcNow).TotalHours;
+        if (hours < 0) return Color.Error;
+        if (hours < 24) return Color.Warning;
+        return Color.Default;
+    }
+
+    private string FormatExpires(DateTime expiresAt)
+    {
+        var delta = expiresAt - DateTime.UtcNow;
+        if (delta.TotalHours < 0) return AdminLoc["Trash_ExpiresRelative_Overdue"].Value;
+        if (delta.TotalHours < 24) return AdminLoc["Trash_ExpiresRelative_Today"].Value;
+        if (delta.TotalHours < 48) return AdminLoc["Trash_ExpiresRelative_Tomorrow"].Value;
+        return string.Format(AdminLoc["Trash_ExpiresRelative_InDays"].Value, (int)Math.Ceiling(delta.TotalDays));
+    }
+}

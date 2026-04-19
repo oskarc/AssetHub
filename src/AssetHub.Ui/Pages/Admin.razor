@@ -43,6 +43,9 @@
         <MudTabPanel Text="@AdminLoc["Tab_Migrations"]" Icon="@Icons.Material.Filled.CloudUpload">
             <AdminMigrationsTab />
         </MudTabPanel>
+        <MudTabPanel Text="@AdminLoc["Tab_Trash"]" Icon="@Icons.Material.Filled.Delete">
+            <AdminTrashTab />
+        </MudTabPanel>
     </MudTabs>
 </MudContainer>
 
@@ -54,7 +57,7 @@
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("tab", out var tabValue)
-            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 7)
+            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 8)
             _activeTabIndex = tab;
     }
 

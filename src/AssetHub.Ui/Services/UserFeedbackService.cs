@@ -38,6 +38,28 @@ public class UserFeedbackService : IUserFeedbackService
         });
     }
 
+    public void ShowActionableInfo(string message, string actionLabel, Func<Task> onAction, int durationMs = 10000)
+    {
+        _snackbar.Add(message, Severity.Info, config =>
+        {
+            config.VisibleStateDuration = durationMs;
+            config.Icon = Icons.Material.Filled.Info;
+            config.Action = actionLabel;
+            config.ActionColor = Color.Primary;
+            config.OnClick = async _ =>
+            {
+                try
+                {
+                    await onAction();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Snackbar action callback failed");
+                }
+            };
+        });
+    }
+
     public void ShowInfo(string message)
     {
         _snackbar.Add(message, Severity.Info, config =>

@@ -82,6 +82,7 @@ static class Program
                 services.AddHostedService<StaleUploadCleanupService>();
                 services.AddHostedService<OrphanedSharesCleanupService>();
                 services.AddHostedService<AuditRetentionService>();
+                services.AddHostedService<TrashPurgeBackgroundService>();
             })
             .Build();
 

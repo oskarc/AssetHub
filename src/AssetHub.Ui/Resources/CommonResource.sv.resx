@@ -246,6 +246,7 @@
   <data name="Error_UploadFailed" xml:space="preserve"><value>Uppladdning misslyckades: {0}</value></data>
   <data name="Error_UnexpectedError" xml:space="preserve"><value>Ett oväntat fel inträffade. Försök igen.</value></data>
   <data name="Error_DeleteFailed" xml:space="preserve"><value>Kunde inte radera. Försök igen.</value></data>
+  <data name="Error_RestoreFailed" xml:space="preserve"><value>Kunde inte återställa. Försök igen.</value></data>
 
   <!-- General -->
   <data name="Yes" xml:space="preserve"><value>Ja</value></data>
