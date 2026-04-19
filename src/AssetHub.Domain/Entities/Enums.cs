@@ -132,6 +132,17 @@ public enum ExportPresetFormat
 }
 
 /// <summary>
+/// Notification cadence for saved searches.
+/// </summary>
+public enum SavedSearchNotifyCadence
+{
+    None,
+    OnNewMatch,
+    Daily,
+    Weekly
+}
+
+/// <summary>
 /// Scope of a metadata schema — determines which assets it applies to.
 /// </summary>
 public enum MetadataSchemaScope
@@ -425,4 +436,25 @@ public static class DomainEnumExtensions
     public static bool IsValidMetadataFieldType(string value) => value is "text" or "long_text" or "number" or "decimal" or "boolean" or "date" or "date_time" or "select" or "multi_select" or "taxonomy" or "url";
 
     public static bool IsValidAssetType(string value) => value is "image" or "video" or "document";
+
+    public static string ToDbString(this SavedSearchNotifyCadence cadence) => cadence switch
+    {
+        SavedSearchNotifyCadence.None => "none",
+        SavedSearchNotifyCadence.OnNewMatch => "on_new_match",
+        SavedSearchNotifyCadence.Daily => "daily",
+        SavedSearchNotifyCadence.Weekly => "weekly",
+        _ => throw new ArgumentOutOfRangeException(nameof(cadence))
+    };
+
+    public static SavedSearchNotifyCadence ToSavedSearchNotifyCadence(this string value) => value switch
+    {
+        "none" => SavedSearchNotifyCadence.None,
+        "on_new_match" => SavedSearchNotifyCadence.OnNewMatch,
+        "daily" => SavedSearchNotifyCadence.Daily,
+        "weekly" => SavedSearchNotifyCadence.Weekly,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown saved search cadence: {value}")
+    };
+
+    public static bool IsValidSavedSearchNotifyCadence(string value)
+        => value is "none" or "on_new_match" or "daily" or "weekly";
 }

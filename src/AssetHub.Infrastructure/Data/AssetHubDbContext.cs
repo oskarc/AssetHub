@@ -3,6 +3,7 @@ using AssetHub.Domain.Entities;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using NpgsqlTypes;
 
 namespace AssetHub.Infrastructure.Data;
 
@@ -29,6 +30,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Taxonomy> Taxonomies { get; set; } = null!;
     public DbSet<TaxonomyTerm> TaxonomyTerms { get; set; } = null!;
     public DbSet<AssetMetadataValue> AssetMetadataValues { get; set; } = null!;
+    public DbSet<SavedSearch> SavedSearches { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -119,6 +121,17 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.SetNull);
 
             entity.Property(e => e.EditDocument).HasColumnType(Jsonb);
+
+            // Shadow SearchVector: tsvector column maintained by Postgres triggers (see migration
+            // AddAssetSearchAndSavedSearch). Query via EF.Property<NpgsqlTsVector>(asset, "SearchVector").
+            entity.Property<NpgsqlTsVector?>("SearchVector")
+                .HasColumnName("search_vector")
+                .HasColumnType("tsvector")
+                .ValueGeneratedOnAddOrUpdate();
+
+            entity.HasIndex("SearchVector")
+                .HasMethod("gin")
+                .HasDatabaseName("idx_asset_search_vector");
         });
 
         // AssetCollection (many-to-many join table)
@@ -443,6 +456,21 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .WithMany()
                 .HasForeignKey(e => e.ValueTaxonomyTermId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // SavedSearch
+        modelBuilder.Entity<SavedSearch>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.OwnerUserId).HasDatabaseName("idx_saved_searches_owner");
+            entity.HasIndex(e => new { e.OwnerUserId, e.Name }).IsUnique().HasDatabaseName("idx_saved_searches_owner_name_unique");
+
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.OwnerUserId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.RequestJson).HasColumnType(Jsonb).IsRequired();
+            entity.Property(e => e.Notify)
+                .HasConversion(v => v.ToDbString(), v => v.ToSavedSearchNotifyCadence())
+                .HasMaxLength(50).IsRequired();
         });
     }
 }
