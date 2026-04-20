@@ -1,4 +1,5 @@
 using AssetHub.Api.Extensions;
+using AssetHub.Api.OpenApi;
 using AssetHub.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,7 +11,8 @@ public static class AssetVersionEndpoints
     {
         var group = app.MapGroup("/api/v1/assets/{id:guid}/versions")
             .RequireAuthorization("RequireViewer")
-            .WithTags("Asset Versions");
+            .WithTags("Asset Versions")
+            .MarkAsPublicApi();
 
         group.MapGet("/", async (
             Guid id,

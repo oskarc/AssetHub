@@ -94,11 +94,45 @@ public static class WebApplicationExtensions
         UseBlazorAnonymousAccess(app);
         app.UseAuthorization();
 
+        // Swagger UI is middleware — install it here so it runs after auth but before
+        // endpoint routing. In non-Dev environments the gate rejects non-admin callers
+        // before SwaggerUI middleware serves any assets. The JSON document endpoint is
+        // separately policy-gated in MapAssetHubEndpoints.
+        UseSwaggerUIAndGate(app);
+
         // Required for Blazor Server interactive rendering. Does NOT blanket-enforce
         // on Minimal API endpoints that use [FromBody] JSON — only on endpoints using
         // [FromForm] or Razor Component form handling. API endpoints designed for
         // external (JWT Bearer) or anonymous consumers explicitly call .DisableAntiforgery().
         app.UseAntiforgery();
+    }
+
+    private static void UseSwaggerUIAndGate(WebApplication app)
+    {
+        if (!app.Environment.IsDevelopment())
+        {
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Path.StartsWithSegments("/swagger"))
+                {
+                    var user = context.User;
+                    if (user.Identity?.IsAuthenticated != true ||
+                        !user.IsInRole(Application.RoleHierarchy.Roles.Admin))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return;
+                    }
+                }
+                await next();
+            });
+        }
+
+        app.UseSwaggerUI(options =>
+        {
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "AssetHub Public API v1");
+            options.RoutePrefix = "swagger";
+            options.DocumentTitle = "AssetHub API";
+        });
     }
 
     /// <summary>
@@ -270,6 +304,12 @@ public static class WebApplicationExtensions
         app.MapAdminTrashEndpoints();
         app.MapAssetVersionEndpoints();
         app.MapPersonalAccessTokenEndpoints();
+
+        // Public OpenAPI document at /swagger/v1/swagger.json. The matching UI middleware
+        // is wired in UseAssetHubMiddleware so it sits above endpoint routing and after auth.
+        var openApiJson = app.MapOpenApi("/swagger/{documentName}/swagger.json");
+        if (!app.Environment.IsDevelopment())
+            openApiJson.RequireAuthorization("RequireAdmin");
 
         // Blazor
         app.MapRazorComponents<App>()

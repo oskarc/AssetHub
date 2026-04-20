@@ -1,5 +1,6 @@
 using AssetHub.Api.BackgroundServices;
 using AssetHub.Api.HealthChecks;
+using AssetHub.Api.OpenApi;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Services;
@@ -124,6 +125,28 @@ public static class ServiceCollectionExtensions
 
         // ── MudBlazor ───────────────────────────────────────────────────────
         services.AddMudServices();
+
+        // ── OpenAPI (public contract) ───────────────────────────────────────
+        // The "v1" document only includes endpoints marked with [PublicApi]; admin
+        // and internal endpoints remain functional but undocumented in the public schema.
+        services.AddOpenApi("v1", options =>
+        {
+            options.ShouldInclude = description =>
+                description.ActionDescriptor.EndpointMetadata.OfType<PublicApiAttribute>().Any();
+
+            options.AddDocumentTransformer((document, _, _) =>
+            {
+                document.Info.Title = "AssetHub Public API";
+                document.Info.Version = "v1";
+                document.Info.Description =
+                    "Stable REST surface for AssetHub integrations. Endpoints listed here " +
+                    "promise SemVer compatibility; admin-only and internal endpoints are " +
+                    "intentionally excluded and may change without notice.";
+                return Task.CompletedTask;
+            });
+
+            options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+        });
 
         // ── Caching ─────────────────────────────────────────────────────────
         // HybridCache (L1 in-memory + L2 Redis) is registered via AddSharedInfrastructure.

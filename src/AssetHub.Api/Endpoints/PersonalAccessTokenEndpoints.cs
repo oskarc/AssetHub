@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AssetHub.Api.Extensions;
 using AssetHub.Api.Filters;
+using AssetHub.Api.OpenApi;
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
@@ -20,7 +21,8 @@ public static class PersonalAccessTokenEndpoints
     {
         var group = app.MapGroup("/api/v1/me/personal-access-tokens")
             .RequireAuthorization("RequireViewer")
-            .WithTags("PersonalAccessTokens");
+            .WithTags("PersonalAccessTokens")
+            .MarkAsPublicApi();
 
         group.MapGet("/", ListMine).WithName("ListMyPersonalAccessTokens");
 

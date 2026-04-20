@@ -1,5 +1,6 @@
 using AssetHub.Api.Extensions;
 using AssetHub.Api.Filters;
+using AssetHub.Api.OpenApi;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,8 @@ public static class AssetSearchEndpoints
     {
         var group = app.MapGroup("/api/v1/assets")
             .RequireAuthorization("RequireViewer")
-            .WithTags("Asset Search");
+            .WithTags("Asset Search")
+            .MarkAsPublicApi();
 
         group.MapPost("/search", async (
             [FromBody] AssetSearchRequest request,

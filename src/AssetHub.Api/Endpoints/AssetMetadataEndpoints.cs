@@ -1,5 +1,6 @@
 using AssetHub.Api.Extensions;
 using AssetHub.Api.Filters;
+using AssetHub.Api.OpenApi;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,8 @@ public static class AssetMetadataEndpoints
     {
         var readGroup = app.MapGroup("/api/v1/assets")
             .RequireAuthorization("RequireViewer")
-            .WithTags("Asset Metadata");
+            .WithTags("Asset Metadata")
+            .MarkAsPublicApi();
 
         readGroup.MapGet("/{id:guid}/metadata", async (
             Guid id,
@@ -23,7 +25,8 @@ public static class AssetMetadataEndpoints
         // Writes require contributor+; the service additionally checks collection-scoped RBAC.
         var writeGroup = app.MapGroup("/api/v1/assets")
             .RequireAuthorization("RequireContributor")
-            .WithTags("Asset Metadata");
+            .WithTags("Asset Metadata")
+            .MarkAsPublicApi();
 
         writeGroup.MapPut("/{id:guid}/metadata", async (
             Guid id,
