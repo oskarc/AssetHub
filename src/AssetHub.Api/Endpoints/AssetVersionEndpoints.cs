@@ -1,3 +1,4 @@
+using AssetHub.Api.Authentication;
 using AssetHub.Api.Extensions;
 using AssetHub.Api.OpenApi;
 using AssetHub.Application.Services;
@@ -14,11 +15,15 @@ public static class AssetVersionEndpoints
             .WithTags("Asset Versions")
             .MarkAsPublicApi();
 
+        var read = new RequireScopeFilter("assets:read");
+        var write = new RequireScopeFilter("assets:write");
+
         group.MapGet("/", async (
             Guid id,
             [FromServices] IAssetVersionService svc,
             CancellationToken ct) =>
-            (await svc.GetForAssetAsync(id, ct)).ToHttpResult());
+            (await svc.GetForAssetAsync(id, ct)).ToHttpResult())
+            .AddEndpointFilter(read);
 
         // Restore is a Contributor-level mutation (the service double-checks RBAC).
         group.MapPost("/{n:int}/restore", async (
@@ -27,6 +32,7 @@ public static class AssetVersionEndpoints
             [FromServices] IAssetVersionService svc,
             CancellationToken ct) =>
             (await svc.RestoreAsync(id, n, ct)).ToHttpResult())
+            .AddEndpointFilter(write)
             .DisableAntiforgery();
 
         // Prune permanently removes a single version (admin only — service enforces).
@@ -36,6 +42,7 @@ public static class AssetVersionEndpoints
             [FromServices] IAssetVersionService svc,
             CancellationToken ct) =>
             (await svc.PruneAsync(id, n, ct)).ToHttpResult())
+            .AddEndpointFilter(write)
             .DisableAntiforgery();
     }
 }

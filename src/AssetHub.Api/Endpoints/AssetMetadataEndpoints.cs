@@ -1,3 +1,4 @@
+using AssetHub.Api.Authentication;
 using AssetHub.Api.Extensions;
 using AssetHub.Api.Filters;
 using AssetHub.Api.OpenApi;
@@ -20,13 +21,16 @@ public static class AssetMetadataEndpoints
             Guid id,
             [FromServices] IAssetMetadataService svc,
             CancellationToken ct) =>
-            (await svc.GetByAssetIdAsync(id, ct)).ToHttpResult());
+            (await svc.GetByAssetIdAsync(id, ct)).ToHttpResult())
+            .AddEndpointFilter(new RequireScopeFilter("assets:read"));
 
         // Writes require contributor+; the service additionally checks collection-scoped RBAC.
         var writeGroup = app.MapGroup("/api/v1/assets")
             .RequireAuthorization("RequireContributor")
             .WithTags("Asset Metadata")
             .MarkAsPublicApi();
+
+        var writeScope = new RequireScopeFilter("assets:write");
 
         writeGroup.MapPut("/{id:guid}/metadata", async (
             Guid id,
@@ -35,6 +39,7 @@ public static class AssetMetadataEndpoints
             CancellationToken ct) =>
             (await svc.SetAsync(id, dto, ct)).ToHttpResult())
             .AddEndpointFilter<ValidationFilter<SetAssetMetadataDto>>()
+            .AddEndpointFilter(writeScope)
             .DisableAntiforgery();
 
         writeGroup.MapPost("/bulk-metadata", async (
@@ -43,6 +48,7 @@ public static class AssetMetadataEndpoints
             CancellationToken ct) =>
             (await svc.BulkSetAsync(dto, ct)).ToHttpResult())
             .AddEndpointFilter<ValidationFilter<BulkSetAssetMetadataDto>>()
+            .AddEndpointFilter(writeScope)
             .RequireAuthorization("RequireAdmin")
             .DisableAntiforgery();
     }

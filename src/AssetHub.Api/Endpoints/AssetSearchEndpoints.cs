@@ -1,3 +1,4 @@
+using AssetHub.Api.Authentication;
 using AssetHub.Api.Extensions;
 using AssetHub.Api.Filters;
 using AssetHub.Api.OpenApi;
@@ -22,6 +23,7 @@ public static class AssetSearchEndpoints
             CancellationToken ct) =>
             (await svc.SearchAsync(request, ct)).ToHttpResult())
             .AddEndpointFilter<ValidationFilter<AssetSearchRequest>>()
+            .AddEndpointFilter(new RequireScopeFilter("search:read"))
             .DisableAntiforgery();
     }
 }

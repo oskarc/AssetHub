@@ -1,3 +1,4 @@
+using AssetHub.Api.Authentication;
 using AssetHub.Api.Extensions;
 using AssetHub.Api.Filters;
 using AssetHub.Api.OpenApi;
@@ -15,13 +16,16 @@ public static class CollectionEndpoints
             .WithTags("Collections")
             .RequireAuthorization();
 
-        group.MapGet("", GetRootCollections).WithName("GetRootCollections").MarkAsPublicApi();
-        group.MapGet("{id:guid}", GetCollectionById).WithName("GetCollectionById").MarkAsPublicApi();
+        var read = new RequireScopeFilter("collections:read");
+        var write = new RequireScopeFilter("collections:write");
+
+        group.MapGet("", GetRootCollections).AddEndpointFilter(read).WithName("GetRootCollections").MarkAsPublicApi();
+        group.MapGet("{id:guid}", GetCollectionById).AddEndpointFilter(read).WithName("GetCollectionById").MarkAsPublicApi();
         // deletion-context is a UI-specific pre-delete preview — kept internal.
         group.MapGet("{id:guid}/deletion-context", GetDeletionContext).WithName("GetCollectionDeletionContext");
-        group.MapPost("", CreateCollection).AddEndpointFilter<ValidationFilter<CreateCollectionDto>>().DisableAntiforgery().RequireAuthorization("RequireContributor").WithName("CreateCollection").MarkAsPublicApi();
-        group.MapPatch("{id:guid}", UpdateCollection).AddEndpointFilter<ValidationFilter<UpdateCollectionDto>>().DisableAntiforgery().WithName("UpdateCollection").MarkAsPublicApi();
-        group.MapDelete("{id:guid}", DeleteCollection).DisableAntiforgery().WithName("DeleteCollection").MarkAsPublicApi();
+        group.MapPost("", CreateCollection).AddEndpointFilter<ValidationFilter<CreateCollectionDto>>().AddEndpointFilter(write).DisableAntiforgery().RequireAuthorization("RequireContributor").WithName("CreateCollection").MarkAsPublicApi();
+        group.MapPatch("{id:guid}", UpdateCollection).AddEndpointFilter<ValidationFilter<UpdateCollectionDto>>().AddEndpointFilter(write).DisableAntiforgery().WithName("UpdateCollection").MarkAsPublicApi();
+        group.MapDelete("{id:guid}", DeleteCollection).AddEndpointFilter(write).DisableAntiforgery().WithName("DeleteCollection").MarkAsPublicApi();
         // download-all kicks off a ZIP build job and streams a UI-driven download flow — kept internal.
         group.MapPost("{id:guid}/download-all", DownloadAllAssets).DisableAntiforgery().WithName("DownloadAllAssets");
 
