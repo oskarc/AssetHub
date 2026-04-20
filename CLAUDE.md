@@ -29,9 +29,10 @@ Do not generate code using these patterns:
 - Aggregate root pattern (entities are standalone)
 - Event sourcing (use standard EF Core persistence)
 - FluentValidation (use DataAnnotations only)
-- Swagger/OpenAPI (endpoints consumed by Blazor UI, not external clients)
 - Third-party state management (no Fluxor, BlazorState, Blazored.LocalStorage)
 - ASP.NET Identity / Microsoft Entra ID (use Keycloak OIDC)
+
+OpenAPI / Swagger **is** used, but only for the curated public integration surface — see the "Public API contract" section below.
 
 ### SOLID principles apply
 
@@ -199,6 +200,15 @@ Policies: `RequireViewer`, `RequireContributor`, `RequireManager`, `RequireAdmin
 { "code": "NOT_FOUND", "message": "Asset not found", "details": {} }
 ```
 
+### Public API contract (`[PublicApi]` + OpenAPI)
+
+A curated subset of endpoints forms the stable public REST contract consumed by external integrations, CI scripts, and migration tools. The rest (admin UX, UI-only helpers) remains functional but undocumented.
+
+- Mark public endpoints with `.MarkAsPublicApi()` (in `AssetHub.Api.OpenApi`). Only marked endpoints appear in the generated OpenAPI document at `/swagger/v1/swagger.json`.
+- Every public-API endpoint **must** also carry a `RequireScopeFilter` with the appropriate `assets:read`/`assets:write`/`collections:read`/`collections:write`/`search:read` scope — never ship a `[PublicApi]` endpoint without one (see PAT section below).
+- Changes to `[PublicApi]` endpoints are breaking changes under SemVer. Renames, removals, and type changes need a version bump or a deprecation path.
+- Swagger UI lives at `/swagger`. Anonymous in Development; `RequireAdmin` gated in every other environment via middleware in `UseAssetHubMiddleware` + `RequireAuthorization` on the JSON endpoint.
+
 ---
 
 ## Security & Authorization
@@ -217,6 +227,29 @@ Per-collection permissions via `CollectionAcl`. Check through `CollectionAuthori
 - Never skip role level checks on role-assigning mutations.
 - Never trust client-supplied role values without `HasSufficientLevel()`.
 - Never expose other users' IDs without authorization checks.
+
+### Personal Access Tokens (PATs) & scope enforcement
+
+External callers authenticate using either an OIDC JWT **or** a Personal Access Token. The "Smart" authentication scheme selector routes `Authorization: Bearer pat_*` headers to the PAT handler and everything else to JWT / Cookie.
+
+**Token lifecycle.** Users mint PATs on the `/account` page. Plaintext format is `pat_` + 32-char base64url (24 bytes of CSPRNG entropy); only the SHA-256 hash is persisted. Plaintext is returned once in `CreatedPersonalAccessTokenDto.PlaintextToken` and never logged or re-rendered. Idempotent revoke, optional expiry, and `pat.created` / `pat.revoked` audit events.
+
+**Scope enforcement is mandatory on public endpoints.** Allowed scopes are declared in `PersonalAccessTokenDto.AllowedScopes` (`assets:read`, `assets:write`, `collections:read`, `collections:write`, `shares:read`, `shares:write`, `search:read`, `admin`). Enforce with `RequireScopeFilter`:
+
+```csharp
+group.MapGet("{id:guid}", GetAsset)
+    .AddEndpointFilter(new RequireScopeFilter("assets:read"))
+    .MarkAsPublicApi();
+```
+
+Filter behaviour: cookie / JWT principals pass through unchanged (no `pat_scope` claims). A PAT with zero scopes is owner-impersonation and passes every check. The `admin` scope is a wildcard. Case-sensitive ordinal comparison.
+
+**Privilege-escalation guard.** A PAT-authenticated principal must **not** be able to mint or revoke PATs. Endpoints that do so (see `PersonalAccessTokenEndpoints`) check for the presence of a `pat_id` claim and return `403` when it's set. Apply the same guard anywhere a caller could otherwise "bootstrap" new long-lived credentials from a compromised token.
+
+**Rules:**
+- Every `[PublicApi]` endpoint ships with a `RequireScopeFilter` — no exceptions.
+- Never skip the `pat_id` guard when adding mutating self-service endpoints.
+- Keycloak realm roles for PAT principals are fetched via `IKeycloakUserService.GetUserRealmRolesAsync` and cached 1 min via `CacheKeys.UserRealmRoles`; do not cache longer.
 
 ---
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AssetHub.Application.Validation;
 
 namespace AssetHub.Application.Dtos;
 
@@ -16,19 +17,19 @@ public class AssetSearchRequest
     public string? Text { get; set; }
 
     /// <summary>Filter by asset type token — "image", "video", "document".</summary>
-    [MaxLength(10)]
+    [MaxItems(10)]
     public List<string>? AssetTypes { get; set; }
 
     /// <summary>Filter by lifecycle status — "ready", "processing", "failed".</summary>
-    [MaxLength(10)]
+    [MaxItems(10)]
     public List<string>? Statuses { get; set; }
 
     /// <summary>Restrict to these collection IDs. Empty = all collections the caller can see.</summary>
-    [MaxLength(200)]
+    [MaxItems(200)]
     public List<Guid>? CollectionIds { get; set; }
 
     /// <summary>Filter by presence of these tags (any match).</summary>
-    [MaxLength(50)]
+    [MaxItems(50)]
     public List<string>? Tags { get; set; }
 
     /// <summary>Metadata facet filters — metadata-field id → accepted values (text / taxonomy-term id as string).</summary>
@@ -56,7 +57,7 @@ public class AssetSearchRequest
     /// Accepted values: "asset_type", "status", "collection", "tag", plus metadata-field ids in
     /// the form "meta:{guid}".
     /// </summary>
-    [MaxLength(50)]
+    [MaxItems(50)]
     public List<string>? Facets { get; set; }
 }
 

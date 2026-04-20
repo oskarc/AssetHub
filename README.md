@@ -91,12 +91,14 @@ Navigate to **https://assethub.local:7252** and sign in:
 
 **Security**
 - ClamAV malware scanning on every upload
+- Personal Access Tokens — long-lived, scoped, revocable bearer tokens for scripts and integrations. Only the SHA-256 hash is stored; plaintext is shown once. A compromised PAT cannot mint further tokens
 - Container hardening with Docker secrets, network segmentation, and security headers
 - Full audit trail for every action
 
 **Developer Experience**
 - Clean Architecture with interface-driven services — swap any component
 - Versioned Minimal API (`/api/v1/`) with request validation filters
+- Public REST contract documented via OpenAPI at `/swagger` — anonymous in Development, admin-only in every other environment. Only endpoints marked `[PublicApi]` appear in the generated schema
 - OpenTelemetry observability with Aspire Dashboard
 - Localisation — Swedish and English, extensible via `.resx` files
 - Accessibility — skip-to-content, ARIA labels, keyboard navigation, responsive viewports
@@ -209,15 +211,16 @@ Every external dependency can be swapped by implementing a clean interface:
 
 | Category | Implementation |
 |----------|---------------|
-| **Authentication** | OIDC with PKCE — Authorization Code flow, no implicit grant |
-| **Authorization** | Per-collection RBAC — Viewer, Contributor, Manager, Admin roles |
+| **Authentication** | OIDC with PKCE (Authorization Code flow) for browsers; Personal Access Tokens (`pat_*` bearer) for scripts and integrations — both routed by a single Smart scheme selector |
+| **Authorization** | Per-collection RBAC — Viewer, Contributor, Manager, Admin roles. PATs additionally narrowed by allow-listed scopes (`assets:read`/`write`, `collections:read`/`write`, `search:read`, etc.) enforced by `RequireScopeFilter` |
 | **Rate Limiting** | Per-user, SignalR, anonymous shares, password brute-force protection |
 | **Upload Security** | Content-type allowlist → magic byte check → ClamAV scan → size limits |
-| **Data Protection** | Share tokens and passwords encrypted at rest via ASP.NET Data Protection |
+| **Data Protection** | Share tokens and passwords encrypted at rest via ASP.NET Data Protection. PATs stored as SHA-256 hashes only; plaintext revealed once on creation |
 | **Containers** | `cap_drop: ALL`, `no-new-privileges`, non-root users, read-only filesystems |
 | **Secrets** | Docker secrets for all production credentials (file-based, not env vars) |
 | **Network** | Isolated Docker networks for backend and observability services |
 | **Headers** | HSTS, CSP, X-Frame-Options, referrer policy, permissions policy |
+| **API surface** | `/swagger/v1/swagger.json` only includes endpoints marked `[PublicApi]`. Swagger UI at `/swagger` is open in Development and gated behind `RequireAdmin` in every other environment |
 
 > Full RBAC matrix and API security reference in **[SECURITY.md](docs/security/SECURITY.md)**.
 

@@ -146,6 +146,7 @@ public static class ServiceCollectionExtensions
             });
 
             options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+            options.AddSchemaTransformer<DictionaryOfObjectSchemaTransformer>();
         });
 
         // ── Caching ─────────────────────────────────────────────────────────
