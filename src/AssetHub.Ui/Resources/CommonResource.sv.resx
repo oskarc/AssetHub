@@ -287,6 +287,7 @@
   <data name="Msg_DownloadFailed" xml:space="preserve"><value>Nedladdning misslyckades. Försök igen.</value></data>
 
   <!-- Password / Account -->
+  <data name="Menu_YourAccount" xml:space="preserve"><value>Ditt konto</value></data>
   <data name="Btn_ChangePassword" xml:space="preserve"><value>Byt lösenord</value></data>
   <data name="Btn_ForgotPassword" xml:space="preserve"><value>Glömt ditt lösenord?</value></data>
   <data name="Text_ForgotPasswordHint" xml:space="preserve"><value>Klicka på Logga in och använd sedan länken "Glömt lösenord?" på inloggningssidan.</value></data>

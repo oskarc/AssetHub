@@ -40,6 +40,9 @@
                 </MudText>
 
                 <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomCenter" aria-label="@CommonLoc["Aria_AccountMenu"]">
+                    <MudMenuItem Icon="@Icons.Material.Filled.ManageAccounts" OnClick="@GoToAccount">
+                        @CommonLoc["Menu_YourAccount"]
+                    </MudMenuItem>
                     <MudMenuItem Icon="@Icons.Material.Filled.Lock" OnClick="@ChangePassword">
                         @CommonLoc["Btn_ChangePassword"]
                     </MudMenuItem>
@@ -197,6 +200,11 @@
     private void ChangePassword()
     {
         Nav.NavigateTo("/auth/change-password", forceLoad: true);
+    }
+
+    private void GoToAccount()
+    {
+        Nav.NavigateTo("/account");
     }
 
     private void Logout()

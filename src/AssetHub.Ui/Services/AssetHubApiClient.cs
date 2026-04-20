@@ -855,6 +855,42 @@ public class AssetHubApiClient
 
     #endregion
 
+    #region Personal Access Tokens
+
+    /// <summary>
+    /// Lists the current user's personal access tokens (active + revoked + expired), newest first.
+    /// </summary>
+    public virtual async Task<List<PersonalAccessTokenDto>> GetMyPersonalAccessTokensAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/me/personal-access-tokens", ct);
+        await EnsureSuccessAsync(response, "List personal access tokens");
+        return await response.Content.ReadFromJsonAsync<List<PersonalAccessTokenDto>>(ct) ?? new();
+    }
+
+    /// <summary>
+    /// Mints a new personal access token. The plaintext token is present in the response
+    /// exactly once — it is not recoverable from later GETs.
+    /// </summary>
+    public virtual async Task<CreatedPersonalAccessTokenDto> CreatePersonalAccessTokenAsync(
+        CreatePersonalAccessTokenRequest request,
+        CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/me/personal-access-tokens", request, ct);
+        await EnsureSuccessAsync(response, "Create personal access token");
+        return await ReadRequiredJsonAsync<CreatedPersonalAccessTokenDto>(response, "Create personal access token");
+    }
+
+    /// <summary>
+    /// Revokes one of the current user's personal access tokens. Idempotent.
+    /// </summary>
+    public virtual async Task RevokePersonalAccessTokenAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/me/personal-access-tokens/{id}", ct);
+        await EnsureSuccessAsync(response, "Revoke personal access token");
+    }
+
+    #endregion
+
     #region Migrations (Admin)
 
     public virtual async Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default)

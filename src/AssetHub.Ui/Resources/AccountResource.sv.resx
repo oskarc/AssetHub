@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Account_Title" xml:space="preserve"><value>Konto</value></data>
+  <data name="Account_Description" xml:space="preserve"><value>Hantera dina personliga inställningar och åtkomsttoken.</value></data>
+
+  <data name="Pat_SectionTitle" xml:space="preserve"><value>Personliga åtkomsttoken</value></data>
+  <data name="Pat_SectionDescription" xml:space="preserve"><value>API-token låter skript och integrationer agera för din räkning. Behandla dem som lösenord.</value></data>
+  <data name="Pat_Btn_Create" xml:space="preserve"><value>Nytt token</value></data>
+
+  <data name="Pat_Empty_Title" xml:space="preserve"><value>Inga åtkomsttoken ännu</value></data>
+  <data name="Pat_Empty_Description" xml:space="preserve"><value>Skapa ett åtkomsttoken för att använda AssetHubs API från skript eller integrationer.</value></data>
+  <data name="Pat_Col_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="Pat_Col_Scopes" xml:space="preserve"><value>Scope</value></data>
+  <data name="Pat_Col_CreatedAt" xml:space="preserve"><value>Skapat</value></data>
+  <data name="Pat_Col_ExpiresAt" xml:space="preserve"><value>Utgår</value></data>
+  <data name="Pat_Col_LastUsed" xml:space="preserve"><value>Senast använt</value></data>
+  <data name="Pat_Col_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Pat_Col_Actions" xml:space="preserve"><value>Åtgärder</value></data>
+  <data name="Pat_Status_Active" xml:space="preserve"><value>Aktivt</value></data>
+  <data name="Pat_Status_Revoked" xml:space="preserve"><value>Återkallat</value></data>
+  <data name="Pat_Status_Expired" xml:space="preserve"><value>Utgånget</value></data>
+  <data name="Pat_ExpiresNever" xml:space="preserve"><value>Aldrig</value></data>
+  <data name="Pat_NeverUsed" xml:space="preserve"><value>Aldrig</value></data>
+  <data name="Pat_FullAccess" xml:space="preserve"><value>Full åtkomst</value></data>
+  <data name="Pat_Aria_Revoke" xml:space="preserve"><value>Återkalla token {0}</value></data>
+
+  <data name="Pat_Revoke_Title" xml:space="preserve"><value>Återkalla åtkomsttoken?</value></data>
+  <data name="Pat_Revoke_Message" xml:space="preserve"><value>Tokenen "{0}" slutar fungera omedelbart. Detta kan inte ångras.</value></data>
+  <data name="Pat_Revoke_Confirm" xml:space="preserve"><value>Återkalla</value></data>
+  <data name="Pat_Revoked_Success" xml:space="preserve"><value>Åtkomsttokenen "{0}" har återkallats.</value></data>
+
+  <data name="Pat_Create_Title" xml:space="preserve"><value>Nytt åtkomsttoken</value></data>
+  <data name="Pat_Create_Label_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="Pat_Create_NameHelper" xml:space="preserve"><value>En kort etikett för att känna igen denna token senare (t.ex. "Importskript").</value></data>
+  <data name="Pat_Create_Label_ExpiresAt" xml:space="preserve"><value>Giltighet</value></data>
+  <data name="Pat_Create_ExpiresNever" xml:space="preserve"><value>Aldrig</value></data>
+  <data name="Pat_Create_ExpiresOption7" xml:space="preserve"><value>7 dagar</value></data>
+  <data name="Pat_Create_ExpiresOption30" xml:space="preserve"><value>30 dagar</value></data>
+  <data name="Pat_Create_ExpiresOption90" xml:space="preserve"><value>90 dagar</value></data>
+  <data name="Pat_Create_ExpiresOption365" xml:space="preserve"><value>1 år</value></data>
+  <data name="Pat_Create_Label_Scopes" xml:space="preserve"><value>Scope</value></data>
+  <data name="Pat_Create_ScopesHelper" xml:space="preserve"><value>Välj det minsta antal funktioner som denna token behöver. Lämna tomt för full åtkomst.</value></data>
+  <data name="Pat_Create_NoScopesWarning" xml:space="preserve"><value>Utan valda scope kan denna token agera med din fulla kontoåtkomst.</value></data>
+
+  <data name="Pat_Scope_AssetsRead" xml:space="preserve"><value>Läs tillgångar</value></data>
+  <data name="Pat_Scope_AssetsWrite" xml:space="preserve"><value>Skriv tillgångar</value></data>
+  <data name="Pat_Scope_CollectionsRead" xml:space="preserve"><value>Läs samlingar</value></data>
+  <data name="Pat_Scope_CollectionsWrite" xml:space="preserve"><value>Skriv samlingar</value></data>
+  <data name="Pat_Scope_SharesRead" xml:space="preserve"><value>Läs delningar</value></data>
+  <data name="Pat_Scope_SharesWrite" xml:space="preserve"><value>Skriv delningar</value></data>
+  <data name="Pat_Scope_SearchRead" xml:space="preserve"><value>Sök</value></data>
+  <data name="Pat_Scope_Admin" xml:space="preserve"><value>Admin</value></data>
+
+  <data name="Pat_Show_Title" xml:space="preserve"><value>Kopiera ditt nya token</value></data>
+  <data name="Pat_Show_Warning" xml:space="preserve"><value>Detta är enda gången du ser denna token. Kopiera den nu — när du stänger dialogen kan den inte återskapas.</value></data>
+  <data name="Pat_Show_Label" xml:space="preserve"><value>Token</value></data>
+  <data name="Pat_Btn_Copy" xml:space="preserve"><value>Kopiera</value></data>
+  <data name="Pat_Copied" xml:space="preserve"><value>Token kopierad till urklipp.</value></data>
+  <data name="Pat_CopyFailed" xml:space="preserve"><value>Kopiering misslyckades. Kopiera tokenen manuellt innan du stänger.</value></data>
+  <data name="Pat_Created_Success" xml:space="preserve"><value>Åtkomsttokenen "{0}" har skapats.</value></data>
+</root>

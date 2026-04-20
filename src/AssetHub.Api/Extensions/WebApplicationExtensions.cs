@@ -269,6 +269,7 @@ public static class WebApplicationExtensions
         app.MapSavedSearchEndpoints();
         app.MapAdminTrashEndpoints();
         app.MapAssetVersionEndpoints();
+        app.MapPersonalAccessTokenEndpoints();
 
         // Blazor
         app.MapRazorComponents<App>()

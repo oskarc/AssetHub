@@ -13,3 +13,4 @@ public class CollectionsResource { }
 public class AdminResource { }
 public class SharesResource { }
 public class ImageEditorResource { }
+public class AccountResource { }

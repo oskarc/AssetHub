@@ -1,0 +1,217 @@
+@page "/account"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Components
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject AssetHubApiClient Api
+@inject IDialogService Dialogs
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<AccountResource> AccountLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@AccountLoc["Account_Title"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <MudText Typo="Typo.h4" Class="mb-1">@AccountLoc["Account_Title"]</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">@AccountLoc["Account_Description"]</MudText>
+
+    <MudPaper Class="pa-5" Elevation="0" Outlined="true">
+        <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween" Class="mb-3" Spacing="2">
+            <MudStack Spacing="1">
+                <MudText Typo="Typo.h6">@AccountLoc["Pat_SectionTitle"]</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@AccountLoc["Pat_SectionDescription"]</MudText>
+            </MudStack>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateDialog">
+                @AccountLoc["Pat_Btn_Create"]
+            </MudButton>
+        </MudStack>
+
+        @if (_loading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="py-6" role="status" aria-live="polite">
+                <MudProgressCircular Indeterminate="true" />
+            </MudStack>
+        }
+        else if (_tokens.Count == 0)
+        {
+            <EmptyState Icon="@Icons.Material.Filled.VpnKey"
+                        Title="@AccountLoc["Pat_Empty_Title"].Value"
+                        Description="@AccountLoc["Pat_Empty_Description"].Value"
+                        ActionText="@AccountLoc["Pat_Btn_Create"].Value"
+                        ActionIcon="@Icons.Material.Filled.Add"
+                        OnAction="OpenCreateDialog" />
+        }
+        else
+        {
+            <MudTable Items="_tokens" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>@AccountLoc["Pat_Col_Name"]</MudTh>
+                    <MudTh>@AccountLoc["Pat_Col_Scopes"]</MudTh>
+                    <MudTh>@AccountLoc["Pat_Col_Status"]</MudTh>
+                    <MudTh>@AccountLoc["Pat_Col_CreatedAt"]</MudTh>
+                    <MudTh>@AccountLoc["Pat_Col_ExpiresAt"]</MudTh>
+                    <MudTh>@AccountLoc["Pat_Col_LastUsed"]</MudTh>
+                    <MudTh Style="text-align: right;">@AccountLoc["Pat_Col_Actions"]</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="@AccountLoc["Pat_Col_Name"].Value">
+                        <MudText Typo="Typo.body2">@context.Name</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="@AccountLoc["Pat_Col_Scopes"].Value">
+                        @if (context.Scopes.Count == 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text"
+                                     Icon="@Icons.Material.Filled.Warning">
+                                @AccountLoc["Pat_FullAccess"]
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                @foreach (var scope in context.Scopes)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@scope</MudChip>
+                                }
+                            </MudStack>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="@AccountLoc["Pat_Col_Status"].Value">
+                        @{
+                            var (statusKey, statusColor, statusIcon) = GetStatus(context);
+                        }
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@statusIcon" Color="@statusColor" Size="Size.Small" aria-hidden="true" />
+                            <MudText Typo="Typo.body2" Color="@statusColor">@AccountLoc[statusKey]</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="@AccountLoc["Pat_Col_CreatedAt"].Value">
+                        <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("g")</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="@AccountLoc["Pat_Col_ExpiresAt"].Value">
+                        <MudText Typo="Typo.body2">
+                            @(context.ExpiresAt is null
+                                ? AccountLoc["Pat_ExpiresNever"].Value
+                                : context.ExpiresAt.Value.ToLocalTime().ToString("g"))
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="@AccountLoc["Pat_Col_LastUsed"].Value">
+                        <MudText Typo="Typo.body2">
+                            @(context.LastUsedAt is null
+                                ? AccountLoc["Pat_NeverUsed"].Value
+                                : context.LastUsedAt.Value.ToLocalTime().ToString("g"))
+                        </MudText>
+                    </MudTd>
+                    <MudTd Style="text-align: right;">
+                        @if (context.IsActive)
+                        {
+                            <MudTooltip Text="@CommonLoc["Btn_Revoke"].Value">
+                                <MudIconButton Icon="@Icons.Material.Filled.Block"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               aria-label="@string.Format(AccountLoc["Pat_Aria_Revoke"].Value, context.Name)"
+                                               OnClick="@(() => RevokeAsync(context))" />
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private List<PersonalAccessTokenDto> _tokens = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _tokens = await Api.GetMyPersonalAccessTokensAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load access tokens");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var dlg = await Dialogs.ShowAsync<CreatePersonalAccessTokenDialog>(
+            AccountLoc["Pat_Create_Title"].Value,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        var result = await dlg.Result;
+        if (result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task RevokeAsync(PersonalAccessTokenDto token)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.Title)] = AccountLoc["Pat_Revoke_Title"].Value,
+            [nameof(ConfirmDialog.Message)] = string.Format(AccountLoc["Pat_Revoke_Message"].Value, token.Name),
+            [nameof(ConfirmDialog.ConfirmText)] = AccountLoc["Pat_Revoke_Confirm"].Value,
+            [nameof(ConfirmDialog.ConfirmColor)] = Color.Error,
+            [nameof(ConfirmDialog.TitleIcon)] = Icons.Material.Filled.Block,
+            [nameof(ConfirmDialog.IconColor)] = Color.Error
+        };
+
+        var dlg = await Dialogs.ShowAsync<ConfirmDialog>(
+            AccountLoc["Pat_Revoke_Title"].Value,
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+
+        var result = await dlg.Result;
+        if (result is null || result.Canceled) return;
+
+        // Optimistic update: remove from local list
+        var index = _tokens.IndexOf(token);
+        _tokens.Remove(token);
+        StateHasChanged();
+
+        try
+        {
+            await Api.RevokePersonalAccessTokenAsync(token.Id);
+            Feedback.ShowSuccess(string.Format(AccountLoc["Pat_Revoked_Success"].Value, token.Name));
+            // Refresh so status badge shows "Revoked" rather than disappearing entirely
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            // Roll back optimistic removal
+            _tokens.Insert(Math.Min(index, _tokens.Count), token);
+            StateHasChanged();
+            Feedback.HandleError(ex, "revoke access token");
+        }
+    }
+
+    private (string LocKey, Color Color, string Icon) GetStatus(PersonalAccessTokenDto t)
+    {
+        if (t.IsActive)
+            return ("Pat_Status_Active", Color.Success, Icons.Material.Filled.CheckCircle);
+        if (t.RevokedAt is not null)
+            return ("Pat_Status_Revoked", Color.Error, Icons.Material.Filled.Block);
+        return ("Pat_Status_Expired", Color.Warning, Icons.Material.Filled.Schedule);
+    }
+}

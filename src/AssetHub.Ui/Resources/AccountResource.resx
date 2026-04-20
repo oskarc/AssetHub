@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Page -->
+  <data name="Account_Title" xml:space="preserve"><value>Account</value></data>
+  <data name="Account_Description" xml:space="preserve"><value>Manage your personal settings and access tokens.</value></data>
+
+  <!-- Section -->
+  <data name="Pat_SectionTitle" xml:space="preserve"><value>Personal Access Tokens</value></data>
+  <data name="Pat_SectionDescription" xml:space="preserve"><value>API tokens let scripts and integrations act on your behalf. Treat them like passwords.</value></data>
+  <data name="Pat_Btn_Create" xml:space="preserve"><value>New token</value></data>
+
+  <!-- List -->
+  <data name="Pat_Empty_Title" xml:space="preserve"><value>No access tokens yet</value></data>
+  <data name="Pat_Empty_Description" xml:space="preserve"><value>Create an access token to use the AssetHub API from scripts or integrations.</value></data>
+  <data name="Pat_Col_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Pat_Col_Scopes" xml:space="preserve"><value>Scopes</value></data>
+  <data name="Pat_Col_CreatedAt" xml:space="preserve"><value>Created</value></data>
+  <data name="Pat_Col_ExpiresAt" xml:space="preserve"><value>Expires</value></data>
+  <data name="Pat_Col_LastUsed" xml:space="preserve"><value>Last used</value></data>
+  <data name="Pat_Col_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Pat_Col_Actions" xml:space="preserve"><value>Actions</value></data>
+  <data name="Pat_Status_Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Pat_Status_Revoked" xml:space="preserve"><value>Revoked</value></data>
+  <data name="Pat_Status_Expired" xml:space="preserve"><value>Expired</value></data>
+  <data name="Pat_ExpiresNever" xml:space="preserve"><value>Never</value></data>
+  <data name="Pat_NeverUsed" xml:space="preserve"><value>Never</value></data>
+  <data name="Pat_FullAccess" xml:space="preserve"><value>Full access</value></data>
+  <data name="Pat_Aria_Revoke" xml:space="preserve"><value>Revoke token {0}</value></data>
+
+  <!-- Revoke dialog -->
+  <data name="Pat_Revoke_Title" xml:space="preserve"><value>Revoke access token?</value></data>
+  <data name="Pat_Revoke_Message" xml:space="preserve"><value>The token "{0}" will stop working immediately. This cannot be undone.</value></data>
+  <data name="Pat_Revoke_Confirm" xml:space="preserve"><value>Revoke</value></data>
+  <data name="Pat_Revoked_Success" xml:space="preserve"><value>Access token "{0}" revoked.</value></data>
+
+  <!-- Create dialog -->
+  <data name="Pat_Create_Title" xml:space="preserve"><value>New access token</value></data>
+  <data name="Pat_Create_Label_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Pat_Create_NameHelper" xml:space="preserve"><value>A short label to recognise this token later (e.g. "Import script").</value></data>
+  <data name="Pat_Create_Label_ExpiresAt" xml:space="preserve"><value>Expiration</value></data>
+  <data name="Pat_Create_ExpiresNever" xml:space="preserve"><value>Never</value></data>
+  <data name="Pat_Create_ExpiresOption7" xml:space="preserve"><value>7 days</value></data>
+  <data name="Pat_Create_ExpiresOption30" xml:space="preserve"><value>30 days</value></data>
+  <data name="Pat_Create_ExpiresOption90" xml:space="preserve"><value>90 days</value></data>
+  <data name="Pat_Create_ExpiresOption365" xml:space="preserve"><value>1 year</value></data>
+  <data name="Pat_Create_Label_Scopes" xml:space="preserve"><value>Scopes</value></data>
+  <data name="Pat_Create_ScopesHelper" xml:space="preserve"><value>Choose the minimum capabilities this token needs. Leave empty for full access.</value></data>
+  <data name="Pat_Create_NoScopesWarning" xml:space="preserve"><value>With no scopes selected, this token can act with your full account access.</value></data>
+
+  <!-- Scopes -->
+  <data name="Pat_Scope_AssetsRead" xml:space="preserve"><value>Read assets</value></data>
+  <data name="Pat_Scope_AssetsWrite" xml:space="preserve"><value>Write assets</value></data>
+  <data name="Pat_Scope_CollectionsRead" xml:space="preserve"><value>Read collections</value></data>
+  <data name="Pat_Scope_CollectionsWrite" xml:space="preserve"><value>Write collections</value></data>
+  <data name="Pat_Scope_SharesRead" xml:space="preserve"><value>Read shares</value></data>
+  <data name="Pat_Scope_SharesWrite" xml:space="preserve"><value>Write shares</value></data>
+  <data name="Pat_Scope_SearchRead" xml:space="preserve"><value>Search</value></data>
+  <data name="Pat_Scope_Admin" xml:space="preserve"><value>Admin</value></data>
+
+  <!-- Reveal step -->
+  <data name="Pat_Show_Title" xml:space="preserve"><value>Copy your new token</value></data>
+  <data name="Pat_Show_Warning" xml:space="preserve"><value>This is the only time you will see this token. Copy it now — once you close this dialog it cannot be recovered.</value></data>
+  <data name="Pat_Show_Label" xml:space="preserve"><value>Token</value></data>
+  <data name="Pat_Btn_Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Pat_Copied" xml:space="preserve"><value>Token copied to clipboard.</value></data>
+  <data name="Pat_CopyFailed" xml:space="preserve"><value>Copy failed. Copy the token manually before closing.</value></data>
+  <data name="Pat_Created_Success" xml:space="preserve"><value>Access token "{0}" created.</value></data>
+</root>

@@ -1,0 +1,219 @@
+@using MudBlazor
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IClipboardService Clipboard
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<AccountResource> AccountLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
+            <MudIcon Icon="@(_created is null ? Icons.Material.Filled.VpnKey : Icons.Material.Filled.ContentCopy)"
+                     Color="Color.Primary" aria-hidden="true" />
+            <MudText id="pat-dialog-title" Typo="Typo.h6">
+                @(_created is null ? AccountLoc["Pat_Create_Title"] : AccountLoc["Pat_Show_Title"])
+            </MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2" Class="dialog-min-width">
+            @if (_created is null)
+            {
+                <MudForm @ref="_form" @bind-IsValid="_formIsValid">
+                    <MudTextField @bind-Value="_name"
+                                  Label="@AccountLoc["Pat_Create_Label_Name"]"
+                                  Required="true"
+                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AccountLoc["Pat_Create_Label_Name"].Value)"
+                                  Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  AutoFocus="true"
+                                  Counter="100"
+                                  MaxLength="100"
+                                  HelperText="@AccountLoc["Pat_Create_NameHelper"].Value" />
+
+                    <MudSelect T="int" @bind-Value="_expiresInDays"
+                               Label="@AccountLoc["Pat_Create_Label_ExpiresAt"]"
+                               Variant="Variant.Outlined"
+                               Class="mt-3">
+                        <MudSelectItem T="int" Value="0">@AccountLoc["Pat_Create_ExpiresNever"]</MudSelectItem>
+                        <MudSelectItem T="int" Value="7">@AccountLoc["Pat_Create_ExpiresOption7"]</MudSelectItem>
+                        <MudSelectItem T="int" Value="30">@AccountLoc["Pat_Create_ExpiresOption30"]</MudSelectItem>
+                        <MudSelectItem T="int" Value="90">@AccountLoc["Pat_Create_ExpiresOption90"]</MudSelectItem>
+                        <MudSelectItem T="int" Value="365">@AccountLoc["Pat_Create_ExpiresOption365"]</MudSelectItem>
+                    </MudSelect>
+
+                    <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">@AccountLoc["Pat_Create_Label_Scopes"]</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@AccountLoc["Pat_Create_ScopesHelper"]</MudText>
+                    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mt-2">
+                        @foreach (var scope in _scopeOptions)
+                        {
+                            var selected = _selectedScopes.Contains(scope.Value);
+                            <MudChip T="string"
+                                     Value="@scope.Value"
+                                     Color="@(selected ? Color.Primary : Color.Default)"
+                                     Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => ToggleScope(scope.Value))">
+                                @scope.Label
+                            </MudChip>
+                        }
+                    </MudStack>
+
+                    @if (_selectedScopes.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3"
+                                  Icon="@Icons.Material.Filled.Warning" role="alert">
+                            @AccountLoc["Pat_Create_NoScopesWarning"]
+                        </MudAlert>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3" role="alert">@_errorMessage</MudAlert>
+                    }
+                </MudForm>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" role="alert"
+                          Icon="@Icons.Material.Filled.Warning">
+                    @AccountLoc["Pat_Show_Warning"]
+                </MudAlert>
+
+                <MudTextField T="string"
+                              Value="_created.PlaintextToken"
+                              ReadOnly="true"
+                              Variant="Variant.Outlined"
+                              Label="@AccountLoc["Pat_Show_Label"]"
+                              Class="mt-3"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                              AdornmentAriaLabel="@AccountLoc["Pat_Btn_Copy"].Value"
+                              OnAdornmentClick="CopyToClipboard" />
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        @if (_created is null)
+        {
+            <MudButton OnClick="Cancel">@CommonLoc["Btn_Cancel"]</MudButton>
+            <MudButton OnClick="Submit"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Disabled="@(!_formIsValid || _submitting)"
+                       StartIcon="@Icons.Material.Filled.Save">
+                @if (_submitting)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @CommonLoc["Btn_Create"]
+            </MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="CopyToClipboard"
+                       StartIcon="@Icons.Material.Filled.ContentCopy"
+                       Color="Color.Primary"
+                       Variant="Variant.Text">
+                @AccountLoc["Pat_Btn_Copy"]
+            </MudButton>
+            <MudButton OnClick="Close"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled">
+                @CommonLoc["Btn_Done"]
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudForm _form = null!;
+    private bool _formIsValid;
+    private bool _submitting;
+    private string? _errorMessage;
+    private CreatedPersonalAccessTokenDto? _created;
+
+    private string _name = string.Empty;
+    private int _expiresInDays;
+    private readonly HashSet<string> _selectedScopes = new(StringComparer.Ordinal);
+
+    private List<(string Value, string Label)> _scopeOptions = [];
+
+    protected override void OnInitialized()
+    {
+        _scopeOptions =
+        [
+            ("assets:read", AccountLoc["Pat_Scope_AssetsRead"].Value),
+            ("assets:write", AccountLoc["Pat_Scope_AssetsWrite"].Value),
+            ("collections:read", AccountLoc["Pat_Scope_CollectionsRead"].Value),
+            ("collections:write", AccountLoc["Pat_Scope_CollectionsWrite"].Value),
+            ("shares:read", AccountLoc["Pat_Scope_SharesRead"].Value),
+            ("shares:write", AccountLoc["Pat_Scope_SharesWrite"].Value),
+            ("search:read", AccountLoc["Pat_Scope_SearchRead"].Value),
+            ("admin", AccountLoc["Pat_Scope_Admin"].Value)
+        ];
+    }
+
+    private void ToggleScope(string scope)
+    {
+        if (!_selectedScopes.Add(scope))
+            _selectedScopes.Remove(scope);
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new CreatePersonalAccessTokenRequest
+            {
+                Name = _name.Trim(),
+                ExpiresAt = _expiresInDays > 0 ? DateTime.UtcNow.AddDays(_expiresInDays) : null,
+                Scopes = _selectedScopes.ToList()
+            };
+
+            _created = await Api.CreatePersonalAccessTokenAsync(request);
+            Feedback.ShowSuccess(string.Format(AccountLoc["Pat_Created_Success"].Value, _created.Token.Name));
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "create access token");
+            _errorMessage = CommonLoc["Error_UnexpectedError"].Value;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private async Task CopyToClipboard()
+    {
+        if (_created is null) return;
+        if (await Clipboard.CopyTextAsync(_created.PlaintextToken))
+        {
+            Feedback.ShowSuccess(AccountLoc["Pat_Copied"].Value);
+        }
+        else
+        {
+            Feedback.ShowError(AccountLoc["Pat_CopyFailed"].Value);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}
