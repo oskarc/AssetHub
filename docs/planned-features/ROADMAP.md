@@ -318,161 +318,13 @@ Same pattern as T0-MIG-02, one per source. Each is a sealed service implementing
 
 ### T1-META-01 — Custom metadata schemas and taxonomies
 
-**Intent.** Let admins define structured metadata per asset (or per collection, or per asset-type) beyond the hard-coded Title/Description/Copyright/Tags. This is the biggest competitive gap vs. Bynder "metaproperties" / Brandfolder custom fields.
-
-**User gain.** A marketing admin defines fields like *Campaign*, *Market*, *Usage Rights*, *Expiry Date*. Contributors fill them on upload; everyone searches by them; renditions can embed them.
-
-**Business gain.** Unlocks faceted search (T1-SRCH-01), rights tracking (implicit part of compliance), and required-metadata gates before publish.
-
-**Current state.** `Asset.MetadataJson` is a free-form dictionary with no schema, UI, or search integration.
-
-**Target state.**
-- Admins define a **MetadataSchema** with typed **MetadataField** entries.
-- Contributors fill fields via a dynamic form on upload and asset-edit dialogs.
-- Taxonomy fields reference a **Taxonomy** tree with **TaxonomyTerm** nodes.
-- Search can filter by any indexed field.
-
-**Data model.**
-
-```csharp
-public class MetadataSchema
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = "";
-    public string? Description { get; set; }
-    public MetadataSchemaScope Scope { get; set; }    // Global, AssetType, Collection
-    public AssetType? AssetType { get; set; }         // null unless Scope == AssetType
-    public Guid? CollectionId { get; set; }           // null unless Scope == Collection
-    public int Version { get; set; } = 1;
-    public DateTime CreatedAt { get; set; }
-    public string CreatedByUserId { get; set; } = "";
-    public ICollection<MetadataField> Fields { get; set; } = new List<MetadataField>();
-}
-
-public class MetadataField
-{
-    public Guid Id { get; set; }
-    public Guid MetadataSchemaId { get; set; }
-    public string Key { get; set; } = "";             // machine key, snake_case, unique per schema
-    public string Label { get; set; } = "";           // display label, EN
-    public string? LabelSv { get; set; }              // optional per-locale override; more languages → add columns or go JSONB
-    public MetadataFieldType Type { get; set; }       // Text, LongText, Number, Decimal, Boolean, Date, DateTime, Select, MultiSelect, Taxonomy, Url
-    public bool Required { get; set; }
-    public bool Searchable { get; set; } = true;
-    public bool Facetable { get; set; }
-    public string? PatternRegex { get; set; }
-    public int? MaxLength { get; set; }
-    public decimal? NumericMin { get; set; }
-    public decimal? NumericMax { get; set; }
-    public List<string> SelectOptions { get; set; } = new();
-    public Guid? TaxonomyId { get; set; }
-    public int SortOrder { get; set; }
-}
-
-public class Taxonomy
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = "";
-    public string? Description { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public ICollection<TaxonomyTerm> Terms { get; set; } = new List<TaxonomyTerm>();
-}
-
-public class TaxonomyTerm
-{
-    public Guid Id { get; set; }
-    public Guid TaxonomyId { get; set; }
-    public Guid? ParentTermId { get; set; }
-    public string Label { get; set; } = "";
-    public string? LabelSv { get; set; }
-    public string Slug { get; set; } = "";            // used in URLs / facet filters
-    public int SortOrder { get; set; }
-    public ICollection<TaxonomyTerm> Children { get; set; } = new List<TaxonomyTerm>();
-}
-```
-
-Extend `Asset`:
-```csharp
-// Already has Dictionary<string, object> MetadataJson — keep it for unstructured overflow.
-// Add a typed storage table for searchable fields:
-public class AssetMetadataValue
-{
-    public Guid Id { get; set; }
-    public Guid AssetId { get; set; }
-    public Guid MetadataFieldId { get; set; }
-    public string? ValueText { get; set; }
-    public decimal? ValueNumeric { get; set; }
-    public DateTime? ValueDate { get; set; }
-    public Guid? ValueTaxonomyTermId { get; set; }
-}
-```
-
-GIN indices (raw SQL in migration):
-- `idx_asset_metadata_value_field_text_trgm` `USING gin (value_text gin_trgm_ops)` where value_text is not null.
-- `idx_asset_metadata_value_field` on `(metadata_field_id, asset_id)`.
-- `idx_asset_metadata_value_taxonomy_term` on `(value_taxonomy_term_id, asset_id) where value_taxonomy_term_id is not null`.
-
-**API surface.** `/api/v1/admin/metadata-schemas`, `/api/v1/admin/taxonomies`, plus:
-- `GET /api/v1/assets/{id}/metadata` — returns resolved schema + values.
-- `PUT /api/v1/assets/{id}/metadata` — upsert values; validates against schema.
-- `POST /api/v1/assets/bulk-metadata` — apply a metadata template to N assets.
-
-**UI.** `AdminMetadataTab.razor`, `MetadataSchemaEditor.razor`, `TaxonomyEditor.razor`. Dynamic form component `AssetMetadataForm.razor` rendered inside `EditAssetDialog` and the upload flow.
-
-**Acceptance criteria.**
-- Admin creates a schema scoped to Image with 5 fields including a Taxonomy field.
-- Uploading an Image shows the 5 fields in the upload dialog; Required fields block submit.
-- Editing an asset round-trips values correctly for all field types.
-- Search facets (T1-SRCH-01) read from `Facetable` fields.
-- Deleting a schema with existing values is blocked unless `?force=true` (and then cascades).
-
-**Dependencies.** None; it's a foundation for T1-SRCH-01, T0-MIG-01 field mapping extension, T1-VER-01 metadata versioning, T3-WF-01 required-to-publish rules.
-
-**Out of scope.** Multi-language values beyond `LabelSv` (consider JSONB per-locale later if demand exceeds two locales).
+> **Shipped 2026-04-21.** `MetadataSchema` + `MetadataField` + `Taxonomy` + `TaxonomyTerm` + `AssetMetadataValue` entities, typed-value storage with GIN indexes, admin UI (`MetadataSchemaDialog.razor`, `TaxonomyDialog.razor`), dynamic upload/edit form, and bulk-apply endpoint all landed. See the **Shipped appendix** for details.
 
 ---
 
 ### T1-LIFE-01 — Soft delete, trash, and scheduled purge
 
-**Intent.** Replace hard delete with soft delete + recycle-bin with a TTL. Prevents accidental permanent loss, meets enterprise expectation, and aligns with ConfirmDialog UX.
-
-**User gain.** Deleted assets move to Trash with a 30-day countdown; admins can restore. Bulk permanent delete still exists but goes through a second confirm with explicit count (already partially there in `BulkAssetActionsDialog`).
-
-**Business gain.** Removes the "we got burned by a bad delete" objection; commercial DAMs all have this.
-
-**Current state.** `Asset` has no `DeletedAt`; `AssetService.DeleteAsync` performs hard delete. CLAUDE.md says *"No soft delete — use status-based lifecycle or hard delete"* — this item **amends that rule** for `Asset` and `Collection`.
-
-**Target state.**
-- `Asset.DeletedAt` (nullable UTC) and `Asset.DeletedByUserId` added.
-- All queries filter `DeletedAt IS NULL` by default (EF Core global query filter).
-- Delete endpoints set `DeletedAt = now` instead of removing the row.
-- **Trash** page (`/admin/trash`) lists deleted assets with restore / permanent-delete actions.
-- Background worker purges assets older than configured TTL (default 30 days).
-
-**Data model.** Add columns; update `OnModelCreating` with `.HasQueryFilter(a => a.DeletedAt == null)`. Add `AssetLifecycleSettings` config class with `const string SectionName = "AssetLifecycle"`, `TrashRetentionDays = 30`, `ValidateOnStart = false`.
-
-**API surface.**
-- `GET /api/v1/admin/trash` — lists soft-deleted assets (`IgnoreQueryFilters` in the repo).
-- `POST /api/v1/admin/trash/{id:guid}/restore` — clears `DeletedAt`.
-- `DELETE /api/v1/admin/trash/{id:guid}` — permanent delete (real row + MinIO cleanup).
-- `POST /api/v1/admin/trash/empty` — permanent delete all trashed items (second confirm with count).
-
-**Worker.** New `TrashPurgeBackgroundService` (hosted, per CLAUDE.md's BackgroundService pattern): every hour, finds assets with `DeletedAt < now - TrashRetentionDays`, deletes them and their MinIO objects.
-
-**UI.** `AdminTrashTab.razor`. Delete flow in `AssetDetail`, `AssetCardGrid`, `BulkAssetActionsDialog` now shows optimistic removal + a **Snackbar with Undo** that calls restore within 10 s.
-
-**Caching.** Add `CacheKeys.Tags.AssetList` invalidation when an asset is soft-deleted or restored (existing pattern already in [AssetService.cs](../../src/AssetHub.Infrastructure/Services/AssetService.cs)).
-
-**Acceptance criteria.**
-- Deleted asset disappears from listings but appears in Trash.
-- Restore returns it to its original collections.
-- Asset purged after TTL; MinIO objects deleted.
-- Undo-toast works from both detail and grid.
-- `AssetHub.Tests` covers the full loop including TTL purge (use shortened TTL via config).
-
-**Dependencies.** None.
-
-**Out of scope.** Soft delete for `Collection` — ship as T1-LIFE-02 separately.
+> **Shipped 2026-04-21.** `Asset.DeletedAt` + global query filter, `AssetTrashService`, `TrashPurgeBackgroundService`, `AdminTrashTab.razor`, single-asset Undo-snackbar, and CLAUDE.md rule amendment all landed. Bulk-undo snackbar + purge-worker integration test deferred to [FOLLOW-UPS.md](./FOLLOW-UPS.md). See the **Shipped appendix** for details.
 
 ---
 
@@ -484,121 +336,13 @@ GIN indices (raw SQL in migration):
 
 ### T1-SRCH-01 — Faceted search with full-text, OCR, and saved searches
 
-**Intent.** Real DAM search: combine filters, search across title + description + tags + metadata + OCR (when T2-AI-03 ships) + transcripts (T2-AI-04), save the result, re-run later with notifications when new matches appear.
-
-**User gain.** Contributors find assets in seconds instead of scrolling collections. Marketers save *"Brand-approved outdoor photos, EU market, last 90 days"* and re-run weekly.
-
-**Business gain.** The feature prospects demo first after upload.
-
-**Current state.** [AssetQueryService.cs](../../src/AssetHub.Infrastructure/Services/AssetQueryService.cs) uses a single `EF.Functions.ILike` on title with type + collection filters.
-
-**Target state.**
-- A new `AssetSearchService` accepts a structured `AssetSearchRequest` with text, facet filters, sort, pagination.
-- Full-text uses Postgres tsvector + GIN index on title, description, tags, extracted OCR, metadata text values.
-- Facets are aggregated in a second query (count per value for each facet dimension).
-- `SavedSearch` entity stores request JSON + owner + optional notification cadence.
-
-**Data model.**
-
-Add a `search_vector` generated column to `Asset` (raw SQL migration):
-
-```sql
-ALTER TABLE "Assets" ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (
-    setweight(to_tsvector('simple', coalesce("Title", '')), 'A') ||
-    setweight(to_tsvector('simple', coalesce("Description", '')), 'B') ||
-    setweight(to_tsvector('simple', array_to_string("Tags", ' ', '')), 'C')
-) STORED;
-CREATE INDEX idx_asset_search_vector ON "Assets" USING gin (search_vector);
-```
-
-`SavedSearch`:
-```csharp
-public class SavedSearch
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = "";
-    public string OwnerUserId { get; set; } = "";
-    public string RequestJson { get; set; } = "";   // AssetSearchRequest serialized
-    public SavedSearchNotifyCadence Notify { get; set; } // None, OnNewMatch, Daily, Weekly
-    public DateTime? LastRunAt { get; set; }
-    public Guid? LastHighestSeenAssetId { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
-```
-
-**API surface.**
-- `POST /api/v1/assets/search` — body = `AssetSearchRequest`, returns `{ items, facets, totalCount }`.
-- `/api/v1/saved-searches` — standard CRUD scoped to owner.
-
-**UI.** New `SearchSidebar.razor` with faceted filter accordion. Chips showing active filters above the result grid. "Save this search" button. `SavedSearchesMenu.razor` in nav menu under Collections.
-
-**Acceptance criteria.**
-- 100k-asset library returns search results < 300 ms p95 with 3 facet filters active.
-- Adding an OCR-indexed asset (T2-AI-03) is findable by OCR text within the same request cycle.
-- Saved search with `Daily` cadence generates a digest email (T3-NTF-01) listing new matches since `LastHighestSeenAssetId`.
-
-**Dependencies.** Benefits heavily from T1-META-01 (facetable fields) and T2-AI-03 (OCR content).
+> **Shipped 2026-04-21.** `search_vector` tsvector column + GIN index, `AssetSearchService` with facets, `SavedSearch` + `SavedSearchNotifyCadence` schema + CRUD endpoints, `SearchSidebar.razor` + `SavedSearchesMenu.razor` all landed. Saved-search **notification delivery** (the email worker that runs cadences) is schema-only in v1 and explicitly deferred to T3-NTF-01. See the **Shipped appendix** for details.
 
 ---
 
 ### T1-VER-01 — Asset versioning
 
-**Intent.** Stop overwriting in `ReplaceImageFile`. Keep every version; allow restore.
-
-**User gain.** Designers replace an asset; history shows v1, v2, v3 with thumbnails and "restore" buttons. Share links can pin to a version.
-
-**Business gain.** Data safety; enterprise expectation; unblocks check-in/check-out (later).
-
-**Current state.** [AssetUploadService.cs](../../src/AssetHub.Infrastructure/Services/AssetUploadService.cs) `ReplaceImageFileAsync` writes over the original MinIO object; `EditDocument` is the only "history" and it's single-value.
-
-**Target state.**
-- New `AssetVersion` entity stores prior bytes, metadata snapshot, and edit document snapshot.
-- `Asset` gains `CurrentVersionNumber` + reverse nav to versions.
-- Replace + image-save-copy create a new version; restore marks a prior version as current.
-
-**Data model.**
-```csharp
-public class AssetVersion
-{
-    public Guid Id { get; set; }
-    public Guid AssetId { get; set; }
-    public Asset Asset { get; set; } = default!;
-    public int VersionNumber { get; set; }           // 1-based, unique per AssetId
-    public string OriginalObjectKey { get; set; } = "";
-    public string? ThumbObjectKey { get; set; }
-    public string? MediumObjectKey { get; set; }
-    public string? PosterObjectKey { get; set; }
-    public long SizeBytes { get; set; }
-    public string ContentType { get; set; } = "";
-    public string Sha256 { get; set; } = "";
-    public string? EditDocument { get; set; }
-    public Dictionary<string, object> MetadataSnapshot { get; set; } = new();
-    public string CreatedByUserId { get; set; } = "";
-    public DateTime CreatedAt { get; set; }
-    public string? ChangeNote { get; set; }
-}
-```
-Index: `idx_asset_version_asset_version_unique` UNIQUE on `(AssetId, VersionNumber)`.
-
-`Asset` gains `public int CurrentVersionNumber { get; set; } = 1;`.
-
-**API.**
-- `GET /api/v1/assets/{id}/versions` — list versions.
-- `POST /api/v1/assets/{id}/versions/{n:int}/restore` — mark vN as current.
-- `DELETE /api/v1/assets/{id}/versions/{n:int}` — prune (admin only).
-
-**Worker.** Reuse `ProcessImageHandler` — when a new version is uploaded, process it like a fresh asset but write renditions to `versions/{versionNumber}/...` keys.
-
-**UI.** `AssetVersionHistoryPanel.razor` inside `AssetDetail.razor`, under Derivatives.
-
-**Acceptance criteria.**
-- Replace-file creates v2; original stays accessible in the history panel.
-- Restore of v1 flips current version; thumbnails update.
-- Storage growth is linear in versions; admins can prune.
-
-**Dependencies.** None — but T1-LIFE-01 soft-delete should cover version rows too.
-
-**Out of scope.** Check-in / check-out locking (see T3-COL-03 later).
+> **Shipped 2026-04-21.** `AssetVersion` entity with unique `(AssetId, VersionNumber)`, `Asset.CurrentVersionNumber`, list/restore/prune endpoints, and `AssetVersionHistoryPanel.razor` all landed. Version thumbnail preview, SaveImageCopy versioning interpretation, and real-Postgres integration tests deferred to [FOLLOW-UPS.md](./FOLLOW-UPS.md). See the **Shipped appendix** for details.
 
 ---
 
@@ -1096,4 +840,79 @@ When a new gap is discovered:
 **Test coverage.** `tests/AssetHub.Tests/Services/AssetUploadServiceTests.cs` — 7 duplicate-focused tests: `UploadAsync_ExistingSha256_ReturnsConflict`, `_ForceOverride_Succeeds`, `_NonAdminForceOverride_ReturnsForbidden`, `_DifferentContent_NoDuplicate`, `_Duplicate_EmitsDuplicateBlockedAuditEvent`, `_AdminForceOverride_EmitsDuplicateOverrideAuditEvent`, plus equivalents on `ConfirmUploadAsync`.
 
 **Deviations from the spec.** None material. The spec's `collections` field on the 409 payload was dropped in favour of just `existingAssetId` + `existingTitle` — the UI only needs the link target, and collections are one hop away via the existing asset detail page.
+
+### T1-META-01 — Custom metadata schemas and taxonomies
+
+**Shipped 2026-04-21.** Landed across commits `c5ea695` (initial implementation) and `11e9703` (test pass). Memory entry: `project_t1_meta_01_complete.md`.
+
+**Delivered as specified.**
+- `MetadataSchema` (scoped Global / AssetType / Collection), `MetadataField` (Text, LongText, Number, Decimal, Boolean, Date, DateTime, Select, MultiSelect, Taxonomy, Url), `Taxonomy` + hierarchical `TaxonomyTerm` (with `ParentTermId` self-FK and `Slug`), and `AssetMetadataValue` with polymorphic typed columns (`ValueText` / `ValueNumeric` / `ValueDate` / `ValueTaxonomyTermId`).
+- GIN indexes from the spec: `idx_asset_metadata_value_field_text_trgm` (trigram on `ValueText`), `idx_asset_metadata_value_field`, `idx_asset_metadata_value_taxonomy_term`. All created via raw SQL in the schema migration with `IF NOT EXISTS` for idempotency.
+- Endpoints: [MetadataSchemaEndpoints.cs](../../src/AssetHub.Api/Endpoints/MetadataSchemaEndpoints.cs), [TaxonomyEndpoints.cs](../../src/AssetHub.Api/Endpoints/TaxonomyEndpoints.cs), [AssetMetadataEndpoints.cs](../../src/AssetHub.Api/Endpoints/AssetMetadataEndpoints.cs). `GET /api/v1/assets/{id}/metadata` returns resolved schema + values; `PUT` upserts; `POST /api/v1/assets/bulk-metadata` applies a template to N assets.
+- Admin UI: `MetadataSchemaDialog.razor`, `TaxonomyDialog.razor`, dynamic `AssetMetadataForm.razor` wired into `EditAssetDialog` and the upload flow. Required fields block submit; per-field validation comes from `PatternRegex` / `MaxLength` / `NumericMin` / `NumericMax`.
+- `Facetable` flag honoured by `AssetSearchService` (see T1-SRCH-01 appendix entry).
+- Schema delete protected by existing-value guard unless `?force=true`, then cascades.
+
+**Deviations from the spec.** None material. Locale handling stayed at `LabelSv` single-column overrides; a JSONB-per-locale shape was left as a follow-up if a third locale appears.
+
+**Test coverage.** `tests/AssetHub.Tests/Services/MetadataSchemaServiceTests.cs`, `MetadataSchemaQueryServiceTests.cs`, `AssetMetadataServiceTests.cs`, `TaxonomyServiceTests.cs`, `TaxonomyQueryServiceTests.cs` — cover schema CRUD + scope validation, hierarchical taxonomy CRUD with cycle detection, typed-value upsert + validation per field type, and the bulk-apply endpoint.
+
+### T1-LIFE-01 — Soft delete, trash, and scheduled purge
+
+**Shipped 2026-04-21.** Landed across commits `942cd54`, `3d61ac2`, `13d4491`, `c301bd0` (phases 1-6). Memory entry: `project_t1_life_01_complete.md`.
+
+**Delivered as specified.**
+- `Asset.DeletedAt` (nullable UTC) + `Asset.DeletedByUserId` on the entity; EF Core global query filter `.HasQueryFilter(a => a.DeletedAt == null)` hides trashed rows from default queries. Trash and purge paths use `IgnoreQueryFilters()`.
+- `AssetLifecycleSettings` config class (`SectionName = "AssetLifecycle"`, `TrashRetentionDays = 30`, `ValidateOnStart = false`).
+- Soft-delete endpoints + admin trash surface at [AdminTrashEndpoints.cs](../../src/AssetHub.Api/Endpoints/AdminTrashEndpoints.cs): `GET /api/v1/admin/trash`, `POST /{id}/restore`, `DELETE /{id}` (permanent), `POST /empty` (second-confirm bulk permanent).
+- [TrashPurgeBackgroundService.cs](../../src/AssetHub.Worker/BackgroundServices/TrashPurgeBackgroundService.cs) hourly loop — finds assets with `DeletedAt < now - TrashRetentionDays`, deletes rows and MinIO objects.
+- UI: [AdminTrashTab.razor](../../src/AssetHub.Ui/Components/AdminTrashTab.razor); single-asset delete flows in `AssetDetail` / `AssetCardGrid` show optimistic removal + Undo snackbar that calls restore.
+- Cache invalidation via `CacheKeys.Tags.AssetList` on delete / restore.
+- CLAUDE.md's "No soft delete" rule was amended for `Asset` to match this item (see the Domain Entities section in CLAUDE.md).
+
+**Deviations from the spec.**
+- **Bulk Undo snackbar is not shipped.** Single-asset Undo works from detail and grid. The bulk path (`BulkAssetActionsDialog`) deletes but does not offer a single "Undo (N)" snackbar — a UX call left for a dedicated pass. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T1-LIFE-01 — BulkAssetActionsDialog undo-snackbar".
+- **TrashPurgeBackgroundService has no integration test.** Unit tests cover `AssetTrashService`; end-to-end worker-tick coverage needs a `WorkerFixture` pattern that doesn't exist yet. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T1-LIFE-01 — TrashPurgeBackgroundService integration test".
+- **Collection soft-delete not shipped.** Explicitly scoped out in the original spec; future T1-LIFE-02.
+
+**Test coverage.** `tests/AssetHub.Tests/Services/AssetTrashServiceTests.cs` covers the full loop (soft-delete, list, restore, permanent delete, empty). Repository tests cover the query-filter / `IgnoreQueryFilters` boundary. Endpoint tests cover admin-403 for non-admins.
+
+### T1-SRCH-01 — Faceted search with full-text, OCR, and saved searches
+
+**Shipped 2026-04-21.** Landed across commits `1e4b01e`, `461d49e`, `9100ec4`, `23abf26`, `59b4459`, `095fa7a`, `c53936b`, `ab6d84c`, `8ccbd63`. Memory entry: `project_t1_srch_01_complete.md`.
+
+**Delivered as specified.**
+- `search_vector` generated tsvector column on `Asset` with `setweight` A/B/C on Title / Description / Tags, GIN index `idx_asset_search_vector` (migration `20260419181317_AddAssetSearchAndSavedSearch` + reindex migration `20260419195521_BulkReindexSearchVector`).
+- [AssetSearchService.cs](../../src/AssetHub.Infrastructure/Services/AssetSearchService.cs) accepts a structured `AssetSearchRequest` (text, facet filters, sort, pagination). Facet counts aggregated in a second query per facet dimension.
+- `SavedSearch` entity (`Id`, `Name`, `OwnerUserId`, `RequestJson`, `Notify`, `LastRunAt`, `LastHighestSeenAssetId`, `CreatedAt`) + `SavedSearchNotifyCadence` enum (None / OnNewMatch / Daily / Weekly).
+- Endpoints: `POST /api/v1/assets/search` → `{ items, facets, totalCount }` ([AssetSearchEndpoints.cs](../../src/AssetHub.Api/Endpoints/AssetSearchEndpoints.cs)); standard CRUD at `/api/v1/saved-searches` ([SavedSearchEndpoints.cs](../../src/AssetHub.Api/Endpoints/SavedSearchEndpoints.cs)) scoped to owner.
+- UI: [SearchSidebar.razor](../../src/AssetHub.Ui/Components/SearchSidebar.razor) with faceted filter accordion + active-filter chips; [SavedSearchesMenu.razor](../../src/AssetHub.Ui/Components/SavedSearchesMenu.razor) in the nav menu.
+- Reads `Facetable` fields from T1-META-01 (metadata facets aggregate into the response).
+
+**Deviations from the spec.**
+- **Saved-search notification delivery is NOT shipped** — only the schema (`Notify`, `LastRunAt`, `LastHighestSeenAssetId`) is in place. See [SavedSearch.cs](../../src/AssetHub.Domain/Entities/SavedSearch.cs) comments: *"Schema-only in v1; the worker ships with T3-NTF-01."* The roadmap acceptance criterion "Saved search with `Daily` cadence generates a digest email" will be satisfied when T3-NTF-01 (notifications) ships and reads these columns. No standalone follow-up — this is part of T3-NTF-01's scope.
+- **OCR-content searchability** depends on T2-AI-03 which has not shipped. The schema supports it (the service already joins against `AssetMetadataValue` text values); once OCR writes extracted text into `Asset.Description` / metadata fields, it will be picked up automatically.
+
+**Test coverage.** `tests/AssetHub.Tests/Services/AssetSearchServiceTests.cs` + `SavedSearchServiceTests.cs` — cover tsvector query construction, facet aggregation, saved-search CRUD, owner isolation, and `RequestJson` round-trip.
+
+### T1-VER-01 — Asset versioning
+
+**Shipped 2026-04-21.** Landed across commits `b9f37a4`, `a4fe14e`, `4007449`, `7f1cbc2`. Memory entry: `project_t1_ver_01_complete.md`.
+
+**Delivered as specified.**
+- [AssetVersion.cs](../../src/AssetHub.Domain/Entities/AssetVersion.cs) entity with `VersionNumber` (1-based), per-version `OriginalObjectKey` / `ThumbObjectKey` / `MediumObjectKey` / `PosterObjectKey`, `SizeBytes`, `ContentType`, `Sha256`, `EditDocument`, JSONB `MetadataSnapshot`, `ChangeNote`, audit fields.
+- Unique index `idx_asset_version_asset_version_unique` on `(AssetId, VersionNumber)` (migration `20260419220555_AddAssetVersions`).
+- `Asset.CurrentVersionNumber` column; `ReplaceImageFileAsync` creates vN instead of overwriting; `versions/{versionNumber}/...` MinIO key layout.
+- Endpoints at [AssetVersionEndpoints.cs](../../src/AssetHub.Api/Endpoints/AssetVersionEndpoints.cs): `GET /api/v1/assets/{id}/versions`, `POST /{id}/versions/{n:int}/restore`, `DELETE /{id}/versions/{n:int}` (admin only).
+- `ProcessImageHandler` reuse: new versions schedule rendition processing writing to the versioned keys.
+- UI: [AssetVersionHistoryPanel.razor](../../src/AssetHub.Ui/Components/AssetVersionHistoryPanel.razor) under Derivatives in `AssetDetail`.
+- Soft-delete (T1-LIFE-01) cascades into version rows.
+
+**Deviations from the spec.**
+- **`SaveImageCopy` is not interpreted as a versioning event on the source asset.** Save-copy already creates a separate derivative asset with its own `SourceAssetId` trail; adding an `AssetVersion` on top of that would duplicate history. The source asset's bytes are unchanged, so there is no new version. This is a design call, not a bug — see [FOLLOW-UPS.md](./FOLLOW-UPS.md) "T1-VER-01 — SaveImageCopy versioning interpretation" for the alternative interpretation and the trigger for revisiting.
+- **Version thumbnail preview in the history panel is not shipped.** The DTO ships `ThumbObjectKey` per version, but the panel renders a plain table. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T1-VER-01 — version thumbnail preview in history panel".
+- **Real-Postgres integration tests for restore round-trip and purge cascade are not shipped.** Unit-level coverage via Moq is in; integration needs the same `WorkerFixture` pattern the purge service wants. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T1-VER-01 — AssetVersionService integration test against real Postgres".
+- **Check-in / check-out locking** is explicitly out of scope per the spec; future T3-COL-03.
+
+**Test coverage.** `tests/AssetHub.Tests/Services/AssetVersionServiceTests.cs` — covers list / restore / prune, version-number monotonicity, and admin-only prune authorisation. Integration coverage deferred per the FOLLOW-UPS entry above.
 
