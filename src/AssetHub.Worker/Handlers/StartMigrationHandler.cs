@@ -1,5 +1,7 @@
+using AssetHub.Application;
 using AssetHub.Application.Messages;
 using AssetHub.Application.Repositories;
+using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -7,6 +9,7 @@ namespace AssetHub.Worker.Handlers;
 
 public sealed class StartMigrationHandler(
     IMigrationRepository migrationRepo,
+    IAuditService audit,
     ILogger<StartMigrationHandler> logger)
 {
     public async Task<object[]> HandleAsync(StartMigrationCommand command, CancellationToken cancellationToken)
@@ -81,6 +84,21 @@ public sealed class StartMigrationHandler(
                 : MigrationStatus.Completed;
 
         await migrationRepo.UpdateAsync(migration, ct);
+
+        await audit.LogAsync(
+            MigrationConstants.AuditEvents.Completed,
+            Constants.ScopeTypes.Migration,
+            migration.Id,
+            actorUserId: null,
+            new Dictionary<string, object>
+            {
+                ["status"] = migration.Status.ToDbString(),
+                ["succeeded"] = counts.Succeeded,
+                ["failed"] = counts.Failed,
+                ["skipped"] = counts.Skipped,
+                ["total"] = counts.Total
+            },
+            ct);
 
         logger.LogInformation(
             "Migration {MigrationId} finalized: {Succeeded} succeeded, {Failed} failed, {Skipped} skipped",

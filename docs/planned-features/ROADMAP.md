@@ -61,6 +61,8 @@ Each tier can be implemented roughly in parallel *within* itself, but cross-tier
 
 ### T0-MIG-01 — Bulk import API and job runner
 
+> **Shipped 2026-04-21** (initial implementation `ddcc814` on 2026-04-19, hardening commit to follow). See the **Shipped appendix** at the end of this document for deviations from the original spec (pause/resume deferred; outcome CSV and duplicate detection as specified).
+
 **Intent.** Give administrators a supported, observable, resumable way to migrate thousands-to-millions of assets from another DAM, a SharePoint library, a Dropbox tree, or an S3 bucket into AssetHub. Manual multipart uploads do not scale past a few hundred files; commercial prospects expect tens of thousands in a single import.
 
 **User gain.** An admin creates a migration job, uploads a CSV manifest, streams the asset bytes in batches, watches progress in the Admin → Migrations tab, and gets a per-asset outcome report. Failures are reportable and restartable without redoing the completed work.
@@ -1057,3 +1059,43 @@ When a feature is reshaped:
 When a new gap is discovered:
 1. Add it in the appropriate Tier with a fresh ID.
 2. Cross-link from the gap analysis doc.
+
+---
+
+## Shipped
+
+### T1-API-01 — Public REST API + OpenAPI + Personal Access Tokens
+
+**Shipped 2026-04-20** across six phases plus one mid-flight security fix. See the memory entry `project_t1_api_01_complete.md` for the per-commit breakdown, framework quirks (nullable collections + `Dictionary<string, object>` schema workarounds), and the open PatAuth-factory named-policy evaluation gap.
+
+### T0-MIG-01 — Bulk import API and job runner
+
+**Shipped 2026-04-21.** Initial implementation landed 2026-04-19 (commit `ddcc814`); test coverage, the missing `migration.completed` audit event, and roadmap / memory bookkeeping landed in the follow-up.
+
+**Delivered as specified.**
+- `Migration` + `MigrationItem` entities with JSONB `SourceConfig` / `FieldMapping` / `MetadataJson` and `ValueComparer` wiring.
+- `MigrationSourceType`, `MigrationStatus`, `MigrationItemStatus` enums with `ToDbString` / `To*` extensions.
+- Indices as specified (status+created composite, migration+status composite, idempotency unique, sha256).
+- Admin endpoint surface under `/api/v1/admin/migrations` (see [MigrationEndpoints.cs](../../src/AssetHub.Api/Endpoints/MigrationEndpoints.cs)). Group policy `RequireAdmin`.
+- CSV manifest parser with quoted fields, escaped quotes, `metadata.*` prefix, semicolon-separated tags + collection names.
+- Staged-file model: manifest declares items; per-file staging uploads mark items `IsFileStaged=true`; `StartMigrationHandler` fans out only staged items; unstaged items keep the migration in `PartiallyCompleted`.
+- `ProcessMigrationItemHandler` creates assets, copies bytes from staging to `originals/{assetId}/…`, resolves/creates named collections (with admin ACL), schedules media processing, handles SHA256 duplicate detection, truncates long error messages to `MigrationConstants.Limits.MaxErrorMessageLength`.
+- Outcome CSV at `/{id}/outcome.csv` with the exact column set from the spec (`external_id, filename, status, target_asset_id, error_code, error_message`).
+- Audit events: `migration.created`, `migration.started`, `migration.cancelled`, `migration.completed`, `migration.deleted`, `migration.bulk_deleted`, `migration.retried`. `actorUserId: null` for worker-emitted `migration.completed` (finalize runs from both `StartMigrationHandler.FinalizeMigration` and `ProcessMigrationItemHandler.TryFinalizeMigration`).
+- Admin UI pages: list, detail with progress/items, create dialog, staging-file upload, outcome CSV download.
+
+**Deviations from the original spec.**
+- **Pause / resume endpoints are NOT shipped.** The existing design — retry failed items (`POST /{id}/retry`) + `PartiallyCompleted` status for unstaged items + `cancel` for hard stop — covers the main resumability use case without adding a state-machine dimension. Revisit if a customer demands mid-run pause of an in-flight batch; the path is: add `MigrationStatus.Paused`, a `PauseMigrationHandler`, and a `ResumeMigrationHandler` that re-publishes `ProcessMigrationItemCommand` for remaining pending items. Spec acceptance criterion "pausing mid-run stops new item handlers within 5 seconds" is not met; treat this as a known gap.
+- **`migration.paused` / `migration.resumed` audit events are NOT emitted** (they would only exist once pause/resume ships). All other events from the spec's audit list are wired.
+- **Batch upload of a ZIP file (`/items/batch-upload`) is NOT shipped** — the admin UI uploads files individually to `/files`. Adequate for the initial import flows but documented as a follow-up if customers bring pre-bundled ZIPs.
+- **`?purgeAssets=true` on DELETE is NOT shipped.** Deleting a migration record leaves any produced assets intact; admins delete them via the normal asset UI. Low-stakes deviation.
+- **Pull connectors (`/s3/scan` and T0-MIG-02..05 generally) are NOT shipped** — they remain as separate roadmap items.
+
+**Race-condition known issue.** `ProcessMigrationItemHandler.TryFinalizeMigration` is not serialised across concurrent item handlers. In theory two handlers finalising the last two items at the same time could both pass the `counts.StagedPending == 0 && counts.Processing == 0` check and both emit `migration.completed`. In practice the window is small and the second `UpdateAsync` is idempotent; the only user-visible symptom is a duplicate audit entry. A proper fix (advisory lock or optimistic concurrency token on the `Migrations` row) is deferred — call this out if we ever see duplicate completed events in the audit log.
+
+**Test coverage landed in hardening pass.**
+- `tests/AssetHub.Tests/Services/MigrationServiceTests.cs` — 44 unit tests (auth gates, CSV parsing, manifest re-upload, staging upload path sanitisation, retry from terminal states, bulk delete filters).
+- `tests/AssetHub.Tests/Handlers/StartMigrationHandlerTests.cs` (7) + `ProcessMigrationItemHandlerTests.cs` (22) — cover fan-out, dry run, duplicate SHA256, error truncation, `migration.completed` emission, and the "pending siblings skip finalize" path.
+- `tests/AssetHub.Tests/Repositories/MigrationRepositoryTests.cs` — 21 Postgres-fixture tests for JSONB persistence, item count aggregation, cascade delete, case-insensitive staging match.
+- `tests/AssetHub.Tests/Endpoints/MigrationEndpointTests.cs` — 23 HTTP tests (viewer-403 gates, validation, create→manifest→start happy path, bulk delete filter).
+

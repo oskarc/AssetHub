@@ -18,6 +18,7 @@ public sealed class ProcessMigrationItemHandler(
     ICollectionAclRepository collectionAclRepo,
     IMinIOAdapter minioAdapter,
     IMediaProcessingService mediaProcessing,
+    IAuditService audit,
     HybridCache cache,
     IOptions<MinIOSettings> minioSettings,
     ILogger<ProcessMigrationItemHandler> logger)
@@ -292,6 +293,21 @@ public sealed class ProcessMigrationItemHandler(
                 : MigrationStatus.Completed;
 
         await migrationRepo.UpdateAsync(migration, ct);
+
+        await audit.LogAsync(
+            MigrationConstants.AuditEvents.Completed,
+            Constants.ScopeTypes.Migration,
+            migration.Id,
+            actorUserId: null,
+            new Dictionary<string, object>
+            {
+                ["status"] = migration.Status.ToDbString(),
+                ["succeeded"] = counts.Succeeded,
+                ["failed"] = counts.Failed,
+                ["skipped"] = counts.Skipped,
+                ["total"] = counts.Total
+            },
+            ct);
 
         logger.LogInformation(
             "Migration {MigrationId} completed: {Succeeded} succeeded, {Failed} failed, {Skipped} skipped",

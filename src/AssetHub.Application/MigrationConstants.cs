@@ -25,6 +25,7 @@ public static class MigrationConstants
     {
         public const string Created = "migration.created";
         public const string Started = "migration.started";
+        public const string Completed = "migration.completed";
         public const string Cancelled = "migration.cancelled";
         public const string Deleted = "migration.deleted";
         public const string BulkDeleted = "migration.bulk_deleted";

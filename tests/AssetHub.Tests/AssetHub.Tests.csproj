@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AssetHub.Api\AssetHub.Api.csproj" />
+    <ProjectReference Include="..\..\src\AssetHub.Worker\AssetHub.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>
