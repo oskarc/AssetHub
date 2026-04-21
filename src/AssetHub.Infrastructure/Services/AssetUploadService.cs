@@ -86,6 +86,9 @@ public sealed class AssetUploadService : IAssetUploadService
         if (!canContribute)
             return ServiceError.Forbidden();
 
+        if (skipDuplicateCheck && !_currentUser.IsSystemAdmin)
+            return ServiceError.Forbidden("Only administrators can bypass duplicate detection.");
+
         if (fileSize == 0)
             return ServiceError.BadRequest("File is required");
 
@@ -120,22 +123,22 @@ public sealed class AssetUploadService : IAssetUploadService
         var sha256Hash = Convert.ToHexStringLower(hashBytes);
         fileStream.Position = 0;
 
-        // Check for duplicate unless explicitly skipped (admin override)
-        if (!skipDuplicateCheck)
+        // Check for duplicate. Admin callers can bypass with skipDuplicateCheck=true; we still
+        // look up the existing asset so we can emit a duplicate_override audit row.
+        var duplicate = await _assetRepo.GetBySha256Async(sha256Hash, ct);
+        if (duplicate is not null && !skipDuplicateCheck)
         {
-            var existing = await _assetRepo.GetBySha256Async(sha256Hash, ct);
-            if (existing is not null)
-            {
-                _logger.LogInformation("Duplicate asset detected for upload {FileName}: existing asset {ExistingAssetId} ({ExistingTitle})",
-                    fileName, existing.Id, existing.Title);
-                return ServiceError.DuplicateAsset(
-                    "A file with identical content already exists.",
-                    new Dictionary<string, string>
-                    {
-                        ["existingAssetId"] = existing.Id.ToString(),
-                        ["existingTitle"] = existing.Title
-                    });
-            }
+            _logger.LogInformation("Duplicate asset detected for upload {FileName}: existing asset {ExistingAssetId} ({ExistingTitle})",
+                fileName, duplicate.Id, duplicate.Title);
+            await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
+                new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString(), ["fileName"] = fileName }, ct);
+            return ServiceError.DuplicateAsset(
+                "A file with identical content already exists.",
+                new Dictionary<string, string>
+                {
+                    ["existingAssetId"] = duplicate.Id.ToString(),
+                    ["existingTitle"] = duplicate.Title
+                });
         }
 
         var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, AssetStatus.Processing);
@@ -170,6 +173,12 @@ public sealed class AssetUploadService : IAssetUploadService
         await _audit.LogAsync("asset.created", Constants.ScopeTypes.Asset, asset.Id, userId,
             new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
             ct);
+
+        if (duplicate is not null && skipDuplicateCheck)
+        {
+            await _audit.LogAsync("asset.duplicate_override", Constants.ScopeTypes.Asset, asset.Id, userId,
+                new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString() }, ct);
+        }
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
 
@@ -251,6 +260,9 @@ public sealed class AssetUploadService : IAssetUploadService
         if (asset.CreatedByUserId != userId && !await CanAccessAssetAsync(id, userId, RoleHierarchy.Roles.Contributor, ct))
             return ServiceError.Forbidden();
 
+        if (skipDuplicateCheck && !_currentUser.IsSystemAdmin)
+            return ServiceError.Forbidden("Only administrators can bypass duplicate detection.");
+
         if (asset.Status != AssetStatus.Uploading)
             return ServiceError.BadRequest("Asset is not in uploading state");
 
@@ -294,23 +306,23 @@ public sealed class AssetUploadService : IAssetUploadService
         var hashBytes = await SHA256.HashDataAsync(fileStream, ct);
         var sha256Hash = Convert.ToHexStringLower(hashBytes);
 
-        // Check for duplicate unless explicitly skipped (admin override).
+        // Check for duplicate. Admin callers can bypass with skipDuplicateCheck=true; we still
+        // look up the existing asset so we can emit a duplicate_override audit row.
         // The asset stays in "Uploading" state so the user can retry with force=true.
-        if (!skipDuplicateCheck)
+        var duplicate = await _assetRepo.GetBySha256Async(sha256Hash, ct);
+        if (duplicate is not null && duplicate.Id != asset.Id && !skipDuplicateCheck)
         {
-            var existing = await _assetRepo.GetBySha256Async(sha256Hash, ct);
-            if (existing is not null)
-            {
-                _logger.LogInformation("Duplicate asset detected during confirm for {AssetId}: existing asset {ExistingAssetId} ({ExistingTitle})",
-                    id, existing.Id, existing.Title);
-                return ServiceError.DuplicateAsset(
-                    "A file with identical content already exists.",
-                    new Dictionary<string, string>
-                    {
-                        ["existingAssetId"] = existing.Id.ToString(),
-                        ["existingTitle"] = existing.Title
-                    });
-            }
+            _logger.LogInformation("Duplicate asset detected during confirm for {AssetId}: existing asset {ExistingAssetId} ({ExistingTitle})",
+                id, duplicate.Id, duplicate.Title);
+            await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
+                new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString(), ["pendingAssetId"] = asset.Id.ToString() }, ct);
+            return ServiceError.DuplicateAsset(
+                "A file with identical content already exists.",
+                new Dictionary<string, string>
+                {
+                    ["existingAssetId"] = duplicate.Id.ToString(),
+                    ["existingTitle"] = duplicate.Title
+                });
         }
 
         asset.Sha256 = sha256Hash;
@@ -338,6 +350,12 @@ public sealed class AssetUploadService : IAssetUploadService
 
         await _audit.LogAsync("asset.upload_confirmed", Constants.ScopeTypes.Asset, asset.Id, userId,
             new() { ["title"] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
+
+        if (duplicate is not null && duplicate.Id != asset.Id && skipDuplicateCheck)
+        {
+            await _audit.LogAsync("asset.duplicate_override", Constants.ScopeTypes.Asset, asset.Id, userId,
+                new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString() }, ct);
+        }
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
 

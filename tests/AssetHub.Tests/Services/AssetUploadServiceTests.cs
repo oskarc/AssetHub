@@ -668,7 +668,9 @@ public class AssetUploadServiceTests : IAsyncLifetime
     public async Task UploadAsync_ExistingSha256_ForceOverride_Succeeds()
     {
         var collectionId = await CreateCollectionWithAccessAsync();
-        var sut = CreateSut(ContributorUser);
+        // Admin identity: same principal as ContributorUser so the collection ACL passes,
+        // plus the system-admin bit so skipDuplicateCheck is allowed.
+        var sut = CreateSut(ContributorUser, isSystemAdmin: true);
 
         var jpegBytes = GetMagicBytesForContentType("image/jpeg");
         using var stream1 = new MemoryStream(jpegBytes);
@@ -681,6 +683,74 @@ public class AssetUploadServiceTests : IAsyncLifetime
 
         Assert.True(secondResult.IsSuccess);
         Assert.NotEqual(firstResult.Value!.Id, secondResult.Value!.Id);
+    }
+
+    [Fact]
+    public async Task UploadAsync_NonAdminForceOverride_ReturnsForbidden()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser);
+
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        using var stream = new MemoryStream(jpegBytes);
+        var result = await sut.UploadAsync(stream, "photo.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo", skipDuplicateCheck: true, ct: CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(403, result.Error!.StatusCode);
+    }
+
+    [Fact]
+    public async Task UploadAsync_Duplicate_EmitsDuplicateBlockedAuditEvent()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser);
+
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        using var stream1 = new MemoryStream(jpegBytes);
+        var firstResult = await sut.UploadAsync(stream1, "photo.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo", ct: CancellationToken.None);
+        Assert.True(firstResult.IsSuccess);
+
+        _auditMock.Invocations.Clear();
+
+        using var stream2 = new MemoryStream(jpegBytes);
+        var secondResult = await sut.UploadAsync(stream2, "photo-copy.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo Copy", ct: CancellationToken.None);
+
+        Assert.False(secondResult.IsSuccess);
+        _auditMock.Verify(a => a.LogAsync(
+            "asset.duplicate_blocked",
+            Constants.ScopeTypes.Asset,
+            firstResult.Value!.Id,
+            ContributorUser,
+            It.Is<Dictionary<string, object>>(d => d.ContainsKey("sha256") && d.ContainsKey("existingAssetId")),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadAsync_AdminForceOverride_EmitsDuplicateOverrideAuditEvent()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser, isSystemAdmin: true);
+
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        using var stream1 = new MemoryStream(jpegBytes);
+        var firstResult = await sut.UploadAsync(stream1, "photo.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo", ct: CancellationToken.None);
+        Assert.True(firstResult.IsSuccess);
+
+        _auditMock.Invocations.Clear();
+
+        using var stream2 = new MemoryStream(jpegBytes);
+        var secondResult = await sut.UploadAsync(stream2, "photo-copy.jpg", "image/jpeg", jpegBytes.Length, collectionId, "Photo Copy", skipDuplicateCheck: true, ct: CancellationToken.None);
+
+        Assert.True(secondResult.IsSuccess);
+        _auditMock.Verify(a => a.LogAsync(
+            "asset.duplicate_override",
+            Constants.ScopeTypes.Asset,
+            secondResult.Value!.Id,
+            ContributorUser,
+            It.Is<Dictionary<string, object>>(d => d.ContainsKey("sha256") && d["existingAssetId"].ToString() == firstResult.Value!.Id.ToString()),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -746,7 +816,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
     public async Task ConfirmUploadAsync_DuplicateSha256_ForceOverride_Succeeds()
     {
         var collectionId = await CreateCollectionWithAccessAsync();
-        var sut = CreateSut(ContributorUser);
+        var sut = CreateSut(ContributorUser, isSystemAdmin: true);
 
         // First: create a ready asset
         var jpegBytes = GetMagicBytesForContentType("image/jpeg");
@@ -772,9 +842,41 @@ public class AssetUploadServiceTests : IAsyncLifetime
         _minioMock.Setup(m => m.DownloadAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MemoryStream(jpegBytes));
 
+        _auditMock.Invocations.Clear();
         var confirmResult = await sut.ConfirmUploadAsync(initResult.Value!.AssetId, skipDuplicateCheck: true, ct: CancellationToken.None);
 
         Assert.True(confirmResult.IsSuccess);
+        _auditMock.Verify(a => a.LogAsync(
+            "asset.duplicate_override",
+            Constants.ScopeTypes.Asset,
+            confirmResult.Value!.Id,
+            ContributorUser,
+            It.Is<Dictionary<string, object>>(d => d.ContainsKey("sha256") && d["existingAssetId"].ToString() == firstResult.Value!.Id.ToString()),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ConfirmUploadAsync_NonAdminForceOverride_ReturnsForbidden()
+    {
+        var collectionId = await CreateCollectionWithAccessAsync();
+        var sut = CreateSut(ContributorUser);
+
+        var jpegBytes = GetMagicBytesForContentType("image/jpeg");
+        var initResult = await sut.InitUploadAsync(new InitUploadRequest
+        {
+            FileName = "something.jpg",
+            ContentType = "image/jpeg",
+            FileSize = jpegBytes.Length,
+            Title = "Something",
+            CollectionId = collectionId
+        }, CancellationToken.None);
+        Assert.True(initResult.IsSuccess);
+
+        var result = await sut.ConfirmUploadAsync(initResult.Value!.AssetId, skipDuplicateCheck: true, ct: CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(403, result.Error!.StatusCode);
     }
 
     // ── Helper Methods ───────────────────────────────────────────────────────

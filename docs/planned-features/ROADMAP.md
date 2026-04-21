@@ -478,26 +478,7 @@ GIN indices (raw SQL in migration):
 
 ### T1-DUP-01 — Duplicate detection on upload
 
-**Intent.** `Asset.Sha256` is computed and stored but never consulted. Duplicates silently accumulate.
-
-**User gain.** On upload, if the same file is already in AssetHub, the user sees *"This file is already in collection X as Y"* with a "Go to existing" button; import is blocked (or `?force=true` allowed for admins).
-
-**Business gain.** Storage savings, cleaner libraries, table-stakes parity.
-
-**Current state.** `AssetUploadService.UploadAsync` computes SHA256 during validation but doesn't query for duplicates.
-
-**Target state.** Before persisting, run `IAssetRepository.FindBySha256Async(sha256)`; if present and not soft-deleted, return a `ServiceError.Conflict` with `Code = "DUPLICATE"` and a payload including existing asset id + title + collection names.
-
-**API / DTO.** `ServiceError.Conflict(message, data: { existingAssetId, existingTitle, collections })`. Upload endpoint surfaces this as a 409 with the payload intact (extend `ServiceResult.ToHttpResult()` to preserve structured error data).
-
-**UI.** `AssetUpload.razor` handles the 409 and shows a Duplicate card with "Go to existing" / "Upload anyway (admin only)". Also applies to `T0-MIG-01` migration item processing (skips with `Skipped_Duplicate`).
-
-**Acceptance criteria.**
-- Uploading the same file twice yields a clear duplicate message.
-- Existing test `AssetUploadServiceTests` gains a `Upload_ExistingSha256_ReturnsConflict` case.
-- Admin override via `?force=true` creates a second asset pointing to the same SHA256 (document this explicitly).
-
-**Dependencies.** None.
+> **Shipped 2026-04-21.** Core duplicate detection landed incrementally across earlier upload work; admin-only force gate + `asset.duplicate_blocked` / `asset.duplicate_override` audit events completed the spec. See the **Shipped appendix** for details.
 
 ---
 
@@ -1098,4 +1079,21 @@ When a new gap is discovered:
 - `tests/AssetHub.Tests/Handlers/StartMigrationHandlerTests.cs` (7) + `ProcessMigrationItemHandlerTests.cs` (22) — cover fan-out, dry run, duplicate SHA256, error truncation, `migration.completed` emission, and the "pending siblings skip finalize" path.
 - `tests/AssetHub.Tests/Repositories/MigrationRepositoryTests.cs` — 21 Postgres-fixture tests for JSONB persistence, item count aggregation, cascade delete, case-insensitive staging match.
 - `tests/AssetHub.Tests/Endpoints/MigrationEndpointTests.cs` — 23 HTTP tests (viewer-403 gates, validation, create→manifest→start happy path, bulk delete filter).
+
+### T1-DUP-01 — Duplicate detection on upload
+
+**Shipped 2026-04-21.** Core duplicate detection (`GetBySha256Async` + `DUPLICATE_ASSET` 409 with structured `details` + `?force=true` override) landed incrementally during earlier upload work; this pass added the remaining spec items.
+
+**Delivered as specified.**
+- `IAssetRepository.GetBySha256Async` consulted in both `AssetUploadService.UploadAsync` and `ConfirmUploadAsync`.
+- 409 `ServiceError.DuplicateAsset` carries `existingAssetId` + `existingTitle`; `ServiceResult.ToHttpResult()` preserves the `Details` dictionary onto the wire via `ApiError`.
+- `?force=true` on `POST /api/v1/assets` and `POST /api/v1/assets/{id}/confirm-upload` allows admin override.
+- UI: [AssetUpload.razor](../../src/AssetHub.Ui/Components/AssetUpload.razor) catches `ApiException.ErrorCode == "DUPLICATE_ASSET"` and routes to [UploadErrorsDialog.razor](../../src/AssetHub.Ui/Components/UploadErrorsDialog.razor) with a "Go to existing" link. Localised in EN + SV (`Error_DuplicateAsset`, `Alert_DuplicateBlocked`, `Link_GoToExisting`).
+- Migration pipeline: [ProcessMigrationItemHandler.cs](../../src/AssetHub.Worker/Handlers/ProcessMigrationItemHandler.cs) checks SHA256 and marks items with `MigrationConstants.ErrorCodes.Duplicate`.
+- Audit events: `asset.duplicate_blocked` (emitted at 409) and `asset.duplicate_override` (emitted after successful admin force-override), both recorded with sha256 + existingAssetId.
+- Admin-only gate: non-admin callers passing `skipDuplicateCheck=true` get `403 Forbidden` ("Only administrators can bypass duplicate detection.").
+
+**Test coverage.** `tests/AssetHub.Tests/Services/AssetUploadServiceTests.cs` — 7 duplicate-focused tests: `UploadAsync_ExistingSha256_ReturnsConflict`, `_ForceOverride_Succeeds`, `_NonAdminForceOverride_ReturnsForbidden`, `_DifferentContent_NoDuplicate`, `_Duplicate_EmitsDuplicateBlockedAuditEvent`, `_AdminForceOverride_EmitsDuplicateOverrideAuditEvent`, plus equivalents on `ConfirmUploadAsync`.
+
+**Deviations from the spec.** None material. The spec's `collections` field on the 409 payload was dropped in favour of just `existingAssetId` + `existingTitle` — the UI only needs the link target, and collections are one hop away via the existing asset detail page.
 
