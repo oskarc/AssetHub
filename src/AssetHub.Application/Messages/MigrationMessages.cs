@@ -20,6 +20,16 @@ public record ProcessMigrationItemCommand
     public Guid MigrationItemId { get; init; }
 }
 
+/// <summary>
+/// Enumerates objects in the S3 bucket configured on the migration and creates
+/// a <c>MigrationItem</c> row per object. Runs in the worker so a large bucket
+/// scan doesn't block the admin request thread.
+/// </summary>
+public record S3MigrationScanCommand
+{
+    public Guid MigrationId { get; init; }
+}
+
 // ── Events ───────────────────────────────────────────────────────────────
 
 /// <summary>

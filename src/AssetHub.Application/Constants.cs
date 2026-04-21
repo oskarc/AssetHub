@@ -53,6 +53,7 @@ public static class Constants
         public const string ShareTokenProtector = "ShareTokenProtector";
         public const string ShareAccessTokenProtector = "ShareAccessTokenProtector";
         public const string SharePasswordProtector = "SharePasswordProtector";
+        public const string MigrationSourceSecretProtector = "MigrationSourceSecretProtector";
     }
 
     /// <summary>

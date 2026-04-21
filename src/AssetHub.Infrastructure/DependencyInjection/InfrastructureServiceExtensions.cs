@@ -147,6 +147,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IZipBuildService>(sp => sp.GetRequiredService<ZipBuildService>());
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
         services.AddScoped<IMigrationService, MigrationService>();
+        services.AddSingleton<IMigrationSecretProtector, MigrationSecretProtector>();
 
         return services;
     }

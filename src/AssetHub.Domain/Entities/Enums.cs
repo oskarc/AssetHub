@@ -72,7 +72,8 @@ public enum ZipDownloadStatus
 /// </summary>
 public enum MigrationSourceType
 {
-    CsvUpload
+    CsvUpload,
+    S3
 }
 
 /// <summary>
@@ -236,6 +237,7 @@ public static class DomainEnumExtensions
     public static string ToDbString(this MigrationSourceType type) => type switch
     {
         MigrationSourceType.CsvUpload => "csv_upload",
+        MigrationSourceType.S3 => "s3",
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
 
@@ -358,6 +360,7 @@ public static class DomainEnumExtensions
     public static MigrationSourceType ToMigrationSourceType(this string value) => value switch
     {
         "csv_upload" => MigrationSourceType.CsvUpload,
+        "s3" => MigrationSourceType.S3,
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown migration source type: {value}")
     };
 
