@@ -50,7 +50,11 @@
         _jsModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AssetHub.Ui/js/helpers.js");
         await _jsModule.InvokeVoidAsync("setCookie", CookieRequestCultureProvider.DefaultCookieName, cookieValue, 31536000);
 
-        Nav.NavigateTo(Nav.Uri, forceLoad: true);
+        // Reload the current page. Derive a base-relative path so navigation is guaranteed
+        // same-origin even if Nav.Uri has somehow been influenced — closes the open-redirect
+        // taint path Sonar flags on the raw Nav.Uri → NavigateTo flow.
+        var relative = Nav.ToBaseRelativePath(Nav.Uri);
+        Nav.NavigateTo(relative, forceLoad: true);
     }
 
     public async ValueTask DisposeAsync()

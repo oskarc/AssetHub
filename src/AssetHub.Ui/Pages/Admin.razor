@@ -64,8 +64,9 @@
     private void OnActiveTabChanged(int index)
     {
         _activeTabIndex = index;
-        var baseUri = Navigation.Uri.Split('?')[0];
-        Navigation.NavigateTo($"{baseUri}?tab={index}", replace: true);
+        // Hardcode the known route rather than round-tripping through Navigation.Uri —
+        // closes the open-redirect taint path Sonar flags on user-influenced URIs.
+        Navigation.NavigateTo($"/admin?tab={index}", replace: true);
     }
 
     private async Task OnUsersChanged()
