@@ -117,10 +117,11 @@ public sealed class S3MigrationScanHandler(
 
     private static MigrationItem BuildItem(Migration migration, S3ObjectInfo obj, int rowNumber)
     {
-        var filename = Path.GetFileName(obj.Key);
-        if (string.IsNullOrWhiteSpace(filename))
-            filename = obj.Key;
+        var rawName = Path.GetFileName(obj.Key);
+        if (string.IsNullOrWhiteSpace(rawName))
+            rawName = obj.Key;
 
+        var filename = SanitizeFileName(rawName);
         var title = Path.GetFileNameWithoutExtension(filename);
 
         return new MigrationItem
@@ -142,6 +143,17 @@ public sealed class S3MigrationScanHandler(
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{migrationId}:{externalId}"));
         return Convert.ToHexStringLower(hash);
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        // Mirrors MigrationService.SanitizeFileName — the remote object key
+        // segment after the last '/' is treated as the logical filename and must
+        // pass the same path-traversal / invalid-char filter as uploaded files.
+        var name = Path.GetFileName(fileName);
+        name = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
+        name = name.Replace("..", "_").TrimStart('.', ' ').TrimEnd(' ');
+        return string.IsNullOrWhiteSpace(name) ? "unnamed" : name;
     }
 
     private async Task RecordScanFailure(

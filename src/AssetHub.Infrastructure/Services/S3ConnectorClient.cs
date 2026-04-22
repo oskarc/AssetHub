@@ -2,6 +2,7 @@ using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using Microsoft.Extensions.Logging;
 using Minio;
+using Minio.Exceptions;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -50,6 +51,64 @@ public sealed class S3ConnectorClient(ILogger<S3ConnectorClient> logger) : IS3Co
         }
 
         return items;
+    }
+
+    public async Task<ObjectStatInfo?> StatObjectAsync(
+        S3SourceConfigDto config, string objectKey, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentException.ThrowIfNullOrEmpty(objectKey);
+
+        using var client = BuildClient(config);
+
+        try
+        {
+            var stat = await client.StatObjectAsync(
+                new StatObjectArgs().WithBucket(config.Bucket).WithObject(objectKey), ct);
+            return new ObjectStatInfo(
+                stat.Size,
+                string.IsNullOrEmpty(stat.ContentType) ? "application/octet-stream" : stat.ContentType,
+                stat.ETag ?? string.Empty);
+        }
+        catch (ObjectNotFoundException)
+        {
+            return null;
+        }
+        catch (BucketNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<Stream> DownloadObjectAsync(
+        S3SourceConfigDto config, string objectKey, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentException.ThrowIfNullOrEmpty(objectKey);
+
+        using var client = BuildClient(config);
+
+        var buffer = new MemoryStream();
+        var getArgs = new GetObjectArgs()
+            .WithBucket(config.Bucket)
+            .WithObject(objectKey)
+            .WithCallbackStream(async (stream, innerCt) =>
+            {
+                await stream.CopyToAsync(buffer, innerCt);
+            });
+
+        try
+        {
+            await client.GetObjectAsync(getArgs, ct);
+        }
+        catch
+        {
+            await buffer.DisposeAsync();
+            throw;
+        }
+
+        buffer.Position = 0;
+        return buffer;
     }
 
     private static IMinioClient BuildClient(S3SourceConfigDto config)

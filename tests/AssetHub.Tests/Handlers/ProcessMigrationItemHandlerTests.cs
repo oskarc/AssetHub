@@ -1,6 +1,7 @@
 using System.Text;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
+using AssetHub.Application.Dtos;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Application.Messages;
@@ -21,10 +22,20 @@ public class ProcessMigrationItemHandlerTests
     private readonly Mock<ICollectionRepository> _collectionRepo = new();
     private readonly Mock<ICollectionAclRepository> _aclRepo = new();
     private readonly Mock<IMinIOAdapter> _minio = new();
+    private readonly Mock<IS3ConnectorClient> _s3 = new();
+    private readonly Mock<IMigrationSecretProtector> _secretProtector = new();
     private readonly Mock<IMediaProcessingService> _media = new();
     private readonly Mock<IAuditService> _audit = new();
 
     private const string Bucket = "assets";
+
+    public ProcessMigrationItemHandlerTests()
+    {
+        _secretProtector.Setup(p => p.Protect(It.IsAny<string>()))
+            .Returns<string>(s => $"enc({s})");
+        _secretProtector.Setup(p => p.Unprotect(It.IsAny<string>()))
+            .Returns<string>(s => s.StartsWith("enc(") && s.EndsWith(')') ? s[4..^1] : s);
+    }
 
     private ProcessMigrationItemHandler CreateHandler()
         => new(
@@ -34,6 +45,8 @@ public class ProcessMigrationItemHandlerTests
             _collectionRepo.Object,
             _aclRepo.Object,
             _minio.Object,
+            _s3.Object,
+            _secretProtector.Object,
             _media.Object,
             _audit.Object,
             TestCacheHelper.CreateHybridCache(),
@@ -501,5 +514,191 @@ public class ProcessMigrationItemHandlerTests
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>(),
             It.IsAny<string?>(), It.IsAny<Dictionary<string, object>?>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    // ── S3 source ingest ─────────────────────────────────────────────
+
+    private static S3SourceConfigDto ValidS3Config() => new()
+    {
+        Endpoint = "https://s3.eu-west-1.amazonaws.com",
+        Bucket = "bucket-a",
+        Prefix = "photos/",
+        AccessKey = "AK",
+        SecretKey = "SK",
+        Region = "eu-west-1"
+    };
+
+    private Migration MakeS3Migration(
+        Guid? defaultCollectionId = null, bool dryRun = false)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            Name = "S3 migration",
+            SourceType = MigrationSourceType.S3,
+            Status = MigrationStatus.Running,
+            DryRun = dryRun,
+            DefaultCollectionId = defaultCollectionId,
+            CreatedByUserId = "admin-1",
+            CreatedAt = DateTime.UtcNow,
+            SourceConfig = MigrationS3ConfigCodec.Write(ValidS3Config(), _secretProtector.Object)
+        };
+
+    private static MigrationItem MakeS3Item(
+        Guid migrationId,
+        string objectKey = "photos/a/alpha.jpg",
+        string fileName = "alpha.jpg",
+        MigrationItemStatus status = MigrationItemStatus.Pending)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            MigrationId = migrationId,
+            FileName = fileName,
+            SourcePath = objectKey,
+            ExternalId = objectKey,
+            Status = status,
+            IsFileStaged = false,   // S3 items are never locally staged
+            IdempotencyKey = Guid.NewGuid().ToString(),
+            CollectionNames = new List<string>(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+    [Fact]
+    public async Task HandleAsync_S3_HappyPath_DownloadsUploadsCreatesAsset()
+    {
+        var migration = MakeS3Migration();
+        var item = MakeS3Item(migration.Id);
+
+        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
+        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
+        _s3.Setup(s => s.StatObjectAsync(It.IsAny<S3SourceConfigDto>(), "photos/a/alpha.jpg", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(2048, "image/jpeg", "etag-a"));
+        _s3.Setup(s => s.DownloadObjectAsync(It.IsAny<S3SourceConfigDto>(), "photos/a/alpha.jpg", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new MemoryStream(new byte[] { 1, 2, 3, 4 }));
+        _assetRepo.Setup(a => a.GetBySha256Async(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((Asset?)null);
+        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 1, 0, 0, 0, 0));  // S3: Staged=0 is normal
+
+        await CreateHandler().HandleAsync(
+            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
+            CancellationToken.None);
+
+        Assert.Equal(MigrationItemStatus.Succeeded, item.Status);
+        Assert.NotNull(item.AssetId);
+        Assert.NotNull(item.Sha256);   // computed from downloaded bytes
+        _assetRepo.Verify(a => a.CreateAsync(It.Is<Asset>(ax =>
+            ax.Sha256 == item.Sha256
+            && ax.SizeBytes == 2048
+            && ax.ContentType == "image/jpeg"
+            && ax.AssetType == AssetType.Image
+            && ax.OriginalObjectKey.EndsWith("/alpha.jpg")), It.IsAny<CancellationToken>()), Times.Once);
+        _minio.Verify(m => m.UploadAsync(
+            Bucket, It.Is<string>(k => k.EndsWith("/alpha.jpg")),
+            It.IsAny<Stream>(), "image/jpeg", It.IsAny<CancellationToken>()), Times.Once);
+        _media.Verify(m => m.ScheduleProcessingAsync(
+            It.IsAny<Guid>(), "image", It.IsAny<string>(), false, It.IsAny<CancellationToken>()), Times.Once);
+
+        // Finalize audit should now fire as Completed (not PartiallyCompleted) — S3 has no staging.
+        _audit.Verify(a => a.LogAsync(
+            MigrationConstants.AuditEvents.Completed,
+            Constants.ScopeTypes.Migration,
+            migration.Id, null,
+            It.Is<Dictionary<string, object>?>(d => d != null && (string)d["status"] == "completed"),
+            It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(MigrationStatus.Completed, migration.Status);
+    }
+
+    [Fact]
+    public async Task HandleAsync_S3_StatReturnsNull_MarksFileNotFound()
+    {
+        var migration = MakeS3Migration();
+        var item = MakeS3Item(migration.Id);
+
+        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
+        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
+        _s3.Setup(s => s.StatObjectAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ObjectStatInfo?)null);
+        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 1, 0, 0, 0));
+
+        await CreateHandler().HandleAsync(
+            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
+            CancellationToken.None);
+
+        Assert.Equal(MigrationItemStatus.Failed, item.Status);
+        Assert.Equal(MigrationConstants.ErrorCodes.FileNotFound, item.ErrorCode);
+        _s3.Verify(s => s.DownloadObjectAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_S3_DownloadThrows_MarksFailed()
+    {
+        var migration = MakeS3Migration();
+        var item = MakeS3Item(migration.Id);
+
+        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
+        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
+        _s3.Setup(s => s.StatObjectAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(10, "image/png", "e"));
+        _s3.Setup(s => s.DownloadObjectAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Access Denied"));
+        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 1, 0, 0, 0));
+
+        await CreateHandler().HandleAsync(
+            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
+            CancellationToken.None);
+
+        Assert.Equal(MigrationItemStatus.Failed, item.Status);
+        Assert.Equal(MigrationConstants.ErrorCodes.ProcessingError, item.ErrorCode);
+        Assert.Contains("Access Denied", item.ErrorMessage);
+        _assetRepo.Verify(a => a.CreateAsync(It.IsAny<Asset>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_S3_InvalidStoredConfig_MarksFailed()
+    {
+        var migration = MakeS3Migration();
+        migration.SourceConfig.Clear();  // codec.Read will throw
+        var item = MakeS3Item(migration.Id);
+
+        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
+        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
+        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 1, 0, 0, 0));
+
+        await CreateHandler().HandleAsync(
+            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
+            CancellationToken.None);
+
+        Assert.Equal(MigrationItemStatus.Failed, item.Status);
+        _s3.Verify(s => s.StatObjectAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_S3_DuplicateSha256_SkipsAndLinksExistingAsset()
+    {
+        var migration = MakeS3Migration();
+        var item = MakeS3Item(migration.Id);
+        var existing = TestData.CreateAsset();
+
+        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
+        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
+        _s3.Setup(s => s.StatObjectAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(4, "image/jpeg", "e"));
+        _s3.Setup(s => s.DownloadObjectAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new MemoryStream(new byte[] { 1, 2, 3, 4 }));
+        _assetRepo.Setup(a => a.GetBySha256Async(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(existing);
+        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 0, 1, 0, 0));
+
+        await CreateHandler().HandleAsync(
+            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
+            CancellationToken.None);
+
+        Assert.Equal(MigrationItemStatus.Skipped, item.Status);
+        Assert.Equal(MigrationConstants.ErrorCodes.Duplicate, item.ErrorCode);
+        Assert.Equal(existing.Id, item.AssetId);
+        _minio.Verify(m => m.UploadAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _assetRepo.Verify(a => a.CreateAsync(It.IsAny<Asset>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

@@ -177,4 +177,61 @@ public class StartMigrationHandlerTests
 
         Assert.Equal(MigrationStatus.Completed, migration.Status);
     }
+
+    [Fact]
+    public async Task HandleAsync_S3Source_FansOutAllPendingIgnoringStagedFlag()
+    {
+        var migration = new Migration
+        {
+            Id = Guid.NewGuid(),
+            Name = "S3",
+            SourceType = MigrationSourceType.S3,
+            Status = MigrationStatus.Running,
+            ItemsTotal = 3,
+            CreatedByUserId = "admin-1",
+            CreatedAt = DateTime.UtcNow
+        };
+        // All items have IsFileStaged = false — S3 never stages locally.
+        var items = new List<MigrationItem>
+        {
+            MakeItem(migration.Id, staged: false),
+            MakeItem(migration.Id, staged: false),
+            MakeItem(migration.Id, staged: false)
+        };
+        _repo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
+        _repo.Setup(r => r.GetPendingItemsAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(items);
+
+        var result = await CreateHandler().HandleAsync(
+            new StartMigrationCommand { MigrationId = migration.Id }, CancellationToken.None);
+
+        Assert.Equal(3, result.Length);
+        var commands = result.OfType<ProcessMigrationItemCommand>().ToList();
+        Assert.Equal(3, commands.Count);
+    }
+
+    [Fact]
+    public async Task HandleAsync_S3Source_NoItems_FinalizesAsCompletedNotPartial()
+    {
+        var migration = new Migration
+        {
+            Id = Guid.NewGuid(),
+            Name = "S3",
+            SourceType = MigrationSourceType.S3,
+            Status = MigrationStatus.Running,
+            ItemsTotal = 2,
+            CreatedByUserId = "admin-1",
+            CreatedAt = DateTime.UtcNow
+        };
+        _repo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
+        _repo.Setup(r => r.GetPendingItemsAsync(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<MigrationItem>());
+        // S3: Staged=0 is normal — finalize must NOT read that as PartiallyCompleted.
+        _repo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MigrationItemCounts(2, 0, 0, 2, 0, 0, 0, 0));
+
+        await CreateHandler().HandleAsync(
+            new StartMigrationCommand { MigrationId = migration.Id }, CancellationToken.None);
+
+        Assert.Equal(MigrationStatus.Completed, migration.Status);
+    }
 }

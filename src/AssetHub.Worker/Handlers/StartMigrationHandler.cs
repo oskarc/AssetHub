@@ -32,32 +32,35 @@ public sealed class StartMigrationHandler(
 
         var pendingItems = await migrationRepo.GetPendingItemsAsync(command.MigrationId, cancellationToken);
 
-        // Only process items that have their file staged — unstaged items stay pending
-        var stagedItems = pendingItems.Where(i => i.IsFileStaged).ToList();
-        var unstagedCount = pendingItems.Count - stagedItems.Count;
+        // S3 migrations pull bytes from the remote bucket, so IsFileStaged never flips.
+        // Local-file migrations (CSV) still require a staged file per item; unstaged
+        // items stay pending and hold the migration in PartiallyCompleted.
+        var itemsToDispatch = migration.SourceType is MigrationSourceType.S3
+            ? pendingItems
+            : pendingItems.Where(i => i.IsFileStaged).ToList();
+        var skippedUnstaged = pendingItems.Count - itemsToDispatch.Count;
 
-        if (unstagedCount > 0)
+        if (skippedUnstaged > 0)
         {
             logger.LogInformation("Migration {MigrationId}: {UnstagedCount} pending items skipped (file not staged)",
-                command.MigrationId, unstagedCount);
+                command.MigrationId, skippedUnstaged);
         }
 
-        if (stagedItems.Count == 0)
+        if (itemsToDispatch.Count == 0)
         {
-            logger.LogInformation("Migration {MigrationId} has no staged pending items", command.MigrationId);
+            logger.LogInformation("Migration {MigrationId} has no dispatchable pending items", command.MigrationId);
 
-            // Check if all staged items are terminal — finalize migration
+            // Check if all items are terminal — finalize migration
             var counts = await migrationRepo.GetItemCountsAsync(command.MigrationId, cancellationToken);
             await FinalizeMigration(migration, counts, cancellationToken);
             return [];
         }
 
         logger.LogInformation("Migration {MigrationId}: fanning out {Count} item commands ({Total} pending, {Unstaged} unstaged)",
-            command.MigrationId, stagedItems.Count, pendingItems.Count, unstagedCount);
+            command.MigrationId, itemsToDispatch.Count, pendingItems.Count, skippedUnstaged);
 
-        // Fan out individual item commands for staged items only
         var messages = new List<object>();
-        foreach (var item in stagedItems)
+        foreach (var item in itemsToDispatch)
         {
             messages.Add(new ProcessMigrationItemCommand
             {
@@ -77,11 +80,7 @@ public sealed class StartMigrationHandler(
         migration.ItemsSkipped = counts.Skipped;
         migration.FinishedAt = DateTime.UtcNow;
 
-        migration.Status = counts.Failed > 0
-            ? MigrationStatus.CompletedWithErrors
-            : counts.Staged < counts.Total
-                ? MigrationStatus.PartiallyCompleted
-                : MigrationStatus.Completed;
+        migration.Status = ProcessMigrationItemHandler.ComputeTerminalStatus(migration, counts);
 
         await migrationRepo.UpdateAsync(migration, ct);
 
