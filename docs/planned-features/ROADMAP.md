@@ -569,6 +569,11 @@ public class WebhookDelivery
 
 ### T3-NTF-01 — Notifications (in-app + email)
 
+> **In progress 2026-04-22.** Phases 1 + 2 shipped on `main`. Remaining: phase 3 — email delivery on create, saved-search digest background worker (closes the T1-SRCH-01 schema-only carve-out), anonymous unsubscribe endpoint backed by `UnsubscribeTokenHash`.
+>
+> - **Phase 1** (`e55f921`) — backbone. `Notification` + `NotificationPreferences` entities + migration, `INotificationService` (create / list / unread-count / mark-read / mark-all-read / delete) and `INotificationPreferencesService` (lazy-create + defaults, merge-update with audit, resolve). Endpoints at `/api/v1/notifications` + `/api/v1/notifications/preferences`. HybridCache unread-count with tag invalidation. Audit event `notification.preferences_updated`.
+> - **Phase 2** (`5b2889d`) — UI. `NotificationBell` in `MainLayout` (30s polling for unread count, dropdown with 10 most recent, optimistic mark-read). `/notifications` full-page list with All/Unread filter. `NotificationPreferencesPanel` embedded in `/account`. `NotificationsResource.resx` + `.sv.resx` (39 keys EN + SV).
+
 **Intent.** Unified notification pipeline: mentions, approvals, workflow transitions, saved-search digests, share activity.
 
 **Target state.** `Notification` entity + per-user preferences; in-app bell icon with unread count; digest emails via `SmtpEmailService`.
