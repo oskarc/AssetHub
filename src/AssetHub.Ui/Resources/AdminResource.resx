@@ -368,6 +368,27 @@ logo.png,Company Logo,branding,"Brand Assets;Marketing"</value></data>
   <data name="Migration_FileUnstaged" xml:space="preserve"><value>File removed from staging</value></data>
   <data name="Migration_StartTooltip" xml:space="preserve"><value>Start migration ({0} of {1} files ready)</value></data>
   <data name="Migration_Staged" xml:space="preserve"><value>staged</value></data>
+  <data name="Migration_SourceType_Label" xml:space="preserve"><value>Source Type</value></data>
+  <data name="Migration_SourceType_Csv" xml:space="preserve"><value>CSV upload</value></data>
+  <data name="Migration_SourceType_S3" xml:space="preserve"><value>S3 bucket</value></data>
+  <data name="Migration_SourceType_Csv_Helper" xml:space="preserve"><value>Upload a CSV manifest and the asset files. Best for one-off imports or libraries on a laptop.</value></data>
+  <data name="Migration_SourceType_S3_Helper" xml:space="preserve"><value>Pull objects directly from an S3-compatible bucket. No local upload required; credentials are encrypted at rest.</value></data>
+  <data name="Migration_S3_SectionTitle" xml:space="preserve"><value>S3 connection</value></data>
+  <data name="Migration_S3_Endpoint" xml:space="preserve"><value>Endpoint URL</value></data>
+  <data name="Migration_S3_Endpoint_Helper" xml:space="preserve"><value>Full URL including scheme, e.g. https://s3.eu-west-1.amazonaws.com or http://minio.local:9000.</value></data>
+  <data name="Migration_S3_Bucket" xml:space="preserve"><value>Bucket name</value></data>
+  <data name="Migration_S3_Bucket_Helper" xml:space="preserve"><value>The source bucket containing the assets to migrate.</value></data>
+  <data name="Migration_S3_Prefix" xml:space="preserve"><value>Prefix (optional)</value></data>
+  <data name="Migration_S3_Prefix_Helper" xml:space="preserve"><value>Restrict the scan to objects whose key starts with this prefix, e.g. "images/".</value></data>
+  <data name="Migration_S3_Region" xml:space="preserve"><value>Region (optional)</value></data>
+  <data name="Migration_S3_Region_Helper" xml:space="preserve"><value>AWS region, e.g. eu-west-1. Not required for MinIO or non-AWS endpoints.</value></data>
+  <data name="Migration_S3_AccessKey" xml:space="preserve"><value>Access key</value></data>
+  <data name="Migration_S3_AccessKey_Helper" xml:space="preserve"><value>Identifier for the key pair. Typically starts with "AKIA" on AWS.</value></data>
+  <data name="Migration_S3_SecretKey" xml:space="preserve"><value>Secret key</value></data>
+  <data name="Migration_S3_SecretKey_Helper" xml:space="preserve"><value>Encrypted before storage. Shown once, never re-rendered in plaintext.</value></data>
+  <data name="Migration_StartS3Scan" xml:space="preserve"><value>Scan S3 bucket</value></data>
+  <data name="Migration_StartS3Scan_Tooltip" xml:space="preserve"><value>List objects in the configured S3 bucket and create one migration item per object.</value></data>
+  <data name="Migration_S3ScanQueued" xml:space="preserve"><value>S3 scan queued. Items will appear once scanning finishes.</value></data>
   <data name="Migration_Status_Draft" xml:space="preserve"><value>Draft</value></data>
   <data name="Migration_Status_Validating" xml:space="preserve"><value>Validating</value></data>
   <data name="Migration_Status_Running" xml:space="preserve"><value>Running</value></data>

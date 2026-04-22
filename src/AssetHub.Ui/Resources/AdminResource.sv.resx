@@ -366,6 +366,27 @@ logo.png,Företagslogotyp,varumärke,"Varumärkesresurser;Marknadsföring"</valu
   <data name="Migration_FileUnstaged" xml:space="preserve"><value>Fil borttagen från förberedelse</value></data>
   <data name="Migration_StartTooltip" xml:space="preserve"><value>Starta migrering ({0} av {1} filer redo)</value></data>
   <data name="Migration_Staged" xml:space="preserve"><value>förberedda</value></data>
+  <data name="Migration_SourceType_Label" xml:space="preserve"><value>Källtyp</value></data>
+  <data name="Migration_SourceType_Csv" xml:space="preserve"><value>CSV-uppladdning</value></data>
+  <data name="Migration_SourceType_S3" xml:space="preserve"><value>S3-bucket</value></data>
+  <data name="Migration_SourceType_Csv_Helper" xml:space="preserve"><value>Ladda upp ett CSV-manifest och filerna. Bäst för engångsimporter eller bibliotek på en laptop.</value></data>
+  <data name="Migration_SourceType_S3_Helper" xml:space="preserve"><value>Hämta objekt direkt från en S3-kompatibel bucket. Ingen lokal uppladdning krävs; inloggningsuppgifter krypteras i lagring.</value></data>
+  <data name="Migration_S3_SectionTitle" xml:space="preserve"><value>S3-anslutning</value></data>
+  <data name="Migration_S3_Endpoint" xml:space="preserve"><value>Endpoint-URL</value></data>
+  <data name="Migration_S3_Endpoint_Helper" xml:space="preserve"><value>Fullständig URL inklusive schema, t.ex. https://s3.eu-west-1.amazonaws.com eller http://minio.local:9000.</value></data>
+  <data name="Migration_S3_Bucket" xml:space="preserve"><value>Bucket-namn</value></data>
+  <data name="Migration_S3_Bucket_Helper" xml:space="preserve"><value>Källbucketen som innehåller tillgångarna att migrera.</value></data>
+  <data name="Migration_S3_Prefix" xml:space="preserve"><value>Prefix (valfritt)</value></data>
+  <data name="Migration_S3_Prefix_Helper" xml:space="preserve"><value>Begränsa sökningen till objekt vars nyckel börjar med detta prefix, t.ex. "images/".</value></data>
+  <data name="Migration_S3_Region" xml:space="preserve"><value>Region (valfritt)</value></data>
+  <data name="Migration_S3_Region_Helper" xml:space="preserve"><value>AWS-region, t.ex. eu-west-1. Krävs inte för MinIO eller icke-AWS-endpoints.</value></data>
+  <data name="Migration_S3_AccessKey" xml:space="preserve"><value>Åtkomstnyckel</value></data>
+  <data name="Migration_S3_AccessKey_Helper" xml:space="preserve"><value>Identifierare för nyckelparet. Börjar vanligtvis med "AKIA" på AWS.</value></data>
+  <data name="Migration_S3_SecretKey" xml:space="preserve"><value>Hemlig nyckel</value></data>
+  <data name="Migration_S3_SecretKey_Helper" xml:space="preserve"><value>Krypteras före lagring. Visas en gång, aldrig i klartext igen.</value></data>
+  <data name="Migration_StartS3Scan" xml:space="preserve"><value>Skanna S3-bucket</value></data>
+  <data name="Migration_StartS3Scan_Tooltip" xml:space="preserve"><value>Lista objekt i den konfigurerade S3-bucketen och skapa ett migreringsobjekt per objekt.</value></data>
+  <data name="Migration_S3ScanQueued" xml:space="preserve"><value>S3-skanning köad. Objekt dyker upp när skanningen är klar.</value></data>
   <data name="Migration_Status_Draft" xml:space="preserve"><value>Utkast</value></data>
   <data name="Migration_Status_Validating" xml:space="preserve"><value>Validerar</value></data>
   <data name="Migration_Status_Running" xml:space="preserve"><value>Körs</value></data>

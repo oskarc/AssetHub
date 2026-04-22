@@ -12,7 +12,7 @@
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">@AdminLoc["Migration_CreateNew"]</MudText>
+            <MudText Typo="Typo.h6" id="create-migration-dialog-title">@AdminLoc["Migration_CreateNew"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
@@ -23,6 +23,52 @@
                               Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
                               Counter="255" MaxLength="255"
                               HelperText="@AdminLoc["Migration_Label_NameHelper"]" />
+
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.body1">@AdminLoc["Migration_SourceType_Label"]</MudText>
+                    <MudToggleGroup T="string" @bind-Value="_sourceType" Color="Color.Primary"
+                                    SelectionMode="SelectionMode.SingleSelection">
+                        <MudToggleItem T="string" Value="@("csv_upload")" Text="@AdminLoc["Migration_SourceType_Csv"]" />
+                        <MudToggleItem T="string" Value="@("s3")" Text="@AdminLoc["Migration_SourceType_S3"]" />
+                    </MudToggleGroup>
+                    <MudText Typo="Typo.caption" Color="Color.Default">
+                        @(_sourceType == "s3"
+                            ? AdminLoc["Migration_SourceType_S3_Helper"].Value
+                            : AdminLoc["Migration_SourceType_Csv_Helper"].Value)
+                    </MudText>
+                </MudStack>
+
+                @if (_sourceType == "s3")
+                {
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-3">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_S3_SectionTitle"]</MudText>
+                            <MudTextField @bind-Value="_s3Endpoint" Label="@AdminLoc["Migration_S3_Endpoint"]"
+                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_S3_Endpoint"].Value)"
+                                          Variant="Variant.Outlined" Immediate="true" MaxLength="500"
+                                          HelperText="@AdminLoc["Migration_S3_Endpoint_Helper"]" />
+                            <MudTextField @bind-Value="_s3Bucket" Label="@AdminLoc["Migration_S3_Bucket"]"
+                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_S3_Bucket"].Value)"
+                                          Variant="Variant.Outlined" Immediate="true" MaxLength="255"
+                                          HelperText="@AdminLoc["Migration_S3_Bucket_Helper"]" />
+                            <MudTextField @bind-Value="_s3Prefix" Label="@AdminLoc["Migration_S3_Prefix"]"
+                                          Variant="Variant.Outlined" Immediate="true" MaxLength="1024"
+                                          HelperText="@AdminLoc["Migration_S3_Prefix_Helper"]" />
+                            <MudTextField @bind-Value="_s3Region" Label="@AdminLoc["Migration_S3_Region"]"
+                                          Variant="Variant.Outlined" Immediate="true" MaxLength="64"
+                                          HelperText="@AdminLoc["Migration_S3_Region_Helper"]" />
+                            <MudTextField @bind-Value="_s3AccessKey" Label="@AdminLoc["Migration_S3_AccessKey"]"
+                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_S3_AccessKey"].Value)"
+                                          Variant="Variant.Outlined" Immediate="true" MaxLength="255"
+                                          HelperText="@AdminLoc["Migration_S3_AccessKey_Helper"]" />
+                            <MudTextField @bind-Value="_s3SecretKey" Label="@AdminLoc["Migration_S3_SecretKey"]"
+                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_S3_SecretKey"].Value)"
+                                          Variant="Variant.Outlined" Immediate="true" MaxLength="1024"
+                                          InputType="InputType.Password"
+                                          HelperText="@AdminLoc["Migration_S3_SecretKey_Helper"]" />
+                        </MudStack>
+                    </MudPaper>
+                }
 
                 <MudStack Spacing="1">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
@@ -69,7 +115,7 @@
 
                 @if (!string.IsNullOrEmpty(_errorMessage))
                 {
-                    <MudAlert Severity="Severity.Error" Dense="true">@_errorMessage</MudAlert>
+                    <MudAlert Severity="Severity.Error" Dense="true" role="alert">@_errorMessage</MudAlert>
                 }
             </MudStack>
         </MudForm>
@@ -98,10 +144,19 @@
     private string? _errorMessage;
 
     private string _name = string.Empty;
+    private string _sourceType = "csv_upload";
     private Guid? _defaultCollectionId;
     private string _newCollectionName = string.Empty;
     private string _collectionMode = "existing";
     private bool _dryRun;
+
+    // S3-specific fields
+    private string _s3Endpoint = string.Empty;
+    private string _s3Bucket = string.Empty;
+    private string _s3Prefix = string.Empty;
+    private string _s3Region = string.Empty;
+    private string _s3AccessKey = string.Empty;
+    private string _s3SecretKey = string.Empty;
 
     private List<CollectionResponseDto>? _collections;
 
@@ -131,12 +186,23 @@
             var dto = new CreateMigrationDto
             {
                 Name = _name.Trim(),
-                SourceType = "csv_upload",
+                SourceType = _sourceType,
                 DefaultCollectionId = _collectionMode == "existing" ? _defaultCollectionId : null,
                 DefaultCollectionName = _collectionMode == "new" && !string.IsNullOrWhiteSpace(_newCollectionName)
                     ? _newCollectionName.Trim()
                     : null,
-                DryRun = _dryRun
+                DryRun = _dryRun,
+                S3Config = _sourceType == "s3"
+                    ? new S3SourceConfigDto
+                    {
+                        Endpoint = _s3Endpoint.Trim(),
+                        Bucket = _s3Bucket.Trim(),
+                        Prefix = string.IsNullOrWhiteSpace(_s3Prefix) ? null : _s3Prefix.Trim(),
+                        Region = string.IsNullOrWhiteSpace(_s3Region) ? null : _s3Region.Trim(),
+                        AccessKey = _s3AccessKey.Trim(),
+                        SecretKey = _s3SecretKey
+                    }
+                    : null
             };
 
             var created = await Api.CreateMigrationAsync(dto);

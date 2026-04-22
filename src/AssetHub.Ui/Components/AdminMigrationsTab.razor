@@ -101,13 +101,23 @@
                 </MudTd>
                 <MudTd>
                     <MudStack Row="true" Spacing="1">
+                        @if (context.Status is "draft" && context.SourceType == "s3")
+                        {
+                            <MudTooltip Text="@AdminLoc["Migration_StartS3Scan_Tooltip"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.TravelExplore"
+                                               Color="Color.Info"
+                                               Size="Size.Small"
+                                               aria-label="@AdminLoc["Migration_StartS3Scan"]"
+                                               OnClick="@(() => StartS3ScanAsync(context))" />
+                            </MudTooltip>
+                        }
                         @if (context.Status is "draft" or "partially_completed")
                         {
                             <MudTooltip Text="@string.Format(AdminLoc["Migration_StartTooltip"].Value, context.ItemsStaged, context.ItemsTotal)">
                                 <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
                                                Color="Color.Success"
                                                Size="Size.Small"
-                                               Disabled="@(context.ItemsStaged == 0)"
+                                               Disabled="@(!CanStart(context))"
                                                aria-label="@AdminLoc["Migration_Start"]"
                                                OnClick="@(() => StartMigrationAsync(context))" />
                             </MudTooltip>
@@ -281,6 +291,25 @@
         // Refresh in case status changed
         await LoadAsync(reset: true);
         StartPollingIfNeeded();
+    }
+
+    // S3 migrations never stage locally, so the Start gate differs: they just need
+    // scanned items (ItemsTotal > 0), not staged ones.
+    private static bool CanStart(MigrationResponseDto m)
+        => m.SourceType == "s3" ? m.ItemsTotal > 0 : m.ItemsStaged > 0;
+
+    private async Task StartS3ScanAsync(MigrationResponseDto migration)
+    {
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.StartMigrationS3ScanAsync(migration.Id),
+            "start S3 scan",
+            AdminLoc["Migration_S3ScanQueued"].Value);
+
+        if (success)
+        {
+            await LoadAsync(reset: true);
+            StartPollingIfNeeded();
+        }
     }
 
     private async Task StartMigrationAsync(MigrationResponseDto migration)

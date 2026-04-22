@@ -948,6 +948,12 @@ public class AssetHubApiClient
         await EnsureSuccessAsync(response, "Start migration");
     }
 
+    public virtual async Task StartMigrationS3ScanAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/s3/scan", null, ct);
+        await EnsureSuccessAsync(response, "Start S3 scan");
+    }
+
     public virtual async Task CancelMigrationAsync(Guid id, CancellationToken ct = default)
     {
         var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/cancel", null, ct);
