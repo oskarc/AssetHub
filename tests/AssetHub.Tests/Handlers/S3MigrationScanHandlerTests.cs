@@ -13,7 +13,8 @@ namespace AssetHub.Tests.Handlers;
 public class S3MigrationScanHandlerTests
 {
     private readonly Mock<IMigrationRepository> _repo = new();
-    private readonly Mock<IS3ConnectorClient> _s3 = new();
+    private readonly Mock<IMigrationSourceConnector> _s3Connector = new();
+    private readonly Mock<IMigrationSourceConnectorRegistry> _connectors = new();
     private readonly Mock<IMigrationSecretProtector> _protector = new();
     private readonly Mock<IAuditService> _audit = new();
 
@@ -23,10 +24,15 @@ public class S3MigrationScanHandlerTests
             .Returns<string>(s => $"enc({s})");
         _protector.Setup(p => p.Unprotect(It.IsAny<string>()))
             .Returns<string>(s => s.StartsWith("enc(") && s.EndsWith(')') ? s[4..^1] : s);
+
+        _s3Connector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.S3);
+        _s3Connector.SetupGet(c => c.RequiresLocalStaging).Returns(false);
+        _s3Connector.SetupGet(c => c.SupportsScan).Returns(true);
+        _connectors.Setup(r => r.Resolve(MigrationSourceType.S3)).Returns(_s3Connector.Object);
     }
 
     private S3MigrationScanHandler CreateHandler()
-        => new(_repo.Object, _s3.Object, _protector.Object, _audit.Object, NullLogger<S3MigrationScanHandler>.Instance);
+        => new(_repo.Object, _connectors.Object, _protector.Object, _audit.Object, NullLogger<S3MigrationScanHandler>.Instance);
 
     private static S3SourceConfigDto ValidConfig() => new()
     {
@@ -65,7 +71,7 @@ public class S3MigrationScanHandlerTests
 
         await CreateHandler().HandleAsync(cmd, CancellationToken.None);
 
-        _s3.VerifyNoOtherCalls();
+        _s3Connector.Verify(c => c.ScanAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Never);
         _audit.VerifyNoOtherCalls();
     }
 
@@ -77,7 +83,7 @@ public class S3MigrationScanHandlerTests
 
         await CreateHandler().HandleAsync(new S3MigrationScanCommand { MigrationId = m.Id }, CancellationToken.None);
 
-        _s3.Verify(s => s.ListObjectsAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<CancellationToken>()), Times.Never);
+        _s3Connector.Verify(c => c.ScanAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Never);
         _audit.VerifyNoOtherCalls();
     }
 
@@ -124,7 +130,7 @@ public class S3MigrationScanHandlerTests
             null,
             It.Is<Dictionary<string, object>?>(d => d != null && (string)d["errorCode"] == "invalid_config"),
             It.IsAny<CancellationToken>()), Times.Once);
-        _s3.Verify(s => s.ListObjectsAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<CancellationToken>()), Times.Never);
+        _s3Connector.Verify(c => c.ScanAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -132,7 +138,7 @@ public class S3MigrationScanHandlerTests
     {
         var m = MakeS3Migration();
         _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
-        _s3.Setup(s => s.ListObjectsAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<CancellationToken>()))
+        _s3Connector.Setup(c => c.ScanAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("S3 Access Denied"));
 
         await CreateHandler().HandleAsync(new S3MigrationScanCommand { MigrationId = m.Id }, CancellationToken.None);
@@ -157,7 +163,7 @@ public class S3MigrationScanHandlerTests
         var m = MakeS3Migration();
         _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
 
-        var objects = new List<S3ObjectInfo>
+        var objects = new List<MigrationObjectInfo>
         {
             new("photos/a/alpha.jpg", 1024, "etag-a"),
             new("photos/b/beta.png", 2048, "etag-b"),
@@ -165,7 +171,7 @@ public class S3MigrationScanHandlerTests
             new("", 0, "etag-empty"),                          // empty key — skipped
             new("photos/c/gamma.gif", 4096, "etag-c")
         };
-        _s3.Setup(s => s.ListObjectsAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<CancellationToken>()))
+        _s3Connector.Setup(c => c.ScanAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(objects);
 
         List<MigrationItem>? captured = null;
@@ -211,8 +217,8 @@ public class S3MigrationScanHandlerTests
         var m = MakeS3Migration();
         _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
 
-        _s3.Setup(s => s.ListObjectsAsync(It.IsAny<S3SourceConfigDto>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<S3ObjectInfo> { new("photos/x.jpg", 1, "e") });
+        _s3Connector.Setup(c => c.ScanAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<MigrationObjectInfo> { new("photos/x.jpg", 1, "e") });
 
         var captures = new List<List<MigrationItem>>();
         _repo.Setup(r => r.AddItemsAsync(It.IsAny<IEnumerable<MigrationItem>>(), It.IsAny<CancellationToken>()))

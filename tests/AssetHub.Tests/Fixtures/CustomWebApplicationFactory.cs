@@ -34,8 +34,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     public Mock<IEmailService> MockEmail { get; } = new();
     public Mock<IMediaProcessingService> MockMedia { get; } = new();
     public Mock<IUserLookupService> MockUserLookup { get; } = new();
-    public Mock<IS3ConnectorClient> MockS3Connector { get; } = new();
-
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
@@ -74,8 +72,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         MockUserLookup.Setup(m => m.GetAllUsersAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>());
 
-        MockS3Connector.Setup(s => s.ListObjectsAsync(It.IsAny<AssetHub.Application.Dtos.S3SourceConfigDto>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<S3ObjectInfo>());
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -136,8 +132,11 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll<IUserLookupService>();
             services.AddScoped(_ => MockUserLookup.Object);
 
-            services.RemoveAll<IS3ConnectorClient>();
-            services.AddSingleton(MockS3Connector.Object);
+            // Leave the real CSV + S3 connector DI registrations alone. Endpoint
+            // tests don't actually exercise S3 network I/O — the S3MigrationScanHandler
+            // catches any connector exception (e.g., fake credentials against a real
+            // endpoint) and records it as a scan-failed outcome, so the HTTP response
+            // stays well-formed.
 
             // Replace authentication with test handler
             services.AddAuthentication(options =>

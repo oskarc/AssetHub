@@ -148,7 +148,11 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
         services.AddScoped<IMigrationService, MigrationService>();
         services.AddSingleton<IMigrationSecretProtector, MigrationSecretProtector>();
-        services.AddSingleton<IS3ConnectorClient, S3ConnectorClient>();
+        // Migration source connectors: one impl per MigrationSourceType.
+        // Registry fans them out by SourceType at resolve time.
+        services.AddSingleton<IMigrationSourceConnector, CsvMigrationSourceConnector>();
+        services.AddSingleton<IMigrationSourceConnector, S3MigrationSourceConnector>();
+        services.AddSingleton<IMigrationSourceConnectorRegistry, MigrationSourceConnectorRegistry>();
 
         return services;
     }

@@ -1,19 +1,37 @@
+using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
+using AssetHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using Minio;
 using Minio.Exceptions;
 
 namespace AssetHub.Infrastructure.Services;
 
-/// <inheritdoc />
-public sealed class S3ConnectorClient(ILogger<S3ConnectorClient> logger) : IS3ConnectorClient
+/// <summary>
+/// Connector for S3-compatible pull sources (AWS S3, MinIO, Wasabi, R2, etc.).
+/// Builds an on-demand MinIO SDK client from the per-migration credentials
+/// stored in <c>Migration.SourceConfig</c>, encoded/decoded via
+/// <see cref="MigrationS3ConfigCodec"/>.
+/// </summary>
+public sealed class S3MigrationSourceConnector(
+    IMigrationSecretProtector secretProtector,
+    ILogger<S3MigrationSourceConnector> logger) : IMigrationSourceConnector
 {
-    public async Task<IReadOnlyList<S3ObjectInfo>> ListObjectsAsync(
-        S3SourceConfigDto config, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(config);
+    public MigrationSourceType SourceType => MigrationSourceType.S3;
+    public bool RequiresLocalStaging => false;
+    public bool SupportsScan => true;
 
+    public ServiceResult<Dictionary<string, object>?> EncodeConfig(CreateMigrationDto dto)
+    {
+        if (dto.S3Config is null)
+            return ServiceError.BadRequest("S3 source config is required when sourceType is 's3'.");
+        return (Dictionary<string, object>?)MigrationS3ConfigCodec.Write(dto.S3Config, secretProtector);
+    }
+
+    public async Task<IReadOnlyList<MigrationObjectInfo>> ScanAsync(Migration migration, CancellationToken ct)
+    {
+        var config = MigrationS3ConfigCodec.Read(migration.SourceConfig, secretProtector);
         using var client = BuildClient(config);
 
         var listArgs = new ListObjectsArgs()
@@ -22,7 +40,7 @@ public sealed class S3ConnectorClient(ILogger<S3ConnectorClient> logger) : IS3Co
         if (!string.IsNullOrWhiteSpace(config.Prefix))
             listArgs = listArgs.WithPrefix(config.Prefix);
 
-        var items = new List<S3ObjectInfo>();
+        var items = new List<MigrationObjectInfo>();
         var completion = new TaskCompletionSource();
         using var cancelReg = ct.Register(() => completion.TrySetCanceled(ct));
 
@@ -32,7 +50,7 @@ public sealed class S3ConnectorClient(ILogger<S3ConnectorClient> logger) : IS3Co
                 // MinIO's Item uses ulong for Size; migration items expect long. Guard
                 // against the unlikely > 8 EiB object by clamping rather than throwing.
                 var size = item.Size > long.MaxValue ? long.MaxValue : (long)item.Size;
-                items.Add(new S3ObjectInfo(item.Key, size, item.ETag ?? string.Empty));
+                items.Add(new MigrationObjectInfo(item.Key, size, item.ETag ?? string.Empty));
             },
             onError: ex =>
             {
@@ -53,19 +71,23 @@ public sealed class S3ConnectorClient(ILogger<S3ConnectorClient> logger) : IS3Co
         return items;
     }
 
-    public async Task<ObjectStatInfo?> StatObjectAsync(
-        S3SourceConfigDto config, string objectKey, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(config);
-        ArgumentException.ThrowIfNullOrEmpty(objectKey);
+    public string ResolveSourceKey(Migration migration, MigrationItem item)
+        => !string.IsNullOrWhiteSpace(item.SourcePath)
+            ? item.SourcePath
+            : item.ExternalId ?? string.Empty;
 
+    public async Task<MigrationObjectStat?> StatAsync(Migration migration, string sourceKey, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sourceKey);
+
+        var config = MigrationS3ConfigCodec.Read(migration.SourceConfig, secretProtector);
         using var client = BuildClient(config);
 
         try
         {
             var stat = await client.StatObjectAsync(
-                new StatObjectArgs().WithBucket(config.Bucket).WithObject(objectKey), ct);
-            return new ObjectStatInfo(
+                new StatObjectArgs().WithBucket(config.Bucket).WithObject(sourceKey), ct);
+            return new MigrationObjectStat(
                 stat.Size,
                 string.IsNullOrEmpty(stat.ContentType) ? "application/octet-stream" : stat.ContentType,
                 stat.ETag ?? string.Empty);
@@ -80,18 +102,17 @@ public sealed class S3ConnectorClient(ILogger<S3ConnectorClient> logger) : IS3Co
         }
     }
 
-    public async Task<Stream> DownloadObjectAsync(
-        S3SourceConfigDto config, string objectKey, CancellationToken ct)
+    public async Task<Stream> DownloadAsync(Migration migration, string sourceKey, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(config);
-        ArgumentException.ThrowIfNullOrEmpty(objectKey);
+        ArgumentException.ThrowIfNullOrEmpty(sourceKey);
 
+        var config = MigrationS3ConfigCodec.Read(migration.SourceConfig, secretProtector);
         using var client = BuildClient(config);
 
         var buffer = new MemoryStream();
         var getArgs = new GetObjectArgs()
             .WithBucket(config.Bucket)
-            .WithObject(objectKey)
+            .WithObject(sourceKey)
             .WithCallbackStream(async (stream, innerCt) =>
             {
                 await stream.CopyToAsync(buffer, innerCt);

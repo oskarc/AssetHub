@@ -12,10 +12,23 @@ namespace AssetHub.Tests.Handlers;
 public class StartMigrationHandlerTests
 {
     private readonly Mock<IMigrationRepository> _repo = new();
+    private readonly Mock<IMigrationSourceConnector> _csvConnector = new();
+    private readonly Mock<IMigrationSourceConnector> _s3Connector = new();
+    private readonly Mock<IMigrationSourceConnectorRegistry> _connectors = new();
     private readonly Mock<IAuditService> _audit = new();
 
+    public StartMigrationHandlerTests()
+    {
+        _csvConnector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.CsvUpload);
+        _csvConnector.SetupGet(c => c.RequiresLocalStaging).Returns(true);
+        _s3Connector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.S3);
+        _s3Connector.SetupGet(c => c.RequiresLocalStaging).Returns(false);
+        _connectors.Setup(r => r.Resolve(MigrationSourceType.CsvUpload)).Returns(_csvConnector.Object);
+        _connectors.Setup(r => r.Resolve(MigrationSourceType.S3)).Returns(_s3Connector.Object);
+    }
+
     private StartMigrationHandler CreateHandler()
-        => new(_repo.Object, _audit.Object, NullLogger<StartMigrationHandler>.Instance);
+        => new(_repo.Object, _connectors.Object, _audit.Object, NullLogger<StartMigrationHandler>.Instance);
 
     private static Migration MakeMigration(
         Guid? id = null,

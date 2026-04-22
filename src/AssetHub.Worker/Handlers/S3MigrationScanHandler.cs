@@ -18,7 +18,7 @@ namespace AssetHub.Worker.Handlers;
 /// </summary>
 public sealed class S3MigrationScanHandler(
     IMigrationRepository migrationRepo,
-    IS3ConnectorClient s3Client,
+    IMigrationSourceConnectorRegistry connectors,
     IMigrationSecretProtector secretProtector,
     IAuditService audit,
     ILogger<S3MigrationScanHandler> logger)
@@ -63,10 +63,11 @@ public sealed class S3MigrationScanHandler(
             return;
         }
 
-        IReadOnlyList<S3ObjectInfo> objects;
+        var connector = connectors.Resolve(migration.SourceType);
+        IReadOnlyList<MigrationObjectInfo> objects;
         try
         {
-            objects = await s3Client.ListObjectsAsync(config, cancellationToken);
+            objects = await connector.ScanAsync(migration, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -115,7 +116,7 @@ public sealed class S3MigrationScanHandler(
             migration.Id, items.Count);
     }
 
-    private static MigrationItem BuildItem(Migration migration, S3ObjectInfo obj, int rowNumber)
+    private static MigrationItem BuildItem(Migration migration, MigrationObjectInfo obj, int rowNumber)
     {
         var rawName = Path.GetFileName(obj.Key);
         if (string.IsNullOrWhiteSpace(rawName))

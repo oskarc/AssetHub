@@ -24,6 +24,7 @@ public sealed class MigrationService(
     IAuditService audit,
     IMessageBus messageBus,
     IMigrationSecretProtector secretProtector,
+    IMigrationSourceConnectorRegistry connectors,
     HybridCache cache,
     CurrentUser currentUser,
     ILogger<MigrationService> logger) : IMigrationService
@@ -35,17 +36,13 @@ public sealed class MigrationService(
             return ServiceError.Forbidden("Only administrators can create migrations.");
 
         var sourceType = dto.SourceType.ToMigrationSourceType();
+        var connector = connectors.Resolve(sourceType);
 
-        // Validate source-type-specific configuration
-        if (sourceType is MigrationSourceType.S3)
-        {
-            if (dto.S3Config is null)
-                return ServiceError.BadRequest("S3 source config is required when sourceType is 's3'.");
-        }
-        else if (dto.S3Config is not null)
-        {
-            return ServiceError.BadRequest("S3 source config must not be provided for non-S3 migrations.");
-        }
+        // Delegate source-specific config validation + encoding to the connector.
+        // Each connector also rejects config that belongs to a different source.
+        var encodedConfigResult = connector.EncodeConfig(dto);
+        if (!encodedConfigResult.IsSuccess)
+            return encodedConfigResult.Error!;
 
         // Validate mutually exclusive collection fields
         if (dto.DefaultCollectionId.HasValue && !string.IsNullOrWhiteSpace(dto.DefaultCollectionName))
@@ -101,8 +98,8 @@ public sealed class MigrationService(
             CreatedAt = DateTime.UtcNow
         };
 
-        if (sourceType is MigrationSourceType.S3)
-            migration.SourceConfig = MigrationS3ConfigCodec.Write(dto.S3Config!, secretProtector);
+        if (encodedConfigResult.Value is { } encodedConfig)
+            migration.SourceConfig = encodedConfig;
 
         await migrationRepo.CreateAsync(migration, ct);
 

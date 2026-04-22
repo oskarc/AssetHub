@@ -24,6 +24,9 @@ public class MigrationServiceTests
     private readonly Mock<IAuditService> _audit = new();
     private readonly Mock<IMessageBus> _bus = new();
     private readonly Mock<IMigrationSecretProtector> _secretProtector = new();
+    private readonly Mock<IMigrationSourceConnector> _csvConnector = new();
+    private readonly Mock<IMigrationSourceConnector> _s3Connector = new();
+    private readonly Mock<IMigrationSourceConnectorRegistry> _connectors = new();
 
     private const string AdminUserId = "admin-001";
 
@@ -35,6 +38,25 @@ public class MigrationServiceTests
             .Returns<string>(s => $"enc({s})");
         _secretProtector.Setup(p => p.Unprotect(It.IsAny<string>()))
             .Returns<string>(s => s.StartsWith("enc(") && s.EndsWith(')') ? s[4..^1] : s);
+
+        // Default connector behaviour: CSV accepts dtos with no S3 config and
+        // returns null (no persisted config); S3 requires S3Config and encodes
+        // it through the real codec so existing assertions on the persisted
+        // SourceConfig shape still hold.
+        _csvConnector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.CsvUpload);
+        _csvConnector.Setup(c => c.EncodeConfig(It.IsAny<CreateMigrationDto>()))
+            .Returns<CreateMigrationDto>(dto => dto.S3Config is not null
+                ? ServiceError.BadRequest("S3 source config must not be provided for non-S3 migrations.")
+                : (Dictionary<string, object>?)null);
+
+        _s3Connector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.S3);
+        _s3Connector.Setup(c => c.EncodeConfig(It.IsAny<CreateMigrationDto>()))
+            .Returns<CreateMigrationDto>(dto => dto.S3Config is null
+                ? ServiceError.BadRequest("S3 source config is required when sourceType is 's3'.")
+                : (Dictionary<string, object>?)MigrationS3ConfigCodec.Write(dto.S3Config, _secretProtector.Object));
+
+        _connectors.Setup(r => r.Resolve(MigrationSourceType.CsvUpload)).Returns(_csvConnector.Object);
+        _connectors.Setup(r => r.Resolve(MigrationSourceType.S3)).Returns(_s3Connector.Object);
     }
 
     private MigrationService CreateService(bool isAdmin = true)
@@ -50,6 +72,7 @@ public class MigrationServiceTests
             _audit.Object,
             _bus.Object,
             _secretProtector.Object,
+            _connectors.Object,
             TestCacheHelper.CreateHybridCache(),
             currentUser,
             NullLogger<MigrationService>.Instance);
