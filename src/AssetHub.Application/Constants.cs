@@ -43,6 +43,7 @@ public static class Constants
         public const string Share = "share";
         public const string User = "user";
         public const string Migration = "migration";
+        public const string UserPreferences = "user_preferences";
     }
 
     /// <summary>

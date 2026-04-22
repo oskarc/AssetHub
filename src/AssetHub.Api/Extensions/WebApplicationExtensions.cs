@@ -304,6 +304,7 @@ public static class WebApplicationExtensions
         app.MapAdminTrashEndpoints();
         app.MapAssetVersionEndpoints();
         app.MapPersonalAccessTokenEndpoints();
+        app.MapNotificationEndpoints();
 
         // Public OpenAPI document at /swagger/v1/swagger.json. The matching UI middleware
         // is wired in UseAssetHubMiddleware so it sits above endpoint routing and after auth.

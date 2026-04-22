@@ -123,6 +123,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ISavedSearchRepository, SavedSearchRepository>();
         services.AddScoped<IAssetVersionRepository, AssetVersionRepository>();
         services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);
@@ -147,6 +149,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IZipBuildService>(sp => sp.GetRequiredService<ZipBuildService>());
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
         services.AddScoped<IMigrationService, MigrationService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationPreferencesService, NotificationPreferencesService>();
         services.AddSingleton<IMigrationSecretProtector, MigrationSecretProtector>();
         // Migration source connectors: one impl per MigrationSourceType.
         // Registry fans them out by SourceType at resolve time.

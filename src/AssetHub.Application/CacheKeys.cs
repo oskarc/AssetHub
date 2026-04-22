@@ -25,6 +25,7 @@ public static class CacheKeys
     private const string TaxonomyPrefix = "taxonomy:";
     private const string TaxonomiesAllKey = "taxonomies:all";
     private const string UserRealmRolesPrefix = "user:realmroles:";
+    private const string NotificationUnreadCountPrefix = "notif:unread-count:";
 
     // ── TTLs ──────────────────────────────────────────────────────────
 
@@ -64,6 +65,12 @@ public static class CacheKeys
     /// Not an ACL lookup — those remain request-scoped per CLAUDE.md.
     /// </summary>
     public static readonly TimeSpan UserRealmRolesTtl = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Unread notification count for the bell badge. Short TTL + tag invalidation on
+    /// create/mark-read/delete keeps the badge fresh without hammering Postgres.
+    /// </summary>
+    public static readonly TimeSpan NotificationUnreadCountTtl = TimeSpan.FromMinutes(1);
 
     // ── Key Builders ──────────────────────────────────────────────────
 
@@ -119,6 +126,10 @@ public static class CacheKeys
     public static string UserRealmRoles(string userId)
         => $"{UserRealmRolesPrefix}{userId}";
 
+    /// <summary>Cache key for a user's unread-notification count (bell badge).</summary>
+    public static string NotificationUnreadCount(string userId)
+        => $"{NotificationUnreadCountPrefix}{userId}";
+
     // ── Tag Definitions (for HybridCache tag-based invalidation) ─────
 
     /// <summary>
@@ -152,5 +163,8 @@ public static class CacheKeys
 
         /// <summary>Tag for all taxonomy entries.</summary>
         public const string Taxonomies = "taxonomies";
+
+        /// <summary>Tag for a user's notification entries (used to invalidate the unread-count cache).</summary>
+        public static string NotificationsForUser(string userId) => $"notifications:{userId}";
     }
 }

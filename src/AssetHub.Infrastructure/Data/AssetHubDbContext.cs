@@ -33,6 +33,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<SavedSearch> SavedSearches { get; set; } = null!;
     public DbSet<AssetVersion> AssetVersions { get; set; } = null!;
     public DbSet<PersonalAccessToken> PersonalAccessTokens { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<NotificationPreferences> NotificationPreferences { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -541,6 +543,59 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
+        });
+
+        // Notification
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            // Bell list + unread count both filter by UserId and order by CreatedAt DESC.
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt })
+                .HasDatabaseName("idx_notifications_user_created");
+            // Unread scan is the hot-path for the badge; partial index via a composite works fine on Postgres.
+            entity.HasIndex(e => new { e.UserId, e.ReadAt })
+                .HasDatabaseName("idx_notifications_user_read");
+
+            entity.Property(e => e.UserId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Title).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Body).HasMaxLength(2000);
+            entity.Property(e => e.Url).HasMaxLength(500);
+
+            entity.Property(e => e.Data)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasColumnType(Jsonb)
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+        });
+
+        // NotificationPreferences
+        modelBuilder.Entity<NotificationPreferences>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            // One row per user. The service upserts into this index.
+            entity.HasIndex(e => e.UserId).IsUnique()
+                .HasDatabaseName("idx_notif_prefs_user_unique");
+            // Anonymous unsubscribe endpoint looks up by token hash; must be unique + indexed.
+            entity.HasIndex(e => e.UnsubscribeTokenHash).IsUnique()
+                .HasDatabaseName("idx_notif_prefs_unsubscribe_hash_unique");
+
+            entity.Property(e => e.UserId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.UnsubscribeTokenHash).HasMaxLength(64).IsRequired();
+
+            entity.Property(e => e.Categories)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<Dictionary<string, NotificationCategoryPrefs>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, NotificationCategoryPrefs>())
+                .HasColumnType(Jsonb)
+                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, NotificationCategoryPrefs>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, NotificationCategoryPrefs>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
         });
     }
 }
