@@ -1,0 +1,247 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@implements IAsyncDisposable
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<NotificationsResource> NotifLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudMenu TransformOrigin="Origin.TopRight"
+         AnchorOrigin="Origin.BottomRight"
+         Dense="true"
+         aria-label="@NotifLoc["Bell_Aria"]">
+    <ActivatorContent>
+        <MudBadge Content="@_unreadCount"
+                  Visible="@(_unreadCount > 0)"
+                  Color="Color.Error"
+                  Overlap="true"
+                  Origin="Origin.TopRight"
+                  Max="99">
+            <MudIconButton Icon="@Icons.Material.Filled.Notifications"
+                           Color="Color.Inherit"
+                           aria-label="@NotifLoc["Bell_Aria"]"
+                           OnClick="OpenAsync" />
+        </MudBadge>
+    </ActivatorContent>
+    <ChildContent>
+        <div style="min-width: 360px; max-width: 420px;">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="pa-3">
+                <MudText Typo="Typo.subtitle2">@NotifLoc["Bell_Title"]</MudText>
+                @if (_items.Any(i => !i.IsRead))
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Text"
+                               StartIcon="@Icons.Material.Filled.DoneAll"
+                               OnClick="MarkAllReadAsync">
+                        @NotifLoc["Bell_MarkAllRead"]
+                    </MudButton>
+                }
+            </MudStack>
+            <MudDivider />
+
+            @if (_loading)
+            {
+                <MudStack AlignItems="AlignItems.Center" Class="py-4" role="status" aria-live="polite">
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                </MudStack>
+            }
+            else if (_items.Count == 0)
+            {
+                <MudStack AlignItems="AlignItems.Center" Class="py-6 px-4" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Notifications"
+                             Color="Color.Default" Size="Size.Large" aria-hidden="true" />
+                    <MudText Typo="Typo.body2">@NotifLoc["Bell_NoUnread"]</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">
+                        @NotifLoc["Bell_NoUnread_Sub"]
+                    </MudText>
+                </MudStack>
+            }
+            else
+            {
+                <MudList T="NotificationDto" Dense="true" Class="py-0">
+                    @foreach (var n in _items)
+                    {
+                        <MudListItem T="NotificationDto" Dense="true"
+                                     OnClick="@(() => ActivateAsync(n))"
+                                     Icon="@IconFor(n.Category)"
+                                     IconColor="@IconColorFor(n.Category)"
+                                     Style="@(n.IsRead ? "" : "background-color: var(--mud-palette-action-default-hover);")">
+                            <MudStack Spacing="0">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    @if (!n.IsRead)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.FiberManualRecord"
+                                                 Color="Color.Primary" Size="Size.Small"
+                                                 aria-hidden="true"
+                                                 Style="font-size: 0.6rem;" />
+                                    }
+                                    <MudText Typo="Typo.body2" Style="@(n.IsRead ? "" : "font-weight: 600;")">
+                                        @n.Title
+                                    </MudText>
+                                </MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @FormatRelative(n.CreatedAt)
+                                </MudText>
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+
+            <MudDivider />
+            <MudButton FullWidth="true" Size="Size.Small" Variant="Variant.Text"
+                       OnClick="GoToAllNotifications">
+                @NotifLoc["Bell_SeeAll"]
+            </MudButton>
+        </div>
+    </ChildContent>
+</MudMenu>
+
+@code {
+    private int _unreadCount;
+    private bool _loading;
+    private List<NotificationDto> _items = new();
+    private PeriodicTimer? _pollTimer;
+    private CancellationTokenSource? _pollCts;
+
+    protected override void OnInitialized()
+    {
+        _ = InitialLoadAsync();
+        _ = StartPollingAsync();
+    }
+
+    private async Task InitialLoadAsync()
+    {
+        try
+        {
+            _unreadCount = await Api.GetNotificationUnreadCountAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Silent — bell just doesn't show a badge if the API is unavailable.
+        }
+    }
+
+    private async Task OpenAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            // Show the 10 most-recent (mixing read + unread so the list isn't
+            // empty immediately after the user reads everything).
+            var response = await Api.GetNotificationsAsync(unreadOnly: false, skip: 0, take: 10);
+            _items = response.Items;
+            _unreadCount = response.UnreadCount;
+        }
+        catch
+        {
+            _items = new();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task StartPollingAsync()
+    {
+        _pollCts = new CancellationTokenSource();
+        _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await _pollTimer.WaitForNextTickAsync(_pollCts.Token))
+            {
+                try
+                {
+                    var count = await Api.GetNotificationUnreadCountAsync(_pollCts.Token);
+                    if (count != _unreadCount)
+                    {
+                        _unreadCount = count;
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+                catch (OperationCanceledException) { throw; }
+                catch { /* transient — try again next tick */ }
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task ActivateAsync(NotificationDto n)
+    {
+        // Optimistic: flip local state, then fire-and-forget the API call.
+        if (!n.IsRead)
+        {
+            n.ReadAt = DateTime.UtcNow;
+            _unreadCount = Math.Max(0, _unreadCount - 1);
+            StateHasChanged();
+            _ = Api.MarkNotificationReadAsync(n.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(n.Url))
+            Nav.NavigateTo(n.Url);
+        await Task.CompletedTask;
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        // Optimistic: zero the badge, mark every local item read.
+        foreach (var n in _items)
+            n.ReadAt ??= DateTime.UtcNow;
+        _unreadCount = 0;
+        StateHasChanged();
+
+        try
+        {
+            await Api.MarkAllNotificationsReadAsync();
+            Feedback.ShowSuccess(NotifLoc["Bell_MarkAllRead"].Value);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "mark notifications read");
+        }
+    }
+
+    private void GoToAllNotifications() => Nav.NavigateTo("/notifications");
+
+    private string FormatRelative(DateTime createdAtUtc)
+    {
+        var diff = DateTime.UtcNow - createdAtUtc;
+        if (diff < TimeSpan.FromMinutes(1)) return NotifLoc["Time_JustNow"].Value;
+        if (diff < TimeSpan.FromHours(1))
+            return string.Format(NotifLoc["Time_MinutesAgo"].Value, (int)diff.TotalMinutes);
+        if (diff < TimeSpan.FromDays(1))
+            return string.Format(NotifLoc["Time_HoursAgo"].Value, (int)diff.TotalHours);
+        return string.Format(NotifLoc["Time_DaysAgo"].Value, (int)diff.TotalDays);
+    }
+
+    private static string IconFor(string category) => category switch
+    {
+        NotificationConstants.Categories.Mention => Icons.Material.Filled.AlternateEmail,
+        NotificationConstants.Categories.SavedSearchDigest => Icons.Material.Filled.Search,
+        NotificationConstants.Categories.MigrationCompleted => Icons.Material.Filled.CloudUpload,
+        NotificationConstants.Categories.WorkflowTransition => Icons.Material.Filled.AccountTree,
+        NotificationConstants.Categories.WebhookFailure => Icons.Material.Filled.Webhook,
+        _ => Icons.Material.Filled.Notifications
+    };
+
+    private static Color IconColorFor(string category) => category switch
+    {
+        NotificationConstants.Categories.WebhookFailure => Color.Warning,
+        NotificationConstants.Categories.Mention => Color.Primary,
+        _ => Color.Default
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        _pollCts?.Cancel();
+        _pollTimer?.Dispose();
+        _pollCts?.Dispose();
+        await Task.CompletedTask;
+    }
+}

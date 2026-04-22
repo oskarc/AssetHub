@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Bell -->
+  <data name="Bell_Aria" xml:space="preserve"><value>Notifications</value></data>
+  <data name="Bell_Title" xml:space="preserve"><value>Notifications</value></data>
+  <data name="Bell_NoUnread" xml:space="preserve"><value>You're all caught up</value></data>
+  <data name="Bell_NoUnread_Sub" xml:space="preserve"><value>New notifications will appear here.</value></data>
+  <data name="Bell_MarkAllRead" xml:space="preserve"><value>Mark all read</value></data>
+  <data name="Bell_SeeAll" xml:space="preserve"><value>See all notifications</value></data>
+
+  <!-- Full page -->
+  <data name="Page_Title" xml:space="preserve"><value>Notifications</value></data>
+  <data name="Page_Filter_All" xml:space="preserve"><value>All</value></data>
+  <data name="Page_Filter_Unread" xml:space="preserve"><value>Unread</value></data>
+  <data name="Page_Empty_Title" xml:space="preserve"><value>No notifications</value></data>
+  <data name="Page_Empty_Description" xml:space="preserve"><value>New notifications from saved searches, mentions, and workflow transitions will appear here.</value></data>
+  <data name="Page_Aria_Delete" xml:space="preserve"><value>Delete notification</value></data>
+  <data name="Page_Aria_MarkRead" xml:space="preserve"><value>Mark as read</value></data>
+  <data name="Page_LoadMore" xml:space="preserve"><value>Load more</value></data>
+
+  <!-- Category labels (human-readable, indexed by the canonical keys from NotificationConstants.Categories) -->
+  <data name="Category_mention" xml:space="preserve"><value>Mentions</value></data>
+  <data name="Category_mention_Description" xml:space="preserve"><value>Someone @mentioned you in an asset comment.</value></data>
+  <data name="Category_saved_search_digest" xml:space="preserve"><value>Saved search digest</value></data>
+  <data name="Category_saved_search_digest_Description" xml:space="preserve"><value>New assets match one of your saved searches.</value></data>
+  <data name="Category_migration_completed" xml:space="preserve"><value>Migrations</value></data>
+  <data name="Category_migration_completed_Description" xml:space="preserve"><value>A bulk import job has finished.</value></data>
+  <data name="Category_workflow_transition" xml:space="preserve"><value>Workflow transitions</value></data>
+  <data name="Category_workflow_transition_Description" xml:space="preserve"><value>An asset you own or review changed workflow state.</value></data>
+  <data name="Category_webhook_failure" xml:space="preserve"><value>Webhook failures</value></data>
+  <data name="Category_webhook_failure_Description" xml:space="preserve"><value>A webhook delivery failed permanently (admins only).</value></data>
+
+  <!-- Preferences panel -->
+  <data name="Prefs_SectionTitle" xml:space="preserve"><value>Notification preferences</value></data>
+  <data name="Prefs_SectionDescription" xml:space="preserve"><value>Choose how AssetHub notifies you for each type of event.</value></data>
+  <data name="Prefs_Col_Category" xml:space="preserve"><value>Category</value></data>
+  <data name="Prefs_Col_InApp" xml:space="preserve"><value>In-app</value></data>
+  <data name="Prefs_Col_Email" xml:space="preserve"><value>Email</value></data>
+  <data name="Prefs_Col_Cadence" xml:space="preserve"><value>Email cadence</value></data>
+  <data name="Prefs_Cadence_instant" xml:space="preserve"><value>Instant</value></data>
+  <data name="Prefs_Cadence_daily" xml:space="preserve"><value>Daily digest</value></data>
+  <data name="Prefs_Cadence_weekly" xml:space="preserve"><value>Weekly digest</value></data>
+  <data name="Prefs_Btn_Save" xml:space="preserve"><value>Save preferences</value></data>
+  <data name="Prefs_Saved" xml:space="preserve"><value>Preferences saved.</value></data>
+  <data name="Prefs_NoChanges" xml:space="preserve"><value>No changes to save.</value></data>
+
+  <!-- Relative time labels -->
+  <data name="Time_JustNow" xml:space="preserve"><value>just now</value></data>
+  <data name="Time_MinutesAgo" xml:space="preserve"><value>{0} min ago</value></data>
+  <data name="Time_HoursAgo" xml:space="preserve"><value>{0} h ago</value></data>
+  <data name="Time_DaysAgo" xml:space="preserve"><value>{0} d ago</value></data>
+</root>

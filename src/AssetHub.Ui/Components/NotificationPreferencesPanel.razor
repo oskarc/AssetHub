@@ -1,0 +1,154 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<NotificationsResource> NotifLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudPaper Class="pa-5" Elevation="0" Outlined="true">
+    <MudStack Spacing="1" Class="mb-3">
+        <MudText Typo="Typo.h6">@NotifLoc["Prefs_SectionTitle"]</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@NotifLoc["Prefs_SectionDescription"]</MudText>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudStack AlignItems="AlignItems.Center" Class="py-6" role="status" aria-live="polite">
+            <MudProgressCircular Indeterminate="true" />
+        </MudStack>
+    }
+    else if (_prefs is null)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true">
+            @CommonLoc["Error_UnexpectedError"]
+        </MudAlert>
+    }
+    else
+    {
+        <MudTable Items="@_orderedCategories" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+            <HeaderContent>
+                <MudTh>@NotifLoc["Prefs_Col_Category"]</MudTh>
+                <MudTh Style="text-align: center;">@NotifLoc["Prefs_Col_InApp"]</MudTh>
+                <MudTh Style="text-align: center;">@NotifLoc["Prefs_Col_Email"]</MudTh>
+                <MudTh>@NotifLoc["Prefs_Col_Cadence"]</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@NotifLoc["Prefs_Col_Category"].Value">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.body2">@NotifLoc[$"Category_{context}"]</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @NotifLoc[$"Category_{context}_Description"]
+                        </MudText>
+                    </MudStack>
+                </MudTd>
+                <MudTd DataLabel="@NotifLoc["Prefs_Col_InApp"].Value" Style="text-align: center;">
+                    <MudSwitch T="bool" @bind-Value="_prefs.Categories[context].InApp"
+                               Color="Color.Primary"
+                               aria-label="@string.Format(NotifLoc["Prefs_Col_InApp"].Value + " — {0}", NotifLoc[$"Category_{context}"].Value)" />
+                </MudTd>
+                <MudTd DataLabel="@NotifLoc["Prefs_Col_Email"].Value" Style="text-align: center;">
+                    <MudSwitch T="bool" @bind-Value="_prefs.Categories[context].Email"
+                               Color="Color.Primary"
+                               aria-label="@string.Format(NotifLoc["Prefs_Col_Email"].Value + " — {0}", NotifLoc[$"Category_{context}"].Value)" />
+                </MudTd>
+                <MudTd DataLabel="@NotifLoc["Prefs_Col_Cadence"].Value">
+                    <MudSelect T="string" @bind-Value="_prefs.Categories[context].EmailCadence"
+                               Variant="Variant.Outlined"
+                               Dense="true"
+                               Disabled="@(!_prefs.Categories[context].Email)"
+                               aria-label="@string.Format(NotifLoc["Prefs_Col_Cadence"].Value + " — {0}", NotifLoc[$"Category_{context}"].Value)">
+                        <MudSelectItem T="string" Value="@("instant")">@NotifLoc["Prefs_Cadence_instant"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("daily")">@NotifLoc["Prefs_Cadence_daily"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("weekly")">@NotifLoc["Prefs_Cadence_weekly"]</MudSelectItem>
+                    </MudSelect>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       Disabled="@_saving"
+                       OnClick="SaveAsync">
+                @if (_saving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @NotifLoc["Prefs_Btn_Save"]
+            </MudButton>
+        </MudStack>
+    }
+</MudPaper>
+
+@code {
+    private bool _loading = true;
+    private bool _saving;
+    private NotificationPreferencesDto? _prefs;
+
+    /// <summary>
+    /// Stable display order for the preferences table. Matches the
+    /// canonical category list from NotificationConstants so new categories
+    /// land in a predictable spot as they ship.
+    /// </summary>
+    private IReadOnlyList<string> _orderedCategories = Array.Empty<string>();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _prefs = await Api.GetNotificationPreferencesAsync();
+            _orderedCategories = NotificationConstants.Categories.All
+                .Where(c => _prefs.Categories.ContainsKey(c))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load notification preferences");
+            _prefs = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_prefs is null) return;
+        _saving = true;
+        try
+        {
+            var dto = new UpdateNotificationPreferencesDto
+            {
+                // Send only the categories we rendered — avoid leaking future
+                // category keys we don't know about yet.
+                Categories = _orderedCategories.ToDictionary(
+                    c => c,
+                    c => new NotificationCategoryPrefsDto
+                    {
+                        InApp = _prefs.Categories[c].InApp,
+                        Email = _prefs.Categories[c].Email,
+                        EmailCadence = _prefs.Categories[c].EmailCadence
+                    })
+            };
+
+            _prefs = await Api.UpdateNotificationPreferencesAsync(dto);
+            Feedback.ShowSuccess(NotifLoc["Prefs_Saved"].Value);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "save notification preferences");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

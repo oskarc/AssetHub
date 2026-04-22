@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Bell -->
+  <data name="Bell_Aria" xml:space="preserve"><value>Aviseringar</value></data>
+  <data name="Bell_Title" xml:space="preserve"><value>Aviseringar</value></data>
+  <data name="Bell_NoUnread" xml:space="preserve"><value>Inga nya aviseringar</value></data>
+  <data name="Bell_NoUnread_Sub" xml:space="preserve"><value>Nya aviseringar visas här.</value></data>
+  <data name="Bell_MarkAllRead" xml:space="preserve"><value>Markera alla som lästa</value></data>
+  <data name="Bell_SeeAll" xml:space="preserve"><value>Visa alla aviseringar</value></data>
+
+  <!-- Full page -->
+  <data name="Page_Title" xml:space="preserve"><value>Aviseringar</value></data>
+  <data name="Page_Filter_All" xml:space="preserve"><value>Alla</value></data>
+  <data name="Page_Filter_Unread" xml:space="preserve"><value>Olästa</value></data>
+  <data name="Page_Empty_Title" xml:space="preserve"><value>Inga aviseringar</value></data>
+  <data name="Page_Empty_Description" xml:space="preserve"><value>Nya aviseringar från sparade sökningar, omnämnanden och arbetsflödesövergångar visas här.</value></data>
+  <data name="Page_Aria_Delete" xml:space="preserve"><value>Ta bort avisering</value></data>
+  <data name="Page_Aria_MarkRead" xml:space="preserve"><value>Markera som läst</value></data>
+  <data name="Page_LoadMore" xml:space="preserve"><value>Ladda fler</value></data>
+
+  <!-- Category labels -->
+  <data name="Category_mention" xml:space="preserve"><value>Omnämnanden</value></data>
+  <data name="Category_mention_Description" xml:space="preserve"><value>Någon nämnde dig i en tillgångskommentar.</value></data>
+  <data name="Category_saved_search_digest" xml:space="preserve"><value>Sammanfattning av sparad sökning</value></data>
+  <data name="Category_saved_search_digest_Description" xml:space="preserve"><value>Nya tillgångar matchar en av dina sparade sökningar.</value></data>
+  <data name="Category_migration_completed" xml:space="preserve"><value>Migreringar</value></data>
+  <data name="Category_migration_completed_Description" xml:space="preserve"><value>Ett bulkimportjobb har slutförts.</value></data>
+  <data name="Category_workflow_transition" xml:space="preserve"><value>Arbetsflödesövergångar</value></data>
+  <data name="Category_workflow_transition_Description" xml:space="preserve"><value>En tillgång du äger eller granskar har ändrat arbetsflödestillstånd.</value></data>
+  <data name="Category_webhook_failure" xml:space="preserve"><value>Webhook-fel</value></data>
+  <data name="Category_webhook_failure_Description" xml:space="preserve"><value>En webhook-leverans misslyckades permanent (endast administratörer).</value></data>
+
+  <!-- Preferences panel -->
+  <data name="Prefs_SectionTitle" xml:space="preserve"><value>Aviseringsinställningar</value></data>
+  <data name="Prefs_SectionDescription" xml:space="preserve"><value>Välj hur AssetHub ska avisera dig för olika typer av händelser.</value></data>
+  <data name="Prefs_Col_Category" xml:space="preserve"><value>Kategori</value></data>
+  <data name="Prefs_Col_InApp" xml:space="preserve"><value>I appen</value></data>
+  <data name="Prefs_Col_Email" xml:space="preserve"><value>E-post</value></data>
+  <data name="Prefs_Col_Cadence" xml:space="preserve"><value>E-postfrekvens</value></data>
+  <data name="Prefs_Cadence_instant" xml:space="preserve"><value>Direkt</value></data>
+  <data name="Prefs_Cadence_daily" xml:space="preserve"><value>Dagligen</value></data>
+  <data name="Prefs_Cadence_weekly" xml:space="preserve"><value>Veckovis</value></data>
+  <data name="Prefs_Btn_Save" xml:space="preserve"><value>Spara inställningar</value></data>
+  <data name="Prefs_Saved" xml:space="preserve"><value>Inställningar sparade.</value></data>
+  <data name="Prefs_NoChanges" xml:space="preserve"><value>Inga ändringar att spara.</value></data>
+
+  <!-- Relative time -->
+  <data name="Time_JustNow" xml:space="preserve"><value>just nu</value></data>
+  <data name="Time_MinutesAgo" xml:space="preserve"><value>{0} min sedan</value></data>
+  <data name="Time_HoursAgo" xml:space="preserve"><value>{0} tim sedan</value></data>
+  <data name="Time_DaysAgo" xml:space="preserve"><value>{0} d sedan</value></data>
+</root>

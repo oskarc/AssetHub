@@ -1,0 +1,230 @@
+@page "/notifications"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Components
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<NotificationsResource> NotifLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@NotifLoc["Page_Title"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <MudText Typo="Typo.h4">@NotifLoc["Page_Title"]</MudText>
+        <MudStack Row="true" Spacing="2">
+            <MudToggleGroup T="bool" @bind-Value="UnreadOnly"
+                            Color="Color.Primary"
+                            SelectionMode="SelectionMode.SingleSelection"
+                            Size="Size.Small">
+                <MudToggleItem T="bool" Value="false" Text="@NotifLoc["Page_Filter_All"]" />
+                <MudToggleItem T="bool" Value="true" Text="@NotifLoc["Page_Filter_Unread"]" />
+            </MudToggleGroup>
+            @if (_items.Any(i => !i.IsRead))
+            {
+                <MudButton Variant="Variant.Text"
+                           StartIcon="@Icons.Material.Filled.DoneAll"
+                           OnClick="MarkAllReadAsync">
+                    @NotifLoc["Bell_MarkAllRead"]
+                </MudButton>
+            }
+        </MudStack>
+    </MudStack>
+
+    <MudPaper Elevation="0" Outlined="true">
+        @if (_loading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="py-8" role="status" aria-live="polite">
+                <MudProgressCircular Indeterminate="true" />
+            </MudStack>
+        }
+        else if (_items.Count == 0)
+        {
+            <EmptyState Icon="@Icons.Material.Filled.Notifications"
+                        Title="@NotifLoc["Page_Empty_Title"].Value"
+                        Description="@NotifLoc["Page_Empty_Description"].Value" />
+        }
+        else
+        {
+            <MudList T="NotificationDto" Dense="false" Class="py-0">
+                @foreach (var n in _items)
+                {
+                    <MudListItem T="NotificationDto"
+                                 OnClick="@(() => ActivateAsync(n))"
+                                 Icon="@IconFor(n.Category)"
+                                 IconColor="@IconColorFor(n.Category)"
+                                 Style="@(n.IsRead ? "" : "background-color: var(--mud-palette-action-default-hover);")">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudStack Spacing="0" Class="flex-grow-1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    @if (!n.IsRead)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.FiberManualRecord"
+                                                 Color="Color.Primary" Size="Size.Small"
+                                                 aria-hidden="true"
+                                                 Style="font-size: 0.6rem;" />
+                                    }
+                                    <MudText Typo="Typo.body1" Style="@(n.IsRead ? "" : "font-weight: 600;")">
+                                        @n.Title
+                                    </MudText>
+                                </MudStack>
+                                @if (!string.IsNullOrWhiteSpace(n.Body))
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@n.Body</MudText>
+                                }
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @n.CreatedAt.ToLocalTime().ToString("g")
+                                </MudText>
+                            </MudStack>
+                            <span @onclick:stopPropagation="true">
+                                <MudTooltip Text="@NotifLoc["Page_Aria_Delete"].Value">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                                   Size="Size.Small"
+                                                   aria-label="@NotifLoc["Page_Aria_Delete"]"
+                                                   OnClick="@(() => DeleteAsync(n))" />
+                                </MudTooltip>
+                            </span>
+                        </MudStack>
+                    </MudListItem>
+                }
+            </MudList>
+
+            @if (_hasMore)
+            {
+                <MudButton FullWidth="true" Variant="Variant.Text" OnClick="LoadMoreAsync">
+                    @NotifLoc["Page_LoadMore"]
+                </MudButton>
+            }
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private bool _unreadOnly;
+    private List<NotificationDto> _items = new();
+    private int _totalCount;
+    private const int PageSize = 50;
+
+    private bool _hasMore => _items.Count < _totalCount;
+
+    /// <summary>
+    /// Bound via @bind-Value on the filter toggle. Setter triggers a reload
+    /// when the value changes; avoids the infinite-loop trap that
+    /// <c>ShouldRender</c> would create if we reloaded on every render.
+    /// </summary>
+    private bool UnreadOnly
+    {
+        get => _unreadOnly;
+        set
+        {
+            if (_unreadOnly == value) return;
+            _unreadOnly = value;
+            _ = LoadAsync(reset: true);
+        }
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadAsync(reset: true);
+
+    private async Task LoadAsync(bool reset)
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var skip = reset ? 0 : _items.Count;
+            var response = await Api.GetNotificationsAsync(_unreadOnly, skip, PageSize);
+            if (reset) _items = response.Items;
+            else _items.AddRange(response.Items);
+            _totalCount = response.TotalCount;
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load notifications");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private Task LoadMoreAsync() => LoadAsync(reset: false);
+
+    private async Task ActivateAsync(NotificationDto n)
+    {
+        if (!n.IsRead)
+        {
+            n.ReadAt = DateTime.UtcNow;
+            StateHasChanged();
+            _ = Api.MarkNotificationReadAsync(n.Id);
+        }
+        if (!string.IsNullOrWhiteSpace(n.Url))
+            Nav.NavigateTo(n.Url);
+        await Task.CompletedTask;
+    }
+
+    private async Task DeleteAsync(NotificationDto n)
+    {
+        // Optimistic removal.
+        var index = _items.IndexOf(n);
+        _items.Remove(n);
+        _totalCount = Math.Max(0, _totalCount - 1);
+        StateHasChanged();
+
+        try
+        {
+            await Api.DeleteNotificationAsync(n.Id);
+        }
+        catch (Exception ex)
+        {
+            _items.Insert(Math.Min(index, _items.Count), n);
+            _totalCount++;
+            StateHasChanged();
+            Feedback.HandleError(ex, "delete notification");
+        }
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        foreach (var n in _items)
+            n.ReadAt ??= DateTime.UtcNow;
+        StateHasChanged();
+
+        try
+        {
+            await Api.MarkAllNotificationsReadAsync();
+            Feedback.ShowSuccess(NotifLoc["Bell_MarkAllRead"].Value);
+            if (_unreadOnly)
+                await LoadAsync(reset: true);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "mark notifications read");
+        }
+    }
+
+    private static string IconFor(string category) => category switch
+    {
+        NotificationConstants.Categories.Mention => Icons.Material.Filled.AlternateEmail,
+        NotificationConstants.Categories.SavedSearchDigest => Icons.Material.Filled.Search,
+        NotificationConstants.Categories.MigrationCompleted => Icons.Material.Filled.CloudUpload,
+        NotificationConstants.Categories.WorkflowTransition => Icons.Material.Filled.AccountTree,
+        NotificationConstants.Categories.WebhookFailure => Icons.Material.Filled.Webhook,
+        _ => Icons.Material.Filled.Notifications
+    };
+
+    private static Color IconColorFor(string category) => category switch
+    {
+        NotificationConstants.Categories.WebhookFailure => Color.Warning,
+        NotificationConstants.Categories.Mention => Color.Primary,
+        _ => Color.Default
+    };
+}

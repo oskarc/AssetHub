@@ -891,6 +891,65 @@ public class AssetHubApiClient
 
     #endregion
 
+    #region Notifications
+
+    public virtual async Task<NotificationListResponse> GetNotificationsAsync(
+        bool unreadOnly = false, int skip = 0, int take = 50, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync(
+            $"/api/v1/notifications?unreadOnly={unreadOnly.ToString().ToLowerInvariant()}&skip={skip}&take={take}",
+            ct);
+        await EnsureSuccessAsync(response, "Get notifications");
+        return await response.Content.ReadFromJsonAsync<NotificationListResponse>(ct)
+            ?? throw new ApiException("Failed to deserialize notifications", System.Net.HttpStatusCode.InternalServerError);
+    }
+
+    public virtual async Task<int> GetNotificationUnreadCountAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/notifications/unread-count", ct);
+        await EnsureSuccessAsync(response, "Get notification unread count");
+        var body = await response.Content.ReadFromJsonAsync<NotificationUnreadCountDto>(ct);
+        return body?.Count ?? 0;
+    }
+
+    public virtual async Task MarkNotificationReadAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/notifications/{id}/read", null, ct);
+        await EnsureSuccessAsync(response, "Mark notification read");
+    }
+
+    public virtual async Task<int> MarkAllNotificationsReadAsync(CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync("/api/v1/notifications/read-all", null, ct);
+        await EnsureSuccessAsync(response, "Mark all notifications read");
+        return await response.Content.ReadFromJsonAsync<int>(ct);
+    }
+
+    public virtual async Task DeleteNotificationAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/notifications/{id}", ct);
+        await EnsureSuccessAsync(response, "Delete notification");
+    }
+
+    public virtual async Task<NotificationPreferencesDto> GetNotificationPreferencesAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/notifications/preferences", ct);
+        await EnsureSuccessAsync(response, "Get notification preferences");
+        return await response.Content.ReadFromJsonAsync<NotificationPreferencesDto>(ct)
+            ?? throw new ApiException("Failed to deserialize notification preferences", System.Net.HttpStatusCode.InternalServerError);
+    }
+
+    public virtual async Task<NotificationPreferencesDto> UpdateNotificationPreferencesAsync(
+        UpdateNotificationPreferencesDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PutAsJsonAsync("/api/v1/notifications/preferences", dto, ct);
+        await EnsureSuccessAsync(response, "Update notification preferences");
+        return await response.Content.ReadFromJsonAsync<NotificationPreferencesDto>(ct)
+            ?? throw new ApiException("Failed to deserialize notification preferences", System.Net.HttpStatusCode.InternalServerError);
+    }
+
+    #endregion
+
     #region Migrations (Admin)
 
     public virtual async Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default)
