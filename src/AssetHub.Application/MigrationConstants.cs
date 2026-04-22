@@ -30,6 +30,9 @@ public static class MigrationConstants
         public const string Deleted = "migration.deleted";
         public const string BulkDeleted = "migration.bulk_deleted";
         public const string Retried = "migration.retried";
+        public const string S3ScanStarted = "migration.s3_scan_started";
+        public const string S3ScanCompleted = "migration.s3_scan_completed";
+        public const string S3ScanFailed = "migration.s3_scan_failed";
     }
 
     /// <summary>

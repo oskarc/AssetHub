@@ -23,6 +23,7 @@ public sealed class MigrationService(
     IOptions<MinIOSettings> minioSettings,
     IAuditService audit,
     IMessageBus messageBus,
+    IMigrationSecretProtector secretProtector,
     HybridCache cache,
     CurrentUser currentUser,
     ILogger<MigrationService> logger) : IMigrationService
@@ -32,6 +33,19 @@ public sealed class MigrationService(
     {
         if (!currentUser.IsSystemAdmin)
             return ServiceError.Forbidden("Only administrators can create migrations.");
+
+        var sourceType = dto.SourceType.ToMigrationSourceType();
+
+        // Validate source-type-specific configuration
+        if (sourceType is MigrationSourceType.S3)
+        {
+            if (dto.S3Config is null)
+                return ServiceError.BadRequest("S3 source config is required when sourceType is 's3'.");
+        }
+        else if (dto.S3Config is not null)
+        {
+            return ServiceError.BadRequest("S3 source config must not be provided for non-S3 migrations.");
+        }
 
         // Validate mutually exclusive collection fields
         if (dto.DefaultCollectionId.HasValue && !string.IsNullOrWhiteSpace(dto.DefaultCollectionName))
@@ -79,13 +93,16 @@ public sealed class MigrationService(
         {
             Id = Guid.NewGuid(),
             Name = dto.Name.Trim(),
-            SourceType = dto.SourceType.ToMigrationSourceType(),
+            SourceType = sourceType,
             Status = MigrationStatus.Draft,
             DefaultCollectionId = resolvedCollectionId,
             DryRun = dto.DryRun,
             CreatedByUserId = currentUser.UserId,
             CreatedAt = DateTime.UtcNow
         };
+
+        if (sourceType is MigrationSourceType.S3)
+            migration.SourceConfig = MigrationS3ConfigCodec.Write(dto.S3Config!, secretProtector);
 
         await migrationRepo.CreateAsync(migration, ct);
 
@@ -159,6 +176,56 @@ public sealed class MigrationService(
 
         logger.LogInformation("Migration {MigrationId} started with {ItemCount} items",
             migrationId, migration.ItemsTotal);
+
+        return ServiceResult.Success;
+    }
+
+    public async Task<ServiceResult> StartS3ScanAsync(Guid migrationId, CancellationToken ct)
+    {
+        if (!currentUser.IsSystemAdmin)
+            return ServiceError.Forbidden("Only administrators can scan S3 migrations.");
+
+        var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
+        if (migration is null)
+            return ServiceError.NotFound("Migration not found.");
+
+        if (migration.SourceType is not MigrationSourceType.S3)
+            return ServiceError.BadRequest("Scan is only valid for S3-source migrations.");
+
+        if (migration.Status is not MigrationStatus.Draft)
+            return ServiceError.BadRequest($"Cannot scan a migration in '{migration.Status.ToDbString()}' status.");
+
+        // Decode the stored config to capture bucket+prefix for the audit event and to
+        // fail fast if the stored ciphertext is corrupted, before the worker starts.
+        S3SourceConfigDto config;
+        try
+        {
+            config = MigrationS3ConfigCodec.Read(migration.SourceConfig, secretProtector);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Migration {MigrationId}: S3 source config is invalid or unreadable", migrationId);
+            return ServiceError.BadRequest("Stored S3 source configuration is invalid. Recreate the migration.");
+        }
+
+        migration.Status = MigrationStatus.Validating;
+        await migrationRepo.UpdateAsync(migration, ct);
+
+        await messageBus.PublishAsync(new S3MigrationScanCommand { MigrationId = migrationId });
+
+        await audit.LogAsync(
+            MigrationConstants.AuditEvents.S3ScanStarted,
+            Constants.ScopeTypes.Migration,
+            migrationId,
+            currentUser.UserId,
+            new Dictionary<string, object>
+            {
+                ["bucket"] = config.Bucket,
+                ["prefix"] = config.Prefix ?? string.Empty
+            },
+            ct);
+
+        logger.LogInformation("Migration {MigrationId}: S3 scan queued for bucket {Bucket}", migrationId, config.Bucket);
 
         return ServiceResult.Success;
     }

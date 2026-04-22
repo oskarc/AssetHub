@@ -44,6 +44,7 @@ static class Program
                 opts.ListenToRabbitQueue("apply-export-presets");
                 opts.ListenToRabbitQueue("start-migration");
                 opts.ListenToRabbitQueue("process-migration-item");
+                opts.ListenToRabbitQueue("s3-migration-scan");
 
                 // Route events back to API
                 opts.PublishMessage<AssetProcessingCompletedEvent>()

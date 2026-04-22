@@ -148,6 +148,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
         services.AddScoped<IMigrationService, MigrationService>();
         services.AddSingleton<IMigrationSecretProtector, MigrationSecretProtector>();
+        services.AddSingleton<IS3ConnectorClient, S3ConnectorClient>();
 
         return services;
     }

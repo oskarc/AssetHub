@@ -233,6 +233,88 @@ public class MigrationEndpointTests : IAsyncLifetime
         Assert.Equal("running", refreshed!.Status);
     }
 
+    // ── S3 scan ──────────────────────────────────────────────────────
+
+    private static S3SourceConfigDto ValidS3Config() => new()
+    {
+        Endpoint = "https://s3.eu-west-1.amazonaws.com",
+        Bucket = "bucket-a",
+        Prefix = "photos/",
+        AccessKey = "AK",
+        SecretKey = "SK",
+        Region = "eu-west-1"
+    };
+
+    private async Task<MigrationResponseDto> CreateS3MigrationAsync(HttpClient client)
+    {
+        var dto = new CreateMigrationDto
+        {
+            Name = $"S3-{Guid.NewGuid():N}",
+            SourceType = "s3",
+            S3Config = ValidS3Config()
+        };
+        var response = await client.PostAsJsonAsync(BasePath, dto);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<MigrationResponseDto>())!;
+    }
+
+    [Fact]
+    public async Task S3Scan_Viewer_Returns403()
+    {
+        var response = await ViewerClient().PostAsync($"{BasePath}/{Guid.NewGuid()}/s3/scan", null);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task S3Scan_MigrationNotFound_Returns404()
+    {
+        var response = await AdminClient().PostAsync($"{BasePath}/{Guid.NewGuid()}/s3/scan", null);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task S3Scan_CsvMigration_Returns400()
+    {
+        var client = AdminClient();
+        var created = await CreateMigrationAsync(client);  // defaults to csv_upload
+
+        var response = await client.PostAsync($"{BasePath}/{created.Id}/s3/scan", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_S3_WithoutConfig_Returns400()
+    {
+        var dto = new CreateMigrationDto { Name = "X", SourceType = "s3" };  // missing S3Config
+
+        var response = await AdminClient().PostAsJsonAsync(BasePath, dto);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_S3_WithConfig_Returns201()
+    {
+        var client = AdminClient();
+
+        var created = await CreateS3MigrationAsync(client);
+
+        Assert.Equal("s3", created.SourceType);
+        Assert.Equal("draft", created.Status);
+    }
+
+    [Fact]
+    public async Task S3Scan_S3DraftMigration_Returns200()
+    {
+        var client = AdminClient();
+        var created = await CreateS3MigrationAsync(client);
+
+        var response = await client.PostAsync($"{BasePath}/{created.Id}/s3/scan", null);
+
+        Assert.True(response.IsSuccessStatusCode, $"Expected success, got {response.StatusCode}");
+    }
+
     [Fact]
     public async Task Cancel_NotRunning_Returns400()
     {

@@ -23,8 +23,19 @@ public class MigrationServiceTests
     private readonly Mock<IMinIOAdapter> _minio = new();
     private readonly Mock<IAuditService> _audit = new();
     private readonly Mock<IMessageBus> _bus = new();
+    private readonly Mock<IMigrationSecretProtector> _secretProtector = new();
 
     private const string AdminUserId = "admin-001";
+
+    public MigrationServiceTests()
+    {
+        // Default protector: round-trip through a `enc(...)` wrapper so tests can assert
+        // that the plaintext secret never leaks into persisted state.
+        _secretProtector.Setup(p => p.Protect(It.IsAny<string>()))
+            .Returns<string>(s => $"enc({s})");
+        _secretProtector.Setup(p => p.Unprotect(It.IsAny<string>()))
+            .Returns<string>(s => s.StartsWith("enc(") && s.EndsWith(')') ? s[4..^1] : s);
+    }
 
     private MigrationService CreateService(bool isAdmin = true)
     {
@@ -38,6 +49,7 @@ public class MigrationServiceTests
             minioSettings,
             _audit.Object,
             _bus.Object,
+            _secretProtector.Object,
             TestCacheHelper.CreateHybridCache(),
             currentUser,
             NullLogger<MigrationService>.Instance);
@@ -178,6 +190,177 @@ public class MigrationServiceTests
             It.IsAny<Dictionary<string, object>>(),
             It.IsAny<CancellationToken>()), Times.Once);
         _repo.Verify(r => r.CreateAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ── CreateAsync — S3 ────────────────────────────────────────────
+
+    private static S3SourceConfigDto ValidS3Config() => new()
+    {
+        Endpoint = "https://s3.eu-west-1.amazonaws.com",
+        Bucket = "my-bucket",
+        Prefix = "images/",
+        AccessKey = "AKIA...",
+        SecretKey = "super-secret",
+        Region = "eu-west-1"
+    };
+
+    [Fact]
+    public async Task CreateAsync_S3SourceMissingConfig_ReturnsBadRequest()
+    {
+        var svc = CreateService();
+
+        var result = await svc.CreateAsync(
+            new CreateMigrationDto { Name = "X", SourceType = "s3", S3Config = null },
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CsvSourceWithS3Config_ReturnsBadRequest()
+    {
+        var svc = CreateService();
+
+        var result = await svc.CreateAsync(
+            new CreateMigrationDto { Name = "X", SourceType = "csv_upload", S3Config = ValidS3Config() },
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateAsync_S3Source_PersistsEncryptedSecretInSourceConfig()
+    {
+        var svc = CreateService();
+        Migration? captured = null;
+        _repo.Setup(r => r.CreateAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .Callback<Migration, CancellationToken>((m, _) => captured = m)
+            .ReturnsAsync((Migration m, CancellationToken _) => m);
+
+        var result = await svc.CreateAsync(
+            new CreateMigrationDto { Name = "X", SourceType = "s3", S3Config = ValidS3Config() },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(captured);
+        Assert.Equal(MigrationSourceType.S3, captured!.SourceType);
+        // Non-secret fields persist as-is
+        Assert.Equal("my-bucket", captured.SourceConfig[MigrationS3ConfigCodec.Keys.Bucket]);
+        Assert.Equal("images/", captured.SourceConfig[MigrationS3ConfigCodec.Keys.Prefix]);
+        Assert.Equal("AKIA...", captured.SourceConfig[MigrationS3ConfigCodec.Keys.AccessKey]);
+        // Secret key is the protector output, never the plaintext
+        Assert.Equal("enc(super-secret)", captured.SourceConfig[MigrationS3ConfigCodec.Keys.SecretKeyEncrypted]);
+        Assert.False(captured.SourceConfig.ContainsKey("secret_key"));
+    }
+
+    // ── StartS3ScanAsync ────────────────────────────────────────────
+
+    [Fact]
+    public async Task StartS3ScanAsync_NonAdmin_ReturnsForbidden()
+    {
+        var svc = CreateService(isAdmin: false);
+
+        var result = await svc.StartS3ScanAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(403, result.Error!.StatusCode);
+    }
+
+    [Fact]
+    public async Task StartS3ScanAsync_MigrationNotFound_ReturnsNotFound()
+    {
+        var svc = CreateService();
+        var id = Guid.NewGuid();
+        _repo.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((Migration?)null);
+
+        var result = await svc.StartS3ScanAsync(id, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(404, result.Error!.StatusCode);
+    }
+
+    [Fact]
+    public async Task StartS3ScanAsync_CsvMigration_ReturnsBadRequest()
+    {
+        var svc = CreateService();
+        var m = MakeMigration();  // CsvUpload source
+        _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
+
+        var result = await svc.StartS3ScanAsync(m.Id, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+    }
+
+    [Fact]
+    public async Task StartS3ScanAsync_NotDraft_ReturnsBadRequest()
+    {
+        var svc = CreateService();
+        var m = MakeS3Migration(MigrationStatus.Running);
+        _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
+
+        var result = await svc.StartS3ScanAsync(m.Id, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+    }
+
+    [Fact]
+    public async Task StartS3ScanAsync_CorruptedConfig_ReturnsBadRequest()
+    {
+        var svc = CreateService();
+        var m = MakeS3Migration(MigrationStatus.Draft);
+        m.SourceConfig.Clear();  // missing required keys — Read() throws
+        _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
+
+        var result = await svc.StartS3ScanAsync(m.Id, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+        _bus.Verify(b => b.PublishAsync(It.IsAny<S3MigrationScanCommand>(), It.IsAny<DeliveryOptions?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task StartS3ScanAsync_HappyPath_TransitionsToValidatingAndPublishes()
+    {
+        var svc = CreateService();
+        var m = MakeS3Migration(MigrationStatus.Draft);
+        _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
+
+        var result = await svc.StartS3ScanAsync(m.Id, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(MigrationStatus.Validating, m.Status);
+        _bus.Verify(b => b.PublishAsync(
+            It.Is<S3MigrationScanCommand>(c => c.MigrationId == m.Id),
+            It.IsAny<DeliveryOptions?>()), Times.Once);
+        _audit.Verify(a => a.LogAsync(
+            MigrationConstants.AuditEvents.S3ScanStarted,
+            Constants.ScopeTypes.Migration,
+            m.Id,
+            AdminUserId,
+            It.Is<Dictionary<string, object>?>(d =>
+                d != null &&
+                (string)d["bucket"] == "my-bucket" &&
+                (string)d["prefix"] == "images/"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private Migration MakeS3Migration(MigrationStatus status)
+    {
+        var m = new Migration
+        {
+            Id = Guid.NewGuid(),
+            Name = "S3 test",
+            SourceType = MigrationSourceType.S3,
+            Status = status,
+            CreatedByUserId = AdminUserId,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-5),
+            SourceConfig = MigrationS3ConfigCodec.Write(ValidS3Config(), _secretProtector.Object)
+        };
+        return m;
     }
 
     // ── UploadManifestAsync ─────────────────────────────────────────

@@ -68,6 +68,8 @@ try
             .ToRabbitQueue("start-migration");
         opts.PublishMessage<ProcessMigrationItemCommand>()
             .ToRabbitQueue("process-migration-item");
+        opts.PublishMessage<S3MigrationScanCommand>()
+            .ToRabbitQueue("s3-migration-scan");
 
         // Listen for events from Worker
         opts.ListenToRabbitQueue("asset-processing-completed");
