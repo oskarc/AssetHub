@@ -49,7 +49,20 @@ public class PostgresFixture : IAsyncLifetime
     {
         return _dataSources.GetOrAdd(dbName, name =>
         {
-            var builder = new NpgsqlConnectionStringBuilder(ConnectionString) { Database = name };
+            // MaxPoolSize caps per-data-source connections well below Postgres's
+            // default max_connections=100 on postgres:16-alpine. ConcurrencyTests
+            // spawns 100 concurrent DbContexts against the same DB; without a cap
+            // each opens its own connection, exhausts the server, and the test
+            // fails with "53300: sorry, too many clients already" on CI.
+            // A smaller pool still verifies correctness — each IncrementAccess
+            // call is an atomic ExecuteUpdate, so queueing behind the pool does
+            // not change the observed row count — while leaving headroom for
+            // the other tests in the "Database" collection.
+            var builder = new NpgsqlConnectionStringBuilder(ConnectionString)
+            {
+                Database = name,
+                MaxPoolSize = 30
+            };
             var dsBuilder = new NpgsqlDataSourceBuilder(builder.ConnectionString);
             dsBuilder.EnableDynamicJson();
             return dsBuilder.Build();
