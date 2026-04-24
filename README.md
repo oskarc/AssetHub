@@ -95,6 +95,10 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Saved-search digests — a background worker re-runs saved searches on their chosen cadence (on-new-match / daily / weekly) and notifies owners about new matches, with email delivery riding the same pipeline
 - One-click email unsubscribe — signed stateless tokens (ASP.NET Core Data Protection) embedded in every email link; the anonymous unsubscribe endpoint flips just that category without needing the user to sign in
 
+**Collaboration**
+- Asset comments with single-level threading, optimistic UI delete + rollback, and author-only edit / author-or-admin delete semantics
+- Server-side `@username` parsing turns every mention into a notification — the recipient sees it in their bell and gets an email through the notification pipeline, all within the same pass
+
 **Security**
 - ClamAV malware scanning on every upload
 - Personal Access Tokens — long-lived, scoped, revocable bearer tokens for scripts and integrations. Only the SHA-256 hash is stored; plaintext is shown once. A compromised PAT cannot mint further tokens

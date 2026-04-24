@@ -125,6 +125,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
+        services.AddScoped<IAssetCommentRepository, AssetCommentRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);

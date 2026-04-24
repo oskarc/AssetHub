@@ -1,0 +1,72 @@
+@using AssetHub.Ui.Resources
+@using MudBlazor
+
+@inject IStringLocalizer<CommentsResource> Loc
+
+<MudStack Spacing="1">
+    <MudTextField @bind-Value="_body"
+                  Placeholder="@Placeholder"
+                  Lines="AutoFocus ? 2 : 3"
+                  Variant="Variant.Outlined"
+                  Immediate="true"
+                  MaxLength="4000"
+                  aria-label="@Placeholder" />
+    <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+        @if (ShowCancel)
+        {
+            <MudButton Variant="Variant.Text"
+                       OnClick="OnCancelClicked"
+                       aria-label="@Loc["Editor_Cancel"]">
+                @Loc["Editor_Cancel"]
+            </MudButton>
+        }
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(_submitting || string.IsNullOrWhiteSpace(_body))"
+                   OnClick="OnSubmitClicked"
+                   aria-label="@SubmitLabel">
+            @SubmitLabel
+        </MudButton>
+    </MudStack>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public string Placeholder { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string SubmitLabel { get; set; } = string.Empty;
+    [Parameter] public string InitialBody { get; set; } = string.Empty;
+    [Parameter] public bool AutoFocus { get; set; }
+    [Parameter] public bool ShowCancel { get; set; }
+    [Parameter] public EventCallback<string> OnSubmit { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string _body = string.Empty;
+    private bool _submitting;
+
+    protected override void OnParametersSet()
+    {
+        // Hydrate once from InitialBody (edit-mode). Further keystrokes land in _body.
+        if (!string.IsNullOrEmpty(InitialBody) && string.IsNullOrEmpty(_body))
+            _body = InitialBody;
+    }
+
+    private async Task OnSubmitClicked()
+    {
+        if (string.IsNullOrWhiteSpace(_body) || _submitting) return;
+        _submitting = true;
+        try
+        {
+            await OnSubmit.InvokeAsync(_body.Trim());
+            _body = string.Empty;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private async Task OnCancelClicked()
+    {
+        _body = InitialBody;
+        await OnCancel.InvokeAsync();
+    }
+}

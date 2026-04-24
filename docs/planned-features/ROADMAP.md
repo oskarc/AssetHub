@@ -474,30 +474,7 @@ Implementations: `AzureAiVisionService`, `AwsRekognitionService`, etc. Register 
 
 ### T3-COL-01 — Comments with @mentions
 
-**Intent.** Asset-level discussion threads. Review feedback without leaving the DAM.
-
-**Data model.**
-```csharp
-public class AssetComment
-{
-    public Guid Id { get; set; }
-    public Guid AssetId { get; set; }
-    public string AuthorUserId { get; set; } = "";
-    public string Body { get; set; } = "";           // markdown, sanitized
-    public List<string> MentionedUserIds { get; set; } = new();
-    public DateTime CreatedAt { get; set; }
-    public DateTime? EditedAt { get; set; }
-    public Guid? ParentCommentId { get; set; }       // threading; null for top-level
-}
-```
-
-**API.** Standard CRUD under `/api/v1/assets/{id}/comments`.
-
-**UI.** `AssetCommentsPanel.razor` in `AssetDetail`. `MudAutocomplete` for @mention suggestions.
-
-**Notifications.** Mentions trigger T3-NTF-01 events.
-
-**Acceptance criteria.** Mentioning a user delivers an in-app and email notification within 60 s.
+> **Shipped 2026-04-24.** See the **Shipped appendix** at the end of this document for the per-layer breakdown, mention-parser contract, and deferred items (user-search autocomplete, author display-name resolution).
 
 ---
 
@@ -966,4 +943,37 @@ When a new gap is discovered:
 - `tests/AssetHub.Tests/Endpoints/NotificationEndpointTests.cs` — 3 new tests: missing token 400, invalid token neutral 200, valid token flips email and returns confirmation HTML.
 
 Full suite: 940 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
+### T3-COL-01 — Comments with @mentions
+
+**Shipped 2026-04-24** in a single pass. Lights up the T3-NTF-01 mention category with real traffic — every `@username` in a comment generates a `mention` notification, which rides the instant-email pipeline to the recipient.
+
+**Delivered as specified.**
+- [AssetComment](../../src/AssetHub.Domain/Entities/AssetComment.cs) entity with `AssetId`, `AuthorUserId`, `Body`, `MentionedUserIds` (Postgres `text[]`), `CreatedAt`, `EditedAt`, `ParentCommentId` (self-FK, cascade).
+- EF config in [AssetHubDbContext](../../src/AssetHub.Infrastructure/Data/AssetHubDbContext.cs) with two indices (`idx_asset_comment_asset_created`, `idx_asset_comment_parent`); migration `20260424214046_AddAssetComments` creates the table + FKs + `text[]` column.
+- [AssetCommentService](../../src/AssetHub.Infrastructure/Services/AssetCommentService.cs) implements the four CRUD methods with three-tier authorization:
+  - **Read**: viewer-or-higher on any collection containing the asset.
+  - **Create**: contributor-or-higher on any collection containing the asset.
+  - **Update**: author only (admins intentionally can't silently rewrite someone's words; delete is their moderation tool).
+  - **Delete**: author or system admin.
+- [MentionParser](../../src/AssetHub.Application/Helpers/MentionParser.cs) — source-generated regex `(?<![A-Za-z0-9])@([A-Za-z0-9._-]{1,32})`. Matches after a word boundary (so `email@host.com` is not a mention), 1–32 chars, deduplicated with case-insensitive ordering. Unknown usernames (no Keycloak hit) are dropped silently — typos don't 500 the request.
+- [AssetCommentEndpoints](../../src/AssetHub.Api/Endpoints/AssetCommentEndpoints.cs) under `/api/v1/assets/{id:guid}/comments` with group policy `RequireViewer`; POST returns 201 with Location header; PATCH / DELETE return 200 / 204. `ValidationFilter<T>` on POST + PATCH; `DisableAntiforgery` on mutations.
+- Notification fan-out reuses `NotificationConstants.Categories.Mention` — no new category. Title `"You were mentioned on '{assetTitle}'"`, 180-char body preview, deep-link `/assets/{assetId}`, `data = { comment_id, asset_id, author_user_id }`. Self-mentions (author @'ing themselves) are dropped.
+- Audit events: `comment.created`, `comment.updated`, `comment.deleted`, `comment.mention_delivered` (per mention, on both create and the "newly-added only" subset of an edit).
+- UI: [AssetCommentsPanel](../../src/AssetHub.Ui/Components/AssetCommentsPanel.razor) embedded in [AssetDetail](../../src/AssetHub.Ui/Pages/AssetDetail.razor) just below the version history panel. [AssetCommentEditor](../../src/AssetHub.Ui/Components/AssetCommentEditor.razor) is a reusable textarea + submit used for new comments, replies, and inline edits. [AssetCommentItem](../../src/AssetHub.Ui/Components/AssetCommentItem.razor) renders a single comment with HTML-escaped body, styled `@mention` chips, and conditional Reply / Edit / Delete actions. Optimistic delete with rollback on failure.
+- Localization: new [CommentsResource.resx](../../src/AssetHub.Ui/Resources/CommentsResource.resx) + [CommentsResource.sv.resx](../../src/AssetHub.Ui/Resources/CommentsResource.sv.resx), 22 keys each.
+
+**Deviations from the spec.**
+- **`MudAutocomplete` for @mention suggestions is NOT shipped.** The server is happy to resolve typed `@username` to a user id, but the client doesn't yet offer a user-search dropdown as you type. Needs a new `/api/v1/users/search` endpoint + UI integration. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T3-COL-01 — mention autocomplete in the comment editor".
+- **Author display-name resolution is NOT shipped.** The panel shows Keycloak `sub` truncated to `abcd1234…` instead of `@alice` / "Alice Smith". The backend has `IUserLookupService.GetUserNamesAsync` but the UI doesn't call it yet; wiring through display names needs a batch lookup on panel load. Tracked in FOLLOW-UPS as "T3-COL-01 — author display name + avatar resolution".
+- **Markdown rendering is NOT shipped.** Body is plain text; newlines preserved, HTML escaped. The spec said "markdown, sanitized" but for v1 we avoided pulling Markdig + a sanitizer for minimal-value features (bold/italic). Tracked in FOLLOW-UPS as "T3-COL-01 — markdown rendering for comment bodies" — revisit if a customer specifically asks.
+- **Reply threading depth capped at 1.** The entity supports `ParentCommentId` chains of any depth, but the service rejects `parent.ParentCommentId != null` to keep the UI flat. This matches Figma / Frame.io conventions and avoids unbounded-nesting UX. Not a deviation per the spec (which said "threading; null for top-level"); just documenting the interpretation.
+
+**Test coverage.**
+- `tests/AssetHub.Tests/Services/AssetCommentServiceTests.cs` — 13 tests covering every auth path (anonymous / no-access / viewer-can-read / contributor-can-create / author-can-edit / author-or-admin-can-delete), mention fan-out on create, "only newly added mentions notify" on edit, unknown-username drop, self-mention skip, reply-to-missing-parent, reply-to-reply depth cap.
+- `tests/AssetHub.Tests/Helpers/MentionParserTests.cs` — 9 tests: empty input, no mentions, email-pattern-not-mention, punctuation boundaries, de-duplication, dots/dashes/underscores, 32-char max.
+- `tests/AssetHub.Tests/Endpoints/AssetCommentEndpointTests.cs` — 5 HTTP tests: anonymous 401, create-list round trip, empty-body 400, author edit, author delete.
+
+Full suite: 977 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
 

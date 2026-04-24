@@ -1332,6 +1332,39 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Asset Comments
+
+    public virtual async Task<List<AssetCommentResponseDto>> GetAssetCommentsAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/comments", ct);
+        await EnsureSuccessAsync(response, "Get asset comments");
+        return await response.Content.ReadFromJsonAsync<List<AssetCommentResponseDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<AssetCommentResponseDto> CreateAssetCommentAsync(
+        Guid assetId, CreateAssetCommentDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync($"/api/v1/assets/{assetId}/comments", dto, ct);
+        await EnsureSuccessAsync(response, "Create asset comment");
+        return await ReadRequiredJsonAsync<AssetCommentResponseDto>(response, "Create asset comment");
+    }
+
+    public virtual async Task<AssetCommentResponseDto> UpdateAssetCommentAsync(
+        Guid assetId, Guid commentId, UpdateAssetCommentDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync($"/api/v1/assets/{assetId}/comments/{commentId}", dto, ct);
+        await EnsureSuccessAsync(response, "Update asset comment");
+        return await ReadRequiredJsonAsync<AssetCommentResponseDto>(response, "Update asset comment");
+    }
+
+    public virtual async Task DeleteAssetCommentAsync(Guid assetId, Guid commentId, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/assets/{assetId}/comments/{commentId}", ct);
+        await EnsureSuccessAsync(response, "Delete asset comment");
+    }
+
+    #endregion
 }
 
 /// <summary>

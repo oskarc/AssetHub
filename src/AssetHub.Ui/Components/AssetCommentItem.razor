@@ -1,0 +1,182 @@
+@using System.Text.RegularExpressions
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using MudBlazor
+
+@inject IStringLocalizer<CommentsResource> Loc
+
+<div class="comment-item" role="article" aria-label="@AriaLabel">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
+        <MudAvatar Color="Color.Primary" Size="Size.Small" aria-hidden="true">
+            @AuthorInitials(Comment.AuthorUserId)
+        </MudAvatar>
+        <MudStack Spacing="1" Style="flex: 1; min-width: 0;">
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.body2" Class="font-semibold">@AuthorDisplay(Comment.AuthorUserId)</MudText>
+                <MudTooltip Text="@Comment.CreatedAt.ToLocalTime().ToString("F")">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Comment.CreatedAt.ToLocalTime().ToString("g")</MudText>
+                </MudTooltip>
+                @if (Comment.EditedAt is not null)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Item_Edited_Suffix"]</MudText>
+                }
+            </MudStack>
+
+            @if (_editing)
+            {
+                <AssetCommentEditor Placeholder="@Loc["Editor_Placeholder"]"
+                                    SubmitLabel="@Loc["Editor_Save"]"
+                                    InitialBody="@Comment.Body"
+                                    ShowCancel="true"
+                                    AutoFocus="true"
+                                    OnSubmit="OnSaveEditAsync"
+                                    OnCancel="@(() => _editing = false)" />
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-word;">
+                    @((MarkupString)RenderBodyWithMentions(Comment.Body))
+                </MudText>
+
+                <MudStack Row="true" Spacing="1">
+                    @if (AllowReplies)
+                    {
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Outlined.Reply"
+                                   OnClick="@(() => _replying = !_replying)"
+                                   aria-label="@Loc["Item_Reply"]">
+                            @Loc["Item_Reply"]
+                        </MudButton>
+                    }
+                    @if (CanEdit)
+                    {
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Outlined.Edit"
+                                   OnClick="@(() => _editing = true)"
+                                   aria-label="@Loc["Item_Edit"]">
+                            @Loc["Item_Edit"]
+                        </MudButton>
+                    }
+                    @if (CanDelete)
+                    {
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   StartIcon="@Icons.Material.Outlined.Delete"
+                                   OnClick="OnDeleteClicked"
+                                   aria-label="@Loc["Item_Delete"]">
+                            @Loc["Item_Delete"]
+                        </MudButton>
+                    }
+                </MudStack>
+
+                @if (_replying)
+                {
+                    <AssetCommentEditor Placeholder="@Loc["Editor_Reply_Placeholder"]"
+                                        SubmitLabel="@Loc["Editor_Post"]"
+                                        ShowCancel="true"
+                                        AutoFocus="true"
+                                        OnSubmit="OnSubmitReplyAsync"
+                                        OnCancel="@(() => _replying = false)" />
+                }
+            }
+        </MudStack>
+    </MudStack>
+
+    @if (Replies is { Count: > 0 })
+    {
+        <div class="comment-replies" style="margin-left: 2.5rem; margin-top: 0.5rem;">
+            <MudStack Spacing="2">
+                @foreach (var reply in Replies)
+                {
+                    <AssetCommentItem Comment="reply"
+                                      Replies="null"
+                                      CurrentUserId="@CurrentUserId"
+                                      IsAdmin="@IsAdmin"
+                                      AllowReplies="false"
+                                      OnEdit="OnEdit"
+                                      OnDelete="OnDelete" />
+                }
+            </MudStack>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AssetCommentResponseDto Comment { get; set; } = default!;
+    [Parameter] public List<AssetCommentResponseDto>? Replies { get; set; }
+    [Parameter] public string CurrentUserId { get; set; } = string.Empty;
+    [Parameter] public bool IsAdmin { get; set; }
+    [Parameter] public bool AllowReplies { get; set; } = true;
+
+    // Tuple events avoid cascading N EventCallbacks per action.
+    [Parameter] public EventCallback<(Guid parentId, string body)> OnReply { get; set; }
+    [Parameter] public EventCallback<(Guid commentId, string body)> OnEdit { get; set; }
+    [Parameter] public EventCallback<Guid> OnDelete { get; set; }
+
+    private bool _editing;
+    private bool _replying;
+
+    private bool CanEdit => !string.IsNullOrEmpty(CurrentUserId) && Comment.AuthorUserId == CurrentUserId;
+    private bool CanDelete => IsAdmin || CanEdit;
+
+    private string AriaLabel => $"Comment by {AuthorDisplay(Comment.AuthorUserId)}";
+
+    private async Task OnSubmitReplyAsync(string body)
+    {
+        await OnReply.InvokeAsync((Comment.Id, body));
+        _replying = false;
+    }
+
+    private async Task OnSaveEditAsync(string body)
+    {
+        await OnEdit.InvokeAsync((Comment.Id, body));
+        _editing = false;
+    }
+
+    private async Task OnDeleteClicked() => await OnDelete.InvokeAsync(Comment.Id);
+
+    private static string AuthorInitials(string userId)
+    {
+        if (string.IsNullOrEmpty(userId)) return "?";
+        return userId.Length >= 2
+            ? userId.Substring(0, 2).ToUpperInvariant()
+            : userId.ToUpperInvariant();
+    }
+
+    private static string AuthorDisplay(string userId)
+    {
+        if (string.IsNullOrEmpty(userId)) return "?";
+        // Truncate long Keycloak subs to a readable prefix — full directory
+        // lookup is a follow-up (see T3-COL-01 follow-ups in ROADMAP).
+        return userId.Length > 12 ? userId[..8] + "…" : userId;
+    }
+
+    private static readonly Regex MentionHighlightRegex =
+        new(@"(?<![A-Za-z0-9])@([A-Za-z0-9._-]{1,32})",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Renders the body with HTML escaping and highlights <c>@mentions</c> as
+    /// styled spans. Input is escaped first so raw HTML from the DB can never
+    /// reach the DOM; only the mention wrappers are inserted as markup.
+    /// </summary>
+    private static string RenderBodyWithMentions(string body)
+    {
+        var escaped = System.Net.WebUtility.HtmlEncode(body ?? string.Empty);
+        return MentionHighlightRegex.Replace(escaped, m =>
+            $"<span class=\"comment-mention\" aria-label=\"Mentioned user {m.Groups[1].Value}\">@{m.Groups[1].Value}</span>");
+    }
+}
+
+<style>
+    .comment-mention {
+        background-color: var(--mud-palette-primary);
+        color: var(--mud-palette-primary-text, #fff);
+        border-radius: 4px;
+        padding: 0 4px;
+        font-weight: 500;
+    }
+</style>

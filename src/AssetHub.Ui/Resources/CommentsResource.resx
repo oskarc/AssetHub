@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Panel_Title" xml:space="preserve"><value>Comments</value></data>
+  <data name="Panel_Empty_Title" xml:space="preserve"><value>No comments yet</value></data>
+  <data name="Panel_Empty_Description" xml:space="preserve"><value>Start the conversation about this asset. @-mention teammates to notify them.</value></data>
+  <data name="Panel_LoadFailed" xml:space="preserve"><value>Failed to load comments.</value></data>
+
+  <data name="Editor_Placeholder" xml:space="preserve"><value>Write a comment… use @username to mention someone.</value></data>
+  <data name="Editor_Reply_Placeholder" xml:space="preserve"><value>Reply… use @username to mention.</value></data>
+  <data name="Editor_Post" xml:space="preserve"><value>Post</value></data>
+  <data name="Editor_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Editor_Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Editor_Post_Failed" xml:space="preserve"><value>Failed to post comment.</value></data>
+  <data name="Editor_Post_Forbidden" xml:space="preserve"><value>You don't have permission to comment on this asset.</value></data>
+
+  <data name="Item_Edited_Suffix" xml:space="preserve"><value>(edited)</value></data>
+  <data name="Item_Reply" xml:space="preserve"><value>Reply</value></data>
+  <data name="Item_Edit" xml:space="preserve"><value>Edit</value></data>
+  <data name="Item_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Item_Aria_Actions" xml:space="preserve"><value>Comment actions</value></data>
+
+  <data name="Confirm_Delete_Title" xml:space="preserve"><value>Delete comment?</value></data>
+  <data name="Confirm_Delete_Body" xml:space="preserve"><value>This will permanently remove the comment and any replies. This cannot be undone.</value></data>
+  <data name="Confirm_Delete_Confirm" xml:space="preserve"><value>Delete</value></data>
+
+  <data name="Mention_Aria" xml:space="preserve"><value>Mentioned user {0}</value></data>
+</root>

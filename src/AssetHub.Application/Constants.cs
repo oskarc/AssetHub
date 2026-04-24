@@ -44,6 +44,7 @@ public static class Constants
         public const string User = "user";
         public const string Migration = "migration";
         public const string UserPreferences = "user_preferences";
+        public const string Comment = "comment";
     }
 
     /// <summary>

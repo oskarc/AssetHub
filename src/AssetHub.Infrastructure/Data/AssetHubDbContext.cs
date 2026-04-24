@@ -35,6 +35,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<PersonalAccessToken> PersonalAccessTokens { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<NotificationPreferences> NotificationPreferences { get; set; } = null!;
+    public DbSet<AssetComment> AssetComments { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -596,6 +597,49 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
                     c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
                     c => JsonSerializer.Deserialize<Dictionary<string, NotificationCategoryPrefs>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+        });
+
+        // AssetComment
+        modelBuilder.Entity<AssetComment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Comments panel loads N latest top-level + replies for one asset.
+            entity.HasIndex(e => new { e.AssetId, e.CreatedAt })
+                .HasDatabaseName("idx_asset_comment_asset_created");
+
+            // Threading fetch: find all replies under a parent.
+            entity.HasIndex(e => e.ParentCommentId)
+                .HasDatabaseName("idx_asset_comment_parent");
+
+            entity.Property(e => e.AuthorUserId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Body).HasMaxLength(4000).IsRequired();
+
+            // Postgres text[] mirrors PersonalAccessToken.Scopes. Cheap to
+            // store the resolved ids so the notification fan-out doesn't
+            // re-parse the body on read, and we can group-by mentioned user
+            // for future "mentions of me" views.
+            entity.Property(e => e.MentionedUserIds)
+                .HasColumnType("text[]")
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
+
+            // Cascade with the Asset row on hard-delete / purge. Soft delete
+            // is hidden via the Asset global query filter (we only read
+            // comments through the asset's scope).
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Threaded comments: a deleted parent cascades to its replies
+            // (Postgres default; no orphan replies pointing at nothing).
+            entity.HasOne(e => e.ParentComment)
+                .WithMany()
+                .HasForeignKey(e => e.ParentCommentId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -59,6 +59,12 @@ public static class NotificationConstants
         public const string PreferencesUpdated = "notification.preferences_updated";
         public const string UnsubscribedViaEmail = "notification.unsubscribed_via_email";
         public const string SavedSearchDigestSent = "saved_search.digest_sent";
+
+        // T3-COL-01 — comments on assets
+        public const string CommentCreated = "comment.created";
+        public const string CommentUpdated = "comment.updated";
+        public const string CommentDeleted = "comment.deleted";
+        public const string CommentMentionDelivered = "comment.mention_delivered";
     }
 
     /// <summary>Limits.</summary>

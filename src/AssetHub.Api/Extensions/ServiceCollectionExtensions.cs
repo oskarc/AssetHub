@@ -226,6 +226,9 @@ public static class ServiceCollectionExtensions
         // Versioning (T1-VER-01)
         services.AddScoped<IAssetVersionService, AssetVersionService>();
 
+        // Asset comments (T3-COL-01)
+        services.AddScoped<IAssetCommentService, AssetCommentService>();
+
         // Personal access tokens (T1-API-01)
         services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();
 

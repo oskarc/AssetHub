@@ -197,6 +197,62 @@ already there; just missing the endpoint + UI.
 Unsubscribe endpoint returns the neutral "link not valid" page for an old
 URL) and subsequent emails embed new URLs that work.
 
+### T3-COL-01 — mention autocomplete in the comment editor
+
+**Deferred from**: T3-COL-01 phase (2026-04-24)
+**Why deferred**: Typing `@foo` resolves server-side, but there is no
+suggestion dropdown while composing. Roadmap called for a MudAutocomplete
+here; the missing piece is a client-facing user-search endpoint and wiring
+in the editor.
+**Sketch**:
+- New `GET /api/v1/users/search?q={prefix}&take=N` — authenticated, viewer+,
+  rate-limited, wraps `IUserLookupService.SearchUsersAsync` with a max of
+  10 results. Returns `{ id, username, email }`.
+- `AssetCommentEditor.razor` detects `@` at the caret, grabs the prefix,
+  calls the endpoint, shows `MudAutocomplete` anchored at the caret. On
+  select, replace the partial mention with the full `@username`.
+- Debounce 150 ms; cancel the in-flight request on each keystroke.
+**Acceptance**: typing `@al` while writing a comment shows a dropdown of
+matching users, Enter inserts the full username, posting creates the
+notification as today.
+
+### T3-COL-01 — author display name + avatar resolution
+
+**Deferred from**: T3-COL-01 phase (2026-04-24)
+**Why deferred**: The comments panel shows `abcd1234…` (truncated Keycloak
+sub) instead of `Alice Smith`. Backend already exposes
+`IUserLookupService.GetUserNamesAsync`; UI just doesn't call it.
+**Sketch**:
+- On `AssetCommentsPanel.LoadAsync`, collect every `AuthorUserId` +
+  `MentionedUserIds` and call a new `Api.GetUserNamesAsync(ids)` wrapper
+  that proxies `IUserLookupService.GetUserNamesAsync`.
+- Pass the `Dictionary<string,string>` down to `AssetCommentItem` and
+  show the friendly name + initials-based avatar instead of the truncated
+  sub.
+- Cache per panel instance (don't re-fetch on every re-render); HybridCache
+  on the server already memoises username lookups.
+**Acceptance**: comment list renders `Alice Smith` + "AS" avatar for every
+known author; unknown subs fall back to today's truncated form.
+
+### T3-COL-01 — markdown rendering for comment bodies
+
+**Deferred from**: T3-COL-01 phase (2026-04-24)
+**Why deferred**: Spec said "markdown, sanitized" but phase 1 stuck to
+plain text with newlines + HTML escaping (+ `@mention` chips). Pulling in
+Markdig + an HTML sanitizer for bold / italic / links is a non-trivial
+dependency for small user value unless a customer asks.
+**Sketch**:
+- Add `Markdig` + `Ganss.Xss` packages. Render on the *client* so we
+  don't re-parse on every page load.
+- Replace `RenderBodyWithMentions` with: escape → Markdig → sanitize
+  output against a minimal allowlist (a, b, i, strong, em, code, ul, ol,
+  li, p, br) → overlay mention regex on the safe HTML.
+- Acceptance tests for XSS vectors: `<script>`, `<img onerror>`, javascript:
+  hrefs, data: URIs, embedded HTML in code blocks.
+**Acceptance**: `**bold**`, `_italic_`, inline `` `code` ``, and
+`[label](https://…)` render as expected; no XSS vector from
+`t3-col-01-xss-fuzz.spec.ts`.
+
 ### Test infra — full Release suite EF flake
 
 **Deferred from**: noted across multiple sessions

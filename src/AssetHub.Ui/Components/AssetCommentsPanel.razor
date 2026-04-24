@@ -1,0 +1,210 @@
+@using System.Security.Claims
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommentsResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudPaper Class="pa-3" Elevation="0" Outlined="true" aria-label="@Loc["Panel_Title"]">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.subtitle1">@Loc["Panel_Title"]</MudText>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_loadError)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true">@Loc["Panel_LoadFailed"]</MudAlert>
+        }
+        else
+        {
+            @* New top-level comment *@
+            <AssetCommentEditor Placeholder="@Loc["Editor_Placeholder"]"
+                                SubmitLabel="@Loc["Editor_Post"]"
+                                OnSubmit="OnSubmitTopLevelAsync" />
+
+            @if (_topLevel.Count == 0)
+            {
+                <MudStack AlignItems="AlignItems.Center" Spacing="1" Class="py-4" role="status">
+                    <MudIcon Icon="@Icons.Material.Outlined.ChatBubbleOutline" Color="Color.Secondary" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@Loc["Panel_Empty_Title"]</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Panel_Empty_Description"]</MudText>
+                </MudStack>
+            }
+            else
+            {
+                <MudStack Spacing="2">
+                    @foreach (var comment in _topLevel)
+                    {
+                        <AssetCommentItem Comment="comment"
+                                          Replies="@GetReplies(comment.Id)"
+                                          CurrentUserId="@_currentUserId"
+                                          IsAdmin="@_isAdmin"
+                                          OnReply="OnReplyAsync"
+                                          OnEdit="OnEditAsync"
+                                          OnDelete="OnDeleteAsync" />
+                    }
+                </MudStack>
+            }
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+    [Parameter] public string AssetTitle { get; set; } = string.Empty;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private List<AssetCommentResponseDto> _comments = new();
+    private List<AssetCommentResponseDto> _topLevel = new();
+    private Dictionary<Guid, List<AssetCommentResponseDto>> _replyMap = new();
+    private bool _loading = true;
+    private bool _loadError;
+    private string _currentUserId = string.Empty;
+    private bool _isAdmin;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask is not null)
+        {
+            var state = await AuthStateTask;
+            _currentUserId = state.User.FindFirst("sub")?.Value
+                ?? state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? string.Empty;
+            _isAdmin = state.User.IsInRole("admin");
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+        _cts = new CancellationTokenSource();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _loadError = false;
+            _comments = await Api.GetAssetCommentsAsync(AssetId, _cts.Token);
+            RebuildIndices();
+        }
+        catch (OperationCanceledException)
+        {
+            // Navigation cancelled the request — ignore.
+        }
+        catch (Exception)
+        {
+            _loadError = true;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void RebuildIndices()
+    {
+        _topLevel = _comments
+            .Where(c => c.ParentCommentId is null)
+            .OrderBy(c => c.CreatedAt)
+            .ToList();
+        _replyMap = _comments
+            .Where(c => c.ParentCommentId is not null)
+            .GroupBy(c => c.ParentCommentId!.Value)
+            .ToDictionary(g => g.Key, g => g.OrderBy(c => c.CreatedAt).ToList());
+    }
+
+    private List<AssetCommentResponseDto> GetReplies(Guid parentId)
+        => _replyMap.TryGetValue(parentId, out var replies) ? replies : new();
+
+    private async Task OnSubmitTopLevelAsync(string body)
+    {
+        await PostAsync(body, parent: null);
+    }
+
+    private async Task OnReplyAsync((Guid parentId, string body) args)
+    {
+        await PostAsync(args.body, parent: args.parentId);
+    }
+
+    private async Task PostAsync(string body, Guid? parent)
+    {
+        try
+        {
+            var created = await Api.CreateAssetCommentAsync(AssetId,
+                new CreateAssetCommentDto { Body = body, ParentCommentId = parent },
+                _cts.Token);
+            _comments.Add(created);
+            RebuildIndices();
+            StateHasChanged();
+        }
+        catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Feedback.ShowError(Loc["Editor_Post_Forbidden"].Value);
+        }
+        catch (Exception)
+        {
+            Feedback.ShowError(Loc["Editor_Post_Failed"].Value);
+        }
+    }
+
+    private async Task OnEditAsync((Guid commentId, string body) args)
+    {
+        try
+        {
+            var updated = await Api.UpdateAssetCommentAsync(AssetId, args.commentId,
+                new UpdateAssetCommentDto { Body = args.body }, _cts.Token);
+            var idx = _comments.FindIndex(c => c.Id == args.commentId);
+            if (idx >= 0) _comments[idx] = updated;
+            RebuildIndices();
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            Feedback.ShowError(Loc["Editor_Post_Failed"].Value);
+        }
+    }
+
+    private async Task OnDeleteAsync(Guid commentId)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            Loc["Confirm_Delete_Title"],
+            Loc["Confirm_Delete_Body"].Value,
+            yesText: Loc["Confirm_Delete_Confirm"],
+            cancelText: CommonLoc["Btn_Cancel"]);
+
+        if (confirmed != true) return;
+
+        // Optimistic: remove locally, restore on failure.
+        var removed = _comments.Where(c => c.Id == commentId || c.ParentCommentId == commentId).ToList();
+        foreach (var r in removed) _comments.Remove(r);
+        RebuildIndices();
+        StateHasChanged();
+
+        try
+        {
+            await Api.DeleteAssetCommentAsync(AssetId, commentId, _cts.Token);
+        }
+        catch (Exception)
+        {
+            _comments.AddRange(removed);
+            RebuildIndices();
+            StateHasChanged();
+            Feedback.ShowError(Loc["Editor_Post_Failed"].Value);
+        }
+    }
+}

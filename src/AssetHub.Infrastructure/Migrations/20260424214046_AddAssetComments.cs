@@ -1,0 +1,63 @@
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddAssetComments : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.CreateTable(
+                name: "AssetComments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    AssetId = table.Column<Guid>(type: "uuid", nullable: false),
+                    AuthorUserId = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    Body = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
+                    MentionedUserIds = table.Column<List<string>>(type: "text[]", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EditedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ParentCommentId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AssetComments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AssetComments_AssetComments_ParentCommentId",
+                        column: x => x.ParentCommentId,
+                        principalTable: "AssetComments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_AssetComments_Assets_AssetId",
+                        column: x => x.AssetId,
+                        principalTable: "Assets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "idx_asset_comment_asset_created",
+                table: "AssetComments",
+                columns: new[] { "AssetId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "idx_asset_comment_parent",
+                table: "AssetComments",
+                column: "ParentCommentId");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "AssetComments");
+        }
+    }
+}
