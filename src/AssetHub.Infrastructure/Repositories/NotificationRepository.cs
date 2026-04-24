@@ -53,6 +53,13 @@ public sealed class NotificationRepository(AssetHubDbContext db) : INotification
             .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId, ct);
     }
 
+    public async Task<Notification?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return await db.Notifications
+            .AsNoTracking()
+            .FirstOrDefaultAsync(n => n.Id == id, ct);
+    }
+
     public async Task<bool> MarkReadAsync(Guid id, string userId, DateTime readAt, CancellationToken ct = default)
     {
         var rows = await db.Notifications

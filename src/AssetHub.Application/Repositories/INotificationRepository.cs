@@ -24,6 +24,13 @@ public interface INotificationRepository
     /// <summary>Get a notification by id scoped to its owner. Returns null if absent or owned by another user.</summary>
     Task<Notification?> GetForOwnerAsync(Guid id, string userId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Get a notification by id without owner scoping. Use only in trusted
+    /// server-side contexts (email-send handler, admin); never expose this
+    /// over an endpoint without re-checking ownership.
+    /// </summary>
+    Task<Notification?> GetByIdAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>Stamp ReadAt on a single notification. Idempotent.</summary>
     Task<bool> MarkReadAsync(Guid id, string userId, DateTime readAt, CancellationToken ct = default);
 

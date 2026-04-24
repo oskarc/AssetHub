@@ -31,4 +31,32 @@ public interface INotificationPreferencesService
     /// filled in). Does not create a row.
     /// </summary>
     Task<NotificationCategoryPrefs> ResolveForUserAsync(string userId, string category, CancellationToken ct);
+
+    /// <summary>
+    /// Returns the full stored preferences row for a user (not wrapped in a
+    /// DTO), so callers building email URLs can read the row's unsubscribe
+    /// stamp. Returns null when no row exists. Used by the email-send handler.
+    /// </summary>
+    Task<NotificationPreferences?> GetByUserIdAsync(string userId, CancellationToken ct);
+
+    /// <summary>
+    /// Anonymous unsubscribe flow driven by a signed token embedded in an
+    /// email link. Validates the token, confirms the embedded stamp matches
+    /// the current preferences row, flips <c>Email = false</c> for the
+    /// embedded category, and emits a <c>notification.unsubscribed_via_email</c>
+    /// audit event.
+    ///
+    /// Returns a 2xx-friendly shape even when the token is invalid so the
+    /// endpoint can render a neutral confirmation page without leaking
+    /// whether a given token is known — rate limiting at the transport layer
+    /// handles the abuse surface.
+    /// </summary>
+    Task<ServiceResult<UnsubscribeResult>> UnsubscribeFromCategoryAsync(string token, CancellationToken ct);
 }
+
+/// <summary>
+/// Outcome of the anonymous unsubscribe endpoint. <see cref="Applied"/> is
+/// <c>true</c> when we actually flipped a category; <c>false</c> when the
+/// token was invalid, expired, or already-unsubscribed.
+/// </summary>
+public sealed record UnsubscribeResult(bool Applied, string? Category);

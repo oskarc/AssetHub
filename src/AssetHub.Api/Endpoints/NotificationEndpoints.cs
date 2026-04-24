@@ -38,6 +38,14 @@ public static class NotificationEndpoints
             .AddEndpointFilter<ValidationFilter<UpdateNotificationPreferencesDto>>()
             .DisableAntiforgery()
             .WithName("UpdateNotificationPreferences");
+
+        // Anonymous one-click unsubscribe from email links. The token is a
+        // signed payload (userId, category, stamp) — the endpoint never
+        // accepts a user id directly. Returns a minimal HTML confirmation so
+        // a browser click lands on a readable page.
+        group.MapGet("unsubscribe", Unsubscribe)
+            .AllowAnonymous()
+            .WithName("NotificationUnsubscribe");
     }
 
     private static async Task<IResult> List(
@@ -86,5 +94,48 @@ public static class NotificationEndpoints
         CancellationToken ct)
     {
         return (await svc.UpdateForCurrentUserAsync(dto, ct)).ToHttpResult();
+    }
+
+    private static async Task<IResult> Unsubscribe(
+        [FromQuery] string? token,
+        [FromServices] INotificationPreferencesService svc,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return Results.Content(UnsubscribeHtml(applied: false, category: null),
+                "text/html; charset=utf-8", statusCode: 400);
+
+        var result = await svc.UnsubscribeFromCategoryAsync(token, ct);
+        if (!result.IsSuccess || result.Value is null)
+            return Results.Content(UnsubscribeHtml(applied: false, category: null),
+                "text/html; charset=utf-8", statusCode: 400);
+
+        return Results.Content(
+            UnsubscribeHtml(result.Value.Applied, result.Value.Category),
+            "text/html; charset=utf-8");
+    }
+
+    private static string UnsubscribeHtml(bool applied, string? category)
+    {
+        // Intentionally plain HTML — this page is hit from an email client
+        // outside the Blazor Server session, so we don't route through the
+        // Ui layout. Localised strings would require the request to carry a
+        // culture; keep it English for now and revisit if an email localiser
+        // lands.
+        var title = applied ? "Unsubscribed" : "Unsubscribe link not valid";
+        var message = applied
+            ? $"You've been unsubscribed from <strong>{System.Net.WebUtility.HtmlEncode(category ?? string.Empty)}</strong> emails. You can re-enable this category from Account → Notification preferences."
+            : "This unsubscribe link is invalid or has expired. You can manage every notification category from Account → Notification preferences.";
+        const string style =
+            "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;margin:0;padding:48px 16px;color:#333}"
+            + ".card{max-width:560px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.08)}"
+            + "h1{margin-top:0;color:#1976D2}"
+            + "p{line-height:1.6}";
+        return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+            + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            + $"<title>{title} — AssetHub</title>"
+            + $"<style>{style}</style></head><body>"
+            + $"<div class=\"card\"><h1>{title}</h1><p>{message}</p></div>"
+            + "</body></html>";
     }
 }

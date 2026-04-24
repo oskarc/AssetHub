@@ -10,6 +10,7 @@ namespace AssetHub.Infrastructure.Services;
 
 public sealed class NotificationPreferencesService(
     INotificationPreferencesRepository repo,
+    INotificationUnsubscribeTokenService tokens,
     IAuditService audit,
     CurrentUser currentUser,
     ILogger<NotificationPreferencesService> logger) : INotificationPreferencesService
@@ -98,6 +99,65 @@ public sealed class NotificationPreferencesService(
             : DefaultPrefs;
     }
 
+    public Task<NotificationPreferences?> GetByUserIdAsync(string userId, CancellationToken ct)
+        => repo.GetByUserIdAsync(userId, ct);
+
+    public async Task<ServiceResult<UnsubscribeResult>> UnsubscribeFromCategoryAsync(
+        string token, CancellationToken ct)
+    {
+        var payload = tokens.TryParseToken(token);
+        if (payload is null)
+        {
+            logger.LogDebug("Unsubscribe attempted with invalid token");
+            return new UnsubscribeResult(Applied: false, Category: null);
+        }
+
+        var prefs = await repo.GetByUserIdAsync(payload.UserId, ct);
+        if (prefs is null || prefs.UnsubscribeTokenHash != payload.Stamp)
+        {
+            // Stamp mismatch — user rotated their token or the row was never
+            // created. Return a neutral response so an attacker can't probe
+            // for valid user ids.
+            logger.LogDebug(
+                "Unsubscribe stamp mismatch for user {UserId} / category {Category}",
+                payload.UserId, payload.Category);
+            return new UnsubscribeResult(Applied: false, Category: payload.Category);
+        }
+
+        var existing = prefs.Categories.TryGetValue(payload.Category, out var current) ? current : null;
+        if (existing is not null && !existing.Email)
+        {
+            // Already unsubscribed — idempotent no-op.
+            return new UnsubscribeResult(Applied: false, Category: payload.Category);
+        }
+
+        prefs.Categories[payload.Category] = new NotificationCategoryPrefs
+        {
+            InApp = existing?.InApp ?? DefaultPrefs.InApp,
+            Email = false,
+            EmailCadence = existing?.EmailCadence ?? DefaultPrefs.EmailCadence
+        };
+        prefs.UpdatedAt = DateTime.UtcNow;
+        await repo.UpdateAsync(prefs, ct);
+
+        await audit.LogAsync(
+            NotificationConstants.AuditEvents.UnsubscribedViaEmail,
+            Constants.ScopeTypes.UserPreferences,
+            targetId: null,
+            actorUserId: payload.UserId,
+            new Dictionary<string, object>
+            {
+                ["category"] = payload.Category
+            },
+            ct);
+
+        logger.LogInformation(
+            "User {UserId} unsubscribed from category {Category} via email link",
+            payload.UserId, payload.Category);
+
+        return new UnsubscribeResult(Applied: true, Category: payload.Category);
+    }
+
     private async Task<NotificationPreferences> GetOrCreateAsync(string userId, CancellationToken ct)
     {
         var existing = await repo.GetByUserIdAsync(userId, ct);
@@ -119,12 +179,12 @@ public sealed class NotificationPreferencesService(
     }
 
     /// <summary>
-    /// Generates a random per-user unsubscribe token, hashed for storage. The
-    /// plaintext is not retained anywhere — phase 3 will generate a fresh
-    /// plaintext at email-send time using a second token+hash round-trip, or
-    /// regenerate on-demand via a dedicated "rotate unsubscribe link" endpoint.
-    /// For phase 1, any random hash is fine — the column is unique and the
-    /// unsubscribe endpoint is introduced alongside email delivery.
+    /// Generates the per-user rotation stamp stored in
+    /// <see cref="NotificationPreferences.UnsubscribeTokenHash"/>. This is NOT
+    /// a secret — it is embedded in every Data-Protection-signed unsubscribe
+    /// token and validated on redemption. Rotating it (future endpoint)
+    /// invalidates every outstanding unsubscribe URL in one shot. 32 bytes
+    /// of CSPRNG + SHA-256 gives a uniformly-random 64-char hex string.
     /// </summary>
     private static string GenerateUnsubscribeTokenHash()
     {

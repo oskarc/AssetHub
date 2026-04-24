@@ -19,4 +19,16 @@ public interface ISavedSearchRepository
 
     /// <summary>Deletes a saved search by id, scoped to its owner. No-op if it doesn't belong to the caller.</summary>
     Task DeleteAsync(Guid id, string ownerUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Lists every saved search with a non-None notify cadence. Used by the
+    /// digest worker to decide which searches need a match-scan each tick.
+    /// </summary>
+    Task<List<SavedSearch>> GetWithNotificationsEnabledAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Stamps <c>LastRunAt</c> and <c>LastHighestSeenAssetId</c> after a digest
+    /// run so subsequent ticks only surface newer matches.
+    /// </summary>
+    Task MarkRunAsync(Guid id, DateTime runAt, Guid? highestSeenAssetId, CancellationToken ct = default);
 }

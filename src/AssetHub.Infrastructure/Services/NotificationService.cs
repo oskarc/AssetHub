@@ -1,10 +1,12 @@
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
+using AssetHub.Application.Messages;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
+using Wolverine;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -13,6 +15,7 @@ public sealed class NotificationService(
     INotificationPreferencesService preferences,
     CurrentUser currentUser,
     HybridCache cache,
+    IMessageBus messageBus,
     ILogger<NotificationService> logger) : INotificationService
 {
     public async Task<ServiceResult<NotificationDto?>> CreateAsync(
@@ -59,6 +62,20 @@ public sealed class NotificationService(
         logger.LogInformation(
             "Notification created: {UserId} / {Category} / {NotificationId}",
             userId, category, entity.Id);
+
+        // Email delivery runs out-of-band via the worker so SMTP latency can't
+        // slow the API path. Only 'instant' cadence sends today — 'daily' /
+        // 'weekly' are accepted in prefs but batched delivery is a follow-up.
+        if (resolved.Email && string.Equals(
+            resolved.EmailCadence,
+            NotificationConstants.EmailCadences.Instant,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            await messageBus.PublishAsync(new SendNotificationEmailCommand
+            {
+                NotificationId = entity.Id
+            });
+        }
 
         return (NotificationDto?)ToDto(entity);
     }

@@ -57,6 +57,8 @@ public static class NotificationConstants
     public static class AuditEvents
     {
         public const string PreferencesUpdated = "notification.preferences_updated";
+        public const string UnsubscribedViaEmail = "notification.unsubscribed_via_email";
+        public const string SavedSearchDigestSent = "saved_search.digest_sent";
     }
 
     /// <summary>Limits.</summary>
@@ -67,5 +69,24 @@ public static class NotificationConstants
         public const int MaxUrlLength = 500;
         public const int DefaultListTake = 50;
         public const int MaxListTake = 200;
+
+        /// <summary>
+        /// How many new saved-search matches we include in a single digest
+        /// notification body. Extras beyond this are summarised as a
+        /// "+N more" line so the in-app bell stays readable.
+        /// </summary>
+        public const int SavedSearchDigestMaxMatches = 10;
+    }
+
+    /// <summary>
+    /// Saved-search digest worker cadence. The worker polls frequently and
+    /// decides per-SavedSearch whether it's due, so the top-level interval is
+    /// the floor for OnNewMatch cadence.
+    /// </summary>
+    public static class DigestSchedule
+    {
+        public const int PollIntervalMinutes = 30;
+        public const int DailyCooldownHours = 20;
+        public const int WeeklyCooldownDays = 6;
     }
 }

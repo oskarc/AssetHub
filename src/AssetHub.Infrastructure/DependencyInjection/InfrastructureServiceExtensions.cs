@@ -151,6 +151,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMigrationService, MigrationService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationPreferencesService, NotificationPreferencesService>();
+        services.AddSingleton<INotificationUnsubscribeTokenService, NotificationUnsubscribeTokenService>();
         services.AddSingleton<IMigrationSecretProtector, MigrationSecretProtector>();
         // Migration source connectors: one impl per MigrationSourceType.
         // Registry fans them out by SourceType at resolve time.

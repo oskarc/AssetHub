@@ -89,6 +89,12 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Soft-delete with restore — deleted assets land in Trash with a configurable retention window (default 30 days), then a background worker purges them permanently. An optimistic-undo snackbar in the asset grid and detail page makes single-click recovery the norm
 - Asset versioning — replacing an asset's bytes via the image editor captures a snapshot of the prior state, with a per-version change note. Restoring a prior version is reversible (the current state is auto-snapshotted first); admins can prune individual versions to free storage
 
+**Notifications**
+- In-app notification bell with unread-count badge, a full `/notifications` page with All/Unread filter, and per-category preferences on `/account` (in-app on/off, email on/off, instant/daily/weekly cadence)
+- Instant email delivery — notifications publish a Wolverine command that the worker picks up and sends via `IEmailService`, so the API stays fast and SMTP retries are handled by the message queue
+- Saved-search digests — a background worker re-runs saved searches on their chosen cadence (on-new-match / daily / weekly) and notifies owners about new matches, with email delivery riding the same pipeline
+- One-click email unsubscribe — signed stateless tokens (ASP.NET Core Data Protection) embedded in every email link; the anonymous unsubscribe endpoint flips just that category without needing the user to sign in
+
 **Security**
 - ClamAV malware scanning on every upload
 - Personal Access Tokens — long-lived, scoped, revocable bearer tokens for scripts and integrations. Only the SHA-256 hash is stored; plaintext is shown once. A compromised PAT cannot mint further tokens

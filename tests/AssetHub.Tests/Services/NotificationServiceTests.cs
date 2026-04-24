@@ -1,4 +1,5 @@
 using AssetHub.Application;
+using AssetHub.Application.Messages;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
@@ -8,6 +9,7 @@ using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Wolverine;
 
 namespace AssetHub.Tests.Services;
 
@@ -23,6 +25,7 @@ public class NotificationServiceTests : IAsyncLifetime
     private AssetHubDbContext _db = null!;
     private NotificationRepository _repo = null!;
     private Mock<INotificationPreferencesService> _prefs = null!;
+    private Mock<IMessageBus> _bus = null!;
 
     private const string UserId = "user-notif-001";
     private const string Category = NotificationConstants.Categories.Mention;
@@ -34,6 +37,7 @@ public class NotificationServiceTests : IAsyncLifetime
         _db = await _fixture.CreateDbContextAsync();
         _repo = new NotificationRepository(_db);
         _prefs = new Mock<INotificationPreferencesService>();
+        _bus = new Mock<IMessageBus>();
         // Default: in-app enabled, email enabled, instant — the typical shape.
         _prefs.Setup(p => p.ResolveForUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new NotificationCategoryPrefs { InApp = true, Email = true, EmailCadence = "instant" });
@@ -45,6 +49,7 @@ public class NotificationServiceTests : IAsyncLifetime
         => new(_repo, _prefs.Object,
             new CurrentUser(userId, isSystemAdmin: false),
             TestCacheHelper.CreateHybridCache(),
+            _bus.Object,
             NullLogger<NotificationService>.Instance);
 
     [Fact]
@@ -79,6 +84,53 @@ public class NotificationServiceTests : IAsyncLifetime
         Assert.Null(result.Value);
         // Nothing persisted for that user.
         Assert.Equal(0, await _repo.CountAsync(UserId + "-suppressed", unreadOnly: false, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task CreateAsync_InstantEmailCadence_PublishesSendNotificationEmailCommand()
+    {
+        _prefs.Setup(p => p.ResolveForUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationCategoryPrefs { InApp = true, Email = true, EmailCadence = "instant" });
+        var svc = ServiceFor(UserId + "-instant-email");
+
+        var result = await svc.CreateAsync(UserId + "-instant-email", Category, "t",
+            ct: CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        _bus.Verify(b => b.PublishAsync(
+                It.Is<SendNotificationEmailCommand>(c => c.NotificationId == result.Value!.Id),
+                It.IsAny<DeliveryOptions>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_DailyEmailCadence_DoesNotPublishEmailCommand()
+    {
+        _prefs.Setup(p => p.ResolveForUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationCategoryPrefs { InApp = true, Email = true, EmailCadence = "daily" });
+        var svc = ServiceFor(UserId + "-daily");
+
+        await svc.CreateAsync(UserId + "-daily", Category, "t", ct: CancellationToken.None);
+
+        _bus.Verify(b => b.PublishAsync(
+                It.IsAny<SendNotificationEmailCommand>(),
+                It.IsAny<DeliveryOptions>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateAsync_EmailDisabled_DoesNotPublishEmailCommand()
+    {
+        _prefs.Setup(p => p.ResolveForUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationCategoryPrefs { InApp = true, Email = false, EmailCadence = "instant" });
+        var svc = ServiceFor(UserId + "-no-email");
+
+        await svc.CreateAsync(UserId + "-no-email", Category, "t", ct: CancellationToken.None);
+
+        _bus.Verify(b => b.PublishAsync(
+                It.IsAny<SendNotificationEmailCommand>(),
+                It.IsAny<DeliveryOptions>()),
+            Times.Never);
     }
 
     [Fact]
@@ -193,6 +245,7 @@ public class NotificationServiceTests : IAsyncLifetime
     {
         var svc = new NotificationService(_repo, _prefs.Object,
             CurrentUser.Anonymous, TestCacheHelper.CreateHybridCache(),
+            _bus.Object,
             NullLogger<NotificationService>.Instance);
 
         Assert.False((await svc.ListForCurrentUserAsync(false, 0, 50, CancellationToken.None)).IsSuccess);

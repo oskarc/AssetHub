@@ -225,4 +225,67 @@ public class NotificationEndpointTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    // ── Anonymous unsubscribe via signed token ─────────────────────────
+
+    [Fact]
+    public async Task Unsubscribe_MissingToken_ReturnsBadRequest()
+    {
+        var response = await AnonymousClient().GetAsync($"{Base}/unsubscribe");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Unsubscribe_InvalidToken_Returns200WithNeutralBody()
+    {
+        // Neutral response by design: the endpoint does not distinguish
+        // invalid-token / unknown-user / stamp-mismatch so an attacker cannot
+        // probe for valid ids. The service layer surfaces Applied=false +
+        // Category=null and the endpoint renders the "not valid" page at 200.
+        var response = await AnonymousClient().GetAsync($"{Base}/unsubscribe?token=not-a-real-token");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Unsubscribe link not valid", body);
+    }
+
+    [Fact]
+    public async Task Unsubscribe_ValidToken_FlipsEmailAndReturnsConfirmationHtml()
+    {
+        var userId = TestAuthHandler.DefaultUserId;
+
+        // Bootstrap prefs row (GET preferences lazy-creates) + mint a real
+        // signed token via the app's DI so the Data Protection key ring
+        // matches the endpoint we're hitting.
+        var authClient = AuthenticatedClient();
+        var prefsResponse = await authClient.GetAsync($"{Base}/preferences");
+        Assert.Equal(HttpStatusCode.OK, prefsResponse.StatusCode);
+
+        string token;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var tokens = scope.ServiceProvider.GetRequiredService<Application.Services.INotificationUnsubscribeTokenService>();
+            var db = scope.ServiceProvider.GetRequiredService<AssetHubDbContext>();
+            var row = await db.NotificationPreferences.FirstAsync(p => p.UserId == userId);
+            token = tokens.CreateToken(userId, "mention", row.UnsubscribeTokenHash);
+        }
+
+        var response = await AnonymousClient().GetAsync(
+            $"{Base}/unsubscribe?token={Uri.EscapeDataString(token)}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Unsubscribed", body);
+
+        // Confirm persistence.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AssetHubDbContext>();
+            var row = await db.NotificationPreferences.FirstAsync(p => p.UserId == userId);
+            Assert.True(row.Categories.TryGetValue("mention", out var cat));
+            Assert.False(cat!.Email);
+        }
+    }
 }

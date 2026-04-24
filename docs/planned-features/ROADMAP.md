@@ -569,16 +569,7 @@ public class WebhookDelivery
 
 ### T3-NTF-01 — Notifications (in-app + email)
 
-> **In progress 2026-04-22.** Phases 1 + 2 shipped on `main`. Remaining: phase 3 — email delivery on create, saved-search digest background worker (closes the T1-SRCH-01 schema-only carve-out), anonymous unsubscribe endpoint backed by `UnsubscribeTokenHash`.
->
-> - **Phase 1** (`e55f921`) — backbone. `Notification` + `NotificationPreferences` entities + migration, `INotificationService` (create / list / unread-count / mark-read / mark-all-read / delete) and `INotificationPreferencesService` (lazy-create + defaults, merge-update with audit, resolve). Endpoints at `/api/v1/notifications` + `/api/v1/notifications/preferences`. HybridCache unread-count with tag invalidation. Audit event `notification.preferences_updated`.
-> - **Phase 2** (`5b2889d`) — UI. `NotificationBell` in `MainLayout` (30s polling for unread count, dropdown with 10 most recent, optimistic mark-read). `/notifications` full-page list with All/Unread filter. `NotificationPreferencesPanel` embedded in `/account`. `NotificationsResource.resx` + `.sv.resx` (39 keys EN + SV).
-
-**Intent.** Unified notification pipeline: mentions, approvals, workflow transitions, saved-search digests, share activity.
-
-**Target state.** `Notification` entity + per-user preferences; in-app bell icon with unread count; digest emails via `SmtpEmailService`.
-
-**Acceptance criteria.** Users control per-category preferences; instant vs digest; email unsubscribe honoured.
+> **Shipped 2026-04-24.** See the **Shipped appendix** at the end of this document for phase-by-phase breakdown, deferred items, and the `SavedSearchNotifyCadence` tie-in that closes the T1-SRCH-01 carve-out.
 
 ---
 
@@ -920,4 +911,59 @@ When a new gap is discovered:
 - **Check-in / check-out locking** is explicitly out of scope per the spec; future T3-COL-03.
 
 **Test coverage.** `tests/AssetHub.Tests/Services/AssetVersionServiceTests.cs` — covers list / restore / prune, version-number monotonicity, and admin-only prune authorisation. Integration coverage deferred per the FOLLOW-UPS entry above.
+
+### T3-NTF-01 — Notifications (in-app + email)
+
+**Shipped 2026-04-24** across three phases.
+
+**Phase 1** (`e55f921`) — backbone. `Notification` + `NotificationPreferences` entities + migration, `INotificationService` (create / list / unread-count / mark-read / mark-all-read / delete) and `INotificationPreferencesService` (lazy-create + defaults, merge-update with audit, resolve). Endpoints at `/api/v1/notifications` + `/api/v1/notifications/preferences`. HybridCache unread-count with tag invalidation. Audit event `notification.preferences_updated`.
+
+**Phase 2** (`5b2889d`) — UI. `NotificationBell` in `MainLayout` (30s polling for unread count, dropdown with 10 most recent, optimistic mark-read). `/notifications` full-page list with All/Unread filter. `NotificationPreferencesPanel` embedded in `/account`. `NotificationsResource.resx` + `.sv.resx` (39 keys EN + SV).
+
+**Phase 3** (2026-04-24) — email + digest + unsubscribe.
+
+*Instant email pipeline.*
+- [SendNotificationEmailCommand](../../src/AssetHub.Application/Messages/NotificationMessages.cs) Wolverine message + queue listener `send-notification-email`.
+- [SendNotificationEmailHandler](../../src/AssetHub.Worker/Handlers/SendNotificationEmailHandler.cs) loads the notification, resolves the recipient email via `IUserLookupService`, signs an unsubscribe URL, and sends via `IEmailService`. Silent no-op when notification was deleted, email is missing, or prefs row is gone.
+- [NotificationEmailTemplate](../../src/AssetHub.Application/Services/Email/Templates/NotificationEmailTemplate.cs) — subject mirrors notification title, body + deep-link CTA + unsubscribe line.
+- [NotificationService.CreateAsync](../../src/AssetHub.Infrastructure/Services/NotificationService.cs) publishes the command when resolved prefs are `Email=true && EmailCadence="instant"`; skips for disabled email or non-instant cadence.
+
+*Anonymous unsubscribe.*
+- [INotificationUnsubscribeTokenService](../../src/AssetHub.Application/Services/INotificationUnsubscribeTokenService.cs) — Data Protection purpose `NotificationUnsubscribeProtector`, payload `{userId, category, stamp}` base64url-encoded.
+- `GET /api/v1/notifications/unsubscribe?token=...` — anonymous endpoint in [NotificationEndpoints](../../src/AssetHub.Api/Endpoints/NotificationEndpoints.cs), renders plain HTML confirmation (English-only, see deviation below). Neutral response on any invalid token so an attacker can't probe for valid ids.
+- `INotificationPreferencesService.UnsubscribeFromCategoryAsync` validates the token, checks the stamp matches the current `UnsubscribeTokenHash`, flips `Email=false` for the embedded category, emits `notification.unsubscribed_via_email`.
+
+*Saved-search digest worker.*
+- [SavedSearchDigestBackgroundService](../../src/AssetHub.Worker/BackgroundServices/SavedSearchDigestBackgroundService.cs) — polls every `NotificationConstants.DigestSchedule.PollIntervalMinutes` (30 min). Per saved search with `Notify != None`, checks cadence cooldown (`OnNewMatch` always; `Daily` ≥ 20 h; `Weekly` ≥ 6 days), runs the owner's `AssetSearchRequest`, filters to new matches via `LastRunAt`, creates a `saved_search_digest` notification, stamps `LastRunAt` / `LastHighestSeenAssetId`, emits `saved_search.digest_sent` audit event.
+- `ISavedSearchRepository.GetWithNotificationsEnabledAsync` + `MarkRunAsync`.
+- Closes the schema-only carve-out from T1-SRCH-01 — saved searches with notifications now deliver in-app (and email, via the instant pipeline) when new matches arrive.
+
+*Supporting plumbing.*
+- Worker registers `CurrentUser.Anonymous` scoped (background context), plus `IUserLookupService`, `IEmailService`, `AppSettings`, `EmailSettings` (moved from API-only registration).
+- API Wolverine publishes `SendNotificationEmailCommand` to `send-notification-email`; Worker listens.
+- `INotificationRepository.GetByIdAsync` added (server-trusted, not owner-scoped).
+- `INotificationPreferencesService.GetByUserIdAsync` exposes the raw row so the email handler can read the stamp.
+
+**Deviations from the spec.**
+- **Daily / weekly email batching is NOT shipped.** Every notification created with `EmailCadence=instant` sends its own email. `daily` / `weekly` are accepted in prefs but produce no email — only the in-app entry. A proper batching worker that groups each user's pending notifications into one email per cadence interval is deferred to [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T3-NTF-01 — daily/weekly email batching". Users who want fewer emails can either disable email for a category or set it to daily/weekly and accept the gap.
+- **Unsubscribe confirmation page is English-only.** Hit from an email client outside the Blazor session with no culture negotiation. Localising would require a per-user preferred-culture column or a culture hint in the signed token; both are bigger than phase 3 needs. Tracked in FOLLOW-UPS as "T3-NTF-01 — localise unsubscribe confirmation page".
+- **Digest worker has no integration test.** Unit coverage of the dependencies is in; an end-to-end tick against a real Postgres + Wolverine harness needs the same `WorkerFixture` pattern the T1-LIFE-01 purge service and T1-VER-01 version service are waiting on. Tracked in FOLLOW-UPS as "T3-NTF-01 — SavedSearchDigestBackgroundService integration test".
+- **Email template is English-only, same reason as the confirmation page.** No localisation keys added in phase 3. Folds into the same follow-up.
+
+**Known issue.** `NotificationPreferences.UnsubscribeTokenHash` is generated once at prefs creation and never rotated by user action today. If a plaintext unsubscribe URL is leaked (forwarded email, etc.) the user has no "invalidate outstanding links" button. The stamp-as-rotation-token infrastructure is there; the missing piece is a `POST /preferences/rotate-unsubscribe-token` endpoint + UI. Low-risk since each token is category-scoped and only flips `Email=false` — no privilege escalation. Tracked in FOLLOW-UPS as "T3-NTF-01 — user-visible unsubscribe-token rotation".
+
+**Audit events emitted per the roadmap cross-cutting table.**
+- `notification.preferences_updated` (phase 1).
+- `notification.unsubscribed_via_email` (phase 3).
+- `saved_search.digest_sent` (phase 3, from the digest worker — `actorUserId` is null, owner id + match count in details).
+- Individual notification deliveries remain telemetry, not audit, per the roadmap spec.
+
+**Test coverage landed in phase 3.**
+- `tests/AssetHub.Tests/Services/NotificationUnsubscribeTokenServiceTests.cs` — 9 tests: round-trip, URL-safety, tampering, key-ring separation, empty-field guards.
+- `tests/AssetHub.Tests/Services/NotificationPreferencesServiceTests.cs` — 4 new tests on the unsubscribe path (invalid token, happy path, stamp mismatch, idempotent second call).
+- `tests/AssetHub.Tests/Services/NotificationServiceTests.cs` — 3 new tests verifying instant cadence publishes `SendNotificationEmailCommand`, daily skips, email-disabled skips.
+- `tests/AssetHub.Tests/Handlers/SendNotificationEmailHandlerTests.cs` — 4 tests: missing notification, missing email, happy path (asserts URL shape), missing prefs row.
+- `tests/AssetHub.Tests/Endpoints/NotificationEndpointTests.cs` — 3 new tests: missing token 400, invalid token neutral 200, valid token flips email and returns confirmation HTML.
+
+Full suite: 940 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 

@@ -118,6 +118,85 @@ against a real DbContext.
 **Acceptance**: `[Collection("Database")]` test class covers restore
 round-trip and purge cascade, both against real EF with migrations applied.
 
+### T3-NTF-01 — daily/weekly email batching
+
+**Deferred from**: phase 3 (2026-04-24)
+**Why deferred**: Phase 3 only sends email for `EmailCadence=instant`. A real
+batching worker needs a per-user queue of pending notifications + a cadence
+scheduler + a digest-email template that summarises many events into one
+mail. That's an extra feature, not a refinement.
+**Sketch**:
+- Extend `Notification` with a `EmailDeliveryStatus` column (`pending` /
+  `sent` / `skipped`). On create with non-instant cadence stamp `pending`.
+- Add a `NotificationEmailDigestBackgroundService` that every N minutes
+  groups `pending` notifications by user, renders a digest email template
+  (grouped by category), sends, and flips them to `sent`. Respect per-user
+  cadence (`daily` / `weekly`) via a `LastDigestAt` column on
+  `NotificationPreferences`.
+- Digest template already sketched by
+  `NotificationEmailTemplate` — generalise to accept a list of items.
+**Acceptance**: user sets `EmailCadence=daily` for `mention`; three mentions
+arrive in a day; they get one email with three lines, not three emails.
+
+### T3-NTF-01 — localise unsubscribe confirmation page + email template
+
+**Deferred from**: phase 3 (2026-04-24)
+**Why deferred**: Both the email body and the unsubscribe confirmation page
+are English-only today because they're rendered outside any Blazor session
+(worker host + email-client GET). Plumbing culture through requires either
+storing a preferred culture per user in Keycloak / prefs, or embedding a
+`lang` hint in the signed unsubscribe token (no user ref required for the
+email template since it runs in worker context — needs the same stored
+preference).
+**Sketch**:
+- Add `NotificationPreferences.PreferredCulture` (nullable string, e.g.
+  `"sv-SE"`). Default null → fall back to `App:DefaultCulture` or `"en"`.
+- Load + apply culture in `SendNotificationEmailHandler` before constructing
+  `NotificationEmailTemplate`.
+- For the unsubscribe endpoint, either embed culture in the signed payload
+  or read from Keycloak by `userId` after unprotecting the token.
+- Move the HTML in `NotificationEndpoints.UnsubscribeHtml` + the email
+  template strings into a new `EmailsResource.{resx,sv.resx}`.
+**Acceptance**: Swedish user receives mention notification in Swedish; the
+unsubscribe page renders Swedish; Playwright spec covers both for EN + SV.
+
+### T3-NTF-01 — SavedSearchDigestBackgroundService integration test
+
+**Deferred from**: phase 3 (2026-04-24)
+**Why deferred**: Same fixture gap as T1-LIFE-01 purge-worker and T1-VER-01
+version-service. Unit dependencies are mocked; a real end-to-end tick
+through Postgres + Wolverine + `IAssetSearchService` needs the shared
+`WorkerFixture` pattern that does not yet exist.
+**Sketch**:
+- Same `WorkerFixture` as the other two items (Host with the hosted service,
+  Testcontainers Postgres, Wolverine test harness).
+- Seed an `Asset`, a `SavedSearch` with `Notify=Daily` and `LastRunAt=null`,
+  tick the worker, assert a `Notification` row landed for the owner and
+  `saved_search.digest_sent` was written.
+**Acceptance**: `[Collection("Database")]` test class proves the digest
+path end-to-end, pinned against regressions in the RequestJson
+deserialisation / cadence gate / search-by-owner logic.
+
+### T3-NTF-01 — user-visible unsubscribe-token rotation
+
+**Deferred from**: phase 3 (2026-04-24)
+**Why deferred**: `UnsubscribeTokenHash` is generated once at prefs creation
+and never rotated. If a plaintext unsubscribe URL leaks (forwarded email,
+screenshot of an email body) the user has no "invalidate outstanding
+links" button. Low-risk because each token is category-scoped and only
+flips `Email=false` — no privilege escalation — but the rotation infra is
+already there; just missing the endpoint + UI.
+**Sketch**:
+- `POST /api/v1/notifications/preferences/rotate-unsubscribe-token` —
+  authenticated, regenerates `UnsubscribeTokenHash`, invalidates every
+  outstanding link.
+- `NotificationPreferencesPanel.razor` in `/account` gets a "Rotate
+  unsubscribe links" secondary button with a confirm dialog.
+- Audit event `notification.unsubscribe_token_rotated`.
+**Acceptance**: rotating invalidates previously-generated tokens (the
+Unsubscribe endpoint returns the neutral "link not valid" page for an old
+URL) and subsequent emails embed new URLs that work.
+
 ### Test infra — full Release suite EF flake
 
 **Deferred from**: noted across multiple sessions

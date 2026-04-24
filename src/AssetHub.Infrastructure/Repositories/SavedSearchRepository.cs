@@ -65,4 +65,32 @@ public sealed class SavedSearchRepository(
         if (deleted > 0)
             logger.LogInformation("User {UserId} deleted saved search {Id}", ownerUserId, id);
     }
+
+    public async Task<List<SavedSearch>> GetWithNotificationsEnabledAsync(CancellationToken ct = default)
+    {
+        return await db.SavedSearches
+            .AsNoTracking()
+            .Where(s => s.Notify != SavedSearchNotifyCadence.None)
+            .OrderBy(s => s.LastRunAt == null ? DateTime.MinValue : s.LastRunAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task MarkRunAsync(Guid id, DateTime runAt, Guid? highestSeenAssetId, CancellationToken ct = default)
+    {
+        if (highestSeenAssetId is Guid newHighest)
+        {
+            await db.SavedSearches
+                .Where(s => s.Id == id)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(s => s.LastRunAt, runAt)
+                    .SetProperty(s => s.LastHighestSeenAssetId, (Guid?)newHighest), ct);
+        }
+        else
+        {
+            await db.SavedSearches
+                .Where(s => s.Id == id)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(s => s.LastRunAt, runAt), ct);
+        }
+    }
 }
