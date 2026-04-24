@@ -230,6 +230,20 @@ public static class Constants
         /// <summary>Maximum image size in MB for the browser-based image editor.</summary>
         public const int MaxEditorImageSizeMb = 50;
 
+        /// <summary>
+        /// Maximum migration manifest (CSV / JSONL) size in MB. Deliberately
+        /// small — a manifest is metadata only, not bytes. Admin-only upload.
+        /// </summary>
+        public const int MaxMigrationManifestSizeMb = 50;
+
+        /// <summary>
+        /// Maximum per-file size in MB during migration staging uploads.
+        /// Tighter than <see cref="DefaultMaxUploadSizeMb"/> because migration
+        /// bulk uploads fan out many files in parallel and we don't want any
+        /// single one to dominate the client/server link.
+        /// </summary>
+        public const int MaxMigrationFileSizeMb = 500;
+
         /// <summary>Maximum page size for paginated list endpoints.</summary>
         public const int MaxPageSize = 200;
 

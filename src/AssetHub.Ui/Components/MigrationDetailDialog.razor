@@ -1,4 +1,5 @@
 @using MudBlazor
+@using AssetHub.Application
 @using AssetHub.Application.Dtos
 @using AssetHub.Ui.Resources
 @using AssetHub.Ui.Services
@@ -457,7 +458,8 @@
 
         try
         {
-            using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024); // 50 MB max
+            using var stream = file.OpenReadStream(
+                maxAllowedSize: Constants.Limits.MaxMigrationManifestSizeMb * 1024L * 1024L);
             await Api.UploadMigrationManifestAsync(MigrationId, stream, file.Name);
             _manifestUploaded = true;
             _instructionsExpanded = false;
@@ -487,9 +489,13 @@
 
         try
         {
+            // Admin-only path, bounded by Constants.Limits.MaxMigrationFileSizeMb.
+            // Tighter than the general asset uploader because migrations fan out
+            // many files in parallel — see comment on the constant.
+            var maxSizeBytes = Constants.Limits.MaxMigrationFileSizeMb * 1024L * 1024L;
             var fileData = files.Select(f => (
                 f.Name,
-                (Stream)f.OpenReadStream(maxAllowedSize: 500 * 1024 * 1024), // 500 MB max
+                (Stream)f.OpenReadStream(maxAllowedSize: maxSizeBytes),
                 f.ContentType ?? "application/octet-stream"
             ));
 
