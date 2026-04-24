@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Panel_Title" xml:space="preserve"><value>Publiceringsflöde</value></data>
+  <data name="Panel_LoadFailed" xml:space="preserve"><value>Kunde inte läsa in publiceringsstatus.</value></data>
+  <data name="Panel_History_Title" xml:space="preserve"><value>Historik</value></data>
+  <data name="Panel_History_Empty" xml:space="preserve"><value>Inga övergångar ännu.</value></data>
+
+  <data name="State_draft" xml:space="preserve"><value>Utkast</value></data>
+  <data name="State_in_review" xml:space="preserve"><value>Under granskning</value></data>
+  <data name="State_approved" xml:space="preserve"><value>Godkänd</value></data>
+  <data name="State_rejected" xml:space="preserve"><value>Avvisad</value></data>
+  <data name="State_published" xml:space="preserve"><value>Publicerad</value></data>
+
+  <data name="Action_submit" xml:space="preserve"><value>Skicka in för granskning</value></data>
+  <data name="Action_approve" xml:space="preserve"><value>Godkänn</value></data>
+  <data name="Action_reject" xml:space="preserve"><value>Avvisa</value></data>
+  <data name="Action_publish" xml:space="preserve"><value>Publicera</value></data>
+  <data name="Action_unpublish" xml:space="preserve"><value>Avpublicera</value></data>
+
+  <data name="Dialog_Reason_Label" xml:space="preserve"><value>Anteckning</value></data>
+  <data name="Dialog_Reason_Required_Label" xml:space="preserve"><value>Motivering (obligatorisk)</value></data>
+  <data name="Dialog_Confirm" xml:space="preserve"><value>Bekräfta</value></data>
+  <data name="Dialog_Cancel" xml:space="preserve"><value>Avbryt</value></data>
+
+  <data name="Action_Failed" xml:space="preserve"><value>Åtgärd misslyckades.</value></data>
+  <data name="Action_Failed_MissingMetadata" xml:space="preserve"><value>Kan inte skicka in — obligatorisk metadata saknas. Fyll i de obligatoriska fälten och försök igen.</value></data>
+  <data name="Action_Failed_Forbidden" xml:space="preserve"><value>Du saknar behörighet för denna åtgärd.</value></data>
+</root>

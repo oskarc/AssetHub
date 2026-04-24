@@ -229,6 +229,9 @@ public static class ServiceCollectionExtensions
         // Asset comments (T3-COL-01)
         services.AddScoped<IAssetCommentService, AssetCommentService>();
 
+        // Asset workflow (T3-WF-01)
+        services.AddScoped<IAssetWorkflowService, AssetWorkflowService>();
+
         // Personal access tokens (T1-API-01)
         services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();
 

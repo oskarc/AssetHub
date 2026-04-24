@@ -253,6 +253,41 @@ dependency for small user value unless a customer asks.
 `[label](https://…)` render as expected; no XSS vector from
 `t3-col-01-xss-fuzz.spec.ts`.
 
+### T3-WF-01 — workflow state badge on asset grid cards
+
+**Deferred from**: T3-WF-01 phase (2026-04-24)
+**Why deferred**: Badge is on AssetDetail only. Grid-card badge needs a
+visual design pass so it doesn't crowd the thumbnail, and the card
+component is reused in several contexts (grid page, collection page,
+embedded lists). Worth its own UX review.
+**Sketch**:
+- Pass `WorkflowState` through `AssetResponseDto` (already in the
+  backend DTO, just surface it to the grid mapper).
+- Add an overlay chip on `AssetCard.razor` when state is not `Published` —
+  small, top-right corner, same colour scheme as `WorkflowPanel.razor`.
+- Make the badge optional via a panel parameter so admin / asset-detail
+  callers can turn it off (they already show full state).
+**Acceptance**: grid cards show a distinct visual for Draft / InReview /
+Rejected / Approved; Published renders unchanged.
+
+### T3-WF-01 — inline reason input for reject / submit
+
+**Deferred from**: T3-WF-01 phase (2026-04-24)
+**Why deferred**: `MudDialog.ShowMessageBox` can't embed a free-text
+input — the UI currently confirms the action and sends a placeholder.
+Workaround: reviewers currently write the reason in a comment
+(T3-COL-01) before rejecting.
+**Sketch**:
+- New `WorkflowReasonDialog.razor` — `MudDialog` with a multiline
+  `MudTextField` and Confirm / Cancel buttons, bound to `Reason`.
+- In `WorkflowPanel.InvokeAsync`, swap the `ShowMessageBox` call for
+  `DialogService.ShowAsync<WorkflowReasonDialog>` when the action is
+  reject or when the server indicates a reason is accepted.
+- Localisation keys already exist (`Dialog_Reason_Label`,
+  `Dialog_Reason_Required_Label`).
+**Acceptance**: Reject button opens a dialog with a reason field; Confirm
+sends the typed text to the API and shows up in the transition history.
+
 ### Test infra — full Release suite EF flake
 
 **Deferred from**: noted across multiple sessions

@@ -290,6 +290,8 @@ else
                                                   CanPrune="@_isAdmin"
                                                   OnVersionRestored="OnVersionRestored" />
 
+                        <WorkflowPanel AssetId="@AssetId" />
+
                         <AssetCommentsPanel AssetId="@AssetId" AssetTitle="@(_asset?.Title ?? string.Empty)" />
 
                         <MudDivider />

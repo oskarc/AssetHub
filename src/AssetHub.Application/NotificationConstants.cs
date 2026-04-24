@@ -65,6 +65,13 @@ public static class NotificationConstants
         public const string CommentUpdated = "comment.updated";
         public const string CommentDeleted = "comment.deleted";
         public const string CommentMentionDelivered = "comment.mention_delivered";
+
+        // T3-WF-01 — publishing workflow
+        public const string WorkflowSubmitted = "asset.workflow_submitted";
+        public const string WorkflowApproved = "asset.workflow_approved";
+        public const string WorkflowRejected = "asset.workflow_rejected";
+        public const string WorkflowPublished = "asset.workflow_published";
+        public const string WorkflowUnpublished = "asset.workflow_unpublished";
     }
 
     /// <summary>Limits.</summary>

@@ -36,6 +36,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<NotificationPreferences> NotificationPreferences { get; set; } = null!;
     public DbSet<AssetComment> AssetComments { get; set; } = null!;
+    public DbSet<AssetWorkflowTransition> AssetWorkflowTransitions { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -104,6 +105,16 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.Status)
                 .HasConversion(v => v.ToDbString(), v => v.ToAssetStatus())
                 .HasMaxLength(50).IsRequired();
+            // No HasDefaultValue — the Draft enum is CLR default (0), which
+            // would make EF treat any "set to Draft" as "unset" and override
+            // with the server-side default. The C# field initializer on
+            // Asset.WorkflowState covers the "brand new entity" case, and
+            // the migration's AddColumn defaultValue backfills existing rows.
+            entity.Property(e => e.WorkflowState)
+                .HasConversion(v => v.ToDbString(), v => v.ToAssetWorkflowState())
+                .HasMaxLength(50).IsRequired();
+            entity.HasIndex(e => e.WorkflowState)
+                .HasDatabaseName("idx_assets_workflow_state");
             entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
             entity.Property(e => e.OriginalObjectKey).HasMaxLength(512).IsRequired();
             entity.Property(e => e.ThumbObjectKey).HasMaxLength(512);
@@ -639,6 +650,30 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasOne(e => e.ParentComment)
                 .WithMany()
                 .HasForeignKey(e => e.ParentCommentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // AssetWorkflowTransition (T3-WF-01) — append-only history per asset.
+        modelBuilder.Entity<AssetWorkflowTransition>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Panel loads the history for one asset in timestamp order.
+            entity.HasIndex(e => new { e.AssetId, e.CreatedAt })
+                .HasDatabaseName("idx_asset_workflow_transition_asset_created");
+
+            entity.Property(e => e.FromState)
+                .HasConversion(v => v.ToDbString(), v => v.ToAssetWorkflowState())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ToState)
+                .HasConversion(v => v.ToDbString(), v => v.ToAssetWorkflowState())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ActorUserId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Reason).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

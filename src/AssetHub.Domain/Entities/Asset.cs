@@ -46,6 +46,21 @@ public class Asset
     public ICollection<AssetVersion> Versions { get; set; } = new List<AssetVersion>();
 
     /// <summary>
+    /// Publishing-workflow state (T3-WF-01). Defaults to Published for
+    /// backward compatibility with existing flows that expect new uploads to
+    /// be immediately shareable — admins who want a review workflow flip
+    /// <c>WorkflowSettings.NewAssetState</c> to Draft in config.
+    /// </summary>
+    public AssetWorkflowState WorkflowState { get; set; } = AssetWorkflowState.Published;
+
+    /// <summary>
+    /// Stamp of the last workflow transition. Used by the panel to show
+    /// "approved 3 days ago" / "in review since…" without re-querying the
+    /// transitions table.
+    /// </summary>
+    public DateTime? WorkflowStateUpdatedAt { get; set; }
+
+    /// <summary>
     /// References the source asset this was derived from (via image editing / export presets).
     /// Null for original assets.
     /// </summary>

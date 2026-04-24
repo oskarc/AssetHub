@@ -77,6 +77,7 @@ public static class InfrastructureServiceExtensions
 
         services.Configure<ImageProcessingSettings>(configuration.GetSection(ImageProcessingSettings.SectionName));
         services.Configure<AssetLifecycleSettings>(configuration.GetSection(AssetLifecycleSettings.SectionName));
+        services.Configure<WorkflowSettings>(configuration.GetSection(WorkflowSettings.SectionName));
 
         // ── Caching (Redis L2 + HybridCache L1/L2) ────────────────────────
         var redisConnectionString = configuration["Redis:ConnectionString"];
@@ -126,6 +127,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
         services.AddScoped<IAssetCommentRepository, AssetCommentRepository>();
+        services.AddScoped<IAssetWorkflowTransitionRepository, AssetWorkflowTransitionRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);

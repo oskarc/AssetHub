@@ -1365,6 +1365,47 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Asset Workflow (T3-WF-01)
+
+    public virtual async Task<AssetWorkflowResponseDto> GetAssetWorkflowAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/workflow", ct);
+        await EnsureSuccessAsync(response, "Get asset workflow");
+        return await ReadRequiredJsonAsync<AssetWorkflowResponseDto>(response, "Get asset workflow");
+    }
+
+    public virtual Task<AssetWorkflowResponseDto> SubmitAssetForReviewAsync(Guid assetId, string? reason, CancellationToken ct = default)
+        => PostWorkflowAsync(assetId, "submit", new WorkflowActionDto { Reason = reason }, ct);
+
+    public virtual Task<AssetWorkflowResponseDto> ApproveAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
+        => PostWorkflowAsync(assetId, "approve", new WorkflowActionDto { Reason = reason }, ct);
+
+    public virtual async Task<AssetWorkflowResponseDto> RejectAssetAsync(Guid assetId, string reason, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync(
+            $"/api/v1/assets/{assetId}/workflow/reject",
+            new WorkflowRejectDto { Reason = reason }, ct);
+        await EnsureSuccessAsync(response, "Reject asset");
+        return await ReadRequiredJsonAsync<AssetWorkflowResponseDto>(response, "Reject asset");
+    }
+
+    public virtual Task<AssetWorkflowResponseDto> PublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
+        => PostWorkflowAsync(assetId, "publish", new WorkflowActionDto { Reason = reason }, ct);
+
+    public virtual Task<AssetWorkflowResponseDto> UnpublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
+        => PostWorkflowAsync(assetId, "unpublish", new WorkflowActionDto { Reason = reason }, ct);
+
+    private async Task<AssetWorkflowResponseDto> PostWorkflowAsync(
+        Guid assetId, string action, WorkflowActionDto dto, CancellationToken ct)
+    {
+        var response = await _http.PostAsJsonAsync(
+            $"/api/v1/assets/{assetId}/workflow/{action}", dto, ct);
+        await EnsureSuccessAsync(response, $"{action} asset workflow");
+        return await ReadRequiredJsonAsync<AssetWorkflowResponseDto>(response, $"{action} asset workflow");
+    }
+
+    #endregion
 }
 
 /// <summary>

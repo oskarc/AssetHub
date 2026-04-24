@@ -16,3 +16,4 @@ public class ImageEditorResource { }
 public class AccountResource { }
 public class NotificationsResource { }
 public class CommentsResource { }
+public class WorkflowResource { }

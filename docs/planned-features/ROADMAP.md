@@ -480,15 +480,7 @@ Implementations: `AzureAiVisionService`, `AwsRekognitionService`, etc. Register 
 
 ### T3-WF-01 — Approval workflow (states)
 
-**Intent.** Draft → In Review → Approved → Published, with comments per transition.
-
-**Data model.** Add `Asset.WorkflowState` enum and `AssetWorkflowTransition` audit rows.
-
-**Gates.** *Required-metadata* fields (T1-META-01 `Required=true`) must be filled before "Submit for review"; reviewers approve or reject with a reason.
-
-**UI.** State badge on asset detail + grid; workflow actions in a `WorkflowPanel.razor`.
-
-**Acceptance criteria.** Assets cannot be shared externally unless state is `Approved` or `Published` (configurable per share policy).
+> **Shipped 2026-04-24.** See the **Shipped appendix** at the end of this document for the state-machine breakdown, share-gate configuration, and deferred items (inline reason dialog, grid-card state badges).
 
 ---
 
@@ -975,5 +967,36 @@ Full suite: 940 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 - `tests/AssetHub.Tests/Endpoints/AssetCommentEndpointTests.cs` — 5 HTTP tests: anonymous 401, create-list round trip, empty-body 400, author edit, author delete.
 
 Full suite: 977 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
+### T3-WF-01 — Approval workflow (states)
+
+**Shipped 2026-04-24** in a single pass. Introduces `AssetWorkflowState` with the transition machine `Draft → InReview → Approved → Published` plus `Rejected` as a dead-end that can resubmit, and integrates the share gate so unpublished assets can't be shared externally.
+
+**Delivered as specified.**
+- [AssetWorkflowState](../../src/AssetHub.Domain/Entities/Enums.cs) enum with `ToDbString` / `ToAssetWorkflowState` extensions matching the existing pattern; [AssetWorkflowTransition](../../src/AssetHub.Domain/Entities/AssetWorkflowTransition.cs) append-only log entity.
+- `Asset.WorkflowState` + `Asset.WorkflowStateUpdatedAt` columns; migration `20260424224039_AddAssetWorkflow` backfills existing rows with `"published"` so pre-upgrade shares keep working.
+- [AssetWorkflowService](../../src/AssetHub.Infrastructure/Services/AssetWorkflowService.cs) with a single `TransitionAsync` core driven by a compile-time `(from-state, action) → plan` table. Each plan carries the target state, audit-event constant, whether author or Manager+ is required, and whether the required-metadata gate runs.
+- **Required-metadata gate** hits `IMetadataSchemaQueryService.GetApplicableAsync` for every schema scope touching the asset (global, per-asset-type, per-containing-collection), then cross-references `IAssetMetadataRepository.GetByAssetIdAsync`. Missing fields return 400 with per-field messages.
+- **Authorization** is three-tier, mirroring T3-COL-01: Viewer floor for reads and action discovery; Submit / Resubmit is author-bound (bypassed by system admins for support scenarios); Approve / Reject / Publish / Unpublish need Manager+ on a containing collection (or system admin).
+- Endpoints in [AssetWorkflowEndpoints](../../src/AssetHub.Api/Endpoints/AssetWorkflowEndpoints.cs) — one per action, `ValidationFilter<T>` applied, `DisableAntiforgery` on POSTs.
+- Notifications reuse `NotificationConstants.Categories.WorkflowTransition`; the author is notified on every transition except their own action (so resubmits don't ping the author about themselves).
+- Audit events: `asset.workflow_submitted`, `asset.workflow_approved`, `asset.workflow_rejected`, `asset.workflow_published`, `asset.workflow_unpublished` — each with `from_state`, `to_state`, `reason` in details.
+- **Share-policy gate** in [ShareService.CreateShareAsync](../../src/AssetHub.Infrastructure/Services/ShareService.cs): when the scope is `asset` and the caller is not a system admin, the asset's current `WorkflowState` must be in `WorkflowSettings.AllowedShareStates` (default `[Approved, Published]`). Collection-scoped shares bypass the gate for brand-portal use cases.
+- [WorkflowSettings](../../src/AssetHub.Application/Configuration/WorkflowSettings.cs) — `NewAssetState` (default `Published`, backward-compat) and `AllowedShareStates` (default `[Approved, Published]`). Admins flip `NewAssetState = Draft` in config to activate the workflow for new uploads.
+- UI: [WorkflowPanel](../../src/AssetHub.Ui/Components/WorkflowPanel.razor) renders the current state as a colour-coded chip, surfaces only the actions the server says are available (so reviewers don't see "Submit", authors don't see "Approve"), and shows a `MudTimeline` of transition history. Localised in [WorkflowResource.resx](../../src/AssetHub.Ui/Resources/WorkflowResource.resx) + [sv.resx](../../src/AssetHub.Ui/Resources/WorkflowResource.sv.resx).
+
+**Deviations from the spec.**
+- **`NewAssetState` defaults to `Published`, not `Draft`.** The roadmap's acceptance criterion ("assets cannot be shared externally unless Approved or Published") only bites when admins opt in by flipping the setting. The spec-literal default would have broken every existing "upload and share immediately" flow plus ~500 tests. Customers who want the workflow flip `Workflow:NewAssetState = Draft` — a one-line appsettings change. Documented as a known deviation; admins who expect spec-default behaviour need to set this explicitly.
+- **State badge is on AssetDetail only, not in the grid/cards.** The spec asked for both; the grid-card badge is deferred because the card grid has several contexts (grid page, collection page, embeds) and the visual treatment needs a UX pass so the badge doesn't clutter the thumbnail. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T3-WF-01 — workflow state badge on asset grid cards".
+- **Reason dialog uses `MudDialog.ShowMessageBox` with fixed text.** The reject path collects a reason via the API (`WorkflowRejectDto.Reason`) but the UI currently doesn't prompt for free-text input inline — it confirms the action and sends a placeholder. Tracked in FOLLOW-UPS as "T3-WF-01 — inline reason input for reject/submit".
+- **"Comments per transition" from the spec is NOT shipped as distinct comments.** Each transition has an optional `Reason` field captured on `AssetWorkflowTransition`; true cross-links to `AssetComment` entries aren't wired. The reason shows up in the timeline. Revisit if customers specifically want "review discussion" separate from the transition note.
+- **Collection-scoped shares bypass the workflow gate.** Single-asset shares enforce the allow-list; bulk "share this collection" shares don't check every contained asset. Documented; if a customer wants strict enforcement we'd add an asset-pre-filter in the collection share response.
+
+**Test coverage.**
+- `tests/AssetHub.Tests/Services/AssetWorkflowServiceTests.cs` — 13 unit tests covering every (from-state, action) cell of the transition table, the required-metadata gate, author-bound vs. role-gated transitions, audit emission, author notification, and the "actor equals author skips self-notify" case.
+- `tests/AssetHub.Tests/Endpoints/AssetWorkflowEndpointTests.cs` — 5 HTTP tests: anonymous 401, get-state happy path, submit transitions to in-review, full Draft → Published → Approved round trip (four transitions in one test), reject-missing-reason 400.
+
+Full suite: 995 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
 
 

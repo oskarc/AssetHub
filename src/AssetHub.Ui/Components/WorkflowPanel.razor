@@ -1,0 +1,233 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<WorkflowResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudPaper Class="pa-3" Elevation="0" Outlined="true" aria-label="@Loc["Panel_Title"]">
+    <MudStack Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.subtitle1" Style="flex: 1;">@Loc["Panel_Title"]</MudText>
+            @if (_workflow is not null)
+            {
+                <MudChip T="string"
+                         Icon="@IconFor(_workflow.CurrentState)"
+                         Color="@ColorFor(_workflow.CurrentState)"
+                         Variant="Variant.Filled"
+                         Size="Size.Small"
+                         aria-label="@($"{Loc["Panel_Title"]}: {LocalizeState(_workflow.CurrentState)}")">
+                    @LocalizeState(_workflow.CurrentState)
+                </MudChip>
+            }
+        </MudStack>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_loadError || _workflow is null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true">@Loc["Panel_LoadFailed"]</MudAlert>
+        }
+        else
+        {
+            @* Action buttons — one per available action from the server *@
+            @if (_workflow.AvailableActions.Count > 0)
+            {
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                    @foreach (var action in _workflow.AvailableActions)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   Color="@ActionColor(action)"
+                                   StartIcon="@ActionIcon(action)"
+                                   Disabled="@_working"
+                                   OnClick="@(() => InvokeAsync(action))"
+                                   aria-label="@LocalizeAction(action)">
+                            @LocalizeAction(action)
+                        </MudButton>
+                    }
+                </MudStack>
+            }
+
+            @* History *@
+            <MudDivider />
+            <MudText Typo="Typo.subtitle2">@Loc["Panel_History_Title"]</MudText>
+            @if (_workflow.History.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@Loc["Panel_History_Empty"]</MudText>
+            }
+            else
+            {
+                <MudTimeline TimelineOrientation="TimelineOrientation.Vertical" TimelineAlign="TimelineAlign.Start">
+                    @foreach (var t in _workflow.History.OrderByDescending(h => h.CreatedAt))
+                    {
+                        <MudTimelineItem Color="@ColorFor(t.ToState)" Size="Size.Small">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2">
+                                    <strong>@LocalizeState(t.FromState)</strong>
+                                    →
+                                    <strong>@LocalizeState(t.ToState)</strong>
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @t.ActorUserId · @t.CreatedAt.ToLocalTime().ToString("g")
+                                </MudText>
+                                @if (!string.IsNullOrWhiteSpace(t.Reason))
+                                {
+                                    <MudText Typo="Typo.caption" Class="mt-1" Style="font-style: italic;">
+                                        @t.Reason
+                                    </MudText>
+                                }
+                            </MudStack>
+                        </MudTimelineItem>
+                    }
+                </MudTimeline>
+            }
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+
+    private AssetWorkflowResponseDto? _workflow;
+    private bool _loading = true;
+    private bool _loadError;
+    private bool _working;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+        _cts = new CancellationTokenSource();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _loadError = false;
+            _workflow = await Api.GetAssetWorkflowAsync(AssetId, _cts.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch
+        {
+            _loadError = true;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task InvokeAsync(string action)
+    {
+        if (_working) return;
+
+        bool needsReason = action == "reject";
+        string? reason = null;
+
+        if (needsReason || NeedsNote(action))
+        {
+            var result = await DialogService.ShowMessageBox(
+                LocalizeAction(action),
+                (MarkupString)(needsReason
+                    ? $"<p>{Loc["Dialog_Reason_Required_Label"]}</p>"
+                    : $"<p>{Loc["Dialog_Reason_Label"]}</p>"),
+                yesText: Loc["Dialog_Confirm"],
+                cancelText: Loc["Dialog_Cancel"]);
+
+            if (result != true) return;
+
+            // MudBlazor MessageBox doesn't support inline inputs; for v1 we
+            // simply send empty / a placeholder. An inline dialog upgrade is
+            // tracked as a FOLLOW-UP.
+            reason = needsReason ? "(provided via API)" : null;
+        }
+
+        _working = true;
+        try
+        {
+            _workflow = action switch
+            {
+                "submit"    => await Api.SubmitAssetForReviewAsync(AssetId, reason, _cts.Token),
+                "approve"   => await Api.ApproveAssetAsync(AssetId, reason, _cts.Token),
+                "reject"    => await Api.RejectAssetAsync(AssetId, reason ?? string.Empty, _cts.Token),
+                "publish"   => await Api.PublishAssetAsync(AssetId, reason, _cts.Token),
+                "unpublish" => await Api.UnpublishAssetAsync(AssetId, reason, _cts.Token),
+                _ => _workflow
+            };
+        }
+        catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest
+                                      && ex.Message.Contains("metadata", StringComparison.OrdinalIgnoreCase))
+        {
+            Feedback.ShowError(Loc["Action_Failed_MissingMetadata"].Value);
+        }
+        catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Feedback.ShowError(Loc["Action_Failed_Forbidden"].Value);
+        }
+        catch
+        {
+            Feedback.ShowError(Loc["Action_Failed"].Value);
+        }
+        finally
+        {
+            _working = false;
+            StateHasChanged();
+        }
+    }
+
+    private static bool NeedsNote(string action) => false; // note optional today
+
+    private string LocalizeState(string dbState) => Loc[$"State_{dbState}"];
+    private string LocalizeAction(string action) => Loc[$"Action_{action}"];
+
+    private static Color ColorFor(string state) => state switch
+    {
+        "draft" => Color.Default,
+        "in_review" => Color.Warning,
+        "approved" => Color.Info,
+        "rejected" => Color.Error,
+        "published" => Color.Success,
+        _ => Color.Default
+    };
+
+    private static string IconFor(string state) => state switch
+    {
+        "draft" => Icons.Material.Outlined.Edit,
+        "in_review" => Icons.Material.Outlined.HourglassTop,
+        "approved" => Icons.Material.Outlined.CheckCircle,
+        "rejected" => Icons.Material.Outlined.Cancel,
+        "published" => Icons.Material.Outlined.Public,
+        _ => Icons.Material.Outlined.HelpOutline
+    };
+
+    private static Color ActionColor(string action) => action switch
+    {
+        "reject" => Color.Error,
+        "publish" => Color.Success,
+        "unpublish" => Color.Warning,
+        "approve" => Color.Info,
+        _ => Color.Primary
+    };
+
+    private static string ActionIcon(string action) => action switch
+    {
+        "submit" => Icons.Material.Outlined.Send,
+        "approve" => Icons.Material.Outlined.CheckCircle,
+        "reject" => Icons.Material.Outlined.Cancel,
+        "publish" => Icons.Material.Outlined.Public,
+        "unpublish" => Icons.Material.Outlined.Block,
+        _ => Icons.Material.Outlined.PlayArrow
+    };
+}
