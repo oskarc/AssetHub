@@ -12,7 +12,10 @@ namespace AssetHub.Application.Helpers;
 /// </summary>
 public static partial class MentionParser
 {
-    [GeneratedRegex(@"(?<![A-Za-z0-9])@([A-Za-z0-9._-]{1,32})", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(
+        @"(?<![A-Za-z0-9])@([A-Za-z0-9._-]{1,32})",
+        RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: 1000)]
     private static partial Regex MentionRegex();
 
     /// <summary>

@@ -156,7 +156,8 @@
 
     private static readonly Regex MentionHighlightRegex =
         new(@"(?<![A-Za-z0-9])@([A-Za-z0-9._-]{1,32})",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+            RegexOptions.Compiled | RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(1));
 
     /// <summary>
     /// Renders the body with HTML escaping and highlights <c>@mentions</c> as

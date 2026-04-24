@@ -209,7 +209,10 @@
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public MetadataSchemaDto? Schema { get; set; }
 
-    private static readonly Regex KeyPattern = new(@"^[a-z][a-z0-9_]*$", RegexOptions.Compiled);
+    private static readonly Regex KeyPattern = new(
+        @"^[a-z][a-z0-9_]*$",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1));
 
     private MudForm? _form;
     private bool _formIsValid;
