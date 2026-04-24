@@ -159,6 +159,36 @@ public class NotificationServiceTests : IAsyncLifetime
         Assert.False((await svc.CreateAsync(UserId, Category, "", ct: CancellationToken.None)).IsSuccess);
     }
 
+    [Theory]
+    [InlineData("https://evil.com/phish")]
+    [InlineData("http://other-origin")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("assets/abc")]
+    public async Task CreateAsync_AbsoluteOrNonRootedUrl_ReturnsBadRequest(string url)
+    {
+        var svc = ServiceFor(UserId);
+
+        var result = await svc.CreateAsync(UserId, Category, "t", url: url,
+            ct: CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(400, result.Error!.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/assets/abc")]
+    [InlineData("/search")]
+    [InlineData(null)]
+    public async Task CreateAsync_RelativeOrNullUrl_Succeeds(string? url)
+    {
+        var svc = ServiceFor(UserId + "-url-" + (url is null ? "null" : url.Length.ToString()));
+
+        var result = await svc.CreateAsync(UserId + "-url-" + (url is null ? "null" : url.Length.ToString()),
+            Category, "t", url: url, ct: CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
     [Fact]
     public async Task ListForCurrentUserAsync_FiltersUnreadAndOrdersNewestFirst()
     {

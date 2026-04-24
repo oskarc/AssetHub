@@ -295,6 +295,31 @@ public class NotificationPreferencesServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UnsubscribeFromCategoryAsync_UnknownCategory_RejectsWithoutWriting()
+    {
+        var userId = UserId + "-unsub-unknown-cat";
+        var svc = ServiceFor(userId);
+        await svc.GetForCurrentUserAsync(CancellationToken.None);
+        var row = await _repo.GetByUserIdAsync(userId, CancellationToken.None);
+
+        _tokens.Setup(t => t.TryParseToken(It.IsAny<string>()))
+            .Returns(new UnsubscribeTokenPayload(userId, "not-a-real-category", row!.UnsubscribeTokenHash));
+
+        var result = await svc.UnsubscribeFromCategoryAsync("t", CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value!.Applied);
+        // No bogus key written to the JSONB map.
+        var after = await _repo.GetByUserIdAsync(userId, CancellationToken.None);
+        Assert.False(after!.Categories.ContainsKey("not-a-real-category"));
+        _audit.Verify(a => a.LogAsync(
+                NotificationConstants.AuditEvents.UnsubscribedViaEmail,
+                It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<string?>(),
+                It.IsAny<Dictionary<string, object>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task UnsubscribeFromCategoryAsync_AlreadyUnsubscribed_IsIdempotent()
     {
         var userId = UserId + "-unsub-idem";

@@ -1,3 +1,4 @@
+using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using AssetHub.Api.Extensions;
@@ -42,9 +43,13 @@ public static class NotificationEndpoints
         // Anonymous one-click unsubscribe from email links. The token is a
         // signed payload (userId, category, stamp) — the endpoint never
         // accepts a user id directly. Returns a minimal HTML confirmation so
-        // a browser click lands on a readable page.
+        // a browser click lands on a readable page. Shares the anonymous
+        // rate-limit policy with public share access — same risk profile
+        // (anonymous + signed token) so log-flood / CPU-drain via invalid
+        // tokens is capped.
         group.MapGet("unsubscribe", Unsubscribe)
             .AllowAnonymous()
+            .RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous)
             .WithName("NotificationUnsubscribe");
     }
 

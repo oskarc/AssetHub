@@ -31,6 +31,14 @@ public sealed class NotificationService(
         if (string.IsNullOrWhiteSpace(title))
             return ServiceError.BadRequest("title is required.");
 
+        // url is embedded as-is in the notification email's CTA. Reject
+        // absolute URLs so a future caller that accidentally plumbs user
+        // input into this field can't turn a notification email into a
+        // branded phishing link to an external origin. Same-origin relative
+        // paths only.
+        if (url is not null && !url.StartsWith('/'))
+            return ServiceError.BadRequest("url must be a same-origin relative path (starting with '/').");
+
         var resolved = await preferences.ResolveForUserAsync(userId, category, ct);
         if (!resolved.InApp)
         {

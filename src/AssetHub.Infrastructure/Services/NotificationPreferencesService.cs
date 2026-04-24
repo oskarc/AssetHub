@@ -112,6 +112,18 @@ public sealed class NotificationPreferencesService(
             return new UnsubscribeResult(Applied: false, Category: null);
         }
 
+        // Reject categories outside the known set so a minted-but-bogus
+        // token can't bloat the JSONB Categories map with arbitrary keys.
+        // Self-inflicted only (any valid token was minted by our server) but
+        // avoids the edge case entirely.
+        if (!NotificationConstants.Categories.All.Contains(payload.Category))
+        {
+            logger.LogDebug(
+                "Unsubscribe rejected — unknown category {Category}",
+                payload.Category);
+            return new UnsubscribeResult(Applied: false, Category: payload.Category);
+        }
+
         var prefs = await repo.GetByUserIdAsync(payload.UserId, ct);
         if (prefs is null || prefs.UnsubscribeTokenHash != payload.Stamp)
         {
