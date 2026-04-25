@@ -53,7 +53,6 @@ public class TaxonomyQueryServiceTests
         var svc = CreateService();
         var taxonomyId = Guid.NewGuid();
         var europeId = Guid.NewGuid();
-        var swedenId = Guid.NewGuid();
         var taxonomy = TestData.CreateTaxonomy(id: taxonomyId, name: "Geography", terms: new()
         {
             TestData.CreateTaxonomyTerm(id: europeId, taxonomyId: taxonomyId, label: "Europe", sortOrder: 0),

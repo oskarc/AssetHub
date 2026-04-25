@@ -193,7 +193,7 @@ public class EditAssetDialogTests : BunitTestBase
         await cut.InvokeAsync(() => titleInput.Blur());
 
         // Wait for MudForm to validate
-        cut.WaitForState(() =>
+        await cut.WaitForStateAsync(() =>
         {
             var saveBtn = cut.FindAll("button")
                 .FirstOrDefault(b => b.TextContent.Contains("Btn_SaveChanges"));
@@ -230,7 +230,7 @@ public class EditAssetDialogTests : BunitTestBase
         await cut.InvokeAsync(() => titleInput.Change("Original Title"));
         await cut.InvokeAsync(() => titleInput.Blur());
 
-        cut.WaitForState(() =>
+        await cut.WaitForStateAsync(() =>
         {
             var btn = cut.FindAll("button")
                 .FirstOrDefault(b => b.TextContent.Contains("Btn_SaveChanges"));

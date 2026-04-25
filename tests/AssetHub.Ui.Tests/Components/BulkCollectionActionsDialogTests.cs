@@ -111,7 +111,7 @@ public class BulkCollectionActionsDialogTests : BunitTestBase
         {
             { x => x.SelectedCollections, collections }
         };
-        var cut = await ShowDialogAsync<BulkCollectionActionsDialog>(parameters);
+        await ShowDialogAsync<BulkCollectionActionsDialog>(parameters);
 
         VerifyHandleErrorCalled();
     }

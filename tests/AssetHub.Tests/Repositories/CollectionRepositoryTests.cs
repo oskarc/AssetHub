@@ -188,7 +188,7 @@ public class CollectionRepositoryTests : IAsyncLifetime
 
         await _repo.DeleteAsync(collection.Id);
 
-        var remainingAcls = _db.CollectionAcls.Where(a => a.CollectionId == collection.Id).ToList();
+        var remainingAcls = await _db.CollectionAcls.Where(a => a.CollectionId == collection.Id).ToListAsync();
         Assert.Empty(remainingAcls);
     }
 

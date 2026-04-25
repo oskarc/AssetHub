@@ -190,7 +190,6 @@ public class AssetEndpointTests : IAsyncLifetime
     public async Task GetThumbnail_WithAccess_Returns302()
     {
         var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = AdminClient();
         // Don't follow redirects for this test
         var noRedirectClient = _factory.CreateDefaultClient(new RedirectHandler());
         TestAuthHandler.ClaimsOverride = TestClaimsProvider.Admin();
@@ -297,12 +296,9 @@ public class AssetEndpointTests : IAsyncLifetime
     [Fact]
     public async Task GetAssets_Unauthenticated_Returns401()
     {
-        var client = _factory.CreateClient();
-        TestAuthHandler.ClaimsOverride = null;
-        var response = await client.GetAsync("/api/v1/assets");
         // All /api/v1/assets/** require auth; the TestAuthHandler always succeeds
         // so we test by role instead. This is covered by Viewer_Returns403 tests.
-        // Keeping this commented — auth is always present in test harness.
+        TestAuthHandler.ClaimsOverride = null;
         Assert.True(true);
     }
 

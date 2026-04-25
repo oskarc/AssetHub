@@ -197,6 +197,10 @@ public enum MetadataFieldType
 /// These map between the new enums and existing lowercase string values
 /// stored in the database, maintaining backward compatibility.
 /// </summary>
+// Newer enum extensions intentionally keep each enum's ToDbString next to its
+// parser instead of grouping all ToDbString overloads together — easier to scan
+// per-enum. Suppress S4136 for the file.
+#pragma warning disable S4136
 public static class DomainEnumExtensions
 {
     private const string Failed = "failed";
@@ -521,3 +525,4 @@ public static class DomainEnumExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown delivery status: {value}")
     };
 }
+#pragma warning restore S4136

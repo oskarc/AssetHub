@@ -694,8 +694,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<Webhook>(entity =>
         {
             entity.HasKey(e => e.Id);
-            // Publisher scans for active webhooks matching an event type;
-            // partial would be smaller but Postgres composite is fine here.
+            // Composite index keeps the publisher's "active subscribers for this event"
+            // scan cheap. A filtered index could shave bytes but isn't worth the noise.
             entity.HasIndex(e => e.IsActive)
                 .HasDatabaseName("idx_webhook_active");
 

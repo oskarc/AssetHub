@@ -57,9 +57,8 @@ public sealed class BrandResolver(
 
     private async Task<Brand?> ResolveFromAssetAsync(Guid assetId, CancellationToken ct)
     {
-        // Asset can live in multiple collections; pick the first one that
-        // has a brand assigned. Order is repo-defined (currently insertion);
-        // could be made deterministic later if customers care.
+        // Pick the first collection with a brand. Order is whatever the repo
+        // returns (insertion today); we'll revisit if customers care.
         var collections = await assetCollectionRepo.GetCollectionsForAssetAsync(assetId, ct);
         foreach (var c in collections)
         {

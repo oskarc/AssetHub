@@ -534,7 +534,8 @@ public sealed class MigrationService(
         var current = new StringBuilder();
         var inQuotes = false;
 
-        for (var i = 0; i < line.Length; i++)
+        var i = 0;
+        while (i < line.Length)
         {
             var c = line[i];
             if (inQuotes)
@@ -572,6 +573,7 @@ public sealed class MigrationService(
                     current.Append(c);
                 }
             }
+            i++;
         }
 
         fields.Add(current.ToString());

@@ -1,5 +1,6 @@
 using AssetHub.Ui.Tests.Helpers;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
 namespace AssetHub.Ui.Tests.Components;
 
@@ -43,10 +44,10 @@ public class CreateCollectionDialogTests : BunitTestBase
 
         var cut = await RenderDialogAsync();
 
-        // Fill in the name field — use Input() to fire oninput so Immediate="true" triggers validation
+        // Fill in the name field — use InputAsync() to fire oninput so Immediate="true" triggers validation
         var nameInput = cut.Find("input");
-        nameInput.Input("New Collection");
-        nameInput.Blur();
+        await nameInput.InputAsync(new ChangeEventArgs { Value = "New Collection" });
+        await nameInput.BlurAsync(new FocusEventArgs());
 
         // Click the Create button — validation happens on submit
         var createButton = cut.FindAll("button").First(b => b.TextContent.Contains("Btn_Create"));

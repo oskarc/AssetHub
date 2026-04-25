@@ -49,9 +49,7 @@ public class AssetUploadTests : BunitTestBase
     {
         var cut = Render<AssetUpload>();
 
-        // Browse button should be disabled without a collection
-        var buttons = cut.FindAll("button, label.mud-button-root");
-        // The browse "button" is actually a label element
+        // The browse "button" is actually a label element; should be disabled without a collection
         var browseLabel = cut.FindAll("label").FirstOrDefault(l => l.TextContent.Contains("Btn_BrowseFiles"));
         if (browseLabel != null)
         {

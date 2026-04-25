@@ -104,7 +104,7 @@ public sealed class AssetWorkflowService(
         asset.UpdatedAt = now;
         await assetRepo.UpdateAsync(asset, ct);
 
-        var transition = await transitionRepo.CreateAsync(new AssetWorkflowTransition
+        await transitionRepo.CreateAsync(new AssetWorkflowTransition
         {
             Id = Guid.NewGuid(),
             AssetId = assetId,
@@ -252,11 +252,10 @@ public sealed class AssetWorkflowService(
             if (plan is null) continue;
 
             // Role / author check.
-            if (plan.Value.RequiresAuthor)
-            {
-                if (asset.CreatedByUserId != currentUser.UserId && !currentUser.IsSystemAdmin)
-                    continue;
-            }
+            if (plan.Value.RequiresAuthor
+                && asset.CreatedByUserId != currentUser.UserId
+                && !currentUser.IsSystemAdmin)
+                continue;
             if (plan.Value.RequiresRole is { } requiredRole
                 && !await CanAccessAssetAsync(asset.Id, requiredRole, ct))
                 continue;

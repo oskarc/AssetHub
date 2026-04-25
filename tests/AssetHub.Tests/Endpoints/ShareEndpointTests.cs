@@ -233,7 +233,7 @@ public class ShareEndpointTests : IAsyncLifetime
     public async Task CreateShare_ViewerWithNoAccess_Returns403()
     {
         // Seed collection owned by admin
-        var (colId, assetId, _) = await SeedShareAsync();
+        var (_, assetId, _) = await SeedShareAsync();
         var client = ViewerClient();
 
         var dto = new CreateShareDto
@@ -249,7 +249,7 @@ public class ShareEndpointTests : IAsyncLifetime
     [Fact]
     public async Task CreateShare_PastExpiryDate_ReturnsBadRequest()
     {
-        var (colId, assetId, _) = await SeedShareAsync();
+        var (_, assetId, _) = await SeedShareAsync();
         var client = AdminClient();
 
         var dto = new CreateShareDto

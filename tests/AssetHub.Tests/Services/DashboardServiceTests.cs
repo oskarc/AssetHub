@@ -238,7 +238,7 @@ public class DashboardServiceTests : IAsyncLifetime
         Assert.Equal("Admin Display Name", recentAsset.CreatedByUserName);
 
         // Activity actor username resolved
-        var activity = dashboard.RecentActivity.First();
+        var activity = dashboard.RecentActivity[0];
         Assert.Equal("Admin Display Name", activity.ActorUserName);
     }
 

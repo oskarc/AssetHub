@@ -91,7 +91,7 @@ public class CreateUserDialogTests : BunitTestBase
             .ThrowsAsync(new Exception("API error"));
 
         var parameters = new DialogParameters<CreateUserDialog>();
-        var cut = await ShowDialogAsync<CreateUserDialog>(parameters);
+        await ShowDialogAsync<CreateUserDialog>(parameters);
 
         VerifyHandleErrorCalled();
     }

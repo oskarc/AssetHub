@@ -146,19 +146,15 @@ public sealed class AssetMetadataService(
         CancellationToken ct)
     {
         // Duplicate field check — same field can't appear twice in a single set.
-        var seenFieldIds = new HashSet<Guid>();
-        foreach (var v in values)
-        {
-            if (!seenFieldIds.Add(v.MetadataFieldId))
-                return ServiceError.BadRequest($"Field {v.MetadataFieldId} appears more than once");
-        }
+        var duplicate = values.GroupBy(v => v.MetadataFieldId)
+            .FirstOrDefault(g => g.Count() > 1)?.Key;
+        if (duplicate is not null)
+            return ServiceError.BadRequest($"Field {duplicate} appears more than once");
 
         // All supplied fields must apply to this asset.
-        foreach (var v in values)
-        {
-            if (!applicableFields.ContainsKey(v.MetadataFieldId))
-                return ServiceError.BadRequest($"Metadata field {v.MetadataFieldId} does not apply to this asset");
-        }
+        var unknown = values.FirstOrDefault(v => !applicableFields.ContainsKey(v.MetadataFieldId));
+        if (unknown is not null)
+            return ServiceError.BadRequest($"Metadata field {unknown.MetadataFieldId} does not apply to this asset");
 
         // Per-value shape and constraint checks.
         foreach (var v in values)

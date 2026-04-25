@@ -56,7 +56,7 @@ public sealed class TaxonomyService(
         return TaxonomyQueryService.ToDto(updated);
     }
 
-    public async Task<ServiceResult<TaxonomyDto>> ReplaceTermsAsync(Guid id, List<UpsertTaxonomyTermDto> termDtos, CancellationToken ct)
+    public async Task<ServiceResult<TaxonomyDto>> ReplaceTermsAsync(Guid id, List<UpsertTaxonomyTermDto> terms, CancellationToken ct)
     {
         if (!currentUser.IsSystemAdmin)
             return ServiceError.Forbidden("Only administrators can manage taxonomies");
@@ -64,7 +64,7 @@ public sealed class TaxonomyService(
         var taxonomy = await repo.GetByIdAsync(id, ct);
         if (taxonomy is null) return ServiceError.NotFound("Taxonomy not found");
 
-        var terms = FlattenTerms(termDtos.Select(t => new CreateTaxonomyTermDto
+        var flattened = FlattenTerms(terms.Select(t => new CreateTaxonomyTermDto
         {
             Label = t.Label,
             LabelSv = t.LabelSv,
@@ -79,7 +79,7 @@ public sealed class TaxonomyService(
             }).ToList()
         }).ToList(), null);
 
-        await repo.ReplaceTermsAsync(id, terms, ct);
+        await repo.ReplaceTermsAsync(id, flattened, ct);
 
         var refreshed = await repo.GetByIdAsync(id, ct);
         logger.LogInformation("Admin {UserId} replaced terms for taxonomy {TaxonomyId}", currentUser.UserId, id);

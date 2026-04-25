@@ -33,6 +33,7 @@ public sealed class WebhookEventPublisher(
             // Standard envelope: per-delivery id is set after the row is
             // persisted, so subscribers with replay-attack guards can use
             // it as an idempotency key.
+#pragma warning disable S3267 // foreach has side effects (persist + publish + per-item logging) — not a Select projection
             foreach (var webhook in subscribers)
             {
                 ct.ThrowIfCancellationRequested();
@@ -70,6 +71,7 @@ public sealed class WebhookEventPublisher(
                         webhook.Id, eventType);
                 }
             }
+#pragma warning restore S3267
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

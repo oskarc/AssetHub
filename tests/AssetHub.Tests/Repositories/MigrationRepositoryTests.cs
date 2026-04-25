@@ -175,7 +175,8 @@ public class MigrationRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task DeleteAsync_NonExistent_DoesNotThrow()
     {
-        await _repo.DeleteAsync(Guid.NewGuid());
+        var ex = await Record.ExceptionAsync(() => _repo.DeleteAsync(Guid.NewGuid()));
+        Assert.Null(ex);
     }
 
     // ── AddItemsAsync / GetItemsAsync ────────────────────────────────

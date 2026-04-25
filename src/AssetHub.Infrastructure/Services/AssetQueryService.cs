@@ -30,7 +30,6 @@ public sealed class AssetQueryService : IAssetQueryService
 
     private readonly IAssetRepository _assetRepo;
     private readonly IAssetCollectionRepository _assetCollectionRepo;
-    private readonly ICollectionRepository _collectionRepo;
     private readonly ICollectionAuthorizationService _authService;
     private readonly IMinIOAdapter _minioAdapter;
     private readonly IAuditService _audit;
@@ -49,7 +48,6 @@ public sealed class AssetQueryService : IAssetQueryService
     {
         _assetRepo = repos.AssetRepo;
         _assetCollectionRepo = repos.AssetCollectionRepo;
-        _collectionRepo = repos.CollectionRepo;
         _authService = authService;
         _minioAdapter = minioAdapter;
         _audit = audit;

@@ -25,8 +25,6 @@ public class AuthorizationEdgeCaseTests : IAsyncLifetime
     private CollectionAuthorizationService _authService = null!;
 
     private const string UserA = "auth-edge-user-a";
-    private const string UserB = "auth-edge-user-b";
-    private const string UserC = "auth-edge-user-c";
 
     public AuthorizationEdgeCaseTests(PostgresFixture fixture) => _fixture = fixture;
 

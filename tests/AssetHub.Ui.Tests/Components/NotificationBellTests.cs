@@ -25,16 +25,6 @@ public class NotificationBellTests : BunitTestBase
             });
     }
 
-    private static NotificationDto Make(string title = "New match", bool read = false)
-        => new()
-        {
-            Id = Guid.NewGuid(),
-            Category = "mention",
-            Title = title,
-            CreatedAt = DateTime.UtcNow.AddMinutes(-5),
-            ReadAt = read ? DateTime.UtcNow.AddMinutes(-1) : null
-        };
-
     [Fact]
     public void Renders_WithZeroUnread_HidesBadge()
     {

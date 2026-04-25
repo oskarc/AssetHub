@@ -35,7 +35,7 @@ public class MigrationSecretProtectorTests
 
         Assert.NotEqual(secret, ciphertext);
         // Base64 tolerates padding; we just need it to decode cleanly.
-        var _ = Convert.FromBase64String(ciphertext);
+        Convert.FromBase64String(ciphertext);
     }
 
     [Fact]

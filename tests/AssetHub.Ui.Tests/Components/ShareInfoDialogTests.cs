@@ -65,7 +65,7 @@ public class ShareInfoDialogTests : BunitTestBase
     public async Task Loads_Token_And_Builds_Url()
     {
         var share = CreateShare();
-        var cut = await RenderDialogAsync(share);
+        await RenderDialogAsync(share);
 
         MockApi.Verify(a => a.GetShareTokenAsync(share.Id, It.IsAny<CancellationToken>()), Times.Once());
     }
@@ -74,7 +74,7 @@ public class ShareInfoDialogTests : BunitTestBase
     public async Task Loads_Password_When_Share_Has_Password()
     {
         var share = CreateShare(hasPassword: true);
-        var cut = await RenderDialogAsync(share);
+        await RenderDialogAsync(share);
 
         MockApi.Verify(a => a.GetSharePasswordAsync(share.Id, It.IsAny<CancellationToken>()), Times.Once());
     }
@@ -83,7 +83,7 @@ public class ShareInfoDialogTests : BunitTestBase
     public async Task Skips_Password_Load_When_No_Password()
     {
         var share = CreateShare(hasPassword: false);
-        var cut = await RenderDialogAsync(share);
+        await RenderDialogAsync(share);
 
         MockApi.Verify(a => a.GetSharePasswordAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never());
     }
@@ -136,7 +136,7 @@ public class ShareInfoDialogTests : BunitTestBase
             { x => x.ShareUrl, "" },
             { x => x.SharePassword, "" }
         };
-        var cut = await ShowDialogAsync<ShareInfoDialog>(parameters);
+        await ShowDialogAsync<ShareInfoDialog>(parameters);
 
         VerifyHandleErrorCalled();
     }
