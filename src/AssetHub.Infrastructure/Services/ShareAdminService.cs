@@ -12,12 +12,16 @@ namespace AssetHub.Infrastructure.Services;
 /// <summary>
 /// Admin share management: listing, token retrieval, and revocation.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for admin share ops: repos + user lookup + audit + DataProtection + UnitOfWork + scoped CurrentUser + logger. UnitOfWork added to wrap action+audit atomically (A-4).")]
 public sealed class ShareAdminService(
     IShareRepository shareRepo,
     ICollectionRepository collectionRepo,
     IUserLookupService userLookup,
     IAuditService audit,
     IDataProtectionProvider dataProtection,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     ILogger<ShareAdminService> logger) : IShareAdminService
 {
@@ -131,10 +135,14 @@ public sealed class ShareAdminService(
             return ServiceError.BadRequest("Share is already revoked");
 
         share.RevokedAt = DateTime.UtcNow;
-        await shareRepo.UpdateAsync(share, ct);
 
-        await audit.LogAsync("share.revoked", Constants.ScopeTypes.Share, shareId, currentUser.UserId,
-            new() { ["admin"] = true }, ct);
+        // Revoke + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await shareRepo.UpdateAsync(share, tct);
+            await audit.LogAsync("share.revoked", Constants.ScopeTypes.Share, shareId, currentUser.UserId,
+                new() { ["admin"] = true }, tct);
+        }, ct);
 
         return ServiceResult.Success;
     }
@@ -148,26 +156,34 @@ public sealed class ShareAdminService(
         if (share.RevokedAt is null && share.ExpiresAt > DateTime.UtcNow)
             return ServiceError.BadRequest("Cannot delete an active share — revoke it first");
 
-        await shareRepo.DeleteAsync(shareId, ct);
-
-        await audit.LogAsync("share.deleted", Constants.ScopeTypes.Share, shareId, currentUser.UserId,
-            new() { ["admin"] = true }, ct);
+        // Delete + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await shareRepo.DeleteAsync(shareId, tct);
+            await audit.LogAsync("share.deleted", Constants.ScopeTypes.Share, shareId, currentUser.UserId,
+                new() { ["admin"] = true }, tct);
+        }, ct);
 
         return ServiceResult.Success;
     }
 
     public async Task<ServiceResult<int>> BulkDeleteSharesByStatusAsync(string status, CancellationToken ct)
     {
-        int deleted;
-        if (status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase))
-            deleted = await shareRepo.DeleteExpiredAsync(ct);
-        else if (status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase))
-            deleted = await shareRepo.DeleteRevokedAsync(ct);
-        else
+        bool isExpired = status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase);
+        bool isRevoked = status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase);
+        if (!isExpired && !isRevoked)
             return ServiceError.BadRequest($"Invalid status: {status}. Must be 'expired' or 'revoked'.");
 
-        await audit.LogAsync("shares.bulk_deleted", Constants.ScopeTypes.Share, Guid.Empty, currentUser.UserId,
-            new() { ["status"] = status, ["count"] = deleted }, ct);
+        // Bulk delete + audit atomic (A-4).
+        var deleted = await uow.ExecuteAsync(async tct =>
+        {
+            var n = isExpired
+                ? await shareRepo.DeleteExpiredAsync(tct)
+                : await shareRepo.DeleteRevokedAsync(tct);
+            await audit.LogAsync("shares.bulk_deleted", Constants.ScopeTypes.Share, Guid.Empty, currentUser.UserId,
+                new() { ["status"] = status, ["count"] = n }, tct);
+            return n;
+        }, ct);
 
         return deleted;
     }

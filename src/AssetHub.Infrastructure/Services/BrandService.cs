@@ -17,6 +17,7 @@ public sealed class BrandService(
     ICollectionRepository collectionRepo,
     IMinIOAdapter minio,
     IAuditService audit,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     IOptions<MinIOSettings> minioSettings,
     ILogger<BrandService> logger) : IBrandService
@@ -77,20 +78,26 @@ public sealed class BrandService(
             CreatedByUserId = currentUser.UserId
         };
 
-        // Demote any other default before persisting this one — partial
-        // unique index would otherwise reject the insert.
-        if (dto.IsDefault) await repo.ClearDefaultExceptAsync(brand.Id, ct);
-        await repo.CreateAsync(brand, ct);
+        // Brand insert (with default-demotion if applicable) + audit are
+        // atomic. Without this a torn write could leave two defaults or a
+        // brand with no audit trail (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            // Demote any other default before persisting this one — partial
+            // unique index would otherwise reject the insert.
+            if (dto.IsDefault) await repo.ClearDefaultExceptAsync(brand.Id, tct);
+            await repo.CreateAsync(brand, tct);
 
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.BrandCreated,
-            Constants.ScopeTypes.Brand, brand.Id, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [ScopeKey] = brand.IsDefault ? ScopeGlobal : ScopeCollection,
-                ["name"] = brand.Name
-            },
-            ct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.BrandCreated,
+                Constants.ScopeTypes.Brand, brand.Id, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [ScopeKey] = brand.IsDefault ? ScopeGlobal : ScopeCollection,
+                    ["name"] = brand.Name
+                },
+                tct);
+        }, ct);
 
         logger.LogInformation(
             "Brand {BrandId} '{Name}' created by {UserId} (default={Default})",
@@ -110,16 +117,20 @@ public sealed class BrandService(
         var changed = await ApplyBrandPatchAsync(row, dto, ct);
         if (changed.Count == 0) return await ToDtoAsync(row, ct);
 
-        await repo.UpdateAsync(row, ct);
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.BrandUpdated,
-            Constants.ScopeTypes.Brand, id, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [ScopeKey] = row.IsDefault ? ScopeGlobal : ScopeCollection,
-                ["changed_fields"] = changed
-            },
-            ct);
+        // Brand update + audit are atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.UpdateAsync(row, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.BrandUpdated,
+                Constants.ScopeTypes.Brand, id, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [ScopeKey] = row.IsDefault ? ScopeGlobal : ScopeCollection,
+                    ["changed_fields"] = changed
+                },
+                tct);
+        }, ct);
 
         return await ToDtoAsync(row, ct);
     }
@@ -163,16 +174,21 @@ public sealed class BrandService(
         if (!string.IsNullOrWhiteSpace(existing.LogoObjectKey))
             await TryDeleteLogoAsync(existing.LogoObjectKey, ct);
 
-        await repo.DeleteAsync(id, ct);
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.BrandDeleted,
-            Constants.ScopeTypes.Brand, id, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [ScopeKey] = existing.IsDefault ? ScopeGlobal : ScopeCollection,
-                ["name"] = existing.Name
-            },
-            ct);
+        // Brand delete + audit are atomic (A-4). The MinIO logo cleanup
+        // above is best-effort and outside the transaction.
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.DeleteAsync(id, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.BrandDeleted,
+                Constants.ScopeTypes.Brand, id, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [ScopeKey] = existing.IsDefault ? ScopeGlobal : ScopeCollection,
+                    ["name"] = existing.Name
+                },
+                tct);
+        }, ct);
 
         return ServiceResult.Success;
     }
@@ -208,17 +224,22 @@ public sealed class BrandService(
             await TryDeleteLogoAsync(row.LogoObjectKey, ct);
 
         row.LogoObjectKey = objectKey;
-        await repo.UpdateAsync(row, ct);
-
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.BrandUpdated,
-            Constants.ScopeTypes.Brand, row.Id, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [ScopeKey] = row.IsDefault ? ScopeGlobal : ScopeCollection,
-                ["changed_fields"] = new[] { "LogoObjectKey" }
-            },
-            ct);
+        // Logo URL update + audit are atomic (A-4). MinIO upload above is
+        // outside the transaction — if the audit fails, the row stays
+        // pointing at the old key and the new MinIO object becomes orphaned.
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.UpdateAsync(row, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.BrandUpdated,
+                Constants.ScopeTypes.Brand, row.Id, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [ScopeKey] = row.IsDefault ? ScopeGlobal : ScopeCollection,
+                    ["changed_fields"] = new[] { "LogoObjectKey" }
+                },
+                tct);
+        }, ct);
 
         return await ToDtoAsync(row, ct);
     }
@@ -250,17 +271,21 @@ public sealed class BrandService(
 
         if (collection.BrandId == brandId) return ServiceResult.Success;
         collection.BrandId = brandId;
-        await collectionRepo.UpdateAsync(collection, ct);
 
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.BrandUpdated,
-            Constants.ScopeTypes.Brand, brandId, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [ScopeKey] = ScopeCollection,
-                ["assigned_collection_id"] = collectionId
-            },
-            ct);
+        // Collection.BrandId update + audit are atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await collectionRepo.UpdateAsync(collection, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.BrandUpdated,
+                Constants.ScopeTypes.Brand, brandId, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [ScopeKey] = ScopeCollection,
+                    ["assigned_collection_id"] = collectionId
+                },
+                tct);
+        }, ct);
 
         return ServiceResult.Success;
     }
@@ -275,17 +300,21 @@ public sealed class BrandService(
         if (collection.BrandId is null) return ServiceResult.Success;
         var previous = collection.BrandId.Value;
         collection.BrandId = null;
-        await collectionRepo.UpdateAsync(collection, ct);
 
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.BrandUpdated,
-            Constants.ScopeTypes.Brand, previous, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [ScopeKey] = ScopeCollection,
-                ["unassigned_collection_id"] = collectionId
-            },
-            ct);
+        // Unassign + audit are atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await collectionRepo.UpdateAsync(collection, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.BrandUpdated,
+                Constants.ScopeTypes.Brand, previous, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [ScopeKey] = ScopeCollection,
+                    ["unassigned_collection_id"] = collectionId
+                },
+                tct);
+        }, ct);
 
         return ServiceResult.Success;
     }

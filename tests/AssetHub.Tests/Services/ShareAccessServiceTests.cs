@@ -92,6 +92,7 @@ public class ShareAccessServiceTests
             _shareServiceMock.Object,
             _auditMock.Object,
             _dataProtectionMock.Object,
+            new PassThroughUnitOfWork(),
             currentUser ?? CurrentUser.Anonymous);
     }
 

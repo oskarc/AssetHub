@@ -14,6 +14,7 @@ public sealed class ExportPresetService(
     IExportPresetRepository repo,
     CurrentUser currentUser,
     IAuditService auditService,
+    IUnitOfWork uow,
     ILogger<ExportPresetService> logger) : IExportPresetService
 {
     public async Task<ServiceResult<ExportPresetDto>> CreateAsync(
@@ -45,13 +46,17 @@ public sealed class ExportPresetService(
             CreatedByUserId = currentUser.UserId!
         };
 
-        await repo.CreateAsync(preset, ct);
+        // Insert + audit atomic — torn write would leave a preset row
+        // with no audit trail of who created it (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.CreateAsync(preset, tct);
+            await auditService.LogAsync("exportpreset.created", "exportpreset", preset.Id,
+                currentUser.UserId, new Dictionary<string, object> { ["name"] = preset.Name }, tct);
+        }, ct);
 
         logger.LogInformation("Export preset {PresetId} '{PresetName}' created by {UserId}",
             preset.Id, preset.Name, currentUser.UserId);
-
-        await auditService.LogAsync("exportpreset.created", "exportpreset", preset.Id,
-            currentUser.UserId, new Dictionary<string, object> { ["name"] = preset.Name }, ct);
 
         return ToDto(preset);
     }
@@ -70,13 +75,17 @@ public sealed class ExportPresetService(
         if (validation is not null) return validation;
 
         ApplyUpdate(preset, dto);
-        await repo.UpdateAsync(preset, ct);
+
+        // Update + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.UpdateAsync(preset, tct);
+            await auditService.LogAsync("exportpreset.updated", "exportpreset", preset.Id,
+                currentUser.UserId, new Dictionary<string, object> { ["name"] = preset.Name }, tct);
+        }, ct);
 
         logger.LogInformation("Export preset {PresetId} '{PresetName}' updated by {UserId}",
             preset.Id, preset.Name, currentUser.UserId);
-
-        await auditService.LogAsync("exportpreset.updated", "exportpreset", preset.Id,
-            currentUser.UserId, new Dictionary<string, object> { ["name"] = preset.Name }, ct);
 
         return ToDto(preset);
     }
@@ -90,13 +99,16 @@ public sealed class ExportPresetService(
         if (preset is null)
             return ServiceError.NotFound("Export preset not found");
 
-        await repo.DeleteAsync(id, ct);
+        // Delete + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.DeleteAsync(id, tct);
+            await auditService.LogAsync("exportpreset.deleted", "exportpreset", preset.Id,
+                currentUser.UserId, new Dictionary<string, object> { ["name"] = preset.Name }, tct);
+        }, ct);
 
         logger.LogInformation("Export preset {PresetId} '{PresetName}' deleted by {UserId}",
             preset.Id, preset.Name, currentUser.UserId);
-
-        await auditService.LogAsync("exportpreset.deleted", "exportpreset", preset.Id,
-            currentUser.UserId, new Dictionary<string, object> { ["name"] = preset.Name }, ct);
 
         return ServiceResult.Success;
     }

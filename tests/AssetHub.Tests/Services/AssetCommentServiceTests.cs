@@ -4,6 +4,7 @@ using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Services;
+using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -36,6 +37,7 @@ public class AssetCommentServiceTests
             _notifications.Object,
             _webhooks.Object,
             _audit.Object,
+            new PassThroughUnitOfWork(),
             currentUser,
             NullLogger<AssetCommentService>.Instance);
     }
@@ -94,7 +96,7 @@ public class AssetCommentServiceTests
         var svc = new AssetCommentService(
             _repo.Object, _assetRepo.Object, _assetCollectionRepo.Object, _authService.Object,
             _userLookup.Object, _notifications.Object, _webhooks.Object, _audit.Object,
-            CurrentUser.Anonymous, NullLogger<AssetCommentService>.Instance);
+            new PassThroughUnitOfWork(), CurrentUser.Anonymous, NullLogger<AssetCommentService>.Instance);
 
         var result = await svc.ListForAssetAsync(Guid.NewGuid(), CancellationToken.None);
         Assert.False(result.IsSuccess);

@@ -31,6 +31,7 @@ public sealed class AssetService : IAssetService
     private readonly ICollectionAuthorizationService _authService;
     private readonly IAssetDeletionService _deletionService;
     private readonly IAuditService _audit;
+    private readonly IUnitOfWork _uow;
     private readonly HybridCache _cache;
     private readonly CurrentUser _currentUser;
     private readonly string _bucketName;
@@ -42,6 +43,7 @@ public sealed class AssetService : IAssetService
         ICollectionAuthorizationService authService,
         IAssetDeletionService deletionService,
         IAuditService audit,
+        IUnitOfWork uow,
         HybridCache cache,
         CurrentUser currentUser,
         IOptions<MinIOSettings> minioSettings)
@@ -52,6 +54,7 @@ public sealed class AssetService : IAssetService
         _authService = authService;
         _deletionService = deletionService;
         _audit = audit;
+        _uow = uow;
         _cache = cache;
         _currentUser = currentUser;
         _bucketName = minioSettings.Value.BucketName;
@@ -74,10 +77,14 @@ public sealed class AssetService : IAssetService
 
         asset.UpdatedAt = DateTime.UtcNow;
 
-        await _assetRepo.UpdateAsync(asset, ct);
-        await _audit.LogAsync("asset.updated", Constants.ScopeTypes.Asset, id, _currentUser.UserId,
-            new() { [AuditKeyTitle] = asset.Title, ["description"] = asset.Description ?? "", ["tags"] = string.Join(", ", asset.Tags ?? []) },
-            ct);
+        // Update + audit atomic (A-4).
+        await _uow.ExecuteAsync(async tct =>
+        {
+            await _assetRepo.UpdateAsync(asset, tct);
+            await _audit.LogAsync("asset.updated", Constants.ScopeTypes.Asset, id, _currentUser.UserId,
+                new() { [AuditKeyTitle] = asset.Title, ["description"] = asset.Description ?? "", ["tags"] = string.Join(", ", asset.Tags ?? []) },
+                tct);
+        }, ct);
 
         var userRole = await GetUserRoleForAssetAsync(id, ct);
         return AssetMapper.ToDto(asset, userRole);
@@ -163,24 +170,33 @@ public sealed class AssetService : IAssetService
                     return ServiceError.Forbidden();
             }
 
-            var (removed, softDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, userId, _bucketName, ct);
+            // Collection-mode delete: unlink (and soft-delete if last collection)
+            // and the audit row are atomic (A-4). The deletion service performs only
+            // DB mutations on this path — MinIO purge is a later worker.
+            var (removed, softDeleted) = await _uow.ExecuteAsync(async tct =>
+            {
+                var outcome = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, userId, _bucketName, tct);
+                if (!outcome.Removed) return outcome;
+
+                if (outcome.SoftDeleted)
+                {
+                    await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
+                        new() { [AuditKeyTitle] = asset.Title, ["reason"] = "last_collection" }, tct);
+                }
+                else
+                {
+                    await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, id, userId,
+                        new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() }, tct);
+                }
+                return outcome;
+            }, ct);
+
             if (!removed)
                 return ServiceError.NotFound("Asset is not linked to this collection");
 
             if (softDeleted)
-            {
-                // Asset was orphaned by removing its last collection — moved to Trash, recoverable.
-                await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
-                    new() { [AuditKeyTitle] = asset.Title, ["reason"] = "last_collection" },
-                    ct);
                 await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
-            }
-            else
-            {
-                await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, id, userId,
-                    new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() },
-                    ct);
-            }
+
             return ServiceResult.Success;
         }
 
@@ -191,9 +207,13 @@ public sealed class AssetService : IAssetService
         if (partialDelete is not null)
             return partialDelete;
 
-        await _deletionService.SoftDeleteAsync(asset, userId, ct);
-        await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
-            new() { [AuditKeyTitle] = asset.Title }, ct);
+        // Soft-delete + audit atomic (A-4).
+        await _uow.ExecuteAsync(async tct =>
+        {
+            await _deletionService.SoftDeleteAsync(asset, userId, tct);
+            await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
+                new() { [AuditKeyTitle] = asset.Title }, tct);
+        }, ct);
 
         await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
 
@@ -220,13 +240,17 @@ public sealed class AssetService : IAssetService
         if (!assetCollections.Except(authorizedCollectionIds).Any())
             return null; // user manages all collections → allow permanent delete
 
-        // User can only remove from the collections they manage
-        foreach (var collId in authorizedCollectionIds)
-            await _assetCollectionRepo.RemoveFromCollectionAsync(assetId, collId, ct);
+        // Partial unlink batch + audit atomic (A-4) — leaves ACL state and audit
+        // trail consistent if anything in the batch throws midway.
+        await _uow.ExecuteAsync(async tct =>
+        {
+            foreach (var collId in authorizedCollectionIds)
+                await _assetCollectionRepo.RemoveFromCollectionAsync(assetId, collId, tct);
 
-        await _audit.LogAsync("asset.removed_from_collections", Constants.ScopeTypes.Asset, assetId, userId,
-            new() { [AuditKeyTitle] = assetTitle, ["count"] = authorizedCollectionIds.Count.ToString() },
-            ct);
+            await _audit.LogAsync("asset.removed_from_collections", Constants.ScopeTypes.Asset, assetId, userId,
+                new() { [AuditKeyTitle] = assetTitle, ["count"] = authorizedCollectionIds.Count.ToString() },
+                tct);
+        }, ct);
         return ServiceResult.Success;
     }
 
@@ -258,12 +282,18 @@ public sealed class AssetService : IAssetService
         if (!await _collectionRepo.ExistsAsync(collectionId, ct))
             return ServiceError.NotFound("Collection not found");
 
-        var result = await _assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, ct);
+        // Add link + audit atomic (A-4).
+        var result = await _uow.ExecuteAsync(async tct =>
+        {
+            var link = await _assetCollectionRepo.AddToCollectionAsync(assetId, collectionId, userId, tct);
+            if (link is null) return link;
+            await _audit.LogAsync("asset.added_to_collection", Constants.ScopeTypes.Asset, assetId, userId,
+                new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = collectionId.ToString() }, tct);
+            return link;
+        }, ct);
+
         if (result is null)
             return ServiceError.Conflict("Asset is already linked to this collection");
-
-        await _audit.LogAsync("asset.added_to_collection", Constants.ScopeTypes.Asset, assetId, userId,
-            new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
 
         return new AssetAddedToCollectionResponse
         {
@@ -289,20 +319,27 @@ public sealed class AssetService : IAssetService
                 return ServiceError.Forbidden("You don't have permission to manage this asset in this collection");
         }
 
-        var (removed, softDeleted) = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, userId, _bucketName, ct);
+        // Unlink (and possible soft-delete on orphan) + audit atomic (A-4).
+        var (removed, _) = await _uow.ExecuteAsync(async tct =>
+        {
+            var outcome = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, userId, _bucketName, tct);
+            if (!outcome.Removed) return outcome;
+
+            if (outcome.SoftDeleted)
+            {
+                await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, assetId, userId,
+                    new() { [AuditKeyTitle] = asset.Title, ["reason"] = "orphaned" }, tct);
+            }
+            else
+            {
+                await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, assetId, userId,
+                    new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = collectionId.ToString() }, tct);
+            }
+            return outcome;
+        }, ct);
+
         if (!removed)
             return ServiceError.NotFound("Asset is not linked to this collection");
-
-        if (softDeleted)
-        {
-            await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, assetId, userId,
-                new() { [AuditKeyTitle] = asset.Title, ["reason"] = "orphaned" }, ct);
-        }
-        else
-        {
-            await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, assetId, userId,
-                new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = collectionId.ToString() }, ct);
-        }
 
         return ServiceResult.Success;
     }

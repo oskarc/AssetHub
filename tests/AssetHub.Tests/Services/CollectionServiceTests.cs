@@ -63,7 +63,7 @@ public class CollectionServiceTests : IAsyncLifetime
         return new CollectionService(
             repos,
             _authService, _deletionServiceMock.Object, _zipBuildServiceMock.Object,
-            _auditMock.Object, minioSettings, currentUser);
+            _auditMock.Object, new UnitOfWork(_db), minioSettings, currentUser);
     }
 
     private CollectionQueryService CreateQueryService(string userId, bool isAdmin = false)

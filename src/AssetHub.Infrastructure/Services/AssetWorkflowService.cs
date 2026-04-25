@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Services;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for the workflow flow: asset/transition/metadata repos + schema query + collection auth + notifications + webhook publisher + audit + UnitOfWork + scoped CurrentUser + logger. Bundling them obscures intent; UnitOfWork was added to wrap action+audit atomically (A-4).")]
 public sealed class AssetWorkflowService(
     IAssetRepository assetRepo,
     IAssetCollectionRepository assetCollectionRepo,
@@ -17,6 +20,7 @@ public sealed class AssetWorkflowService(
     INotificationService notifications,
     IWebhookEventPublisher webhooks,
     IAuditService audit,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     ILogger<AssetWorkflowService> logger) : IAssetWorkflowService
 {
@@ -71,15 +75,23 @@ public sealed class AssetWorkflowService(
         var from = asset.WorkflowState;
         var to = plan.ToState;
 
-        await ApplyStateChangeAsync(asset, to, now, ct);
-        await RecordTransitionAsync(assetId, from, to, reason, now, ct);
-        await audit.LogAsync(
-            plan.AuditEvent,
-            Constants.ScopeTypes.Asset,
-            assetId,
-            currentUser.UserId,
-            BuildAuditDetails(from, to, reason),
-            ct);
+        // State change + transition row + audit run in one transaction
+        // (A-4) — a torn write would otherwise leave the asset in the new
+        // state with no transition record, or vice-versa. Webhook publish
+        // and author notification are deliberately outside the transaction
+        // (external side-effects can't be rolled back).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await ApplyStateChangeAsync(asset, to, now, tct);
+            await RecordTransitionAsync(assetId, from, to, reason, now, tct);
+            await audit.LogAsync(
+                plan.AuditEvent,
+                Constants.ScopeTypes.Asset,
+                assetId,
+                currentUser.UserId,
+                BuildAuditDetails(from, to, reason),
+                tct);
+        }, ct);
 
         await PublishWorkflowEventAsync(assetId, asset.Title, from, to, reason, now, ct);
         await NotifyAuthorAsync(asset, assetId, from, to, reason, ct);

@@ -5,6 +5,7 @@ using AssetHub.Application.Services;
 using AssetHub.Application.Services.Email.Templates;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Services;
+using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -46,17 +47,6 @@ public class GuestInvitationServiceTests
                new PassThroughUnitOfWork(),
                new CurrentUser(userId, isAdmin),
                NullLogger<GuestInvitationService>.Instance);
-
-    /// <summary>
-    /// IUnitOfWork stub for unit tests that mock all repos. Invokes the
-    /// work delegate directly — no real DbContext / transaction. The
-    /// transactional behavior is exercised separately in integration tests.
-    /// </summary>
-    private sealed class PassThroughUnitOfWork : IUnitOfWork
-    {
-        public Task ExecuteAsync(Func<CancellationToken, Task> work, CancellationToken ct) => work(ct);
-        public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken ct) => work(ct);
-    }
 
     private static Collection FakeCollection(Guid id) => new()
     {

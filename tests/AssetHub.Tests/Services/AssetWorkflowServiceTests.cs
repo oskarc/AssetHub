@@ -4,6 +4,7 @@ using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Services;
+using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -49,6 +50,7 @@ public class AssetWorkflowServiceTests
         => new(_assetRepo.Object, _assetCollectionRepo.Object, _transitionRepo.Object,
                _metadataRepo.Object, _schemaQuery.Object, _authService.Object,
                _notifications.Object, _webhooks.Object, _audit.Object,
+               new PassThroughUnitOfWork(),
                new CurrentUser(userId, isAdmin),
                NullLogger<AssetWorkflowService>.Instance);
 
@@ -287,6 +289,7 @@ public class AssetWorkflowServiceTests
             _assetRepo.Object, _assetCollectionRepo.Object, _transitionRepo.Object,
             _metadataRepo.Object, _schemaQuery.Object, _authService.Object,
             _notifications.Object, _webhooks.Object, _audit.Object,
+            new PassThroughUnitOfWork(),
             CurrentUser.Anonymous,
             NullLogger<AssetWorkflowService>.Instance);
 

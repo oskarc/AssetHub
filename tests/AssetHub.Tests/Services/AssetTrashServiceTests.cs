@@ -28,6 +28,7 @@ public class AssetTrashServiceTests
             _deletionService.Object,
             _audit.Object,
             _webhooks.Object,
+            new PassThroughUnitOfWork(),
             currentUser,
             lifecycle,
             minio,

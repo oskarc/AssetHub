@@ -61,6 +61,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
             _authService,
             new Mock<IAssetDeletionService>().Object,
             _auditMock.Object,
+            new UnitOfWork(_db),
             TestCacheHelper.CreateHybridCache(),
             new CurrentUser(userId, isSystemAdmin: false),
             minioSettings);

@@ -20,12 +20,16 @@ public sealed record CollectionAclRepositories(
 /// Unified ACL management for collections. Replaces the duplicated logic
 /// that existed in both CollectionEndpoints and AdminEndpoints.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "ACL service composition root: pre-grouped repos + auth + user lookup + Keycloak + audit + UnitOfWork + cache + CurrentUser. UnitOfWork was added to wrap ACL changes + audit atomically (A-4).")]
 public sealed class CollectionAclService(
     CollectionAclRepositories repos,
     ICollectionAuthorizationService authService,
     IUserLookupService userLookup,
     IKeycloakUserService keycloakUserService,
     IAuditService audit,
+    IUnitOfWork uow,
     HybridCache cache,
     CurrentUser currentUser) : ICollectionAclService, IAdminCollectionAclService
 {
@@ -91,11 +95,17 @@ public sealed class CollectionAclService(
         if (!RoleHierarchy.CanGrantRole(callerRole, role))
             return ServiceError.BadRequest($"You cannot grant the '{role}' role because it exceeds your own access level");
 
-        var acl = await _aclRepo.SetAccessAsync(collectionId, principalType, principalId, role, ct);
-
-        await audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, userId,
-            new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = role },
-            ct);
+        // ACL grant + audit must be atomic — a torn write would either
+        // grant access without an audit trail or audit a grant that didn't
+        // happen (A-4).
+        var acl = await uow.ExecuteAsync(async tct =>
+        {
+            var row = await _aclRepo.SetAccessAsync(collectionId, principalType, principalId, role, tct);
+            await audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, userId,
+                new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = role },
+                tct);
+            return row;
+        }, ct);
 
         if (principalType == Constants.PrincipalTypes.User)
             await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
@@ -139,11 +149,14 @@ public sealed class CollectionAclService(
         if (targetAcl is not null && !RoleHierarchy.CanRevokeRole(callerRole, targetAcl.Role.ToDbString()))
             return ServiceError.BadRequest($"You cannot revoke a '{targetAcl.Role.ToDbString()}' role because it exceeds your own access level");
 
-        await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
-
-        await audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, userId,
-            new() { ["principalType"] = principalType, ["principalId"] = principalId },
-            ct);
+        // ACL revoke + audit are atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, tct);
+            await audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, userId,
+                new() { ["principalType"] = principalType, ["principalId"] = principalId },
+                tct);
+        }, ct);
 
         if (principalType == Constants.PrincipalTypes.User)
             await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
@@ -224,12 +237,16 @@ public sealed class CollectionAclService(
         if (!RoleHierarchy.AllRoles.Contains(targetRole))
             return ServiceError.BadRequest($"Invalid role '{targetRole}'");
 
-        var acl = await _aclRepo.SetAccessAsync(collectionId, principalType, principalId, targetRole, ct);
-
         var adminUserId = currentUser.UserId;
-        await audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, adminUserId,
-            new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = targetRole, ["admin"] = true },
-            ct);
+        // Admin ACL grant + audit are atomic (A-4).
+        var acl = await uow.ExecuteAsync(async tct =>
+        {
+            var row = await _aclRepo.SetAccessAsync(collectionId, principalType, principalId, targetRole, tct);
+            await audit.LogAsync("acl.set", Constants.ScopeTypes.Collection, collectionId, adminUserId,
+                new() { ["principalType"] = principalType, ["principalId"] = principalId, ["role"] = targetRole, ["admin"] = true },
+                tct);
+            return row;
+        }, ct);
 
         if (principalType == Constants.PrincipalTypes.User)
             await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);
@@ -250,12 +267,15 @@ public sealed class CollectionAclService(
         if (!await _collectionRepo.ExistsAsync(collectionId, ct))
             return ServiceError.NotFound("Collection not found");
 
-        await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, ct);
-
         var adminUserId = currentUser.UserId;
-        await audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, adminUserId,
-            new() { ["principalType"] = principalType, ["principalId"] = principalId, ["admin"] = true },
-            ct);
+        // Admin ACL revoke + audit are atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await _aclRepo.RevokeAccessAsync(collectionId, principalType, principalId, tct);
+            await audit.LogAsync("acl.revoked", Constants.ScopeTypes.Collection, collectionId, adminUserId,
+                new() { ["principalType"] = principalType, ["principalId"] = principalId, ["admin"] = true },
+                tct);
+        }, ct);
 
         if (principalType == Constants.PrincipalTypes.User)
             await cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(principalId), ct);

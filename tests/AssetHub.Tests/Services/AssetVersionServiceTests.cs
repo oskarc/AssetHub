@@ -31,6 +31,7 @@ public class AssetVersionServiceTests
             _authService.Object,
             _minio.Object,
             _audit.Object,
+            new PassThroughUnitOfWork(),
             currentUser,
             minioSettings,
             NullLogger<AssetVersionService>.Instance);

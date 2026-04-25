@@ -11,12 +11,13 @@ namespace AssetHub.Infrastructure.Services;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "Standard DI shape: repos + audit + webhook publisher + scoped CurrentUser + 2 IOptions + logger. Bundling them into a holder would obscure intent.")]
+    Justification = "Standard DI shape: repos + audit + webhook publisher + UnitOfWork + scoped CurrentUser + 2 IOptions + logger. UnitOfWork added to wrap action+audit atomically (A-4). Purge paths intentionally stay outside UoW because they touch MinIO.")]
 public sealed class AssetTrashService(
     IAssetRepository assetRepo,
     IAssetDeletionService deletionService,
     IAuditService audit,
     IWebhookEventPublisher webhooks,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     IOptions<AssetLifecycleSettings> lifecycleSettings,
     IOptions<MinIOSettings> minioSettings,
@@ -54,9 +55,14 @@ public sealed class AssetTrashService(
         if (asset is null) return ServiceError.NotFound("Asset not found");
         if (asset.DeletedAt is null) return ServiceError.BadRequest("Asset is not in Trash");
 
-        await deletionService.RestoreAsync(asset, ct);
-        await audit.LogAsync("asset.restored", Constants.ScopeTypes.Asset, id, currentUser.UserId,
-            new() { ["title"] = asset.Title }, ct);
+        // Restore + audit atomic (A-4). Webhook publish stays outside the
+        // transaction (external side-effect).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await deletionService.RestoreAsync(asset, tct);
+            await audit.LogAsync("asset.restored", Constants.ScopeTypes.Asset, id, currentUser.UserId,
+                new() { ["title"] = asset.Title }, tct);
+        }, ct);
         await webhooks.PublishAsync(WebhookEvents.AssetRestored, new
         {
             assetId = id,

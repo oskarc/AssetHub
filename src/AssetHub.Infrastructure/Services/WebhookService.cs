@@ -7,12 +7,16 @@ using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Services;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for webhook admin: repo + deliveries + secret protector + event publisher + audit + UnitOfWork + scoped CurrentUser + logger. UnitOfWork added to wrap action+audit atomically (A-4).")]
 public sealed class WebhookService(
     IWebhookRepository repo,
     IWebhookDeliveryRepository deliveries,
     IWebhookSecretProtector protector,
     IWebhookEventPublisher publisher,
     IAuditService audit,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     ILogger<WebhookService> logger) : IWebhookService
 {
@@ -61,19 +65,23 @@ public sealed class WebhookService(
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = currentUser.UserId
         };
-        await repo.CreateAsync(entity, ct);
-
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.WebhookCreated,
-            Constants.ScopeTypes.Webhook,
-            entity.Id,
-            currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [EndpointHostKey] = SafeHost(entity.Url),
-                ["event_types"] = entity.EventTypes
-            },
-            ct);
+        // Webhook insert + audit are atomic — torn write would leave a
+        // subscription that fires events with no audit trail (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.CreateAsync(entity, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.WebhookCreated,
+                Constants.ScopeTypes.Webhook,
+                entity.Id,
+                currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [EndpointHostKey] = SafeHost(entity.Url),
+                    ["event_types"] = entity.EventTypes
+                },
+                tct);
+        }, ct);
 
         logger.LogInformation(
             "Webhook {WebhookId} '{Name}' created by {UserId} subscribed to {Events}",
@@ -122,17 +130,21 @@ public sealed class WebhookService(
 
         if (changed.Count == 0) return ToDto(row);
 
-        await repo.UpdateAsync(row, ct);
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.WebhookUpdated,
-            Constants.ScopeTypes.Webhook,
-            id, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                ["changed_fields"] = changed,
-                [EndpointHostKey] = SafeHost(row.Url)
-            },
-            ct);
+        // Update + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.UpdateAsync(row, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.WebhookUpdated,
+                Constants.ScopeTypes.Webhook,
+                id, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    ["changed_fields"] = changed,
+                    [EndpointHostKey] = SafeHost(row.Url)
+                },
+                tct);
+        }, ct);
 
         return ToDto(row);
     }
@@ -144,17 +156,21 @@ public sealed class WebhookService(
         var existing = await repo.GetByIdAsync(id, ct);
         if (existing is null) return ServiceError.NotFound(WebhookNotFound);
 
-        await repo.DeleteAsync(id, ct);
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.WebhookDeleted,
-            Constants.ScopeTypes.Webhook,
-            id, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [EndpointHostKey] = SafeHost(existing.Url),
-                ["name"] = existing.Name
-            },
-            ct);
+        // Delete + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.DeleteAsync(id, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.WebhookDeleted,
+                Constants.ScopeTypes.Webhook,
+                id, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [EndpointHostKey] = SafeHost(existing.Url),
+                    ["name"] = existing.Name
+                },
+                tct);
+        }, ct);
 
         return ServiceResult.Success;
     }
@@ -168,17 +184,23 @@ public sealed class WebhookService(
 
         var plaintext = protector.GeneratePlaintext();
         row.SecretEncrypted = protector.Protect(plaintext);
-        await repo.UpdateAsync(row, ct);
 
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.WebhookSecretRotated,
-            Constants.ScopeTypes.Webhook,
-            id, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [EndpointHostKey] = SafeHost(row.Url)
-            },
-            ct);
+        // Secret rotation + audit atomic — without this, a torn write
+        // could leave the row pointing at a new secret with no audit
+        // trail of who rotated it (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.UpdateAsync(row, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.WebhookSecretRotated,
+                Constants.ScopeTypes.Webhook,
+                id, currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [EndpointHostKey] = SafeHost(row.Url)
+                },
+                tct);
+        }, ct);
 
         return new CreatedWebhookDto { Webhook = ToDto(row), PlaintextSecret = plaintext };
     }

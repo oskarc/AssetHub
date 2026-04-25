@@ -25,6 +25,7 @@ public class ExportPresetServiceTests
             _repoMock.Object,
             currentUser,
             _auditMock.Object,
+            new PassThroughUnitOfWork(),
             NullLogger<ExportPresetService>.Instance);
     }
 

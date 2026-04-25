@@ -9,6 +9,9 @@ using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for version ops: 4 repos/adapters + audit + UnitOfWork + scoped CurrentUser + IOptions + logger. UnitOfWork added to wrap action+audit atomically (A-4).")]
 public sealed class AssetVersionService(
     IAssetVersionRepository versionRepo,
     IAssetRepository assetRepo,
@@ -16,6 +19,7 @@ public sealed class AssetVersionService(
     ICollectionAuthorizationService authService,
     IMinIOAdapter minioAdapter,
     IAuditService audit,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     IOptions<MinIOSettings> minioSettings,
     ILogger<AssetVersionService> logger) : IAssetVersionService
@@ -64,8 +68,6 @@ public sealed class AssetVersionService(
             CreatedByUserId = currentUser.UserId,
             ChangeNote = $"Auto-snapshot before restoring v{versionNumber}"
         };
-        await versionRepo.CreateAsync(snapshotOfCurrent, ct);
-
         // Overwrite the asset row with the chosen version's snapshot — including object keys,
         // so the live asset now points at the historical bytes (no MinIO copy needed).
         asset.OriginalObjectKey = target.OriginalObjectKey;
@@ -79,10 +81,18 @@ public sealed class AssetVersionService(
         asset.MetadataJson = new Dictionary<string, object>(target.MetadataSnapshot);
         asset.CurrentVersionNumber = snapshotOfCurrent.VersionNumber;
         asset.UpdatedAt = DateTime.UtcNow;
-        await assetRepo.UpdateAsync(asset, ct);
 
-        await audit.LogAsync("asset.version_restored", Constants.ScopeTypes.Asset, assetId, currentUser.UserId,
-            new() { ["title"] = asset.Title, ["restoredFrom"] = versionNumber, ["newVersion"] = snapshotOfCurrent.VersionNumber }, ct);
+        // Snapshot insert + asset overwrite + audit atomic (A-4) — torn write
+        // here would corrupt the version chain (e.g., snapshot saved without
+        // bumping CurrentVersionNumber).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await versionRepo.CreateAsync(snapshotOfCurrent, tct);
+            await assetRepo.UpdateAsync(asset, tct);
+            await audit.LogAsync("asset.version_restored", Constants.ScopeTypes.Asset, assetId, currentUser.UserId,
+                new() { ["title"] = asset.Title, ["restoredFrom"] = versionNumber, ["newVersion"] = snapshotOfCurrent.VersionNumber }, tct);
+        }, ct);
+
         logger.LogInformation("User {UserId} restored asset {AssetId} from v{Restored} (now v{Current})",
             currentUser.UserId, assetId, versionNumber, snapshotOfCurrent.VersionNumber);
 
@@ -120,9 +130,14 @@ public sealed class AssetVersionService(
             catch (Exception ex) { logger.LogWarning(ex, "Failed to delete object {Key} during version prune", key); }
         }
 
-        await versionRepo.DeleteAsync(target.Id, ct);
-        await audit.LogAsync("asset.version_pruned", Constants.ScopeTypes.Asset, assetId, currentUser.UserId,
-            new() { ["title"] = asset.Title, ["versionNumber"] = versionNumber }, ct);
+        // Version row delete + audit atomic (A-4). MinIO key deletion above is
+        // best-effort and stays outside the transaction.
+        await uow.ExecuteAsync(async tct =>
+        {
+            await versionRepo.DeleteAsync(target.Id, tct);
+            await audit.LogAsync("asset.version_pruned", Constants.ScopeTypes.Asset, assetId, currentUser.UserId,
+                new() { ["title"] = asset.Title, ["versionNumber"] = versionNumber }, tct);
+        }, ct);
 
         return ServiceResult.Success;
     }

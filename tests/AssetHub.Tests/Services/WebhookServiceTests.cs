@@ -4,6 +4,7 @@ using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Services;
+using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -27,7 +28,8 @@ public class WebhookServiceTests
 
     private WebhookService Create(string userId = AdminId, bool isAdmin = true)
         => new(_repo.Object, _deliveries.Object, _protector.Object, _publisher.Object,
-               _audit.Object, new CurrentUser(userId, isAdmin),
+               _audit.Object, new PassThroughUnitOfWork(),
+               new CurrentUser(userId, isAdmin),
                NullLogger<WebhookService>.Instance);
 
     [Fact]

@@ -24,6 +24,7 @@ public sealed class CollectionAdminService(
     CollectionAdminRepositories repos,
     IAssetDeletionService deletionService,
     IAuditService audit,
+    IUnitOfWork uow,
     IOptions<MinIOSettings> minioSettings,
     CurrentUser currentUser) : ICollectionAdminService
 {
@@ -55,16 +56,22 @@ public sealed class CollectionAdminService(
 
                 var collectionName = collection.Name;
 
+                // Asset purge spans MinIO + DB and stays outside the transaction
+                // (best-effort cleanup); same trade-off as CollectionService.DeleteAsync.
                 if (deleteAssets)
                     await deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
-                else
-                    await repos.AssetCollectionRepo.UnlinkAllFromCollectionAsync(id, ct);
 
-                await repos.ShareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, ct);
-                await repos.CollectionRepo.DeleteAsync(id, ct);
+                // Per-row unlink + share cleanup + collection delete + audit atomic (A-4).
+                await uow.ExecuteAsync(async tct =>
+                {
+                    if (!deleteAssets)
+                        await repos.AssetCollectionRepo.UnlinkAllFromCollectionAsync(id, tct);
 
-                await audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
-                    new() { ["name"] = collectionName, ["bulk"] = "true", ["deleteAssets"] = deleteAssets.ToString() }, ct);
+                    await repos.ShareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, tct);
+                    await repos.CollectionRepo.DeleteAsync(id, tct);
+                    await audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
+                        new() { ["name"] = collectionName, ["bulk"] = "true", ["deleteAssets"] = deleteAssets.ToString() }, tct);
+                }, ct);
                 deleted++;
             }
             catch (Exception ex)
@@ -110,10 +117,13 @@ public sealed class CollectionAdminService(
                     continue;
                 }
 
-                await repos.AclRepo.SetAccessAsync(collectionId, request.PrincipalType, request.PrincipalId, request.Role, ct);
-
-                await audit.LogAsync("collection.access_set", Constants.ScopeTypes.Collection, collectionId, userId,
-                    new() { ["principalId"] = request.PrincipalId, ["role"] = request.Role, ["bulk"] = "true" }, ct);
+                // ACL set + audit atomic (A-4).
+                await uow.ExecuteAsync(async tct =>
+                {
+                    await repos.AclRepo.SetAccessAsync(collectionId, request.PrincipalType, request.PrincipalId, request.Role, tct);
+                    await audit.LogAsync("collection.access_set", Constants.ScopeTypes.Collection, collectionId, userId,
+                        new() { ["principalId"] = request.PrincipalId, ["role"] = request.Role, ["bulk"] = "true" }, tct);
+                }, ct);
                 updated++;
             }
             catch (Exception ex)

@@ -23,12 +23,16 @@ public sealed record CollectionServiceRepositories(
 /// <summary>
 /// Collection commands: create, update, delete, and download.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for collection commands: repos record + auth + deletion + zip + audit + UnitOfWork + IOptions + scoped CurrentUser. UnitOfWork added to wrap action+audit atomically (A-4).")]
 public sealed class CollectionService(
     CollectionServiceRepositories repos,
     ICollectionAuthorizationService authService,
     IAssetDeletionService deletionService,
     IZipBuildService zipBuildService,
     IAuditService audit,
+    IUnitOfWork uow,
     IOptions<MinIOSettings> minioSettings,
     CurrentUser currentUser) : ICollectionService
 {
@@ -69,18 +73,22 @@ public sealed class CollectionService(
 
         try
         {
-            await repos.CollectionRepo.CreateAsync(collection, ct);
+            // Insert + creator-admin ACL + audit atomic (A-4) — torn write
+            // would leave a collection that nobody can manage or no audit
+            // trail of who created it.
+            await uow.ExecuteAsync(async tct =>
+            {
+                await repos.CollectionRepo.CreateAsync(collection, tct);
+                await repos.AclRepo.SetAccessAsync(collection.Id, Constants.PrincipalTypes.User, userId, RoleHierarchy.Roles.Admin, tct);
+                await audit.LogAsync("collection.created", Constants.ScopeTypes.Collection, collection.Id, userId,
+                    new() { ["name"] = collection.Name },
+                    tct);
+            }, ct);
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
             return ServiceError.Conflict($"A collection named '{dto.Name}' already exists");
         }
-
-        await repos.AclRepo.SetAccessAsync(collection.Id, Constants.PrincipalTypes.User, userId, RoleHierarchy.Roles.Admin, ct);
-
-        await audit.LogAsync("collection.created", Constants.ScopeTypes.Collection, collection.Id, userId,
-            new() { ["name"] = collection.Name },
-            ct);
 
         await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAccessTag(userId), ct);
         await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
@@ -131,16 +139,19 @@ public sealed class CollectionService(
 
         try
         {
-            await repos.CollectionRepo.UpdateAsync(collection, ct);
+            // Update + audit atomic (A-4).
+            await uow.ExecuteAsync(async tct =>
+            {
+                await repos.CollectionRepo.UpdateAsync(collection, tct);
+                await audit.LogAsync("collection.updated", Constants.ScopeTypes.Collection, id, userId,
+                    new() { ["name"] = collection.Name, ["description"] = collection.Description ?? "" },
+                    tct);
+            }, ct);
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
             return ServiceError.Conflict($"A collection named '{dto.Name}' already exists");
         }
-
-        await audit.LogAsync("collection.updated", Constants.ScopeTypes.Collection, id, userId,
-            new() { ["name"] = collection.Name, ["description"] = collection.Description ?? "" },
-            ct);
 
         await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.Collection(id), ct);
 
@@ -160,13 +171,21 @@ public sealed class CollectionService(
             return ServiceError.NotFound("Collection not found");
 
         var collectionName = collection.Name;
+        // Asset purge spans MinIO + DB and intentionally stays outside the
+        // transaction below (best-effort cleanup).
         await deletionService.DeleteCollectionAssetsAsync(id, _bucketName, ct);
-        await repos.ShareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, ct);
-        await repos.CollectionRepo.DeleteAsync(id, ct);
 
-        await audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
-            new() { ["name"] = collectionName },
-            ct);
+        // Share cleanup + collection delete + audit atomic (A-4) — torn write
+        // here would leave dangling shares pointing at a deleted collection
+        // or no audit trail of the deletion.
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repos.ShareRepo.DeleteByScopeAsync(Constants.ScopeTypes.Collection, id, tct);
+            await repos.CollectionRepo.DeleteAsync(id, tct);
+            await audit.LogAsync("collection.deleted", Constants.ScopeTypes.Collection, id, userId,
+                new() { ["name"] = collectionName },
+                tct);
+        }, ct);
 
         await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.Collection(id), ct);
         await repos.Cache.RemoveByTagAsync(CacheKeys.Tags.CollectionAcl, ct);

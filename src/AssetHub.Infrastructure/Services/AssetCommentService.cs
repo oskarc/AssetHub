@@ -8,6 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Services;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for comments: repo + asset/collection lookups + auth + user lookup + notifications + webhooks + audit + UnitOfWork + scoped CurrentUser + logger. UnitOfWork added to wrap action+audit atomically (A-4).")]
 public sealed class AssetCommentService(
     IAssetCommentRepository repo,
     IAssetRepository assetRepo,
@@ -17,6 +20,7 @@ public sealed class AssetCommentService(
     INotificationService notifications,
     IWebhookEventPublisher webhooks,
     IAuditService audit,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     ILogger<AssetCommentService> logger) : IAssetCommentService
 {
@@ -72,20 +76,25 @@ public sealed class AssetCommentService(
             ParentCommentId = dto.ParentCommentId,
             CreatedAt = DateTime.UtcNow
         };
-        await repo.CreateAsync(entity, ct);
-
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.CommentCreated,
-            Constants.ScopeTypes.Comment,
-            entity.Id,
-            currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [AssetIdKey] = assetId,
-                ["parent_comment_id"] = (object?)entity.ParentCommentId ?? string.Empty,
-                ["mentioned_user_count"] = mentionedIds.Count
-            },
-            ct);
+        // Insert + audit atomic — torn write would leave a comment with
+        // no audit trail of who posted it (A-4). Mention fan-out and the
+        // webhook stay outside the transaction (external side-effects).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.CreateAsync(entity, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.CommentCreated,
+                Constants.ScopeTypes.Comment,
+                entity.Id,
+                currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [AssetIdKey] = assetId,
+                    ["parent_comment_id"] = (object?)entity.ParentCommentId ?? string.Empty,
+                    ["mentioned_user_count"] = mentionedIds.Count
+                },
+                tct);
+        }, ct);
 
         await FanOutMentionsAsync(entity, asset, ct);
 
@@ -132,19 +141,23 @@ public sealed class AssetCommentService(
         comment.Body = dto.Body;
         comment.MentionedUserIds = newMentioned;
         comment.EditedAt = DateTime.UtcNow;
-        await repo.UpdateAsync(comment, ct);
 
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.CommentUpdated,
-            Constants.ScopeTypes.Comment,
-            comment.Id,
-            currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [AssetIdKey] = comment.AssetId,
-                ["mentioned_user_count"] = newMentioned.Count
-            },
-            ct);
+        // Update + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.UpdateAsync(comment, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.CommentUpdated,
+                Constants.ScopeTypes.Comment,
+                comment.Id,
+                currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [AssetIdKey] = comment.AssetId,
+                    ["mentioned_user_count"] = newMentioned.Count
+                },
+                tct);
+        }, ct);
 
         // Only notify users newly mentioned by this edit — avoid re-notifying
         // people who were already in the original comment.
@@ -171,20 +184,23 @@ public sealed class AssetCommentService(
         if (comment.AuthorUserId != currentUser.UserId && !currentUser.IsSystemAdmin)
             return ServiceError.Forbidden();
 
-        await repo.DeleteAsync(commentId, ct);
-
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.CommentDeleted,
-            Constants.ScopeTypes.Comment,
-            comment.Id,
-            currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [AssetIdKey] = comment.AssetId,
-                ["author_user_id"] = comment.AuthorUserId,
-                ["was_admin_delete"] = currentUser.IsSystemAdmin && comment.AuthorUserId != currentUser.UserId
-            },
-            ct);
+        // Delete + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.DeleteAsync(commentId, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.CommentDeleted,
+                Constants.ScopeTypes.Comment,
+                comment.Id,
+                currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    [AssetIdKey] = comment.AssetId,
+                    ["author_user_id"] = comment.AuthorUserId,
+                    ["was_admin_delete"] = currentUser.IsSystemAdmin && comment.AuthorUserId != currentUser.UserId
+                },
+                tct);
+        }, ct);
 
         return ServiceResult.Success;
     }
@@ -234,31 +250,37 @@ public sealed class AssetCommentService(
             ct.ThrowIfCancellationRequested();
             try
             {
-                await notifications.CreateAsync(
-                    userId: userId,
-                    category: NotificationConstants.Categories.Mention,
-                    title: $"You were mentioned on '{asset.Title}'",
-                    body: preview,
-                    url: $"/assets/{asset.Id}",
-                    data: new Dictionary<string, object>
-                    {
-                        ["comment_id"] = comment.Id,
-                        [AssetIdKey] = asset.Id,
-                        ["author_user_id"] = comment.AuthorUserId
-                    },
-                    ct);
+                // Per-recipient notification + audit atomic (A-4) — each
+                // user's delivery is its own transaction so one failure
+                // doesn't roll back deliveries already committed.
+                await uow.ExecuteAsync(async tct =>
+                {
+                    await notifications.CreateAsync(
+                        userId: userId,
+                        category: NotificationConstants.Categories.Mention,
+                        title: $"You were mentioned on '{asset.Title}'",
+                        body: preview,
+                        url: $"/assets/{asset.Id}",
+                        data: new Dictionary<string, object>
+                        {
+                            ["comment_id"] = comment.Id,
+                            [AssetIdKey] = asset.Id,
+                            ["author_user_id"] = comment.AuthorUserId
+                        },
+                        tct);
 
-                await audit.LogAsync(
-                    NotificationConstants.AuditEvents.CommentMentionDelivered,
-                    Constants.ScopeTypes.Comment,
-                    comment.Id,
-                    currentUser.UserId,
-                    new Dictionary<string, object>
-                    {
-                        [AssetIdKey] = asset.Id,
-                        ["mentioned_user_id"] = userId
-                    },
-                    ct);
+                    await audit.LogAsync(
+                        NotificationConstants.AuditEvents.CommentMentionDelivered,
+                        Constants.ScopeTypes.Comment,
+                        comment.Id,
+                        currentUser.UserId,
+                        new Dictionary<string, object>
+                        {
+                            [AssetIdKey] = asset.Id,
+                            ["mentioned_user_id"] = userId
+                        },
+                        tct);
+                }, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

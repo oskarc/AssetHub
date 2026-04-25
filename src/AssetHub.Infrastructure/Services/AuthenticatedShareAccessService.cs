@@ -9,12 +9,16 @@ namespace AssetHub.Infrastructure.Services;
 /// <summary>
 /// Handles authenticated share management: create, revoke, and update password.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root: repo + auth + share service + audit + DataProtection + UnitOfWork + scoped CurrentUser. UnitOfWork added to wrap action+audit atomically (A-4).")]
 public sealed class AuthenticatedShareAccessService(
     IShareRepository shareRepo,
     ICollectionAuthorizationService authService,
     IShareService shareService,
     IAuditService audit,
     IDataProtectionProvider dataProtection,
+    IUnitOfWork uow,
     CurrentUser currentUser) : IAuthenticatedShareAccessService
 {
     public async Task<ServiceResult<ShareResponseDto>> CreateShareAsync(
@@ -71,11 +75,15 @@ public sealed class AuthenticatedShareAccessService(
             return ServiceError.Forbidden("You don't have permission to revoke this share");
 
         share.RevokedAt = DateTime.UtcNow;
-        await shareRepo.UpdateAsync(share, ct);
 
-        await audit.LogAsync("share.revoked", Constants.ScopeTypes.Share, shareId, userId,
-            new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId },
-            ct);
+        // Revoke + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await shareRepo.UpdateAsync(share, tct);
+            await audit.LogAsync("share.revoked", Constants.ScopeTypes.Share, shareId, userId,
+                new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId },
+                tct);
+        }, ct);
 
         return ServiceResult.Success;
     }
@@ -108,11 +116,14 @@ public sealed class AuthenticatedShareAccessService(
         var protectedBytes = protector.Protect(System.Text.Encoding.UTF8.GetBytes(password));
         share.PasswordEncrypted = Convert.ToBase64String(protectedBytes);
 
-        await shareRepo.UpdateAsync(share, ct);
-
-        await audit.LogAsync("share.password_updated", Constants.ScopeTypes.Share, shareId, userId,
-            new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId },
-            ct);
+        // Update + audit atomic (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await shareRepo.UpdateAsync(share, tct);
+            await audit.LogAsync("share.password_updated", Constants.ScopeTypes.Share, shareId, userId,
+                new() { ["scopeType"] = share.ScopeType, ["scopeId"] = share.ScopeId },
+                tct);
+        }, ct);
 
         return new MessageResponse("Password updated successfully");
     }

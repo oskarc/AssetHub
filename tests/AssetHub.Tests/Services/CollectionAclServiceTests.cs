@@ -61,7 +61,7 @@ public class CollectionAclServiceTests : IAsyncLifetime
 
         return new CollectionAclService(
             new CollectionAclRepositories(_collectionRepo, _aclRepo), _authService, _userLookupMock.Object,
-            _keycloakMock.Object, _auditMock.Object, TestCacheHelper.CreateHybridCache(), currentUser);
+            _keycloakMock.Object, _auditMock.Object, new UnitOfWork(_db), TestCacheHelper.CreateHybridCache(), currentUser);
     }
 
     public async Task DisposeAsync()

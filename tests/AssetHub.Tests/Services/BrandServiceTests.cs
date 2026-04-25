@@ -5,6 +5,7 @@ using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Services;
+using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -23,6 +24,7 @@ public class BrandServiceTests
 
     private BrandService Create(string userId = AdminId, bool isAdmin = true)
         => new(_repo.Object, _collectionRepo.Object, _minio.Object, _audit.Object,
+               new PassThroughUnitOfWork(),
                new CurrentUser(userId, isAdmin), _minioSettings,
                NullLogger<BrandService>.Instance);
 

@@ -83,6 +83,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
             _authService,
             _deletionService,
             _auditMock.Object,
+            new UnitOfWork(_db),
             TestCacheHelper.CreateHybridCache(),
             currentUser,
             minioSettings);
