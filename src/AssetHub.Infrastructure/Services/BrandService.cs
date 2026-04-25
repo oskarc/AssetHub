@@ -207,7 +207,7 @@ public sealed class BrandService(
 
         var buffered = await BufferWithLimitAsync(content, ct);
         if (buffered.Error is not null) return buffered.Error;
-        var ms = buffered.Stream!;
+        await using var ms = buffered.Stream!;
 
         // Use only the extension from the supplied filename — the path
         // segment is fixed (brands/{id}/logo.{ext}) so traversal and

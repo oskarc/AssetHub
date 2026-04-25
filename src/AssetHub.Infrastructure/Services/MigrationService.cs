@@ -15,6 +15,9 @@ using Wolverine;
 
 namespace AssetHub.Infrastructure.Services;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for migration ingest: 3 repos + MinIO adapter + 2 IOptions + audit + message bus + cache + scoped CurrentUser + logger. Bundling them into a holder would obscure intent.")]
 public sealed class MigrationService(
     IMigrationRepository migrationRepo,
     ICollectionRepository collectionRepo,

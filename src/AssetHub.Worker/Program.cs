@@ -28,14 +28,18 @@ static class Program
 
                 opts.UseRabbitMq(rabbit =>
                 {
-                    // Settings are bound below via IOptions; read raw config here for bootstrap
+                    // Settings are bound below via IOptions; read raw config here for bootstrap.
+                    // Username/Password have no defaults — running with the well-known
+                    // "guest"/"guest" pair would be a credential leak in shared environments
+                    // (S2068). RabbitMQSettings.ValidateOnStart() catches missing config below;
+                    // here we just use empty strings so the validator's error message wins.
                     var config = opts.Services.BuildServiceProvider()
                         .GetRequiredService<IConfiguration>();
                     var section = config.GetSection(RabbitMQSettings.SectionName);
                     rabbit.HostName = section["Host"] ?? "localhost";
                     rabbit.VirtualHost = section["VirtualHost"] ?? "/";
-                    rabbit.UserName = section["Username"] ?? "guest";
-                    rabbit.Password = section["Password"] ?? "guest";
+                    rabbit.UserName = section["Username"] ?? string.Empty;
+                    rabbit.Password = section["Password"] ?? string.Empty;
                 }).AutoProvision();
 
                 // Listen for commands from API

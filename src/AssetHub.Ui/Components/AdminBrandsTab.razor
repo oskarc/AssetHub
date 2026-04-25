@@ -106,7 +106,7 @@
 @code {
     private List<BrandResponseDto>? _brands;
     private bool _loading;
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 

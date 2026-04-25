@@ -40,7 +40,7 @@
                            Color="Color.Primary"
                            Size="Size.Small"
                            OnClick="@(() => OnSetCropAspect.InvokeAsync(null))">@Loc["Crop_Free"]</MudButton>
-                <MudButton Variant="@(CropAspect == 1.0 ? Variant.Filled : Variant.Outlined)"
+                <MudButton Variant="@(IsApprox(CropAspect, 1.0) ? Variant.Filled : Variant.Outlined)"
                            Color="Color.Primary"
                            Size="Size.Small"
                            OnClick="@(() => OnSetCropAspect.InvokeAsync(1.0))">1:1</MudButton>

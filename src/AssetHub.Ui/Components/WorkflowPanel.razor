@@ -3,6 +3,8 @@
 @using AssetHub.Ui.Services
 @using MudBlazor
 
+@implements IAsyncDisposable
+
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
@@ -230,4 +232,10 @@
         "unpublish" => Icons.Material.Outlined.Block,
         _ => Icons.Material.Outlined.PlayArrow
     };
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+    }
 }

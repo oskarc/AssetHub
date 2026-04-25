@@ -208,7 +208,7 @@ else if (_uploads.Any())
     private bool _showReport = false;
     private IDisposable? _locationChangingRegistration;
     private bool _navigationConfirmed;
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
 
     private int _dragCounter = 0;
     private string _uploadAreaClass => $"pa-4 upload-area {(_isDragOver ? "drag-over" : "")}";

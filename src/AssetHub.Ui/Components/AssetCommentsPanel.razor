@@ -5,6 +5,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using MudBlazor
 
+@implements IAsyncDisposable
+
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
@@ -206,5 +208,11 @@
             StateHasChanged();
             Feedback.ShowError(Loc["Editor_Post_Failed"].Value);
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
     }
 }

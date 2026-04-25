@@ -369,7 +369,7 @@
     // Bulk selection state
     private bool _selectionMode;
     private HashSet<Guid> _selectedAssetIds = new();
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
     
     // Role-based UI visibility using centralized permissions
     private bool CanShare(AssetResponseDto asset) => RolePermissions.CanShare(asset.UserRole);
