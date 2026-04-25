@@ -64,22 +64,7 @@ public sealed class GuestInvitationExpirySweepService(
             try
             {
                 if (!string.IsNullOrEmpty(invitation.AcceptedUserId))
-                {
-                    foreach (var collectionId in invitation.CollectionIds)
-                    {
-                        try
-                        {
-                            await aclRepo.RevokeAccessAsync(
-                                collectionId, PrincipalUser, invitation.AcceptedUserId, ct);
-                        }
-                        catch (Exception inner) when (inner is not OperationCanceledException)
-                        {
-                            logger.LogWarning(inner,
-                                "Failed to revoke ACL on collection {CollectionId} for expired guest {UserId}",
-                                collectionId, invitation.AcceptedUserId);
-                        }
-                    }
-                }
+                    await RevokeCollectionAclsAsync(aclRepo, invitation, ct);
 
                 invitation.RevokedAt = DateTime.UtcNow;
                 await repo.UpdateAsync(invitation, ct);
@@ -109,5 +94,26 @@ public sealed class GuestInvitationExpirySweepService(
         logger.LogInformation(
             "Guest-invitation expiry sweep done: {Revoked} revoked, {Failed} failed",
             revoked, failed);
+    }
+
+    private async Task RevokeCollectionAclsAsync(
+        Application.Repositories.ICollectionAclRepository aclRepo,
+        Domain.Entities.GuestInvitation invitation,
+        CancellationToken ct)
+    {
+        foreach (var collectionId in invitation.CollectionIds)
+        {
+            try
+            {
+                await aclRepo.RevokeAccessAsync(
+                    collectionId, PrincipalUser, invitation.AcceptedUserId!, ct);
+            }
+            catch (Exception inner) when (inner is not OperationCanceledException)
+            {
+                logger.LogWarning(inner,
+                    "Failed to revoke ACL on collection {CollectionId} for expired guest {UserId}",
+                    collectionId, invitation.AcceptedUserId);
+            }
+        }
     }
 }

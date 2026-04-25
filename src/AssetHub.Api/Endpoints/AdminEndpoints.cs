@@ -13,6 +13,9 @@ namespace AssetHub.Api.Endpoints;
 /// Admin-only endpoints for managing shares, collection access, users, and audit logs.
 /// All endpoints require the 'admin' role.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Endpoint mapping class — its job is to wire up many domain services. Splitting just relocates the coupling.")]
 public static class AdminEndpoints
 {
     public static void MapAdminEndpoints(this WebApplication app)

@@ -68,25 +68,21 @@ public sealed class ApplyExportPresetsHandler(
             derivativeCount, presets.Count, command.SourceAssetId);
     }
 
+    private static readonly Dictionary<string, (string Extension, string ContentType)> FormatMap = new()
+    {
+        ["jpeg"] = (".jpg", "image/jpeg"),
+        ["png"] = (".png", "image/png"),
+        ["webp"] = (".webp", "image/webp"),
+    };
+
     private async Task CreatePresetDerivativeAsync(
         Asset sourceAsset, ExportPreset preset, List<Guid> collectionIds,
         string requestedByUserId, CancellationToken ct)
     {
         var format = preset.Format == ExportPresetFormat.Original ? "png" : preset.Format.ToDbString();
-        var extension = format switch
-        {
-            "jpeg" => ".jpg",
-            "png" => ".png",
-            "webp" => ".webp",
-            _ => ".png"
-        };
-        var contentType = format switch
-        {
-            "jpeg" => "image/jpeg",
-            "png" => "image/png",
-            "webp" => "image/webp",
-            _ => "image/png"
-        };
+        var (extension, contentType) = FormatMap.TryGetValue(format, out var mapping)
+            ? mapping
+            : (".png", "image/png");
 
         var derivativeId = Guid.NewGuid();
         var objectKey = $"originals/{derivativeId}-{preset.Name.ToLowerInvariant().Replace(' ', '-')}{extension}";

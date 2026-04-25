@@ -24,6 +24,9 @@ namespace AssetHub.Worker.BackgroundServices;
 /// gets a separate email per digest. Batching into a true "weekly digest"
 /// email is deferred (FOLLOW-UPS.md).
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Worker resolves search + notification + email + user-lookup deps per iteration via IServiceScopeFactory; the scoped types it touches all count toward coupling but are necessary for the digest fan-out.")]
 public sealed class SavedSearchDigestBackgroundService(
     IServiceScopeFactory scopeFactory,
     ILogger<SavedSearchDigestBackgroundService> logger) : BackgroundService

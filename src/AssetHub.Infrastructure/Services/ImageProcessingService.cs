@@ -188,19 +188,7 @@ public sealed class ImageProcessingService(
         string sourceObjectKey, string targetObjectKey, string targetContentType,
         ExportPreset preset, CancellationToken ct)
     {
-        var width = preset.Width;
-        var height = preset.Height;
-        var fitMode = preset.FitMode;
-        var quality = preset.Quality;
-
-        // Defense-in-depth: validate dimensions even though presets are validated at creation
-        const int maxDimension = 10000;
-        if (width.HasValue && (width.Value < 1 || width.Value > maxDimension))
-            throw new ArgumentOutOfRangeException(nameof(preset), $"Width must be between 1 and {maxDimension}");
-        if (height.HasValue && (height.Value < 1 || height.Value > maxDimension))
-            throw new ArgumentOutOfRangeException(nameof(preset), $"Height must be between 1 and {maxDimension}");
-        if (quality < 1 || quality > 100)
-            throw new ArgumentOutOfRangeException(nameof(preset), "Quality must be between 1 and 100");
+        ValidatePresetDimensions(preset);
 
         var extension = targetContentType switch
         {
@@ -213,40 +201,8 @@ public sealed class ImageProcessingService(
 
         try
         {
-            using var sourceStream = await minioAdapter.DownloadAsync(_bucketName, sourceObjectKey, ct);
-            await using (var fs = File.Create(tempInput))
-            {
-                await sourceStream.CopyToAsync(fs, ct);
-            }
-
-            var executable = OperatingSystem.IsWindows() ? "magick" : "/usr/bin/convert";
-            var command = ProcessRunner.CreateStartInfo(executable);
-            command.ArgumentList.Add($"{tempInput}[0]");
-            command.ArgumentList.Add("-auto-orient");
-            command.ArgumentList.Add("-colorspace");
-            command.ArgumentList.Add("sRGB");
-            command.ArgumentList.Add("-strip");
-
-            var geometry = BuildPresetGeometry(width, height, fitMode);
-            if (geometry is not null)
-            {
-                command.ArgumentList.Add("-resize");
-                command.ArgumentList.Add(geometry);
-
-                if (fitMode == ExportPresetFitMode.Cover && width.HasValue && height.HasValue)
-                {
-                    command.ArgumentList.Add("-gravity");
-                    command.ArgumentList.Add("center");
-                    command.ArgumentList.Add("-extent");
-                    command.ArgumentList.Add($"{width.Value}x{height.Value}");
-                }
-            }
-
-            command.ArgumentList.Add("-quality");
-            command.ArgumentList.Add(quality.ToString());
-            command.ArgumentList.Add(tempOutput);
-
-            await ProcessRunner.RunAsync(executable, command, ProcessTimeout, logger, ct);
+            await DownloadSourceToTempAsync(sourceObjectKey, tempInput, ct);
+            await RunMagickResizeAsync(tempInput, tempOutput, preset, ct);
 
             var fileInfo = new FileInfo(tempOutput);
             using var outputStream = File.OpenRead(tempOutput);
@@ -258,6 +214,62 @@ public sealed class ImageProcessingService(
         {
             ProcessRunner.CleanupTempFile(tempInput, logger);
             ProcessRunner.CleanupTempFile(tempOutput, logger);
+        }
+    }
+
+    private static void ValidatePresetDimensions(ExportPreset preset)
+    {
+        // Defense-in-depth: validate even though presets are validated at creation.
+        const int maxDimension = 10000;
+        if (preset.Width.HasValue && (preset.Width.Value < 1 || preset.Width.Value > maxDimension))
+            throw new ArgumentOutOfRangeException(nameof(preset), $"Width must be between 1 and {maxDimension}");
+        if (preset.Height.HasValue && (preset.Height.Value < 1 || preset.Height.Value > maxDimension))
+            throw new ArgumentOutOfRangeException(nameof(preset), $"Height must be between 1 and {maxDimension}");
+        if (preset.Quality is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(preset), "Quality must be between 1 and 100");
+    }
+
+    private async Task DownloadSourceToTempAsync(string sourceObjectKey, string tempInput, CancellationToken ct)
+    {
+        using var sourceStream = await minioAdapter.DownloadAsync(_bucketName, sourceObjectKey, ct);
+        await using var fs = File.Create(tempInput);
+        await sourceStream.CopyToAsync(fs, ct);
+    }
+
+    private async Task RunMagickResizeAsync(
+        string tempInput, string tempOutput, ExportPreset preset, CancellationToken ct)
+    {
+        var executable = OperatingSystem.IsWindows() ? "magick" : "/usr/bin/convert";
+        var command = ProcessRunner.CreateStartInfo(executable);
+        command.ArgumentList.Add($"{tempInput}[0]");
+        command.ArgumentList.Add("-auto-orient");
+        command.ArgumentList.Add("-colorspace");
+        command.ArgumentList.Add("sRGB");
+        command.ArgumentList.Add("-strip");
+
+        AppendGeometryArgs(command, preset);
+
+        command.ArgumentList.Add("-quality");
+        command.ArgumentList.Add(preset.Quality.ToString());
+        command.ArgumentList.Add(tempOutput);
+
+        await ProcessRunner.RunAsync(executable, command, ProcessTimeout, logger, ct);
+    }
+
+    private static void AppendGeometryArgs(System.Diagnostics.ProcessStartInfo command, ExportPreset preset)
+    {
+        var geometry = BuildPresetGeometry(preset.Width, preset.Height, preset.FitMode);
+        if (geometry is null) return;
+
+        command.ArgumentList.Add("-resize");
+        command.ArgumentList.Add(geometry);
+
+        if (preset.FitMode == ExportPresetFitMode.Cover && preset.Width.HasValue && preset.Height.HasValue)
+        {
+            command.ArgumentList.Add("-gravity");
+            command.ArgumentList.Add("center");
+            command.ArgumentList.Add("-extent");
+            command.ArgumentList.Add($"{preset.Width.Value}x{preset.Height.Value}");
         }
     }
 

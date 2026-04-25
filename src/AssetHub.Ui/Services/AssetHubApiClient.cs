@@ -14,6 +14,9 @@ namespace AssetHub.Ui.Services;
 /// All methods use <see cref="EnsureSuccessAsync"/> for consistent error handling.
 /// On failure, an <see cref="ApiException"/> is thrown with the server's error message.
 /// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Single HTTP-client facade for the UI — every domain DTO it serialises counts as a coupled type. Splitting into per-domain clients adds N facades for the same surface area.")]
 public class AssetHubApiClient
 {
     private readonly HttpClient _http;
@@ -56,33 +59,9 @@ public class AssetHubApiClient
             using var doc = System.Text.Json.JsonDocument.Parse(errorContent);
             var root = doc.RootElement;
 
-            string? code = null;
-            Dictionary<string, string>? details = null;
-
-            // Extract error code
-            if (root.TryGetProperty("code", out var codeProp))
-                code = codeProp.GetString();
-
-            // Extract details dictionary
-            if (root.TryGetProperty("details", out var detailsProp) && detailsProp.ValueKind == System.Text.Json.JsonValueKind.Object)
-            {
-                details = new Dictionary<string, string>();
-                foreach (var prop in detailsProp.EnumerateObject())
-                {
-                    details[prop.Name] = prop.Value.GetString() ?? prop.Value.ToString();
-                }
-            }
-
-            // Extract message (same priority chain as before)
-            string? message = null;
-            if (root.TryGetProperty("error", out var errorProp))
-                message = errorProp.GetString();
-            if (message is null && root.TryGetProperty("message", out var messageProp))
-                message = messageProp.GetString();
-            if (message is null && root.TryGetProperty("detail", out var detailProp))
-                message = detailProp.GetString();
-            if (message is null && root.TryGetProperty("title", out var titleProp))
-                message = titleProp.GetString();
+            var code = TryGetStringProperty(root, "code");
+            var details = ExtractDetailsDictionary(root);
+            var message = ExtractFirstAvailableMessage(root);
 
             return (message ?? errorContent, code, details);
         }
@@ -92,6 +71,34 @@ public class AssetHubApiClient
         }
 
         return (errorContent, null, null);
+    }
+
+    private static string? TryGetStringProperty(System.Text.Json.JsonElement root, string name)
+        => root.TryGetProperty(name, out var prop) ? prop.GetString() : null;
+
+    private static Dictionary<string, string>? ExtractDetailsDictionary(System.Text.Json.JsonElement root)
+    {
+        if (!root.TryGetProperty("details", out var detailsProp)
+            || detailsProp.ValueKind != System.Text.Json.JsonValueKind.Object) return null;
+
+        var details = new Dictionary<string, string>();
+        foreach (var prop in detailsProp.EnumerateObject())
+        {
+            details[prop.Name] = prop.Value.GetString() ?? prop.Value.ToString();
+        }
+        return details;
+    }
+
+    private static readonly string[] MessagePropertyNames = { "error", "message", "detail", "title" };
+
+    private static string? ExtractFirstAvailableMessage(System.Text.Json.JsonElement root)
+    {
+        foreach (var name in MessagePropertyNames)
+        {
+            var value = TryGetStringProperty(root, name);
+            if (value is not null) return value;
+        }
+        return null;
     }
 
     /// <summary>

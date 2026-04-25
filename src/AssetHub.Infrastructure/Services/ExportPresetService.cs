@@ -66,23 +66,10 @@ public sealed class ExportPresetService(
         if (preset is null)
             return ServiceError.NotFound("Export preset not found");
 
-        if (dto.FitMode is not null && !DomainEnumExtensions.IsValidExportPresetFitMode(dto.FitMode))
-            return ServiceError.BadRequest($"Invalid fit mode: {dto.FitMode}");
+        var validation = await ValidateUpdateAsync(id, dto, ct);
+        if (validation is not null) return validation;
 
-        if (dto.Format is not null && !DomainEnumExtensions.IsValidExportPresetFormat(dto.Format))
-            return ServiceError.BadRequest($"Invalid format: {dto.Format}");
-
-        if (dto.Name is not null && await repo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct))
-            return ServiceError.Conflict($"An export preset named '{dto.Name}' already exists");
-
-        if (dto.Name is not null) preset.Name = dto.Name.Trim();
-        if (dto.Width is not null) preset.Width = dto.Width;
-        if (dto.Height is not null) preset.Height = dto.Height;
-        if (dto.FitMode is not null) preset.FitMode = dto.FitMode.ToExportPresetFitMode();
-        if (dto.Format is not null) preset.Format = dto.Format.ToExportPresetFormat();
-        if (dto.Quality is not null) preset.Quality = dto.Quality.Value;
-        preset.UpdatedAt = DateTime.UtcNow;
-
+        ApplyUpdate(preset, dto);
         await repo.UpdateAsync(preset, ct);
 
         logger.LogInformation("Export preset {PresetId} '{PresetName}' updated by {UserId}",
@@ -112,6 +99,32 @@ public sealed class ExportPresetService(
             currentUser.UserId, new Dictionary<string, object> { ["name"] = preset.Name }, ct);
 
         return ServiceResult.Success;
+    }
+
+    private async Task<ServiceError?> ValidateUpdateAsync(
+        Guid id, UpdateExportPresetDto dto, CancellationToken ct)
+    {
+        if (dto.FitMode is not null && !DomainEnumExtensions.IsValidExportPresetFitMode(dto.FitMode))
+            return ServiceError.BadRequest($"Invalid fit mode: {dto.FitMode}");
+
+        if (dto.Format is not null && !DomainEnumExtensions.IsValidExportPresetFormat(dto.Format))
+            return ServiceError.BadRequest($"Invalid format: {dto.Format}");
+
+        if (dto.Name is not null && await repo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct))
+            return ServiceError.Conflict($"An export preset named '{dto.Name}' already exists");
+
+        return null;
+    }
+
+    private static void ApplyUpdate(ExportPreset preset, UpdateExportPresetDto dto)
+    {
+        if (dto.Name is not null) preset.Name = dto.Name.Trim();
+        if (dto.Width is not null) preset.Width = dto.Width;
+        if (dto.Height is not null) preset.Height = dto.Height;
+        if (dto.FitMode is not null) preset.FitMode = dto.FitMode.ToExportPresetFitMode();
+        if (dto.Format is not null) preset.Format = dto.Format.ToExportPresetFormat();
+        if (dto.Quality is not null) preset.Quality = dto.Quality.Value;
+        preset.UpdatedAt = DateTime.UtcNow;
     }
 
     private static ExportPresetDto ToDto(ExportPreset preset) => new()

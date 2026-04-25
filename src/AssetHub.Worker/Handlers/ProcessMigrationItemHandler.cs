@@ -11,6 +11,9 @@ using Microsoft.Extensions.Options;
 
 namespace AssetHub.Worker.Handlers;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Migration item handler is the convergence point for source connector + asset/collection repos + MinIO + media processing + migration row updates. The whole point is per-item ingest orchestration.")]
 public sealed class ProcessMigrationItemHandler(
     IMigrationRepository migrationRepo,
     IAssetRepository assetRepo,

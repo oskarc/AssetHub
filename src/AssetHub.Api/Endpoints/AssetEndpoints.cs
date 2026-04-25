@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AssetHub.Api.Endpoints;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Endpoint mapping class — wires up the asset CRUD / upload / search / version / metadata endpoints. Coupling is the point.")]
 public static class AssetEndpoints
 {
     public static void MapAssetEndpoints(this WebApplication app)

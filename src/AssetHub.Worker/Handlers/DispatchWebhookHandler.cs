@@ -26,6 +26,9 @@ namespace AssetHub.Worker.Handlers;
 /// next handler call sees <c>AttemptCount</c> ≥ max and marks Failed.</item>
 /// </list>
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Webhook dispatch handler touches delivery + subscription repos + secret protector + HTTP client + HMAC primitives + audit. All required for the dispatch-and-record contract.")]
 public sealed class DispatchWebhookHandler(
     IWebhookDeliveryRepository deliveries,
     IWebhookRepository webhooks,

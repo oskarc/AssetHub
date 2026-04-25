@@ -222,6 +222,22 @@ public class UserFeedbackService : IUserFeedbackService
         };
     }
 
+    private static readonly Dictionary<HttpStatusCode, string> ApiErrorResourceKeys = new()
+    {
+        [HttpStatusCode.BadRequest] = "Feedback_InvalidRequest",
+        [HttpStatusCode.Unauthorized] = "Feedback_SignInRequired",
+        [HttpStatusCode.Forbidden] = "Feedback_NoPermission",
+        [HttpStatusCode.NotFound] = "Feedback_ItemNotFound",
+        [HttpStatusCode.Conflict] = "Feedback_ConflictError",
+        [HttpStatusCode.RequestEntityTooLarge] = "Feedback_FileTooLarge",
+        [HttpStatusCode.UnprocessableEntity] = "Feedback_InvalidInput",
+        [HttpStatusCode.TooManyRequests] = "Feedback_TooManyRequests",
+        [HttpStatusCode.InternalServerError] = "Feedback_ServerError",
+        [HttpStatusCode.BadGateway] = "Feedback_ServiceUnavailable",
+        [HttpStatusCode.ServiceUnavailable] = "Feedback_ServiceUnavailable",
+        [HttpStatusCode.GatewayTimeout] = "Feedback_ServiceUnavailable",
+    };
+
     /// <summary>
     /// Converts API exceptions to user-friendly messages based on status code.
     /// </summary>
@@ -229,26 +245,11 @@ public class UserFeedbackService : IUserFeedbackService
     {
         // If the API returned a specific error message, use it (already sanitized by API)
         if (!string.IsNullOrWhiteSpace(ex.Message) && ex.Message != "null")
-        {
             return ex.Message;
-        }
 
-        // Otherwise, provide a generic message based on status code
-        return ex.StatusCode switch
-        {
-            HttpStatusCode.BadRequest => _loc["Feedback_InvalidRequest"],
-            HttpStatusCode.Unauthorized => _loc["Feedback_SignInRequired"],
-            HttpStatusCode.Forbidden => _loc["Feedback_NoPermission"],
-            HttpStatusCode.NotFound => _loc["Feedback_ItemNotFound"],
-            HttpStatusCode.Conflict => _loc["Feedback_ConflictError"],
-            HttpStatusCode.RequestEntityTooLarge => _loc["Feedback_FileTooLarge"],
-            HttpStatusCode.UnprocessableEntity => _loc["Feedback_InvalidInput"],
-            HttpStatusCode.TooManyRequests => _loc["Feedback_TooManyRequests"],
-            HttpStatusCode.InternalServerError => _loc["Feedback_ServerError"],
-            HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout 
-                => _loc["Feedback_ServiceUnavailable"],
-            _ => string.Format(_loc["Feedback_GenericApiError"], operationName)
-        };
+        return ApiErrorResourceKeys.TryGetValue(ex.StatusCode, out var key)
+            ? _loc[key]
+            : string.Format(_loc["Feedback_GenericApiError"], operationName);
     }
 
     /// <summary>

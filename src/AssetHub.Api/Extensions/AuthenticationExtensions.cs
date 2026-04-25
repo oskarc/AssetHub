@@ -15,6 +15,9 @@ namespace AssetHub.Api.Extensions;
 /// Configures Keycloak-based authentication (OIDC + JWT + Cookie) and
 /// role-based authorization policies.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Auth wiring touches OIDC + JWT + Cookie + scheme selector + every authorization policy.")]
 public static class AuthenticationExtensions
 {
     public static IServiceCollection AddAssetHubAuthentication(

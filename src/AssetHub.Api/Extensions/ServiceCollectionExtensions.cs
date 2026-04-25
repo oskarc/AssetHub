@@ -25,10 +25,19 @@ namespace AssetHub.Api.Extensions;
 /// Registers all application services, infrastructure, and third-party integrations
 /// with the dependency injection container.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "DI composition root — couples to every service it registers. That is its single responsibility.")]
 public static class ServiceCollectionExtensions
 {
     private const string ReadyTag = "ready";
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell", "S138:Functions should not have too many lines of code",
+        Justification = "DI registration is one long bootstrap chain; splitting just spreads the same coupling across N partial methods.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell", "S1541:Methods and properties should not be too complex",
+        Justification = "Cyclomatic complexity comes from environment-conditional registrations (test/dev/prod-only services).")]
     public static IServiceCollection AddAssetHubServices(
         this IServiceCollection services,
         IConfiguration configuration,

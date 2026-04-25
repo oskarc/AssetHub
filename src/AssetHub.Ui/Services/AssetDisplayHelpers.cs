@@ -197,21 +197,33 @@ public static class AssetDisplayHelpers
 
     // ===== AUDIT EVENT DISPLAY =====
 
+    // Fragment-to-color rules in lookup-priority order (first match wins).
+    private static readonly (string[] Fragments, MudBlazor.Color Color)[] AuditColorRules =
+    {
+        (new[] { "malware", "processing_failed", "password_failed" }, MudBlazor.Color.Error),
+        (new[] { "delete", "revoke", "removed", "cleanup" }, MudBlazor.Color.Error),
+        (new[] { "create", "upload" }, MudBlazor.Color.Success),
+        (new[] { "update" }, MudBlazor.Color.Warning),
+        (new[] { "download", "share" }, MudBlazor.Color.Info),
+        (new[] { "access", "acl" }, MudBlazor.Color.Secondary),
+    };
+
     /// <summary>
     /// Gets the MudBlazor color for an audit event type.
     /// Used by both the dashboard and admin audit tab.
     /// </summary>
-    public static MudBlazor.Color GetAuditEventColor(string eventType) => eventType.ToLowerInvariant() switch
+    public static MudBlazor.Color GetAuditEventColor(string eventType)
     {
-        var e when e.Contains("malware") || e.Contains("processing_failed") || e.Contains("password_failed") => MudBlazor.Color.Error,
-        var e when e.Contains("create") || e.Contains("upload") => MudBlazor.Color.Success,
-        var e when e.Contains("delete") || e.Contains("revoke") || e.Contains("removed") || e.Contains("cleanup") => MudBlazor.Color.Error,
-        var e when e.Contains("update") => MudBlazor.Color.Warning,
-        var e when e.Contains("download") => MudBlazor.Color.Info,
-        var e when e.Contains("share") => MudBlazor.Color.Info,
-        var e when e.Contains("access") || e.Contains("acl") => MudBlazor.Color.Secondary,
-        _ => MudBlazor.Color.Default
-    };
+        var lowered = eventType.ToLowerInvariant();
+        foreach (var (fragments, color) in AuditColorRules)
+        {
+            foreach (var fragment in fragments)
+            {
+                if (lowered.Contains(fragment)) return color;
+            }
+        }
+        return MudBlazor.Color.Default;
+    }
 
     // ===== ROLE DISPLAY =====
 
@@ -245,36 +257,44 @@ public static class AssetDisplayHelpers
 
     // ===== CONTENT TYPE DISPLAY =====
 
+    private static readonly Dictionary<string, string> ContentTypeKeyMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["image/jpeg"] = "ContentType_JPEG",
+        ["image/jpg"] = "ContentType_JPEG",
+        ["image/png"] = "ContentType_PNG",
+        ["image/gif"] = "ContentType_GIF",
+        ["image/webp"] = "ContentType_WebP",
+        ["image/svg+xml"] = "ContentType_SVG",
+        ["image/tiff"] = "ContentType_TIFF",
+        ["image/bmp"] = "ContentType_BMP",
+        ["video/mp4"] = "ContentType_MP4",
+        ["video/webm"] = "ContentType_WebM",
+        ["video/quicktime"] = "ContentType_MOV",
+        ["video/x-msvideo"] = "ContentType_AVI",
+        ["application/pdf"] = "ContentType_PDF",
+        ["application/msword"] = "ContentType_Word",
+        ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"] = "ContentType_Word",
+        ["application/vnd.ms-excel"] = "ContentType_Excel",
+        ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"] = "ContentType_Excel",
+        ["application/vnd.ms-powerpoint"] = "ContentType_PowerPoint",
+        ["application/vnd.openxmlformats-officedocument.presentationml.presentation"] = "ContentType_PowerPoint",
+        ["application/zip"] = "ContentType_ZIP",
+        ["application/x-zip-compressed"] = "ContentType_ZIP",
+        ["audio/mpeg"] = "ContentType_MP3",
+        ["audio/mp3"] = "ContentType_MP3",
+        ["audio/wav"] = "ContentType_WAV",
+        ["audio/x-wav"] = "ContentType_WAV",
+        ["text/plain"] = "ContentType_PlainText",
+    };
+
     /// <summary>
     /// Returns the CommonResource key for a MIME content type, e.g. "image/jpeg" → "ContentType_JPEG".
-    /// Falls back to the raw content type if no mapping exists.
+    /// Falls back to an empty string if no mapping exists.
     /// </summary>
     public static string GetContentTypeKey(string? contentType)
     {
         if (string.IsNullOrEmpty(contentType)) return "";
-        return contentType.ToLowerInvariant() switch
-        {
-            "image/jpeg" or "image/jpg" => "ContentType_JPEG",
-            "image/png" => "ContentType_PNG",
-            "image/gif" => "ContentType_GIF",
-            "image/webp" => "ContentType_WebP",
-            "image/svg+xml" => "ContentType_SVG",
-            "image/tiff" => "ContentType_TIFF",
-            "image/bmp" => "ContentType_BMP",
-            "video/mp4" => "ContentType_MP4",
-            "video/webm" => "ContentType_WebM",
-            "video/quicktime" => "ContentType_MOV",
-            "video/x-msvideo" => "ContentType_AVI",
-            "application/pdf" => "ContentType_PDF",
-            "application/msword" or "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "ContentType_Word",
-            "application/vnd.ms-excel" or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "ContentType_Excel",
-            "application/vnd.ms-powerpoint" or "application/vnd.openxmlformats-officedocument.presentationml.presentation" => "ContentType_PowerPoint",
-            "application/zip" or "application/x-zip-compressed" => "ContentType_ZIP",
-            "audio/mpeg" or "audio/mp3" => "ContentType_MP3",
-            "audio/wav" or "audio/x-wav" => "ContentType_WAV",
-            "text/plain" => "ContentType_PlainText",
-            _ => ""
-        };
+        return ContentTypeKeyMap.TryGetValue(contentType, out var key) ? key : "";
     }
 
     // ===== FORMATTING =====

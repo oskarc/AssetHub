@@ -24,6 +24,9 @@ namespace AssetHub.Api.Extensions;
 /// Extension methods for configuring the WebApplication middleware pipeline,
 /// startup tasks, and endpoint mapping.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Middleware + endpoint composition root — by definition references every endpoint module + middleware.")]
 public static class WebApplicationExtensions
 {
     // ── Startup tasks ───────────────────────────────────────────────────────

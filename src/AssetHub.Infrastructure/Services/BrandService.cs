@@ -103,6 +103,25 @@ public sealed class BrandService(
         var row = await repo.GetByIdAsync(id, ct);
         if (row is null) return ServiceError.NotFound(BrandNotFound);
 
+        var changed = await ApplyBrandPatchAsync(row, dto, ct);
+        if (changed.Count == 0) return await ToDtoAsync(row, ct);
+
+        await repo.UpdateAsync(row, ct);
+        await audit.LogAsync(
+            NotificationConstants.AuditEvents.BrandUpdated,
+            Constants.ScopeTypes.Brand, id, currentUser.UserId,
+            new Dictionary<string, object>
+            {
+                [ScopeKey] = row.IsDefault ? ScopeGlobal : ScopeCollection,
+                ["changed_fields"] = changed
+            },
+            ct);
+
+        return await ToDtoAsync(row, ct);
+    }
+
+    private async Task<List<string>> ApplyBrandPatchAsync(Brand row, UpdateBrandDto dto, CancellationToken ct)
+    {
         var changed = new List<string>();
         if (dto.Name is not null && dto.Name != row.Name)
         {
@@ -125,21 +144,7 @@ public sealed class BrandService(
             changed.Add(nameof(row.IsDefault));
             if (flag) await repo.ClearDefaultExceptAsync(row.Id, ct);
         }
-
-        if (changed.Count == 0) return await ToDtoAsync(row, ct);
-
-        await repo.UpdateAsync(row, ct);
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.BrandUpdated,
-            Constants.ScopeTypes.Brand, id, currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                [ScopeKey] = row.IsDefault ? ScopeGlobal : ScopeCollection,
-                ["changed_fields"] = changed
-            },
-            ct);
-
-        return await ToDtoAsync(row, ct);
+        return changed;
     }
 
     public async Task<ServiceResult> DeleteAsync(Guid id, CancellationToken ct)
@@ -180,17 +185,9 @@ public sealed class BrandService(
         var row = await repo.GetByIdAsync(id, ct);
         if (row is null) return ServiceError.NotFound(BrandNotFound);
 
-        // Buffer + size-cap up front so we don't stream past the limit.
-        await using var ms = new MemoryStream();
-        var buffer = new byte[81920];
-        int read;
-        while ((read = await content.ReadAsync(buffer, ct)) > 0)
-        {
-            if (ms.Length + read > MaxLogoBytes)
-                return ServiceError.BadRequest($"Logo exceeds {MaxLogoBytes} bytes.");
-            await ms.WriteAsync(buffer.AsMemory(0, read), ct);
-        }
-        ms.Position = 0;
+        var buffered = await BufferWithLimitAsync(content, ct);
+        if (buffered.Error is not null) return buffered.Error;
+        var ms = buffered.Stream!;
 
         // Use only the extension from the supplied filename — the path
         // segment is fixed (brands/{id}/logo.{ext}) so traversal and
@@ -290,6 +287,24 @@ public sealed class BrandService(
     }
 
     // ── helpers ─────────────────────────────────────────────────────────
+
+    private record struct BufferedContent(MemoryStream? Stream, ServiceError? Error);
+
+    private static async Task<BufferedContent> BufferWithLimitAsync(Stream content, CancellationToken ct)
+    {
+        // Buffer + size-cap up front so we don't stream past the limit.
+        var ms = new MemoryStream();
+        var buffer = new byte[81920];
+        int read;
+        while ((read = await content.ReadAsync(buffer, ct)) > 0)
+        {
+            if (ms.Length + read > MaxLogoBytes)
+                return new BufferedContent(null, ServiceError.BadRequest($"Logo exceeds {MaxLogoBytes} bytes."));
+            await ms.WriteAsync(buffer.AsMemory(0, read), ct);
+        }
+        ms.Position = 0;
+        return new BufferedContent(ms, null);
+    }
 
     private async Task TryDeleteLogoAsync(string objectKey, CancellationToken ct)
     {
