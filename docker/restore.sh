@@ -29,11 +29,11 @@ POSTGRES_USER="${POSTGRES_USER:-assethub}"
 # -- Helpers -----------------------------------------------------------------
 
 GREEN='\033[0;32m'  YELLOW='\033[1;33m'  RED='\033[0;31m'  BOLD='\033[1m'  NC='\033[0m'
-info()  { echo -e "${GREEN}[restore]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[restore]${NC} $*"; }
-die()   { echo -e "${RED}[restore]${NC} $*" >&2; exit 1; }
+info()  { echo -e "${GREEN}[restore]${NC} $*"; return 0; }
+warn()  { echo -e "${YELLOW}[restore]${NC} $*"; return 0; }
+die()   { echo -e "${RED}[restore]${NC} $*" >&2; exit 1; } # NOSONAR — exit always terminates; explicit return would be unreachable
 
-compose() { docker compose -f "${COMPOSE_FILE}" "$@"; }
+compose() { docker compose -f "${COMPOSE_FILE}" "$@"; return $?; }
 
 # -- Pre-flight checks ------------------------------------------------------
 
