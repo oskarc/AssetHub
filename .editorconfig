@@ -1,0 +1,36 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csproj,props,targets}]
+indent_size = 4
+
+# Promote SonarAnalyzer maintainability + reliability rules to warning so
+# they fire during dev builds the same way SonarCloud reports them. No
+# suppressions — every warning here is a real signal.
+# EF migration files are emitted by `dotnet ef migrations add` and contain
+# intentionally repetitive schema configuration ("Assets", "timestamp with time
+# zone", etc.). They're checked into source for review but they aren't where
+# code-style analysis belongs — mark them as generated so Roslyn / Sonar skip
+# them (matches SonarCloud's typical sonar.exclusions=**/Migrations/** pattern).
+[**/Migrations/*.cs]
+generated_code = true
+
+[*.cs]
+dotnet_diagnostic.S138.severity = warning      # Methods too long
+dotnet_diagnostic.S134.severity = warning      # Control-flow nested too deeply
+dotnet_diagnostic.S1067.severity = warning     # Expression complexity
+dotnet_diagnostic.S1541.severity = warning     # Cyclomatic complexity
+dotnet_diagnostic.S3776.severity = warning     # Cognitive complexity
+dotnet_diagnostic.S1192.severity = warning     # Duplicated string literal
+dotnet_diagnostic.S1117.severity = warning     # Local hides field
+dotnet_diagnostic.S1126.severity = warning     # Return boolean expression directly
+dotnet_diagnostic.S1200.severity = warning     # Class with too many dependencies
+dotnet_diagnostic.S2178.severity = warning     # Bitwise vs short-circuit
+dotnet_diagnostic.S2589.severity = warning     # Boolean expression always true/false
+dotnet_diagnostic.S3358.severity = warning     # Nested ternaries

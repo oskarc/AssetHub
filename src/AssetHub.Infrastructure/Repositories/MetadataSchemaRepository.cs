@@ -57,13 +57,15 @@ public sealed class MetadataSchemaRepository(
 
     public async Task<List<MetadataSchema>> GetApplicableAsync(AssetType? assetType, Guid? collectionId, CancellationToken ct = default)
     {
+        var assetTypeMatch = assetType != null;
+        var collectionMatch = collectionId != null;
         var query = db.MetadataSchemas
             .AsNoTracking()
             .Include(s => s.Fields.OrderBy(f => f.SortOrder))
             .Where(s =>
                 s.Scope == MetadataSchemaScope.Global
-                || (s.Scope == MetadataSchemaScope.AssetType && assetType != null && s.AssetType == assetType)
-                || (s.Scope == MetadataSchemaScope.Collection && collectionId != null && s.CollectionId == collectionId));
+                || (s.Scope == MetadataSchemaScope.AssetType && assetTypeMatch && s.AssetType == assetType)
+                || (s.Scope == MetadataSchemaScope.Collection && collectionMatch && s.CollectionId == collectionId));
 
         return await query.OrderBy(s => s.Name).ToListAsync(ct);
     }

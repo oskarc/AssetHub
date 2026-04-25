@@ -30,6 +30,16 @@ public sealed class MigrationService(
     ILogger<MigrationService> logger) : IMigrationService
 {
     private readonly string _bucketName = minioSettings.Value.BucketName;
+
+    private const string MigrationNotFound = "Migration not found.";
+
+    private static bool IsStagingUploadAllowed(MigrationStatus status)
+        => status is MigrationStatus.Draft
+            or MigrationStatus.Validating
+            or MigrationStatus.PartiallyCompleted
+            or MigrationStatus.CompletedWithErrors
+            or MigrationStatus.Failed;
+
     public async Task<ServiceResult<MigrationResponseDto>> CreateAsync(CreateMigrationDto dto, CancellationToken ct)
     {
         if (!currentUser.IsSystemAdmin)
@@ -124,7 +134,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         if (migration.Status != MigrationStatus.Draft)
             return ServiceError.BadRequest("Manifest can only be uploaded to a draft migration.");
@@ -154,7 +164,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         if (migration.Status is not (MigrationStatus.Draft or MigrationStatus.PartiallyCompleted))
             return ServiceError.BadRequest($"Cannot start a migration in '{migration.Status.ToDbString()}' status.");
@@ -184,7 +194,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         if (migration.SourceType is not MigrationSourceType.S3)
             return ServiceError.BadRequest("Scan is only valid for S3-source migrations.");
@@ -234,7 +244,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         if (migration.Status is not (MigrationStatus.Running or MigrationStatus.Validating))
             return ServiceError.BadRequest($"Cannot cancel a migration in '{migration.Status.ToDbString()}' status.");
@@ -264,7 +274,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         // Refresh counts from items for running migrations
         if (migration.Status is MigrationStatus.Running)
@@ -308,7 +318,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         var counts = await migrationRepo.GetItemCountsAsync(migrationId, ct);
 
@@ -332,7 +342,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         var items = await migrationRepo.GetItemsAsync(migrationId, statusFilter, skip, take, ct);
         var totalCount = await migrationRepo.CountItemsAsync(migrationId, statusFilter, ct);
@@ -351,7 +361,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         if (migration.Status is MigrationStatus.Running or MigrationStatus.Validating)
             return ServiceError.BadRequest("Cannot delete a running migration. Cancel it first.");
@@ -373,7 +383,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         if (migration.Status is not (MigrationStatus.CompletedWithErrors or MigrationStatus.Failed))
             return ServiceError.BadRequest("Can only retry migrations that have failed items.");
@@ -652,10 +662,9 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
-        if (migration.Status is not MigrationStatus.Draft and not MigrationStatus.Validating
-            and not MigrationStatus.PartiallyCompleted and not MigrationStatus.PartiallyCompleted and not MigrationStatus.CompletedWithErrors and not MigrationStatus.Failed)
+        if (!IsStagingUploadAllowed(migration.Status))
             return ServiceError.BadRequest("Files can only be uploaded to a draft, validating, or incomplete migration.");
 
         var safeFileName = SanitizeFileName(fileName);
@@ -676,10 +685,9 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
-        if (migration.Status is not MigrationStatus.Draft and not MigrationStatus.Validating
-            and not MigrationStatus.PartiallyCompleted and not MigrationStatus.CompletedWithErrors and not MigrationStatus.Failed)
+        if (!IsStagingUploadAllowed(migration.Status))
             return ServiceError.BadRequest("Files can only be uploaded to a draft, validating, or incomplete migration.");
 
         var count = 0;
@@ -709,7 +717,7 @@ public sealed class MigrationService(
 
         var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
         if (migration is null)
-            return ServiceError.NotFound("Migration not found.");
+            return ServiceError.NotFound(MigrationNotFound);
 
         if (migration.Status is not (MigrationStatus.Draft or MigrationStatus.PartiallyCompleted
             or MigrationStatus.CompletedWithErrors or MigrationStatus.Failed))

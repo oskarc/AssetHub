@@ -11,6 +11,18 @@ namespace AssetHub.Api.Extensions;
 /// </summary>
 public static class OpenTelemetryExtensions
 {
+    private static readonly string[] ExcludedTracePathPrefixes =
+        ["/health", "/_blazor", "/_framework", "/css", "/js"];
+
+    private static bool IsExcludedTracePath(Microsoft.AspNetCore.Http.PathString path)
+    {
+        foreach (var prefix in ExcludedTracePathPrefixes)
+        {
+            if (path.StartsWithSegments(prefix)) return true;
+        }
+        return false;
+    }
+
     public static IServiceCollection AddAssetHubOpenTelemetry(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -26,12 +38,7 @@ public static class OpenTelemetryExtensions
                 tracing.AddAspNetCoreInstrumentation(options =>
                 {
                     // Filter out health checks, static files, and internal paths from traces
-                    options.Filter = context =>
-                        !context.Request.Path.StartsWithSegments("/health") &&
-                        !context.Request.Path.StartsWithSegments("/_blazor") &&
-                        !context.Request.Path.StartsWithSegments("/_framework") &&
-                        !context.Request.Path.StartsWithSegments("/css") &&
-                        !context.Request.Path.StartsWithSegments("/js");
+                    options.Filter = context => !IsExcludedTracePath(context.Request.Path);
 
                     options.RecordException = settings.RecordExceptions;
 

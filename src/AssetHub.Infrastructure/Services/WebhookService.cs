@@ -18,6 +18,8 @@ public sealed class WebhookService(
 {
     private const int DefaultDeliveriesPageSize = 50;
     private const int MaxDeliveriesPageSize = 200;
+    private const string WebhookNotFound = "Webhook not found.";
+    private const string EndpointHostKey = "endpoint_host";
 
     public async Task<ServiceResult<List<WebhookResponseDto>>> ListAsync(CancellationToken ct)
     {
@@ -30,7 +32,7 @@ public sealed class WebhookService(
     {
         if (!currentUser.IsSystemAdmin) return ServiceError.Forbidden();
         var row = await repo.GetByIdAsync(id, ct);
-        if (row is null) return ServiceError.NotFound("Webhook not found.");
+        if (row is null) return ServiceError.NotFound(WebhookNotFound);
         return ToDto(row);
     }
 
@@ -68,7 +70,7 @@ public sealed class WebhookService(
             currentUser.UserId,
             new Dictionary<string, object>
             {
-                ["endpoint_host"] = SafeHost(entity.Url),
+                [EndpointHostKey] = SafeHost(entity.Url),
                 ["event_types"] = entity.EventTypes
             },
             ct);
@@ -86,7 +88,7 @@ public sealed class WebhookService(
         if (!currentUser.IsSystemAdmin) return ServiceError.Forbidden();
 
         var row = await repo.GetByIdAsync(id, ct);
-        if (row is null) return ServiceError.NotFound("Webhook not found.");
+        if (row is null) return ServiceError.NotFound(WebhookNotFound);
 
         var changed = new List<string>();
 
@@ -128,7 +130,7 @@ public sealed class WebhookService(
             new Dictionary<string, object>
             {
                 ["changed_fields"] = changed,
-                ["endpoint_host"] = SafeHost(row.Url)
+                [EndpointHostKey] = SafeHost(row.Url)
             },
             ct);
 
@@ -140,7 +142,7 @@ public sealed class WebhookService(
         if (!currentUser.IsSystemAdmin) return ServiceError.Forbidden();
 
         var existing = await repo.GetByIdAsync(id, ct);
-        if (existing is null) return ServiceError.NotFound("Webhook not found.");
+        if (existing is null) return ServiceError.NotFound(WebhookNotFound);
 
         await repo.DeleteAsync(id, ct);
         await audit.LogAsync(
@@ -149,7 +151,7 @@ public sealed class WebhookService(
             id, currentUser.UserId,
             new Dictionary<string, object>
             {
-                ["endpoint_host"] = SafeHost(existing.Url),
+                [EndpointHostKey] = SafeHost(existing.Url),
                 ["name"] = existing.Name
             },
             ct);
@@ -162,7 +164,7 @@ public sealed class WebhookService(
         if (!currentUser.IsSystemAdmin) return ServiceError.Forbidden();
 
         var row = await repo.GetByIdAsync(id, ct);
-        if (row is null) return ServiceError.NotFound("Webhook not found.");
+        if (row is null) return ServiceError.NotFound(WebhookNotFound);
 
         var plaintext = protector.GeneratePlaintext();
         row.SecretEncrypted = protector.Protect(plaintext);
@@ -174,7 +176,7 @@ public sealed class WebhookService(
             id, currentUser.UserId,
             new Dictionary<string, object>
             {
-                ["endpoint_host"] = SafeHost(row.Url)
+                [EndpointHostKey] = SafeHost(row.Url)
             },
             ct);
 
@@ -187,7 +189,7 @@ public sealed class WebhookService(
         if (!currentUser.IsSystemAdmin) return ServiceError.Forbidden();
 
         var row = await repo.GetByIdAsync(id, ct);
-        if (row is null) return ServiceError.NotFound("Webhook not found.");
+        if (row is null) return ServiceError.NotFound(WebhookNotFound);
 
         var payload = new
         {

@@ -131,13 +131,21 @@ public sealed class AssetMetadataService(
         var assetType = asset.AssetType;
 
         return allSchemas
-            .Where(s =>
-                s.Scope == MetadataSchemaScope.Global
-                || (s.Scope == MetadataSchemaScope.AssetType && s.AssetType == assetType)
-                || (s.Scope == MetadataSchemaScope.Collection && s.CollectionId is { } cid && collectionSet.Contains(cid)))
+            .Where(s => SchemaApplies(s, assetType, collectionSet))
             .SelectMany(s => s.Fields)
             .Select(f => f.Id)
             .ToHashSet();
+    }
+
+    private static bool SchemaApplies(MetadataSchema s, AssetType assetType, HashSet<Guid> collectionSet)
+    {
+        return s.Scope switch
+        {
+            MetadataSchemaScope.Global => true,
+            MetadataSchemaScope.AssetType => s.AssetType == assetType,
+            MetadataSchemaScope.Collection => s.CollectionId is { } cid && collectionSet.Contains(cid),
+            _ => false
+        };
     }
 
     private async Task<ServiceResult> ValidateValuesAsync(

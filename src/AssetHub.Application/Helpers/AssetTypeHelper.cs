@@ -7,8 +7,20 @@ namespace AssetHub.Application.Helpers;
 /// </summary>
 public static class AssetTypeHelper
 {
+    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".tiff", ".tif", ".ico"
+    };
+
+    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mp4", ".avi", ".mov", ".wmv", ".mkv", ".webm", ".flv", ".m4v"
+    };
+
     /// <summary>
     /// Determines the asset type from the content type and file extension.
+    /// Anything that isn't recognised as image / video falls through to
+    /// <see cref="AssetType.Document"/>, matching the original behaviour.
     /// </summary>
     public static AssetType DetermineAssetType(string? contentType, string? extension)
     {
@@ -23,13 +35,9 @@ public static class AssetTypeHelper
                 return AssetType.Document;
         }
 
-        // Fall back to file extension
-        return extension switch
-        {
-            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" or ".tiff" or ".tif" or ".ico" => AssetType.Image,
-            ".mp4" or ".avi" or ".mov" or ".wmv" or ".mkv" or ".webm" or ".flv" or ".m4v" => AssetType.Video,
-            ".pdf" or ".doc" or ".docx" or ".xls" or ".xlsx" or ".ppt" or ".pptx" or ".txt" or ".rtf" => AssetType.Document,
-            _ => AssetType.Document
-        };
+        if (extension is null) return AssetType.Document;
+        if (ImageExtensions.Contains(extension)) return AssetType.Image;
+        if (VideoExtensions.Contains(extension)) return AssetType.Video;
+        return AssetType.Document;
     }
 }

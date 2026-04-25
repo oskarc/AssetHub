@@ -205,13 +205,19 @@ public static class DomainEnumExtensions
 {
     private const string Failed = "failed";
     private const string Unknown = "unknown";
+    // Extracted to dedupe across the ToDbString / parser pairs (Sonar S1192).
+    private const string Processing = "processing";
+    private const string Pending = "pending";
+    private const string Completed = "completed";
+    private const string Collection = "collection";
+    private const string Draft = "draft";
 
     // ── ToDbString overloads ────────────────────────────────────────────
 
     public static string ToDbString(this AssetStatus status) => status switch
     {
         AssetStatus.Uploading => "uploading",
-        AssetStatus.Processing => "processing",
+        AssetStatus.Processing => Processing,
         AssetStatus.Ready => "ready",
         AssetStatus.Failed => Failed,
         AssetStatus.Unknown => Unknown,
@@ -239,7 +245,7 @@ public static class DomainEnumExtensions
     public static string ToDbString(this ShareScopeType scope) => scope switch
     {
         ShareScopeType.Asset => "asset",
-        ShareScopeType.Collection => "collection",
+        ShareScopeType.Collection => Collection,
         _ => throw new ArgumentOutOfRangeException(nameof(scope))
     };
 
@@ -251,9 +257,9 @@ public static class DomainEnumExtensions
 
     public static string ToDbString(this ZipDownloadStatus status) => status switch
     {
-        ZipDownloadStatus.Pending => "pending",
+        ZipDownloadStatus.Pending => Pending,
         ZipDownloadStatus.Building => "building",
-        ZipDownloadStatus.Completed => "completed",
+        ZipDownloadStatus.Completed => Completed,
         ZipDownloadStatus.Failed => Failed,
         ZipDownloadStatus.Unknown => Unknown,
         _ => Unknown // Fallback for future values
@@ -268,10 +274,10 @@ public static class DomainEnumExtensions
 
     public static string ToDbString(this MigrationStatus status) => status switch
     {
-        MigrationStatus.Draft => "draft",
+        MigrationStatus.Draft => Draft,
         MigrationStatus.Validating => "validating",
         MigrationStatus.Running => "running",
-        MigrationStatus.Completed => "completed",
+        MigrationStatus.Completed => Completed,
         MigrationStatus.PartiallyCompleted => "partially_completed",
         MigrationStatus.CompletedWithErrors => "completed_with_errors",
         MigrationStatus.Failed => Failed,
@@ -281,8 +287,8 @@ public static class DomainEnumExtensions
 
     public static string ToDbString(this MigrationItemStatus status) => status switch
     {
-        MigrationItemStatus.Pending => "pending",
-        MigrationItemStatus.Processing => "processing",
+        MigrationItemStatus.Pending => Pending,
+        MigrationItemStatus.Processing => Processing,
         MigrationItemStatus.Succeeded => "succeeded",
         MigrationItemStatus.Failed => Failed,
         MigrationItemStatus.Skipped => "skipped",
@@ -312,7 +318,7 @@ public static class DomainEnumExtensions
     {
         MetadataSchemaScope.Global => "global",
         MetadataSchemaScope.AssetType => "asset_type",
-        MetadataSchemaScope.Collection => "collection",
+        MetadataSchemaScope.Collection => Collection,
         _ => throw new ArgumentOutOfRangeException(nameof(scope))
     };
 
@@ -337,7 +343,7 @@ public static class DomainEnumExtensions
     public static AssetStatus ToAssetStatus(this string value) => value switch
     {
         "uploading" => AssetStatus.Uploading,
-        "processing" => AssetStatus.Processing,
+        Processing => AssetStatus.Processing,
         "ready" => AssetStatus.Ready,
         Failed => AssetStatus.Failed,
         _ => AssetStatus.Unknown // Graceful fallback for unknown database values
@@ -363,7 +369,7 @@ public static class DomainEnumExtensions
     public static ShareScopeType ToShareScopeType(this string value) => value switch
     {
         "asset" => ShareScopeType.Asset,
-        "collection" => ShareScopeType.Collection,
+        Collection => ShareScopeType.Collection,
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown share scope type: {value}")
     };
 
@@ -375,9 +381,9 @@ public static class DomainEnumExtensions
 
     public static ZipDownloadStatus ToZipDownloadStatus(this string value) => value switch
     {
-        "pending" => ZipDownloadStatus.Pending,
+        Pending => ZipDownloadStatus.Pending,
         "building" => ZipDownloadStatus.Building,
-        "completed" => ZipDownloadStatus.Completed,
+        Completed => ZipDownloadStatus.Completed,
         Failed => ZipDownloadStatus.Failed,
         _ => ZipDownloadStatus.Unknown // Graceful fallback for unknown database values
     };
@@ -391,10 +397,10 @@ public static class DomainEnumExtensions
 
     public static MigrationStatus ToMigrationStatus(this string value) => value switch
     {
-        "draft" => MigrationStatus.Draft,
+        Draft => MigrationStatus.Draft,
         "validating" => MigrationStatus.Validating,
         "running" => MigrationStatus.Running,
-        "completed" => MigrationStatus.Completed,
+        Completed => MigrationStatus.Completed,
         "partially_completed" => MigrationStatus.PartiallyCompleted,
         "completed_with_errors" => MigrationStatus.CompletedWithErrors,
         Failed => MigrationStatus.Failed,
@@ -404,8 +410,8 @@ public static class DomainEnumExtensions
 
     public static MigrationItemStatus ToMigrationItemStatus(this string value) => value switch
     {
-        "pending" => MigrationItemStatus.Pending,
-        "processing" => MigrationItemStatus.Processing,
+        Pending => MigrationItemStatus.Pending,
+        Processing => MigrationItemStatus.Processing,
         "succeeded" => MigrationItemStatus.Succeeded,
         Failed => MigrationItemStatus.Failed,
         "skipped" => MigrationItemStatus.Skipped,
@@ -431,15 +437,21 @@ public static class DomainEnumExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown export preset format: {value}")
     };
 
-    public static bool IsValidExportPresetFitMode(string value) => value is "contain" or "cover" or "stretch" or "width" or "height";
+    private static readonly HashSet<string> ValidExportPresetFitModes =
+        new(StringComparer.Ordinal) { "contain", "cover", "stretch", "width", "height" };
 
-    public static bool IsValidExportPresetFormat(string value) => value is "original" or "jpeg" or "png" or "webp";
+    public static bool IsValidExportPresetFitMode(string value) => ValidExportPresetFitModes.Contains(value);
+
+    private static readonly HashSet<string> ValidExportPresetFormats =
+        new(StringComparer.Ordinal) { "original", "jpeg", "png", "webp" };
+
+    public static bool IsValidExportPresetFormat(string value) => ValidExportPresetFormats.Contains(value);
 
     public static MetadataSchemaScope ToMetadataSchemaScope(this string value) => value switch
     {
         "global" => MetadataSchemaScope.Global,
         "asset_type" => MetadataSchemaScope.AssetType,
-        "collection" => MetadataSchemaScope.Collection,
+        Collection => MetadataSchemaScope.Collection,
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown metadata schema scope: {value}")
     };
 
@@ -459,9 +471,18 @@ public static class DomainEnumExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown metadata field type: {value}")
     };
 
-    public static bool IsValidMetadataSchemaScope(string value) => value is "global" or "asset_type" or "collection";
+    private static readonly HashSet<string> ValidMetadataSchemaScopes =
+        new(StringComparer.Ordinal) { "global", "asset_type", Collection };
 
-    public static bool IsValidMetadataFieldType(string value) => value is "text" or "long_text" or "number" or "decimal" or "boolean" or "date" or "date_time" or "select" or "multi_select" or "taxonomy" or "url";
+    public static bool IsValidMetadataSchemaScope(string value) => ValidMetadataSchemaScopes.Contains(value);
+
+    private static readonly HashSet<string> ValidMetadataFieldTypes = new(StringComparer.Ordinal)
+    {
+        "text", "long_text", "number", "decimal", "boolean",
+        "date", "date_time", "select", "multi_select", "taxonomy", "url"
+    };
+
+    public static bool IsValidMetadataFieldType(string value) => ValidMetadataFieldTypes.Contains(value);
 
     public static bool IsValidAssetType(string value) => value is "image" or "video" or "document";
 
@@ -488,7 +509,7 @@ public static class DomainEnumExtensions
 
     public static string ToDbString(this AssetWorkflowState state) => state switch
     {
-        AssetWorkflowState.Draft => "draft",
+        AssetWorkflowState.Draft => Draft,
         AssetWorkflowState.InReview => "in_review",
         AssetWorkflowState.Approved => "approved",
         AssetWorkflowState.Rejected => "rejected",
@@ -498,7 +519,7 @@ public static class DomainEnumExtensions
 
     public static AssetWorkflowState ToAssetWorkflowState(this string value) => value switch
     {
-        "draft" => AssetWorkflowState.Draft,
+        Draft => AssetWorkflowState.Draft,
         "in_review" => AssetWorkflowState.InReview,
         "approved" => AssetWorkflowState.Approved,
         "rejected" => AssetWorkflowState.Rejected,
@@ -506,12 +527,14 @@ public static class DomainEnumExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown workflow state: {value}")
     };
 
-    public static bool IsValidAssetWorkflowState(string value)
-        => value is "draft" or "in_review" or "approved" or "rejected" or "published";
+    private static readonly HashSet<string> ValidAssetWorkflowStates =
+        new(StringComparer.Ordinal) { Draft, "in_review", "approved", "rejected", "published" };
+
+    public static bool IsValidAssetWorkflowState(string value) => ValidAssetWorkflowStates.Contains(value);
 
     public static string ToDbString(this WebhookDeliveryStatus status) => status switch
     {
-        WebhookDeliveryStatus.Pending => "pending",
+        WebhookDeliveryStatus.Pending => Pending,
         WebhookDeliveryStatus.Delivered => "delivered",
         WebhookDeliveryStatus.Failed => Failed,
         _ => throw new ArgumentOutOfRangeException(nameof(status))
@@ -519,7 +542,7 @@ public static class DomainEnumExtensions
 
     public static WebhookDeliveryStatus ToWebhookDeliveryStatus(this string value) => value switch
     {
-        "pending" => WebhookDeliveryStatus.Pending,
+        Pending => WebhookDeliveryStatus.Pending,
         "delivered" => WebhookDeliveryStatus.Delivered,
         Failed => WebhookDeliveryStatus.Failed,
         _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown delivery status: {value}")

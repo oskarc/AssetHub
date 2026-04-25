@@ -8,6 +8,8 @@ namespace AssetHub.Ui.Services;
 /// </summary>
 public sealed class ThemeService
 {
+    private const string DarkModeKey = "darkMode";
+
     private readonly LocalStorageService _localStorage;
     private bool _isDarkMode = true;
     private bool _initialized;
@@ -28,7 +30,7 @@ public sealed class ThemeService
     public void InitializeFromCookies(IHttpContextAccessor httpContextAccessor)
     {
         var cookies = httpContextAccessor.HttpContext?.Request.Cookies;
-        if (cookies != null && cookies.TryGetValue("darkMode", out var dm))
+        if (cookies != null && cookies.TryGetValue(DarkModeKey, out var dm))
         {
             _isDarkMode = !string.Equals(dm, "false", StringComparison.OrdinalIgnoreCase);
         }
@@ -44,14 +46,14 @@ public sealed class ThemeService
         if (_initialized) return false;
         _initialized = true;
 
-        var stored = await _localStorage.GetAsync("darkMode");
+        var stored = await _localStorage.GetAsync(DarkModeKey);
         if (stored != null)
         {
             var newValue = stored == "true";
             if (newValue != _isDarkMode)
             {
                 _isDarkMode = newValue;
-                await _localStorage.SetWithCookieAsync("darkMode", stored);
+                await _localStorage.SetWithCookieAsync(DarkModeKey, stored);
                 OnChange?.Invoke();
                 return true;
             }
@@ -65,7 +67,7 @@ public sealed class ThemeService
     public async Task ToggleAsync()
     {
         _isDarkMode = !_isDarkMode;
-        await _localStorage.SetBoolWithCookieAsync("darkMode", _isDarkMode);
+        await _localStorage.SetBoolWithCookieAsync(DarkModeKey, _isDarkMode);
         OnChange?.Invoke();
     }
 }

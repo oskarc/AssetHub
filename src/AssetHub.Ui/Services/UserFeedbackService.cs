@@ -188,14 +188,21 @@ public class UserFeedbackService : IUserFeedbackService
         HttpRequestException => true,
         TaskCanceledException => true,
         IOException => true,
-        ApiException apiEx => apiEx.StatusCode is
-            System.Net.HttpStatusCode.InternalServerError or
-            System.Net.HttpStatusCode.BadGateway or
-            System.Net.HttpStatusCode.ServiceUnavailable or
-            System.Net.HttpStatusCode.GatewayTimeout or
-            System.Net.HttpStatusCode.RequestTimeout,
+        ApiException apiEx => IsTransientHttpStatus(apiEx.StatusCode),
         _ => false
     };
+
+    private static readonly HashSet<System.Net.HttpStatusCode> TransientHttpStatuses = new()
+    {
+        System.Net.HttpStatusCode.InternalServerError,
+        System.Net.HttpStatusCode.BadGateway,
+        System.Net.HttpStatusCode.ServiceUnavailable,
+        System.Net.HttpStatusCode.GatewayTimeout,
+        System.Net.HttpStatusCode.RequestTimeout
+    };
+
+    private static bool IsTransientHttpStatus(System.Net.HttpStatusCode status)
+        => TransientHttpStatuses.Contains(status);
 
     /// <summary>
     /// Converts exceptions to user-friendly messages.

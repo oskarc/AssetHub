@@ -21,6 +21,7 @@ public sealed class ShareAdminService(
     CurrentUser currentUser,
     ILogger<ShareAdminService> logger) : IShareAdminService
 {
+    private const string ShareNotFound = "Share not found";
 
     public async Task<ServiceResult<AdminSharesResponse>> GetAllSharesAsync(int skip, int take, CancellationToken ct)
     {
@@ -68,7 +69,7 @@ public sealed class ShareAdminService(
     {
         var share = await shareRepo.GetByIdAsync(shareId, ct);
         if (share is null)
-            return ServiceError.NotFound("Share not found");
+            return ServiceError.NotFound(ShareNotFound);
 
         if (string.IsNullOrEmpty(share.TokenEncrypted))
             return ServiceError.NotFound("Share token not available — this share was created before token encryption was enabled");
@@ -96,7 +97,7 @@ public sealed class ShareAdminService(
     {
         var share = await shareRepo.GetByIdAsync(shareId, ct);
         if (share is null)
-            return ServiceError.NotFound("Share not found");
+            return ServiceError.NotFound(ShareNotFound);
 
         if (string.IsNullOrEmpty(share.PasswordEncrypted))
             return ServiceError.NotFound("Share password not available — this share was created before password encryption was enabled, or has no password set");
@@ -124,7 +125,7 @@ public sealed class ShareAdminService(
     {
         var share = await shareRepo.GetByIdAsync(shareId, ct);
         if (share is null)
-            return ServiceError.NotFound("Share not found");
+            return ServiceError.NotFound(ShareNotFound);
 
         if (share.RevokedAt.HasValue)
             return ServiceError.BadRequest("Share is already revoked");
@@ -142,7 +143,7 @@ public sealed class ShareAdminService(
     {
         var share = await shareRepo.GetByIdAsync(shareId, ct);
         if (share is null)
-            return ServiceError.NotFound("Share not found");
+            return ServiceError.NotFound(ShareNotFound);
 
         if (share.RevokedAt is null && share.ExpiresAt > DateTime.UtcNow)
             return ServiceError.BadRequest("Cannot delete an active share — revoke it first");

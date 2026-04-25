@@ -102,10 +102,11 @@ Keep this password secure. You'll need it to access the shared content.
 If you weren't expecting this email, you can safely ignore it.";
     }
 
+    private static readonly HashSet<char> VowelSoundStarts = new() { 'a', 'e', 'i', 'o', 'u' };
+
     private static bool StartsWithVowelSound(string word)
     {
         if (string.IsNullOrEmpty(word)) return false;
-        var firstChar = char.ToLowerInvariant(word[0]);
-        return firstChar is 'a' or 'e' or 'i' or 'o' or 'u';
+        return VowelSoundStarts.Contains(char.ToLowerInvariant(word[0]));
     }
 }

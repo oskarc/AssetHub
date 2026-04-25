@@ -155,12 +155,16 @@ public sealed class AssetSearchService(
 
             var localFieldId = fieldId;
             var localValues = values;
+            // EF predicate must be a single expression for SQL translation; can't
+            // refactor to helper methods without losing the IQueryable shape.
+#pragma warning disable S1067 // Inline predicate required for EF Core translation.
             q = q.Where(a => db.AssetMetadataValues.Any(v =>
                 v.AssetId == a.Id
                 && v.MetadataFieldId == localFieldId
                 && ((v.ValueText != null && localValues.Contains(v.ValueText))
                     || (v.ValueTaxonomyTermId.HasValue
                         && localValues.Contains(v.ValueTaxonomyTermId.Value.ToString())))));
+#pragma warning restore S1067
         }
         return q;
     }

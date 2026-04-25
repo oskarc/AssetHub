@@ -20,6 +20,9 @@ public sealed class AssetCommentService(
     CurrentUser currentUser,
     ILogger<AssetCommentService> logger) : IAssetCommentService
 {
+    // Audit / event-payload key reused across publish + audit (Sonar S1192).
+    private const string AssetIdKey = "asset_id";
+
     public async Task<ServiceResult<List<AssetCommentResponseDto>>> ListForAssetAsync(
         Guid assetId, CancellationToken ct)
     {
@@ -78,7 +81,7 @@ public sealed class AssetCommentService(
             currentUser.UserId,
             new Dictionary<string, object>
             {
-                ["asset_id"] = assetId,
+                [AssetIdKey] = assetId,
                 ["parent_comment_id"] = (object?)entity.ParentCommentId ?? string.Empty,
                 ["mentioned_user_count"] = mentionedIds.Count
             },
@@ -138,7 +141,7 @@ public sealed class AssetCommentService(
             currentUser.UserId,
             new Dictionary<string, object>
             {
-                ["asset_id"] = comment.AssetId,
+                [AssetIdKey] = comment.AssetId,
                 ["mentioned_user_count"] = newMentioned.Count
             },
             ct);
@@ -177,7 +180,7 @@ public sealed class AssetCommentService(
             currentUser.UserId,
             new Dictionary<string, object>
             {
-                ["asset_id"] = comment.AssetId,
+                [AssetIdKey] = comment.AssetId,
                 ["author_user_id"] = comment.AuthorUserId,
                 ["was_admin_delete"] = currentUser.IsSystemAdmin && comment.AuthorUserId != currentUser.UserId
             },
@@ -240,7 +243,7 @@ public sealed class AssetCommentService(
                     data: new Dictionary<string, object>
                     {
                         ["comment_id"] = comment.Id,
-                        ["asset_id"] = asset.Id,
+                        [AssetIdKey] = asset.Id,
                         ["author_user_id"] = comment.AuthorUserId
                     },
                     ct);
@@ -252,7 +255,7 @@ public sealed class AssetCommentService(
                     currentUser.UserId,
                     new Dictionary<string, object>
                     {
-                        ["asset_id"] = asset.Id,
+                        [AssetIdKey] = asset.Id,
                         ["mentioned_user_id"] = userId
                     },
                     ct);

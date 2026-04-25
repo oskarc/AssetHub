@@ -592,12 +592,14 @@ public class ProcessMigrationItemHandlerTests
         Assert.Equal(MigrationItemStatus.Succeeded, item.Status);
         Assert.NotNull(item.AssetId);
         Assert.NotNull(item.Sha256);   // computed from downloaded bytes
+#pragma warning disable S1067 // Moq It.Is<T> predicate must be a single expression.
         _assetRepo.Verify(a => a.CreateAsync(It.Is<Asset>(ax =>
             ax.Sha256 == item.Sha256
             && ax.SizeBytes == 2048
             && ax.ContentType == "image/jpeg"
             && ax.AssetType == AssetType.Image
             && ax.OriginalObjectKey.EndsWith("/alpha.jpg")), It.IsAny<CancellationToken>()), Times.Once);
+#pragma warning restore S1067
         _minio.Verify(m => m.UploadAsync(
             Bucket, It.Is<string>(k => k.EndsWith("/alpha.jpg")),
             It.IsAny<Stream>(), "image/jpeg", It.IsAny<CancellationToken>()), Times.Once);

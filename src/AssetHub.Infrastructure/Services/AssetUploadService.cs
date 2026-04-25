@@ -36,6 +36,14 @@ public sealed record AssetUploadPipeline(
 /// </summary>
 public sealed class AssetUploadService : IAssetUploadService
 {
+    // Audit-detail dictionary keys reused across the upload paths (Sonar S1192).
+    private const string KeySha256 = "sha256";
+    private const string KeyExistingAssetId = "existingAssetId";
+    private const string KeyTitle = "title";
+    // Metadata bag key for cleaning up the previous file after a replace
+    // operation (see ConfirmUpload + ConfirmPreScannedUpload).
+    private const string PendingDeleteKey = "_pendingDeleteKey";
+
     private readonly IAssetRepository _assetRepo;
     private readonly IAssetCollectionRepository _assetCollectionRepo;
     private readonly IAssetVersionRepository _versionRepo;
@@ -49,6 +57,9 @@ public sealed class AssetUploadService : IAssetUploadService
     private readonly int _maxUploadSizeMb;
     private readonly ILogger<AssetUploadService> _logger;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell", "S107:Methods should not have too many parameters",
+        Justification = "Composition root: repositories already bundled into AssetUploadRepositories, MinIO/scanner/processing into AssetUploadPipeline. The remaining single-purpose services (version repo, auth, audit, current user, app settings, logger) don't share a natural grouping and bundling them further would obscure intent.")]
     public AssetUploadService(
         AssetUploadRepositories repos,
         AssetUploadPipeline pipeline,
@@ -122,7 +133,9 @@ public sealed class AssetUploadService : IAssetUploadService
         if (linkError is not null) return linkError;
 
         await AuditCreatedAsync(asset, title, collectionId, contentType, userId, ct);
-        if (duplicate is not null && skipDuplicateCheck)
+        // Reaching here with a non-null duplicate implies skipDuplicateCheck = true
+        // (otherwise BlockDuplicateAsync above would have returned early).
+        if (duplicate is not null)
             await AuditDuplicateOverrideAsync(asset, sha256Hash, duplicate, userId, ct);
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
@@ -189,12 +202,12 @@ public sealed class AssetUploadService : IAssetUploadService
         _logger.LogInformation("Duplicate asset detected for upload {FileName}: existing asset {ExistingAssetId} ({ExistingTitle})",
             fileName, duplicate.Id, duplicate.Title);
         await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
-            new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString(), ["fileName"] = fileName }, ct);
+            new() { [KeySha256] = sha256Hash, [KeyExistingAssetId] = duplicate.Id.ToString(), ["fileName"] = fileName }, ct);
         return ServiceError.DuplicateAsset(
             "A file with identical content already exists.",
             new Dictionary<string, string>
             {
-                ["existingAssetId"] = duplicate.Id.ToString(),
+                [KeyExistingAssetId] = duplicate.Id.ToString(),
                 ["existingTitle"] = duplicate.Title
             });
     }
@@ -218,12 +231,12 @@ public sealed class AssetUploadService : IAssetUploadService
 
     private Task AuditCreatedAsync(Asset asset, string title, Guid collectionId, string contentType, string userId, CancellationToken ct)
         => _audit.LogAsync("asset.created", Constants.ScopeTypes.Asset, asset.Id, userId,
-            new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
+            new() { [KeyTitle] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
             ct);
 
     private Task AuditDuplicateOverrideAsync(Asset asset, string sha256Hash, Asset duplicate, string userId, CancellationToken ct)
         => _audit.LogAsync("asset.duplicate_override", Constants.ScopeTypes.Asset, asset.Id, userId,
-            new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString() }, ct);
+            new() { [KeySha256] = sha256Hash, [KeyExistingAssetId] = duplicate.Id.ToString() }, ct);
 
     public async Task<ServiceResult<InitUploadResponse>> InitUploadAsync(
         InitUploadRequest request, CancellationToken ct)
@@ -259,7 +272,7 @@ public sealed class AssetUploadService : IAssetUploadService
             await _assetCollectionRepo.AddToCollectionAsync(asset.Id, request.CollectionId.Value, userId, ct);
 
         await _audit.LogAsync("asset.upload_initiated", Constants.ScopeTypes.Asset, asset.Id, userId,
-            new() { ["title"] = request.Title ?? "", ["fileName"] = request.FileName, ["contentType"] = request.ContentType, ["fileSize"] = request.FileSize, ["collectionId"] = request.CollectionId?.ToString() ?? "" },
+            new() { [KeyTitle] = request.Title ?? "", ["fileName"] = request.FileName, ["contentType"] = request.ContentType, ["fileSize"] = request.FileSize, ["collectionId"] = request.CollectionId?.ToString() ?? "" },
             ct);
 
         string presignedUrl;
@@ -317,11 +330,11 @@ public sealed class AssetUploadService : IAssetUploadService
         asset.Sha256 = sha256Hash;
 
         // Clean up old object from a replace-file operation (deferred to after successful upload)
-        if (asset.MetadataJson.TryGetValue("_pendingDeleteKey", out var pendingKeyObj)
+        if (asset.MetadataJson.TryGetValue(PendingDeleteKey, out var pendingKeyObj)
             && pendingKeyObj is string pendingDeleteKey
             && !string.IsNullOrEmpty(pendingDeleteKey))
         {
-            asset.MetadataJson.Remove("_pendingDeleteKey");
+            asset.MetadataJson.Remove(PendingDeleteKey);
             try
             {
                 await _minioAdapter.DeleteAsync(_bucketName, pendingDeleteKey, ct);
@@ -338,12 +351,12 @@ public sealed class AssetUploadService : IAssetUploadService
         await _assetRepo.UpdateAsync(asset, ct);
 
         await _audit.LogAsync("asset.upload_confirmed", Constants.ScopeTypes.Asset, asset.Id, userId,
-            new() { ["title"] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
+            new() { [KeyTitle] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
 
         if (duplicate is not null && duplicate.Id != asset.Id && skipDuplicateCheck)
         {
             await _audit.LogAsync("asset.duplicate_override", Constants.ScopeTypes.Asset, asset.Id, userId,
-                new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString() }, ct);
+                new() { [KeySha256] = sha256Hash, [KeyExistingAssetId] = duplicate.Id.ToString() }, ct);
         }
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
@@ -414,12 +427,12 @@ public sealed class AssetUploadService : IAssetUploadService
         _logger.LogInformation("Duplicate asset detected during confirm for {AssetId}: existing asset {ExistingAssetId} ({ExistingTitle})",
             id, duplicate.Id, duplicate.Title);
         await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
-            new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString(), ["pendingAssetId"] = asset.Id.ToString() }, ct);
+            new() { [KeySha256] = sha256Hash, [KeyExistingAssetId] = duplicate.Id.ToString(), ["pendingAssetId"] = asset.Id.ToString() }, ct);
         return ServiceError.DuplicateAsset(
             "A file with identical content already exists.",
             new Dictionary<string, string>
             {
-                ["existingAssetId"] = duplicate.Id.ToString(),
+                [KeyExistingAssetId] = duplicate.Id.ToString(),
                 ["existingTitle"] = duplicate.Title
             });
     }
@@ -442,11 +455,11 @@ public sealed class AssetUploadService : IAssetUploadService
             return ServiceError.BadRequest("File not found in storage. Upload may have failed or expired.");
 
         // Clean up old object from a replace-file operation
-        if (asset.MetadataJson.TryGetValue("_pendingDeleteKey", out var pendingKeyObj)
+        if (asset.MetadataJson.TryGetValue(PendingDeleteKey, out var pendingKeyObj)
             && pendingKeyObj is string pendingDeleteKey
             && !string.IsNullOrEmpty(pendingDeleteKey))
         {
-            asset.MetadataJson.Remove("_pendingDeleteKey");
+            asset.MetadataJson.Remove(PendingDeleteKey);
             try
             {
                 await _minioAdapter.DeleteAsync(_bucketName, pendingDeleteKey, ct);
@@ -463,7 +476,7 @@ public sealed class AssetUploadService : IAssetUploadService
         await _assetRepo.UpdateAsync(asset, ct);
 
         await _audit.LogAsync("asset.upload_confirmed", Constants.ScopeTypes.Asset, asset.Id, userId,
-            new() { ["title"] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
+            new() { [KeyTitle] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, skipMetadata, ct);
 
@@ -567,7 +580,7 @@ public sealed class AssetUploadService : IAssetUploadService
         }
 
         await _audit.LogAsync("asset.image_saved_as_copy", Constants.ScopeTypes.Asset, copy.Id, userId,
-            new() { ["sourceAssetId"] = sourceAssetId.ToString(), ["title"] = copyTitle }, ct);
+            new() { ["sourceAssetId"] = sourceAssetId.ToString(), [KeyTitle] = copyTitle }, ct);
 
         string presignedUrl;
         try
@@ -647,7 +660,7 @@ public sealed class AssetUploadService : IAssetUploadService
         await _assetRepo.UpdateAsync(asset, ct);
 
         await _audit.LogAsync("asset.image_replaced", Constants.ScopeTypes.Asset, assetId, userId,
-            new() { ["title"] = asset.Title, ["oldObjectKey"] = oldObjectKey, ["newContentType"] = request.ContentType, ["newVersion"] = asset.CurrentVersionNumber }, ct);
+            new() { [KeyTitle] = asset.Title, ["oldObjectKey"] = oldObjectKey, ["newContentType"] = request.ContentType, ["newVersion"] = asset.CurrentVersionNumber }, ct);
 
         string presignedUrl;
         try

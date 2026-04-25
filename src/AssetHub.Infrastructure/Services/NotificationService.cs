@@ -18,6 +18,8 @@ public sealed class NotificationService(
     IMessageBus messageBus,
     ILogger<NotificationService> logger) : INotificationService
 {
+    private const string AuthRequired = "Authentication required.";
+
     public async Task<ServiceResult<NotificationDto?>> CreateAsync(
         string userId, string category, string title,
         string? body = null, string? url = null,
@@ -92,7 +94,7 @@ public sealed class NotificationService(
         bool unreadOnly, int skip, int take, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(currentUser.UserId))
-            return ServiceError.Forbidden("Authentication required.");
+            return ServiceError.Forbidden(AuthRequired);
 
         var clampedTake = Math.Clamp(
             take <= 0 ? NotificationConstants.Limits.DefaultListTake : take,
@@ -117,7 +119,7 @@ public sealed class NotificationService(
     public async Task<ServiceResult<NotificationUnreadCountDto>> GetUnreadCountForCurrentUserAsync(CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(currentUser.UserId))
-            return ServiceError.Forbidden("Authentication required.");
+            return ServiceError.Forbidden(AuthRequired);
 
         var count = await cache.GetOrCreateAsync(
             CacheKeys.NotificationUnreadCount(currentUser.UserId),
@@ -136,7 +138,7 @@ public sealed class NotificationService(
     public async Task<ServiceResult> MarkReadAsync(Guid notificationId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(currentUser.UserId))
-            return ServiceError.Forbidden("Authentication required.");
+            return ServiceError.Forbidden(AuthRequired);
 
         var notification = await repo.GetForOwnerAsync(notificationId, currentUser.UserId, ct);
         if (notification is null)
@@ -154,7 +156,7 @@ public sealed class NotificationService(
     public async Task<ServiceResult<int>> MarkAllReadForCurrentUserAsync(CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(currentUser.UserId))
-            return ServiceError.Forbidden("Authentication required.");
+            return ServiceError.Forbidden(AuthRequired);
 
         var affected = await repo.MarkAllReadAsync(currentUser.UserId, DateTime.UtcNow, ct);
         if (affected > 0)
@@ -166,7 +168,7 @@ public sealed class NotificationService(
     public async Task<ServiceResult> DeleteAsync(Guid notificationId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(currentUser.UserId))
-            return ServiceError.Forbidden("Authentication required.");
+            return ServiceError.Forbidden(AuthRequired);
 
         var deleted = await repo.DeleteAsync(notificationId, currentUser.UserId, ct);
         if (!deleted)

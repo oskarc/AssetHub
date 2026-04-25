@@ -12,10 +12,12 @@ public sealed class TaxonomyService(
     CurrentUser currentUser,
     ILogger<TaxonomyService> logger) : ITaxonomyService
 {
+    private const string AdminsOnlyMessage = "Only administrators can manage taxonomies";
+
     public async Task<ServiceResult<TaxonomyDto>> CreateAsync(CreateTaxonomyDto dto, CancellationToken ct)
     {
         if (!currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can manage taxonomies");
+            return ServiceError.Forbidden(AdminsOnlyMessage);
 
         if (await repo.ExistsByNameAsync(dto.Name, ct: ct))
             return ServiceError.Conflict($"A taxonomy named '{dto.Name}' already exists");
@@ -36,7 +38,7 @@ public sealed class TaxonomyService(
     public async Task<ServiceResult<TaxonomyDto>> UpdateAsync(Guid id, UpdateTaxonomyDto dto, CancellationToken ct)
     {
         if (!currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can manage taxonomies");
+            return ServiceError.Forbidden(AdminsOnlyMessage);
 
         var taxonomy = await repo.GetByIdForUpdateAsync(id, ct);
         if (taxonomy is null) return ServiceError.NotFound("Taxonomy not found");
@@ -59,7 +61,7 @@ public sealed class TaxonomyService(
     public async Task<ServiceResult<TaxonomyDto>> ReplaceTermsAsync(Guid id, List<UpsertTaxonomyTermDto> terms, CancellationToken ct)
     {
         if (!currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can manage taxonomies");
+            return ServiceError.Forbidden(AdminsOnlyMessage);
 
         var taxonomy = await repo.GetByIdAsync(id, ct);
         if (taxonomy is null) return ServiceError.NotFound("Taxonomy not found");
@@ -89,7 +91,7 @@ public sealed class TaxonomyService(
     public async Task<ServiceResult> DeleteAsync(Guid id, CancellationToken ct)
     {
         if (!currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can manage taxonomies");
+            return ServiceError.Forbidden(AdminsOnlyMessage);
 
         var taxonomy = await repo.GetByIdAsync(id, ct);
         if (taxonomy is null) return ServiceError.NotFound("Taxonomy not found");
