@@ -1,5 +1,4 @@
 using AssetHub.Application;
-using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
@@ -12,7 +11,7 @@ public class AssetDeletionService(
     IAssetCollectionRepository assetCollectionRepo,
     IAssetVersionRepository versionRepository,
     IShareRepository shareRepository,
-    IMinIOAdapter minioAdapter) : IAssetDeletionService
+    IOrphanedObjectRepository orphanedRepo) : IAssetDeletionService
 {
     public async Task SoftDeleteAsync(Asset asset, string userId, CancellationToken ct = default)
     {
@@ -30,31 +29,30 @@ public class AssetDeletionService(
 
     public async Task PurgeAsync(Asset asset, string bucketName, CancellationToken ct = default)
     {
-        await shareRepository.DeleteByScopeAsync(Constants.ScopeTypes.Asset, asset.Id, ct);
-
-        // T1-VER-01: clean up MinIO objects referenced by version rows before the FK cascade
-        // drops them. Skip keys that are still in use by the live asset row to avoid
-        // double-deletes (DeleteAssetObjectsAsync below will handle those).
-        var liveKeys = new HashSet<string>(StringComparer.Ordinal);
-        if (!string.IsNullOrEmpty(asset.OriginalObjectKey)) liveKeys.Add(asset.OriginalObjectKey);
-        if (!string.IsNullOrEmpty(asset.ThumbObjectKey)) liveKeys.Add(asset.ThumbObjectKey!);
-        if (!string.IsNullOrEmpty(asset.MediumObjectKey)) liveKeys.Add(asset.MediumObjectKey!);
-        if (!string.IsNullOrEmpty(asset.PosterObjectKey)) liveKeys.Add(asset.PosterObjectKey!);
+        // Collect every MinIO key tied to this asset (live row + version
+        // history) BEFORE deleting the asset row, since the FK cascade on
+        // AssetVersion will drop the version rows along with the asset.
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        AddIfNotEmpty(keys, asset.OriginalObjectKey);
+        AddIfNotEmpty(keys, asset.ThumbObjectKey);
+        AddIfNotEmpty(keys, asset.MediumObjectKey);
+        AddIfNotEmpty(keys, asset.PosterObjectKey);
 
         var versions = await versionRepository.GetByAssetIdAsync(asset.Id, ct);
-        var versionKeys = versions
-            .SelectMany(v => new[] { v.OriginalObjectKey, v.ThumbObjectKey, v.MediumObjectKey, v.PosterObjectKey })
-            .Where(k => !string.IsNullOrEmpty(k) && !liveKeys.Contains(k!))
-            .Distinct()
-            .ToList();
-        foreach (var key in versionKeys)
+        foreach (var v in versions)
         {
-            try { await minioAdapter.DeleteAsync(bucketName, key!, ct); }
-            catch { /* best-effort cleanup; the DB cascade still removes the row */ }
+            AddIfNotEmpty(keys, v.OriginalObjectKey);
+            AddIfNotEmpty(keys, v.ThumbObjectKey);
+            AddIfNotEmpty(keys, v.MediumObjectKey);
+            AddIfNotEmpty(keys, v.PosterObjectKey);
         }
 
-        await minioAdapter.DeleteAssetObjectsAsync(bucketName, asset, ct);
+        // DB-only mutations — the caller's UnitOfWork transaction commits
+        // share cleanup, asset delete (FK-cascades versions), and tombstone
+        // inserts together. The MinIO sweeper drains tombstones out-of-band.
+        await shareRepository.DeleteByScopeAsync(Constants.ScopeTypes.Asset, asset.Id, ct);
         await assetRepository.DeleteAsync(asset.Id, ct);
+        await EnqueueTombstonesAsync(keys, bucketName, ct);
     }
 
     public async Task<(bool Removed, bool SoftDeleted)> RemoveFromCollectionAsync(
@@ -86,7 +84,38 @@ public class AssetDeletionService(
         var deletedAssets = await assetRepository.DeleteByCollectionAsync(collectionId, ct);
         var assetIds = deletedAssets.Select(a => a.Id).ToList();
         await shareRepository.DeleteByScopeBatchAsync(Constants.ScopeTypes.Asset, assetIds, ct);
-        await minioAdapter.DeleteAssetObjectsBatchAsync(bucketName, deletedAssets, ct);
+
+        // MinIO objects are queued for the sweeper rather than deleted inline,
+        // so the caller's UoW transaction can wrap the whole batch atomically.
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var asset in deletedAssets)
+        {
+            AddIfNotEmpty(keys, asset.OriginalObjectKey);
+            AddIfNotEmpty(keys, asset.ThumbObjectKey);
+            AddIfNotEmpty(keys, asset.MediumObjectKey);
+            AddIfNotEmpty(keys, asset.PosterObjectKey);
+        }
+        await EnqueueTombstonesAsync(keys, bucketName, ct);
         return deletedAssets;
+    }
+
+    private static void AddIfNotEmpty(HashSet<string> keys, string? key)
+    {
+        if (!string.IsNullOrEmpty(key)) keys.Add(key);
+    }
+
+    private async Task EnqueueTombstonesAsync(
+        IReadOnlyCollection<string> keys, string bucketName, CancellationToken ct)
+    {
+        if (keys.Count == 0) return;
+        var now = DateTime.UtcNow;
+        var rows = keys.Select(k => new OrphanedObject
+        {
+            Id = Guid.NewGuid(),
+            BucketName = bucketName,
+            ObjectKey = k,
+            CreatedAt = now
+        });
+        await orphanedRepo.EnqueueBatchAsync(rows, ct);
     }
 }

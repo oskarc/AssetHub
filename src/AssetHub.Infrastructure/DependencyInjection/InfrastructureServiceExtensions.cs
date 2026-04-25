@@ -135,6 +135,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
         services.AddScoped<IBrandRepository, BrandRepository>();
         services.AddScoped<IGuestInvitationRepository, GuestInvitationRepository>();
+        services.AddScoped<IOrphanedObjectRepository, OrphanedObjectRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);

@@ -65,7 +65,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         _versionRepo = new AssetVersionRepository(_db, NullLogger<AssetVersionRepository>.Instance);
 
         _deletionService = new AssetDeletionService(
-            _assetRepo, _acRepo, _versionRepo, _shareRepo, _minioMock.Object);
+            _assetRepo, _acRepo, _versionRepo, _shareRepo, new OrphanedObjectRepository(_db));
     }
 
     public async Task DisposeAsync()

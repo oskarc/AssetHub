@@ -126,6 +126,7 @@ static class Program
                 services.AddHostedService<TrashPurgeBackgroundService>();
                 services.AddHostedService<SavedSearchDigestBackgroundService>();
                 services.AddHostedService<GuestInvitationExpirySweepService>();
+                services.AddHostedService<OrphanedObjectsSweeperService>();
             })
             .Build();
 

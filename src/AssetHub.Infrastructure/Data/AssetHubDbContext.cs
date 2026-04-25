@@ -42,6 +42,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<WebhookDelivery> WebhookDeliveries { get; set; } = null!;
     public DbSet<Brand> Brands { get; set; } = null!;
     public DbSet<GuestInvitation> GuestInvitations { get; set; } = null!;
+    public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,6 +75,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         ConfigureGuestInvitation(modelBuilder);
         ConfigureBrand(modelBuilder);
         ConfigureWebhookDelivery(modelBuilder);
+        ConfigureOrphanedObject(modelBuilder);
     }
 
     // ── Per-entity configuration ────────────────────────────────────────
@@ -776,6 +778,23 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .WithMany()
                 .HasForeignKey(e => e.WebhookId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+    private static void ConfigureOrphanedObject(ModelBuilder modelBuilder) =>
+        // Tombstones for MinIO objects awaiting async deletion. The
+        // sweeper drains the queue oldest-first; rows that exceed the
+        // attempt cap are skipped so a poison pill can't block progress.
+        modelBuilder.Entity<OrphanedObject>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Sweeper picks oldest-first within the attempt cap.
+            entity.HasIndex(e => new { e.AttemptCount, e.CreatedAt })
+                .HasDatabaseName("idx_orphaned_object_attempts_created");
+
+            entity.Property(e => e.BucketName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ObjectKey).HasMaxLength(512).IsRequired();
+            entity.Property(e => e.LastError).HasMaxLength(1000);
         });
 
     // ── Shared converters / comparers ───────────────────────────────────

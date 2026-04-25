@@ -12,8 +12,9 @@ using Moq;
 namespace AssetHub.Tests.Services;
 
 /// <summary>
-/// Integration tests for AssetDeletionService — orchestration of MinIO cleanup + DB deletion.
-/// Uses real DB via Testcontainers, mocked MinIO adapter.
+/// Integration tests for AssetDeletionService — orchestrates DB deletion
+/// and enqueues MinIO tombstones for the sweeper. Uses real DB via
+/// Testcontainers; the OrphanedObjects table is the seam.
 /// </summary>
 [Collection("Database")]
 public class AssetDeletionServiceTests : IAsyncLifetime
@@ -24,7 +25,7 @@ public class AssetDeletionServiceTests : IAsyncLifetime
     private AssetCollectionRepository _assetCollectionRepo = null!;
     private ShareRepository _shareRepo = null!;
     private AssetVersionRepository _versionRepo = null!;
-    private Mock<IMinIOAdapter> _minioMock = null!;
+    private OrphanedObjectRepository _orphanedRepo = null!;
     private AssetDeletionService _sut = null!;
 
     private const string BucketName = "test-bucket";
@@ -43,9 +44,9 @@ public class AssetDeletionServiceTests : IAsyncLifetime
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareRepository>.Instance);
         _versionRepo = new AssetVersionRepository(_db,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AssetVersionRepository>.Instance);
-        _minioMock = new Mock<IMinIOAdapter>();
+        _orphanedRepo = new OrphanedObjectRepository(_db);
 
-        _sut = new AssetDeletionService(_assetRepo, _assetCollectionRepo, _versionRepo, _shareRepo, _minioMock.Object);
+        _sut = new AssetDeletionService(_assetRepo, _assetCollectionRepo, _versionRepo, _shareRepo, _orphanedRepo);
     }
 
     public async Task DisposeAsync()
@@ -57,7 +58,7 @@ public class AssetDeletionServiceTests : IAsyncLifetime
     // ── PermanentDeleteAsync ────────────────────────────────────────
 
     [Fact]
-    public async Task Purge_RemovesAssetSharesAndDbRow()
+    public async Task Purge_RemovesAssetSharesAndDbRowAndEnqueuesTombstones()
     {
         var col = TestData.CreateCollection(name: "C1");
         var asset = TestData.CreateAsset(title: "ToDelete");
@@ -77,21 +78,27 @@ public class AssetDeletionServiceTests : IAsyncLifetime
         var shares = await _shareRepo.GetByScopeAsync(Constants.ScopeTypes.Asset, asset.Id);
         Assert.Empty(shares);
 
-        // MinIO called
-        _minioMock.Verify(m => m.DeleteAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        // Tombstone enqueued for the original key — sweeper will delete from MinIO.
+        var tombstones = await _orphanedRepo.GetNextBatchAsync(50, maxAttempts: 10);
+        Assert.Contains(tombstones, t => t.BucketName == BucketName && t.ObjectKey == asset.OriginalObjectKey);
     }
 
     [Fact]
-    public async Task Purge_CallsMinIODeleteForAssetObjects()
+    public async Task Purge_EnqueuesTombstonesForAllAssetKeys()
     {
         var asset = TestData.CreateAsset(title: "MinIOTarget");
+        asset.ThumbObjectKey = "thumbs/x.jpg";
+        asset.MediumObjectKey = "mediums/x.jpg";
         _db.Assets.Add(asset);
         await _db.SaveChangesAsync();
 
         await _sut.PurgeAsync(asset, BucketName);
 
-        // Should clean up original + any thumbnails
-        _minioMock.Verify(m => m.DeleteAsync(BucketName, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        var tombstones = await _orphanedRepo.GetNextBatchAsync(50, maxAttempts: 10);
+        var keys = tombstones.Select(t => t.ObjectKey).ToHashSet();
+        Assert.Contains(asset.OriginalObjectKey, keys);
+        Assert.Contains("thumbs/x.jpg", keys);
+        Assert.Contains("mediums/x.jpg", keys);
     }
 
     // ── SoftDeleteAsync / RestoreAsync ──────────────────────────────
