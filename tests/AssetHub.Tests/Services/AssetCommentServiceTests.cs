@@ -17,6 +17,7 @@ public class AssetCommentServiceTests
     private readonly Mock<ICollectionAuthorizationService> _authService = new();
     private readonly Mock<IUserLookupService> _userLookup = new();
     private readonly Mock<INotificationService> _notifications = new();
+    private readonly Mock<IWebhookEventPublisher> _webhooks = new();
     private readonly Mock<IAuditService> _audit = new();
 
     private const string AuthorId = "user-alice";
@@ -33,6 +34,7 @@ public class AssetCommentServiceTests
             _authService.Object,
             _userLookup.Object,
             _notifications.Object,
+            _webhooks.Object,
             _audit.Object,
             currentUser,
             NullLogger<AssetCommentService>.Instance);
@@ -91,7 +93,7 @@ public class AssetCommentServiceTests
     {
         var svc = new AssetCommentService(
             _repo.Object, _assetRepo.Object, _assetCollectionRepo.Object, _authService.Object,
-            _userLookup.Object, _notifications.Object, _audit.Object,
+            _userLookup.Object, _notifications.Object, _webhooks.Object, _audit.Object,
             CurrentUser.Anonymous, NullLogger<AssetCommentService>.Instance);
 
         var result = await svc.ListForAssetAsync(Guid.NewGuid(), CancellationToken.None);

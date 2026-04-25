@@ -1,0 +1,120 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<WebhooksResource> Loc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.History" />
+            <MudText Typo="Typo.h6">@Webhook.Name — @Loc["Btn_Deliveries"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_items is null || _items.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="py-4 text-center">
+                @Loc["Empty_Title"]
+            </MudText>
+        }
+        else
+        {
+            <MudTable Items="@_items" Hover="true" Dense="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>@Loc["Header_Events"]</MudTh>
+                    <MudTh>@Loc["Header_Status"]</MudTh>
+                    <MudTh>@Loc["Header_Created"]</MudTh>
+                    <MudTh>@Loc["Header_Attempts"]</MudTh>
+                    <MudTh>@Loc["Header_LastError"]</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="@Loc["Header_Events"]">
+                        <MudText Typo="Typo.caption">@context.EventType</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="@Loc["Header_Status"]">
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@StatusColor(context.Status)"
+                                 Variant="Variant.Filled">
+                            @Loc[$"Status_{context.Status}"]
+                            @if (context.ResponseStatus is int rs)
+                            {
+                                <text> · @rs</text>
+                            }
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="@Loc["Header_Created"]">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @context.CreatedAt.ToLocalTime().ToString("g")
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="@Loc["Header_Attempts"]">
+                        <MudText Typo="Typo.caption">@context.AttemptCount</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="@Loc["Header_LastError"]">
+                        @if (!string.IsNullOrEmpty(context.LastError))
+                        {
+                            <MudTooltip Text="@context.LastError">
+                                <MudText Typo="Typo.caption" Color="Color.Error"
+                                         Style="max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">
+                                    @context.LastError
+                                </MudText>
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="LoadAsync">@Loc["Btn_Refresh"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">
+            @Loc["Dialog_Cancel"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public WebhookResponseDto Webhook { get; set; } = default!;
+
+    private List<WebhookDeliveryResponseDto>? _items;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _items = await Api.GetWebhookDeliveriesAsync(Webhook.Id);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load deliveries");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static Color StatusColor(string status) => status switch
+    {
+        "delivered" => Color.Success,
+        "failed" => Color.Error,
+        _ => Color.Default
+    };
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

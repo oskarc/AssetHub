@@ -1406,6 +1406,59 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Webhooks (T3-INT-01)
+
+    public virtual async Task<List<WebhookResponseDto>> GetWebhooksAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/admin/webhooks", ct);
+        await EnsureSuccessAsync(response, "Get webhooks");
+        return await response.Content.ReadFromJsonAsync<List<WebhookResponseDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<CreatedWebhookDto> CreateWebhookAsync(CreateWebhookDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/webhooks", dto, ct);
+        await EnsureSuccessAsync(response, "Create webhook");
+        return await ReadRequiredJsonAsync<CreatedWebhookDto>(response, "Create webhook");
+    }
+
+    public virtual async Task<WebhookResponseDto> UpdateWebhookAsync(Guid id, UpdateWebhookDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/webhooks/{id}", dto, ct);
+        await EnsureSuccessAsync(response, "Update webhook");
+        return await ReadRequiredJsonAsync<WebhookResponseDto>(response, "Update webhook");
+    }
+
+    public virtual async Task DeleteWebhookAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/webhooks/{id}", ct);
+        await EnsureSuccessAsync(response, "Delete webhook");
+    }
+
+    public virtual async Task<CreatedWebhookDto> RotateWebhookSecretAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/admin/webhooks/{id}/rotate-secret", content: null, ct);
+        await EnsureSuccessAsync(response, "Rotate webhook secret");
+        return await ReadRequiredJsonAsync<CreatedWebhookDto>(response, "Rotate webhook secret");
+    }
+
+    public virtual async Task<WebhookDeliveryResponseDto> SendWebhookTestAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/admin/webhooks/{id}/test", content: null, ct);
+        await EnsureSuccessAsync(response, "Send webhook test");
+        return await ReadRequiredJsonAsync<WebhookDeliveryResponseDto>(response, "Send webhook test");
+    }
+
+    public virtual async Task<List<WebhookDeliveryResponseDto>> GetWebhookDeliveriesAsync(
+        Guid id, int take = 50, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/api/v1/admin/webhooks/{id}/deliveries?take={take}", ct);
+        await EnsureSuccessAsync(response, "Get webhook deliveries");
+        return await response.Content.ReadFromJsonAsync<List<WebhookDeliveryResponseDto>>(ct) ?? new();
+    }
+
+    #endregion
 }
 
 /// <summary>

@@ -307,6 +307,7 @@ public static class WebApplicationExtensions
         app.MapNotificationEndpoints();
         app.MapAssetCommentEndpoints();
         app.MapAssetWorkflowEndpoints();
+        app.MapWebhookEndpoints();
 
         // Public OpenAPI document at /swagger/v1/swagger.json. The matching UI middleware
         // is wired in UseAssetHubMiddleware so it sits above endpoint routing and after auth.

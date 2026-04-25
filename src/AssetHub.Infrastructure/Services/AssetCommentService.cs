@@ -15,6 +15,7 @@ public sealed class AssetCommentService(
     ICollectionAuthorizationService authService,
     IUserLookupService userLookup,
     INotificationService notifications,
+    IWebhookEventPublisher webhooks,
     IAuditService audit,
     CurrentUser currentUser,
     ILogger<AssetCommentService> logger) : IAssetCommentService
@@ -84,6 +85,17 @@ public sealed class AssetCommentService(
             ct);
 
         await FanOutMentionsAsync(entity, asset, ct);
+
+        await webhooks.PublishAsync(WebhookEvents.CommentCreated, new
+        {
+            commentId = entity.Id,
+            assetId = entity.AssetId,
+            authorUserId = entity.AuthorUserId,
+            body = entity.Body,
+            parentCommentId = entity.ParentCommentId,
+            mentionedUserIds = entity.MentionedUserIds,
+            createdAt = entity.CreatedAt
+        }, ct);
 
         logger.LogInformation(
             "Comment {CommentId} created on asset {AssetId} by {UserId} ({MentionCount} mentions)",

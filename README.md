@@ -100,6 +100,10 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Server-side `@username` parsing turns every mention into a notification — the recipient sees it in their bell and gets an email through the notification pipeline, all within the same pass
 - Optional publishing workflow — `Draft → In Review → Approved → Published` state machine with required-metadata gating on "submit for review", author-bound submits, and Manager+ approve/publish. Configurable share-policy gate blocks external sharing of unapproved assets when enabled
 
+**Integrations**
+- Outbound webhooks — admins subscribe HTTPS endpoints to event types (comment created, workflow state changed, share created, asset restored, more). AssetHub POSTs a signed JSON envelope (`X-AssetHub-Signature: sha256=…` HMAC) and retries transient failures via the message queue. Plaintext signing secrets are shown once at create and rotation, encrypted at rest via Data Protection
+- Admin UI lists subscriptions with one-click test events, secret rotation, and a recent-deliveries panel showing per-attempt status and last error
+
 **Security**
 - ClamAV malware scanning on every upload
 - Personal Access Tokens — long-lived, scoped, revocable bearer tokens for scripts and integrations. Only the SHA-256 hash is stored; plaintext is shown once. A compromised PAT cannot mint further tokens

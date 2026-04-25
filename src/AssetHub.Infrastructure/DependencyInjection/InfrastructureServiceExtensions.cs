@@ -128,6 +128,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
         services.AddScoped<IAssetCommentRepository, AssetCommentRepository>();
         services.AddScoped<IAssetWorkflowTransitionRepository, AssetWorkflowTransitionRepository>();
+        services.AddScoped<IWebhookRepository, WebhookRepository>();
+        services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);
@@ -156,6 +158,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<INotificationPreferencesService, NotificationPreferencesService>();
         services.AddSingleton<INotificationUnsubscribeTokenService, NotificationUnsubscribeTokenService>();
         services.AddSingleton<IMigrationSecretProtector, MigrationSecretProtector>();
+        services.AddSingleton<IWebhookSecretProtector, WebhookSecretProtector>();
+        services.AddScoped<IWebhookEventPublisher, WebhookEventPublisher>();
         // Migration source connectors: one impl per MigrationSourceType.
         // Registry fans them out by SourceType at resolve time.
         services.AddSingleton<IMigrationSourceConnector, CsvMigrationSourceConnector>();

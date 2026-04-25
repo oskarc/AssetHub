@@ -288,6 +288,59 @@ Workaround: reviewers currently write the reason in a comment
 **Acceptance**: Reject button opens a dialog with a reason field; Confirm
 sends the typed text to the API and shows up in the transition history.
 
+### T3-INT-01 — 24h scheduled retry queue for failed webhook deliveries
+
+**Deferred from**: T3-INT-01 phase (2026-04-25)
+**Why deferred**: Roadmap acceptance criterion "failures are retried up to
+24 h" needs a scheduled-retry queue with progressively longer intervals
+(5 min, 30 min, 2 h, 6 h, 24 h). Today's implementation uses Wolverine's
+existing 5-step cooldown (~50 s total) — catches transient blips well,
+but a multi-hour receiver outage marks Failed after under a minute.
+**Sketch**:
+- Background service that wakes every N minutes, finds `WebhookDelivery`
+  rows in `Failed` state where `LastAttemptAt + nextBackoff(AttemptCount)`
+  has elapsed and the attempt count is below a hard ceiling (e.g. 12).
+- Re-publishes `DispatchWebhookCommand` for those rows; the existing
+  handler picks up where it left off (idempotency comes from the
+  Status check at top of HandleAsync).
+- Track ceiling via a config setting (`Webhook:MaxRetryAge = 24h`).
+- Audit when the ceiling is hit — distinct from the existing
+  `webhook.delivery_failed_permanently` so dashboards can distinguish
+  "5 quick retries lost" from "24 hours of unreachable".
+**Acceptance**: a webhook receiver returning 503 for 23 hours then 200
+delivers successfully; same receiver returning 503 for 25 hours stops
+trying and records the give-up event.
+
+### T3-INT-01 — wire remaining event sources
+
+**Deferred from**: T3-INT-01 phase (2026-04-25)
+**Why deferred**: v1 wires 4 of the 9 spec'd event sources
+(`comment.created`, `workflow.state_changed`, `share.created`,
+`asset.restored`). Missing: `asset.created`, `asset.updated`,
+`asset.deleted`, plus `share.accessed` (high-volume — probably should
+remain telemetry) and `migration.completed`. The asset CRUD trio touches
+3+ different services (AssetService, AssetUploadService, AssetService
+delete paths, AssetTrashService) — worth a focused pass rather than
+grafting into the initial ship.
+**Sketch**:
+- `asset.created`: emit from `AssetUploadService` after the asset row is
+  finalised (`MarkReady` path, not at upload-start, so subscribers don't
+  see processing assets).
+- `asset.updated`: emit from `AssetService.UpdateAsync` after audit.
+  Include `changedFields[]` in the payload, similar to the audit
+  details, so subscribers can no-op on irrelevant edits.
+- `asset.deleted`: emit from the soft-delete path that already audits
+  `asset.deleted` (currently in `AssetService` and the implicit-orphan
+  branch). Skip the trash-purge path — that's a separate `asset.purged`
+  event for FOLLOW-UPS later.
+- Skip `share.accessed` (every public-share GET would emit; volume too
+  high for webhook reliability targets).
+- Skip `migration.completed` until customer demand — admin-internal
+  notification already covers it via T3-NTF-01.
+**Acceptance**: 3 new event types appear in `WebhookEvents.All` and the
+admin create-webhook dropdown; subscribers receive distinct events for
+upload, edit, and soft-delete; tests cover the new emit points.
+
 ### Test infra — full Release suite EF flake
 
 **Deferred from**: noted across multiple sessions

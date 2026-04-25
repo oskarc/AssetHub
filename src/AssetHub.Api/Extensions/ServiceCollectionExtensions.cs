@@ -232,6 +232,9 @@ public static class ServiceCollectionExtensions
         // Asset workflow (T3-WF-01)
         services.AddScoped<IAssetWorkflowService, AssetWorkflowService>();
 
+        // Webhooks (T3-INT-01)
+        services.AddScoped<IWebhookService, WebhookService>();
+
         // Personal access tokens (T1-API-01)
         services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();
 

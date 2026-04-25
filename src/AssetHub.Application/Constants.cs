@@ -45,6 +45,8 @@ public static class Constants
         public const string Migration = "migration";
         public const string UserPreferences = "user_preferences";
         public const string Comment = "comment";
+        public const string Webhook = "webhook";
+        public const string WebhookDelivery = "webhook_delivery";
     }
 
     /// <summary>
@@ -57,6 +59,7 @@ public static class Constants
         public const string SharePasswordProtector = "SharePasswordProtector";
         public const string MigrationSourceSecretProtector = "MigrationSourceSecretProtector";
         public const string NotificationUnsubscribeProtector = "NotificationUnsubscribeProtector";
+        public const string WebhookSecretProtector = "WebhookSecretProtector";
     }
 
     /// <summary>

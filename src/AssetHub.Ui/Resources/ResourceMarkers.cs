@@ -17,3 +17,4 @@ public class AccountResource { }
 public class NotificationsResource { }
 public class CommentsResource { }
 public class WorkflowResource { }
+public class WebhooksResource { }

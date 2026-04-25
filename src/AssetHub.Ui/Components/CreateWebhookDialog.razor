@@ -1,0 +1,128 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<WebhooksResource> Loc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.Webhook" />
+            <MudText Typo="Typo.h6" id="create-webhook-title">@Loc["Dialog_Create_Title"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudStack Spacing="3" Style="min-width: 480px;">
+                <MudTextField @bind-Value="_name"
+                              Label="@Loc["Dialog_Field_Name"]"
+                              Required="true"
+                              MaxLength="200"
+                              Variant="Variant.Outlined"
+                              For="@(() => _name)"
+                              aria-label="@Loc["Dialog_Field_Name"]" />
+
+                <MudTextField @bind-Value="_url"
+                              Label="@Loc["Dialog_Field_Url"]"
+                              Required="true"
+                              MaxLength="2048"
+                              InputType="InputType.Url"
+                              Variant="Variant.Outlined"
+                              Validation="@(new Func<string, IEnumerable<string>>(ValidateUrl))"
+                              aria-label="@Loc["Dialog_Field_Url"]" />
+
+                <MudSelect T="string" @bind-SelectedValues="_selectedEvents"
+                           Label="@Loc["Dialog_Field_Events"]"
+                           MultiSelection="true"
+                           SelectAll="true"
+                           Required="true"
+                           Variant="Variant.Outlined"
+                           aria-label="@Loc["Dialog_Field_Events"]">
+                    @foreach (var ev in _knownEvents)
+                    {
+                        <MudSelectItem T="string" Value="@ev">@ev</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSwitch T="bool" @bind-Value="_isActive"
+                           Label="@Loc["Dialog_Field_Active"]"
+                           Color="Color.Primary"
+                           aria-label="@Loc["Dialog_Field_Active"]" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">@Loc["Dialog_Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(!CanSubmit)"
+                   OnClick="SubmitAsync">
+            @Loc["Dialog_Submit"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private static readonly IReadOnlyList<string> _knownEvents = WebhookEvents.All.OrderBy(e => e).ToList();
+
+    private MudForm? _form;
+    private bool _isValid;
+    private bool _submitting;
+
+    private string _name = string.Empty;
+    private string _url = string.Empty;
+    private IEnumerable<string> _selectedEvents = Array.Empty<string>();
+    private bool _isActive = true;
+
+    private bool CanSubmit =>
+        _isValid
+        && !_submitting
+        && !string.IsNullOrWhiteSpace(_name)
+        && !string.IsNullOrWhiteSpace(_url)
+        && _selectedEvents.Any();
+
+    private static IEnumerable<string> ValidateUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) yield break;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            yield return "Must be an absolute URL.";
+            yield break;
+        }
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            yield return "Only http and https URLs are accepted.";
+    }
+
+    private async Task SubmitAsync()
+    {
+        _submitting = true;
+        try
+        {
+            var dto = new CreateWebhookDto
+            {
+                Name = _name.Trim(),
+                Url = _url.Trim(),
+                EventTypes = _selectedEvents.ToList(),
+                IsActive = _isActive
+            };
+            var created = await Api.CreateWebhookAsync(dto);
+            MudDialog.Close(DialogResult.Ok(created));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "create webhook");
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

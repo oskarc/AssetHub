@@ -498,41 +498,7 @@ Implementations: `AzureAiVisionService`, `AwsRekognitionService`, etc. Register 
 
 ### T3-INT-01 — Webhooks
 
-**Intent.** Outbound HTTP on events: `asset.created`, `asset.updated`, `asset.deleted`, `asset.restored`, `share.created`, `share.accessed`, `migration.completed`, `workflow.state_changed`, `comment.created`.
-
-**Data model.**
-```csharp
-public class Webhook
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = "";
-    public string Url { get; set; } = "";
-    public string SecretHash { get; set; } = "";     // HMAC signing key, SHA256 hashed
-    public List<string> EventTypes { get; set; } = new();
-    public bool IsActive { get; set; } = true;
-    public DateTime CreatedAt { get; set; }
-    public string CreatedByUserId { get; set; } = "";
-}
-public class WebhookDelivery
-{
-    public Guid Id { get; set; }
-    public Guid WebhookId { get; set; }
-    public string EventType { get; set; } = "";
-    public string PayloadJson { get; set; } = "";
-    public int? ResponseStatus { get; set; }
-    public int AttemptCount { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? DeliveredAt { get; set; }
-    public DateTime? LastAttemptAt { get; set; }
-    public string? LastError { get; set; }
-}
-```
-
-**Worker.** `WebhookDispatchHandler` retries with exponential backoff; signs payload with HMAC-SHA256 `X-AssetHub-Signature: sha256=...`.
-
-**UI.** Admin → Integrations → Webhooks.
-
-**Acceptance criteria.** Webhook delivery has at-least-once semantics; failures are retried up to 24 h; dashboard shows failing endpoints.
+> **Shipped 2026-04-25.** See the **Shipped appendix** at the end of this document for the per-layer breakdown, the `SecretEncrypted` deviation from the spec's `SecretHash` field, and deferred items (24 h scheduled retry, additional event sources).
 
 ---
 
@@ -997,6 +963,38 @@ Full suite: 977 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 - `tests/AssetHub.Tests/Endpoints/AssetWorkflowEndpointTests.cs` — 5 HTTP tests: anonymous 401, get-state happy path, submit transitions to in-review, full Draft → Published → Approved round trip (four transitions in one test), reject-missing-reason 400.
 
 Full suite: 995 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
+### T3-INT-01 — Webhooks
+
+**Shipped 2026-04-25** in a single pass. Outbound HTTP integration so external systems can react to asset, share, comment, and workflow events without polling the API. Closes the integration arc that T1-API-01 (PATs + OpenAPI for inbound) started.
+
+**Delivered as specified.**
+- [Webhook](../../src/AssetHub.Domain/Entities/Webhook.cs) + [WebhookDelivery](../../src/AssetHub.Domain/Entities/WebhookDelivery.cs) entities. Migration `20260425115857_AddWebhooks` creates tables, `text[]` `EventTypes`, JSONB `PayloadJson`, status index for the recent-failures view.
+- [IWebhookEventPublisher](../../src/AssetHub.Application/Services/IWebhookEventPublisher.cs) — fan-out called by producer services. Source services persist a `WebhookDelivery` per matching subscriber and publish [DispatchWebhookCommand](../../src/AssetHub.Application/Messages/WebhookMessages.cs); failures inside the publisher are swallowed so the producer's primary operation can never be aborted by webhook plumbing.
+- [DispatchWebhookHandler](../../src/AssetHub.Worker/Handlers/DispatchWebhookHandler.cs) signs the payload with HMAC-SHA256 (`X-AssetHub-Signature: sha256=<hex>`), adds `X-AssetHub-Event` and `X-AssetHub-Delivery` headers, sends via the named `webhook-dispatch` HttpClient (10-second timeout), and records the outcome:
+  - 2xx → `Delivered`, no retry.
+  - 4xx → `Failed`, no retry, `webhook.delivery_failed_permanently` audit event. (Receivers signal "stop sending" with 4xx.)
+  - 5xx / network → throw to let Wolverine's existing 5-step cooldown policy retry. After `MaxAttempts` (6) the row flips to `Failed` and audit fires once.
+- Admin CRUD endpoints under `/api/v1/admin/webhooks` ([WebhookEndpoints](../../src/AssetHub.Api/Endpoints/WebhookEndpoints.cs)) plus rotate-secret, send-test, and list-deliveries. All `RequireAdmin`; service double-checks `CurrentUser.IsSystemAdmin` so the policy can't accidentally widen.
+- Plaintext signing secret returned exactly once at creation / rotation (`CreatedWebhookDto.PlaintextSecret`), like T1-API-01 PATs. Storage uses ASP.NET Core Data Protection via [WebhookSecretProtector](../../src/AssetHub.Infrastructure/Services/WebhookSecretProtector.cs).
+- Event sources wired in v1: `comment.created` (AssetCommentService), `workflow.state_changed` (AssetWorkflowService), `share.created` (ShareService), `asset.restored` (AssetTrashService). Constants in [WebhookEvents](../../src/AssetHub.Application/WebhookEvents.cs); admin UI surfaces every constant in the create dialog.
+- Audit events: `webhook.created`, `webhook.updated`, `webhook.deleted`, `webhook.secret_rotated`, `webhook.delivery_failed_permanently`. Successful deliveries stay as telemetry per the cross-cutting spec.
+- Admin UI: [AdminWebhooksTab](../../src/AssetHub.Ui/Components/AdminWebhooksTab.razor) with row actions for test, rotate, view-deliveries, delete; [CreateWebhookDialog](../../src/AssetHub.Ui/Components/CreateWebhookDialog.razor) with multi-select event picker and inline URL validation; [WebhookSecretShownDialog](../../src/AssetHub.Ui/Components/WebhookSecretShownDialog.razor) with clipboard-copy; [WebhookDeliveriesDialog](../../src/AssetHub.Ui/Components/WebhookDeliveriesDialog.razor) showing recent attempts with status chips. Localised in [WebhooksResource.resx](../../src/AssetHub.Ui/Resources/WebhooksResource.resx) + [.sv.resx](../../src/AssetHub.Ui/Resources/WebhooksResource.sv.resx) (~30 keys each).
+
+**Deviations from the spec.**
+- **`SecretEncrypted` instead of `SecretHash` on the entity.** The spec said "stored hashed (SHA256)", but HMAC signing of *outbound* requests needs the plaintext secret at sign time — a hash is one-way. Used Data Protection encryption-at-rest instead, matching the existing `Migration.SourceConfig` and `Share.TokenEncrypted` pattern. Plaintext is shown to admins exactly once (creation / rotation) and never re-derivable from storage.
+- **Retry policy is Wolverine's 5-step cooldown (~50 s total), not 24 h.** The spec called for 24-hour retry; that needs a scheduled-retry queue with progressively longer intervals (5 min, 30 min, 2 h, 6 h, 24 h) that doesn't exist yet. Today's policy catches transient 5xx / network blips well; persistent receiver outages will mark `Failed` after ~50 s. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T3-INT-01 — 24h scheduled retry queue".
+- **Event sources shipped: 4 of 9 from the spec.** v1 wires `comment.created`, `workflow.state_changed`, `share.created`, `asset.restored`. Missing: `asset.created`, `asset.updated`, `asset.deleted`, `share.accessed`, `migration.completed`. `asset.created/updated/deleted` need integration in 3+ services (AssetService, AssetUploadService, AssetService delete paths) — worth a focused follow-up. `share.accessed` is high-volume and arguably better as telemetry. `migration.completed` is admin-internal. Tracked in FOLLOW-UPS as "T3-INT-01 — wire remaining event sources".
+- **Collection-scoped share gate not surfaced as webhook event.** Existing share endpoints have collection-share variants; only the asset-scope `share.created` path emits today. Tracked in FOLLOW-UPS as part of the event-sources entry.
+
+**Test coverage.**
+- `tests/AssetHub.Tests/Services/WebhookSecretProtectorTests.cs` — 5 tests: round-trip, randomness, URL-safety, key-ring isolation.
+- `tests/AssetHub.Tests/Services/WebhookServiceTests.cs` — 7 tests: admin gate, create happy path with audit, unknown event type 400, non-http URL 400, rotate-secret, test-fire publishes command, delete 404.
+- `tests/AssetHub.Tests/Handlers/DispatchWebhookHandlerTests.cs` — 6 tests: missing delivery no-op, already-delivered idempotent, HMAC signature byte-exact match, 4xx mark-failed-no-retry, 5xx throw-for-retry, 5xx exhausted mark-failed, network exception throws.
+- `tests/AssetHub.Tests/Endpoints/WebhookEndpointTests.cs` — 4 HTTP tests: viewer 403, create+list round-trip, rotate-secret returns new plaintext, unknown event type 400.
+
+Full suite: 1020 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
 
 
 

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Tab_Description" xml:space="preserve"><value>Outbound HTTP integrations. AssetHub POSTs JSON to your endpoint when subscribed events fire, signed with HMAC-SHA256.</value></data>
+  <data name="Btn_New" xml:space="preserve"><value>New webhook</value></data>
+  <data name="Btn_Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Btn_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Btn_Test" xml:space="preserve"><value>Send test</value></data>
+  <data name="Btn_RotateSecret" xml:space="preserve"><value>Rotate secret</value></data>
+  <data name="Btn_Deliveries" xml:space="preserve"><value>Recent deliveries</value></data>
+
+  <data name="Empty_Title" xml:space="preserve"><value>No webhooks yet</value></data>
+  <data name="Empty_Desc" xml:space="preserve"><value>Create one to receive HTTP callbacks for asset, share, comment and workflow events.</value></data>
+
+  <data name="Header_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Header_Url" xml:space="preserve"><value>Endpoint</value></data>
+  <data name="Header_Events" xml:space="preserve"><value>Events</value></data>
+  <data name="Header_Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Header_Created" xml:space="preserve"><value>Created</value></data>
+  <data name="Header_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Header_Attempts" xml:space="preserve"><value>Attempts</value></data>
+  <data name="Header_LastError" xml:space="preserve"><value>Last error</value></data>
+
+  <data name="Status_pending" xml:space="preserve"><value>Pending</value></data>
+  <data name="Status_delivered" xml:space="preserve"><value>Delivered</value></data>
+  <data name="Status_failed" xml:space="preserve"><value>Failed</value></data>
+
+  <data name="Dialog_Create_Title" xml:space="preserve"><value>New webhook</value></data>
+  <data name="Dialog_Field_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Dialog_Field_Url" xml:space="preserve"><value>Endpoint URL (https://…)</value></data>
+  <data name="Dialog_Field_Events" xml:space="preserve"><value>Subscribed events</value></data>
+  <data name="Dialog_Field_Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Dialog_Submit" xml:space="preserve"><value>Create</value></data>
+  <data name="Dialog_Cancel" xml:space="preserve"><value>Cancel</value></data>
+
+  <data name="SecretShown_Title" xml:space="preserve"><value>Copy your signing secret</value></data>
+  <data name="SecretShown_Desc" xml:space="preserve"><value>This is the only time we'll show this secret. Configure it in the receiving system as the HMAC verification key. If you lose it, rotate the secret to issue a new one.</value></data>
+  <data name="SecretShown_CopyAck" xml:space="preserve"><value>Secret copied to clipboard.</value></data>
+  <data name="SecretShown_Close" xml:space="preserve"><value>I've saved it</value></data>
+
+  <data name="Confirm_Delete_Title" xml:space="preserve"><value>Delete webhook?</value></data>
+  <data name="Confirm_Delete_Body" xml:space="preserve"><value>Existing deliveries will remain in history but no new events will be sent. This cannot be undone.</value></data>
+
+  <data name="Confirm_Rotate_Title" xml:space="preserve"><value>Rotate signing secret?</value></data>
+  <data name="Confirm_Rotate_Body" xml:space="preserve"><value>The current secret stops verifying new requests immediately. Update the receiving system once the new secret is shown.</value></data>
+
+  <data name="Test_SentTitle" xml:space="preserve"><value>Test event queued</value></data>
+  <data name="Test_SentDesc" xml:space="preserve"><value>Check the deliveries list in a few seconds for the result.</value></data>
+
+  <data name="Action_Failed" xml:space="preserve"><value>Action failed.</value></data>
+</root>

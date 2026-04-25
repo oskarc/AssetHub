@@ -15,6 +15,7 @@ public sealed class AssetWorkflowService(
     IMetadataSchemaQueryService schemaQuery,
     ICollectionAuthorizationService authService,
     INotificationService notifications,
+    IWebhookEventPublisher webhooks,
     IAuditService audit,
     CurrentUser currentUser,
     ILogger<AssetWorkflowService> logger) : IAssetWorkflowService
@@ -126,6 +127,17 @@ public sealed class AssetWorkflowService(
                 ["reason"] = reason ?? string.Empty
             },
             ct);
+
+        await webhooks.PublishAsync(WebhookEvents.WorkflowStateChanged, new
+        {
+            assetId,
+            assetTitle = asset.Title,
+            fromState = from.ToDbString(),
+            toState = to.ToDbString(),
+            actorUserId = currentUser.UserId,
+            reason,
+            transitionedAt = now
+        }, ct);
 
         // Notify the asset's author unless they're also the actor — no point
         // pinging yourself about your own approval click.

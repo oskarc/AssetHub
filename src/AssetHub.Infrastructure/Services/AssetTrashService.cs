@@ -9,10 +9,14 @@ using Microsoft.Extensions.Options;
 
 namespace AssetHub.Infrastructure.Services;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Standard DI shape: repos + audit + webhook publisher + scoped CurrentUser + 2 IOptions + logger. Bundling them into a holder would obscure intent.")]
 public sealed class AssetTrashService(
     IAssetRepository assetRepo,
     IAssetDeletionService deletionService,
     IAuditService audit,
+    IWebhookEventPublisher webhooks,
     CurrentUser currentUser,
     IOptions<AssetLifecycleSettings> lifecycleSettings,
     IOptions<MinIOSettings> minioSettings,
@@ -53,6 +57,13 @@ public sealed class AssetTrashService(
         await deletionService.RestoreAsync(asset, ct);
         await audit.LogAsync("asset.restored", Constants.ScopeTypes.Asset, id, currentUser.UserId,
             new() { ["title"] = asset.Title }, ct);
+        await webhooks.PublishAsync(WebhookEvents.AssetRestored, new
+        {
+            assetId = id,
+            title = asset.Title,
+            restoredByUserId = currentUser.UserId,
+            restoredAt = DateTime.UtcNow
+        }, ct);
         logger.LogInformation("Admin {UserId} restored asset {AssetId} from Trash", currentUser.UserId, id);
         return ServiceResult.Success;
     }

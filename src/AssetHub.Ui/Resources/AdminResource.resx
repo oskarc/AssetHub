@@ -499,6 +499,9 @@ logo.png,Company Logo,branding,"Brand Assets;Marketing"</value></data>
   <data name="Taxonomies_UnsavedChangesTitle" xml:space="preserve"><value>Discard changes?</value></data>
   <data name="Taxonomies_UnsavedChangesText" xml:space="preserve"><value>You have unsaved changes to this taxonomy. Close anyway?</value></data>
 
+  <!-- Webhooks -->
+  <data name="Tab_Webhooks" xml:space="preserve"><value>Webhooks</value></data>
+
   <!-- Trash -->
   <data name="Tab_Trash" xml:space="preserve"><value>Trash</value></data>
   <data name="Trash_Desc" xml:space="preserve"><value>Soft-deleted assets. Restore any item before it expires, or purge permanently to free storage.</value></data>

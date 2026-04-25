@@ -1,0 +1,227 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<WebhooksResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudStack Spacing="3">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Style="max-width: 720px;">
+            @Loc["Tab_Description"]
+        </MudText>
+        <MudStack Row="true" Spacing="1">
+            <MudButton Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="LoadAsync"
+                       aria-label="@Loc["Btn_Refresh"]">
+                @Loc["Btn_Refresh"]
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OnCreateAsync"
+                       aria-label="@Loc["Btn_New"]">
+                @Loc["Btn_New"]
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (_loading && _webhooks is null)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_webhooks is null || _webhooks.Count == 0)
+    {
+        <EmptyState Title="@Loc["Empty_Title"]"
+                    Description="@Loc["Empty_Desc"]"
+                    Icon="@Icons.Material.Filled.Webhook" />
+    }
+    else
+    {
+        <MudTable Items="@_webhooks" Hover="true" Dense="true" Striped="true" Loading="@_loading">
+            <HeaderContent>
+                <MudTh>@Loc["Header_Name"]</MudTh>
+                <MudTh>@Loc["Header_Url"]</MudTh>
+                <MudTh>@Loc["Header_Events"]</MudTh>
+                <MudTh>@Loc["Header_Active"]</MudTh>
+                <MudTh>@Loc["Header_Created"]</MudTh>
+                <MudTh Style="width: 280px;"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@Loc["Header_Name"]">
+                    <MudText Typo="Typo.body2" Class="font-semibold">@context.Name</MudText>
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Url"]">
+                    <MudText Typo="Typo.caption" Style="word-break: break-all;">@context.Url</MudText>
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Events"]">
+                    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="0">
+                        @foreach (var t in context.EventTypes)
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@t</MudChip>
+                        }
+                    </MudStack>
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Active"]">
+                    @if (context.IsActive)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled"
+                                 Icon="@Icons.Material.Filled.CheckCircle">@Loc["Header_Active"]</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined"
+                                 Icon="@Icons.Material.Filled.PauseCircle">—</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Created"]">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @context.CreatedAt.ToLocalTime().ToString("g")
+                    </MudText>
+                </MudTd>
+                <MudTd>
+                    <MudStack Row="true" Spacing="0">
+                        <MudTooltip Text="@Loc["Btn_Test"]">
+                            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.Send"
+                                           OnClick="@(() => OnTestAsync(context))"
+                                           aria-label="@Loc["Btn_Test"]" />
+                        </MudTooltip>
+                        <MudTooltip Text="@Loc["Btn_RotateSecret"]">
+                            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.Key"
+                                           OnClick="@(() => OnRotateAsync(context))"
+                                           aria-label="@Loc["Btn_RotateSecret"]" />
+                        </MudTooltip>
+                        <MudTooltip Text="@Loc["Btn_Deliveries"]">
+                            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.History"
+                                           OnClick="@(() => OnViewDeliveriesAsync(context))"
+                                           aria-label="@Loc["Btn_Deliveries"]" />
+                        </MudTooltip>
+                        <MudTooltip Text="@Loc["Btn_Delete"]">
+                            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.Delete"
+                                           Color="Color.Error"
+                                           OnClick="@(() => OnDeleteAsync(context))"
+                                           aria-label="@Loc["Btn_Delete"]" />
+                        </MudTooltip>
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudStack>
+
+@code {
+    private List<WebhookResponseDto>? _webhooks;
+    private bool _loading;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _webhooks = await Api.GetWebhooksAsync(_cts.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load webhooks");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnCreateAsync()
+    {
+        var result = await DialogService.ShowAsync<CreateWebhookDialog>(Loc["Dialog_Create_Title"]);
+        var dialogResult = await result.Result;
+        if (dialogResult is null || dialogResult.Canceled) return;
+
+        if (dialogResult.Data is CreatedWebhookDto created)
+        {
+            await ShowSecretAsync(created.PlaintextSecret);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OnTestAsync(WebhookResponseDto webhook)
+    {
+        try
+        {
+            await Api.SendWebhookTestAsync(webhook.Id, _cts.Token);
+            Feedback.ShowInfo(Loc["Test_SentDesc"].Value);
+        }
+        catch (Exception)
+        {
+            Feedback.ShowError(Loc["Action_Failed"].Value);
+        }
+    }
+
+    private async Task OnRotateAsync(WebhookResponseDto webhook)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            Loc["Confirm_Rotate_Title"], Loc["Confirm_Rotate_Body"].Value,
+            yesText: Loc["Btn_RotateSecret"], cancelText: Loc["Dialog_Cancel"]);
+        if (confirmed != true) return;
+
+        try
+        {
+            var rotated = await Api.RotateWebhookSecretAsync(webhook.Id, _cts.Token);
+            await ShowSecretAsync(rotated.PlaintextSecret);
+        }
+        catch (Exception)
+        {
+            Feedback.ShowError(Loc["Action_Failed"].Value);
+        }
+    }
+
+    private async Task OnViewDeliveriesAsync(WebhookResponseDto webhook)
+    {
+        var parameters = new DialogParameters { ["Webhook"] = webhook };
+        await DialogService.ShowAsync<WebhookDeliveriesDialog>(
+            $"{webhook.Name} — {Loc["Btn_Deliveries"]}",
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
+    }
+
+    private async Task OnDeleteAsync(WebhookResponseDto webhook)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            Loc["Confirm_Delete_Title"], Loc["Confirm_Delete_Body"].Value,
+            yesText: Loc["Btn_Delete"], cancelText: Loc["Dialog_Cancel"]);
+        if (confirmed != true) return;
+
+        // Optimistic: remove locally, restore on failure.
+        var removed = webhook;
+        _webhooks?.Remove(removed);
+        StateHasChanged();
+        try
+        {
+            await Api.DeleteWebhookAsync(webhook.Id, _cts.Token);
+        }
+        catch (Exception)
+        {
+            _webhooks?.Add(removed);
+            StateHasChanged();
+            Feedback.ShowError(Loc["Action_Failed"].Value);
+        }
+    }
+
+    private async Task ShowSecretAsync(string secret)
+    {
+        var parameters = new DialogParameters { ["Secret"] = secret };
+        await DialogService.ShowAsync<WebhookSecretShownDialog>(
+            Loc["SecretShown_Title"],
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+    }
+}

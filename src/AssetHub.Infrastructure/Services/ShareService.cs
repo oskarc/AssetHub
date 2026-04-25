@@ -23,6 +23,9 @@ public sealed record ShareServiceRepositories(
     IShareRepository ShareRepo);
 
 /// <inheritdoc />
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for share creation: pre-grouped repos + email + user lookup + audit + Data Protection + workflow settings + webhook publisher + scoped CurrentUser + logger. Already grouped via ShareServiceRepositories; further bundling would obscure intent.")]
 public class ShareService(
     ShareServiceRepositories repos,
     IEmailService emailService,
@@ -30,6 +33,7 @@ public class ShareService(
     IAuditService audit,
     IDataProtectionProvider dataProtection,
     IOptions<WorkflowSettings> workflowSettings,
+    IWebhookEventPublisher webhooks,
     CurrentUser currentUser,
     ILogger<ShareService> logger) : IShareService
 {
@@ -136,6 +140,19 @@ public class ShareService(
 
         await audit.LogAsync("share.created", Constants.ScopeTypes.Share, share.Id, userId,
             new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, ct);
+
+        // Webhook event — only the safe descriptors. Plaintext token /
+        // password are NEVER included in the payload; subscribers don't
+        // need them and shouldn't be able to access shared content.
+        await webhooks.PublishAsync(WebhookEvents.ShareCreated, new
+        {
+            shareId = share.Id,
+            scopeType = dto.ScopeType,
+            scopeId = dto.ScopeId,
+            createdByUserId = userId,
+            createdAt = share.CreatedAt,
+            expiresAt = share.ExpiresAt
+        }, ct);
 
         var shareUrl = $"{baseUrl}/{Constants.Routes.Share}/{token}";
         var emailFailed = false;

@@ -47,6 +47,7 @@ static class Program
                 opts.ListenToRabbitQueue("process-migration-item");
                 opts.ListenToRabbitQueue("s3-migration-scan");
                 opts.ListenToRabbitQueue("send-notification-email");
+                opts.ListenToRabbitQueue("dispatch-webhook");
 
                 // Route events back to API
                 opts.PublishMessage<AssetProcessingCompletedEvent>()
@@ -86,6 +87,14 @@ static class Program
                 // worker reach SMTP + Keycloak without going through the API.
                 services.AddScoped<IUserLookupService, UserLookupService>();
                 services.AddScoped<IEmailService, SmtpEmailService>();
+
+                // Outbound HTTP client used by DispatchWebhookHandler. Short
+                // timeout so a slow / hanging receiver can't hold a worker
+                // thread for minutes; Wolverine retries handle the rest.
+                services.AddHttpClient("webhook-dispatch", client =>
+                {
+                    client.Timeout = TimeSpan.FromSeconds(10);
+                });
 
                 // Bind settings the worker-side services need
                 services.AddOptions<AppSettings>()

@@ -497,6 +497,9 @@ logo.png,Företagslogotyp,varumärke,"Varumärkesresurser;Marknadsföring"</valu
   <data name="Taxonomies_UnsavedChangesTitle" xml:space="preserve"><value>Kasta ändringar?</value></data>
   <data name="Taxonomies_UnsavedChangesText" xml:space="preserve"><value>Du har osparade ändringar i denna taxonomi. Stäng ändå?</value></data>
 
+  <!-- Webhooks -->
+  <data name="Tab_Webhooks" xml:space="preserve"><value>Webhooks</value></data>
+
   <!-- Trash -->
   <data name="Tab_Trash" xml:space="preserve"><value>Papperskorg</value></data>
   <data name="Trash_Desc" xml:space="preserve"><value>Mjukraderade tillgångar. Återställ innan de löper ut eller rensa permanent för att frigöra lagring.</value></data>

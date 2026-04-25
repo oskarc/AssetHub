@@ -37,6 +37,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<NotificationPreferences> NotificationPreferences { get; set; } = null!;
     public DbSet<AssetComment> AssetComments { get; set; } = null!;
     public DbSet<AssetWorkflowTransition> AssetWorkflowTransitions { get; set; } = null!;
+    public DbSet<Webhook> Webhooks { get; set; } = null!;
+    public DbSet<WebhookDelivery> WebhookDeliveries { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -674,6 +676,54 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.HasOne(e => e.Asset)
                 .WithMany()
                 .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Webhook (T3-INT-01) — outbound integration subscription.
+        modelBuilder.Entity<Webhook>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            // Publisher scans for active webhooks matching an event type;
+            // partial would be smaller but Postgres composite is fine here.
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_webhook_active");
+
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Url).HasMaxLength(2048).IsRequired();
+            entity.Property(e => e.SecretEncrypted).HasMaxLength(2048).IsRequired();
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
+
+            entity.Property(e => e.EventTypes)
+                .HasColumnType("text[]")
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
+        });
+
+        // WebhookDelivery (T3-INT-01) — one row per (Webhook, event)
+        // dispatch; the handler updates it in place to record terminal status.
+        modelBuilder.Entity<WebhookDelivery>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Admin "recent failures" list filters by status + ordered newest first.
+            entity.HasIndex(e => new { e.WebhookId, e.CreatedAt })
+                .HasDatabaseName("idx_webhook_delivery_webhook_created");
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("idx_webhook_delivery_status");
+
+            entity.Property(e => e.EventType).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.PayloadJson).HasColumnType(Jsonb).IsRequired();
+            entity.Property(e => e.LastError).HasMaxLength(2000);
+
+            entity.Property(e => e.Status)
+                .HasConversion(v => v.ToDbString(), v => v.ToWebhookDeliveryStatus())
+                .HasMaxLength(20).IsRequired();
+
+            entity.HasOne(e => e.Webhook)
+                .WithMany()
+                .HasForeignKey(e => e.WebhookId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

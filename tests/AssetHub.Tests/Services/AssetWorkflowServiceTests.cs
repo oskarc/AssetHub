@@ -18,6 +18,7 @@ public class AssetWorkflowServiceTests
     private readonly Mock<IMetadataSchemaQueryService> _schemaQuery = new();
     private readonly Mock<ICollectionAuthorizationService> _authService = new();
     private readonly Mock<INotificationService> _notifications = new();
+    private readonly Mock<IWebhookEventPublisher> _webhooks = new();
     private readonly Mock<IAuditService> _audit = new();
 
     private const string AuthorId = "user-author";
@@ -47,7 +48,7 @@ public class AssetWorkflowServiceTests
     private AssetWorkflowService CreateService(string userId = AuthorId, bool isAdmin = false)
         => new(_assetRepo.Object, _assetCollectionRepo.Object, _transitionRepo.Object,
                _metadataRepo.Object, _schemaQuery.Object, _authService.Object,
-               _notifications.Object, _audit.Object,
+               _notifications.Object, _webhooks.Object, _audit.Object,
                new CurrentUser(userId, isAdmin),
                NullLogger<AssetWorkflowService>.Instance);
 
@@ -285,7 +286,7 @@ public class AssetWorkflowServiceTests
         var svc = new AssetWorkflowService(
             _assetRepo.Object, _assetCollectionRepo.Object, _transitionRepo.Object,
             _metadataRepo.Object, _schemaQuery.Object, _authService.Object,
-            _notifications.Object, _audit.Object,
+            _notifications.Object, _webhooks.Object, _audit.Object,
             CurrentUser.Anonymous,
             NullLogger<AssetWorkflowService>.Instance);
 

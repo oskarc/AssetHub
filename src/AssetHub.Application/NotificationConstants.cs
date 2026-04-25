@@ -72,6 +72,13 @@ public static class NotificationConstants
         public const string WorkflowRejected = "asset.workflow_rejected";
         public const string WorkflowPublished = "asset.workflow_published";
         public const string WorkflowUnpublished = "asset.workflow_unpublished";
+
+        // T3-INT-01 — webhooks
+        public const string WebhookCreated = "webhook.created";
+        public const string WebhookUpdated = "webhook.updated";
+        public const string WebhookDeleted = "webhook.deleted";
+        public const string WebhookSecretRotated = "webhook.secret_rotated";
+        public const string WebhookDeliveryFailedPermanently = "webhook.delivery_failed_permanently";
     }
 
     /// <summary>Limits.</summary>

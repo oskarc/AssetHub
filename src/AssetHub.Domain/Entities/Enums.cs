@@ -504,4 +504,20 @@ public static class DomainEnumExtensions
 
     public static bool IsValidAssetWorkflowState(string value)
         => value is "draft" or "in_review" or "approved" or "rejected" or "published";
+
+    public static string ToDbString(this WebhookDeliveryStatus status) => status switch
+    {
+        WebhookDeliveryStatus.Pending => "pending",
+        WebhookDeliveryStatus.Delivered => "delivered",
+        WebhookDeliveryStatus.Failed => Failed,
+        _ => throw new ArgumentOutOfRangeException(nameof(status))
+    };
+
+    public static WebhookDeliveryStatus ToWebhookDeliveryStatus(this string value) => value switch
+    {
+        "pending" => WebhookDeliveryStatus.Pending,
+        "delivered" => WebhookDeliveryStatus.Delivered,
+        Failed => WebhookDeliveryStatus.Failed,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown delivery status: {value}")
+    };
 }
