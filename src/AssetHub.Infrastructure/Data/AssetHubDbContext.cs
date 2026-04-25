@@ -10,6 +10,7 @@ namespace AssetHub.Infrastructure.Data;
 public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
 {
     private const string Jsonb = "jsonb";
+    private const string TextArray = "text[]";
 
     public AssetHubDbContext(DbContextOptions<AssetHubDbContext> options) : base(options)
     {
@@ -47,7 +48,40 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Collection
+        ConfigureCollection(modelBuilder);
+        ConfigureCollectionAcl(modelBuilder);
+        ConfigureAsset(modelBuilder);
+        ConfigureAssetCollection(modelBuilder);
+        ConfigureShare(modelBuilder);
+        ConfigureAuditEvent(modelBuilder);
+        ConfigureZipDownload(modelBuilder);
+        ConfigureExportPreset(modelBuilder);
+        ConfigureMigration(modelBuilder);
+        ConfigureMigrationItem(modelBuilder);
+        ConfigureMetadataSchema(modelBuilder);
+        ConfigureMetadataField(modelBuilder);
+        ConfigureTaxonomy(modelBuilder);
+        ConfigureTaxonomyTerm(modelBuilder);
+        ConfigureAssetMetadataValue(modelBuilder);
+        ConfigureSavedSearch(modelBuilder);
+        ConfigureAssetVersion(modelBuilder);
+        ConfigurePersonalAccessToken(modelBuilder);
+        ConfigureNotification(modelBuilder);
+        ConfigureNotificationPreferences(modelBuilder);
+        ConfigureAssetComment(modelBuilder);
+        ConfigureAssetWorkflowTransition(modelBuilder);
+        ConfigureWebhook(modelBuilder);
+        ConfigureGuestInvitation(modelBuilder);
+        ConfigureBrand(modelBuilder);
+        ConfigureWebhookDelivery(modelBuilder);
+    }
+
+    // ── Per-entity configuration ────────────────────────────────────────
+    // OnModelCreating used to be a 565-line method; one block per entity is
+    // easier to navigate and keeps each block under the cognitive-complexity
+    // ceiling. Order in the dispatcher mirrors load order in production.
+
+    private static void ConfigureCollection(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Collection>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -66,7 +100,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
-        // CollectionAcl
+    private static void ConfigureCollectionAcl(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<CollectionAcl>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -90,7 +124,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Asset
+    private static void ConfigureAsset(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Asset>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -135,21 +169,13 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.PosterObjectKey).HasMaxLength(512);
 
             entity.Property(e => e.Tags)
-                .HasColumnType("text[]")
-                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
-                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c.ToList()));
+                .HasColumnType(TextArray)
+                .Metadata.SetValueComparer(StringListComparer);
 
             entity.Property(e => e.MetadataJson)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasConversion(JsonbDictionaryConverter)
                 .HasColumnType(Jsonb)
-                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
-                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
-                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
-                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+                .Metadata.SetValueComparer(JsonbDictionaryComparer);
 
             // Source asset self-FK for derivative lineage
             entity.HasIndex(e => e.SourceAssetId).HasDatabaseName("idx_assets_source_asset_id");
@@ -172,7 +198,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .HasDatabaseName("idx_asset_search_vector");
         });
 
-        // AssetCollection (many-to-many join table)
+    private static void ConfigureAssetCollection(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<AssetCollection>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -192,7 +218,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Share
+    private static void ConfigureShare(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Share>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -223,7 +249,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Ignore(e => e.Collection);
         });
 
-        // AuditEvent
+    private static void ConfigureAuditEvent(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<AuditEvent>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -234,17 +260,12 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.EventType).HasMaxLength(100).IsRequired();
             entity.Property(e => e.TargetType).HasMaxLength(100).IsRequired();
             entity.Property(e => e.DetailsJson)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasConversion(JsonbDictionaryConverter)
                 .HasColumnType(Jsonb)
-                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
-                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
-                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
-                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+                .Metadata.SetValueComparer(JsonbDictionaryComparer);
         });
 
-        // ZipDownload
+    private static void ConfigureZipDownload(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<ZipDownload>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -266,7 +287,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
         });
 
-        // ExportPreset
+    private static void ConfigureExportPreset(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<ExportPreset>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -282,7 +303,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
         });
 
-        // Migration
+    private static void ConfigureMigration(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Migration>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -299,14 +320,9 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
 
             entity.Property(e => e.SourceConfig)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasConversion(JsonbDictionaryConverter)
                 .HasColumnType(Jsonb)
-                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
-                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
-                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
-                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+                .Metadata.SetValueComparer(JsonbDictionaryComparer);
 
             entity.Property(e => e.FieldMapping)
                 .HasConversion(
@@ -324,7 +340,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // MigrationItem
+    private static void ConfigureMigrationItem(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<MigrationItem>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -348,31 +364,20 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.IsFileStaged).HasDefaultValue(false);
 
             entity.Property(e => e.Tags)
-                .HasColumnType("text[]")
-                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
-                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c.ToList()));
+                .HasColumnType(TextArray)
+                .Metadata.SetValueComparer(StringListComparer);
 
             entity.Property(e => e.CollectionNames)
-                .HasColumnType("text[]")
-                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
-                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c.ToList()));
+                .HasColumnType(TextArray)
+                .Metadata.SetValueComparer(StringListComparer);
 
             entity.Property(e => e.MetadataJson)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasConversion(JsonbDictionaryConverter)
                 .HasColumnType(Jsonb)
-                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
-                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
-                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
-                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+                .Metadata.SetValueComparer(JsonbDictionaryComparer);
         });
 
-        // MetadataSchema
+    private static void ConfigureMetadataSchema(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<MetadataSchema>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -403,7 +408,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // MetadataField
+    private static void ConfigureMetadataField(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<MetadataField>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -421,11 +426,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.NumericMax).HasColumnType("numeric");
 
             entity.Property(e => e.SelectOptions)
-                .HasColumnType("text[]")
-                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
-                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c.ToList()));
+                .HasColumnType(TextArray)
+                .Metadata.SetValueComparer(StringListComparer);
 
             entity.HasOne(e => e.Taxonomy)
                 .WithMany()
@@ -433,7 +435,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
-        // Taxonomy
+    private static void ConfigureTaxonomy(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Taxonomy>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -449,7 +451,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // TaxonomyTerm
+    private static void ConfigureTaxonomyTerm(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<TaxonomyTerm>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -467,7 +469,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // AssetMetadataValue
+    private static void ConfigureAssetMetadataValue(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<AssetMetadataValue>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -496,7 +498,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
-        // SavedSearch
+    private static void ConfigureSavedSearch(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<SavedSearch>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -511,7 +513,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .HasMaxLength(50).IsRequired();
         });
 
-        // AssetVersion
+    private static void ConfigureAssetVersion(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<AssetVersion>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -531,14 +533,9 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.EditDocument).HasColumnType(Jsonb);
 
             entity.Property(e => e.MetadataSnapshot)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasConversion(JsonbDictionaryConverter)
                 .HasColumnType(Jsonb)
-                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
-                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
-                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
-                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+                .Metadata.SetValueComparer(JsonbDictionaryComparer);
 
             // Cascade with the Asset row so a hard purge (TTL or admin delete-forever)
             // takes the version history with it. Soft delete is hidden by Asset's global
@@ -550,7 +547,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // PersonalAccessToken
+    private static void ConfigurePersonalAccessToken(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<PersonalAccessToken>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -563,14 +560,11 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.TokenHash).HasMaxLength(64).IsRequired();
 
             entity.Property(e => e.Scopes)
-                .HasColumnType("text[]")
-                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
-                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c.ToList()));
+                .HasColumnType(TextArray)
+                .Metadata.SetValueComparer(StringListComparer);
         });
 
-        // Notification
+    private static void ConfigureNotification(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Notification>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -588,17 +582,12 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.Url).HasMaxLength(500);
 
             entity.Property(e => e.Data)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>())
+                .HasConversion(JsonbDictionaryConverter)
                 .HasColumnType(Jsonb)
-                .Metadata.SetValueComparer(new ValueComparer<Dictionary<string, object>>(
-                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
-                    c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
-                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+                .Metadata.SetValueComparer(JsonbDictionaryComparer);
         });
 
-        // NotificationPreferences
+    private static void ConfigureNotificationPreferences(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<NotificationPreferences>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -623,7 +612,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     c => JsonSerializer.Deserialize<Dictionary<string, NotificationCategoryPrefs>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
         });
 
-        // AssetComment
+    private static void ConfigureAssetComment(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<AssetComment>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -644,11 +633,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             // re-parse the body on read, and we can group-by mentioned user
             // for future "mentions of me" views.
             entity.Property(e => e.MentionedUserIds)
-                .HasColumnType("text[]")
-                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
-                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c.ToList()));
+                .HasColumnType(TextArray)
+                .Metadata.SetValueComparer(StringListComparer);
 
             // Cascade with the Asset row on hard-delete / purge. Soft delete
             // is hidden via the Asset global query filter (we only read
@@ -666,7 +652,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // AssetWorkflowTransition (T3-WF-01) — append-only history per asset.
+    private static void ConfigureAssetWorkflowTransition(ModelBuilder modelBuilder) =>
+        // T3-WF-01 — append-only workflow history per asset.
         modelBuilder.Entity<AssetWorkflowTransition>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -690,7 +677,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Webhook (T3-INT-01) — outbound integration subscription.
+    private static void ConfigureWebhook(ModelBuilder modelBuilder) =>
+        // T3-INT-01 — outbound integration subscription.
         modelBuilder.Entity<Webhook>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -705,14 +693,12 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
 
             entity.Property(e => e.EventTypes)
-                .HasColumnType("text[]")
-                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
-                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
-                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c.ToList()));
+                .HasColumnType(TextArray)
+                .Metadata.SetValueComparer(StringListComparer);
         });
 
-        // GuestInvitation (T4-GUEST-01) — magic-link invites for external reviewers.
+    private static void ConfigureGuestInvitation(ModelBuilder modelBuilder) =>
+        // T4-GUEST-01 — magic-link invites for external reviewers.
         modelBuilder.Entity<GuestInvitation>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -741,7 +727,8 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     c => c.ToList()));
         });
 
-        // Brand (T4-BP-01) — share-page theming.
+    private static void ConfigureBrand(ModelBuilder modelBuilder) =>
+        // T4-BP-01 — share-page theming.
         modelBuilder.Entity<Brand>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -763,8 +750,9 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
         });
 
-        // WebhookDelivery (T3-INT-01) — one row per (Webhook, event)
-        // dispatch; the handler updates it in place to record terminal status.
+    private static void ConfigureWebhookDelivery(ModelBuilder modelBuilder) =>
+        // T3-INT-01 — one row per (Webhook, event) dispatch; the handler
+        // updates it in place to record terminal status.
         modelBuilder.Entity<WebhookDelivery>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -788,5 +776,23 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .HasForeignKey(e => e.WebhookId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
-    }
+
+    // ── Shared converters / comparers ───────────────────────────────────
+    // The same JSONB Dictionary<string,object> shape and text[] List<string>
+    // shape repeat across many entities; sharing the converter + comparer
+    // instances avoids dozens of duplicated ValueComparer constructions.
+
+    private static readonly ValueComparer<List<string>> StringListComparer = new(
+        (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+        c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+        c => c.ToList());
+
+    private static readonly ValueComparer<Dictionary<string, object>> JsonbDictionaryComparer = new(
+        (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+        c => JsonSerializer.Serialize(c, (JsonSerializerOptions?)null).GetHashCode(),
+        c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!);
+
+    private static readonly Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<Dictionary<string, object>, string> JsonbDictionaryConverter = new(
+        v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+        v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>());
 }
