@@ -5,6 +5,9 @@ obj/
 *.exe
 *.pdb
 
+# Local SonarCloud issue dumps (token-fetched, not for the repo)
+scripts/sonar-issues.txt
+
 # Visual Studio
 .vs/
 .vscode/
