@@ -18,6 +18,7 @@ public static class NotificationEndpoints
             // Any authenticated user can read / mutate their own notifications.
             // The service layer scopes every call to CurrentUser.UserId.
             .RequireAuthorization()
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Notifications");
 
         group.MapGet("", List).WithName("ListNotifications");

@@ -22,6 +22,7 @@ public static class AdminEndpoints
     {
         var group = app.MapGroup("/api/v1/admin")
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Admin");
 
         // ===== SHARE MANAGEMENT =====

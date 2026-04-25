@@ -16,6 +16,7 @@ public static class MigrationEndpoints
     {
         var group = app.MapGroup("/api/v1/admin/migrations")
             .RequireAuthorization(Constants.Policies.RequireAdmin)
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Migrations");
 
         group.MapPost("", CreateMigration)

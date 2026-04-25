@@ -13,6 +13,7 @@ public static class RenditionEndpoints
         // evolve as we wire signed-URL embedding (FOLLOW-UP).
         var group = app.MapGroup("/api/v1/assets/{id:guid}/render")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Asset Renditions");
 
         group.MapGet("/", Render).WithName("RenderAsset");

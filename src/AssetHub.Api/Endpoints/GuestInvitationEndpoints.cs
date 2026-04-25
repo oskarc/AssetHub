@@ -15,6 +15,7 @@ public static class GuestInvitationEndpoints
         // Admin-only group for invite / list / revoke.
         var adminGroup = app.MapGroup("/api/v1/admin/guest-invitations")
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Guest Invitations");
 
         adminGroup.MapGet("/", List).WithName("ListGuestInvitations");

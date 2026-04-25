@@ -16,6 +16,7 @@ public static class ExportPresetEndpoints
         // Read-only access for all authenticated users (contributors use this in the image editor)
         var readGroup = app.MapGroup("/api/v1/export-presets")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("ExportPresets");
 
         readGroup.MapGet("/", GetAll).WithName("GetExportPresets");
@@ -23,6 +24,7 @@ public static class ExportPresetEndpoints
         // Admin-only CRUD
         var adminGroup = app.MapGroup("/api/v1/admin/export-presets")
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("ExportPresets");
 
         adminGroup.MapGet("/{id:guid}", GetById).WithName("GetExportPresetById");

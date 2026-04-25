@@ -14,6 +14,7 @@ public static class AssetWorkflowEndpoints
         // (author-bound submit, Manager+ for approve/reject/publish/unpublish).
         var group = app.MapGroup("/api/v1/assets/{id:guid}/workflow")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Asset Workflow");
 
         group.MapGet("/", Get).WithName("GetAssetWorkflow");

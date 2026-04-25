@@ -12,6 +12,7 @@ public static class SavedSearchEndpoints
     {
         var group = app.MapGroup("/api/v1/saved-searches")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Saved Searches");
 
         group.MapGet("/", async (

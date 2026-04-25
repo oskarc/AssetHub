@@ -13,6 +13,7 @@ public static class TaxonomyEndpoints
         // ── Read endpoints (RequireViewer) ──────────────────────────────
         var readGroup = app.MapGroup("/api/v1/taxonomies")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Taxonomies");
 
         readGroup.MapGet("/", async (
@@ -29,6 +30,7 @@ public static class TaxonomyEndpoints
         // ── Admin endpoints (RequireAdmin) ─────────────────────────────
         var adminGroup = app.MapGroup("/api/v1/admin/taxonomies")
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Admin - Taxonomies");
 
         adminGroup.MapPost("/", async (

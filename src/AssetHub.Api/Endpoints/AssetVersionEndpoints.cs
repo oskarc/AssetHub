@@ -12,6 +12,7 @@ public static class AssetVersionEndpoints
     {
         var group = app.MapGroup("/api/v1/assets/{id:guid}/versions")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Asset Versions")
             .MarkAsPublicApi();
 

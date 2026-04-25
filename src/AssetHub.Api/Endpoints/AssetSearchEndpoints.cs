@@ -14,6 +14,7 @@ public static class AssetSearchEndpoints
     {
         var group = app.MapGroup("/api/v1/assets")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Asset Search")
             .MarkAsPublicApi();
 

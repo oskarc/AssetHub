@@ -15,6 +15,7 @@ public static class ImageEditEndpoints
     {
         var group = app.MapGroup("/api/v1/assets")
             .RequireAuthorization("RequireContributor")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("ImageEditing");
 
         group.MapPost("/{id:guid}/edit", ApplyEdit)

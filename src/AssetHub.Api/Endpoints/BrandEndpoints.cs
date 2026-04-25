@@ -15,6 +15,7 @@ public static class BrandEndpoints
     {
         var group = app.MapGroup("/api/v1/admin/brands")
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Brands");
 
         group.MapGet("/", List).WithName("ListBrands");

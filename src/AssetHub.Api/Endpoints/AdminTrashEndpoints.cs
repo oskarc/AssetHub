@@ -10,6 +10,7 @@ public static class AdminTrashEndpoints
     {
         var group = app.MapGroup("/api/v1/admin/trash")
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Admin - Trash");
 
         group.MapGet("/", async (

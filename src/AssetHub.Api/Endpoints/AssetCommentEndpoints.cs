@@ -14,6 +14,7 @@ public static class AssetCommentEndpoints
         // contributor-or-higher for create and author-or-admin for delete.
         var group = app.MapGroup("/api/v1/assets/{id:guid}/comments")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Asset Comments");
 
         group.MapGet("/", List).WithName("ListAssetComments");

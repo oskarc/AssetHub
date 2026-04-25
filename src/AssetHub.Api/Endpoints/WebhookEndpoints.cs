@@ -14,6 +14,7 @@ public static class WebhookEndpoints
         // can't accidentally widen if the policy is loosened later.
         var group = app.MapGroup("/api/v1/admin/webhooks")
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Webhooks");
 
         group.MapGet("/", List).WithName("ListWebhooks");

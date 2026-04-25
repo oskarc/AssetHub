@@ -14,6 +14,7 @@ public static class AssetMetadataEndpoints
     {
         var readGroup = app.MapGroup("/api/v1/assets")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Asset Metadata")
             .MarkAsPublicApi();
 
@@ -27,6 +28,7 @@ public static class AssetMetadataEndpoints
         // Writes require contributor+; the service additionally checks collection-scoped RBAC.
         var writeGroup = app.MapGroup("/api/v1/assets")
             .RequireAuthorization("RequireContributor")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Asset Metadata")
             .MarkAsPublicApi();
 
@@ -50,6 +52,7 @@ public static class AssetMetadataEndpoints
             .AddEndpointFilter<ValidationFilter<BulkSetAssetMetadataDto>>()
             .AddEndpointFilter(writeScope)
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .DisableAntiforgery();
     }
 }

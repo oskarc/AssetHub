@@ -111,6 +111,24 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpContextAccessor();
 
+        // ── Antiforgery (P-12 / A-7) ────────────────────────────────────────
+        // Custom cookie + header names so the X-CSRF-TOKEN convention is
+        // explicit (default is __RequestVerificationToken which clashes with
+        // Razor Pages tooling). The cookie is __Host.-prefixed for the same
+        // host-binding guarantees as the auth cookie, with SameSite=Strict.
+        services.AddAntiforgery(options =>
+        {
+            options.Cookie.Name = "__Host.assethub.csrf";
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            // Blazor Server reads the token server-side via IAntiforgery —
+            // browser JS never needs the cookie, so lock it down.
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = environment.IsDevelopment()
+                ? CookieSecurePolicy.SameAsRequest
+                : CookieSecurePolicy.Always;
+            options.HeaderName = "X-CSRF-TOKEN";
+        });
+
         // ── Shared infrastructure: DB, MinIO, Repos, core services ─────────
         services.AddSharedInfrastructure(configuration);
 
@@ -328,6 +346,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AssetHub.Ui.Services.ThemeService>();
         services.AddScoped<AssetHub.Ui.Services.LocalizedDisplayService>();
         services.AddTransient<AssetHub.Ui.Services.CookieForwardingHandler>();
+        services.AddTransient<AssetHub.Ui.Services.AntiforgeryHeaderHandler>();
 
         var connectionString = configuration.GetConnectionString("Postgres");
 
@@ -350,7 +369,12 @@ public static class ServiceCollectionExtensions
             }
         })
         .ConfigurePrimaryHttpMessageHandler(() => CreateHttpHandler(environment))
-        .AddHttpMessageHandler<AssetHub.Ui.Services.CookieForwardingHandler>();
+        .AddHttpMessageHandler<AssetHub.Ui.Services.CookieForwardingHandler>()
+        // Attach the antiforgery X-CSRF-TOKEN header to mutating requests so
+        // the server-side AntiforgeryUnlessBearerFilter accepts them. Pairs
+        // with the cookie forwarded above — the validator reads cookie+header
+        // and rejects mismatches (P-12 / A-7).
+        .AddHttpMessageHandler<AssetHub.Ui.Services.AntiforgeryHeaderHandler>();
 
         // ── Health checks ───────────────────────────────────────────────────
         var healthChecks = services.AddHealthChecks()

@@ -20,6 +20,7 @@ public static class AssetEndpoints
     {
         var group = app.MapGroup("/api/v1/assets")
             .RequireAuthorization()
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Assets");
 
         // PAT scope enforcement: `.AddEndpointFilter(new RequireScopeFilter(...))` only

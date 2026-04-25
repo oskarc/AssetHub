@@ -9,6 +9,7 @@ public static class DashboardEndpoints
     {
         var group = app.MapGroup("/api/v1/dashboard")
             .RequireAuthorization()
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Dashboard");
 
         group.MapGet("", GetDashboard).WithName("GetDashboard");

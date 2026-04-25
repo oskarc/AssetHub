@@ -13,6 +13,7 @@ public static class MetadataSchemaEndpoints
         // ── Read endpoints (RequireViewer) ──────────────────────────────
         var readGroup = app.MapGroup("/api/v1/metadata-schemas")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Metadata Schemas");
 
         readGroup.MapGet("/", async (
@@ -36,6 +37,7 @@ public static class MetadataSchemaEndpoints
         // ── Admin endpoints (RequireAdmin) ─────────────────────────────
         var adminGroup = app.MapGroup("/api/v1/admin/metadata-schemas")
             .RequireAuthorization("RequireAdmin")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("Admin - Metadata Schemas");
 
         adminGroup.MapPost("/", async (

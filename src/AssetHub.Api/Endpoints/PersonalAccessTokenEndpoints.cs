@@ -21,6 +21,7 @@ public static class PersonalAccessTokenEndpoints
     {
         var group = app.MapGroup("/api/v1/me/personal-access-tokens")
             .RequireAuthorization("RequireViewer")
+            .RequireAntiforgeryUnlessBearer()
             .WithTags("PersonalAccessTokens")
             .MarkAsPublicApi();
 
