@@ -1,0 +1,11 @@
+@using MudBlazor
+
+<MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+    <div style="@($"width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--mud-palette-lines-default); background: {Hex}")"
+         aria-hidden="true"></div>
+    <MudText Typo="Typo.caption" Style="font-family: 'Courier New', monospace;">@Hex</MudText>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public string Hex { get; set; } = "#000000";
+}

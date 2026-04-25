@@ -1,0 +1,103 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<BrandsResource> Loc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.Palette" />
+            <MudText Typo="Typo.h6">@Loc["Dialog_Create_Title"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width: 480px;">
+            <MudTextField @bind-Value="_name"
+                          Label="@Loc["Dialog_Field_Name"]"
+                          Required="true"
+                          MaxLength="200"
+                          Variant="Variant.Outlined" />
+
+            <MudStack Row="true" Spacing="2">
+                <MudTextField @bind-Value="_primary"
+                              Label="@Loc["Dialog_Field_PrimaryColor"]"
+                              Variant="Variant.Outlined"
+                              MaxLength="16"
+                              Validation="@(new Func<string, IEnumerable<string>>(ValidateHex))"
+                              Style="flex: 1;" />
+                <MudTextField @bind-Value="_secondary"
+                              Label="@Loc["Dialog_Field_SecondaryColor"]"
+                              Variant="Variant.Outlined"
+                              MaxLength="16"
+                              Validation="@(new Func<string, IEnumerable<string>>(ValidateHex))"
+                              Style="flex: 1;" />
+            </MudStack>
+
+            <MudSwitch T="bool" @bind-Value="_isDefault"
+                       Label="@Loc["Dialog_Field_IsDefault"]"
+                       Color="Color.Primary" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">@Loc["Dialog_Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@_submitting"
+                   OnClick="SubmitAsync">
+            @Loc["Dialog_Submit"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private string _name = string.Empty;
+    private string _primary = "#1976D2";
+    private string _secondary = "#424242";
+    private bool _isDefault;
+    private bool _submitting;
+
+    private static readonly System.Text.RegularExpressions.Regex HexRegex =
+        new(@"^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$",
+            System.Text.RegularExpressions.RegexOptions.Compiled,
+            TimeSpan.FromSeconds(1));
+
+    private static IEnumerable<string> ValidateHex(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) yield break;
+        if (!HexRegex.IsMatch(value)) yield return "Must be a hex literal like #1976D2.";
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_name)) return;
+        _submitting = true;
+        try
+        {
+            var dto = new CreateBrandDto
+            {
+                Name = _name.Trim(),
+                PrimaryColor = _primary,
+                SecondaryColor = _secondary,
+                IsDefault = _isDefault
+            };
+            var created = await Api.CreateBrandAsync(dto);
+            MudDialog.Close(DialogResult.Ok(created));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "create brand");
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

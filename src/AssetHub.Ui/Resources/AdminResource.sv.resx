@@ -500,6 +500,9 @@ logo.png,Företagslogotyp,varumärke,"Varumärkesresurser;Marknadsföring"</valu
   <!-- Webhooks -->
   <data name="Tab_Webhooks" xml:space="preserve"><value>Webhooks</value></data>
 
+  <!-- Brands -->
+  <data name="Tab_Brands" xml:space="preserve"><value>Brands</value></data>
+
   <!-- Trash -->
   <data name="Tab_Trash" xml:space="preserve"><value>Papperskorg</value></data>
   <data name="Trash_Desc" xml:space="preserve"><value>Mjukraderade tillgångar. Återställ innan de löper ut eller rensa permanent för att frigöra lagring.</value></data>

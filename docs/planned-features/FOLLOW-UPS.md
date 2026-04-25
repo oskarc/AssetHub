@@ -341,6 +341,82 @@ grafting into the initial ship.
 admin create-webhook dropdown; subscribers receive distinct events for
 upload, edit, and soft-delete; tests cover the new emit points.
 
+### T4-BP-01 — sanitised custom CSS
+
+**Deferred from**: T4-BP-01 phase (2026-04-25)
+**Why deferred**: Spec called for optional custom CSS in `Brand`; v1
+shipped only colour variables + logo. CSS injection is a real attack
+surface — `@import` fetches arbitrary stylesheets, attribute selectors
+with `background-image: url(…)` exfiltrate form values, font-family can
+fingerprint, etc. A naive `<style>{Brand.CustomCss}</style>` is XSS-grade
+risk. Worth a dedicated security pass before shipping.
+**Sketch**:
+- Add `Brand.CustomCss` (`string?`, max ~10 KB).
+- Pull in a CSS parser (`AngleSharp.Css` or hand-rolled) and an
+  allowlist: drop `@import`, `@font-face`, `url(http*://*)` (only
+  `url(/...)` allowed and validated), restrict to a specific subset
+  of properties (color, background-color, font-family from a fixed
+  list, border-radius, padding/margin, transitions).
+- Render via `<style nonce="…">` with CSP `style-src` adjusted.
+- Test corpus: every CSS-injection example from
+  https://portswigger.net/research/css-injection.
+**Acceptance**: pasting any of the test corpus into the field results in
+either a sanitised pass-through or a 400 with a specific reason; the
+sanitised CSS only mutates the brand's colour palette and typography on
+the share page.
+
+### T4-BP-01 — custom domain support
+
+**Deferred from**: T4-BP-01 phase (2026-04-25)
+**Why deferred**: Spec mentioned "optional custom domain". That's not a
+UI feature, it's a piece of infrastructure: DNS routing, TLS cert
+provisioning (Let's Encrypt or AWS ACM), tenant-aware request routing
+in the reverse proxy, ownership verification flow. A whole feature of
+its own, probably its own roadmap entry rather than a follow-up.
+**Sketch**:
+- New `BrandDomain` entity (brand id, fqdn, verification token, status,
+  cert ARN/path).
+- Verification: TXT record at `_assethub-verify.<domain>`.
+- Cert provisioning: pluggable `ICertProvider` (LetsEncrypt impl + an
+  AWS ACM impl).
+- Reverse proxy (Nginx / Traefik) reads brand domain table to route
+  inbound traffic to the right brand context.
+**Acceptance**: admin adds `brand.example.com` to a brand, follows the
+verification steps, and a public share opened at `brand.example.com/share/{token}`
+renders with the brand applied + a valid TLS cert.
+
+### T4-BP-01 — brand edit dialog
+
+**Deferred from**: T4-BP-01 phase (2026-04-25)
+**Why deferred**: API supports PATCH (`UpdateBrandDto` with all
+nullable fields), API client method exists, but no dialog was shipped.
+Admins today can change a brand's appearance only by deleting and
+recreating it.
+**Sketch**:
+- New `EditBrandDialog.razor` modelled on `CreateBrandDialog.razor`.
+- Wire from a row-level "edit" icon button on `AdminBrandsTab`.
+- Reuse the same hex-validation regex constant.
+**Acceptance**: clicking Edit opens a populated dialog; saving issues
+PATCH; the row updates in place without a full reload.
+
+### T4-BP-01 — assign brand to collection from UI
+
+**Deferred from**: T4-BP-01 phase (2026-04-25)
+**Why deferred**: API endpoints (`PUT/DELETE /api/v1/admin/brands/{id}/collections/{cid}`)
+and client methods are wired, but there's no UI surface yet. Admins
+who need brand-per-collection have to mark a brand as default (which
+applies to everything) or call the API directly.
+**Sketch**:
+- Add a "Brand" column to `AdminCollectionAccessTab` with a
+  `MudSelect<Guid?>` populated from the brands list. On change, call
+  the assign / unassign API.
+- Or: a "Brand assignments" sub-panel inside the brand detail showing
+  every collection that currently uses this brand, with a multi-select
+  to add more.
+**Acceptance**: admin picks a brand from a dropdown next to a
+collection name, hits Save, and a public share of an asset in that
+collection renders with the chosen brand.
+
 ### Test infra — full Release suite EF flake
 
 **Deferred from**: noted across multiple sessions

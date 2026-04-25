@@ -7,6 +7,7 @@
 @using AssetHub.Ui.Services
 @using AssetHub.Ui.Components
 @using AssetHub.Application
+@using AssetHub.Application.Dtos
 @using System.Net.Http.Json
 @using Microsoft.Extensions.Logging
 
@@ -21,7 +22,8 @@
 
 <PageTitle>@ShareLoc["SharedContent"] - @CommonLoc["AppName"]</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+<MudContainer MaxWidth="MaxWidth.Large" Class="@($"py-8 {(_brand is null ? string.Empty : "ah-branded-share")}")">
+    <BrandHeader Brand="@_brand" />
     @if (_isLoading)
     {
         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
@@ -134,6 +136,7 @@
 
     private SharedAssetDto? _sharedAsset;
     private SharedCollectionDto? _sharedCollection;
+    private BrandResponseDto? _brand;
 
     private IJSObjectReference? _jsModule;
     private bool _jsModuleLoaded = false;
@@ -276,11 +279,13 @@
             if (scopeType == Constants.ScopeTypes.Collection)
             {
                 _sharedCollection = System.Text.Json.JsonSerializer.Deserialize<SharedCollectionDto>(jsonString, jsonOptions);
+                _brand = _sharedCollection?.Brand;
                 _requiresPassword = false;
             }
             else
             {
                 _sharedAsset = System.Text.Json.JsonSerializer.Deserialize<SharedAssetDto>(jsonString, jsonOptions);
+                _brand = _sharedAsset?.Brand;
                 _requiresPassword = false;
             }
 

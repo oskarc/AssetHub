@@ -1,0 +1,182 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<BrandsResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudStack Spacing="3">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Style="max-width: 720px;">
+            @Loc["Tab_Description"]
+        </MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OnCreateAsync"
+                   aria-label="@Loc["Btn_New"]">
+            @Loc["Btn_New"]
+        </MudButton>
+    </MudStack>
+
+    @if (_loading && _brands is null)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_brands is null || _brands.Count == 0)
+    {
+        <EmptyState Title="@Loc["Empty_Title"]"
+                    Description="@Loc["Empty_Desc"]"
+                    Icon="@Icons.Material.Filled.Palette" />
+    }
+    else
+    {
+        <MudTable Items="@_brands" Hover="true" Dense="true" Striped="true">
+            <HeaderContent>
+                <MudTh>@Loc["Header_Logo"]</MudTh>
+                <MudTh>@Loc["Header_Name"]</MudTh>
+                <MudTh>@Loc["Header_PrimaryColor"]</MudTh>
+                <MudTh>@Loc["Header_SecondaryColor"]</MudTh>
+                <MudTh>@Loc["Header_Default"]</MudTh>
+                <MudTh Style="width: 240px;"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@Loc["Header_Logo"]">
+                    @if (!string.IsNullOrWhiteSpace(context.LogoUrl))
+                    {
+                        <MudAvatar Size="Size.Small" aria-label="@($"{context.Name} logo")">
+                            <img src="@context.LogoUrl" alt="@($"{context.Name} logo")"
+                                 style="width: 100%; height: 100%; object-fit: contain;" />
+                        </MudAvatar>
+                    }
+                    else
+                    {
+                        <MudAvatar Size="Size.Small" Color="Color.Default" aria-hidden="true">—</MudAvatar>
+                    }
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Name"]">
+                    <MudText Typo="Typo.body2" Class="font-semibold">@context.Name</MudText>
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_PrimaryColor"]">
+                    <ColorSwatch Hex="@context.PrimaryColor" />
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_SecondaryColor"]">
+                    <ColorSwatch Hex="@context.SecondaryColor" />
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Default"]">
+                    @if (context.IsDefault)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled"
+                                 Icon="@Icons.Material.Filled.Star">@Loc["Default_Badge"]</MudChip>
+                    }
+                </MudTd>
+                <MudTd>
+                    <MudStack Row="true" Spacing="0">
+                        <MudTooltip Text="@Loc["Btn_UploadLogo"]">
+                            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.UploadFile"
+                                           OnClick="@(() => OnUploadLogoAsync(context))"
+                                           aria-label="@Loc["Btn_UploadLogo"]" />
+                        </MudTooltip>
+                        @if (!string.IsNullOrWhiteSpace(context.LogoObjectKey))
+                        {
+                            <MudTooltip Text="@Loc["Btn_RemoveLogo"]">
+                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.HideImage"
+                                               OnClick="@(() => OnRemoveLogoAsync(context))"
+                                               aria-label="@Loc["Btn_RemoveLogo"]" />
+                            </MudTooltip>
+                        }
+                        <MudTooltip Text="@Loc["Btn_Delete"]">
+                            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.Delete"
+                                           Color="Color.Error"
+                                           OnClick="@(() => OnDeleteAsync(context))"
+                                           aria-label="@Loc["Btn_Delete"]" />
+                        </MudTooltip>
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudStack>
+
+@code {
+    private List<BrandResponseDto>? _brands;
+    private bool _loading;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _brands = await Api.GetBrandsAsync(_cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load brands");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnCreateAsync()
+    {
+        var result = await DialogService.ShowAsync<CreateBrandDialog>(Loc["Dialog_Create_Title"]);
+        var dialogResult = await result.Result;
+        if (dialogResult is null || dialogResult.Canceled) return;
+        await LoadAsync();
+    }
+
+    private async Task OnDeleteAsync(BrandResponseDto brand)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            Loc["Confirm_Delete_Title"], Loc["Confirm_Delete_Body"].Value,
+            yesText: Loc["Btn_Delete"], cancelText: Loc["Dialog_Cancel"]);
+        if (confirmed != true) return;
+
+        var removed = brand;
+        _brands?.Remove(removed);
+        StateHasChanged();
+        try
+        {
+            await Api.DeleteBrandAsync(brand.Id, _cts.Token);
+        }
+        catch (Exception)
+        {
+            _brands?.Add(removed);
+            StateHasChanged();
+            Feedback.ShowError(Loc["Action_Failed"].Value);
+        }
+    }
+
+    private async Task OnUploadLogoAsync(BrandResponseDto brand)
+    {
+        var parameters = new DialogParameters { ["Brand"] = brand };
+        var result = await DialogService.ShowAsync<UploadBrandLogoDialog>(
+            Loc["Btn_UploadLogo"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var dialogResult = await result.Result;
+        if (dialogResult is null || dialogResult.Canceled) return;
+        await LoadAsync();
+    }
+
+    private async Task OnRemoveLogoAsync(BrandResponseDto brand)
+    {
+        try
+        {
+            await Api.RemoveBrandLogoAsync(brand.Id, _cts.Token);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            Feedback.ShowError(Loc["Action_Failed"].Value);
+        }
+    }
+}

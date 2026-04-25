@@ -39,6 +39,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AssetWorkflowTransition> AssetWorkflowTransitions { get; set; } = null!;
     public DbSet<Webhook> Webhooks { get; set; } = null!;
     public DbSet<WebhookDelivery> WebhookDeliveries { get; set; } = null!;
+    public DbSet<Brand> Brands { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -53,6 +54,15 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
 
             entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(1000);
+
+            // T4-BP-01 — optional FK to a Brand for share-page styling.
+            // SetNull on delete: removing a brand quietly demotes every
+            // collection that referenced it back to the default theme.
+            entity.HasIndex(e => e.BrandId).HasDatabaseName("idx_collections_brand_id");
+            entity.HasOne(e => e.Brand)
+                .WithMany()
+                .HasForeignKey(e => e.BrandId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // CollectionAcl
@@ -699,6 +709,28 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
+        });
+
+        // Brand (T4-BP-01) — share-page theming.
+        modelBuilder.Entity<Brand>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            // Resolution path scans for a default brand when a collection
+            // has no BrandId — partial / unique-default invariant is
+            // enforced in the service layer because Postgres can't
+            // express "exactly one row where IsDefault = true" without
+            // either a partial unique index or a trigger; partial unique
+            // index is added below.
+            entity.HasIndex(e => e.IsDefault)
+                .HasDatabaseName("idx_brand_default")
+                .HasFilter("\"IsDefault\" = true")
+                .IsUnique();
+
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.LogoObjectKey).HasMaxLength(512);
+            entity.Property(e => e.PrimaryColor).HasMaxLength(16).IsRequired();
+            entity.Property(e => e.SecondaryColor).HasMaxLength(16).IsRequired();
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
         });
 
         // WebhookDelivery (T3-INT-01) — one row per (Webhook, event)

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Tab_Description" xml:space="preserve"><value>Anpassad branding för publika delningssidor. Tilldela en brand till en samling eller markera en som standard för att gälla globalt.</value></data>
+  <data name="Btn_New" xml:space="preserve"><value>Ny brand</value></data>
+  <data name="Btn_UploadLogo" xml:space="preserve"><value>Ladda upp logotyp</value></data>
+  <data name="Btn_RemoveLogo" xml:space="preserve"><value>Ta bort logotyp</value></data>
+  <data name="Btn_Delete" xml:space="preserve"><value>Ta bort</value></data>
+
+  <data name="Empty_Title" xml:space="preserve"><value>Inga brands ännu</value></data>
+  <data name="Empty_Desc" xml:space="preserve"><value>Skapa en för att applicera logotyp och primär/sekundärfärger på delningssidor.</value></data>
+
+  <data name="Header_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="Header_Logo" xml:space="preserve"><value>Logotyp</value></data>
+  <data name="Header_PrimaryColor" xml:space="preserve"><value>Primär</value></data>
+  <data name="Header_SecondaryColor" xml:space="preserve"><value>Sekundär</value></data>
+  <data name="Header_Default" xml:space="preserve"><value>Standard</value></data>
+
+  <data name="Dialog_Create_Title" xml:space="preserve"><value>Ny brand</value></data>
+  <data name="Dialog_Field_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="Dialog_Field_PrimaryColor" xml:space="preserve"><value>Primär färg (hex)</value></data>
+  <data name="Dialog_Field_SecondaryColor" xml:space="preserve"><value>Sekundär färg (hex)</value></data>
+  <data name="Dialog_Field_IsDefault" xml:space="preserve"><value>Använd som standard-brand</value></data>
+  <data name="Dialog_Submit" xml:space="preserve"><value>Skapa</value></data>
+  <data name="Dialog_Cancel" xml:space="preserve"><value>Avbryt</value></data>
+
+  <data name="Confirm_Delete_Title" xml:space="preserve"><value>Ta bort brand?</value></data>
+  <data name="Confirm_Delete_Body" xml:space="preserve"><value>Samlingar som använder denna brand faller tillbaka till standard. Kan inte ångras.</value></data>
+
+  <data name="Default_Badge" xml:space="preserve"><value>Standard</value></data>
+  <data name="Action_Failed" xml:space="preserve"><value>Åtgärden misslyckades.</value></data>
+</root>

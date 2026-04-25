@@ -512,11 +512,7 @@ Implementations: `AzureAiVisionService`, `AwsRekognitionService`, etc. Register 
 
 ### T4-BP-01 — Branded share portals
 
-**Intent.** Custom-branded share pages with logo, colours, optional custom domain.
-
-**Target state.** `Brand` entity (per-collection override + global default) with logo object key, primary/secondary colors, optional custom CSS. `ShareLayout` reads the brand from the share context.
-
-**Acceptance criteria.** Share URL renders with the owning collection's brand; default brand applied otherwise.
+> **Shipped 2026-04-25.** See the **Shipped appendix** at the end of this document for the per-layer breakdown, the deliberate omission of `CustomCss` and custom-domain (security / infra), and the brand-resolution order.
 
 ---
 
@@ -994,6 +990,35 @@ Full suite: 995 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 - `tests/AssetHub.Tests/Endpoints/WebhookEndpointTests.cs` — 4 HTTP tests: viewer 403, create+list round-trip, rotate-secret returns new plaintext, unknown event type 400.
 
 Full suite: 1020 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
+### T4-BP-01 — Branded share portals
+
+**Shipped 2026-04-25** in a single pass. Public share pages now apply a per-collection or default brand — logo + primary/secondary CSS variables — without admins having to write any code.
+
+**Delivered as specified.**
+- [Brand](../../src/AssetHub.Domain/Entities/Brand.cs) entity with `Name`, `IsDefault`, `LogoObjectKey`, `PrimaryColor`, `SecondaryColor`, audit fields. `Collection.BrandId` is a nullable FK with `OnDelete.SetNull` so deleting a brand quietly demotes every collection that referenced it. Migration `20260425122658_AddBrands` creates both with a partial unique index `idx_brand_default ON Brands(IsDefault) WHERE IsDefault = true` so the database guarantees at most one default.
+- [BrandService](../../src/AssetHub.Infrastructure/Services/BrandService.cs) — admin-only CRUD + logo upload + collection assign/unassign. Single-default invariant enforced via `ClearDefaultExceptAsync` before each promotion. Logo uploads are size-capped (1 MB) and content-type-allowlisted (`image/png`, `image/jpeg`, `image/svg+xml`, `image/webp`).
+- [BrandResolver](../../src/AssetHub.Infrastructure/Services/BrandResolver.cs) — resolution order on every share request: collection-share → that collection's `BrandId`; asset-share → first containing collection with a `BrandId`; fall back to default brand; fall back to null (unbranded). The resolver swallows exceptions and returns null on failure so a backend bug can never crash the public share page.
+- [BrandEndpoints](../../src/AssetHub.Api/Endpoints/BrandEndpoints.cs) under `/api/v1/admin/brands`: list, get, create, update, delete, rotate-irrelevant logo upload + remove, plus collection assign/unassign. All `RequireAdmin` and the service double-checks `CurrentUser.IsSystemAdmin`.
+- Brand integration into the share-access flow ([PublicShareAccessService](../../src/AssetHub.Infrastructure/Services/PublicShareAccessService.cs)) — the `SharedAssetDto` and `SharedCollectionDto` returned to public share clients now carry a `Brand` field with a presigned 24-hour logo URL.
+- UI: [BrandHeader](../../src/AssetHub.Ui/Components/BrandHeader.razor) renders a logo + name strip at the top of the share page, with a `<style>` block that overrides `--mud-palette-primary` / `-secondary` CSS variables under the `ah-branded-share` class. [AdminBrandsTab](../../src/AssetHub.Ui/Components/AdminBrandsTab.razor) on the Admin page lists brands with colour swatches; [CreateBrandDialog](../../src/AssetHub.Ui/Components/CreateBrandDialog.razor) and [UploadBrandLogoDialog](../../src/AssetHub.Ui/Components/UploadBrandLogoDialog.razor) handle the create/upload flows.
+- Audit events: `brand.created`, `brand.updated`, `brand.deleted`. `BrandUpdated` fires on any field change including logo upload/remove and collection assign/unassign.
+- Localised in [BrandsResource.resx](../../src/AssetHub.Ui/Resources/BrandsResource.resx) + [.sv.resx](../../src/AssetHub.Ui/Resources/BrandsResource.sv.resx) (~25 keys each); admin tab key in `AdminResource`.
+
+**Deviations from the spec.**
+- **`CustomCss` is NOT shipped.** Spec called for "optional custom CSS"; that's a non-trivial security surface (CSS-injection / data exfiltration via attribute selectors with `background-image: url(…)`, fingerprinting via `@import`, etc.) and the v1 colour-variable approach covers most branding use cases. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T4-BP-01 — sanitised custom CSS".
+- **Custom domain is NOT shipped.** Needs DNS + TLS-cert provisioning + tenant-aware routing — a whole infrastructure feature, not a UI option. Tracked in FOLLOW-UPS as "T4-BP-01 — custom domain support".
+- **No edit dialog — only delete + recreate.** Admins can't mutate an existing brand's name / colours / default flag from the UI today; the PATCH endpoint is wired and the API client method exists, but the dialog wasn't shipped. Tracked in FOLLOW-UPS as "T4-BP-01 — brand edit dialog".
+- **Collection assignment is API-only.** `PUT /api/v1/admin/brands/{id}/collections/{collectionId}` and matching DELETE work, but there's no UI yet to drive them — admins have to mark a brand as default to apply it everywhere, or call the API directly to scope it to one collection. Tracked in FOLLOW-UPS as "T4-BP-01 — assign brand to collection from UI".
+- **`BrandUpdated` audit event is reused for logo and assign/unassign.** Each surfaces with distinct `details` keys (`changed_fields[]` vs `assigned_collection_id` etc.) so log queries can still distinguish them; introducing dedicated `brand.logo_uploaded` events would have been five extra constants for very similar payloads.
+
+**Test coverage.**
+- `tests/AssetHub.Tests/Services/BrandServiceTests.cs` — 8 unit tests covering admin gate, create with default-demotion, update toggling default, delete 404, logo bad-content-type / oversize, collection-assign happy path.
+- `tests/AssetHub.Tests/Services/BrandResolverTests.cs` — 6 unit tests covering all four resolution paths plus the exception-swallowing safety net.
+- `tests/AssetHub.Tests/Endpoints/BrandEndpointTests.cs` — 4 HTTP tests (viewer 403, create+list round-trip, bad hex 400, default demotion across two creates).
+
+Full suite: 1038 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
 
 
 

@@ -1,5 +1,10 @@
 namespace AssetHub.Ui.Resources;
 
+// Empty by design — IStringLocalizer<T> requires a non-generic marker type
+// per resource file. Suppressing S2094 ("Remove this empty class…") for the
+// whole file because every line below is intentionally hollow.
+#pragma warning disable S2094
+
 /// <summary>
 /// Marker classes used by IStringLocalizer&lt;T&gt; to resolve .resx resource files.
 /// Each class corresponds to a resource file pair (e.g., CommonResource.resx / CommonResource.sv.resx).
@@ -18,3 +23,6 @@ public class NotificationsResource { }
 public class CommentsResource { }
 public class WorkflowResource { }
 public class WebhooksResource { }
+public class BrandsResource { }
+
+#pragma warning restore S2094

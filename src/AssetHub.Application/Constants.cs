@@ -47,6 +47,7 @@ public static class Constants
         public const string Comment = "comment";
         public const string Webhook = "webhook";
         public const string WebhookDelivery = "webhook_delivery";
+        public const string Brand = "brand";
     }
 
     /// <summary>
@@ -72,6 +73,7 @@ public static class Constants
         public const string Medium = "medium";
         public const string Posters = "posters";
         public const string TempZipDownloads = "zip-downloads";
+        public const string Brands = "brands";
     }
 
     /// <summary>

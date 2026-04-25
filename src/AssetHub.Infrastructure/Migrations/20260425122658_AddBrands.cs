@@ -1,0 +1,79 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace AssetHub.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddBrands : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<Guid>(
+                name: "BrandId",
+                table: "Collections",
+                type: "uuid",
+                nullable: true);
+
+            migrationBuilder.CreateTable(
+                name: "Brands",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    IsDefault = table.Column<bool>(type: "boolean", nullable: false),
+                    LogoObjectKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    PrimaryColor = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    SecondaryColor = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedByUserId = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Brands", x => x.Id);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "idx_collections_brand_id",
+                table: "Collections",
+                column: "BrandId");
+
+            migrationBuilder.CreateIndex(
+                name: "idx_brand_default",
+                table: "Brands",
+                column: "IsDefault",
+                unique: true,
+                filter: "\"IsDefault\" = true");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Collections_Brands_BrandId",
+                table: "Collections",
+                column: "BrandId",
+                principalTable: "Brands",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.SetNull);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "FK_Collections_Brands_BrandId",
+                table: "Collections");
+
+            migrationBuilder.DropTable(
+                name: "Brands");
+
+            migrationBuilder.DropIndex(
+                name: "idx_collections_brand_id",
+                table: "Collections");
+
+            migrationBuilder.DropColumn(
+                name: "BrandId",
+                table: "Collections");
+        }
+    }
+}

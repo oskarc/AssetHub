@@ -1,0 +1,96 @@
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<BrandsResource> Loc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.UploadFile" />
+            <MudText Typo="Typo.h6">@Loc["Btn_UploadLogo"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width: 420px;">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @Brand.Name
+            </MudText>
+            <MudFileUpload T="IBrowserFile" FilesChanged="OnFileChanged" Accept="image/png,image/jpeg,image/svg+xml,image/webp">
+                <ActivatorContent>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.UploadFile">
+                        @Loc["Btn_UploadLogo"]
+                    </MudButton>
+                </ActivatorContent>
+            </MudFileUpload>
+            @if (_file is not null)
+            {
+                <MudText Typo="Typo.caption">
+                    @_file.Name (@FormatBytes(_file.Size))
+                </MudText>
+            }
+            @if (_uploading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">@Loc["Dialog_Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(_file is null || _uploading)"
+                   OnClick="SubmitAsync">
+            @Loc["Btn_UploadLogo"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public BrandResponseDto Brand { get; set; } = default!;
+
+    private IBrowserFile? _file;
+    private bool _uploading;
+
+    private void OnFileChanged(IBrowserFile file) => _file = file;
+
+    private async Task SubmitAsync()
+    {
+        if (_file is null) return;
+        _uploading = true;
+        try
+        {
+            // Server caps at 1 MB; mirroring here keeps the browser from
+            // streaming a doomed upload.
+            var maxBytes = Constants.Limits.MaxEditorImageSizeMb * 1024L * 1024L;
+            await using var stream = _file.OpenReadStream(maxBytes);
+            await Api.UploadBrandLogoAsync(Brand.Id, stream, _file.Name, _file.ContentType);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "upload logo");
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+}

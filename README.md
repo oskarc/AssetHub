@@ -104,6 +104,10 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Outbound webhooks — admins subscribe HTTPS endpoints to event types (comment created, workflow state changed, share created, asset restored, more). AssetHub POSTs a signed JSON envelope (`X-AssetHub-Signature: sha256=…` HMAC) and retries transient failures via the message queue. Plaintext signing secrets are shown once at create and rotation, encrypted at rest via Data Protection
 - Admin UI lists subscriptions with one-click test events, secret rotation, and a recent-deliveries panel showing per-attempt status and last error
 
+**Branding**
+- Per-collection brand portals — admins create `Brand` records with a logo + primary/secondary colours; mark one as default for a global look or assign per collection. Public share pages render the matching brand on top of the MudBlazor theme via CSS-variable overrides
+- Logos uploaded as PNG / JPEG / SVG / WebP up to 1 MB, served via 24-hour presigned MinIO URLs
+
 **Security**
 - ClamAV malware scanning on every upload
 - Personal Access Tokens — long-lived, scoped, revocable bearer tokens for scripts and integrations. Only the SHA-256 hash is stored; plaintext is shown once. A compromised PAT cannot mint further tokens

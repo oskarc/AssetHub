@@ -33,6 +33,7 @@ public class ShareAccessServiceTests
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
     private readonly Mock<IDataProtectionProvider> _dataProtectionMock;
     private readonly Mock<IDataProtector> _dataProtectorMock;
+    private readonly Mock<IBrandResolver> _brandResolverMock;
     private readonly IOptions<MinIOSettings> _minioSettings;
 
     private const string TestUserId = "test-user-001";
@@ -53,6 +54,7 @@ public class ShareAccessServiceTests
         _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
         _dataProtectionMock = new Mock<IDataProtectionProvider>();
         _dataProtectorMock = new Mock<IDataProtector>();
+        _brandResolverMock = new Mock<IBrandResolver>();
 
         _dataProtectionMock
             .Setup(x => x.CreateProtector(It.IsAny<string>()))
@@ -78,6 +80,7 @@ public class ShareAccessServiceTests
             _minioSettings,
             _dataProtectionMock.Object,
             _httpContextAccessorMock.Object,
+            _brandResolverMock.Object,
             NullLogger<PublicShareAccessService>.Instance);
     }
 

@@ -79,6 +79,11 @@ public static class NotificationConstants
         public const string WebhookDeleted = "webhook.deleted";
         public const string WebhookSecretRotated = "webhook.secret_rotated";
         public const string WebhookDeliveryFailedPermanently = "webhook.delivery_failed_permanently";
+
+        // T4-BP-01 — branded share portals
+        public const string BrandCreated = "brand.created";
+        public const string BrandUpdated = "brand.updated";
+        public const string BrandDeleted = "brand.deleted";
     }
 
     /// <summary>Limits.</summary>

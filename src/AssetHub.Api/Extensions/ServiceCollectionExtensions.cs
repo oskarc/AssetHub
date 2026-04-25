@@ -235,6 +235,9 @@ public static class ServiceCollectionExtensions
         // Webhooks (T3-INT-01)
         services.AddScoped<IWebhookService, WebhookService>();
 
+        // Brands (T4-BP-01)
+        services.AddScoped<IBrandService, BrandService>();
+
         // Personal access tokens (T1-API-01)
         services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();
 

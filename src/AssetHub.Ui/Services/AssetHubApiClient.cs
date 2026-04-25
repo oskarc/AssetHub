@@ -1459,6 +1459,56 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Brands (T4-BP-01)
+
+    public virtual async Task<List<BrandResponseDto>> GetBrandsAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/admin/brands", ct);
+        await EnsureSuccessAsync(response, "Get brands");
+        return await response.Content.ReadFromJsonAsync<List<BrandResponseDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<BrandResponseDto> CreateBrandAsync(CreateBrandDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/brands", dto, ct);
+        await EnsureSuccessAsync(response, "Create brand");
+        return await ReadRequiredJsonAsync<BrandResponseDto>(response, "Create brand");
+    }
+
+    public virtual async Task<BrandResponseDto> UpdateBrandAsync(Guid id, UpdateBrandDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/brands/{id}", dto, ct);
+        await EnsureSuccessAsync(response, "Update brand");
+        return await ReadRequiredJsonAsync<BrandResponseDto>(response, "Update brand");
+    }
+
+    public virtual async Task DeleteBrandAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/brands/{id}", ct);
+        await EnsureSuccessAsync(response, "Delete brand");
+    }
+
+    public virtual async Task<BrandResponseDto> UploadBrandLogoAsync(
+        Guid id, Stream content, string fileName, string contentType, CancellationToken ct = default)
+    {
+        using var form = new MultipartFormDataContent();
+        var file = new StreamContent(content);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        form.Add(file, "file", fileName);
+
+        var response = await _http.PostAsync($"/api/v1/admin/brands/{id}/logo", form, ct);
+        await EnsureSuccessAsync(response, "Upload brand logo");
+        return await ReadRequiredJsonAsync<BrandResponseDto>(response, "Upload brand logo");
+    }
+
+    public virtual async Task RemoveBrandLogoAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"/api/v1/admin/brands/{id}/logo", ct);
+        await EnsureSuccessAsync(response, "Remove brand logo");
+    }
+
+    #endregion
 }
 
 /// <summary>
