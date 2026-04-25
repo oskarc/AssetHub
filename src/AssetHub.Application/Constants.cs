@@ -74,6 +74,7 @@ public static class Constants
         public const string Posters = "posters";
         public const string TempZipDownloads = "zip-downloads";
         public const string Brands = "brands";
+        public const string RenditionsOnDemand = "renditions/ondemand";
     }
 
     /// <summary>

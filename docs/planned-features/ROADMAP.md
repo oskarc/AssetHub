@@ -486,13 +486,7 @@ Implementations: `AzureAiVisionService`, `AwsRekognitionService`, etc. Register 
 
 ### T3-REND-01 — On-the-fly rendition URLs
 
-**Intent.** `/api/v1/assets/{id}/render?w=400&h=300&fit=cover&fmt=webp&crop=smart` returns (or redirects to) an image rendered on demand, cached.
-
-**Target state.** New endpoint validates params against a sane allowlist (prevent DoS-by-massive-resize). Cached result is stored under `renditions/ondemand/{hash}.{ext}` in MinIO. Signed URLs for embedding.
-
-**API.** Public endpoint with rate limit; auth required for private assets, signed URL for shares.
-
-**Acceptance criteria.** First request produces in < 1.5 s (p95); subsequent requests for the same URL serve from MinIO in < 150 ms.
+> **Shipped 2026-04-25.** See the **Shipped appendix** at the end of this document for the per-layer breakdown, the deliberate auth-only scope (signed-URL embedding deferred), and the smart-crop deferral (depends on T2-AI-05).
 
 ---
 
@@ -1018,6 +1012,29 @@ Full suite: 1020 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 - `tests/AssetHub.Tests/Endpoints/BrandEndpointTests.cs` — 4 HTTP tests (viewer 403, create+list round-trip, bad hex 400, default demotion across two creates).
 
 Full suite: 1038 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
+### T3-REND-01 — On-the-fly rendition URLs
+
+**Shipped 2026-04-25** in a single pass. `/api/v1/assets/{id}/render?w=400&h=200&fit=cover&fmt=webp` redirects to a presigned MinIO URL, generating + caching the rendition on first hit.
+
+**Delivered as specified.**
+- [RenditionSettings](../../src/AssetHub.Application/Configuration/RenditionSettings.cs) allowlist defaults — widths / heights {100, 200, 400, 800, 1200, 1600, 2400}, formats {jpeg, png, webp}, fit modes {cover, contain}. Anything outside is 400 with the actual allowed values in the error message. The strict allowlist is the primary DoS defence — no caller can request a 50000×50000 PNG.
+- [RenditionService](../../src/AssetHub.Infrastructure/Services/RenditionService.cs) — validates → checks asset (image-only, has original) → checks collection ACL → derives a deterministic 12-char SHA-256 cache key from `(width|height|fit|format)` → returns cached presigned URL on hit, otherwise invokes [IRenditionImageResizer](../../src/AssetHub.Application/Services/IRenditionService.cs) to generate, then returns a fresh presigned URL.
+- [ImageProcessingRenditionResizer](../../src/AssetHub.Infrastructure/Services/ImageProcessingRenditionResizer.cs) is the production adapter — synthesises an in-memory `ExportPreset` and forwards to the existing `ImageProcessingService.ResizeForPresetAsync` so we don't duplicate the ImageMagick pipeline.
+- [RenditionEndpoints](../../src/AssetHub.Api/Endpoints/RenditionEndpoints.cs) — `GET /api/v1/assets/{id:guid}/render` with `RequireViewer`. Returns 302 to the presigned URL so the browser fetches straight from MinIO; CDN-friendly. The 1-hour presigned-URL expiry (configurable) sets the practical cache lifetime.
+- Cache key shape: `renditions/ondemand/{assetId}/{12-hex-chars}.{ext}` — partitioned by asset so a purge of one asset's renditions doesn't have to scan global keys.
+
+**Deviations from the spec.**
+- **Signed URLs for unauthenticated embedding are NOT shipped.** The roadmap acceptance criterion mentions "signed URL for shares" so external sites can `<img src="…">` a thumbnail. v1 is auth-required only — integrations using PATs work, share-page embeds don't yet. The cleanest extension is a signed-token query param (Data Protection over `(assetId, params, expiry)`) verified before ACL. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md) as "T3-REND-01 — signed URLs for anonymous embedding".
+- **Smart crop is NOT shipped** because `T2-AI-05` (subject-aware crop via `IAiVisionService`) is itself deferred. Today's `fit=cover` does centre-crop only.
+- **No rate limit attached to the render endpoint.** Authenticated callers go through the standard rate-limit middleware; anonymous embed via signed URL would need its own policy when that path lights up. Tracked in the same FOLLOW-UP entry.
+- **Generation is synchronous on cache miss.** Per the acceptance criterion ("first request < 1.5 s p95"), small-to-medium images resize comfortably inside that window. For very large originals the request blocks until the magick run finishes. A "queue + return 202 + poll for ready" pattern is a future refinement, not v1.
+
+**Test coverage.**
+- `tests/AssetHub.Tests/Services/RenditionServiceTests.cs` — 12 unit tests covering anonymous, missing dimensions, disallowed dimensions / fit / format, non-image asset, no-collection-access, cache hit (no resizer call), cache miss (resizer invoked with correct params), cache-key determinism across identical requests, cache-key divergence across different dimensions.
+
+Full suite: 1050 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
 
 
 

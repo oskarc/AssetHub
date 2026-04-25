@@ -78,6 +78,7 @@ public static class InfrastructureServiceExtensions
         services.Configure<ImageProcessingSettings>(configuration.GetSection(ImageProcessingSettings.SectionName));
         services.Configure<AssetLifecycleSettings>(configuration.GetSection(AssetLifecycleSettings.SectionName));
         services.Configure<WorkflowSettings>(configuration.GetSection(WorkflowSettings.SectionName));
+        services.Configure<RenditionSettings>(configuration.GetSection(RenditionSettings.SectionName));
 
         // ── Caching (Redis L2 + HybridCache L1/L2) ────────────────────────
         var redisConnectionString = configuration["Redis:ConnectionString"];

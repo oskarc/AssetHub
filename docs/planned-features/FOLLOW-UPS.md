@@ -417,6 +417,43 @@ applies to everything) or call the API directly.
 collection name, hits Save, and a public share of an asset in that
 collection renders with the chosen brand.
 
+### T3-REND-01 — signed URLs for anonymous embedding
+
+**Deferred from**: T3-REND-01 phase (2026-04-25)
+**Why deferred**: v1 ships auth-only. Spec says "signed URL for shares"
+so an external page can `<img src="https://assethub.example.com/api/v1/assets/{id}/render?w=400&sig=…">`
+without an authenticated session. Same class of decisions as the
+unsubscribe-token work in T3-NTF-01.
+**Sketch**:
+- New `IRenditionSignatureService` (Data Protection purpose
+  `RenditionSignatureProtector`) signs `(assetId, w, h, fit, fmt, expiresUtc)`.
+- Endpoint accepts an optional `sig` query string. When present, skip
+  the `RequireViewer` policy via `.AllowAnonymous()` on a sibling route
+  and verify the signature + expiry in the handler before generation.
+- Share pages mint signed URLs at render time so embedded `<img>` tags
+  work without the user's session.
+- Add a per-IP rate-limit policy to the anonymous variant (signed URL
+  doesn't authorise unbounded resize requests).
+**Acceptance**: a signed URL renders the rendition for an anonymous
+caller, expires after the embedded TTL, and burns through resize work
+proportional to the rate-limit budget — not unbounded.
+
+### T3-REND-01 — async rendition generation for very large originals
+
+**Deferred from**: T3-REND-01 phase (2026-04-25)
+**Why deferred**: v1 generates synchronously on cache miss. For 100+
+megapixel originals the magick run can blow past the spec's 1.5s p95
+bar. Customers running gigapixel libraries would feel this.
+**Sketch**:
+- New `RenditionGenerationCommand` Wolverine message; the
+  endpoint enqueues + returns 202 with a Retry-After + poll URL when
+  the original exceeds a configurable size threshold.
+- Background handler runs ResizeForPresetAsync, uploads to the same
+  cache key, optionally publishes a `rendition.ready` webhook event.
+**Acceptance**: a 200 MP source image renders to 400×400 within 5
+seconds end-to-end; the API returns 202 immediately, the client polls
+and gets 302 once the rendition lands.
+
 ### Test infra — full Release suite EF flake
 
 **Deferred from**: noted across multiple sessions

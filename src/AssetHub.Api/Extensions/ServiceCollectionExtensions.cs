@@ -238,6 +238,10 @@ public static class ServiceCollectionExtensions
         // Brands (T4-BP-01)
         services.AddScoped<IBrandService, BrandService>();
 
+        // On-the-fly renditions (T3-REND-01)
+        services.AddScoped<IRenditionImageResizer, ImageProcessingRenditionResizer>();
+        services.AddScoped<IRenditionService, RenditionService>();
+
         // Personal access tokens (T1-API-01)
         services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();
 

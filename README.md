@@ -79,6 +79,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Video poster extraction via ffmpeg with inline playback
 - Download collections or shared content as zip archives
 - Auto-generated thumbnails, previews, and video posters
+- On-the-fly image renditions — `GET /api/v1/assets/{id}/render?w=400&h=200&fit=cover&fmt=webp` returns a redirect to a cached MinIO rendition; first hit generates synchronously, subsequent hits serve from MinIO. Strict allowlist on dimensions / formats / fit modes prevents resize-DoS
 
 **Access Control & Sharing**
 - Per-collection RBAC — Viewer, Contributor, Manager, Admin (system admins bypass all ACLs)
