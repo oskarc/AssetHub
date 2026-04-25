@@ -111,13 +111,13 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpContextAccessor();
 
-        // ── Data Protection ─────────────────────────────────────────────────
-        services.AddDataProtection()
-            .PersistKeysToDbContext<AssetHubDbContext>()
-            .SetApplicationName("AssetHub");
-
-        // ── Shared infrastructure: DB, MinIO, Repos, core services
+        // ── Shared infrastructure: DB, MinIO, Repos, core services ─────────
         services.AddSharedInfrastructure(configuration);
+
+        // ── Data Protection (shared with Worker via AddAssetHubDataProtection)
+        // Must come AFTER AddSharedInfrastructure so the AssetHubDbContext
+        // is registered before PersistKeysToDbContext binds to it.
+        services.AddAssetHubDataProtection(configuration, environment);
 
         // ── RabbitMQ settings (used by Wolverine, configured in Program.cs) ───
         services.AddOptions<RabbitMQSettings>()
@@ -181,6 +181,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IAuditQueryService, AuditQueryService>();
         services.AddScoped<IUserSyncService, UserSyncService>();
         // IZipBuildService registered in AddSharedInfrastructure for Worker access

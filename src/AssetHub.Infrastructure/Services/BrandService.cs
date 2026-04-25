@@ -33,9 +33,13 @@ public sealed class BrandService(
     private const string ScopeGlobal = "global";
     private const string ScopeCollection = "collection";
 
+    // SVG is intentionally excluded — even when served via <img src> in the
+    // share-page UI, a directly-navigated presigned URL renders the SVG as a
+    // top-level document and runs any embedded <script>. Raster formats only.
+    // (P-2 in the security review.)
     private static readonly HashSet<string> AllowedLogoContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "image/png", "image/jpeg", "image/svg+xml", "image/webp"
+        "image/png", "image/jpeg", "image/webp"
     };
 
     private string Bucket => minioSettings.Value.BucketName;
@@ -355,14 +359,13 @@ public sealed class BrandService(
     {
         "image/png" => ".png",
         "image/jpeg" => ".jpg",
-        "image/svg+xml" => ".svg",
         "image/webp" => ".webp",
         _ => ""
     };
 
     private static bool IsAllowedLogoExtension(string ext) => ext.ToLowerInvariant() switch
     {
-        ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" => true,
+        ".png" or ".jpg" or ".jpeg" or ".webp" => true,
         _ => false
     };
 }

@@ -42,11 +42,12 @@ public class PersonalAccessTokenServiceTests : IAsyncLifetime
     }
 
     private PersonalAccessTokenService NewServiceFor(string userId) =>
-        new(_repo, _auditMock.Object, new CurrentUser(userId, isSystemAdmin: false),
+        new(_repo, _auditMock.Object, new UnitOfWork(_db),
+            new CurrentUser(userId, isSystemAdmin: false),
             NullLogger<PersonalAccessTokenService>.Instance);
 
     private PersonalAccessTokenService AnonymousService() =>
-        new(_repo, _auditMock.Object, CurrentUser.Anonymous,
+        new(_repo, _auditMock.Object, new UnitOfWork(_db), CurrentUser.Anonymous,
             NullLogger<PersonalAccessTokenService>.Instance);
 
     // ── CreateAsync ──────────────────────────────────────────────────────────

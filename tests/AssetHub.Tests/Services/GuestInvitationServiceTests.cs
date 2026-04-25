@@ -43,8 +43,20 @@ public class GuestInvitationServiceTests
         => new(_repo.Object, _collectionRepo.Object, _aclRepo.Object,
                _tokens.Object, _keycloak.Object, _userLookup.Object,
                _email.Object, _audit.Object,
+               new PassThroughUnitOfWork(),
                new CurrentUser(userId, isAdmin),
                NullLogger<GuestInvitationService>.Instance);
+
+    /// <summary>
+    /// IUnitOfWork stub for unit tests that mock all repos. Invokes the
+    /// work delegate directly — no real DbContext / transaction. The
+    /// transactional behavior is exercised separately in integration tests.
+    /// </summary>
+    private sealed class PassThroughUnitOfWork : IUnitOfWork
+    {
+        public Task ExecuteAsync(Func<CancellationToken, Task> work, CancellationToken ct) => work(ct);
+        public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken ct) => work(ct);
+    }
 
     private static Collection FakeCollection(Guid id) => new()
     {

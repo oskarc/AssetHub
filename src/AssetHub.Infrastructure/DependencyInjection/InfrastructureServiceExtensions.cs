@@ -5,10 +5,12 @@ using AssetHub.Application.Services;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Resilience;
 using Minio;
@@ -173,6 +175,65 @@ public static class InfrastructureServiceExtensions
 
         return services;
     }
+
+    /// <summary>
+    /// Wires up ASP.NET Core Data Protection. Keys are persisted to the
+    /// shared database so all instances of the API + Worker decrypt
+    /// consistently. In production they're additionally wrapped with an
+    /// X.509 certificate (Docker secret-mounted PFX) so a DB exfil
+    /// without the cert yields ciphertext only — defeats the
+    /// "everything decrypts from one DB dump" risk in A-1/A-2.
+    /// </summary>
+    public static IServiceCollection AddAssetHubDataProtection(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
+    {
+        var builder = services.AddDataProtection()
+            .PersistKeysToDbContext<AssetHubDbContext>()
+            .SetApplicationName("AssetHub");
+
+        var dpSettings = configuration.GetSection(DataProtectionSettings.SectionName)
+            .Get<DataProtectionSettings>() ?? new DataProtectionSettings();
+
+        if (!string.IsNullOrWhiteSpace(dpSettings.CertificatePath))
+        {
+            if (!System.IO.File.Exists(dpSettings.CertificatePath))
+            {
+                throw new InvalidOperationException(
+                    $"DataProtection:CertificatePath '{dpSettings.CertificatePath}' does not exist. " +
+                    "Mount the PFX as a Docker secret and ensure the path matches.");
+            }
+            // Use the .NET 9 X509CertificateLoader — older `new X509Certificate2(path, password)`
+            // is obsoleted. Empty/null password = unprotected PFX (dev-only).
+            var cert = string.IsNullOrEmpty(dpSettings.CertificatePassword)
+                ? System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadPkcs12FromFile(
+                    dpSettings.CertificatePath, password: null)
+                : System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadPkcs12FromFile(
+                    dpSettings.CertificatePath, dpSettings.CertificatePassword);
+            builder.ProtectKeysWithCertificate(cert);
+        }
+        else if (!IsRelaxedEnvironment(environment))
+        {
+            // In Production / Staging, refuse to start without a wrapping cert.
+            // The keyring would otherwise sit in plaintext in the same database
+            // it protects (A-1/A-2 in the security review). Development and
+            // Testing skip the requirement so unit + integration tests run
+            // without a cert mount.
+            throw new InvalidOperationException(
+                "DataProtection:CertificatePath is required outside of Development / Testing. " +
+                "Provide a PFX via Docker secret and configure DataProtection:CertificatePath " +
+                "(and CertificatePassword if the PFX has one). Without it the keyring is stored " +
+                "in plaintext in the database it protects.");
+        }
+        // Development / Testing: bare keyring acceptable; persists across restarts via the DB.
+
+        return services;
+    }
+
+    private static bool IsRelaxedEnvironment(IHostEnvironment environment)
+        => environment.IsDevelopment()
+            || environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase);
 
     private static void AddResiliencePipelines(IServiceCollection services)
     {

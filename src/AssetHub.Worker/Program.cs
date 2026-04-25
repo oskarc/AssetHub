@@ -69,9 +69,16 @@ static class Program
                 // Shared infrastructure: DB, MinIO, Repos, Caching, core services
                 services.AddSharedInfrastructure(hostContext.Configuration);
 
+                // Data Protection — Worker MUST share the same keyring + wrapping
+                // cert as the API or it can't unprotect webhook secrets / share
+                // tokens / migration secrets / signed magic-links the API issued
+                // (A-1/A-2). Same call wires it: cert from Docker secret in prod.
+                services.AddAssetHubDataProtection(hostContext.Configuration, hostContext.HostingEnvironment);
+
                 // Worker-specific services needed for job resolution
                 services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // Returns null HttpContext for Worker
                 services.AddScoped<IAuditService, AuditService>();
+                services.AddScoped<IUnitOfWork, UnitOfWork>();
 
                 // CurrentUser is HTTP-scoped in the API. In the Worker there is no
                 // HttpContext, so we register an always-anonymous instance per

@@ -31,6 +31,7 @@ public class ShareService(
     IEmailService emailService,
     IUserLookupService userLookupService,
     IAuditService audit,
+    IUnitOfWork uow,
     IDataProtectionProvider dataProtection,
     IOptions<WorkflowSettings> workflowSettings,
     IWebhookEventPublisher webhooks,
@@ -102,10 +103,14 @@ public class ShareService(
         var token = ShareHelpers.GenerateToken();
         var share = BuildShareEntity(dto, userId, token, passwordResult.PlainPassword!);
 
-        await repos.ShareRepo.CreateAsync(share, ct);
-
-        await audit.LogAsync("share.created", Constants.ScopeTypes.Share, share.Id, userId,
-            new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, ct);
+        // Share row + audit are atomic — without this, a torn write could
+        // leave a usable share token unaudited or audited-without-share (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repos.ShareRepo.CreateAsync(share, tct);
+            await audit.LogAsync("share.created", Constants.ScopeTypes.Share, share.Id, userId,
+                new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, tct);
+        }, ct);
 
         await PublishShareCreatedEventAsync(share, dto, userId, ct);
 

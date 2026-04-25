@@ -11,6 +11,7 @@ namespace AssetHub.Infrastructure.Services;
 public sealed class PersonalAccessTokenService(
     IPersonalAccessTokenRepository repo,
     IAuditService audit,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     ILogger<PersonalAccessTokenService> logger) : IPersonalAccessTokenService
 {
@@ -82,21 +83,25 @@ public sealed class PersonalAccessTokenService(
             ExpiresAt = request.ExpiresAt
         };
 
-        await repo.CreateAsync(entity, ct);
-
-        await audit.LogAsync(
-            "pat.created",
-            "user",
-            null,
-            currentUser.UserId,
-            new()
-            {
-                ["tokenId"] = entity.Id,
-                ["name"] = entity.Name,
-                ["scopes"] = entity.Scopes,
-                ["expiresAt"] = entity.ExpiresAt is null ? "never" : entity.ExpiresAt.Value.ToString("O")
-            },
-            ct);
+        // PAT mint + audit run in one transaction so a torn write can't
+        // leave a token usable but unaudited (or audited but unminted) — A-4.
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.CreateAsync(entity, tct);
+            await audit.LogAsync(
+                "pat.created",
+                "user",
+                null,
+                currentUser.UserId,
+                new()
+                {
+                    ["tokenId"] = entity.Id,
+                    ["name"] = entity.Name,
+                    ["scopes"] = entity.Scopes,
+                    ["expiresAt"] = entity.ExpiresAt is null ? "never" : entity.ExpiresAt.Value.ToString("O")
+                },
+                tct);
+        }, ct);
 
         logger.LogInformation("User {UserId} created PAT {TokenId} ({Name})",
             currentUser.UserId, entity.Id, entity.Name);
@@ -130,15 +135,19 @@ public sealed class PersonalAccessTokenService(
             return ServiceResult.Success;
 
         token.MarkRevoked();
-        await repo.UpdateAsync(token, ct);
 
-        await audit.LogAsync(
-            "pat.revoked",
-            "user",
-            null,
-            currentUser.UserId,
-            new() { ["tokenId"] = token.Id, ["name"] = token.Name },
-            ct);
+        // Revoke + audit run in one transaction (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.UpdateAsync(token, tct);
+            await audit.LogAsync(
+                "pat.revoked",
+                "user",
+                null,
+                currentUser.UserId,
+                new() { ["tokenId"] = token.Id, ["name"] = token.Name },
+                tct);
+        }, ct);
 
         logger.LogInformation("User {UserId} revoked PAT {TokenId}", currentUser.UserId, token.Id);
         return ServiceResult.Success;

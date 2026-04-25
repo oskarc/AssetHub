@@ -20,6 +20,7 @@ public sealed class GuestInvitationService(
     IUserLookupService userLookup,
     IEmailService email,
     IAuditService audit,
+    IUnitOfWork uow,
     CurrentUser currentUser,
     ILogger<GuestInvitationService> logger) : IGuestInvitationService
 {
@@ -68,20 +69,25 @@ public sealed class GuestInvitationService(
             ExpiresAt = DateTime.UtcNow.AddDays(dto.ExpiresInDays),
             CreatedByUserId = currentUser.UserId
         };
-        await repo.CreateAsync(entity, ct);
-
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.GuestInvited,
-            Constants.ScopeTypes.GuestInvitation,
-            entity.Id,
-            currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                ["invited_email"] = entity.Email,
-                ["collection_ids"] = entity.CollectionIds,
-                ["expires_at"] = entity.ExpiresAt
-            },
-            ct);
+        // Invitation insert + audit are atomic — a torn write would either
+        // leave a redeemable invitation with no audit row or, worse, an
+        // audit-ack with no actual invitation (A-4).
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.CreateAsync(entity, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.GuestInvited,
+                Constants.ScopeTypes.GuestInvitation,
+                entity.Id,
+                currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    ["invited_email"] = entity.Email,
+                    ["collection_ids"] = entity.CollectionIds,
+                    ["expires_at"] = entity.ExpiresAt
+                },
+                tct);
+        }, ct);
 
         var magicLinkUrl = BuildMagicLinkUrl(baseUrl, token.Plaintext);
 
@@ -277,19 +283,25 @@ public sealed class GuestInvitationService(
         }
 
         invitation.RevokedAt = DateTime.UtcNow;
-        await repo.UpdateAsync(invitation, ct);
 
-        await audit.LogAsync(
-            NotificationConstants.AuditEvents.GuestAccessRevoked,
-            Constants.ScopeTypes.GuestInvitation,
-            invitation.Id,
-            currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                ["invited_email"] = invitation.Email,
-                ["was_accepted"] = invitation.AcceptedAt is not null
-            },
-            ct);
+        // Revocation + audit are atomic. ACL strips above are best-effort
+        // (Postgres can't roll back across services anyway) — the audit
+        // entry is the load-bearing forensic record.
+        await uow.ExecuteAsync(async tct =>
+        {
+            await repo.UpdateAsync(invitation, tct);
+            await audit.LogAsync(
+                NotificationConstants.AuditEvents.GuestAccessRevoked,
+                Constants.ScopeTypes.GuestInvitation,
+                invitation.Id,
+                currentUser.UserId,
+                new Dictionary<string, object>
+                {
+                    ["invited_email"] = invitation.Email,
+                    ["was_accepted"] = invitation.AcceptedAt is not null
+                },
+                tct);
+        }, ct);
 
         return ServiceResult.Success;
     }
