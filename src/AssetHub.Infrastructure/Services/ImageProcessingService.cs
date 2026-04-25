@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
+using AssetHub.Application.Helpers;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -56,9 +57,9 @@ public sealed class ImageProcessingService(
     public async Task<ImageProcessingResult> ProcessImageAsync(
         Guid assetId, string originalObjectKey, bool skipMetadata = false, CancellationToken ct = default)
     {
-        var tempOriginal = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-        var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
-        var mediumPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
+        var tempOriginal = ScratchPaths.Combine(Path.GetRandomFileName());
+        var thumbPath = ScratchPaths.Combine($"{Guid.NewGuid()}.jpg");
+        var mediumPath = ScratchPaths.Combine($"{Guid.NewGuid()}.jpg");
         var sw = Stopwatch.StartNew();
 
         try
@@ -207,8 +208,8 @@ public sealed class ImageProcessingService(
             "image/webp" => ".webp",
             _ => ".png"
         };
-        var tempInput = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-        var tempOutput = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}{extension}");
+        var tempInput = ScratchPaths.Combine(Path.GetRandomFileName());
+        var tempOutput = ScratchPaths.Combine($"{Guid.NewGuid()}{extension}");
 
         try
         {

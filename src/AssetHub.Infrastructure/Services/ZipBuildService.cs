@@ -196,7 +196,7 @@ public sealed class ZipBuildService(
 
             // Build the ZIP into a temp file, then upload to MinIO
             var objectKey = $"{Constants.StoragePrefixes.TempZipDownloads}/{zipDownloadId}.zip";
-            var tempPath = Path.Combine(Path.GetTempPath(), $"assethub-zip-{zipDownloadId}.zip");
+            var tempPath = ScratchPaths.Combine($"assethub-zip-{zipDownloadId}.zip");
 
             try
             {

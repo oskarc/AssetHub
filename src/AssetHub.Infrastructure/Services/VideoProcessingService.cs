@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
+using AssetHub.Application.Helpers;
 using AssetHub.Application.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -43,8 +44,8 @@ public sealed class VideoProcessingService(
 
     public async Task<VideoProcessingResult> ProcessVideoAsync(Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
-        var posterPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
-        var thumbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
+        var posterPath = ScratchPaths.Combine($"{Guid.NewGuid()}.jpg");
+        var thumbPath = ScratchPaths.Combine($"{Guid.NewGuid()}.jpg");
         var sw = Stopwatch.StartNew();
 
         try
