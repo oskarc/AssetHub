@@ -1,0 +1,130 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<GuestsResource> Loc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" />
+            <MudText Typo="Typo.h6" id="invite-guest-title">@Loc["Dialog_Title"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudStack Spacing="3" Style="min-width: 480px;">
+                <MudTextField @bind-Value="_email"
+                              Label="@Loc["Dialog_Field_Email"]"
+                              Required="true"
+                              MaxLength="320"
+                              InputType="InputType.Email"
+                              Variant="Variant.Outlined"
+                              Validation="@(new Func<string, IEnumerable<string>>(ValidateEmail))"
+                              aria-label="@Loc["Dialog_Field_Email"]" />
+
+                <MudSelect T="Guid" @bind-SelectedValues="_selectedCollectionIds"
+                           Label="@Loc["Dialog_Field_Collections"]"
+                           MultiSelection="true"
+                           SelectAll="true"
+                           Required="true"
+                           Variant="Variant.Outlined"
+                           Disabled="@(_collections is null)"
+                           aria-label="@Loc["Dialog_Field_Collections"]">
+                    @if (_collections is not null)
+                    {
+                        @foreach (var c in _collections)
+                        {
+                            <MudSelectItem T="Guid" Value="@c.Id">@c.Name</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+
+                <MudNumericField T="int" @bind-Value="_expiresInDays"
+                                 Label="@Loc["Dialog_Field_ExpiresInDays"]"
+                                 Min="1" Max="90"
+                                 Variant="Variant.Outlined"
+                                 aria-label="@Loc["Dialog_Field_ExpiresInDays"]" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">@Loc["Dialog_Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(!CanSubmit)"
+                   OnClick="SubmitAsync">
+            @Loc["Dialog_Submit"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm? _form;
+    private bool _isValid;
+    private bool _submitting;
+
+    private List<CollectionResponseDto>? _collections;
+    private string _email = string.Empty;
+    private IEnumerable<Guid> _selectedCollectionIds = Array.Empty<Guid>();
+    private int _expiresInDays = 14;
+
+    private bool CanSubmit =>
+        _isValid
+        && !_submitting
+        && !string.IsNullOrWhiteSpace(_email)
+        && _selectedCollectionIds.Any()
+        && _expiresInDays is >= 1 and <= 90;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _collections = await Api.GetCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collections");
+            _collections = new List<CollectionResponseDto>();
+        }
+    }
+
+    private static IEnumerable<string> ValidateEmail(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) yield break;
+        var attr = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+        if (!attr.IsValid(value))
+            yield return "Must be a valid email address.";
+    }
+
+    private async Task SubmitAsync()
+    {
+        _submitting = true;
+        try
+        {
+            var dto = new CreateGuestInvitationDto
+            {
+                Email = _email.Trim(),
+                CollectionIds = _selectedCollectionIds.ToList(),
+                ExpiresInDays = _expiresInDays
+            };
+            var created = await Api.CreateGuestInvitationAsync(dto);
+            MudDialog.Close(DialogResult.Ok(created));
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "create guest invitation");
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

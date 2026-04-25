@@ -118,6 +118,7 @@ static class Program
                 services.AddHostedService<AuditRetentionService>();
                 services.AddHostedService<TrashPurgeBackgroundService>();
                 services.AddHostedService<SavedSearchDigestBackgroundService>();
+                services.AddHostedService<GuestInvitationExpirySweepService>();
             })
             .Build();
 

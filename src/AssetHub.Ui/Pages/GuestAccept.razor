@@ -1,0 +1,98 @@
+@page "/guest-accept"
+@layout Layout.ShareLayout
+@rendermode @(new Microsoft.AspNetCore.Components.Web.InteractiveServerRenderMode(prerender: false))
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IStringLocalizer<GuestsResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@Loc["Accept_Success_Title"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="py-8">
+    <MudPaper Elevation="2" Class="pa-6">
+        @if (_state == State.Loading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Spacing="3" role="status" aria-live="polite">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h5">@Loc["Accept_Loading_Title"]</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                    @Loc["Accept_Loading_Desc"]
+                </MudText>
+            </MudStack>
+        }
+        else if (_state == State.Success)
+        {
+            <MudStack AlignItems="AlignItems.Center" Spacing="3">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                <MudText Typo="Typo.h5">@Loc["Accept_Success_Title"]</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                    @string.Format(Loc["Accept_Success_Desc"].Value, _collectionCount)
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Login"
+                           Href="/login">
+                    @Loc["Accept_Success_Login"]
+                </MudButton>
+            </MudStack>
+        }
+        else
+        {
+            <MudStack AlignItems="AlignItems.Center" Spacing="3" role="alert">
+                <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" Size="Size.Large" />
+                <MudText Typo="Typo.h5">@Loc["Accept_Error_Title"]</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                    @_errorMessage
+                </MudText>
+            </MudStack>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private enum State { Loading, Success, Error }
+
+    private State _state = State.Loading;
+    private int _collectionCount;
+    private string _errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        if (!query.TryGetValue("token", out var tokenVals) || string.IsNullOrWhiteSpace(tokenVals))
+        {
+            _state = State.Error;
+            _errorMessage = Loc["Accept_MissingToken"].Value;
+            return;
+        }
+
+        try
+        {
+            var result = await Api.AcceptGuestInvitationAsync(tokenVals.ToString());
+            _collectionCount = result.CollectionIds.Count;
+            _state = State.Success;
+        }
+        catch (ApiException ex)
+        {
+            _state = State.Error;
+            _errorMessage = ex.StatusCode switch
+            {
+                System.Net.HttpStatusCode.NotFound => Loc["Accept_Error_NotFound"].Value,
+                System.Net.HttpStatusCode.Conflict => Loc["Accept_Error_Expired"].Value,
+                _ => Loc["Accept_Error_Generic"].Value
+            };
+        }
+        catch (Exception)
+        {
+            _state = State.Error;
+            _errorMessage = Loc["Accept_Error_Generic"].Value;
+        }
+    }
+}

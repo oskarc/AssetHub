@@ -1,0 +1,159 @@
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
+@using MudBlazor
+
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<GuestsResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<MudStack Spacing="3">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Style="max-width: 720px;">
+            @Loc["Tab_Description"]
+        </MudText>
+        <MudStack Row="true" Spacing="1">
+            <MudButton Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="LoadAsync"
+                       aria-label="@Loc["Btn_Refresh"]">
+                @Loc["Btn_Refresh"]
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                       OnClick="OnInviteAsync"
+                       aria-label="@Loc["Btn_New"]">
+                @Loc["Btn_New"]
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (_loading && _invitations is null)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_invitations is null || _invitations.Count == 0)
+    {
+        <EmptyState Title="@Loc["Empty_Title"]"
+                    Description="@Loc["Empty_Desc"]"
+                    Icon="@Icons.Material.Filled.PersonOutline" />
+    }
+    else
+    {
+        <MudTable Items="@_invitations" Hover="true" Dense="true" Striped="true">
+            <HeaderContent>
+                <MudTh>@Loc["Header_Email"]</MudTh>
+                <MudTh>@Loc["Header_Collections"]</MudTh>
+                <MudTh>@Loc["Header_Status"]</MudTh>
+                <MudTh>@Loc["Header_Expires"]</MudTh>
+                <MudTh Style="width: 120px;"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@Loc["Header_Email"]">
+                    <MudText Typo="Typo.body2" Class="font-semibold">@context.Email</MudText>
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Collections"]">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @context.CollectionIds.Count
+                    </MudText>
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Status"]">
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@StatusColor(context.Status)"
+                             Variant="Variant.Filled">
+                        @Loc[$"Status_{context.Status}"]
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="@Loc["Header_Expires"]">
+                    <MudTooltip Text="@context.ExpiresAt.ToLocalTime().ToString("F")">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @context.ExpiresAt.ToLocalTime().ToString("d")
+                        </MudText>
+                    </MudTooltip>
+                </MudTd>
+                <MudTd>
+                    @if (context.Status is "pending" or "accepted")
+                    {
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error"
+                                   StartIcon="@Icons.Material.Outlined.Block"
+                                   OnClick="@(() => OnRevokeAsync(context))"
+                                   aria-label="@Loc["Btn_Revoke"]">
+                            @Loc["Btn_Revoke"]
+                        </MudButton>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudStack>
+
+@code {
+    private List<GuestInvitationResponseDto>? _invitations;
+    private bool _loading;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _loading = true;
+            _invitations = await Api.GetGuestInvitationsAsync(_cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load guest invitations");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnInviteAsync()
+    {
+        var result = await DialogService.ShowAsync<InviteGuestDialog>(Loc["Dialog_Title"]);
+        var dialogResult = await result.Result;
+        if (dialogResult is null || dialogResult.Canceled) return;
+
+        if (dialogResult.Data is CreatedGuestInvitationDto created)
+        {
+            var parameters = new DialogParameters { ["MagicLinkUrl"] = created.MagicLinkUrl };
+            await DialogService.ShowAsync<GuestMagicLinkShownDialog>(
+                Loc["MagicLink_Title"], parameters,
+                new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+            await LoadAsync();
+        }
+    }
+
+    private async Task OnRevokeAsync(GuestInvitationResponseDto invitation)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            Loc["Confirm_Revoke_Title"], Loc["Confirm_Revoke_Body"].Value,
+            yesText: Loc["Btn_Revoke"], cancelText: Loc["Dialog_Cancel"]);
+        if (confirmed != true) return;
+
+        try
+        {
+            await Api.RevokeGuestInvitationAsync(invitation.Id, _cts.Token);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            Feedback.ShowError(Loc["Action_Failed"].Value);
+        }
+    }
+
+    private static Color StatusColor(string status) => status switch
+    {
+        "pending" => Color.Warning,
+        "accepted" => Color.Success,
+        "expired" => Color.Default,
+        "revoked" => Color.Error,
+        _ => Color.Default
+    };
+}

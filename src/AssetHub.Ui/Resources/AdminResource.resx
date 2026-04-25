@@ -505,6 +505,9 @@ logo.png,Company Logo,branding,"Brand Assets;Marketing"</value></data>
   <!-- Brands -->
   <data name="Tab_Brands" xml:space="preserve"><value>Brands</value></data>
 
+  <!-- Guests -->
+  <data name="Tab_Guests" xml:space="preserve"><value>Guests</value></data>
+
   <!-- Trash -->
   <data name="Tab_Trash" xml:space="preserve"><value>Trash</value></data>
   <data name="Trash_Desc" xml:space="preserve"><value>Soft-deleted assets. Restore any item before it expires, or purge permanently to free storage.</value></data>

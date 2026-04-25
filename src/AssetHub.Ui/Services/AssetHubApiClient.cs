@@ -1509,6 +1509,44 @@ public class AssetHubApiClient
     }
 
     #endregion
+
+    #region Guest invitations (T4-GUEST-01)
+
+    public virtual async Task<List<GuestInvitationResponseDto>> GetGuestInvitationsAsync(CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync("/api/v1/admin/guest-invitations", ct);
+        await EnsureSuccessAsync(response, "Get guest invitations");
+        return await response.Content.ReadFromJsonAsync<List<GuestInvitationResponseDto>>(ct) ?? new();
+    }
+
+    public virtual async Task<CreatedGuestInvitationDto> CreateGuestInvitationAsync(
+        CreateGuestInvitationDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/admin/guest-invitations", dto, ct);
+        await EnsureSuccessAsync(response, "Create guest invitation");
+        return await ReadRequiredJsonAsync<CreatedGuestInvitationDto>(response, "Create guest invitation");
+    }
+
+    public virtual async Task RevokeGuestInvitationAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/admin/guest-invitations/{id}/revoke", content: null, ct);
+        await EnsureSuccessAsync(response, "Revoke guest invitation");
+    }
+
+    /// <summary>
+    /// Anonymous redeem of a guest invitation magic-link token. Triggered
+    /// from the public <c>/guest-accept</c> landing page.
+    /// </summary>
+    public virtual async Task<AcceptGuestInvitationResponseDto> AcceptGuestInvitationAsync(
+        string token, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync(
+            "/api/v1/guest-invitations/accept", new { Token = token }, ct);
+        await EnsureSuccessAsync(response, "Accept guest invitation");
+        return await ReadRequiredJsonAsync<AcceptGuestInvitationResponseDto>(response, "Accept guest invitation");
+    }
+
+    #endregion
 }
 
 /// <summary>

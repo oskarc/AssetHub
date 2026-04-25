@@ -242,6 +242,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRenditionImageResizer, ImageProcessingRenditionResizer>();
         services.AddScoped<IRenditionService, RenditionService>();
 
+        // Guest invitations (T4-GUEST-01)
+        services.AddScoped<IGuestInvitationService, GuestInvitationService>();
+
         // Personal access tokens (T1-API-01)
         services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();
 

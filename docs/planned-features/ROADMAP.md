@@ -512,6 +512,8 @@ Implementations: `AzureAiVisionService`, `AwsRekognitionService`, etc. Register 
 
 ### T4-GUEST-01 — Named guest users
 
+> **Shipped 2026-04-25.** See the **Shipped appendix** at the end of this document for the per-layer breakdown, the deliberate "Keycloak realm role + ACL" provisioning model (no separate guest sub-type), and the deferred items (resend invitation, inviter name in email, dedicated guest theming).
+
 **Intent.** External reviewers who aren't full users but aren't anonymous either.
 
 **Target state.** Guest `User` sub-type with time-limited access to specific collections; invitation email with magic-link sign-in. Guests can comment on assets (T3-COL-01) but cannot upload.
@@ -1034,6 +1036,32 @@ Full suite: 1038 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 - `tests/AssetHub.Tests/Services/RenditionServiceTests.cs` — 12 unit tests covering anonymous, missing dimensions, disallowed dimensions / fit / format, non-image asset, no-collection-access, cache hit (no resizer call), cache miss (resizer invoked with correct params), cache-key determinism across identical requests, cache-key divergence across different dimensions.
 
 Full suite: 1050 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
+### T4-GUEST-01 — Named guest users
+
+**Shipped 2026-04-25** in a single pass. Admins invite external reviewers by email; the invitee redeems a Data-Protection-signed magic link, which provisions a Keycloak guest account and grants viewer ACLs on the chosen collections. Access auto-revokes when the invitation expires.
+
+**Delivered as specified.**
+- [GuestInvitation](../../src/AssetHub.Domain/Entities/GuestInvitation.cs) — entity with `Email`, `TokenHash` (SHA-256 of plaintext, unique index), `CollectionIds` (`uuid[]`), `CreatedAt` / `ExpiresAt` / `AcceptedAt` / `RevokedAt`, `AcceptedUserId`. Migration [`20260425133757_AddGuestInvitations`](../../src/AssetHub.Infrastructure/Migrations/20260425133757_AddGuestInvitations.cs) adds `idx_guest_invitation_token_hash_unique` and `idx_guest_invitation_expiry_revoked`.
+- [GuestInvitationTokenService](../../src/AssetHub.Infrastructure/Services/GuestInvitationTokenService.cs) — Data Protection over `invitationId.ToByteArray()` under `Constants.DataProtection.GuestInvitationProtector`. Plaintext is base64url; persisted as SHA-256 lowercase-hex hash. `TryParse` returns `Guid?` (null on tamper) and the accept path additionally verifies the parsed id matches the hash-looked-up row's id (defence in depth).
+- [GuestInvitationService](../../src/AssetHub.Infrastructure/Services/GuestInvitationService.cs) — `Create` validates collections + persists + audits + emails. `Accept` (anonymous) parses → hash-looks up → state-checks (not revoked / not accepted / not expired) → reuses-or-creates a Keycloak user (`temporaryPassword: true` with a CSPRNG random password — guest sets their own via execute-actions email) → assigns the `viewer` realm role → grants viewer ACL on each collection (per-collection failures logged but don't abort) → marks accepted + audits. `Revoke` strips ACLs and stamps `RevokedAt`.
+- [GuestInvitationEndpoints](../../src/AssetHub.Api/Endpoints/GuestInvitationEndpoints.cs) — admin group (`RequireAdmin`) for List / Create / Revoke, plus anonymous `POST /api/v1/guest-invitations/accept` rate-limited by the existing `ShareAnonymous` policy (same threat profile: anonymous + signed-token).
+- [GuestInvitationExpirySweepService](../../src/AssetHub.Worker/BackgroundServices/GuestInvitationExpirySweepService.cs) — hourly worker that finds accepted-but-expired invitations, strips their ACLs, stamps `RevokedAt`, and emits `guest.expired` audit per row. Per-iteration scope; per-item try/catch.
+- [GuestInvitationEmailTemplate](../../src/AssetHub.Application/Services/Email/Templates/GuestInvitationEmailTemplate.cs) — magic-link invitation email with collection count and expiry timestamp.
+- [AdminGuestsTab](../../src/AssetHub.Ui/Components/AdminGuestsTab.razor) + [InviteGuestDialog](../../src/AssetHub.Ui/Components/InviteGuestDialog.razor) + [GuestMagicLinkShownDialog](../../src/AssetHub.Ui/Components/GuestMagicLinkShownDialog.razor) — admin tab with status chips (pending / accepted / expired / revoked), invite flow, and a one-time magic-link reveal dialog after creation. Public anonymous landing page [`/guest-accept`](../../src/AssetHub.Ui/Pages/GuestAccept.razor) (under `ShareLayout`) exchanges the token, then directs the user to sign in.
+
+**Deviations from the spec.**
+- **No separate `User` sub-type for guests.** The roadmap target state names a "Guest `User` sub-type." We took the simpler route: provision a regular Keycloak user with the existing `viewer` realm role and rely on per-collection ACLs for scope. A first-class sub-type would only buy us extra UI labelling and wouldn't change the access surface — the invitation entity already records the guest origin for auditing. If we later need to forbid guests from being elevated, that's a one-line check on a stored flag, not a schema rewrite.
+- **Inviter name in the email is `null` for v1** — the template falls back to "someone has invited you." Resolving the actor's display name via `IUserLookupService` is a small follow-up but adds a Keycloak round-trip on the create path. Tracked in [FOLLOW-UPS.md](./FOLLOW-UPS.md).
+- **No "resend invitation" admin action.** The plaintext token is shown once at creation; if the email never arrives the admin can copy it from the post-create dialog or revoke + reinvite. A dedicated resend (regenerates token + email) is tracked as a follow-up.
+- **Per-collection ACL grant failures during accept are logged, not transactional.** The acceptance succeeds if the Keycloak user is provisioned + role assigned; missing collection grants surface in the audit trail and can be fixed by re-granting via the collection ACL admin UI. The alternative — rolling back the Keycloak user creation — leaves an orphan magic-link state that's worse to recover from than a missing ACL.
+- **Comments-as-guest is on the contract** but isn't a separate code path: guests with viewer ACL already pass the existing `T3-COL-01` author-or-viewer check. No special "guest can comment" flag was needed.
+
+**Test coverage.**
+- `tests/AssetHub.Tests/Services/GuestInvitationServiceTests.cs` — 16 unit tests: forbidden non-admin (list / create / revoke), unknown collection rejected, happy-path create persists + audits + emails, email failure doesn't void the invitation, accept tamper / mismatched hash → 404, accept on revoked / accepted / expired → 409, accept new + reuse-existing Keycloak user paths grant ACLs and audit, accept on Keycloak failure → 500 (no AcceptedAt stamp), revoke not-found → 404, revoke-already-revoked is idempotent (no extra writes), revoke-accepted strips ACLs + stamps + audits.
+- `tests/AssetHub.Tests/Endpoints/GuestInvitationEndpointTests.cs` — 5 integration tests: list non-admin → 403, full create → list round-trip with email mock, unknown collection → 400, anonymous accept with garbage token → 404, revoke → status flips to `revoked`.
+
+Full suite: 1072 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 
 
 

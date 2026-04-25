@@ -84,6 +84,12 @@ public static class NotificationConstants
         public const string BrandCreated = "brand.created";
         public const string BrandUpdated = "brand.updated";
         public const string BrandDeleted = "brand.deleted";
+
+        // T4-GUEST-01 — guest invitations
+        public const string GuestInvited = "guest.invited";
+        public const string GuestAccepted = "guest.accepted";
+        public const string GuestAccessRevoked = "guest.access_revoked";
+        public const string GuestExpired = "guest.expired";
     }
 
     /// <summary>Limits.</summary>

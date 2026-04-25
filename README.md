@@ -109,6 +109,9 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Per-collection brand portals — admins create `Brand` records with a logo + primary/secondary colours; mark one as default for a global look or assign per collection. Public share pages render the matching brand on top of the MudBlazor theme via CSS-variable overrides
 - Logos uploaded as PNG / JPEG / SVG / WebP up to 1 MB, served via 24-hour presigned MinIO URLs
 
+**Guest access**
+- Magic-link guest invitations — admin invites an external reviewer by email; AssetHub provisions a Keycloak guest user on first redemption and grants viewer ACL on the chosen collections. Tokens are signed via Data Protection and only the SHA-256 hash is persisted; the plaintext is shown once at create and never logged. Time-limited, hourly expiry sweep auto-revokes ACLs once the invitation lapses
+
 **Security**
 - ClamAV malware scanning on every upload
 - Personal Access Tokens — long-lived, scoped, revocable bearer tokens for scripts and integrations. Only the SHA-256 hash is stored; plaintext is shown once. A compromised PAT cannot mint further tokens

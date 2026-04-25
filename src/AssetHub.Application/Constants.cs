@@ -48,6 +48,7 @@ public static class Constants
         public const string Webhook = "webhook";
         public const string WebhookDelivery = "webhook_delivery";
         public const string Brand = "brand";
+        public const string GuestInvitation = "guest_invitation";
     }
 
     /// <summary>
@@ -61,6 +62,7 @@ public static class Constants
         public const string MigrationSourceSecretProtector = "MigrationSourceSecretProtector";
         public const string NotificationUnsubscribeProtector = "NotificationUnsubscribeProtector";
         public const string WebhookSecretProtector = "WebhookSecretProtector";
+        public const string GuestInvitationProtector = "GuestInvitationProtector";
     }
 
     /// <summary>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Tab_Description" xml:space="preserve"><value>Invite external reviewers as time-limited guest users. They get viewer access to the collections you choose; access auto-revokes when the invitation expires.</value></data>
+  <data name="Btn_New" xml:space="preserve"><value>Invite guest</value></data>
+  <data name="Btn_Revoke" xml:space="preserve"><value>Revoke</value></data>
+  <data name="Btn_Refresh" xml:space="preserve"><value>Refresh</value></data>
+
+  <data name="Empty_Title" xml:space="preserve"><value>No guest invitations yet</value></data>
+  <data name="Empty_Desc" xml:space="preserve"><value>Invite external reviewers by email; they sign in via a magic link without needing a full account.</value></data>
+
+  <data name="Header_Email" xml:space="preserve"><value>Email</value></data>
+  <data name="Header_Collections" xml:space="preserve"><value>Collections</value></data>
+  <data name="Header_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Header_Expires" xml:space="preserve"><value>Expires</value></data>
+  <data name="Header_InvitedBy" xml:space="preserve"><value>Invited by</value></data>
+
+  <data name="Status_pending" xml:space="preserve"><value>Pending</value></data>
+  <data name="Status_accepted" xml:space="preserve"><value>Accepted</value></data>
+  <data name="Status_expired" xml:space="preserve"><value>Expired</value></data>
+  <data name="Status_revoked" xml:space="preserve"><value>Revoked</value></data>
+
+  <data name="Dialog_Title" xml:space="preserve"><value>Invite guest reviewer</value></data>
+  <data name="Dialog_Field_Email" xml:space="preserve"><value>Email</value></data>
+  <data name="Dialog_Field_Collections" xml:space="preserve"><value>Collections to grant viewer access</value></data>
+  <data name="Dialog_Field_ExpiresInDays" xml:space="preserve"><value>Expires in (days)</value></data>
+  <data name="Dialog_Submit" xml:space="preserve"><value>Send invitation</value></data>
+  <data name="Dialog_Cancel" xml:space="preserve"><value>Cancel</value></data>
+
+  <data name="MagicLink_Title" xml:space="preserve"><value>Magic link sent</value></data>
+  <data name="MagicLink_Desc" xml:space="preserve"><value>An invitation email is on its way. You can also copy the magic link below if the email doesn't arrive.</value></data>
+  <data name="MagicLink_CopyAck" xml:space="preserve"><value>Magic link copied to clipboard.</value></data>
+  <data name="MagicLink_Close" xml:space="preserve"><value>Done</value></data>
+
+  <data name="Confirm_Revoke_Title" xml:space="preserve"><value>Revoke this invitation?</value></data>
+  <data name="Confirm_Revoke_Body" xml:space="preserve"><value>Pending invitations stop working. Accepted guests lose access to their granted collections immediately. This cannot be undone.</value></data>
+
+  <data name="Action_Failed" xml:space="preserve"><value>Action failed.</value></data>
+
+  <data name="Accept_Loading_Title" xml:space="preserve"><value>Setting up your access</value></data>
+  <data name="Accept_Loading_Desc" xml:space="preserve"><value>Hang on while we redeem your invitation.</value></data>
+  <data name="Accept_Success_Title" xml:space="preserve"><value>You're in</value></data>
+  <data name="Accept_Success_Desc" xml:space="preserve"><value>We've granted you viewer access to {0} collection(s). Check your email for instructions on setting your password — once that's done, sign in to view the content you've been invited to.</value></data>
+  <data name="Accept_Success_Login" xml:space="preserve"><value>Go to sign-in</value></data>
+  <data name="Accept_Error_Title" xml:space="preserve"><value>This link can't be used</value></data>
+  <data name="Accept_Error_NotFound" xml:space="preserve"><value>The invitation couldn't be found. The link may be malformed — ask the person who invited you for a fresh one.</value></data>
+  <data name="Accept_Error_Expired" xml:space="preserve"><value>This invitation has expired or has already been used. Ask the person who invited you for a fresh link.</value></data>
+  <data name="Accept_Error_Generic" xml:space="preserve"><value>We couldn't process this invitation. Please try again, or ask the person who invited you for a fresh link.</value></data>
+  <data name="Accept_MissingToken" xml:space="preserve"><value>This page expects a magic-link token. Open the link from your invitation email instead.</value></data>
+</root>

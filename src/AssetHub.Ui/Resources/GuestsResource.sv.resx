@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Tab_Description" xml:space="preserve"><value>Bjud in externa granskare som tidsbegränsade gästanvändare. De får läsbehörighet på de samlingar du väljer; åtkomsten återkallas automatiskt när inbjudan löper ut.</value></data>
+  <data name="Btn_New" xml:space="preserve"><value>Bjud in gäst</value></data>
+  <data name="Btn_Revoke" xml:space="preserve"><value>Återkalla</value></data>
+  <data name="Btn_Refresh" xml:space="preserve"><value>Uppdatera</value></data>
+
+  <data name="Empty_Title" xml:space="preserve"><value>Inga gästinbjudningar ännu</value></data>
+  <data name="Empty_Desc" xml:space="preserve"><value>Bjud in externa granskare via e-post; de loggar in via en magisk länk utan att behöva ett fullständigt konto.</value></data>
+
+  <data name="Header_Email" xml:space="preserve"><value>E-post</value></data>
+  <data name="Header_Collections" xml:space="preserve"><value>Samlingar</value></data>
+  <data name="Header_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Header_Expires" xml:space="preserve"><value>Löper ut</value></data>
+  <data name="Header_InvitedBy" xml:space="preserve"><value>Inbjuden av</value></data>
+
+  <data name="Status_pending" xml:space="preserve"><value>Väntar</value></data>
+  <data name="Status_accepted" xml:space="preserve"><value>Accepterad</value></data>
+  <data name="Status_expired" xml:space="preserve"><value>Utgången</value></data>
+  <data name="Status_revoked" xml:space="preserve"><value>Återkallad</value></data>
+
+  <data name="Dialog_Title" xml:space="preserve"><value>Bjud in gästgranskare</value></data>
+  <data name="Dialog_Field_Email" xml:space="preserve"><value>E-post</value></data>
+  <data name="Dialog_Field_Collections" xml:space="preserve"><value>Samlingar att ge läsbehörighet</value></data>
+  <data name="Dialog_Field_ExpiresInDays" xml:space="preserve"><value>Löper ut om (dagar)</value></data>
+  <data name="Dialog_Submit" xml:space="preserve"><value>Skicka inbjudan</value></data>
+  <data name="Dialog_Cancel" xml:space="preserve"><value>Avbryt</value></data>
+
+  <data name="MagicLink_Title" xml:space="preserve"><value>Magisk länk skickad</value></data>
+  <data name="MagicLink_Desc" xml:space="preserve"><value>Ett inbjudningsmejl är på väg. Du kan också kopiera länken nedan om mejlet inte kommer fram.</value></data>
+  <data name="MagicLink_CopyAck" xml:space="preserve"><value>Magisk länk kopierad till urklipp.</value></data>
+  <data name="MagicLink_Close" xml:space="preserve"><value>Klar</value></data>
+
+  <data name="Confirm_Revoke_Title" xml:space="preserve"><value>Återkalla denna inbjudan?</value></data>
+  <data name="Confirm_Revoke_Body" xml:space="preserve"><value>Väntande inbjudningar slutar fungera. Accepterade gäster förlorar omedelbart åtkomst till sina samlingar. Kan inte ångras.</value></data>
+
+  <data name="Action_Failed" xml:space="preserve"><value>Åtgärden misslyckades.</value></data>
+
+  <data name="Accept_Loading_Title" xml:space="preserve"><value>Förbereder din åtkomst</value></data>
+  <data name="Accept_Loading_Desc" xml:space="preserve"><value>Vänta medan vi löser in din inbjudan.</value></data>
+  <data name="Accept_Success_Title" xml:space="preserve"><value>Du är inne</value></data>
+  <data name="Accept_Success_Desc" xml:space="preserve"><value>Vi har gett dig läsbehörighet till {0} samling(ar). Kolla din e-post för instruktioner om att sätta ditt lösenord — när det är klart loggar du in för att se det du blivit inbjuden till.</value></data>
+  <data name="Accept_Success_Login" xml:space="preserve"><value>Gå till inloggning</value></data>
+  <data name="Accept_Error_Title" xml:space="preserve"><value>Den här länken kan inte användas</value></data>
+  <data name="Accept_Error_NotFound" xml:space="preserve"><value>Inbjudan hittades inte. Länken kan vara felaktig — be personen som bjöd in dig om en ny länk.</value></data>
+  <data name="Accept_Error_Expired" xml:space="preserve"><value>Den här inbjudan har löpt ut eller redan använts. Be personen som bjöd in dig om en ny länk.</value></data>
+  <data name="Accept_Error_Generic" xml:space="preserve"><value>Vi kunde inte behandla den här inbjudan. Försök igen, eller be om en ny länk.</value></data>
+  <data name="Accept_MissingToken" xml:space="preserve"><value>Den här sidan förväntar sig en magisk länk. Öppna länken från ditt inbjudningsmejl istället.</value></data>
+</root>

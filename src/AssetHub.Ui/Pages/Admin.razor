@@ -52,6 +52,9 @@
         <MudTabPanel Text="@AdminLoc["Tab_Brands"]" Icon="@Icons.Material.Filled.Palette">
             <AdminBrandsTab />
         </MudTabPanel>
+        <MudTabPanel Text="@AdminLoc["Tab_Guests"]" Icon="@Icons.Material.Filled.PersonAddAlt">
+            <AdminGuestsTab />
+        </MudTabPanel>
     </MudTabs>
 </MudContainer>
 
@@ -63,7 +66,7 @@
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("tab", out var tabValue)
-            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 8)
+            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 11)
             _activeTabIndex = tab;
     }
 

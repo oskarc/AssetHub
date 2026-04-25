@@ -470,3 +470,59 @@ the cascade reproduces there too.
 - Verify: full Release suite runs to completion without the cascade.
 **Acceptance**: `dotnet test --configuration Release` returns the same
 deterministic 0 failures locally and in CI.
+
+
+---
+
+### T4-GUEST-01 — Inviter name in invitation email
+
+**Deferred from**: T4-GUEST-01 ship.
+**Why deferred**: keeps `CreateAsync` off the Keycloak round-trip path on the create hot path; the email is still actionable without a name.
+**Sketch**:
+- Inject `IUserLookupService` (already a constructor dep) and resolve
+  `currentUser.UserId` → display name before constructing
+  `GuestInvitationEmailTemplate`. Cache misses are fine; tolerate failure.
+- Update both `Subject` and `GetContentHtml` / `GetContentPlainText` to use
+  the resolved name.
+- Add a service test that asserts the email template constructor receives
+  the resolved name when the lookup succeeds, and `null` when it doesn't.
+**Acceptance**: invitation emails read "Alice has invited you…" instead of
+"You've been invited…" when the inviter has a profile name; falls back
+gracefully when lookup fails.
+
+---
+
+### T4-GUEST-01 — Resend invitation admin action
+
+**Deferred from**: T4-GUEST-01 ship.
+**Why deferred**: copy-from-create-dialog covers the most common "email
+didn't arrive" case; revoke + reinvite handles the rest. A dedicated
+resend would need to regenerate the magic-link plaintext (changing the
+hash) without orphaning ACLs, which is more state machine than v1
+warrants.
+**Sketch**:
+- `POST /api/v1/admin/guest-invitations/{id}/resend` — admin-only.
+- For pending-and-not-expired rows: regenerate token, replace `TokenHash`,
+  re-send the email. For accepted / revoked / expired: return 409.
+- Audit event `guest.resent` with the previous hash short prefix for
+  forensics.
+**Acceptance**: admin can re-trigger the magic-link email for any pending
+invitation; the old plaintext stops working as soon as resend completes.
+
+---
+
+### T4-GUEST-01 — Guest-themed accept landing
+
+**Deferred from**: T4-GUEST-01 ship.
+**Why deferred**: the public `/guest-accept` page reuses `ShareLayout`,
+which is intentionally bare. A T4-BP-01 brand could improve the first
+impression but is out of scope for the access-mechanism story.
+**Sketch**:
+- Look up "default brand" via `IBrandService` and render the
+  `BrandHeader` component above the success / error state. Optional —
+  fall back to plain layout if no default.
+- Localize the "Go to sign-in" button label per brand (most will keep
+  the default).
+**Acceptance**: a configured default brand shows its logo + colour
+treatment on the accept page; without one, the layout is unchanged.
+

@@ -132,6 +132,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IWebhookRepository, WebhookRepository>();
         services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
         services.AddScoped<IBrandRepository, BrandRepository>();
+        services.AddScoped<IGuestInvitationRepository, GuestInvitationRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);
@@ -163,6 +164,7 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<IWebhookSecretProtector, WebhookSecretProtector>();
         services.AddScoped<IWebhookEventPublisher, WebhookEventPublisher>();
         services.AddScoped<IBrandResolver, BrandResolver>();
+        services.AddSingleton<IGuestInvitationTokenService, GuestInvitationTokenService>();
         // Migration source connectors: one impl per MigrationSourceType.
         // Registry fans them out by SourceType at resolve time.
         services.AddSingleton<IMigrationSourceConnector, CsvMigrationSourceConnector>();
