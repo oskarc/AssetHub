@@ -230,6 +230,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.TokenHash).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TokenEncrypted).HasMaxLength(2048);
             entity.Property(e => e.PasswordEncrypted).HasMaxLength(2048);
+            entity.Property(e => e.PasswordVersion).HasDefaultValue(0).IsRequired();
             entity.Property(e => e.ScopeType)
                 .HasConversion(v => v.ToDbString(), v => v.ToShareScopeType())
                 .HasMaxLength(50).IsRequired();

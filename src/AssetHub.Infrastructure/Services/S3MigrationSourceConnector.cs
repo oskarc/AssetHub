@@ -134,8 +134,10 @@ public sealed class S3MigrationSourceConnector(
 
     private static IMinioClient BuildClient(S3SourceConfigDto config)
     {
-        if (!Uri.TryCreate(config.Endpoint, UriKind.Absolute, out var uri))
-            throw new InvalidOperationException($"S3 endpoint '{config.Endpoint}' is not a valid absolute URI.");
+        if (!Application.Helpers.OutboundUrlGuard.IsSafeOutboundUrl(config.Endpoint, out var ssrfError))
+            throw new InvalidOperationException($"S3 endpoint '{config.Endpoint}' rejected: {ssrfError}");
+
+        var uri = new Uri(config.Endpoint, UriKind.Absolute);
 
         // MinIO SDK expects host[:port] — not a scheme. WithSSL() toggles https.
         var endpoint = uri.IsDefaultPort ? uri.Host : $"{uri.Host}:{uri.Port}";

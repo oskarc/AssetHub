@@ -60,10 +60,21 @@ public static class CacheKeys
     public static readonly TimeSpan TaxonomyTtl = TimeSpan.FromMinutes(10);
 
     /// <summary>
-    /// Realm roles for a single user (PAT auth path). Short TTL — role changes
-    /// in Keycloak take effect within this window without an explicit invalidation.
-    /// Not an ACL lookup — those remain request-scoped per CLAUDE.md.
+    /// Realm roles for a single user (PAT auth path). Short TTL — role
+    /// changes in Keycloak take effect within this window without an
+    /// explicit invalidation. Not an ACL lookup — those remain request-
+    /// scoped per CLAUDE.md.
     /// </summary>
+    /// <remarks>
+    /// Security implication: a Keycloak user demoted from admin → viewer
+    /// retains admin privileges on PAT-authenticated requests for up to
+    /// this TTL. This is the deliberate compromise for performance —
+    /// raising it past a minute or two would amplify the demotion-lag
+    /// window beyond what most policies allow. Acknowledged in the
+    /// security review (A-5). Per-PAT validity (revoke / expiry) is
+    /// re-checked on every request via the DB; this cache only covers
+    /// the realm-role lookup.
+    /// </remarks>
     public static readonly TimeSpan UserRealmRolesTtl = TimeSpan.FromMinutes(1);
 
     /// <summary>

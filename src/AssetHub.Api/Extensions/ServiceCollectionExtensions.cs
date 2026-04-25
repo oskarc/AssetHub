@@ -417,8 +417,7 @@ public static class ServiceCollectionExtensions
     private static RateLimitPartition<string> GetDevRateLimitPartition(HttpContext context)
     {
         var key = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? context.Connection.RemoteIpAddress?.ToString()
-            ?? "unknown";
+            ?? ClientIpPartitionKey(context);
         return SlidingWindowPartition($"dev_{key}", permitLimit: 2000, window: TimeSpan.FromMinutes(1));
     }
 
@@ -426,14 +425,14 @@ public static class ServiceCollectionExtensions
     {
         if (context.User.Identity?.IsAuthenticated != true)
         {
-            var anonIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+            var anonIp = ClientIpPartitionKey(context);
             return SlidingWindowPartition($"anon_{anonIp}", permitLimit: 100, window: TimeSpan.FromMinutes(1));
         }
 
         var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (userId is null)
         {
-            var fallbackIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+            var fallbackIp = ClientIpPartitionKey(context);
             return SlidingWindowPartition($"nosubject_{fallbackIp}", permitLimit: 50, window: TimeSpan.FromMinutes(1));
         }
 
@@ -443,8 +442,33 @@ public static class ServiceCollectionExtensions
     private static RateLimitPartition<string> IpSlidingWindowPartition(
         HttpContext context, string prefix, int permitLimit, TimeSpan window, int segments = 6)
     {
-        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+        var ip = ClientIpPartitionKey(context);
         return SlidingWindowPartition($"{prefix}_{ip}", permitLimit, window, segments);
+    }
+
+    /// <summary>
+    /// Builds a stable rate-limit partition key from the connection's remote
+    /// IP, normalising IPv6 down to its /48 prefix. A naïve full-address key
+    /// gives an attacker rotating across a single /64 (ISP-allocated to one
+    /// customer) effectively unlimited quota; /48 still preserves per-customer
+    /// fairness (most ISPs allocate at least a /48 per residential subscriber)
+    /// while collapsing the rotation surface (A-8 in the security review).
+    /// </summary>
+    private static string ClientIpPartitionKey(HttpContext context)
+    {
+        var address = context.Connection.RemoteIpAddress;
+        if (address is null) return "unknown-ip";
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+            && !address.IsIPv4MappedToIPv6)
+        {
+            // Truncate IPv6 to /48 (first 6 bytes / 3 hextets).
+            var bytes = address.GetAddressBytes();
+            // Zero out the trailing 80 bits.
+            for (var i = 6; i < bytes.Length; i++) bytes[i] = 0;
+            return new System.Net.IPAddress(bytes).ToString() + "/48";
+        }
+        return address.ToString();
     }
 
     private static RateLimitPartition<string> SlidingWindowPartition(

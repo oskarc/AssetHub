@@ -43,7 +43,7 @@ public class DispatchWebhookHandlerTests
         {
             Id = Guid.NewGuid(),
             Name = "x",
-            Url = "https://hook.example.com/in",
+            Url = "https://example.com/webhook-in",
             SecretEncrypted = "enc",
             EventTypes = [WebhookEvents.AssetCreated],
             IsActive = true,

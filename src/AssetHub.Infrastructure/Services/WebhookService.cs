@@ -233,20 +233,7 @@ public sealed class WebhookService(
     // ── helpers ─────────────────────────────────────────────────────────
 
     private static bool IsValidUrl(string raw, out string? error)
-    {
-        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri))
-        {
-            error = "Url must be an absolute URL.";
-            return false;
-        }
-        if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp)
-        {
-            error = "Only http and https schemes are accepted.";
-            return false;
-        }
-        error = null;
-        return true;
-    }
+        => Application.Helpers.OutboundUrlGuard.IsSafeOutboundUrl(raw, out error);
 
     private static string SafeHost(string url)
         => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : "(invalid)";

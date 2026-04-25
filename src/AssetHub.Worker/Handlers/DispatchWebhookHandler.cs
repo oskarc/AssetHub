@@ -87,6 +87,22 @@ public sealed class DispatchWebhookHandler(
 
     private async Task DispatchAndRecordAsync(WebhookDelivery delivery, Webhook webhook, CancellationToken ct)
     {
+        // Revalidate the URL right before dispatch — DNS rebinding could have
+        // flipped a previously-public hostname to a private IP between
+        // registration and now. The handler only fetches if the URL still
+        // resolves to a public address. (P-1 / OutboundUrlGuard).
+        if (!Application.Helpers.OutboundUrlGuard.IsSafeOutboundUrl(webhook.Url, out var ssrfError))
+        {
+            delivery.Status = WebhookDeliveryStatus.Failed;
+            delivery.LastError = $"URL rejected at dispatch: {ssrfError}";
+            await deliveries.UpdateAsync(delivery, ct);
+            await AuditPermanentFailureAsync(delivery, webhook, ct);
+            logger.LogWarning(
+                "Refusing to dispatch webhook {DeliveryId} → {WebhookId}: {Reason}",
+                delivery.Id, webhook.Id, ssrfError);
+            return;
+        }
+
         using var client = httpFactory.CreateClient("webhook-dispatch");
         using var request = BuildRequest(delivery, webhook);
 

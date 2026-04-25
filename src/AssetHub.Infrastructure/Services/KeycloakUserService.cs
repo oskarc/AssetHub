@@ -73,9 +73,29 @@ public sealed class KeycloakUserService : IKeycloakUserService
         _useClientCredentials = !string.IsNullOrWhiteSpace(_adminClientSecret);
 
         if (_useClientCredentials)
+        {
             _logger.LogInformation("Using client_credentials grant for Keycloak admin API (client: {ClientId})", _adminClientId);
+        }
         else
-            _logger.LogInformation("Using password grant for Keycloak admin API (user: {Username})", _adminUsername);
+        {
+            // Refuse to silently fall back to password grant. Password grant
+            // is OAuth 2.1-deprecated, bypasses MFA, and ties the admin path
+            // to a real human credential. Operators must opt in explicitly
+            // (A-6 in the security review).
+            if (!settings.AllowAdminPasswordGrant)
+            {
+                throw new InvalidOperationException(
+                    "Keycloak admin API requires either AdminClientSecret (preferred — " +
+                    "client_credentials grant via service account) or " +
+                    "AllowAdminPasswordGrant=true to opt in to the deprecated password " +
+                    "grant. Refusing to start.");
+            }
+            _logger.LogWarning(
+                "Using password grant for Keycloak admin API (user: {Username}). " +
+                "This is deprecated and bypasses MFA — configure AdminClientSecret " +
+                "for client_credentials grant.",
+                _adminUsername);
+        }
     }
 
     /// <inheritdoc />

@@ -99,6 +99,9 @@ public sealed class AuthenticatedShareAccessService(
             return ServiceError.BadRequest(pwError);
 
         share.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+        // Bump the version so all access tokens issued under the previous
+        // password are invalidated (P-3 / security review).
+        share.PasswordVersion++;
 
         // Store encrypted password so admins can retrieve it later
         var protector = dataProtection.CreateProtector(Constants.DataProtection.SharePasswordProtector);

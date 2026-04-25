@@ -1,5 +1,6 @@
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
+using AssetHub.Application.Helpers;
 using AssetHub.Application.Repositories;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
@@ -206,7 +207,9 @@ public sealed class AssetRepository(
         // Apply text search filter (title, description, and tags)
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var searchPattern = $"%{query}%";
+            // Escape user wildcards so a search for "%" doesn't force a full
+            // table scan via ILIKE (P-7). Postgres ILIKE uses '\' as escape.
+            var searchPattern = $"%{FileHelpers.EscapeLikePattern(query)}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
                 (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)) ||
@@ -257,7 +260,9 @@ public sealed class AssetRepository(
         // Apply text search filter (title, description, and tags)
         if (!string.IsNullOrWhiteSpace(filter.Query))
         {
-            var searchPattern = $"%{filter.Query}%";
+            // Escape user wildcards so a search for "%" doesn't force a full
+            // table scan via ILIKE (P-7). Postgres ILIKE uses '\' as escape.
+            var searchPattern = $"%{FileHelpers.EscapeLikePattern(filter.Query)}%";
             queryable = queryable.Where(a =>
                 EF.Functions.ILike(a.Title, searchPattern) ||
                 (a.Description != null && EF.Functions.ILike(a.Description, searchPattern)) ||

@@ -20,7 +20,8 @@ public class KeycloakUserServiceTests
         string? adminClientSecret = null,
         string adminClientId = "admin-cli",
         string adminUsername = "admin",
-        string adminPassword = "admin123")
+        string adminPassword = "admin123",
+        bool allowAdminPasswordGrant = true)
     {
         var settings = new KeycloakSettings
         {
@@ -28,7 +29,11 @@ public class KeycloakUserServiceTests
             AdminUsername = adminUsername,
             AdminPassword = adminPassword,
             AdminClientId = adminClientId,
-            AdminClientSecret = adminClientSecret
+            AdminClientSecret = adminClientSecret,
+            // Tests exercise the password-grant fallback path; opt in
+            // explicitly so the constructor accepts the missing secret
+            // (production refuses unless this flag is set).
+            AllowAdminPasswordGrant = allowAdminPasswordGrant
         };
         return Options.Create(settings);
     }
@@ -69,7 +74,7 @@ public class KeycloakUserServiceTests
         // Assert - verify log message indicates password grant
         loggerMock.Verify(
             x => x.Log(
-                LogLevel.Information,
+                LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("password grant")),
                 null,
@@ -91,7 +96,7 @@ public class KeycloakUserServiceTests
         // Assert
         loggerMock.Verify(
             x => x.Log(
-                LogLevel.Information,
+                LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("password grant")),
                 null,
@@ -170,8 +175,9 @@ public class KeycloakUserServiceTests
         {
             Authority = "http://keycloak:8080/realms/media",
             AdminUsername = "admin",
-            AdminPassword = "admin123"
+            AdminPassword = "admin123",
             // AdminClientId defaults to "admin-cli"
+            AllowAdminPasswordGrant = true
         });
 
         // Act - should not throw

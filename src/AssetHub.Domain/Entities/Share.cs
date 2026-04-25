@@ -20,6 +20,12 @@ public class Share
     /// This is protected using the ASP.NET Core Data Protection APIs and should only be readable by admins.
     /// </summary>
     public string? PasswordEncrypted { get; set; }
+    /// <summary>
+    /// Bumped each time <see cref="PasswordHash"/> changes. Embedded into
+    /// share-access tokens so rotating the password invalidates every
+    /// previously-issued access token (P-3 in the security review).
+    /// </summary>
+    public int PasswordVersion { get; set; }
     public DateTime CreatedAt { get; set; }
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime? LastAccessedAt { get; set; }

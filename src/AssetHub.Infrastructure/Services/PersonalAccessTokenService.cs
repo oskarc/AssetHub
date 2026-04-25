@@ -20,6 +20,21 @@ public sealed class PersonalAccessTokenService(
     /// </summary>
     private const int TokenEntropyBytes = 24;
 
+    /// <summary>
+    /// Hard cap on active (non-revoked, non-expired) PATs per user. A
+    /// phished session shouldn't be able to mint unlimited persistence
+    /// tokens (P-13). 20 is generous for normal use — multiple CI scripts,
+    /// laptops, and integrations — and far below "abuse" territory.
+    /// </summary>
+    public const int MaxActiveTokensPerUser = 20;
+
+    /// <summary>
+    /// Stamp <c>LastUsedAt</c> at most once per minute. High-frequency PAT
+    /// callers (CI scripts) shouldn't generate one DB write per request
+    /// just to update a sub-minute "last used" timestamp (P-14).
+    /// </summary>
+    private static readonly TimeSpan LastUsedStampInterval = TimeSpan.FromMinutes(1);
+
     public async Task<ServiceResult<CreatedPersonalAccessTokenDto>> CreateAsync(
         CreatePersonalAccessTokenRequest request,
         CancellationToken ct)
@@ -43,6 +58,15 @@ public sealed class PersonalAccessTokenService(
             if (invalid.Count > 0)
                 return ServiceError.BadRequest($"Unknown scope(s): {string.Join(", ", invalid)}");
         }
+
+        // Cap active tokens per user (P-13). Counts non-revoked, non-expired
+        // tokens — a user can keep historical revoked rows for forensics
+        // without eating into the cap.
+        var existing = await repo.ListForOwnerAsync(currentUser.UserId, ct);
+        var activeCount = existing.Count(t => t.IsActive(DateTime.UtcNow));
+        if (activeCount >= MaxActiveTokensPerUser)
+            return ServiceError.Conflict(
+                $"You can have at most {MaxActiveTokensPerUser} active personal access tokens. Revoke an existing one first.");
 
         var plaintext = GeneratePlaintextToken();
         var hash = ComputeHash(plaintext);
@@ -138,8 +162,15 @@ public sealed class PersonalAccessTokenService(
             return null;
         }
 
-        token.MarkUsed(DateTime.UtcNow);
-        await repo.UpdateAsync(token, ct);
+        // Coalesce LastUsedAt updates to at most once per minute (P-14).
+        // High-frequency PAT clients otherwise generate one DB write per
+        // request just to bump the timestamp.
+        var now = DateTime.UtcNow;
+        if (token.LastUsedAt is null || now - token.LastUsedAt.Value > LastUsedStampInterval)
+        {
+            token.MarkUsed(now);
+            await repo.UpdateAsync(token, ct);
+        }
         return token;
     }
 

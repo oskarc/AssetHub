@@ -163,6 +163,36 @@ public static class WebApplicationExtensions
         forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
 #pragma warning restore S1313
         app.UseForwardedHeaders(forwardedOptions);
+
+        // Detect a misconfigured proxy on first forwarded request (A-9). If
+        // we ever see a request whose immediate connection comes from a
+        // public IP — i.e., not in any of the trusted RFC 1918 ranges above
+        // — the trust list doesn't match this deployment's topology and
+        // every audit row downstream will collapse onto the proxy IP. Log
+        // once per process so SREs see the misconfiguration without log
+        // flooding.
+        var proxyMismatchLogged = 0;
+        app.Use(async (context, next) =>
+        {
+            if (Interlocked.CompareExchange(ref proxyMismatchLogged, 0, 0) == 0)
+            {
+                var remote = context.Connection.RemoteIpAddress;
+                if (remote is not null
+                    && !AssetHub.Application.Helpers.OutboundUrlGuard.IsPrivateOrInternal(remote)
+                    && Interlocked.Exchange(ref proxyMismatchLogged, 1) == 0)
+                {
+                    var logger = app.Services.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("ForwardedHeaders");
+                    logger.LogWarning(
+                        "Connection.RemoteIpAddress {Address} is outside the configured trusted proxy " +
+                        "networks (RFC 1918 + loopback). Either the request bypassed the reverse proxy, " +
+                        "or the proxy network is not in KnownNetworks — audit IPs and IP-based rate limits " +
+                        "will reflect the proxy address, not the real client.",
+                        remote);
+                }
+            }
+            await next();
+        });
     }
 
     /// <summary>
@@ -181,7 +211,10 @@ public static class WebApplicationExtensions
 
             if (!app.Environment.IsDevelopment())
             {
-                // CSP for Blazor Server: allow self + inline scripts/styles (Blazor, MudBlazor) + wss for SignalR
+                // CSP for Blazor Server: allow self + inline scripts/styles (Blazor, MudBlazor) + wss for SignalR.
+                // object-src 'none' explicitly forbids <object>/<embed>/<applet> — defends
+                // against legacy plugin-based exploits + drops a vector for SVG-script
+                // execution via <object data="..."> (A-11 in the security review).
                 headers["Content-Security-Policy"] =
                     "default-src 'self'; " +
                     "script-src 'self' 'unsafe-inline'; " +
@@ -189,6 +222,7 @@ public static class WebApplicationExtensions
                     "img-src 'self' data: blob:; " +
                     "font-src 'self'; " +
                     "connect-src 'self' wss:; " +
+                    "object-src 'none'; " +
                     "frame-ancestors 'none'; " +
                     "base-uri 'self'; " +
                     "form-action 'self';";

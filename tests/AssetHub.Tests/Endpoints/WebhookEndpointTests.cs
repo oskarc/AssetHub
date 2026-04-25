@@ -50,7 +50,7 @@ public class WebhookEndpointTests : IAsyncLifetime
         var dto = new CreateWebhookDto
         {
             Name = "Test hook",
-            Url = "https://example.test/webhook",
+            Url = "https://example.com/webhook",
             EventTypes = new List<string> { WebhookEvents.AssetCreated, WebhookEvents.WorkflowStateChanged }
         };
 
@@ -75,7 +75,7 @@ public class WebhookEndpointTests : IAsyncLifetime
         var first = await client.PostAsJsonAsync("/api/v1/admin/webhooks", new CreateWebhookDto
         {
             Name = "x",
-            Url = "https://example.test/h",
+            Url = "https://example.com/h",
             EventTypes = new List<string> { WebhookEvents.AssetCreated }
         });
         var initial = await first.Content.ReadFromJsonAsync<CreatedWebhookDto>();
@@ -94,7 +94,7 @@ public class WebhookEndpointTests : IAsyncLifetime
         var dto = new CreateWebhookDto
         {
             Name = "x",
-            Url = "https://example.test/h",
+            Url = "https://example.com/h",
             EventTypes = new List<string> { "not.a.real.event" }
         };
 

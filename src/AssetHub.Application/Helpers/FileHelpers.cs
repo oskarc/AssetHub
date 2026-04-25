@@ -6,6 +6,17 @@ namespace AssetHub.Application.Helpers;
 public static class FileHelpers
 {
     /// <summary>
+    /// Escapes <c>\</c>, <c>%</c>, <c>_</c> in user-supplied LIKE input so the
+    /// caller can wrap with their own wildcards without letting the user
+    /// inject pattern metacharacters. Postgres ILIKE uses <c>\</c> as the
+    /// default escape, so this is the right output for <c>EF.Functions.ILike</c>.
+    /// Stops a search for <c>"%"</c> from matching every row (forced full
+    /// scan / accidental DoS).
+    /// </summary>
+    public static string EscapeLikePattern(string input)
+        => input.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
+
+    /// <summary>
     /// Sanitizes an asset title into a safe filename with the correct extension
     /// derived from the object key or content type.
     /// </summary>

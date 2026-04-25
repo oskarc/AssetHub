@@ -58,6 +58,21 @@ public class KeycloakSettings
     public bool RequireHttpsMetadata { get; set; } = true;
 
     /// <summary>
+    /// Explicit opt-in to allow falling back to the OAuth 2 password grant
+    /// for the admin token (when <see cref="AdminClientSecret"/> is empty).
+    /// Password grant is OAuth 2.1-deprecated, bypasses MFA, and exposes a
+    /// real human credential to the admin path. Required to be set true in
+    /// non-Development environments if password grant is the only option.
+    /// </summary>
+    /// <remarks>
+    /// Default <c>false</c>. Production setups should configure
+    /// <see cref="AdminClientSecret"/> for client_credentials grant; this
+    /// flag is an emergency escape hatch for environments where service
+    /// accounts aren't available yet.
+    /// </remarks>
+    public bool AllowAdminPasswordGrant { get; set; }
+
+    /// <summary>
     /// Timeout in seconds for Keycloak HTTP requests.
     /// </summary>
     public int TimeoutSeconds { get; set; } = 30;

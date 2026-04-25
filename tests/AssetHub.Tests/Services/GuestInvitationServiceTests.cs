@@ -229,6 +229,8 @@ public class GuestInvitationServiceTests
             CreatedByUserId = AdminId
         };
         _repo.Setup(r => r.GetByTokenHashAsync(inv.TokenHash, It.IsAny<CancellationToken>())).ReturnsAsync(inv);
+        _repo.Setup(r => r.TryMarkAcceptedAsync(id, "kc-new", It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
         _userLookup.Setup(u => u.GetUserIdByUsernameAsync(Email, It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);
         _keycloak.Setup(k => k.CreateUserAsync(
@@ -273,6 +275,8 @@ public class GuestInvitationServiceTests
             CreatedByUserId = AdminId
         };
         _repo.Setup(r => r.GetByTokenHashAsync(inv.TokenHash, It.IsAny<CancellationToken>())).ReturnsAsync(inv);
+        _repo.Setup(r => r.TryMarkAcceptedAsync(id, "kc-existing", It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
         _userLookup.Setup(u => u.GetUserIdByUsernameAsync(Email, It.IsAny<CancellationToken>()))
             .ReturnsAsync("kc-existing");
 

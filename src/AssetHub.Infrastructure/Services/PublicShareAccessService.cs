@@ -181,7 +181,11 @@ public sealed class PublicShareAccessService(
 
         var protector = dataProtection.CreateProtector(
             Constants.DataProtection.ShareAccessTokenProtector);
-        var payload = $"share-access:{share!.TokenHash}:{expiresAt}";
+        // Bind the access token to the share's current PasswordVersion so a
+        // password rotation invalidates every token issued under the prior
+        // password (P-3). RevokedAt and ExpiresAt are checked separately on
+        // every request, but those don't fire on a plain password change.
+        var payload = $"share-access:{share!.TokenHash}:{share.PasswordVersion}:{expiresAt}";
         var accessToken = protector.Protect(payload);
 
         return new ShareAccessTokenResponse
@@ -213,7 +217,7 @@ public sealed class PublicShareAccessService(
         if (!string.IsNullOrEmpty(share.PasswordHash))
         {
             // Check if the credential is a valid access token (pre-authorized)
-            if (!string.IsNullOrEmpty(password) && IsValidAccessToken(tokenHash, password))
+            if (!string.IsNullOrEmpty(password) && IsValidAccessToken(tokenHash, share.PasswordVersion, password))
                 return (share, null);
 
             if (string.IsNullOrEmpty(password))
@@ -234,7 +238,7 @@ public sealed class PublicShareAccessService(
         return (share, null);
     }
 
-    private bool IsValidAccessToken(string expectedTokenHash, string possibleAccessToken)
+    private bool IsValidAccessToken(string expectedTokenHash, int expectedPasswordVersion, string possibleAccessToken)
     {
         try
         {
@@ -243,13 +247,20 @@ public sealed class PublicShareAccessService(
             var payload = protector.Unprotect(possibleAccessToken);
             var parts = payload.Split(':');
 
-            if (parts.Length != 3 || parts[0] != "share-access")
+            // New format: share-access:{tokenHash}:{passwordVersion}:{expirySeconds}
+            // Legacy 3-part tokens (no version) are rejected — equivalent to revoking
+            // them on first deploy. Lifetime is 30 minutes so the disruption window
+            // is bounded.
+            if (parts.Length != 4 || parts[0] != "share-access")
                 return false;
 
             if (parts[1] != expectedTokenHash)
                 return false;
 
-            if (!long.TryParse(parts[2], out var expirySeconds))
+            if (!int.TryParse(parts[2], out var version) || version != expectedPasswordVersion)
+                return false;
+
+            if (!long.TryParse(parts[3], out var expirySeconds))
                 return false;
 
             return DateTimeOffset.UtcNow.ToUnixTimeSeconds() < expirySeconds;

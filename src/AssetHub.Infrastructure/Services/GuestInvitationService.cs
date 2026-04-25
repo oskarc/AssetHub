@@ -129,12 +129,17 @@ public sealed class GuestInvitationService(
         if (invitation is null || invitation.Id != invitationId)
             return ServiceError.NotFound(InvitationNotFound);
 
-        if (invitation.RevokedAt is not null)
-            return ServiceError.Conflict("This invitation has been revoked.");
-        if (invitation.AcceptedAt is not null)
-            return ServiceError.Conflict("This invitation has already been redeemed.");
-        if (invitation.ExpiresAt <= DateTime.UtcNow)
-            return ServiceError.Conflict("This invitation has expired.");
+        // Single generic 409 across revoked / accepted / expired — exposing
+        // which state the invitation is in lets a token-holder fingerprint
+        // its lifecycle (P-8 in the security review). The actual concurrency-
+        // safe check happens via TryMarkAcceptedAsync below; this fast-path
+        // just avoids the Keycloak round-trip when the row is already dead.
+        if (invitation.RevokedAt is not null
+            || invitation.AcceptedAt is not null
+            || invitation.ExpiresAt <= DateTime.UtcNow)
+        {
+            return ServiceError.Conflict("This invitation can no longer be redeemed.");
+        }
 
         // Re-use a Keycloak user if one already exists for this email
         // (admin might have already provisioned them). Otherwise create
@@ -142,6 +147,7 @@ public sealed class GuestInvitationService(
         // execute-actions email flow instead of receiving a password.
         var existingUserId = await userLookup.GetUserIdByUsernameAsync(invitation.Email, ct);
         string keycloakUserId;
+        var newKeycloakUser = existingUserId is null;
         try
         {
             keycloakUserId = existingUserId
@@ -164,9 +170,44 @@ public sealed class GuestInvitationService(
             return ServiceError.Server("Failed to provision guest user.");
         }
 
-        // Grant viewer ACL on every collection in the invitation. Per-
-        // collection failures are logged but don't abort the accept —
-        // the admin can fix up missing grants from the audit trail.
+        // Newly-provisioned guests get a password-set + email-verify link by
+        // email — the post-accept page promises this and without the call
+        // the user has no way to log in (P-4 in the security review).
+        // Existing KC users skip this; they already have credentials.
+        if (newKeycloakUser)
+        {
+            try
+            {
+                await keycloak.SendExecuteActionsEmailAsync(
+                    keycloakUserId,
+                    actions: new[] { "UPDATE_PASSWORD", "VERIFY_EMAIL" },
+                    lifespan: (int)TimeSpan.FromHours(24).TotalSeconds,
+                    ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Email failure shouldn't void the accept — admin can
+                // re-trigger via Keycloak's reset-password flow. Log so SREs
+                // see the gap.
+                logger.LogWarning(ex,
+                    "Guest {UserId} provisioned but execute-actions email failed",
+                    keycloakUserId);
+            }
+        }
+
+        // Atomic accept — single-row conditional UPDATE in Postgres. Closes
+        // the race where two concurrent magic-link clicks both pass the load
+        // check and both run the Keycloak provisioning + ACL grants (P-5).
+        // The losing call returns the same 409 as a stale invitation.
+        var acceptedAt = DateTime.UtcNow;
+        var won = await repo.TryMarkAcceptedAsync(invitation.Id, keycloakUserId, acceptedAt, ct);
+        if (!won)
+            return ServiceError.Conflict("This invitation can no longer be redeemed.");
+
+        // Now that we hold the accept "lock", grant ACLs. Per-collection
+        // failures are logged but don't abort — admin can fix from the
+        // audit trail. Done after the accept-mark so a duplicate accept
+        // attempt never grants a second round of ACLs.
         foreach (var collectionId in invitation.CollectionIds)
         {
             try
@@ -183,9 +224,8 @@ public sealed class GuestInvitationService(
             }
         }
 
-        invitation.AcceptedAt = DateTime.UtcNow;
+        invitation.AcceptedAt = acceptedAt;
         invitation.AcceptedUserId = keycloakUserId;
-        await repo.UpdateAsync(invitation, ct);
 
         await audit.LogAsync(
             NotificationConstants.AuditEvents.GuestAccepted,
