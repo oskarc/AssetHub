@@ -3,6 +3,8 @@
 @using AssetHub.Ui.Services
 @using MudBlazor
 
+@implements IAsyncDisposable
+
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
@@ -156,4 +158,10 @@
         "revoked" => Color.Error,
         _ => Color.Default
     };
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+    }
 }

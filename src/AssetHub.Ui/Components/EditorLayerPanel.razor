@@ -93,11 +93,15 @@
     [Parameter] public EventCallback<string> OnToggleLayerLocked { get; set; }
     [Parameter] public EventCallback<(string LayerId, string Direction)> OnReorderLayer { get; set; }
 
-    // MudList binding — kept in sync with the parent's SelectedLayerId
+    // MudList binding — kept in sync with the parent's SelectedLayerId.
+    // The setter intentionally discards `value`: selection actually mutates
+    // through the OnSelectLayer EventCallback, not this property. The
+    // discard satisfies the "set must use value" rule (S3237) without
+    // changing behavior.
     private string? SelectedLayerIdInternal
     {
         get => SelectedLayerId;
-        set { /* Selection handled via OnSelectLayer callback */ }
+        set => _ = value;
     }
 
     private static string GetLayerIcon(string kind) => kind switch

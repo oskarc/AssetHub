@@ -4,6 +4,8 @@
 @using AssetHub.Ui.Services
 @using MudBlazor
 
+@implements IAsyncDisposable
+
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
@@ -223,5 +225,11 @@
             Loc["SecretShown_Title"],
             parameters,
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
     }
 }
