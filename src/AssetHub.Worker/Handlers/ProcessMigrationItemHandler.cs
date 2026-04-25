@@ -140,116 +140,126 @@ public sealed class ProcessMigrationItemHandler(
             return;
         }
 
-        // 1. Stat the source object up-front to get size + content-type.
-        MigrationObjectStat? stat;
+        var stat = await StatSourceAsync(connector, migration, item, sourceKey, ct);
+        if (stat is null) return;
+
+        // SHA256 dup check: prefer the pre-known hash (CSV manifest can supply
+        // it); otherwise compute after download. Computing for every S3 item is
+        // required to detect duplicates across a remote bucket.
+        if (!string.IsNullOrWhiteSpace(item.Sha256)
+            && await TryHandleKnownDuplicateAsync(item, item.Sha256, ct))
+            return;
+
+        var bytes = await DownloadSourceAsync(connector, migration, item, sourceKey, ct);
+        if (bytes is null) return;
+
+        await using (bytes)
+        {
+            var sha256 = await ResolveSha256Async(bytes, item.Sha256, ct);
+            if (string.IsNullOrEmpty(item.Sha256)
+                && await TryHandleKnownDuplicateAsync(item, sha256, ct))
+                return;
+
+            bytes.Position = 0;
+            await CreateAssetFromMigrationAsync(migration, item, bytes, stat, sha256, sourceKey, ct);
+        }
+    }
+
+    private async Task<MigrationObjectStat?> StatSourceAsync(
+        IMigrationSourceConnector connector, Migration migration, MigrationItem item,
+        string sourceKey, CancellationToken ct)
+    {
         try
         {
-            stat = await connector.StatAsync(migration, sourceKey, ct);
+            var stat = await connector.StatAsync(migration, sourceKey, ct);
+            if (stat is not null) return stat;
+            await FailItem(item, MigrationConstants.ErrorCodes.FileNotFound,
+                $"Source object '{sourceKey}' not found (moved or deleted between scan/upload and ingest).", ct);
+            return null;
         }
         catch (Exception ex)
         {
             await FailItem(item, MigrationConstants.ErrorCodes.FileStatFailed,
                 $"Source stat failed for '{sourceKey}': {ex.Message}", ct);
-            return;
+            return null;
         }
+    }
 
-        if (stat is null)
-        {
-            await FailItem(item, MigrationConstants.ErrorCodes.FileNotFound,
-                $"Source object '{sourceKey}' not found (moved or deleted between scan/upload and ingest).", ct);
-            return;
-        }
+    private async Task<bool> TryHandleKnownDuplicateAsync(MigrationItem item, string sha256, CancellationToken ct)
+    {
+        var existing = await assetRepo.GetBySha256Async(sha256, ct);
+        if (existing is null) return false;
+        item.Sha256 = sha256;
+        await MarkDuplicate(item, existing, sha256, ct);
+        return true;
+    }
 
-        // 2. SHA256 dup check: prefer the pre-known hash (CSV manifest can supply
-        // it); otherwise compute after download. Computing for every S3 item is
-        // required to detect duplicates across a remote bucket.
-        if (!string.IsNullOrWhiteSpace(item.Sha256))
-        {
-            var existing = await assetRepo.GetBySha256Async(item.Sha256, ct);
-            if (existing is not null)
-            {
-                await MarkDuplicate(item, existing, item.Sha256, ct);
-                return;
-            }
-        }
-
-        // 3. Download bytes.
-        Stream bytes;
+    private async Task<Stream?> DownloadSourceAsync(
+        IMigrationSourceConnector connector, Migration migration, MigrationItem item,
+        string sourceKey, CancellationToken ct)
+    {
         try
         {
-            bytes = await connector.DownloadAsync(migration, sourceKey, ct);
+            return await connector.DownloadAsync(migration, sourceKey, ct);
         }
         catch (Exception ex)
         {
             await FailItem(item, MigrationConstants.ErrorCodes.ProcessingError,
                 $"Source download failed for '{sourceKey}': {ex.Message}", ct);
-            return;
+            return null;
         }
+    }
 
-        await using (bytes)
+    private static async Task<string> ResolveSha256Async(Stream bytes, string? known, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(known)) return known;
+        bytes.Position = 0;
+        return Convert.ToHexStringLower(await SHA256.HashDataAsync(bytes, ct));
+    }
+
+    private async Task CreateAssetFromMigrationAsync(
+        Migration migration, MigrationItem item, Stream bytes, MigrationObjectStat stat,
+        string sha256, string sourceKey, CancellationToken ct)
+    {
+        var contentType = stat.ContentType;
+        var assetType = DetermineAssetType(contentType);
+        var assetId = Guid.NewGuid();
+        var originalObjectKey = $"{Constants.StoragePrefixes.Originals}/{assetId}/{item.FileName}";
+
+        var asset = new Asset
         {
-            // 4. Compute SHA256 if not already known, and run the dup check again
-            // post-download for sources that don't supply a hash up-front.
-            string sha256;
-            if (!string.IsNullOrWhiteSpace(item.Sha256))
-            {
-                sha256 = item.Sha256;
-            }
-            else
-            {
-                bytes.Position = 0;
-                sha256 = Convert.ToHexStringLower(await SHA256.HashDataAsync(bytes, ct));
-                var existing = await assetRepo.GetBySha256Async(sha256, ct);
-                if (existing is not null)
-                {
-                    item.Sha256 = sha256;
-                    await MarkDuplicate(item, existing, sha256, ct);
-                    return;
-                }
-            }
-            bytes.Position = 0;
+            Id = assetId,
+            AssetType = assetType,
+            Status = AssetStatus.Processing,
+            Title = item.Title ?? Path.GetFileNameWithoutExtension(item.FileName),
+            Description = item.Description,
+            Copyright = item.Copyright,
+            Tags = item.Tags,
+            MetadataJson = item.MetadataJson,
+            ContentType = contentType,
+            SizeBytes = stat.Size,
+            Sha256 = sha256,
+            OriginalObjectKey = originalObjectKey,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = migration.CreatedByUserId,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-            // 5. Create asset + upload + schedule media processing.
-            var contentType = stat.ContentType;
-            var assetType = DetermineAssetType(contentType);
-            var assetId = Guid.NewGuid();
-            var originalObjectKey = $"{Constants.StoragePrefixes.Originals}/{assetId}/{item.FileName}";
+        await minioAdapter.UploadAsync(_bucketName, originalObjectKey, bytes, contentType, ct);
+        await assetRepo.CreateAsync(asset, ct);
+        await AssignCollections(migration, item, asset, ct);
+        await mediaProcessing.ScheduleProcessingAsync(
+            assetId, assetType.ToDbString(), originalObjectKey, false, ct);
 
-            var asset = new Asset
-            {
-                Id = assetId,
-                AssetType = assetType,
-                Status = AssetStatus.Processing,
-                Title = item.Title ?? Path.GetFileNameWithoutExtension(item.FileName),
-                Description = item.Description,
-                Copyright = item.Copyright,
-                Tags = item.Tags,
-                MetadataJson = item.MetadataJson,
-                ContentType = contentType,
-                SizeBytes = stat.Size,
-                Sha256 = sha256,
-                OriginalObjectKey = originalObjectKey,
-                CreatedAt = DateTime.UtcNow,
-                CreatedByUserId = migration.CreatedByUserId,
-                UpdatedAt = DateTime.UtcNow
-            };
+        item.Status = MigrationItemStatus.Succeeded;
+        item.AssetId = assetId;
+        item.Sha256 = sha256;
+        item.ProcessedAt = DateTime.UtcNow;
+        await migrationRepo.UpdateItemAsync(item, ct);
 
-            await minioAdapter.UploadAsync(_bucketName, originalObjectKey, bytes, contentType, ct);
-            await assetRepo.CreateAsync(asset, ct);
-            await AssignCollections(migration, item, asset, ct);
-            await mediaProcessing.ScheduleProcessingAsync(
-                assetId, assetType.ToDbString(), originalObjectKey, false, ct);
-
-            item.Status = MigrationItemStatus.Succeeded;
-            item.AssetId = assetId;
-            item.Sha256 = sha256;
-            item.ProcessedAt = DateTime.UtcNow;
-            await migrationRepo.UpdateItemAsync(item, ct);
-
-            logger.LogDebug(
-                "Migration item {ItemId}: {SourceType} object {Key} → asset {AssetId} ({Size} bytes)",
-                item.Id, migration.SourceType.ToDbString(), sourceKey, assetId, stat.Size);
-        }
+        logger.LogDebug(
+            "Migration item {ItemId}: {SourceType} object {Key} → asset {AssetId} ({Size} bytes)",
+            item.Id, migration.SourceType.ToDbString(), sourceKey, assetId, stat.Size);
     }
 
     private async Task MarkDuplicate(MigrationItem item, Asset existing, string sha256, CancellationToken ct)

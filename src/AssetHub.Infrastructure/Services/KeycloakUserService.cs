@@ -91,87 +91,12 @@ public sealed class KeycloakUserService : IKeycloakUserService
         try
         {
             var token = await GetAdminTokenAsync(ct);
+            var response = await PostCreateUserRequestAsync(token, username, email, firstName, lastName, password, temporaryPassword, ct);
 
-            var userPayload = new
-            {
-                username,
-                email,
-                firstName,
-                lastName,
-                enabled = true,
-                emailVerified = false,
-                credentials = new[]
-                {
-                    new
-                    {
-                        type = "password",
-                        value = password,
-                        temporary = temporaryPassword
-                    }
-                }
-            };
+            await EnsureCreateUserSucceededAsync(response, username, ct);
 
-            var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users";
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
-            request.Content = JsonContent.Create(userPayload);
-
-            using var response = await _httpClient.SendAsync(request, ct);
-
-            if (response.StatusCode == HttpStatusCode.Conflict)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync(ct);
-                _logger.LogWarning("Keycloak user creation conflict for '{Username}': {Error}", username, errorBody);
-                
-                // Try to extract a meaningful error message
-                var message = ExtractKeycloakErrorMessage(errorBody) 
-                    ?? "A user with this username or email already exists";
-                throw new KeycloakApiException(message, (int)response.StatusCode);
-            }
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync(ct);
-                _logger.LogError("Keycloak user creation failed for '{Username}'. Status: {Status}, Body: {Body}",
-                    username, response.StatusCode, errorBody);
-            
-            var message = ExtractKeycloakErrorMessage(errorBody) 
-                ?? $"Failed to create user (HTTP {(int)response.StatusCode})";
-            throw new KeycloakApiException(message, (int)response.StatusCode);
-        }
-
-        // Extract user ID from Location header
-        // Location: http://keycloak:8080/admin/realms/media/users/{userId}
-        var location = response.Headers.Location?.ToString();
-        if (!string.IsNullOrEmpty(location))
-        {
-            var parts = location.Split('/');
-            var userId = parts[^1];
-            _logger.LogInformation("Successfully created Keycloak user '{Username}' with ID '{UserId}'", username, userId);
-            return userId;
-        }
-
-        // Fallback: query for the user by username to get the ID
-        _logger.LogWarning("No Location header in create user response, looking up user by username");
-        var lookupUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users?username={Uri.EscapeDataString(username)}&exact=true";
-        
-        using var lookupRequest = new HttpRequestMessage(HttpMethod.Get, lookupUrl);
-        lookupRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
-        
-        using var lookupResponse = await _httpClient.SendAsync(lookupRequest, ct);
-        if (lookupResponse.IsSuccessStatusCode)
-        {
-            var users = await lookupResponse.Content.ReadFromJsonAsync<JsonElement[]>(ct);
-            if (users is { Length: > 0 })
-            {
-                var userId = users[0].GetProperty("id").GetString()!;
-                _logger.LogInformation("Resolved Keycloak user '{Username}' to ID '{UserId}' via lookup", username, userId);
-                return userId;
-            }
-        }
-
-        throw new KeycloakApiException("User was created but could not determine the user ID");
+            return ExtractUserIdFromLocationHeader(response, username)
+                ?? await LookupUserIdByUsernameAsync(token, username, ct);
         }
         catch (HttpRequestException ex)
         {
@@ -188,6 +113,89 @@ public sealed class KeycloakUserService : IKeycloakUserService
             _logger.LogError(ex, "Timeout while creating Keycloak user '{Username}'", username);
             throw new KeycloakApiException(ServiceTimeoutMessage, 0, ex);
         }
+    }
+
+    private async Task<HttpResponseMessage> PostCreateUserRequestAsync(
+        string token, string username, string email, string firstName, string lastName,
+        string password, bool temporaryPassword, CancellationToken ct)
+    {
+        var userPayload = new
+        {
+            username,
+            email,
+            firstName,
+            lastName,
+            enabled = true,
+            emailVerified = false,
+            credentials = new[]
+            {
+                new { type = "password", value = password, temporary = temporaryPassword }
+            }
+        };
+
+        var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users";
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
+        request.Content = JsonContent.Create(userPayload);
+        return await _httpClient.SendAsync(request, ct);
+    }
+
+    private async Task EnsureCreateUserSucceededAsync(HttpResponseMessage response, string username, CancellationToken ct)
+    {
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning("Keycloak user creation conflict for '{Username}': {Error}", username, errorBody);
+            var message = ExtractKeycloakErrorMessage(errorBody)
+                ?? "A user with this username or email already exists";
+            throw new KeycloakApiException(message, (int)response.StatusCode);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError("Keycloak user creation failed for '{Username}'. Status: {Status}, Body: {Body}",
+                username, response.StatusCode, errorBody);
+            var message = ExtractKeycloakErrorMessage(errorBody)
+                ?? $"Failed to create user (HTTP {(int)response.StatusCode})";
+            throw new KeycloakApiException(message, (int)response.StatusCode);
+        }
+    }
+
+    private string? ExtractUserIdFromLocationHeader(HttpResponseMessage response, string username)
+    {
+        // Location: http://keycloak:8080/admin/realms/media/users/{userId}
+        var location = response.Headers.Location?.ToString();
+        if (string.IsNullOrEmpty(location)) return null;
+
+        var parts = location.Split('/');
+        var userId = parts[^1];
+        _logger.LogInformation("Successfully created Keycloak user '{Username}' with ID '{UserId}'", username, userId);
+        return userId;
+    }
+
+    private async Task<string> LookupUserIdByUsernameAsync(string token, string username, CancellationToken ct)
+    {
+        // Fallback: query for the user by username when no Location header was returned.
+        _logger.LogWarning("No Location header in create user response, looking up user by username");
+        var lookupUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users?username={Uri.EscapeDataString(username)}&exact=true";
+
+        using var lookupRequest = new HttpRequestMessage(HttpMethod.Get, lookupUrl);
+        lookupRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
+
+        using var lookupResponse = await _httpClient.SendAsync(lookupRequest, ct);
+        if (lookupResponse.IsSuccessStatusCode)
+        {
+            var users = await lookupResponse.Content.ReadFromJsonAsync<JsonElement[]>(ct);
+            if (users is { Length: > 0 })
+            {
+                var userId = users[0].GetProperty("id").GetString()!;
+                _logger.LogInformation("Resolved Keycloak user '{Username}' to ID '{UserId}' via lookup", username, userId);
+                return userId;
+            }
+        }
+
+        throw new KeycloakApiException("User was created but could not determine the user ID");
     }
 
     /// <inheritdoc />

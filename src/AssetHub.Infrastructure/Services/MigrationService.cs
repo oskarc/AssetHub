@@ -451,59 +451,19 @@ public sealed class MigrationService(
         string[] fields,
         int rowNumber)
     {
-        string GetField(string name)
-        {
-            return headerMap.TryGetValue(name, out var idx) && idx < fields.Length
-                ? fields[idx].Trim()
-                : string.Empty;
-        }
-
-        var filename = GetField(MigrationConstants.CsvHeaders.Filename);
-        if (string.IsNullOrWhiteSpace(filename))
+        // Skip the row if filename is missing — checked BEFORE sanitization since
+        // SanitizeFileName falls back to "unnamed" for blank input.
+        var rawFilename = GetField(headerMap, fields, MigrationConstants.CsvHeaders.Filename);
+        if (string.IsNullOrWhiteSpace(rawFilename))
         {
             logger.LogWarning("Migration {MigrationId}: skipping row {Row} — missing filename",
                 migration.Id, rowNumber);
             return null;
         }
+        var filename = SanitizeFileName(rawFilename);
 
-        // Sanitize filename to match what will be used during file upload
-        filename = SanitizeFileName(filename);
-
-        var externalId = GetField(MigrationConstants.CsvHeaders.ExternalId);
-        if (string.IsNullOrWhiteSpace(externalId))
-            externalId = filename; // Use filename as fallback external ID
-
-        var idempotencyKey = ComputeIdempotencyKey(migration.Id, externalId);
-
-        var title = GetField(MigrationConstants.CsvHeaders.Title);
-        if (string.IsNullOrWhiteSpace(title))
-            title = Path.GetFileNameWithoutExtension(filename);
-
-        var tags = new List<string>();
-        var rawTags = GetField(MigrationConstants.CsvHeaders.Tags);
-        if (!string.IsNullOrWhiteSpace(rawTags))
-            tags = rawTags.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-
-        var collectionNames = new List<string>();
-        var rawCollections = GetField(MigrationConstants.CsvHeaders.CollectionNames);
-        if (!string.IsNullOrWhiteSpace(rawCollections))
-            collectionNames = rawCollections.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-
-        var metadata = new Dictionary<string, object>();
-        foreach (var (header, idx) in headerMap)
-        {
-            if (header.StartsWith(MigrationConstants.CsvHeaders.MetadataPrefix, StringComparison.OrdinalIgnoreCase) && idx < fields.Length)
-            {
-                var key = header[MigrationConstants.CsvHeaders.MetadataPrefix.Length..];
-                var val = fields[idx].Trim();
-                if (!string.IsNullOrEmpty(val))
-                    metadata[key] = val;
-            }
-        }
-
-        var description = GetField(MigrationConstants.CsvHeaders.Description);
-        var copyright = GetField(MigrationConstants.CsvHeaders.Copyright);
-        var sha256 = GetField(MigrationConstants.CsvHeaders.Sha256);
+        var externalId = ResolveExternalId(headerMap, fields, filename);
+        var title = ResolveTitle(headerMap, fields, filename);
 
         return new MigrationItem
         {
@@ -511,18 +471,58 @@ public sealed class MigrationService(
             MigrationId = migration.Id,
             Status = MigrationItemStatus.Pending,
             ExternalId = externalId,
-            IdempotencyKey = idempotencyKey,
+            IdempotencyKey = ComputeIdempotencyKey(migration.Id, externalId),
             FileName = filename,
             Title = string.IsNullOrWhiteSpace(title) ? null : title,
-            Description = string.IsNullOrWhiteSpace(description) ? null : description,
-            Copyright = string.IsNullOrWhiteSpace(copyright) ? null : copyright,
-            Tags = tags,
-            CollectionNames = collectionNames,
-            MetadataJson = metadata,
-            Sha256 = string.IsNullOrWhiteSpace(sha256) ? null : sha256,
+            Description = NullIfEmpty(GetField(headerMap, fields, MigrationConstants.CsvHeaders.Description)),
+            Copyright = NullIfEmpty(GetField(headerMap, fields, MigrationConstants.CsvHeaders.Copyright)),
+            Tags = SplitSemicolon(GetField(headerMap, fields, MigrationConstants.CsvHeaders.Tags)),
+            CollectionNames = SplitSemicolon(GetField(headerMap, fields, MigrationConstants.CsvHeaders.CollectionNames)),
+            MetadataJson = ExtractMetadataColumns(headerMap, fields),
+            Sha256 = NullIfEmpty(GetField(headerMap, fields, MigrationConstants.CsvHeaders.Sha256)),
             RowNumber = rowNumber,
             CreatedAt = DateTime.UtcNow
         };
+    }
+
+    private static string GetField(Dictionary<string, int> headerMap, string[] fields, string name)
+        => headerMap.TryGetValue(name, out var idx) && idx < fields.Length
+            ? fields[idx].Trim()
+            : string.Empty;
+
+    private static string ResolveExternalId(Dictionary<string, int> headerMap, string[] fields, string filename)
+    {
+        var externalId = GetField(headerMap, fields, MigrationConstants.CsvHeaders.ExternalId);
+        return string.IsNullOrWhiteSpace(externalId) ? filename : externalId;
+    }
+
+    private static string ResolveTitle(Dictionary<string, int> headerMap, string[] fields, string filename)
+    {
+        var title = GetField(headerMap, fields, MigrationConstants.CsvHeaders.Title);
+        return string.IsNullOrWhiteSpace(title) ? Path.GetFileNameWithoutExtension(filename) : title;
+    }
+
+    private static List<string> SplitSemicolon(string raw)
+        => string.IsNullOrWhiteSpace(raw)
+            ? new List<string>()
+            : raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+    private static string? NullIfEmpty(string value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static Dictionary<string, object> ExtractMetadataColumns(
+        Dictionary<string, int> headerMap, string[] fields)
+    {
+        var metadata = new Dictionary<string, object>();
+        foreach (var (header, idx) in headerMap)
+        {
+            if (!header.StartsWith(MigrationConstants.CsvHeaders.MetadataPrefix, StringComparison.OrdinalIgnoreCase)
+                || idx >= fields.Length) continue;
+            var key = header[MigrationConstants.CsvHeaders.MetadataPrefix.Length..];
+            var val = fields[idx].Trim();
+            if (!string.IsNullOrEmpty(val)) metadata[key] = val;
+        }
+        return metadata;
     }
 
     /// <summary>
@@ -532,52 +532,61 @@ public sealed class MigrationService(
     {
         var fields = new List<string>();
         var current = new StringBuilder();
-        var inQuotes = false;
+        var state = new CsvParseState();
 
         var i = 0;
         while (i < line.Length)
         {
-            var c = line[i];
-            if (inQuotes)
-            {
-                if (c == '"')
-                {
-                    if (i + 1 < line.Length && line[i + 1] == '"')
-                    {
-                        current.Append('"');
-                        i++; // Skip escaped quote
-                    }
-                    else
-                    {
-                        inQuotes = false;
-                    }
-                }
-                else
-                {
-                    current.Append(c);
-                }
-            }
-            else
-            {
-                if (c == '"')
-                {
-                    inQuotes = true;
-                }
-                else if (c == ',')
-                {
-                    fields.Add(current.ToString());
-                    current.Clear();
-                }
-                else
-                {
-                    current.Append(c);
-                }
-            }
-            i++;
+            i = state.InQuotes
+                ? StepInsideQuotes(line, i, current, state)
+                : StepOutsideQuotes(line, i, current, fields, state);
         }
 
         fields.Add(current.ToString());
         return fields.ToArray();
+    }
+
+    private sealed class CsvParseState
+    {
+        public bool InQuotes;
+    }
+
+    private static int StepInsideQuotes(string line, int i, StringBuilder current, CsvParseState state)
+    {
+        var c = line[i];
+        if (c != '"')
+        {
+            current.Append(c);
+            return i + 1;
+        }
+        // Doubled quote inside a quoted value = literal quote.
+        if (i + 1 < line.Length && line[i + 1] == '"')
+        {
+            current.Append('"');
+            return i + 2;
+        }
+        state.InQuotes = false;
+        return i + 1;
+    }
+
+    private static int StepOutsideQuotes(
+        string line, int i, StringBuilder current, List<string> fields, CsvParseState state)
+    {
+        var c = line[i];
+        if (c == '"')
+        {
+            state.InQuotes = true;
+        }
+        else if (c == ',')
+        {
+            fields.Add(current.ToString());
+            current.Clear();
+        }
+        else
+        {
+            current.Append(c);
+        }
+        return i + 1;
     }
 
     private static string ComputeIdempotencyKey(Guid migrationId, string externalId)

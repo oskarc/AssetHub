@@ -82,64 +82,24 @@ public sealed class AssetUploadService : IAssetUploadService
     {
         var userId = _currentUser.UserId;
 
-        var canContribute = await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
-        if (!canContribute)
-            return ServiceError.Forbidden();
+        var preflight = await PreflightUploadAsync(userId, collectionId, fileSize, contentType, skipDuplicateCheck, ct);
+        if (preflight is not null) return preflight;
 
-        if (skipDuplicateCheck && !_currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can bypass duplicate detection.");
-
-        if (fileSize == 0)
-            return ServiceError.BadRequest("File is required");
-
-        var sizeError = ValidateFileSize(fileSize);
-        if (sizeError is not null) return sizeError;
-
-        if (!Constants.AllowedUploadTypes.IsAllowed(contentType))
-            return ServiceError.BadRequest($"Content type '{contentType}' is not allowed. Only images, videos, audio, documents, and other safe file types are permitted.");
-
-        // Validate file magic bytes match claimed content type (prevents Content-Type spoofing)
         if (!await FileMagicValidator.ValidateStreamAsync(fileStream, contentType, ct))
             return ServiceError.BadRequest($"File content does not match the claimed content type '{contentType}'.");
 
         // Scan for malware (stream position is reset by FileMagicValidator)
-        var scanResult = await _malwareScanner.ScanAsync(fileStream, fileName, ct);
-        if (!scanResult.ScanCompleted)
-        {
-            _logger.LogError("Malware scan failed for upload {FileName}: {Error}", fileName, scanResult.ErrorMessage);
-            return ServiceError.Server("File scanning failed. Please try again later.");
-        }
-        if (scanResult.IsClean == false)
-        {
-            _logger.LogWarning("Malware detected in upload {FileName}: {ThreatName}", fileName, scanResult.ThreatName);
-            await _audit.LogAsync("asset.malware_detected", "upload", Guid.Empty, _currentUser.UserId,
-                new() { ["fileName"] = fileName, ["threatName"] = scanResult.ThreatName ?? "unknown" }, ct);
-            return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
-        }
+        var scanError = await ScanForMalwareAsync(fileStream, fileName, scopeType: "upload", scopeId: Guid.Empty, ct);
+        if (scanError is not null) return scanError;
 
-        // Compute SHA256 hash for duplicate detection
-        fileStream.Position = 0;
-        var hashBytes = await SHA256.HashDataAsync(fileStream, ct);
-        var sha256Hash = Convert.ToHexStringLower(hashBytes);
+        var sha256Hash = await ComputeSha256Async(fileStream, ct);
         fileStream.Position = 0;
 
         // Check for duplicate. Admin callers can bypass with skipDuplicateCheck=true; we still
         // look up the existing asset so we can emit a duplicate_override audit row.
         var duplicate = await _assetRepo.GetBySha256Async(sha256Hash, ct);
         if (duplicate is not null && !skipDuplicateCheck)
-        {
-            _logger.LogInformation("Duplicate asset detected for upload {FileName}: existing asset {ExistingAssetId} ({ExistingTitle})",
-                fileName, duplicate.Id, duplicate.Title);
-            await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
-                new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString(), ["fileName"] = fileName }, ct);
-            return ServiceError.DuplicateAsset(
-                "A file with identical content already exists.",
-                new Dictionary<string, string>
-                {
-                    ["existingAssetId"] = duplicate.Id.ToString(),
-                    ["existingTitle"] = duplicate.Title
-                });
-        }
+            return await BlockDuplicateAsync(duplicate, sha256Hash, fileName, userId, ct);
 
         var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, AssetStatus.Processing);
         asset.Sha256 = sha256Hash;
@@ -158,27 +118,12 @@ public sealed class AssetUploadService : IAssetUploadService
 
         await _assetRepo.CreateAsync(asset, ct);
 
-        try
-        {
-            await _assetCollectionRepo.AddToCollectionAsync(asset.Id, collectionId, userId, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to link asset {AssetId} to collection {CollectionId} after creation", asset.Id, collectionId);
-            asset.MarkFailed("Failed to link asset to collection.");
-            await _assetRepo.UpdateAsync(asset, ct);
-            return ServiceError.Server("Failed to link asset to collection. Please try again.");
-        }
+        var linkError = await LinkAssetToCollectionAsync(asset, collectionId, userId, ct);
+        if (linkError is not null) return linkError;
 
-        await _audit.LogAsync("asset.created", Constants.ScopeTypes.Asset, asset.Id, userId,
-            new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
-            ct);
-
+        await AuditCreatedAsync(asset, title, collectionId, contentType, userId, ct);
         if (duplicate is not null && skipDuplicateCheck)
-        {
-            await _audit.LogAsync("asset.duplicate_override", Constants.ScopeTypes.Asset, asset.Id, userId,
-                new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString() }, ct);
-        }
+            await AuditDuplicateOverrideAsync(asset, sha256Hash, duplicate, userId, ct);
 
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
 
@@ -190,6 +135,95 @@ public sealed class AssetUploadService : IAssetUploadService
             Message = "Asset uploaded. Processing in progress."
         };
     }
+
+    private async Task<ServiceError?> PreflightUploadAsync(
+        string userId, Guid collectionId, long fileSize, string contentType,
+        bool skipDuplicateCheck, CancellationToken ct)
+    {
+        var canContribute = await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
+        if (!canContribute) return ServiceError.Forbidden();
+
+        if (skipDuplicateCheck && !_currentUser.IsSystemAdmin)
+            return ServiceError.Forbidden("Only administrators can bypass duplicate detection.");
+
+        if (fileSize == 0) return ServiceError.BadRequest("File is required");
+
+        var sizeError = ValidateFileSize(fileSize);
+        if (sizeError is not null) return sizeError;
+
+        if (!Constants.AllowedUploadTypes.IsAllowed(contentType))
+            return ServiceError.BadRequest($"Content type '{contentType}' is not allowed. Only images, videos, audio, documents, and other safe file types are permitted.");
+
+        return null;
+    }
+
+    private async Task<ServiceError?> ScanForMalwareAsync(
+        Stream fileStream, string fileName, string scopeType, Guid scopeId, CancellationToken ct)
+    {
+        var scanResult = await _malwareScanner.ScanAsync(fileStream, fileName, ct);
+        if (!scanResult.ScanCompleted)
+        {
+            _logger.LogError("Malware scan failed for upload {FileName}: {Error}", fileName, scanResult.ErrorMessage);
+            return ServiceError.Server("File scanning failed. Please try again later.");
+        }
+        if (scanResult.IsClean == false)
+        {
+            _logger.LogWarning("Malware detected in upload {FileName}: {ThreatName}", fileName, scanResult.ThreatName);
+            await _audit.LogAsync("asset.malware_detected", scopeType, scopeId, _currentUser.UserId,
+                new() { ["fileName"] = fileName, ["threatName"] = scanResult.ThreatName ?? "unknown" }, ct);
+            return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
+        }
+        return null;
+    }
+
+    private static async Task<string> ComputeSha256Async(Stream fileStream, CancellationToken ct)
+    {
+        fileStream.Position = 0;
+        var hashBytes = await SHA256.HashDataAsync(fileStream, ct);
+        return Convert.ToHexStringLower(hashBytes);
+    }
+
+    private async Task<ServiceError> BlockDuplicateAsync(
+        Asset duplicate, string sha256Hash, string fileName, string userId, CancellationToken ct)
+    {
+        _logger.LogInformation("Duplicate asset detected for upload {FileName}: existing asset {ExistingAssetId} ({ExistingTitle})",
+            fileName, duplicate.Id, duplicate.Title);
+        await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
+            new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString(), ["fileName"] = fileName }, ct);
+        return ServiceError.DuplicateAsset(
+            "A file with identical content already exists.",
+            new Dictionary<string, string>
+            {
+                ["existingAssetId"] = duplicate.Id.ToString(),
+                ["existingTitle"] = duplicate.Title
+            });
+    }
+
+    private async Task<ServiceError?> LinkAssetToCollectionAsync(
+        Asset asset, Guid collectionId, string userId, CancellationToken ct)
+    {
+        try
+        {
+            await _assetCollectionRepo.AddToCollectionAsync(asset.Id, collectionId, userId, ct);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to link asset {AssetId} to collection {CollectionId} after creation", asset.Id, collectionId);
+            asset.MarkFailed("Failed to link asset to collection.");
+            await _assetRepo.UpdateAsync(asset, ct);
+            return ServiceError.Server("Failed to link asset to collection. Please try again.");
+        }
+    }
+
+    private Task AuditCreatedAsync(Asset asset, string title, Guid collectionId, string contentType, string userId, CancellationToken ct)
+        => _audit.LogAsync("asset.created", Constants.ScopeTypes.Asset, asset.Id, userId,
+            new() { ["title"] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
+            ct);
+
+    private Task AuditDuplicateOverrideAsync(Asset asset, string sha256Hash, Asset duplicate, string userId, CancellationToken ct)
+        => _audit.LogAsync("asset.duplicate_override", Constants.ScopeTypes.Asset, asset.Id, userId,
+            new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString() }, ct);
 
     public async Task<ServiceResult<InitUploadResponse>> InitUploadAsync(
         InitUploadRequest request, CancellationToken ct)
@@ -256,74 +290,29 @@ public sealed class AssetUploadService : IAssetUploadService
         if (asset is null)
             return ServiceError.NotFound("Asset not found");
 
-        // Allow the original uploader OR any user with Contributor access (e.g. image editor replace flow)
-        if (asset.CreatedByUserId != userId && !await CanAccessAssetAsync(id, userId, RoleHierarchy.Roles.Contributor, ct))
-            return ServiceError.Forbidden();
-
-        if (skipDuplicateCheck && !_currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can bypass duplicate detection.");
-
-        if (asset.Status != AssetStatus.Uploading)
-            return ServiceError.BadRequest("Asset is not in uploading state");
+        var preflight = await PreflightConfirmAsync(asset, id, userId, skipDuplicateCheck, ct);
+        if (preflight is not null) return preflight;
 
         var stat = await _minioAdapter.StatObjectAsync(_bucketName, asset.OriginalObjectKey, ct);
         if (stat is null)
             return ServiceError.BadRequest("File not found in storage. Upload may have failed or expired.");
 
-        // Validate file magic bytes match claimed content type (prevents Content-Type spoofing)
-        var headerBytes = await _minioAdapter.DownloadRangeAsync(
-            _bucketName, asset.OriginalObjectKey, 0, FileMagicValidator.MinBytesForValidation, ct);
-        if (!FileMagicValidator.Validate(headerBytes, asset.ContentType))
-        {
-            // Delete the spoofed file from storage
-            await _minioAdapter.DeleteAsync(_bucketName, asset.OriginalObjectKey, ct);
-            await _assetRepo.DeleteAsync(asset.Id, ct);
-            return ServiceError.BadRequest($"File content does not match the claimed content type '{asset.ContentType}'.");
-        }
+        var magicError = await ValidateMagicAndCleanupAsync(asset, ct);
+        if (magicError is not null) return magicError;
 
         // Scan for malware (download file from storage for scanning)
         await using var fileStream = await _minioAdapter.DownloadAsync(_bucketName, asset.OriginalObjectKey, ct);
-        var scanResult = await _malwareScanner.ScanAsync(fileStream, asset.Title, ct);
-        if (!scanResult.ScanCompleted)
-        {
-            _logger.LogError("Malware scan failed for upload {FileName}: {Error}", asset.Title, scanResult.ErrorMessage);
-            return ServiceError.Server("File scanning failed. Please try again later.");
-        }
-        if (scanResult.IsClean == false)
-        {
-            _logger.LogWarning("Malware detected in upload {AssetId}/{FileName}: {ThreatName}",
-                asset.Id, asset.Title, scanResult.ThreatName);
-            await _audit.LogAsync("asset.malware_detected", Constants.ScopeTypes.Asset, asset.Id, userId,
-                new() { ["fileName"] = asset.Title, ["threatName"] = scanResult.ThreatName ?? "unknown" }, ct);
-            // Delete the infected file
-            await _minioAdapter.DeleteAsync(_bucketName, asset.OriginalObjectKey, ct);
-            await _assetRepo.DeleteAsync(asset.Id, ct);
-            return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
-        }
+        var scanError = await ScanForMalwareWithCleanupAsync(fileStream, asset, userId, ct);
+        if (scanError is not null) return scanError;
 
-        // Compute SHA256 hash for duplicate detection
-        fileStream.Position = 0;
-        var hashBytes = await SHA256.HashDataAsync(fileStream, ct);
-        var sha256Hash = Convert.ToHexStringLower(hashBytes);
+        var sha256Hash = await ComputeSha256Async(fileStream, ct);
 
         // Check for duplicate. Admin callers can bypass with skipDuplicateCheck=true; we still
         // look up the existing asset so we can emit a duplicate_override audit row.
         // The asset stays in "Uploading" state so the user can retry with force=true.
         var duplicate = await _assetRepo.GetBySha256Async(sha256Hash, ct);
         if (duplicate is not null && duplicate.Id != asset.Id && !skipDuplicateCheck)
-        {
-            _logger.LogInformation("Duplicate asset detected during confirm for {AssetId}: existing asset {ExistingAssetId} ({ExistingTitle})",
-                id, duplicate.Id, duplicate.Title);
-            await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
-                new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString(), ["pendingAssetId"] = asset.Id.ToString() }, ct);
-            return ServiceError.DuplicateAsset(
-                "A file with identical content already exists.",
-                new Dictionary<string, string>
-                {
-                    ["existingAssetId"] = duplicate.Id.ToString(),
-                    ["existingTitle"] = duplicate.Title
-                });
-        }
+            return await BlockConfirmDuplicateAsync(duplicate, sha256Hash, id, asset, userId, ct);
 
         asset.Sha256 = sha256Hash;
 
@@ -367,6 +356,72 @@ public sealed class AssetUploadService : IAssetUploadService
             JobId = jobId,
             Message = "Upload confirmed. Processing in progress."
         };
+    }
+
+    private async Task<ServiceError?> PreflightConfirmAsync(
+        Asset asset, Guid id, string userId, bool skipDuplicateCheck, CancellationToken ct)
+    {
+        // Allow the original uploader OR any user with Contributor access (e.g. image editor replace flow)
+        if (asset.CreatedByUserId != userId && !await CanAccessAssetAsync(id, userId, RoleHierarchy.Roles.Contributor, ct))
+            return ServiceError.Forbidden();
+
+        if (skipDuplicateCheck && !_currentUser.IsSystemAdmin)
+            return ServiceError.Forbidden("Only administrators can bypass duplicate detection.");
+
+        if (asset.Status != AssetStatus.Uploading)
+            return ServiceError.BadRequest("Asset is not in uploading state");
+
+        return null;
+    }
+
+    private async Task<ServiceError?> ValidateMagicAndCleanupAsync(Asset asset, CancellationToken ct)
+    {
+        // Validate file magic bytes match claimed content type (prevents Content-Type spoofing)
+        var headerBytes = await _minioAdapter.DownloadRangeAsync(
+            _bucketName, asset.OriginalObjectKey, 0, FileMagicValidator.MinBytesForValidation, ct);
+        if (FileMagicValidator.Validate(headerBytes, asset.ContentType)) return null;
+
+        // Delete the spoofed file from storage
+        await _minioAdapter.DeleteAsync(_bucketName, asset.OriginalObjectKey, ct);
+        await _assetRepo.DeleteAsync(asset.Id, ct);
+        return ServiceError.BadRequest($"File content does not match the claimed content type '{asset.ContentType}'.");
+    }
+
+    private async Task<ServiceError?> ScanForMalwareWithCleanupAsync(
+        Stream fileStream, Asset asset, string userId, CancellationToken ct)
+    {
+        var scanResult = await _malwareScanner.ScanAsync(fileStream, asset.Title, ct);
+        if (!scanResult.ScanCompleted)
+        {
+            _logger.LogError("Malware scan failed for upload {FileName}: {Error}", asset.Title, scanResult.ErrorMessage);
+            return ServiceError.Server("File scanning failed. Please try again later.");
+        }
+        if (scanResult.IsClean != false) return null;
+
+        _logger.LogWarning("Malware detected in upload {AssetId}/{FileName}: {ThreatName}",
+            asset.Id, asset.Title, scanResult.ThreatName);
+        await _audit.LogAsync("asset.malware_detected", Constants.ScopeTypes.Asset, asset.Id, userId,
+            new() { ["fileName"] = asset.Title, ["threatName"] = scanResult.ThreatName ?? "unknown" }, ct);
+        // Delete the infected file
+        await _minioAdapter.DeleteAsync(_bucketName, asset.OriginalObjectKey, ct);
+        await _assetRepo.DeleteAsync(asset.Id, ct);
+        return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
+    }
+
+    private async Task<ServiceError> BlockConfirmDuplicateAsync(
+        Asset duplicate, string sha256Hash, Guid id, Asset asset, string userId, CancellationToken ct)
+    {
+        _logger.LogInformation("Duplicate asset detected during confirm for {AssetId}: existing asset {ExistingAssetId} ({ExistingTitle})",
+            id, duplicate.Id, duplicate.Title);
+        await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
+            new() { ["sha256"] = sha256Hash, ["existingAssetId"] = duplicate.Id.ToString(), ["pendingAssetId"] = asset.Id.ToString() }, ct);
+        return ServiceError.DuplicateAsset(
+            "A file with identical content already exists.",
+            new Dictionary<string, string>
+            {
+                ["existingAssetId"] = duplicate.Id.ToString(),
+                ["existingTitle"] = duplicate.Title
+            });
     }
 
     public async Task<ServiceResult<AssetUploadResult>> ConfirmPreScannedUploadAsync(Guid id, bool skipMetadata = false, CancellationToken ct = default)

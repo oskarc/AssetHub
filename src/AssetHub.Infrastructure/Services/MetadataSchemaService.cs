@@ -89,54 +89,69 @@ public sealed class MetadataSchemaService(
         var schema = await repo.GetByIdForUpdateAsync(id, ct);
         if (schema is null) return ServiceError.NotFound("Metadata schema not found");
 
-        if (dto.Name is not null)
-        {
-            if (await repo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct))
-                return ServiceError.Conflict($"A metadata schema named '{dto.Name}' already exists");
-            schema.Name = dto.Name;
-        }
+        var nameError = await ApplyNameUpdateAsync(schema, dto, id, ct);
+        if (nameError is not null) return nameError;
 
         if (dto.Description is not null)
             schema.Description = dto.Description;
 
         if (dto.Fields is not null)
         {
-            var fieldValidation = ValidateFields(dto.Fields.Select(f => (f.Key, f.Type, f.TaxonomyId)).ToList());
-            if (!fieldValidation.IsSuccess)
-                return fieldValidation.Error!;
-
-            // Replace fields: remove old, add new preserving IDs where provided
-            var existingFieldsById = schema.Fields.ToDictionary(f => f.Id);
-
-            schema.Fields = dto.Fields.Select((f, i) =>
-            {
-                var field = (f.Id.HasValue && existingFieldsById.TryGetValue(f.Id.Value, out var existing))
-                    ? existing
-                    : new MetadataField { Id = Guid.NewGuid(), MetadataSchemaId = schema.Id };
-
-                field.Key = f.Key;
-                field.Label = f.Label;
-                field.LabelSv = f.LabelSv;
-                field.Type = f.Type.ToMetadataFieldType();
-                field.Required = f.Required;
-                field.Searchable = f.Searchable;
-                field.Facetable = f.Facetable;
-                field.PatternRegex = f.PatternRegex;
-                field.MaxLength = f.MaxLength;
-                field.NumericMin = f.NumericMin;
-                field.NumericMax = f.NumericMax;
-                field.SelectOptions = f.SelectOptions ?? [];
-                field.TaxonomyId = f.TaxonomyId;
-                field.SortOrder = f.SortOrder != 0 ? f.SortOrder : i;
-                return field;
-            }).ToList();
-
-            schema.Version++;
+            var fieldsError = ApplyFieldsUpdate(schema, dto.Fields);
+            if (fieldsError is not null) return fieldsError;
         }
 
         var updated = await repo.UpdateAsync(schema, ct);
         logger.LogInformation("Admin {UserId} updated metadata schema {SchemaId}", currentUser.UserId, id);
         return MetadataSchemaQueryService.ToDto(updated);
+    }
+
+    private async Task<ServiceError?> ApplyNameUpdateAsync(
+        MetadataSchema schema, UpdateMetadataSchemaDto dto, Guid id, CancellationToken ct)
+    {
+        if (dto.Name is null) return null;
+        if (await repo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct))
+            return ServiceError.Conflict($"A metadata schema named '{dto.Name}' already exists");
+        schema.Name = dto.Name;
+        return null;
+    }
+
+    private static ServiceError? ApplyFieldsUpdate(MetadataSchema schema, List<UpdateMetadataFieldDto> fields)
+    {
+        var fieldValidation = ValidateFields(fields.Select(f => (f.Key, f.Type, f.TaxonomyId)).ToList());
+        if (!fieldValidation.IsSuccess) return fieldValidation.Error!;
+
+        // Replace fields: remove old, add new preserving IDs where provided.
+        var existingFieldsById = schema.Fields.ToDictionary(f => f.Id);
+
+        schema.Fields = fields.Select((f, i) => MapField(f, i, schema.Id, existingFieldsById)).ToList();
+        schema.Version++;
+        return null;
+    }
+
+    private static MetadataField MapField(
+        UpdateMetadataFieldDto f, int index, Guid schemaId,
+        Dictionary<Guid, MetadataField> existingFieldsById)
+    {
+        var field = (f.Id.HasValue && existingFieldsById.TryGetValue(f.Id.Value, out var existing))
+            ? existing
+            : new MetadataField { Id = Guid.NewGuid(), MetadataSchemaId = schemaId };
+
+        field.Key = f.Key;
+        field.Label = f.Label;
+        field.LabelSv = f.LabelSv;
+        field.Type = f.Type.ToMetadataFieldType();
+        field.Required = f.Required;
+        field.Searchable = f.Searchable;
+        field.Facetable = f.Facetable;
+        field.PatternRegex = f.PatternRegex;
+        field.MaxLength = f.MaxLength;
+        field.NumericMin = f.NumericMin;
+        field.NumericMax = f.NumericMax;
+        field.SelectOptions = f.SelectOptions ?? [];
+        field.TaxonomyId = f.TaxonomyId;
+        field.SortOrder = f.SortOrder != 0 ? f.SortOrder : index;
+        return field;
     }
 
     public async Task<ServiceResult> DeleteAsync(Guid id, bool force, CancellationToken ct)

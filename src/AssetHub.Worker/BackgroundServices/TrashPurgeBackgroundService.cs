@@ -1,6 +1,7 @@
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
+using AssetHub.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -55,41 +56,68 @@ public sealed class TrashPurgeBackgroundService(
         var bucketName = minioSettings.Value.BucketName;
         var cutoff = DateTime.UtcNow - TimeSpan.FromDays(lifecycle.Value.TrashRetentionDays);
 
-        int purged = 0;
-        int failed = 0;
-
+        var totals = new PurgeTotals();
         while (!ct.IsCancellationRequested)
         {
             var expired = await assetRepo.GetTrashOlderThanAsync(cutoff, BatchSize, ct);
             if (expired.Count == 0) break;
 
-            foreach (var asset in expired)
-            {
-                ct.ThrowIfCancellationRequested();
-                try
-                {
-                    await deletionService.PurgeAsync(asset, bucketName, ct);
-                    purged++;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    failed++;
-                    logger.LogWarning(ex, "Failed to purge expired trash asset {AssetId}", asset.Id);
-                }
-            }
+            await PurgeBatchAsync(expired, deletionService, bucketName, totals, ct);
 
             // If the whole batch failed we'd loop forever on the same rows; bail out.
-            if (failed == expired.Count && purged == 0) break;
+            if (totals.LastBatchAllFailed) break;
             if (expired.Count < BatchSize) break;
         }
 
-        if (purged > 0 || failed > 0)
+        LogTotals(totals);
+    }
+
+    private sealed class PurgeTotals
+    {
+        public int Purged;
+        public int Failed;
+        public bool LastBatchAllFailed;
+    }
+
+    private async Task PurgeBatchAsync(
+        List<Asset> expired, IAssetDeletionService deletionService, string bucketName,
+        PurgeTotals totals, CancellationToken ct)
+    {
+        var batchPurged = 0;
+        var batchFailed = 0;
+        foreach (var asset in expired)
         {
-            logger.LogInformation("Trash purge completed: {Purged} purged, {Failed} failed", purged, failed);
+            ct.ThrowIfCancellationRequested();
+            if (await TryPurgeOneAsync(asset, deletionService, bucketName, ct))
+                batchPurged++;
+            else
+                batchFailed++;
         }
+        totals.Purged += batchPurged;
+        totals.Failed += batchFailed;
+        totals.LastBatchAllFailed = batchPurged == 0 && batchFailed == expired.Count;
+    }
+
+    private async Task<bool> TryPurgeOneAsync(
+        Asset asset, IAssetDeletionService deletionService, string bucketName, CancellationToken ct)
+    {
+        try
+        {
+            await deletionService.PurgeAsync(asset, bucketName, ct);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Failed to purge expired trash asset {AssetId}", asset.Id);
+            return false;
+        }
+    }
+
+    private void LogTotals(PurgeTotals totals)
+    {
+        if (totals.Purged > 0 || totals.Failed > 0)
+            logger.LogInformation("Trash purge completed: {Purged} purged, {Failed} failed", totals.Purged, totals.Failed);
         else
-        {
             logger.LogDebug("Trash purge: no expired rows");
-        }
     }
 }

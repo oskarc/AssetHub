@@ -60,6 +60,42 @@ public sealed class AssetWorkflowService(
     private async Task<ServiceResult<AssetWorkflowResponseDto>> TransitionAsync(
         Guid assetId, string action, string? reason, CancellationToken ct)
     {
+        var preflight = await PreflightAsync(assetId, action, ct);
+        if (!preflight.IsSuccess) return preflight.Error!;
+        var (asset, plan) = preflight.Value!;
+
+        var gateError = await CheckTransitionGatesAsync(asset, plan, ct);
+        if (gateError is not null) return gateError;
+
+        var now = DateTime.UtcNow;
+        var from = asset.WorkflowState;
+        var to = plan.ToState;
+
+        await ApplyStateChangeAsync(asset, to, now, ct);
+        await RecordTransitionAsync(assetId, from, to, reason, now, ct);
+        await audit.LogAsync(
+            plan.AuditEvent,
+            Constants.ScopeTypes.Asset,
+            assetId,
+            currentUser.UserId,
+            BuildAuditDetails(from, to, reason),
+            ct);
+
+        await PublishWorkflowEventAsync(assetId, asset.Title, from, to, reason, now, ct);
+        await NotifyAuthorAsync(asset, assetId, from, to, reason, ct);
+
+        logger.LogInformation(
+            "Asset {AssetId} workflow {From} → {To} by {UserId}",
+            assetId, from, to, currentUser.UserId);
+
+        var history = await transitionRepo.ListByAssetAsync(assetId, ct);
+        var available = await ComputeAvailableActionsAsync(asset, ct);
+        return BuildResponse(asset, history, available);
+    }
+
+    private async Task<ServiceResult<(Asset Asset, TransitionPlan Plan)>> PreflightAsync(
+        Guid assetId, string action, CancellationToken ct)
+    {
         if (!currentUser.IsAuthenticated) return ServiceError.Forbidden();
 
         var asset = await assetRepo.GetByIdAsync(assetId, ct);
@@ -74,19 +110,25 @@ public sealed class AssetWorkflowService(
             return ServiceError.Conflict(
                 $"Cannot '{action}' from state '{asset.WorkflowState.ToDbString()}'.");
 
+        return (asset, plan.Value);
+    }
+
+    private async Task<ServiceError?> CheckTransitionGatesAsync(
+        Asset asset, TransitionPlan plan, CancellationToken ct)
+    {
         // Role gate. Submit / Resubmit is author-bound (creator can always act).
         // Approve / Reject / Publish / Unpublish need Manager+ on a containing
         // collection, OR system admin.
-        if (plan.Value.RequiresAuthor && asset.CreatedByUserId != currentUser.UserId && !currentUser.IsSystemAdmin)
+        if (plan.RequiresAuthor && asset.CreatedByUserId != currentUser.UserId && !currentUser.IsSystemAdmin)
             return ServiceError.Forbidden(
                 "Only the asset's owner can submit or resubmit it for review.");
 
-        if (plan.Value.RequiresRole is { } requiredRole
-            && !await CanAccessAssetAsync(assetId, requiredRole, ct))
+        if (plan.RequiresRole is { } requiredRole
+            && !await CanAccessAssetAsync(asset.Id, requiredRole, ct))
             return ServiceError.Forbidden($"Requires {requiredRole}+ on a containing collection.");
 
         // Required-metadata gate on submit / resubmit.
-        if (plan.Value.CheckRequiredMetadata)
+        if (plan.CheckRequiredMetadata)
         {
             var missing = await FindMissingRequiredFieldsAsync(asset, ct);
             if (missing.Count > 0)
@@ -95,16 +137,21 @@ public sealed class AssetWorkflowService(
                     missing.ToDictionary(k => $"metadata.{k.Key}", k => $"{k.Label} is required."));
         }
 
-        var from = asset.WorkflowState;
-        var to = plan.Value.ToState;
-        var now = DateTime.UtcNow;
+        return null;
+    }
 
+    private async Task ApplyStateChangeAsync(Asset asset, AssetWorkflowState to, DateTime now, CancellationToken ct)
+    {
         asset.WorkflowState = to;
         asset.WorkflowStateUpdatedAt = now;
         asset.UpdatedAt = now;
         await assetRepo.UpdateAsync(asset, ct);
+    }
 
-        await transitionRepo.CreateAsync(new AssetWorkflowTransition
+    private Task RecordTransitionAsync(
+        Guid assetId, AssetWorkflowState from, AssetWorkflowState to,
+        string? reason, DateTime now, CancellationToken ct)
+        => transitionRepo.CreateAsync(new AssetWorkflowTransition
         {
             Id = Guid.NewGuid(),
             AssetId = assetId,
@@ -115,23 +162,22 @@ public sealed class AssetWorkflowService(
             CreatedAt = now
         }, ct);
 
-        await audit.LogAsync(
-            plan.Value.AuditEvent,
-            Constants.ScopeTypes.Asset,
-            assetId,
-            currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                ["from_state"] = from.ToDbString(),
-                ["to_state"] = to.ToDbString(),
-                ["reason"] = reason ?? string.Empty
-            },
-            ct);
+    private static Dictionary<string, object> BuildAuditDetails(
+        AssetWorkflowState from, AssetWorkflowState to, string? reason)
+        => new()
+        {
+            ["from_state"] = from.ToDbString(),
+            ["to_state"] = to.ToDbString(),
+            ["reason"] = reason ?? string.Empty
+        };
 
-        await webhooks.PublishAsync(WebhookEvents.WorkflowStateChanged, new
+    private Task PublishWorkflowEventAsync(
+        Guid assetId, string assetTitle, AssetWorkflowState from, AssetWorkflowState to,
+        string? reason, DateTime now, CancellationToken ct)
+        => webhooks.PublishAsync(WebhookEvents.WorkflowStateChanged, new
         {
             assetId,
-            assetTitle = asset.Title,
+            assetTitle,
             fromState = from.ToDbString(),
             toState = to.ToDbString(),
             actorUserId = currentUser.UserId,
@@ -139,45 +185,41 @@ public sealed class AssetWorkflowService(
             transitionedAt = now
         }, ct);
 
+    private async Task NotifyAuthorAsync(
+        Asset asset, Guid assetId, AssetWorkflowState from, AssetWorkflowState to,
+        string? reason, CancellationToken ct)
+    {
         // Notify the asset's author unless they're also the actor — no point
         // pinging yourself about your own approval click.
-        if (!string.IsNullOrEmpty(asset.CreatedByUserId) && asset.CreatedByUserId != currentUser.UserId)
+        if (string.IsNullOrEmpty(asset.CreatedByUserId) || asset.CreatedByUserId == currentUser.UserId)
+            return;
+
+        try
         {
-            try
-            {
-                await notifications.CreateAsync(
-                    userId: asset.CreatedByUserId,
-                    category: NotificationConstants.Categories.WorkflowTransition,
-                    title: $"'{asset.Title}' is now {to.ToDbString()}",
-                    body: string.IsNullOrWhiteSpace(reason)
-                        ? $"State changed from {from.ToDbString()} to {to.ToDbString()}."
-                        : $"State changed from {from.ToDbString()} to {to.ToDbString()}. Reason: {reason}",
-                    url: $"/assets/{assetId}",
-                    data: new Dictionary<string, object>
-                    {
-                        ["asset_id"] = assetId,
-                        ["from_state"] = from.ToDbString(),
-                        ["to_state"] = to.ToDbString(),
-                        ["actor_user_id"] = currentUser.UserId
-                    },
-                    ct);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // Broken notification shouldn't undo the workflow change.
-                logger.LogWarning(ex,
-                    "Failed to notify author {UserId} about workflow transition on asset {AssetId}",
-                    asset.CreatedByUserId, assetId);
-            }
+            await notifications.CreateAsync(
+                userId: asset.CreatedByUserId,
+                category: NotificationConstants.Categories.WorkflowTransition,
+                title: $"'{asset.Title}' is now {to.ToDbString()}",
+                body: string.IsNullOrWhiteSpace(reason)
+                    ? $"State changed from {from.ToDbString()} to {to.ToDbString()}."
+                    : $"State changed from {from.ToDbString()} to {to.ToDbString()}. Reason: {reason}",
+                url: $"/assets/{assetId}",
+                data: new Dictionary<string, object>
+                {
+                    ["asset_id"] = assetId,
+                    ["from_state"] = from.ToDbString(),
+                    ["to_state"] = to.ToDbString(),
+                    ["actor_user_id"] = currentUser.UserId
+                },
+                ct);
         }
-
-        logger.LogInformation(
-            "Asset {AssetId} workflow {From} → {To} by {UserId}",
-            assetId, from, to, currentUser.UserId);
-
-        var history = await transitionRepo.ListByAssetAsync(assetId, ct);
-        var available = await ComputeAvailableActionsAsync(asset, ct);
-        return BuildResponse(asset, history, available);
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Broken notification shouldn't undo the workflow change.
+            logger.LogWarning(ex,
+                "Failed to notify author {UserId} about workflow transition on asset {AssetId}",
+                asset.CreatedByUserId, assetId);
+        }
     }
 
     // ── Transition table ────────────────────────────────────────────────
@@ -271,45 +313,54 @@ public sealed class AssetWorkflowService(
 
     private async Task<List<MissingField>> FindMissingRequiredFieldsAsync(Asset asset, CancellationToken ct)
     {
-        var missing = new List<MissingField>();
+        var schemas = await CollectApplicableSchemasAsync(asset, ct);
+        if (schemas.Count == 0) return new List<MissingField>();
 
-        // Gather collection ids for schema resolution.
-        var collectionIds = await assetCollectionRepo.GetCollectionIdsForAssetAsync(asset.Id, ct);
+        var filledFieldIds = await GetFilledFieldIdsAsync(asset.Id, ct);
 
+        return schemas.Values
+            .SelectMany(s => s.Fields)
+            .Where(f => f.Required && !filledFieldIds.Contains(f.Id))
+            .Select(f => new MissingField(f.Key, f.Label))
+            .ToList();
+    }
+
+    private async Task<Dictionary<Guid, MetadataSchemaDto>> CollectApplicableSchemasAsync(
+        Asset asset, CancellationToken ct)
+    {
         // Global + asset-type + every containing collection — the per-collection
         // call already filters out non-applicable schemas. De-dup on schema id.
         var schemas = new Dictionary<Guid, MetadataSchemaDto>();
+        var assetTypeStr = asset.AssetType.ToDbString();
 
-        var globalResult = await schemaQuery.GetApplicableAsync(asset.AssetType.ToDbString(), collectionId: null, ct);
-        if (globalResult.IsSuccess && globalResult.Value is not null)
-            foreach (var s in globalResult.Value) schemas[s.Id] = s;
+        var globalResult = await schemaQuery.GetApplicableAsync(assetTypeStr, collectionId: null, ct);
+        AddSchemasIfSuccess(schemas, globalResult);
 
+        var collectionIds = await assetCollectionRepo.GetCollectionIdsForAssetAsync(asset.Id, ct);
         foreach (var cid in collectionIds)
         {
-            var perColl = await schemaQuery.GetApplicableAsync(asset.AssetType.ToDbString(), cid, ct);
-            if (perColl.IsSuccess && perColl.Value is not null)
-                foreach (var s in perColl.Value) schemas[s.Id] = s;
+            var perColl = await schemaQuery.GetApplicableAsync(assetTypeStr, cid, ct);
+            AddSchemasIfSuccess(schemas, perColl);
         }
 
-        if (schemas.Count == 0) return missing;
+        return schemas;
+    }
 
-        // What values has the asset already filled in?
-        var values = await metadataRepo.GetByAssetIdAsync(asset.Id, ct);
-        var filledFieldIds = values
-            .Where(v => HasValue(v))
+    private static void AddSchemasIfSuccess(
+        Dictionary<Guid, MetadataSchemaDto> sink,
+        ServiceResult<List<MetadataSchemaDto>> result)
+    {
+        if (!result.IsSuccess || result.Value is null) return;
+        foreach (var s in result.Value) sink[s.Id] = s;
+    }
+
+    private async Task<HashSet<Guid>> GetFilledFieldIdsAsync(Guid assetId, CancellationToken ct)
+    {
+        var values = await metadataRepo.GetByAssetIdAsync(assetId, ct);
+        return values
+            .Where(HasValue)
             .Select(v => v.MetadataFieldId)
             .ToHashSet();
-
-        foreach (var schema in schemas.Values)
-        {
-            foreach (var field in schema.Fields)
-            {
-                if (field.Required && !filledFieldIds.Contains(field.Id))
-                    missing.Add(new MissingField(field.Key, field.Label));
-            }
-        }
-
-        return missing;
     }
 
     private static bool HasValue(AssetMetadataValue v)

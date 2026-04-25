@@ -145,58 +145,82 @@ public sealed class AssetMetadataService(
         List<SetMetadataValueDto> values,
         CancellationToken ct)
     {
-        // Duplicate field check — same field can't appear twice in a single set.
+        var error = CheckDuplicates(values)
+            ?? CheckUnknownFields(values, applicableFields)
+            ?? CheckValueShapes(values, applicableFields)
+            ?? CheckRequiredFields(values, applicableFields)
+            ?? await CheckTaxonomyOwnershipAsync(values, applicableFields, ct);
+        return error is null ? ServiceResult.Success : error;
+    }
+
+    private static ServiceError? CheckDuplicates(List<SetMetadataValueDto> values)
+    {
         var duplicate = values.GroupBy(v => v.MetadataFieldId)
             .FirstOrDefault(g => g.Count() > 1)?.Key;
-        if (duplicate is not null)
-            return ServiceError.BadRequest($"Field {duplicate} appears more than once");
+        return duplicate is null
+            ? null
+            : ServiceError.BadRequest($"Field {duplicate} appears more than once");
+    }
 
-        // All supplied fields must apply to this asset.
+    private static ServiceError? CheckUnknownFields(
+        List<SetMetadataValueDto> values, Dictionary<Guid, MetadataField> applicableFields)
+    {
         var unknown = values.FirstOrDefault(v => !applicableFields.ContainsKey(v.MetadataFieldId));
-        if (unknown is not null)
-            return ServiceError.BadRequest($"Metadata field {unknown.MetadataFieldId} does not apply to this asset");
+        return unknown is null
+            ? null
+            : ServiceError.BadRequest($"Metadata field {unknown.MetadataFieldId} does not apply to this asset");
+    }
 
-        // Per-value shape and constraint checks.
+    private static ServiceError? CheckValueShapes(
+        List<SetMetadataValueDto> values, Dictionary<Guid, MetadataField> applicableFields)
+    {
         foreach (var v in values)
         {
-            var field = applicableFields[v.MetadataFieldId];
-            var err = ValidateValueShape(field, v);
+            var err = ValidateValueShape(applicableFields[v.MetadataFieldId], v);
             if (err is not null) return err;
         }
+        return null;
+    }
 
-        // Required-field check — every required field in an applicable schema must have a value.
+    private static ServiceError? CheckRequiredFields(
+        List<SetMetadataValueDto> values, Dictionary<Guid, MetadataField> applicableFields)
+    {
         var valuedFields = values.ToDictionary(v => v.MetadataFieldId);
         foreach (var field in applicableFields.Values.Where(f => f.Required))
         {
             if (!valuedFields.TryGetValue(field.Id, out var v) || !HasValue(field, v))
                 return ServiceError.BadRequest($"Required field '{field.Key}' is missing");
         }
+        return null;
+    }
 
-        // Taxonomy-term ownership check — term must belong to the field's taxonomy.
+    private async Task<ServiceError?> CheckTaxonomyOwnershipAsync(
+        List<SetMetadataValueDto> values,
+        Dictionary<Guid, MetadataField> applicableFields,
+        CancellationToken ct)
+    {
         var termIds = values
             .Where(v => v.ValueTaxonomyTermId.HasValue)
             .Select(v => v.ValueTaxonomyTermId!.Value)
             .Distinct()
             .ToList();
-        if (termIds.Count > 0)
+        if (termIds.Count == 0) return null;
+
+        var terms = (await taxonomyRepo.GetTermsByIdsAsync(termIds, ct))
+            .ToDictionary(t => t.Id);
+
+        foreach (var v in values.Where(v => v.ValueTaxonomyTermId.HasValue))
         {
-            var terms = (await taxonomyRepo.GetTermsByIdsAsync(termIds, ct))
-                .ToDictionary(t => t.Id);
+            var field = applicableFields[v.MetadataFieldId];
+            if (field.Type != MetadataFieldType.Taxonomy) continue;
 
-            foreach (var v in values.Where(v => v.ValueTaxonomyTermId.HasValue))
-            {
-                var field = applicableFields[v.MetadataFieldId];
-                if (field.Type != MetadataFieldType.Taxonomy) continue;
+            if (!terms.TryGetValue(v.ValueTaxonomyTermId!.Value, out var term))
+                return ServiceError.BadRequest($"Taxonomy term {v.ValueTaxonomyTermId} does not exist");
 
-                if (!terms.TryGetValue(v.ValueTaxonomyTermId!.Value, out var term))
-                    return ServiceError.BadRequest($"Taxonomy term {v.ValueTaxonomyTermId} does not exist");
-
-                if (field.TaxonomyId is null || term.TaxonomyId != field.TaxonomyId)
-                    return ServiceError.BadRequest($"Term {term.Id} does not belong to taxonomy {field.TaxonomyId} required by field '{field.Key}'");
-            }
+            if (field.TaxonomyId is null || term.TaxonomyId != field.TaxonomyId)
+                return ServiceError.BadRequest($"Term {term.Id} does not belong to taxonomy {field.TaxonomyId} required by field '{field.Key}'");
         }
-
-        return ServiceResult.Success;
+        return null;
     }
 
     private static ServiceError? ValidateValueShape(MetadataField field, SetMetadataValueDto v)

@@ -77,7 +77,6 @@ public class ShareService(
     public async Task<ShareCreationResult> CreateShareAsync(
         CreateShareDto dto, string userId, string baseUrl, CancellationToken ct = default)
     {
-        // Re-validate scope to get the content name for email notifications
         var validation = await ValidateScopeAsync(dto, ct);
         if (!validation.IsValid)
             return ShareCreationResult.Error(validation.ErrorMessage!);
@@ -93,94 +92,25 @@ public class ShareService(
         if (dto.ScopeType == Constants.ScopeTypes.Asset && !currentUser.IsSystemAdmin)
         {
             var gateError = await CheckWorkflowShareGateAsync(dto.ScopeId, ct);
-            if (gateError is not null)
-                return ShareCreationResult.Error(gateError);
+            if (gateError is not null) return ShareCreationResult.Error(gateError);
         }
 
-        // Generate secure token
+        var passwordResult = ResolvePassword(dto.Password);
+        if (passwordResult.Error is not null)
+            return ShareCreationResult.Error(passwordResult.Error);
+
         var token = ShareHelpers.GenerateToken();
-        var tokenHash = ShareHelpers.ComputeTokenHash(token);
-
-        // Generate password if not provided; validate length if explicitly provided
-        var plainPassword = dto.Password;
-        if (string.IsNullOrWhiteSpace(plainPassword))
-            plainPassword = PasswordGenerator.Generate(12);
-        else
-        {
-            var pwError = InputValidation.ValidateSharePassword(plainPassword);
-            if (pwError is not null)
-                return ShareCreationResult.Error(pwError);
-        }
-
-        var protector = dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
-        var protectedBytes = protector.Protect(System.Text.Encoding.UTF8.GetBytes(token));
-        var protectedToken = Convert.ToBase64String(protectedBytes);
-
-        // Also encrypt the password so admins can retrieve it later
-        var passwordProtector = dataProtection.CreateProtector(Constants.DataProtection.SharePasswordProtector);
-        var protectedPasswordBytes = passwordProtector.Protect(System.Text.Encoding.UTF8.GetBytes(plainPassword));
-        var protectedPassword = Convert.ToBase64String(protectedPasswordBytes);
-
-        var share = new Share
-        {
-            Id = Guid.NewGuid(),
-            ScopeId = dto.ScopeId,
-            ScopeType = dto.ScopeType.ToShareScopeType(),
-            TokenHash = tokenHash,
-            TokenEncrypted = protectedToken,
-            ExpiresAt = dto.ExpiresAt?.ToUniversalTime() ?? DateTime.UtcNow.AddDays(7),
-            CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = userId,
-            PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
-            PasswordEncrypted = protectedPassword
-        };
+        var share = BuildShareEntity(dto, userId, token, passwordResult.PlainPassword!);
 
         await repos.ShareRepo.CreateAsync(share, ct);
 
         await audit.LogAsync("share.created", Constants.ScopeTypes.Share, share.Id, userId,
             new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, ct);
 
-        // Webhook event — only the safe descriptors. Plaintext token /
-        // password are NEVER included in the payload; subscribers don't
-        // need them and shouldn't be able to access shared content.
-        await webhooks.PublishAsync(WebhookEvents.ShareCreated, new
-        {
-            shareId = share.Id,
-            scopeType = dto.ScopeType,
-            scopeId = dto.ScopeId,
-            createdByUserId = userId,
-            createdAt = share.CreatedAt,
-            expiresAt = share.ExpiresAt
-        }, ct);
+        await PublishShareCreatedEventAsync(share, dto, userId, ct);
 
         var shareUrl = $"{baseUrl}/{Constants.Routes.Share}/{token}";
-        var emailFailed = false;
-
-        // Send notification emails if recipients are provided
-        if (dto.NotifyEmails?.Any() == true)
-        {
-            try
-            {
-                var userNames = await userLookupService.GetUserNamesAsync(new[] { userId }, default);
-                var senderName = userNames.TryGetValue(userId, out var name) ? name : null;
-
-                var emailTemplate = new ShareCreatedEmailTemplate(
-                    shareUrl: shareUrl,
-                    password: plainPassword,
-                    contentName: validation.ContentName!,
-                    contentType: dto.ScopeType,
-                    senderName: senderName,
-                    expiresAt: share.ExpiresAt);
-
-                await emailService.SendEmailAsync(dto.NotifyEmails, emailTemplate);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to send share notification emails for share {ShareId}", share.Id);
-                emailFailed = true;
-            }
-        }
+        var emailFailed = await TrySendShareEmailsAsync(dto, share, shareUrl, passwordResult.PlainPassword!, validation.ContentName!, userId);
 
         return new ShareCreationResult
         {
@@ -194,10 +124,90 @@ public class ShareService(
                 ExpiresAt = share.ExpiresAt,
                 PermissionsJson = share.PermissionsJson,
                 ShareUrl = shareUrl,
-                Password = plainPassword
+                Password = passwordResult.PlainPassword!
             },
             EmailFailed = emailFailed
         };
+    }
+
+    private record struct PasswordResolution(string? PlainPassword, string? Error);
+
+    private static PasswordResolution ResolvePassword(string? supplied)
+    {
+        if (string.IsNullOrWhiteSpace(supplied))
+            return new PasswordResolution(PasswordGenerator.Generate(12), null);
+        var pwError = InputValidation.ValidateSharePassword(supplied);
+        return pwError is null
+            ? new PasswordResolution(supplied, null)
+            : new PasswordResolution(null, pwError);
+    }
+
+    private Share BuildShareEntity(CreateShareDto dto, string userId, string token, string plainPassword)
+    {
+        var tokenHash = ShareHelpers.ComputeTokenHash(token);
+
+        var protector = dataProtection.CreateProtector(Constants.DataProtection.ShareTokenProtector);
+        var protectedToken = Convert.ToBase64String(protector.Protect(System.Text.Encoding.UTF8.GetBytes(token)));
+
+        var passwordProtector = dataProtection.CreateProtector(Constants.DataProtection.SharePasswordProtector);
+        var protectedPassword = Convert.ToBase64String(passwordProtector.Protect(System.Text.Encoding.UTF8.GetBytes(plainPassword)));
+
+        return new Share
+        {
+            Id = Guid.NewGuid(),
+            ScopeId = dto.ScopeId,
+            ScopeType = dto.ScopeType.ToShareScopeType(),
+            TokenHash = tokenHash,
+            TokenEncrypted = protectedToken,
+            ExpiresAt = dto.ExpiresAt?.ToUniversalTime() ?? DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = userId,
+            PermissionsJson = dto.PermissionsJson ?? new Dictionary<string, bool> { { "view", true }, { "download", true } },
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
+            PasswordEncrypted = protectedPassword
+        };
+    }
+
+    private Task PublishShareCreatedEventAsync(Share share, CreateShareDto dto, string userId, CancellationToken ct)
+        // Webhook event — only the safe descriptors. Plaintext token /
+        // password are NEVER included in the payload; subscribers don't
+        // need them and shouldn't be able to access shared content.
+        => webhooks.PublishAsync(WebhookEvents.ShareCreated, new
+        {
+            shareId = share.Id,
+            scopeType = dto.ScopeType,
+            scopeId = dto.ScopeId,
+            createdByUserId = userId,
+            createdAt = share.CreatedAt,
+            expiresAt = share.ExpiresAt
+        }, ct);
+
+    private async Task<bool> TrySendShareEmailsAsync(
+        CreateShareDto dto, Share share, string shareUrl, string plainPassword, string contentName, string userId)
+    {
+        if (dto.NotifyEmails?.Any() != true) return false;
+
+        try
+        {
+            var userNames = await userLookupService.GetUserNamesAsync(new[] { userId }, default);
+            var senderName = userNames.TryGetValue(userId, out var name) ? name : null;
+
+            var emailTemplate = new ShareCreatedEmailTemplate(
+                shareUrl: shareUrl,
+                password: plainPassword,
+                contentName: contentName,
+                contentType: dto.ScopeType,
+                senderName: senderName,
+                expiresAt: share.ExpiresAt);
+
+            await emailService.SendEmailAsync(dto.NotifyEmails, emailTemplate);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send share notification emails for share {ShareId}", share.Id);
+            return true;
+        }
     }
 
     /// <summary>

@@ -42,29 +42,18 @@ public sealed class DispatchWebhookHandler(
         var delivery = await deliveries.GetByIdAsync(command.DeliveryId, ct);
         if (delivery is null)
         {
-            logger.LogDebug(
-                "Webhook delivery {DeliveryId} no longer exists; skipping",
-                command.DeliveryId);
+            logger.LogDebug("Webhook delivery {DeliveryId} no longer exists; skipping", command.DeliveryId);
             return;
         }
 
-        if (delivery.Status == WebhookDeliveryStatus.Delivered)
-        {
-            // Idempotency: a duplicate Wolverine redelivery after success
-            // shouldn't ping the receiver again.
-            return;
-        }
+        // Idempotency: a duplicate Wolverine redelivery after success
+        // shouldn't ping the receiver again.
+        if (delivery.Status == WebhookDeliveryStatus.Delivered) return;
 
         var webhook = await webhooks.GetByIdAsync(delivery.WebhookId, ct);
         if (webhook is null)
         {
-            // Webhook was deleted between publish and dispatch — record
-            // and skip. Cascade should normally catch this but the row
-            // can also exist if the cascade hasn't propagated yet.
-            delivery.Status = WebhookDeliveryStatus.Failed;
-            delivery.LastError = "Webhook configuration was deleted before delivery.";
-            delivery.LastAttemptAt = DateTime.UtcNow;
-            await deliveries.UpdateAsync(delivery, ct);
+            await MarkOrphanedAsync(delivery, ct);
             return;
         }
 
@@ -73,85 +62,123 @@ public sealed class DispatchWebhookHandler(
 
         try
         {
-            using var client = httpFactory.CreateClient("webhook-dispatch");
-            using var request = new HttpRequestMessage(HttpMethod.Post, webhook.Url);
-
-            var payloadBytes = Encoding.UTF8.GetBytes(delivery.PayloadJson);
-            request.Content = new ByteArrayContent(payloadBytes);
-            request.Content.Headers.ContentType =
-                new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")
-                {
-                    CharSet = "utf-8"
-                };
-
-            var signature = ComputeSignature(payloadBytes, protector.Unprotect(webhook.SecretEncrypted));
-            request.Headers.Add("X-AssetHub-Signature", $"sha256={signature}");
-            request.Headers.Add("X-AssetHub-Event", delivery.EventType);
-            request.Headers.Add("X-AssetHub-Delivery", delivery.Id.ToString());
-            request.Headers.UserAgent.ParseAdd("AssetHub-Webhooks/1.0");
-
-            using var response = await client.SendAsync(request, ct);
-            delivery.ResponseStatus = (int)response.StatusCode;
-
-            if (response.IsSuccessStatusCode)
-            {
-                delivery.Status = WebhookDeliveryStatus.Delivered;
-                delivery.DeliveredAt = DateTime.UtcNow;
-                delivery.LastError = null;
-                await deliveries.UpdateAsync(delivery, ct);
-
-                logger.LogInformation(
-                    "Webhook delivered: {DeliveryId} → {WebhookId} ({EventType}) status {Status}",
-                    delivery.Id, webhook.Id, delivery.EventType, delivery.ResponseStatus);
-                return;
-            }
-
-            // 4xx: receiver explicitly rejecting — don't retry.
-            if (response.StatusCode is >= HttpStatusCode.BadRequest and < HttpStatusCode.InternalServerError)
-            {
-                delivery.Status = WebhookDeliveryStatus.Failed;
-                delivery.LastError = await TruncatedBodyAsync(response, ct);
-                await deliveries.UpdateAsync(delivery, ct);
-                await AuditPermanentFailureAsync(delivery, webhook, ct);
-                return;
-            }
-
-            // 5xx: throw to let Wolverine retry. Update row first so the
-            // attempt count and error stick if the row is read mid-retry.
-            delivery.LastError = await TruncatedBodyAsync(response, ct);
-            await deliveries.UpdateAsync(delivery, ct);
-
-            if (delivery.AttemptCount >= MaxAttempts)
-            {
-                delivery.Status = WebhookDeliveryStatus.Failed;
-                await deliveries.UpdateAsync(delivery, ct);
-                await AuditPermanentFailureAsync(delivery, webhook, ct);
-                return;
-            }
-
-            throw new HttpRequestException(
-                $"Webhook receiver returned {(int)response.StatusCode}; will retry.");
+            await DispatchAndRecordAsync(delivery, webhook, ct);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            delivery.LastError = $"{ex.GetType().Name}: {Truncate(ex.Message, 1500)}";
-            await deliveries.UpdateAsync(delivery, ct);
-
-            if (delivery.AttemptCount >= MaxAttempts)
-            {
-                delivery.Status = WebhookDeliveryStatus.Failed;
-                await deliveries.UpdateAsync(delivery, ct);
-                await AuditPermanentFailureAsync(delivery, webhook, ct);
-                return;
-            }
-
-            // Re-throw — Wolverine's RetryWithCooldown picks it up.
-            throw;
+            await HandleDispatchExceptionAsync(delivery, webhook, ex, ct);
         }
+    }
+
+    private async Task MarkOrphanedAsync(WebhookDelivery delivery, CancellationToken ct)
+    {
+        // Webhook was deleted between publish and dispatch — record
+        // and skip. Cascade should normally catch this but the row
+        // can also exist if the cascade hasn't propagated yet.
+        delivery.Status = WebhookDeliveryStatus.Failed;
+        delivery.LastError = "Webhook configuration was deleted before delivery.";
+        delivery.LastAttemptAt = DateTime.UtcNow;
+        await deliveries.UpdateAsync(delivery, ct);
+    }
+
+    private async Task DispatchAndRecordAsync(WebhookDelivery delivery, Webhook webhook, CancellationToken ct)
+    {
+        using var client = httpFactory.CreateClient("webhook-dispatch");
+        using var request = BuildRequest(delivery, webhook);
+
+        using var response = await client.SendAsync(request, ct);
+        delivery.ResponseStatus = (int)response.StatusCode;
+
+        if (response.IsSuccessStatusCode)
+        {
+            await MarkDeliveredAsync(delivery, webhook, ct);
+            return;
+        }
+
+        if (IsClientError(response.StatusCode))
+        {
+            await MarkPermanentClientErrorAsync(delivery, webhook, response, ct);
+            return;
+        }
+
+        // 5xx: throw to let Wolverine retry. Update row first so the
+        // attempt count and error stick if the row is read mid-retry.
+        delivery.LastError = await TruncatedBodyAsync(response, ct);
+        await deliveries.UpdateAsync(delivery, ct);
+
+        if (delivery.AttemptCount >= MaxAttempts)
+        {
+            await FinalizeMaxAttemptsAsync(delivery, webhook, ct);
+            return;
+        }
+
+        throw new HttpRequestException(
+            $"Webhook receiver returned {(int)response.StatusCode}; will retry.");
+    }
+
+    private HttpRequestMessage BuildRequest(WebhookDelivery delivery, Webhook webhook)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, webhook.Url);
+        var payloadBytes = Encoding.UTF8.GetBytes(delivery.PayloadJson);
+        request.Content = new ByteArrayContent(payloadBytes);
+        request.Content.Headers.ContentType =
+            new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") { CharSet = "utf-8" };
+
+        var signature = ComputeSignature(payloadBytes, protector.Unprotect(webhook.SecretEncrypted));
+        request.Headers.Add("X-AssetHub-Signature", $"sha256={signature}");
+        request.Headers.Add("X-AssetHub-Event", delivery.EventType);
+        request.Headers.Add("X-AssetHub-Delivery", delivery.Id.ToString());
+        request.Headers.UserAgent.ParseAdd("AssetHub-Webhooks/1.0");
+        return request;
+    }
+
+    private static bool IsClientError(HttpStatusCode status)
+        => status is >= HttpStatusCode.BadRequest and < HttpStatusCode.InternalServerError;
+
+    private async Task MarkDeliveredAsync(WebhookDelivery delivery, Webhook webhook, CancellationToken ct)
+    {
+        delivery.Status = WebhookDeliveryStatus.Delivered;
+        delivery.DeliveredAt = DateTime.UtcNow;
+        delivery.LastError = null;
+        await deliveries.UpdateAsync(delivery, ct);
+
+        logger.LogInformation(
+            "Webhook delivered: {DeliveryId} → {WebhookId} ({EventType}) status {Status}",
+            delivery.Id, webhook.Id, delivery.EventType, delivery.ResponseStatus);
+    }
+
+    private async Task MarkPermanentClientErrorAsync(
+        WebhookDelivery delivery, Webhook webhook, HttpResponseMessage response, CancellationToken ct)
+    {
+        // 4xx: receiver explicitly rejecting — don't retry.
+        delivery.Status = WebhookDeliveryStatus.Failed;
+        delivery.LastError = await TruncatedBodyAsync(response, ct);
+        await deliveries.UpdateAsync(delivery, ct);
+        await AuditPermanentFailureAsync(delivery, webhook, ct);
+    }
+
+    private async Task FinalizeMaxAttemptsAsync(WebhookDelivery delivery, Webhook webhook, CancellationToken ct)
+    {
+        delivery.Status = WebhookDeliveryStatus.Failed;
+        await deliveries.UpdateAsync(delivery, ct);
+        await AuditPermanentFailureAsync(delivery, webhook, ct);
+    }
+
+    private async Task HandleDispatchExceptionAsync(
+        WebhookDelivery delivery, Webhook webhook, Exception ex, CancellationToken ct)
+    {
+        delivery.LastError = $"{ex.GetType().Name}: {Truncate(ex.Message, 1500)}";
+        await deliveries.UpdateAsync(delivery, ct);
+
+        if (delivery.AttemptCount >= MaxAttempts)
+        {
+            await FinalizeMaxAttemptsAsync(delivery, webhook, ct);
+            return;
+        }
+
+        // Re-throw with original stack trace preserved — Wolverine's RetryWithCooldown picks it up.
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex).Throw();
     }
 
     private static string ComputeSignature(byte[] payload, string secret)

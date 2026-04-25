@@ -179,120 +179,151 @@ public sealed class ZipBuildService(
 
         try
         {
-            var assets = await _assetRepo.GetByCollectionAsync(
-                zip.ScopeId, 0, Constants.Limits.MaxDownloadableAssets, ct);
+            var assetList = await LoadDownloadableAssetsAsync(zip, db, ct);
+            if (assetList.Count == 0) return;
 
-            var assetList = assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)).ToList();
-            zip.AssetCount = assetList.Count;
-
-            if (assetList.Count == 0)
-            {
-                zip.Status = ZipDownloadStatus.Failed;
-                zip.ErrorMessage = "No assets found in collection";
-                zip.CompletedAt = DateTime.UtcNow;
-                await db.SaveChangesAsync(ct);
-                return;
-            }
-
-            // Build the ZIP into a temp file, then upload to MinIO
-            var objectKey = $"{Constants.StoragePrefixes.TempZipDownloads}/{zipDownloadId}.zip";
-            var tempPath = ScratchPaths.Combine($"assethub-zip-{zipDownloadId}.zip");
-
-            try
-            {
-                var errors = new List<string>();
-
-                await using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (var archive = new ZipArchive(fileStream, ZipArchiveMode.Create, leaveOpen: false))
-                {
-                    foreach (var asset in assetList)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        try
-                        {
-                            await using var assetStream = await minioAdapter.DownloadAsync(
-                                _bucketName, asset.OriginalObjectKey!, ct);
-
-                            var fileName = FileHelpers.GetSafeFileName(
-                                asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
-
-                            var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
-                            await using var entryStream = entry.Open();
-                            await assetStream.CopyToAsync(entryStream, ct);
-                        }
-                        catch (OperationCanceledException) { throw; }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex,
-                                "Failed to include asset {AssetId} in ZIP build {ZipDownloadId}",
-                                asset.Id, zipDownloadId);
-                            errors.Add($"{asset.Title ?? asset.Id.ToString()} — {ex.Message}");
-                        }
-                    }
-
-                    // Add error log if any assets failed
-                    if (errors.Count > 0)
-                    {
-                        var errEntry = archive.CreateEntry("_errors.txt", CompressionLevel.Fastest);
-                        await using var errStream = errEntry.Open();
-                        await using var writer = new StreamWriter(errStream);
-                        await writer.WriteLineAsync("The following files could not be included:");
-                        foreach (var err in errors)
-                            await writer.WriteLineAsync($"  • {err}");
-                    }
-                }
-
-                // Upload the completed ZIP to MinIO
-                var fileInfo = new FileInfo(tempPath);
-                await using (var uploadStream = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    await minioAdapter.UploadAsync(_bucketName, objectKey, uploadStream, "application/zip", ct);
-                }
-
-                zip.ZipObjectKey = objectKey;
-                zip.SizeBytes = fileInfo.Length;
-                zip.Status = ZipDownloadStatus.Completed;
-                zip.CompletedAt = DateTime.UtcNow;
-                await db.SaveChangesAsync(ct);
-
-                await audit.LogAsync("collection.downloaded", Constants.ScopeTypes.Collection, zip.ScopeId,
-                    zip.RequestedByUserId,
-                    new() { ["assetCount"] = zip.AssetCount, ["sizeBytes"] = zip.SizeBytes },
-                    ct);
-
-                logger.LogInformation(
-                    "ZIP build {ZipDownloadId} completed: {AssetCount} assets, {SizeBytes} bytes",
-                    zipDownloadId, zip.AssetCount, zip.SizeBytes);
-            }
-            finally
-            {
-                // Always clean up the temp file
-                if (File.Exists(tempPath))
-                {
-                    try { File.Delete(tempPath); }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to delete temp file {TempPath}", tempPath);
-                    }
-                }
-            }
+            await BuildAndUploadZipAsync(zip, zipDownloadId, assetList, db, ct);
         }
         catch (OperationCanceledException)
         {
-            zip.Status = ZipDownloadStatus.Failed;
-            zip.ErrorMessage = "Build was cancelled";
-            zip.CompletedAt = DateTime.UtcNow;
-            await db.SaveChangesAsync(CancellationToken.None);
+            await MarkFailedAsync(zip, "Build was cancelled", db);
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "ZIP build {ZipDownloadId} failed", zipDownloadId);
-            zip.Status = ZipDownloadStatus.Failed;
-            zip.ErrorMessage = "An error occurred while building the ZIP file";
-            zip.CompletedAt = DateTime.UtcNow;
-            await db.SaveChangesAsync(CancellationToken.None);
+            await MarkFailedAsync(zip, "An error occurred while building the ZIP file", db);
         }
+    }
+
+    private async Task<List<Asset>> LoadDownloadableAssetsAsync(
+        ZipDownload zip, AssetHubDbContext db, CancellationToken ct)
+    {
+        var assets = await _assetRepo.GetByCollectionAsync(
+            zip.ScopeId, 0, Constants.Limits.MaxDownloadableAssets, ct);
+        var assetList = assets.Where(a => !string.IsNullOrEmpty(a.OriginalObjectKey)).ToList();
+        zip.AssetCount = assetList.Count;
+
+        if (assetList.Count == 0)
+        {
+            zip.Status = ZipDownloadStatus.Failed;
+            zip.ErrorMessage = "No assets found in collection";
+            zip.CompletedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+        return assetList;
+    }
+
+    private async Task BuildAndUploadZipAsync(
+        ZipDownload zip, Guid zipDownloadId, List<Asset> assetList,
+        AssetHubDbContext db, CancellationToken ct)
+    {
+        var objectKey = $"{Constants.StoragePrefixes.TempZipDownloads}/{zipDownloadId}.zip";
+        var tempPath = ScratchPaths.Combine($"assethub-zip-{zipDownloadId}.zip");
+
+        try
+        {
+            var errors = await WriteZipFileAsync(tempPath, assetList, zipDownloadId, ct);
+            await UploadZipFileAsync(tempPath, objectKey, ct);
+
+            var fileInfo = new FileInfo(tempPath);
+            zip.ZipObjectKey = objectKey;
+            zip.SizeBytes = fileInfo.Length;
+            zip.Status = ZipDownloadStatus.Completed;
+            zip.CompletedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+
+            await audit.LogAsync("collection.downloaded", Constants.ScopeTypes.Collection, zip.ScopeId,
+                zip.RequestedByUserId,
+                new() { ["assetCount"] = zip.AssetCount, ["sizeBytes"] = zip.SizeBytes },
+                ct);
+
+            logger.LogInformation(
+                "ZIP build {ZipDownloadId} completed: {AssetCount} assets, {SizeBytes} bytes ({ErrorCount} errors)",
+                zipDownloadId, zip.AssetCount, zip.SizeBytes, errors.Count);
+        }
+        finally
+        {
+            CleanupTempFile(tempPath);
+        }
+    }
+
+    private async Task<List<string>> WriteZipFileAsync(
+        string tempPath, List<Asset> assetList, Guid zipDownloadId, CancellationToken ct)
+    {
+        var errors = new List<string>();
+
+        await using var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        using var archive = new ZipArchive(fileStream, ZipArchiveMode.Create, leaveOpen: false);
+
+        foreach (var asset in assetList)
+        {
+            ct.ThrowIfCancellationRequested();
+            await TryAddAssetEntryAsync(archive, asset, errors, zipDownloadId, ct);
+        }
+
+        if (errors.Count > 0)
+            await WriteErrorsEntryAsync(archive, errors);
+        return errors;
+    }
+
+    private async Task TryAddAssetEntryAsync(
+        ZipArchive archive, Asset asset, List<string> errors, Guid zipDownloadId, CancellationToken ct)
+    {
+        try
+        {
+            await using var assetStream = await minioAdapter.DownloadAsync(
+                _bucketName, asset.OriginalObjectKey!, ct);
+
+            var fileName = FileHelpers.GetSafeFileName(
+                asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
+
+            var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
+            await using var entryStream = entry.Open();
+            await assetStream.CopyToAsync(entryStream, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to include asset {AssetId} in ZIP build {ZipDownloadId}",
+                asset.Id, zipDownloadId);
+            errors.Add($"{asset.Title ?? asset.Id.ToString()} — {ex.Message}");
+        }
+    }
+
+    private static async Task WriteErrorsEntryAsync(ZipArchive archive, List<string> errors)
+    {
+        var errEntry = archive.CreateEntry("_errors.txt", CompressionLevel.Fastest);
+        await using var errStream = errEntry.Open();
+        await using var writer = new StreamWriter(errStream);
+        await writer.WriteLineAsync("The following files could not be included:");
+        foreach (var err in errors)
+            await writer.WriteLineAsync($"  • {err}");
+    }
+
+    private async Task UploadZipFileAsync(string tempPath, string objectKey, CancellationToken ct)
+    {
+        await using var uploadStream = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        await minioAdapter.UploadAsync(_bucketName, objectKey, uploadStream, "application/zip", ct);
+    }
+
+    private void CleanupTempFile(string tempPath)
+    {
+        if (!File.Exists(tempPath)) return;
+        try { File.Delete(tempPath); }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete temp file {TempPath}", tempPath);
+        }
+    }
+
+    private static async Task MarkFailedAsync(ZipDownload zip, string message, AssetHubDbContext db)
+    {
+        zip.Status = ZipDownloadStatus.Failed;
+        zip.ErrorMessage = message;
+        zip.CompletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(CancellationToken.None);
     }
 
     public async Task CleanupExpiredAsync(CancellationToken ct)

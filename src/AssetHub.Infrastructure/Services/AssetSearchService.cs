@@ -70,79 +70,98 @@ public sealed class AssetSearchService(
         List<Guid> accessibleCollectionIds,
         string? excludeDimension)
     {
-        IQueryable<Asset> q = db.Assets
+        var q = db.Assets
             .AsNoTracking()
-            .Where(a => a.Status != AssetStatus.Uploading);
+            .Where(a => a.Status != AssetStatus.Uploading)
+            // Caller's accessible collections — always applied, regardless of excludeDimension.
+            .Where(a => a.AssetCollections.Any(ac => accessibleCollectionIds.Contains(ac.CollectionId)));
 
-        // Caller's accessible collections — always applied, regardless of excludeDimension.
-        q = q.Where(a => a.AssetCollections.Any(ac => accessibleCollectionIds.Contains(ac.CollectionId)));
+        q = ApplyTextFilter(q, request.Text);
+        q = ApplyAssetTypeFilter(q, request, excludeDimension);
+        q = ApplyStatusFilter(q, request, excludeDimension);
+        q = ApplyCollectionFilter(q, request, accessibleCollectionIds, excludeDimension);
+        q = ApplyTagFilter(q, request, excludeDimension);
+        q = ApplyCreatedRangeFilter(q, request);
+        q = ApplyMetadataFilters(q, request, excludeDimension);
+        return q;
+    }
 
-        // Text — tsvector match via EF shadow property.
-        if (!string.IsNullOrWhiteSpace(request.Text))
-        {
-            var text = request.Text;
-            q = q.Where(a => EF.Property<NpgsqlTsVector>(a, "SearchVector")
-                .Matches(EF.Functions.WebSearchToTsQuery("simple", text)));
-        }
+    private static IQueryable<Asset> ApplyTextFilter(IQueryable<Asset> q, string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return q;
+        return q.Where(a => EF.Property<NpgsqlTsVector>(a, "SearchVector")
+            .Matches(EF.Functions.WebSearchToTsQuery("simple", text)));
+    }
 
-        if (excludeDimension != "asset_type" && request.AssetTypes is { Count: > 0 })
-        {
-            var types = request.AssetTypes.Where(DomainEnumExtensions.IsValidAssetType)
-                .Select(t => t.ToAssetType()).ToList();
-            if (types.Count > 0)
-                q = q.Where(a => types.Contains(a.AssetType));
-        }
+    private static IQueryable<Asset> ApplyAssetTypeFilter(
+        IQueryable<Asset> q, AssetSearchRequest request, string? excludeDimension)
+    {
+        if (excludeDimension == "asset_type" || request.AssetTypes is not { Count: > 0 }) return q;
+        var types = request.AssetTypes
+            .Where(DomainEnumExtensions.IsValidAssetType)
+            .Select(t => t.ToAssetType()).ToList();
+        return types.Count == 0 ? q : q.Where(a => types.Contains(a.AssetType));
+    }
 
-        if (excludeDimension != "status" && request.Statuses is { Count: > 0 })
-        {
-            var statuses = request.Statuses
-                .Select(s => s.ToAssetStatus())
-                .Where(s => s != AssetStatus.Unknown)
-                .ToList();
-            if (statuses.Count > 0)
-                q = q.Where(a => statuses.Contains(a.Status));
-        }
+    private static IQueryable<Asset> ApplyStatusFilter(
+        IQueryable<Asset> q, AssetSearchRequest request, string? excludeDimension)
+    {
+        if (excludeDimension == "status" || request.Statuses is not { Count: > 0 }) return q;
+        var statuses = request.Statuses
+            .Select(s => s.ToAssetStatus())
+            .Where(s => s != AssetStatus.Unknown)
+            .ToList();
+        return statuses.Count == 0 ? q : q.Where(a => statuses.Contains(a.Status));
+    }
 
-        if (excludeDimension != "collection" && request.CollectionIds is { Count: > 0 })
-        {
-            // Intersect caller-supplied filter with what they can see.
-            var filter = request.CollectionIds.Intersect(accessibleCollectionIds).ToList();
-            if (filter.Count > 0)
-                q = q.Where(a => a.AssetCollections.Any(ac => filter.Contains(ac.CollectionId)));
-            else
-                // Caller asked for collections they can't see — empty result.
-                q = q.Where(a => false);
-        }
+    private static IQueryable<Asset> ApplyCollectionFilter(
+        IQueryable<Asset> q, AssetSearchRequest request,
+        List<Guid> accessibleCollectionIds, string? excludeDimension)
+    {
+        if (excludeDimension == "collection" || request.CollectionIds is not { Count: > 0 }) return q;
+        // Intersect caller-supplied filter with what they can see.
+        var filter = request.CollectionIds.Intersect(accessibleCollectionIds).ToList();
+        return filter.Count > 0
+            ? q.Where(a => a.AssetCollections.Any(ac => filter.Contains(ac.CollectionId)))
+            // Caller asked for collections they can't see — empty result.
+            : q.Where(a => false);
+    }
 
-        if (excludeDimension != "tag" && request.Tags is { Count: > 0 })
-        {
-            var tags = request.Tags;
-            q = q.Where(a => a.Tags.Any(t => tags.Contains(t)));
-        }
+    private static IQueryable<Asset> ApplyTagFilter(
+        IQueryable<Asset> q, AssetSearchRequest request, string? excludeDimension)
+    {
+        if (excludeDimension == "tag" || request.Tags is not { Count: > 0 }) return q;
+        var tags = request.Tags;
+        return q.Where(a => a.Tags.Any(t => tags.Contains(t)));
+    }
 
+    private static IQueryable<Asset> ApplyCreatedRangeFilter(IQueryable<Asset> q, AssetSearchRequest request)
+    {
         if (request.CreatedAfter.HasValue)
             q = q.Where(a => a.CreatedAt >= request.CreatedAfter.Value);
         if (request.CreatedBefore.HasValue)
             q = q.Where(a => a.CreatedAt <= request.CreatedBefore.Value);
+        return q;
+    }
 
-        if (request.MetadataFilters is not null)
+    private IQueryable<Asset> ApplyMetadataFilters(
+        IQueryable<Asset> q, AssetSearchRequest request, string? excludeDimension)
+    {
+        if (request.MetadataFilters is null) return q;
+        foreach (var (fieldId, values) in request.MetadataFilters)
         {
-            foreach (var (fieldId, values) in request.MetadataFilters)
-            {
-                if (excludeDimension == MetaFacet(fieldId)) continue;
-                if (values is null || values.Count == 0) continue;
+            if (excludeDimension == MetaFacet(fieldId)) continue;
+            if (values is null || values.Count == 0) continue;
 
-                var localFieldId = fieldId;
-                var localValues = values;
-                q = q.Where(a => db.AssetMetadataValues.Any(v =>
-                    v.AssetId == a.Id
-                    && v.MetadataFieldId == localFieldId
-                    && ((v.ValueText != null && localValues.Contains(v.ValueText))
-                        || (v.ValueTaxonomyTermId.HasValue
-                            && localValues.Contains(v.ValueTaxonomyTermId.Value.ToString())))));
-            }
+            var localFieldId = fieldId;
+            var localValues = values;
+            q = q.Where(a => db.AssetMetadataValues.Any(v =>
+                v.AssetId == a.Id
+                && v.MetadataFieldId == localFieldId
+                && ((v.ValueText != null && localValues.Contains(v.ValueText))
+                    || (v.ValueTaxonomyTermId.HasValue
+                        && localValues.Contains(v.ValueTaxonomyTermId.Value.ToString())))));
         }
-
         return q;
     }
 
