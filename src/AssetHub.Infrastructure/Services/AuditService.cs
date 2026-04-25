@@ -19,7 +19,7 @@ namespace AssetHub.Infrastructure.Services;
 /// alongside the audit row; services should avoid <c>Add</c> / <c>Update</c>
 /// in a half-built state before calling <see cref="LogAsync"/>.
 /// </remarks>
-public class AuditService(
+public sealed class AuditService(
     AssetHubDbContext dbContext,
     IHttpContextAccessor httpContextAccessor,
     ILogger<AuditService> logger) : IAuditService

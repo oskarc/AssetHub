@@ -90,9 +90,9 @@ public class Asset
     {
         Status = AssetStatus.Ready;
         UpdatedAt = DateTime.UtcNow;
-        if (thumbKey != null) ThumbObjectKey = thumbKey;
-        if (mediumKey != null) MediumObjectKey = mediumKey;
-        if (posterKey != null) PosterObjectKey = posterKey;
+        if (thumbKey is not null) ThumbObjectKey = thumbKey;
+        if (mediumKey is not null) MediumObjectKey = mediumKey;
+        if (posterKey is not null) PosterObjectKey = posterKey;
     }
 
     /// <summary>

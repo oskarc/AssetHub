@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public class CollectionRepository(
+public sealed class CollectionRepository(
     AssetHubDbContext dbContext,
     HybridCache cache,
     ILogger<CollectionRepository> logger) : ICollectionRepository

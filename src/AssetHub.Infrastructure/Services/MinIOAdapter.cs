@@ -15,7 +15,7 @@ namespace AssetHub.Infrastructure.Services;
 /// - Public client for presigned URLs that browsers access directly
 /// Wraps operations with a Polly resilience pipeline for retry and circuit-breaker.
 /// </summary>
-public class MinIOAdapter(
+public sealed class MinIOAdapter(
     IMinioClient minioClient,
     IMinioClient publicMinioClient,
     ILogger<MinIOAdapter> logger,

@@ -8,7 +8,7 @@ namespace AssetHub.Infrastructure.Services;
 /// <summary>
 /// Queries audit events with filtering, pagination, and name resolution.
 /// </summary>
-public class AuditQueryService(
+public sealed class AuditQueryService(
     IAuditEventRepository auditRepo,
     IAssetRepository assetRepo,
     ICollectionRepository collectionRepo,

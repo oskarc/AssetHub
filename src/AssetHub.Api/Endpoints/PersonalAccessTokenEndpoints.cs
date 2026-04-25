@@ -19,6 +19,12 @@ public static class PersonalAccessTokenEndpoints
 {
     public static void MapPersonalAccessTokenEndpoints(this WebApplication app)
     {
+        // Note on PAT scope enforcement: this is the documented exception
+        // to the "every PublicApi endpoint carries a RequireScopeFilter"
+        // rule. The Create/Revoke handlers below check for a `pat_id` claim
+        // and return 403 to any PAT-authenticated principal, which is
+        // strictly stronger than a scope check (no scope, including admin,
+        // is enough to bootstrap new credentials from a compromised token).
         var group = app.MapGroup("/api/v1/me/personal-access-tokens")
             .RequireAuthorization("RequireViewer")
             .RequireAntiforgeryUnlessBearer()

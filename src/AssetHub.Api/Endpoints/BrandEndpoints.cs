@@ -75,12 +75,10 @@ public static class BrandEndpoints
         CancellationToken ct)
     {
         if (file is null || file.Length == 0)
-            return Results.BadRequest(new { error = "file is required" });
+            return Results.BadRequest(ApiError.BadRequest("file is required"));
         if (file.Length > MaxLogoUploadBytes)
-            return Results.BadRequest(new
-            {
-                error = $"Logo exceeds the {MaxLogoUploadBytes} byte limit."
-            });
+            return Results.BadRequest(ApiError.BadRequest(
+                $"Logo exceeds the {MaxLogoUploadBytes} byte limit."));
 
         await using var stream = file.OpenReadStream();
         return (await svc.UploadLogoAsync(

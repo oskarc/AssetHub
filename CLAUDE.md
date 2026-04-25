@@ -44,8 +44,8 @@ OpenAPI / Swagger **is** used, but only for the curated public integration surfa
 
 ## C# Conventions
 
-- **Nullable reference types** enabled globally — use `is null` / `is not null`, never `== null`.
-- **`sealed`** on all service and repository implementations.
+- **Nullable reference types** enabled globally — use `is null` / `is not null`, never `== null` / `!= null` in plain C#. (EF Core LINQ predicates inside `.Where(...)` / `.Count(...)` are the lone exception: `s.RevokedAt == null` translates to SQL; `is null` may not. Use `==`/`!=` only inside expression trees that hit the database.)
+- **`sealed` on every service, repository, adapter, and background-service implementation. No exceptions.** Concrete classes that aren't designed for inheritance must say so. If you find yourself adding a `public class Foo : IFoo`, change it to `public sealed class` in the same edit.
 - **Primary constructors** preferred for DI injection in services and repositories.
 - **DataAnnotations only** for DTO validation — `[Required]`, `[StringLength]`, `[Range]`.
 - **File-scoped namespaces**, pattern matching, `nameof`.
@@ -173,9 +173,13 @@ Unhandled exceptions caught by global middleware -> `500 + ApiError`. When catch
 - All endpoints registered in `WebApplicationExtensions.MapAssetHubEndpoints()`.
 
 ### Route groups
+
+Every `MapGroup` that hosts at least one POST / PATCH / PUT / DELETE endpoint **must** chain `.RequireAntiforgeryUnlessBearer()`. The filter no-ops on Bearer (JWT/PAT) and anonymous traffic, so it's safe to apply on groups that mix authenticated mutations with public reads. Per-endpoint `.DisableAntiforgery()` then turns off the default ASP.NET antiforgery for the API surface — the filter is the only CSRF gate left, and skipping it on a mutating group means cookie-authed clients (Blazor UI XSS payloads) can hit those endpoints without a token. P-12 / A-7 was specifically about closing this; don't reopen it.
+
 ```csharp
 var group = app.MapGroup("/api/v1/examples")
     .RequireAuthorization("RequireViewer")
+    .RequireAntiforgeryUnlessBearer()
     .WithTags("Examples");
 ```
 
@@ -193,12 +197,16 @@ Apply `ValidationFilter<T>` per-endpoint. DTOs use DataAnnotations. Returns `400
 Policies: `RequireViewer`, `RequireContributor`, `RequireManager`, `RequireAdmin`. Prefer group-level. Collection RBAC: inject `ICollectionAuthorizationService`.
 
 ### Anti-forgery
-`.DisableAntiforgery()` on all API POST/PATCH/DELETE endpoints (JWT clients are CSRF-immune).
+`.DisableAntiforgery()` on all API POST/PATCH/DELETE endpoints — that turns off ASP.NET's built-in antiforgery validation. The actual CSRF gate is `.RequireAntiforgeryUnlessBearer()` on the route group (see "Route groups" above): it validates the `X-CSRF-TOKEN` header for cookie principals and skips Bearer / anonymous. **Both must be present** on a mutating group: `DisableAntiforgery` for clean Bearer flow, `RequireAntiforgeryUnlessBearer` for cookie CSRF defense.
 
 ### Error response format
+
+All error returns from endpoints flow through `ServiceResult.ToHttpResult()`, which produces:
 ```json
 { "code": "NOT_FOUND", "message": "Asset not found", "details": {} }
 ```
+
+When you can't use `ServiceResult` because the validation fires before the service call (e.g., `IFormFile` parameter binding for uploads), use `Results.BadRequest(ApiError.BadRequest("…"))` — the `ApiError` factories in `AssetHub.Application.Dtos` produce the same shape. **Never** return `Results.BadRequest(new { error = "…" })` — that ships an inconsistent shape that breaks SDK consumers reading the OpenAPI schema.
 
 ### Public API contract (`[PublicApi]` + OpenAPI)
 
@@ -206,6 +214,7 @@ A curated subset of endpoints forms the stable public REST contract consumed by 
 
 - Mark public endpoints with `.MarkAsPublicApi()` (in `AssetHub.Api.OpenApi`). Only marked endpoints appear in the generated OpenAPI document at `/swagger/v1/swagger.json`.
 - Every public-API endpoint **must** also carry a `RequireScopeFilter` with the appropriate `assets:read`/`assets:write`/`collections:read`/`collections:write`/`search:read` scope — never ship a `[PublicApi]` endpoint without one (see PAT section below).
+  - **One documented exception**: PAT self-service endpoints (`/api/v1/me/personal-access-tokens/*`) skip `RequireScopeFilter` because they're guarded by a `pat_id` claim check that *strictly forbids* PAT principals from reaching them at all. No scope (including `admin`) is enough. If you add a new "PAT-can-never-do-this" surface, follow the same pattern: `pat_id` guard inside the handler, no `RequireScopeFilter`, comment in the route mapping pointing back at this rule.
 - Changes to `[PublicApi]` endpoints are breaking changes under SemVer. Renames, removals, and type changes need a version bump or a deprecation path.
 - Swagger UI lives at `/swagger`. Anonymous in Development; `RequireAdmin` gated in every other environment via middleware in `UseAssetHubMiddleware` + `RequireAuthorization` on the JSON endpoint.
 
@@ -355,7 +364,7 @@ src/AssetHub.Ui/Resources/
 Pattern: **`Area_Context_Element`** in PascalCase with underscores (`Assets_Upload_Title`, `Common_Btn_Cancel`). `Common_` prefix for shared strings.
 
 ### Rules
-- Add keys to **both** `.resx` and `.sv.resx` together — missing keys fall back to English silently.
+- Add keys to **both** `.resx` and `.sv.resx` together — missing keys fall back to English silently. To audit parity, run `diff <(grep -oE 'data name="[^"]+"' Foo.resx | sort) <(grep -oE 'data name="[^"]+"' Foo.sv.resx | sort)` for each pair; output should be empty.
 - Inject the most specific localizer (e.g., `AssetsResource` for asset strings, not `CommonResource`).
 - Never use raw string literals for user-visible text.
 - Service error messages (`ServiceResult` errors) are not localized — the UI translates them into user-friendly messages.
@@ -419,6 +428,9 @@ Create via raw SQL: `CREATE INDEX IF NOT EXISTS idx_asset_title_trgm ON "Assets"
 
 ### Auto-migration
 AssetHub auto-migrates on startup (`Database.MigrateAsync()`). Migrations must be idempotent (`IF NOT EXISTS` in raw SQL). Both Api and Worker run migrations — first to acquire lock applies.
+
+### Pending model changes
+`AddSharedInfrastructure` configures EF's `PendingModelChangesWarning` to **throw outside Development** and **log inside Development**. That means CI / staging / production refuse to start if the EF model has drifted from the latest migration — a forgotten `dotnet ef migrations add` fails fast instead of silently shipping a mismatched schema. Don't downgrade this to `Log` globally to "fix" a startup error; generate the missing migration instead.
 
 ---
 
@@ -582,20 +594,25 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 ### When editing API endpoints (`src/AssetHub.Api/Endpoints/`)
 
 - Group has `.RequireAuthorization("Require…")` — never rely on per-endpoint auth alone.
-- POST/PATCH/DELETE endpoints have `.DisableAntiforgery()` (JWT + same-origin assumption).
+- **Mutating groups (anything with POST/PATCH/PUT/DELETE) chain `.RequireAntiforgeryUnlessBearer()` at the group level.** Per-endpoint `.DisableAntiforgery()` then disables the default ASP.NET pipeline; `RequireAntiforgeryUnlessBearer` is what actually validates cookie-auth requests. Both must be present together. Skipping the filter on the group means cookie-authed callers (e.g., Blazor UI under XSS) can mutate without an antiforgery token (P-12 / A-7 regression).
 - Route params use `{id:guid}` constraint.
 - Collection-scoped operations call `ICollectionAuthorizationService` before touching entity data.
 - Input DTOs apply `ValidationFilter<T>`.
 - Return via `.ToHttpResult(...)` — never manually inspect `IsSuccess`.
+- **Error shape is `ApiError`, not anonymous types.** When you can't route through `ServiceResult` (typically `IFormFile` parameter validation), return `Results.BadRequest(ApiError.BadRequest("…"))`. Never `Results.BadRequest(new { error = "…" })` — the anonymous shape doesn't match the OpenAPI schema and breaks SDK consumers.
+- Every `.MarkAsPublicApi()` line on a chain must also include an `.AddEndpointFilter(scope)` (where `scope` is a pre-built `RequireScopeFilter` for the group). The only documented exception is the `pat_id`-guarded PAT self-service surface.
 
 ### When editing services / repositories (`src/AssetHub.Infrastructure/**`)
 
+- **`sealed` on every service, repository, and adapter implementation.** A `public class FooService` slips past quickly; default to `public sealed class`. Inheritance is opt-in by changing it later.
 - No `FromSqlRaw` / `FromSqlInterpolated` / string-built SQL — LINQ only. PostgreSQL fuzzy search via `EF.Functions.ILike`.
 - Any external process launch uses `ProcessStartInfo.ArgumentList`, never a single command string.
 - Any filename derived from user input passes through `FileHelpers.GetSafeFileName`; any ZIP entry uses sanitized names.
 - New cache entries go through `CacheKeys` with tags for invalidation. Never cache ACL/roles.
 - Background services create a scope per iteration; never inject scoped services into singletons directly.
 - Return `ServiceResult<T>` — never throw for business errors. Catch infra exceptions and wrap as `ServiceError.Server(...)`.
+- Mutating service methods that emit an audit event wrap action + audit in `IUnitOfWork.ExecuteAsync` so a torn write can't leave the mutation without its trail (A-4). External side-effects (MinIO, webhooks, cache invalidation, mention fan-out) stay outside the transaction.
+- Use `is null` / `is not null` in plain C#. The only place `== null` / `!= null` is acceptable is inside an EF Core query expression that gets translated to SQL — patterns like `.Where(s => s.RevokedAt == null)` are load-bearing.
 
 ### When editing DTOs (`src/AssetHub.Application/Dtos/`)
 
@@ -615,6 +632,22 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - `ct.ThrowIfCancellationRequested()` inside long loops; catch `OperationCanceledException` at the top level.
 - Use `IServiceScopeFactory` for scoped dependencies; one scope per iteration.
 - Log with counts at `Information` (start/summary), `Debug` (per-batch), `Warning` (per-item failures).
+
+### Pre-commit grep sweep
+
+When the changeset is non-trivial (new endpoints, services, repos, resource keys), run these greps against your diff before committing. Each one targets a recurring drift pattern:
+
+| Pattern | What it catches | Acceptable matches |
+|---------|-----------------|--------------------|
+| `^public class.*(?:Service\|Repository\|Adapter)\(` in `src/AssetHub.Infrastructure/` | Missing `sealed` on a service / repo / adapter | None — every match is a fix |
+| `Results\.BadRequest\(new \{ error` in `src/AssetHub.Api/Endpoints/` | Anonymous error shape leaking out | None — convert to `ApiError.BadRequest(...)` |
+| `\.MarkAsPublicApi\(\)` lines in `src/AssetHub.Api/Endpoints/` | Public-API endpoint without scope filter | Only the PAT self-service routes (commented exception) |
+| `\.RequireAuthorization\(.*\)$` on a `MapGroup` whose body has POST/PATCH/PUT/DELETE — without a sibling `RequireAntiforgeryUnlessBearer()` | Mutating group missing CSRF gate | None |
+| ` == null\| != null` outside `.Where(...)` / `.Count(...)` / projection trees | Plain C# nullability drift | EF query expressions only |
+| `data name="…"` count in `Foo.resx` vs `Foo.sv.resx` | Missing Swedish translation | Counts must match |
+| `class .* : I.*Service` without `sealed` keyword anywhere on the line | Same as the first row, broader | None |
+
+A passing sweep doesn't replace the per-area checklists above — it's a final mechanical pass for the things that hide in plain sight.
 
 ---
 

@@ -6,7 +6,7 @@ using AssetHub.Domain.Entities;
 namespace AssetHub.Infrastructure.Services;
 
 /// <inheritdoc />
-public class AssetDeletionService(
+public sealed class AssetDeletionService(
     IAssetRepository assetRepository,
     IAssetCollectionRepository assetCollectionRepo,
     IAssetVersionRepository versionRepository,

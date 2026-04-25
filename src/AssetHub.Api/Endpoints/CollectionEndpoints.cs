@@ -14,7 +14,8 @@ public static class CollectionEndpoints
     {
         var group = app.MapGroup("/api/v1/collections")
             .WithTags("Collections")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAntiforgeryUnlessBearer();
 
         var read = new RequireScopeFilter("collections:read");
         var write = new RequireScopeFilter("collections:write");
@@ -32,7 +33,8 @@ public static class CollectionEndpoints
         // ACL Management — admin/manager UX surface, not part of the public integration contract.
         var aclGroup = app.MapGroup("/api/v1/collections/{collectionId:guid}/acl")
             .WithTags("CollectionACL")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAntiforgeryUnlessBearer();
 
         aclGroup.MapGet("", GetCollectionAcls).WithName("GetCollectionAcls");
         aclGroup.MapPost("", SetCollectionAccess).AddEndpointFilter<ValidationFilter<SetCollectionAccessDto>>().DisableAntiforgery().WithName("SetCollectionAccess");

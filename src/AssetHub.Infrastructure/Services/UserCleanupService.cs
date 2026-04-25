@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Services;
 
 /// <inheritdoc />
-public class UserCleanupService(
+public sealed class UserCleanupService(
     ICollectionAclRepository aclRepo,
     IAuditService audit,
     ILogger<UserCleanupService> logger) : IUserCleanupService

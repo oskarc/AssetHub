@@ -15,7 +15,11 @@ public static class ShareEndpoints
     public static void MapShareEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/v1/shares")
-            .WithTags("Shares");
+            .WithTags("Shares")
+            // Filter no-ops for anonymous requests (no cookie session) and
+            // for Bearer principals; cookie-authed mutations downstream go
+            // through full antiforgery validation.
+            .RequireAntiforgeryUnlessBearer();
 
         // Public endpoints (no auth required, rate-limited).
         // POST endpoints use .DisableAntiforgery() because they are called by

@@ -10,7 +10,7 @@ namespace AssetHub.Infrastructure.Repositories;
 /// <summary>
 /// Read-only EF Core access to <see cref="AuditEvent"/> rows.
 /// </summary>
-public class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEventRepository
+public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEventRepository
 {
     /// <inheritdoc/>
     /// <remarks>

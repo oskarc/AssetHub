@@ -119,7 +119,7 @@ public static partial class InputValidation
         errors = [];
         foreach (var (field, error) in checks)
         {
-            if (error != null)
+            if (error is not null)
                 errors[field] = error;
         }
         return errors.Count == 0;

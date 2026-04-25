@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 /// so revoked permissions take effect immediately on the next request.
 /// System admins bypass all ACL checks and are treated as having the "admin" role on every collection.
 /// </summary>
-public class CollectionAuthorizationService(
+public sealed class CollectionAuthorizationService(
     AssetHubDbContext dbContext,
     CurrentUser currentUser,
     ILogger<CollectionAuthorizationService> logger) : ICollectionAuthorizationService

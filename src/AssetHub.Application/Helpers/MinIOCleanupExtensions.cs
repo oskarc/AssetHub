@@ -16,11 +16,11 @@ public static class MinIOCleanupExtensions
         this IMinIOAdapter minio, string bucketName, Asset asset, CancellationToken ct = default)
     {
         await minio.DeleteAsync(bucketName, asset.OriginalObjectKey, ct);
-        if (asset.ThumbObjectKey != null)
+        if (asset.ThumbObjectKey is not null)
             await minio.DeleteAsync(bucketName, asset.ThumbObjectKey, ct);
-        if (asset.MediumObjectKey != null)
+        if (asset.MediumObjectKey is not null)
             await minio.DeleteAsync(bucketName, asset.MediumObjectKey, ct);
-        if (asset.PosterObjectKey != null)
+        if (asset.PosterObjectKey is not null)
             await minio.DeleteAsync(bucketName, asset.PosterObjectKey, ct);
     }
 

@@ -26,7 +26,7 @@ public sealed record ShareServiceRepositories(
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
     Justification = "Composition root for share creation: pre-grouped repos + email + user lookup + audit + Data Protection + workflow settings + webhook publisher + scoped CurrentUser + logger. Already grouped via ShareServiceRepositories; further bundling would obscure intent.")]
-public class ShareService(
+public sealed class ShareService(
     ShareServiceRepositories repos,
     IEmailService emailService,
     IUserLookupService userLookupService,

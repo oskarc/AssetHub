@@ -241,7 +241,7 @@ public static class WebApplicationExtensions
         app.Use(async (context, next) =>
         {
             var path = context.Request.Path.Value;
-            if (path != null && path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase))
+            if (path is not null && path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase))
             {
                 AddEndpointMetadata(context, new EnableRateLimitingAttribute(Constants.RateLimitPolicies.BlazorSignalR));
             }
@@ -259,7 +259,7 @@ public static class WebApplicationExtensions
         app.Use(async (context, next) =>
         {
             var path = context.Request.Path.Value;
-            if (path != null &&
+            if (path is not null &&
                 (path.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase) ||
                  path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)))
             {
@@ -272,7 +272,7 @@ public static class WebApplicationExtensions
     private static void AddEndpointMetadata(HttpContext context, object metadata)
     {
         var endpoint = context.GetEndpoint();
-        if (endpoint != null)
+        if (endpoint is not null)
         {
             context.SetEndpoint(new Endpoint(
                 endpoint.RequestDelegate,

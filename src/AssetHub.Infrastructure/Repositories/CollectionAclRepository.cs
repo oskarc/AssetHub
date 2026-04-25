@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
-public class CollectionAclRepository(
+public sealed class CollectionAclRepository(
     AssetHubDbContext dbContext,
     ILogger<CollectionAclRepository> logger) : ICollectionAclRepository
 {

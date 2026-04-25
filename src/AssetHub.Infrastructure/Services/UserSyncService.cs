@@ -10,7 +10,7 @@ namespace AssetHub.Infrastructure.Services;
 /// Synchronizes application data with Keycloak by detecting and cleaning up
 /// references to users that have been deleted from Keycloak.
 /// </summary>
-public class UserSyncService(
+public sealed class UserSyncService(
     ICollectionAclRepository aclRepo,
     IShareRepository shareRepo,
     IUserLookupService userLookup,

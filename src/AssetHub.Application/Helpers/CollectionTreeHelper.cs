@@ -38,9 +38,9 @@ public static class CollectionTreeHelper
                     PrincipalType = a.PrincipalType.ToDbString(),
                     PrincipalId = a.PrincipalId,
                     PrincipalName = principalName,
-                    PrincipalEmail = a.PrincipalType == PrincipalType.User && userEmails != null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
+                    PrincipalEmail = a.PrincipalType == PrincipalType.User && userEmails is not null && userEmails.TryGetValue(a.PrincipalId, out var email) ? email : null,
                     Role = a.Role.ToDbString(),
-                    IsSystemAdmin = a.PrincipalType == PrincipalType.User && adminUserIds != null && adminUserIds.Contains(a.PrincipalId)
+                    IsSystemAdmin = a.PrincipalType == PrincipalType.User && adminUserIds is not null && adminUserIds.Contains(a.PrincipalId)
                 };
             }).ToList()
         };
@@ -51,7 +51,7 @@ public static class CollectionTreeHelper
     /// </summary>
     public static List<FlatCollection> Flatten(List<CollectionAccessDto>? collections)
     {
-        if (collections == null) return new();
+        if (collections is null) return new();
         return collections.Select(col => new FlatCollection { Id = col.Id, Name = col.Name, Depth = 0 }).ToList();
     }
 

@@ -32,10 +32,20 @@ public static class InfrastructureServiceExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration.</param>
+    /// <param name="environment">
+    /// Host environment. Used to decide whether <c>PendingModelChangesWarning</c>
+    /// throws (non-Development, so a forgotten migration fails CI/prod startup
+    /// instead of silently shipping) or logs (Development, keeping iteration
+    /// fast). When null, defaults to throwing — safest for libraries / tests.
+    /// </param>
     public static IServiceCollection AddSharedInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment? environment = null)
     {
+        var pendingModelChangesAction = environment is not null && environment.IsDevelopment()
+            ? WarningBehavior.Log
+            : WarningBehavior.Throw;
         var connectionString = configuration.GetConnectionString("Postgres")
             ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required");
 
@@ -60,15 +70,33 @@ public static class InfrastructureServiceExtensions
         services.AddDbContext<AssetHubDbContext>(options =>
         {
             options.UseNpgsql(dataSource);
+            // Outside Development: throw on missing migrations so CI / prod
+            // startup catches the drift instead of silently running with a
+            // mismatched model. In Development we keep it as a log warning
+            // to avoid blocking iteration before the migration is generated.
             options.ConfigureWarnings(w =>
-                w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            {
+                if (pendingModelChangesAction == WarningBehavior.Throw)
+                    w.Throw(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
+                else
+                    w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
+            });
         });
 
         services.AddDbContextFactory<AssetHubDbContext>(options =>
         {
             options.UseNpgsql(dataSource);
+            // Outside Development: throw on missing migrations so CI / prod
+            // startup catches the drift instead of silently running with a
+            // mismatched model. In Development we keep it as a log warning
+            // to avoid blocking iteration before the migration is generated.
             options.ConfigureWarnings(w =>
-                w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            {
+                if (pendingModelChangesAction == WarningBehavior.Throw)
+                    w.Throw(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
+                else
+                    w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
+            });
         }, ServiceLifetime.Scoped);
 
         // ── Options ─────────────────────────────────────────────────────────

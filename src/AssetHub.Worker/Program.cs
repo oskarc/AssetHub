@@ -67,7 +67,7 @@ static class Program
             .ConfigureServices((hostContext, services) =>
             {
                 // Shared infrastructure: DB, MinIO, Repos, Caching, core services
-                services.AddSharedInfrastructure(hostContext.Configuration);
+                services.AddSharedInfrastructure(hostContext.Configuration, hostContext.HostingEnvironment);
 
                 // Data Protection — Worker MUST share the same keyring + wrapping
                 // cert as the API or it can't unprotect webhook secrets / share

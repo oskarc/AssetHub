@@ -344,6 +344,7 @@
   <data name="Dashboard_ShareExpired" xml:space="preserve"><value>Utgången</value></data>
   <data name="Dashboard_ShareRevoked" xml:space="preserve"><value>Återkallad</value></data>
   <data name="Dashboard_ShareActive" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="Dashboard_ShareDetails" xml:space="preserve"><value>Delningsdetaljer</value></data>
   <data name="Dashboard_PasswordProtected" xml:space="preserve"><value>Lösenordsskyddad</value></data>
   <data name="Dashboard_JustNow" xml:space="preserve"><value>just nu</value></data>
   <data name="Dashboard_MinutesAgo" xml:space="preserve"><value>{0} min sedan</value></data>

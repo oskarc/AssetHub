@@ -114,15 +114,15 @@ public static class AssetEndpoints
         [FromQuery] bool force,
         [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
-        if (file == null || file.Length == 0)
-            return Results.BadRequest(new { error = "File is required" });
+        if (file is null || file.Length == 0)
+            return Results.BadRequest(ApiError.BadRequest("File is required"));
 
         if (collectionId == Guid.Empty)
-            return Results.BadRequest(new { error = "collectionId is required" });
+            return Results.BadRequest(ApiError.BadRequest("collectionId is required"));
 
         var titleError = InputValidation.ValidateAssetTitle(title);
-        if (titleError != null)
-            return Results.BadRequest(new { error = titleError });
+        if (titleError is not null)
+            return Results.BadRequest(ApiError.BadRequest(titleError));
 
         using var stream = file.OpenReadStream();
         var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, skipDuplicateCheck: force, ct: ct);

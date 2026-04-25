@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public class ShareRepository(
+public sealed class ShareRepository(
     AssetHubDbContext dbContext,
     ILogger<ShareRepository> logger) : IShareRepository
 {

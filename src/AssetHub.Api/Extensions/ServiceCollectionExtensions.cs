@@ -130,7 +130,7 @@ public static class ServiceCollectionExtensions
         });
 
         // ── Shared infrastructure: DB, MinIO, Repos, core services ─────────
-        services.AddSharedInfrastructure(configuration);
+        services.AddSharedInfrastructure(configuration, environment);
 
         // ── Data Protection (shared with Worker via AddAssetHubDataProtection)
         // Must come AFTER AddSharedInfrastructure so the AssetHubDbContext

@@ -13,7 +13,7 @@ namespace AssetHub.Infrastructure.Services;
 /// Uses the KeycloakDb connection string (separate database) with fallback to Postgres.
 /// Caches username lookups (rarely change) and all-users list (short TTL) via HybridCache.
 /// </summary>
-public class UserLookupService(
+public sealed class UserLookupService(
     IConfiguration configuration,
     HybridCache cache,
     ILogger<UserLookupService> logger) : IUserLookupService
