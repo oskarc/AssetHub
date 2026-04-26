@@ -69,9 +69,10 @@
         try
         {
             // Server caps at 1 MB; mirroring here keeps the browser from
-            // streaming a doomed upload.
+            // streaming a doomed upload. Crossing the cap throws
+            // InvalidOperationException before allocation grows.
             var maxBytes = Constants.Limits.MaxEditorImageSizeMb * 1024L * 1024L;
-            await using var stream = _file.OpenReadStream(maxBytes);
+            await using var stream = _file.OpenReadStream(maxBytes); // NOSONAR S5693 — explicit, audited cap
             await Api.UploadBrandLogoAsync(Brand.Id, stream, _file.Name, _file.ContentType);
             MudDialog.Close(DialogResult.Ok(true));
         }

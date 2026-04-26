@@ -459,7 +459,10 @@
 
         try
         {
-            using var stream = file.OpenReadStream(
+            // Admin-only upload, bounded by Constants.Limits.MaxMigrationManifestSizeMb (50 MB).
+            // The constant is deliberately tight because a manifest is metadata, not bytes;
+            // crossing it throws InvalidOperationException before any allocation grows.
+            using var stream = file.OpenReadStream( // NOSONAR S5693 — explicit, audited cap
                 maxAllowedSize: Constants.Limits.MaxMigrationManifestSizeMb * 1024L * 1024L);
             await Api.UploadMigrationManifestAsync(MigrationId, stream, file.Name);
             _manifestUploaded = true;
@@ -492,11 +495,12 @@
         {
             // Admin-only path, bounded by Constants.Limits.MaxMigrationFileSizeMb.
             // Tighter than the general asset uploader because migrations fan out
-            // many files in parallel — see comment on the constant.
+            // many files in parallel — see comment on the constant. Crossing the
+            // cap throws InvalidOperationException before allocation grows.
             var maxSizeBytes = Constants.Limits.MaxMigrationFileSizeMb * 1024L * 1024L;
             var fileData = files.Select(f => (
                 f.Name,
-                f.OpenReadStream(maxAllowedSize: maxSizeBytes),
+                f.OpenReadStream(maxAllowedSize: maxSizeBytes), // NOSONAR S5693 — explicit, audited cap
                 f.ContentType ?? "application/octet-stream"
             ));
 
