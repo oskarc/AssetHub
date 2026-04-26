@@ -259,34 +259,47 @@ else
     }
 
     private bool AuditFilter(AuditEventDto evt)
+        => MatchesTargetTypeFilter(evt)
+            && MatchesActionFilter(evt)
+            && MatchesSearchString(evt);
+
+    private bool MatchesTargetTypeFilter(AuditEventDto evt)
     {
-        // Target type filter
         var targetType = evt.TargetType.ToLowerInvariant();
-        if (targetType == Constants.ScopeTypes.Collection && !_showCollections) return false;
-        if (targetType == Constants.ScopeTypes.Asset && !_showAssets) return false;
-        if (targetType == Constants.ScopeTypes.Share && !_showShares) return false;
-        if (targetType == Constants.ScopeTypes.Migration && !_showMigrations) return false;
+        return targetType switch
+        {
+            var t when t == Constants.ScopeTypes.Collection => _showCollections,
+            var t when t == Constants.ScopeTypes.Asset => _showAssets,
+            var t when t == Constants.ScopeTypes.Share => _showShares,
+            var t when t == Constants.ScopeTypes.Migration => _showMigrations,
+            _ => true
+        };
+    }
 
-        // Action type filter
-        var action = GetActionCategory(evt.EventType);
-        if (action == "create" && !_showCreate) return false;
-        if (action == "update" && !_showUpdate) return false;
-        if (action == "delete" && !_showDelete) return false;
-        if (action == "download" && !_showDownload) return false;
-        if (action == "access" && !_showAccessGranted) return false;
-        if (action == "security" && !_showSecurity) return false;
-        if (action == "edit" && !_showEdit) return false;
+    private bool MatchesActionFilter(AuditEventDto evt)
+        => GetActionCategory(evt.EventType) switch
+        {
+            "create" => _showCreate,
+            "update" => _showUpdate,
+            "delete" => _showDelete,
+            "download" => _showDownload,
+            "access" => _showAccessGranted,
+            "security" => _showSecurity,
+            "edit" => _showEdit,
+            _ => true
+        };
 
-        if (string.IsNullOrWhiteSpace(_searchString))
-            return true;
+    private bool MatchesSearchString(AuditEventDto evt)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
 
-        var localizedEventType = GetLocalizedEventType(evt.EventType);
-        return evt.EventType.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
-            || localizedEventType.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
-            || evt.TargetType.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
-            || (evt.TargetName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (evt.ActorUserName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (evt.ActorUserId?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+        var needle = _searchString;
+        return evt.EventType.Contains(needle, StringComparison.OrdinalIgnoreCase)
+            || GetLocalizedEventType(evt.EventType).Contains(needle, StringComparison.OrdinalIgnoreCase)
+            || evt.TargetType.Contains(needle, StringComparison.OrdinalIgnoreCase)
+            || (evt.TargetName?.Contains(needle, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (evt.ActorUserName?.Contains(needle, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (evt.ActorUserId?.Contains(needle, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     private static string GetActionCategory(string eventType)

@@ -218,64 +218,67 @@ else
 
     private async Task DeleteAsset(AssetResponseDto asset)
     {
-        var parameters = new DialogParameters<DeleteAssetDialog>
-        {
-            { x => x.AssetId, asset.Id },
-            { x => x.AssetTitle, asset.Title },
-            { x => x.FromCollectionId, CollectionId }
-        };
+        var dialog = await DialogService.ShowAsync<DeleteAssetDialog>(
+            null,
+            new DialogParameters<DeleteAssetDialog>
+            {
+                { x => x.AssetId, asset.Id },
+                { x => x.AssetTitle, asset.Title },
+                { x => x.FromCollectionId, CollectionId }
+            });
 
-        var dialog = await DialogService.ShowAsync<DeleteAssetDialog>(null, parameters);
         var result = await dialog.Result;
+        if (result is null || result.Canceled || result.Data is not string action) return;
 
-        if (result != null && !result.Canceled && result.Data is string action)
+        var success = action == DeleteAssetDialog.ActionRemove && CollectionId.HasValue
+            ? await RemoveFromCollectionAsync(asset)
+            : await SoftDeleteAsync(asset);
+
+        if (success)
         {
-            bool success;
-            if (action == DeleteAssetDialog.ActionRemove && CollectionId.HasValue)
-            {
-                success = await Feedback.ExecuteWithFeedbackAsync(
-                    () => Api.DeleteAssetAsync(asset.Id, CollectionId),
-                    "remove asset from collection",
-                    AssetLoc["AssetRemovedSuccess"]);
-            }
-            else
-            {
-                // Full delete is now soft (T1-LIFE-01) — show an undo snackbar so users can recover
-                // within the 10 s window without bouncing through the admin Trash tab.
-                success = await Feedback.ExecuteWithFeedbackAsync(
-                    () => Api.DeleteAssetAsync(asset.Id),
-                    "delete asset",
-                    successMessage: null);
-                if (success)
-                {
-                    var deletedAsset = asset;
-                    Feedback.ShowActionableInfo(
-                        string.Format(AdminLoc["Trash_DeleteSnackbar"].Value, deletedAsset.Title),
-                        AdminLoc["Trash_DeleteSnackbar_Undo"].Value,
-                        async () =>
-                        {
-                            try
-                            {
-                                await Api.RestoreFromTrashAsync(deletedAsset.Id);
-                                _assets.Insert(0, deletedAsset);
-                                _total++;
-                                await OnAssetsChanged.InvokeAsync();
-                                StateHasChanged();
-                            }
-                            catch
-                            {
-                                Feedback.ShowError(CommonLoc["Error_RestoreFailed"].Value);
-                            }
-                        });
-                }
-            }
+            _assets.Remove(asset);
+            _total--;
+            await OnAssetsChanged.InvokeAsync();
+        }
+    }
 
-            if (success)
-            {
-                _assets.Remove(asset);
-                _total--;
-                await OnAssetsChanged.InvokeAsync();
-            }
+    private Task<bool> RemoveFromCollectionAsync(AssetResponseDto asset)
+        => Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteAssetAsync(asset.Id, CollectionId),
+            "remove asset from collection",
+            AssetLoc["AssetRemovedSuccess"]);
+
+    private async Task<bool> SoftDeleteAsync(AssetResponseDto asset)
+    {
+        // Full delete is now soft (T1-LIFE-01) — show an undo snackbar so users can recover
+        // within the 10 s window without bouncing through the admin Trash tab.
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteAssetAsync(asset.Id),
+            "delete asset",
+            successMessage: null);
+        if (!success) return false;
+
+        var deletedAsset = asset;
+        Feedback.ShowActionableInfo(
+            string.Format(AdminLoc["Trash_DeleteSnackbar"].Value, deletedAsset.Title),
+            AdminLoc["Trash_DeleteSnackbar_Undo"].Value,
+            () => UndoSoftDeleteAsync(deletedAsset));
+        return true;
+    }
+
+    private async Task UndoSoftDeleteAsync(AssetResponseDto deletedAsset)
+    {
+        try
+        {
+            await Api.RestoreFromTrashAsync(deletedAsset.Id);
+            _assets.Insert(0, deletedAsset);
+            _total++;
+            await OnAssetsChanged.InvokeAsync();
+            StateHasChanged();
+        }
+        catch
+        {
+            Feedback.ShowError(CommonLoc["Error_RestoreFailed"].Value);
         }
     }
 
