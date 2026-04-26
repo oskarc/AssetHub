@@ -40,7 +40,11 @@ die()   { echo -e "${RED}[backup]${NC} $*" >&2; exit 1; } # NOSONAR — exit alw
 
 compose() { docker compose -f "${COMPOSE_FILE}" "$@"; return $?; }
 
-file_size() { du -sh "$1" 2>/dev/null | cut -f1; return $?; }
+file_size() {
+    local path="$1"
+    du -sh "$path" 2>/dev/null | cut -f1
+    return $?
+}
 
 # -- Pre-flight checks ------------------------------------------------------
 

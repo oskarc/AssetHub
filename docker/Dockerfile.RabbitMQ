@@ -1,4 +1,7 @@
-FROM rabbitmq:4-management-alpine@sha256:b618738ea52cb6d0073ee9f0412ede133411ecacd7afa40f17be748a6d9a9ee1
+# rabbitmq:4-management-alpine — pinned by digest for reproducible builds.
+# Bump the SHA when upstream cuts a new image; verify the tag still matches
+# with `docker manifest inspect rabbitmq:4-management-alpine`.
+FROM rabbitmq@sha256:b618738ea52cb6d0073ee9f0412ede133411ecacd7afa40f17be748a6d9a9ee1
 
 # Patch known HIGH CVEs in Alpine base packages until upstream image is rebuilt:
 # - CVE-2026-22184: zlib buffer overflow (fixed in 1.3.2-r0)
