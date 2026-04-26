@@ -360,4 +360,131 @@ public class CollectionEndpointTests : IAsyncLifetime
         var response = await viewerClient.DeleteAsync($"/api/v1/collections/{col.Id}/acl/user/another-user");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    // ── Nested collections (T5-NEST-01) ────────────────────────────
+
+    [Fact]
+    public async Task SetParent_AdminReparents_Returns204()
+    {
+        var client = AdminClient();
+        var parentResp = await client.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto { Name = $"NestParent-{Guid.NewGuid():N}" });
+        var parent = await parentResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+        var childResp = await client.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto { Name = $"NestChild-{Guid.NewGuid():N}" });
+        var child = await childResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/v1/collections/{child!.Id}/parent",
+            new SetParentRequestDto { ParentId = parent!.Id });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        // Verify the response shape carries the new fields.
+        var reloaded = await (await client.GetAsync($"/api/v1/collections/{child.Id}"))
+            .Content.ReadFromJsonAsync<CollectionResponseDto>();
+        Assert.Equal(parent.Id, reloaded!.ParentCollectionId);
+        Assert.False(reloaded.InheritParentAcl);
+    }
+
+    [Fact]
+    public async Task SetParent_NonAdmin_Returns403()
+    {
+        var admin = AdminClient();
+        var childResp = await admin.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto { Name = $"NestForbid-{Guid.NewGuid():N}" });
+        var child = await childResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        var viewer = ViewerClient();
+        var response = await viewer.PatchAsJsonAsync(
+            $"/api/v1/collections/{child!.Id}/parent",
+            new SetParentRequestDto { ParentId = null });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetInheritAcl_TogglesAndPersists_Returns204()
+    {
+        var client = AdminClient();
+        var parentResp = await client.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto { Name = $"InhParent-{Guid.NewGuid():N}" });
+        var parent = await parentResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+        var childResp = await client.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto
+            {
+                Name = $"InhChild-{Guid.NewGuid():N}",
+                ParentCollectionId = parent!.Id,
+            });
+        var child = await childResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/v1/collections/{child!.Id}/inherit-acl",
+            new SetInheritAclRequestDto { Inherit = true });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var reloaded = await (await client.GetAsync($"/api/v1/collections/{child.Id}"))
+            .Content.ReadFromJsonAsync<CollectionResponseDto>();
+        Assert.True(reloaded!.InheritParentAcl);
+    }
+
+    [Fact]
+    public async Task CopyAclFromParent_AddsParentRowsAndReturnsCount()
+    {
+        var client = AdminClient();
+        var parentResp = await client.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto { Name = $"CopyParent-{Guid.NewGuid():N}" });
+        var parent = await parentResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+        // Grant a non-admin principal on the parent so there is something to copy.
+        await client.PostAsJsonAsync($"/api/v1/collections/{parent!.Id}/acl",
+            new SetCollectionAccessDto
+            {
+                PrincipalType = Constants.PrincipalTypes.User,
+                PrincipalId = $"copy-src-{Guid.NewGuid():N}",
+                Role = RoleHierarchy.Roles.Viewer,
+            });
+        var childResp = await client.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto
+            {
+                Name = $"CopyChild-{Guid.NewGuid():N}",
+                ParentCollectionId = parent.Id,
+            });
+        var child = await childResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+
+        var response = await client.PostAsync(
+            $"/api/v1/collections/{child!.Id}/copy-acl-from-parent", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<CopyParentAclResponseDto>();
+        // The admin's own row from create gets copied along with the granted user.
+        Assert.True(body!.PrincipalsAdded >= 1);
+    }
+
+    [Fact]
+    public async Task CreateCollection_NonAdminWithParent_Returns403()
+    {
+        var admin = AdminClient();
+        var parentResp = await admin.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto { Name = $"NoNestParent-{Guid.NewGuid():N}" });
+        var parent = await parentResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
+        // Give the viewer access so the create-root check isn't what trips them.
+        await admin.PostAsJsonAsync($"/api/v1/collections/{parent!.Id}/acl",
+            new SetCollectionAccessDto
+            {
+                PrincipalType = Constants.PrincipalTypes.User,
+                PrincipalId = TestAuthHandler.DefaultUserId,
+                Role = RoleHierarchy.Roles.Manager,
+            });
+
+        var viewer = ViewerClient();
+        var response = await viewer.PostAsJsonAsync("/api/v1/collections",
+            new CreateCollectionDto
+            {
+                Name = $"ChildAttempt-{Guid.NewGuid():N}",
+                ParentCollectionId = parent.Id,
+            });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }

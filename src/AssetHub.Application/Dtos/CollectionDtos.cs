@@ -20,6 +20,20 @@ public class CreateCollectionDto
     /// </summary>
     [StringLength(1000)]
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Optional parent collection. Setting this creates a nested collection;
+    /// the call is admin-only when supplied (T5-NEST-01). Leave <c>null</c>
+    /// for a root collection.
+    /// </summary>
+    public Guid? ParentCollectionId { get; set; }
+
+    /// <summary>
+    /// When <c>true</c>, the new collection inherits its parent's ACL at
+    /// runtime. Requires <see cref="ParentCollectionId"/> to be set.
+    /// Defaults to <c>false</c> (flat permissions).
+    /// </summary>
+    public bool InheritParentAcl { get; set; }
 }
 
 /// <summary>
@@ -54,7 +68,37 @@ public record CollectionResponseDto
     /// <summary>Most recent update time (latest asset update, or collection creation time).</summary>
     public DateTime UpdatedAt { get; init; }
     public int AssetCount { get; init; }
+
+    /// <summary>Parent collection id, or <c>null</c> for a root collection (T5-NEST-01).</summary>
+    public Guid? ParentCollectionId { get; init; }
+
+    /// <summary>Whether this collection inherits its parent's ACL at runtime (T5-NEST-01).</summary>
+    public bool InheritParentAcl { get; init; }
 }
+
+/// <summary>
+/// Admin-only request body for <c>PATCH /collections/{id}/parent</c>.
+/// Pass <c>null</c> to move the collection to root level.
+/// </summary>
+public class SetParentRequestDto
+{
+    public Guid? ParentId { get; set; }
+}
+
+/// <summary>
+/// Admin-only request body for <c>PATCH /collections/{id}/inherit-acl</c>.
+/// </summary>
+public class SetInheritAclRequestDto
+{
+    [Required]
+    public bool? Inherit { get; set; }
+}
+
+/// <summary>
+/// Response for <c>POST /admin/collections/{id}/copy-acl-from-parent</c>:
+/// reports how many parent ACL rows were added to the child.
+/// </summary>
+public record CopyParentAclResponseDto(int PrincipalsAdded);
 
 /// <summary>
 /// Context information shown before deleting a collection.

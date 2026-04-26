@@ -30,7 +30,9 @@ public static class CollectionMapper
             CreatedAt = collection.CreatedAt,
             CreatedByUserId = collection.CreatedByUserId,
             UserRole = role ?? "none",
-            AssetCount = assetCount
+            AssetCount = assetCount,
+            ParentCollectionId = collection.ParentCollectionId,
+            InheritParentAcl = collection.InheritParentAcl,
         };
     }
 
@@ -67,7 +69,9 @@ public static class CollectionMapper
                 CreatedAt = c.CreatedAt,
                 CreatedByUserId = c.CreatedByUserId,
                 UserRole = role ?? "none",
-                AssetCount = count
+                AssetCount = count,
+                ParentCollectionId = c.ParentCollectionId,
+                InheritParentAcl = c.InheritParentAcl,
             });
         }
         return results;

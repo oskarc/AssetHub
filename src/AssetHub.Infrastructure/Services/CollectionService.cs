@@ -55,11 +55,27 @@ public sealed class CollectionService(
         if (nameExists)
             return ServiceError.BadRequest($"A collection named '{dto.Name}' already exists");
 
+        // Nested collection creation is admin-only — same rule as SetParentAsync.
+        // Otherwise contributors could bypass that gate by creating a child
+        // under any parent they could name.
+        if (dto.ParentCollectionId is not null && !currentUser.IsSystemAdmin)
+            return ServiceError.Forbidden();
+
         if (!currentUser.IsSystemAdmin)
         {
             var canCreate = await authService.CanCreateRootCollectionAsync(userId);
             if (!canCreate)
                 return ServiceError.Forbidden();
+        }
+
+        if (dto.ParentCollectionId is { } parentId)
+        {
+            if (!await repos.CollectionRepo.ExistsAsync(parentId, ct))
+                return ServiceError.NotFound("Parent collection not found");
+        }
+        else if (dto.InheritParentAcl)
+        {
+            return ServiceError.BadRequest("Cannot enable inheritance: collection has no parent.");
         }
 
         var collection = new Collection
@@ -68,7 +84,9 @@ public sealed class CollectionService(
             Name = dto.Name,
             Description = descToStore,
             CreatedByUserId = userId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            ParentCollectionId = dto.ParentCollectionId,
+            InheritParentAcl = dto.InheritParentAcl,
         };
 
         try
@@ -100,7 +118,9 @@ public sealed class CollectionService(
             Description = collection.Description,
             CreatedAt = collection.CreatedAt,
             CreatedByUserId = collection.CreatedByUserId,
-            UserRole = RoleHierarchy.Roles.Admin
+            UserRole = RoleHierarchy.Roles.Admin,
+            ParentCollectionId = collection.ParentCollectionId,
+            InheritParentAcl = collection.InheritParentAcl,
         };
     }
 
