@@ -21,7 +21,17 @@ else
                         Class="@(SelectedCollectionId == collection.Id ? "mud-nav-link-active" : null)"
                         @onclick="@(() => OnCollectionSelected.InvokeAsync(collection.Id))">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <span>@collection.Name</span>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <span>@collection.Name</span>
+                        @if (collection.InheritParentAcl)
+                        {
+                            <MudTooltip Text="@CollectionLoc["Inheriting_RowTag"]">
+                                <MudIcon Icon="@Icons.Material.Filled.Link"
+                                         Size="Size.Small"
+                                         Color="Color.Tertiary" />
+                            </MudTooltip>
+                        }
+                    </MudStack>
                     @if (collection.AssetCount > 0)
                     {
                         <MudChip T="string" Size="Size.Small" Color="Color.Default">@collection.AssetCount</MudChip>

@@ -100,4 +100,17 @@
   <data name="BulkAccessSuccess" xml:space="preserve"><value>Granted {0} access to {1} collection(s)</value></data>
   <data name="BulkAccessPartial" xml:space="preserve"><value>Updated {0} collection(s), {1} failed</value></data>
   <data name="BulkActionsDesc" xml:space="preserve"><value>Perform actions on {0} selected collection(s).</value></data>
+  <data name="Parent_Header" xml:space="preserve"><value>Parent collection</value></data>
+  <data name="Parent_None" xml:space="preserve"><value>(none — this is a root collection)</value></data>
+  <data name="Parent_Inherit_Toggle" xml:space="preserve"><value>Inherit permissions from parent</value></data>
+  <data name="Parent_Inherit_HelperText" xml:space="preserve"><value>When on, members of the parent are granted the same access here at runtime.</value></data>
+  <data name="Parent_Inherit_RequiresParent" xml:space="preserve"><value>Inheritance requires a parent collection.</value></data>
+  <data name="Parent_Inherit_Enabled" xml:space="preserve"><value>Inheritance enabled.</value></data>
+  <data name="Parent_Inherit_Disabled" xml:space="preserve"><value>Inheritance disabled.</value></data>
+  <data name="Parent_CopyAcl_Button" xml:space="preserve"><value>Apply parent's permissions</value></data>
+  <data name="Parent_CopyAcl_HelperText" xml:space="preserve"><value>Copy parent ACL rows that aren't already on this collection. A snapshot — does not enable live inheritance.</value></data>
+  <data name="Parent_CopyAcl_Confirm" xml:space="preserve"><value>Copy permissions from {0}? Existing entries on this collection are kept untouched.</value></data>
+  <data name="Parent_CopyAcl_Success" xml:space="preserve"><value>Added {0} permission entries from parent.</value></data>
+  <data name="Parent_CopyAcl_NoneToAdd" xml:space="preserve"><value>No new entries to copy — child already has every parent grant.</value></data>
+  <data name="Inheriting_RowTag" xml:space="preserve"><value>Inherits from parent</value></data>
 </root>

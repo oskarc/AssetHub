@@ -193,6 +193,39 @@ public class AssetHubApiClient
     }
 
     /// <summary>
+    /// Reparents a collection (admin-only). Pass <paramref name="parentId"/> = <c>null</c>
+    /// to move it to root level.
+    /// </summary>
+    public virtual async Task SetCollectionParentAsync(Guid collectionId, Guid? parentId, CancellationToken ct = default)
+    {
+        var body = new SetParentRequestDto { ParentId = parentId };
+        var response = await _http.PatchAsJsonAsync($"/api/v1/collections/{collectionId}/parent", body, ct);
+        await EnsureSuccessAsync(response, "Set collection parent");
+    }
+
+    /// <summary>
+    /// Toggles whether a collection inherits its parent's ACL at runtime (admin-only).
+    /// </summary>
+    public virtual async Task SetCollectionInheritParentAclAsync(Guid collectionId, bool inherit, CancellationToken ct = default)
+    {
+        var body = new SetInheritAclRequestDto { Inherit = inherit };
+        var response = await _http.PatchAsJsonAsync($"/api/v1/collections/{collectionId}/inherit-acl", body, ct);
+        await EnsureSuccessAsync(response, "Set collection inherit-acl");
+    }
+
+    /// <summary>
+    /// Snapshot-copies the parent's ACL rows that aren't already on this collection
+    /// (admin-only). Does not enable runtime inheritance. Returns the count added.
+    /// </summary>
+    public virtual async Task<int> CopyCollectionAclFromParentAsync(Guid collectionId, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync($"/api/v1/collections/{collectionId}/copy-acl-from-parent", content: null, ct);
+        await EnsureSuccessAsync(response, "Copy collection ACL from parent");
+        var body = await response.Content.ReadFromJsonAsync<CopyParentAclResponseDto>(ct);
+        return body?.PrincipalsAdded ?? 0;
+    }
+
+    /// <summary>
     /// Gets the ACL entries for a collection (manager+).
     /// </summary>
     public virtual async Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default)

@@ -100,4 +100,17 @@
   <data name="BulkAccessSuccess" xml:space="preserve"><value>Gav {0} åtkomst till {1} samling(ar)</value></data>
   <data name="BulkAccessPartial" xml:space="preserve"><value>{0} samling(ar) uppdaterade, {1} misslyckades</value></data>
   <data name="BulkActionsDesc" xml:space="preserve"><value>Utför åtgärder på {0} valda samling(ar).</value></data>
+  <data name="Parent_Header" xml:space="preserve"><value>Föräldersamling</value></data>
+  <data name="Parent_None" xml:space="preserve"><value>(ingen — detta är en rotsamling)</value></data>
+  <data name="Parent_Inherit_Toggle" xml:space="preserve"><value>Ärv behörigheter från förälder</value></data>
+  <data name="Parent_Inherit_HelperText" xml:space="preserve"><value>När aktiverat får förälderns medlemmar samma åtkomst här i realtid.</value></data>
+  <data name="Parent_Inherit_RequiresParent" xml:space="preserve"><value>Arv kräver en föräldersamling.</value></data>
+  <data name="Parent_Inherit_Enabled" xml:space="preserve"><value>Arv aktiverat.</value></data>
+  <data name="Parent_Inherit_Disabled" xml:space="preserve"><value>Arv inaktiverat.</value></data>
+  <data name="Parent_CopyAcl_Button" xml:space="preserve"><value>Tillämpa förälderns behörigheter</value></data>
+  <data name="Parent_CopyAcl_HelperText" xml:space="preserve"><value>Kopiera ACL-rader från föräldern som inte redan finns här. En ögonblicksbild — aktiverar inte löpande arv.</value></data>
+  <data name="Parent_CopyAcl_Confirm" xml:space="preserve"><value>Kopiera behörigheter från {0}? Befintliga rader på den här samlingen behålls oförändrade.</value></data>
+  <data name="Parent_CopyAcl_Success" xml:space="preserve"><value>{0} behörighetsrader tillagda från föräldern.</value></data>
+  <data name="Parent_CopyAcl_NoneToAdd" xml:space="preserve"><value>Inga nya rader att kopiera — barnet har redan alla föräldraobjekt.</value></data>
+  <data name="Inheriting_RowTag" xml:space="preserve"><value>Ärver från förälder</value></data>
 </root>

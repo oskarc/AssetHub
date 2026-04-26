@@ -34,6 +34,45 @@
                 </MudStack>
             </MudPaper>
 
+            @* Parent panel — admin-only, only when this collection actually has a parent.
+               Reparenting itself is API-only in v1; the GUI surface here is the inheritance
+               toggle + the snapshot-copy button (T5-NEST-01). *@
+            @if (_isAdmin && _parentId is not null)
+            {
+                <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+                    <div class="dialog-section-title">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
+                            <span>@CollLoc["Parent_Header"]: @(_parentName ?? "…")</span>
+                        </MudStack>
+                    </div>
+                    <MudStack Spacing="2">
+                        <MudSwitch T="bool"
+                                   Value="_inheritParentAcl"
+                                   ValueChanged="OnToggleInheritAsync"
+                                   Color="Color.Primary"
+                                   Label="@CollLoc["Parent_Inherit_Toggle"]"
+                                   Disabled="_isInheritToggling" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @CollLoc["Parent_Inherit_HelperText"]
+                        </MudText>
+                        <MudDivider />
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.ContentCopy"
+                                       OnClick="CopyParentAclAsync"
+                                       Disabled="_isCopyingAcl">
+                                @CollLoc["Parent_CopyAcl_Button"]
+                            </MudButton>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @CollLoc["Parent_CopyAcl_HelperText"]
+                            </MudText>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            }
+
             <!-- Add User Section -->
             <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
                 <div class="dialog-section-title">
@@ -215,6 +254,9 @@
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = default!;
 
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
     [Parameter] public Guid CollectionId { get; set; }
     [Parameter] public string CollectionName { get; set; } = "";
     [Parameter] public string CurrentUserRole { get; set; } = "";
@@ -235,9 +277,105 @@
     // Revoke tracking
     private readonly HashSet<Guid> _revokingIds = new();
 
+    // Nested collections (T5-NEST-01) — populated when this collection has a parent.
+    private bool _isAdmin;
+    private Guid? _parentId;
+    private string? _parentName;
+    private bool _inheritParentAcl;
+    private bool _isInheritToggling;
+    private bool _isCopyingAcl;
+
     protected override async Task OnInitializedAsync()
     {
+        if (AuthStateTask is not null)
+        {
+            var state = await AuthStateTask;
+            _isAdmin = state.User.IsInRole("admin");
+        }
+
+        await LoadCollectionMetaAsync();
         await LoadAclsAsync();
+    }
+
+    private async Task LoadCollectionMetaAsync()
+    {
+        try
+        {
+            var collection = await Api.GetCollectionAsync(CollectionId);
+            if (collection is null) return;
+            _parentId = collection.ParentCollectionId;
+            _inheritParentAcl = collection.InheritParentAcl;
+            if (_parentId is { } pid)
+            {
+                var parent = await Api.GetCollectionAsync(pid);
+                _parentName = parent?.Name;
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load collection metadata");
+        }
+    }
+
+    private async Task OnToggleInheritAsync(bool newValue)
+    {
+        if (_isInheritToggling) return;
+        _isInheritToggling = true;
+        StateHasChanged();
+
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SetCollectionInheritParentAclAsync(CollectionId, newValue),
+            "toggle inheritance",
+            newValue ? CollLoc["Parent_Inherit_Enabled"] : CollLoc["Parent_Inherit_Disabled"]);
+
+        if (success)
+        {
+            _inheritParentAcl = newValue;
+            await LoadAclsAsync();
+        }
+
+        _isInheritToggling = false;
+        StateHasChanged();
+    }
+
+    private async Task CopyParentAclAsync()
+    {
+        if (_parentId is null || _isCopyingAcl) return;
+
+        var confirmed = await DialogService.ShowConfirmAsync(
+            CollLoc["Parent_CopyAcl_Button"],
+            string.Format(CollLoc["Parent_CopyAcl_Confirm"], _parentName ?? CollLoc["Parent_Header"]),
+            CollLoc["Parent_CopyAcl_Button"],
+            Icons.Material.Filled.ContentCopy,
+            Color.Info,
+            Color.Primary);
+        if (!confirmed) return;
+
+        _isCopyingAcl = true;
+        StateHasChanged();
+
+        try
+        {
+            var added = await Api.CopyCollectionAclFromParentAsync(CollectionId);
+            if (added > 0)
+            {
+                Feedback.ShowSuccess(string.Format(CollLoc["Parent_CopyAcl_Success"], added));
+                await LoadAclsAsync();
+            }
+            else
+            {
+                Feedback.ShowInfo(CollLoc["Parent_CopyAcl_NoneToAdd"]);
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "copy parent ACL");
+        }
+        finally
+        {
+            _isCopyingAcl = false;
+            StateHasChanged();
+        }
     }
 
     private async Task LoadAclsAsync()
