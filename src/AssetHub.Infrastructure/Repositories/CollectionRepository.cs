@@ -271,4 +271,75 @@ public sealed class CollectionRepository(
             .CountAsync(ct);
     }
 
+    // ── Nested collections (T5-NEST-01) ──────────────────────────────────
+
+    public async Task<Guid?> GetParentIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return await dbContext.Collections
+            .AsNoTracking()
+            .Where(c => c.Id == id)
+            .Select(c => c.ParentCollectionId)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<Dictionary<Guid, (Guid? ParentId, bool InheritParentAcl)>> GetAncestorChainAsync(
+        IEnumerable<Guid> ids, CancellationToken ct = default)
+    {
+        var seedIds = ids as IReadOnlyCollection<Guid> ?? ids.ToList();
+        if (seedIds.Count == 0) return new();
+
+        // Iterative breadth-walk: load the seeds, then any new parents they
+        // reference, up to MaxCollectionDepth hops. Bounded round-trip count
+        // is the trade-off vs. a recursive CTE — easier to read, no provider-
+        // specific SQL, and the depth cap means at most 8 cheap round-trips.
+        var result = new Dictionary<Guid, (Guid?, bool)>();
+        var frontier = new HashSet<Guid>(seedIds);
+
+        for (var depth = 0; depth <= Constants.Limits.MaxCollectionDepth && frontier.Count > 0; depth++)
+        {
+            var rows = await dbContext.Collections
+                .AsNoTracking()
+                .Where(c => frontier.Contains(c.Id))
+                .Select(c => new { c.Id, c.ParentCollectionId, c.InheritParentAcl })
+                .ToListAsync(ct);
+
+            var nextFrontier = new HashSet<Guid>();
+            foreach (var row in rows)
+            {
+                result[row.Id] = (row.ParentCollectionId, row.InheritParentAcl);
+                if (row.ParentCollectionId is { } parentId && !result.ContainsKey(parentId))
+                    nextFrontier.Add(parentId);
+            }
+            frontier = nextFrontier;
+        }
+        return result;
+    }
+
+    public async Task<List<Guid>> GetInheritingDescendantIdsAsync(Guid rootId, CancellationToken ct = default)
+    {
+        // Walk DOWN from rootId, collecting any child whose InheritParentAcl
+        // is true. Depth-first traversal with a HashSet guard so any
+        // accidental cycle (the service layer should prevent these, but
+        // defence in depth) terminates instead of looping forever. Bounded
+        // by MaxCollectionDepth so a malicious deep tree can't burn round-trips.
+        var collected = new List<Guid>();
+        var visited = new HashSet<Guid> { rootId };
+        var frontier = new List<Guid> { rootId };
+
+        for (var depth = 0; depth < Constants.Limits.MaxCollectionDepth && frontier.Count > 0; depth++)
+        {
+            var children = await dbContext.Collections
+                .AsNoTracking()
+                .Where(c => c.ParentCollectionId != null
+                    && frontier.Contains(c.ParentCollectionId.Value)
+                    && c.InheritParentAcl)
+                .Select(c => c.Id)
+                .ToListAsync(ct);
+
+            var newcomers = children.Where(id => visited.Add(id)).ToList();
+            collected.AddRange(newcomers);
+            frontier = newcomers;
+        }
+        return collected;
+    }
 }

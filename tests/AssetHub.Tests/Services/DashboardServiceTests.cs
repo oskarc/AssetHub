@@ -39,7 +39,7 @@ public class DashboardServiceTests : IAsyncLifetime
         var cache = TestCacheHelper.CreateHybridCache();
         var collectionRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
         var assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        var authService = new CollectionAuthorizationService(_db, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        var authService = new CollectionAuthorizationService(_db, collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         var userLookupMock = new Mock<IUserLookupService>();
         userLookupMock.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(userNames ?? new Dictionary<string, string>());

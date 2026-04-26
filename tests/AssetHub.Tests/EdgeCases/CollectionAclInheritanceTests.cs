@@ -31,7 +31,7 @@ public class CollectionAclInheritanceTests : IAsyncLifetime
         _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
         _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
         _authService = new CollectionAuthorizationService(
-            _db, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            _db, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -141,7 +141,7 @@ public class CollectionAclInheritanceTests : IAsyncLifetime
         await _aclRepo.RevokeAccessAsync(collection.Id, Constants.PrincipalTypes.User, User1);
 
         var freshAuthService = new CollectionAuthorizationService(
-            _db, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            _db, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         var roleAfter = await freshAuthService.GetUserRoleAsync(User1, collection.Id);
 

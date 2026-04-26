@@ -338,6 +338,15 @@ public static class Constants
         /// so the UI shows "10 000+" rather than scanning the entire table.
         /// </summary>
         public const int AuditCountDisplayCap = 10_000;
+
+        /// <summary>
+        /// Maximum depth of the collection-parent chain (T5-NEST-01).
+        /// Caps both cycle-detection walks at SetParentAsync time and the
+        /// inheritance walk in <c>ICollectionAuthorizationService</c>.
+        /// Eight is generous for marketing-team taxonomies; if anyone hits
+        /// the cap they're using collections wrong.
+        /// </summary>
+        public const int MaxCollectionDepth = 8;
     }
 
     /// <summary>

@@ -100,6 +100,17 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                 .WithMany()
                 .HasForeignKey(e => e.BrandId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // T5-NEST-01 — optional self-FK for nested collections.
+            // SetNull on delete: deleting a parent orphans children to root
+            // rather than cascading the delete (collections aren't
+            // soft-deletable yet, and a cascade would be unrecoverable).
+            // Cycle prevention is at the service layer, not the DB.
+            entity.HasIndex(e => e.ParentCollectionId).HasDatabaseName("idx_collections_parent_id");
+            entity.HasOne(e => e.Parent)
+                .WithMany(p => p.Children)
+                .HasForeignKey(e => e.ParentCollectionId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
     private static void ConfigureCollectionAcl(ModelBuilder modelBuilder) =>

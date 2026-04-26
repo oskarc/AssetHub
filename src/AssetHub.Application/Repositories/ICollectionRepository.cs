@@ -79,6 +79,35 @@ public interface ICollectionRepository
     /// if the specified collection were deleted.
     /// </summary>
     Task<int> GetOrphanedAssetCountAsync(Guid collectionId, CancellationToken ct = default);
+
+    // ── Nested collections (T5-NEST-01) ──────────────────────────────────
+
+    /// <summary>
+    /// Returns just the <c>ParentCollectionId</c> for one collection. Used
+    /// by the cycle-detection walk in <c>SetParentAsync</c>; cheaper than
+    /// pulling the whole row.
+    /// </summary>
+    Task<Guid?> GetParentIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns <c>(Id, ParentCollectionId, InheritParentAcl)</c> tuples for
+    /// every collection in <paramref name="ids"/> plus every ancestor
+    /// reachable up to <see cref="Constants.Limits.MaxCollectionDepth"/>
+    /// hops. One round-trip via a recursive CTE; used by
+    /// <c>ICollectionAuthorizationService.FilterAccessibleAsync</c> to walk
+    /// the inheritance chain in memory.
+    /// </summary>
+    Task<Dictionary<Guid, (Guid? ParentId, bool InheritParentAcl)>> GetAncestorChainAsync(
+        IEnumerable<Guid> ids, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the IDs of all collections that transitively inherit from
+    /// <paramref name="rootId"/> through <c>InheritParentAcl = true</c>
+    /// links. Used to cascade cache invalidation when an inheriting parent's
+    /// ACL changes. Bounded by <see cref="Constants.Limits.MaxCollectionDepth"/>
+    /// hops.
+    /// </summary>
+    Task<List<Guid>> GetInheritingDescendantIdsAsync(Guid rootId, CancellationToken ct = default);
 }
 
 /// <summary>
