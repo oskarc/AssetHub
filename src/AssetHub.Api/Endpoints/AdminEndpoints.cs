@@ -161,6 +161,9 @@ public static class AdminEndpoints
         return result.ToHttpResult();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell", "S107:Methods should not have too many parameters",
+        Justification = "Mirrors the documented query string for the public users-list endpoint (search/category/sortBy/sortDesc/skip/take). Wrapping into a DTO breaks the [AsParameters] binding ergonomics for cookie + Bearer callers and obscures the OpenAPI shape.")]
     private static async Task<IResult> GetKeycloakUsersPaginated(
         [FromServices] IUserAdminQueryService svc, CancellationToken ct,
         [FromQuery] string? search = null, [FromQuery] string? category = null,

@@ -233,7 +233,7 @@
     private string _editingPrincipalId = "";
 
     // Revoke tracking
-    private HashSet<Guid> _revokingIds = new();
+    private readonly HashSet<Guid> _revokingIds = new();
 
     protected override async Task OnInitializedAsync()
     {

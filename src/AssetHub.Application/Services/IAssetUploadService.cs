@@ -39,6 +39,9 @@ public interface IAssetUploadService
     /// Use for small/medium files when presigned upload isn't needed.
     /// </summary>
     /// <param name="skipDuplicateCheck">When true, skip SHA256 duplicate detection (admin override).</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell", "S107:Methods should not have too many parameters",
+        Justification = "Direct upload mirrors the inbound multipart form (file stream + name + content-type + size + target collection + title + duplicate override + ct). Wrapping in a DTO would just shadow the same arguments.")]
     Task<ServiceResult<AssetUploadResult>> UploadAsync(
         Stream fileStream, string fileName, string contentType, long fileSize,
         Guid collectionId, string title, bool skipDuplicateCheck = false, CancellationToken ct = default);

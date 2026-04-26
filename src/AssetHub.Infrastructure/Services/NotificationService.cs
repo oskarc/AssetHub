@@ -87,7 +87,7 @@ public sealed class NotificationService(
             });
         }
 
-        return (NotificationDto?)ToDto(entity);
+        return ToDto(entity);
     }
 
     public async Task<ServiceResult<NotificationListResponse>> ListForCurrentUserAsync(

@@ -85,7 +85,10 @@ public sealed class CollectionAuthorizationService(
         if (ids.Count == 0) return new();
 
         if (currentUser.IsSystemAdmin)
-            return ids.ToDictionary(id => id, _ => (string?)"admin");
+            // Type inference: ToDictionary<TKey, TElement> with `_ => "admin"` would
+            // infer TElement as `string`, not `string?`, and break the return type.
+            // Force the value selector to return `string?`.
+            return ids.ToDictionary<Guid, Guid, string?>(id => id, _ => RoleHierarchy.Roles.Admin);
 
         // Pre-warm the cache by loading all direct ACLs for this user in one query
         await PreloadUserAclsAsync(userId, ids, ct);

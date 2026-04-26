@@ -113,7 +113,7 @@
     private string _displayName = "";
     private bool _loading = true;
     private bool _dashboardError;
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
 
     private bool _isAdmin => RoleHierarchy.GetLevel(_dashboard?.UserRole ?? "") >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Admin);
     private bool _showShares => _dashboard?.RecentShares.Count > 0

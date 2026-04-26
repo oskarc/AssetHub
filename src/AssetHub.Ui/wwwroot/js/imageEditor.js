@@ -422,8 +422,6 @@ export async function resize(width, height) {
         const oldH = _canvas.getHeight();
 
         // Update full-resolution dimensions (used at export time)
-        const oldFullW = _fullResWidth;
-        const oldFullH = _fullResHeight;
         _fullResWidth = width;
         _fullResHeight = height;
 
@@ -692,7 +690,7 @@ export function addRedaction() {
 export function deleteSelected() {
     if (!_canvas) return;
     const active = _canvas.getActiveObject();
-    if (!active || !active.data?.id) return;
+    if (!active?.data?.id) return;
     markModified();
 
     _canvas.remove(active);
@@ -702,24 +700,24 @@ export function deleteSelected() {
 }
 
 /**
- * Duplicate the currently selected layer object.
- * @returns {string|null} new layerId
+ * Duplicate the currently selected layer object. Fabric's clone() is async,
+ * so the new layer is announced via notifyLayersChanged() — this function
+ * returns nothing.
  */
 export function duplicateSelected() {
-    if (!_canvas) return null;
+    if (!_canvas) return;
     const active = _canvas.getActiveObject();
-    if (!active || !active.data?.id) return null;
+    if (!active?.data?.id) return;
     markModified();
 
     active.clone((cloned) => {
         cloned.set({ left: active.left + 20, top: active.top + 20 });
-        const id = setLayerData(cloned, active.data.kind, active.data.label + ' copy');
+        setLayerData(cloned, active.data.kind, active.data.label + ' copy');
         _canvas.add(cloned);
         _canvas.setActiveObject(cloned);
         _canvas.renderAll();
         notifyLayersChanged();
     });
-    return null; // clone is async, id returned via getLayers refresh
 }
 
 /**
@@ -821,7 +819,7 @@ export function selectLayer(layerId) {
 export function updateSelectedProps(props) {
     if (!_canvas) return;
     const active = _canvas.getActiveObject();
-    if (!active || !active.data?.id) return;
+    if (!active?.data?.id) return;
     markModified();
 
     if (props.text !== undefined && active.type === 'i-text') {
@@ -872,7 +870,7 @@ export function getLayers() {
 export function getSelectedLayerProps() {
     if (!_canvas) return null;
     const active = _canvas.getActiveObject();
-    if (!active || !active.data?.id) return null;
+    if (!active?.data?.id) return null;
 
     const base = {
         id: active.data.id,
@@ -941,7 +939,7 @@ export function loadEditDocument(json) {
         return;
     }
 
-    if (!doc || doc.v !== 1) return;
+    if (doc?.v !== 1) return;
 
     // Restore full-resolution dimensions for correct export multiplier
     // Cap to 10000 to prevent OOM from crafted edit documents.
@@ -976,7 +974,7 @@ export function loadEditDocument(json) {
 }
 
 function restoreLayer(def) {
-    if (!_canvas || !def || !def.kind) return;
+    if (!_canvas || !def?.kind) return;
 
     let obj;
     switch (def.kind) {
@@ -1059,7 +1057,7 @@ function restoreLayer(def) {
     }
 
     if (!obj) return;
-    const id = setLayerData(obj, def.kind, def.label || def.kind);
+    setLayerData(obj, def.kind, def.label || def.kind);
     _canvas.add(obj);
 }
 
@@ -1438,7 +1436,7 @@ function setupResizeObserver(container) {
 }
 
 function fitCanvasToContainer(container) {
-    if (!_canvas || !_canvas.backgroundImage) return;
+    if (!_canvas?.backgroundImage) return;
 
     const containerW = container.clientWidth;
     if (containerW <= 0) return;

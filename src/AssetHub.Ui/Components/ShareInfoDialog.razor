@@ -134,6 +134,7 @@
 
     private bool _isLoading = true;
     private bool _showPassword = false;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2068:Credentials should not be hard-coded", Justification = "UI mask placeholder, not a credential — eight asterisks rendered when the password is hidden.")]
     private const string _passwordPlaceholder = "********";
     private string _displayPassword = string.Empty;
 

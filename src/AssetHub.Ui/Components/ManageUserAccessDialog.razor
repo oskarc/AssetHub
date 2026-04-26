@@ -260,7 +260,7 @@
     private Guid? _selectedCollectionId;
     private string _selectedRole = RoleHierarchy.Roles.Viewer;
     private bool _isAdding = false;
-    private HashSet<Guid> _revokingCollections = new();
+    private readonly HashSet<Guid> _revokingCollections = new();
 
     private Guid? _editingCollectionId;
     private string _editingRole = "";

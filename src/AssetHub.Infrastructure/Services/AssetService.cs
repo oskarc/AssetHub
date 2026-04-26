@@ -23,6 +23,9 @@ public sealed record AssetServiceRepositories(
 /// For queries, see <see cref="AssetQueryService"/>.
 /// For uploads, see <see cref="AssetUploadService"/>.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root: pre-grouped repos record + auth + deletion + audit + UnitOfWork + cache + scoped CurrentUser + IOptions. Bundling further would obscure intent.")]
 public sealed class AssetService : IAssetService
 {
     private readonly IAssetRepository _assetRepo;
@@ -160,50 +163,54 @@ public sealed class AssetService : IAssetService
         if (asset is null)
             return ServiceError.NotFound(AssetNotFoundMessage);
 
-        // "Remove from this collection" mode — backend decides if it becomes a permanent delete
-        if (fromCollectionId.HasValue)
+        return fromCollectionId.HasValue
+            ? await DeleteFromCollectionAsync(asset, fromCollectionId.Value, userId, ct)
+            : await SoftDeleteFullAsync(asset, userId, ct);
+    }
+
+    private async Task<ServiceResult> DeleteFromCollectionAsync(
+        Domain.Entities.Asset asset, Guid fromCollectionId, string userId, CancellationToken ct)
+    {
+        if (!_currentUser.IsSystemAdmin)
         {
-            if (!_currentUser.IsSystemAdmin)
-            {
-                var canAccess = await _authService.CheckAccessAsync(userId, fromCollectionId.Value, RoleHierarchy.Roles.Manager, ct);
-                if (!canAccess)
-                    return ServiceError.Forbidden();
-            }
-
-            // Collection-mode delete: unlink (and soft-delete if last collection)
-            // and the audit row are atomic (A-4). The deletion service performs only
-            // DB mutations on this path — MinIO purge is a later worker.
-            var (removed, softDeleted) = await _uow.ExecuteAsync(async tct =>
-            {
-                var outcome = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId.Value, userId, _bucketName, tct);
-                if (!outcome.Removed) return outcome;
-
-                if (outcome.SoftDeleted)
-                {
-                    await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
-                        new() { [AuditKeyTitle] = asset.Title, ["reason"] = "last_collection" }, tct);
-                }
-                else
-                {
-                    await _audit.LogAsync("asset.removed_from_collection", Constants.ScopeTypes.Asset, id, userId,
-                        new() { [AuditKeyTitle] = asset.Title, ["collectionId"] = fromCollectionId.Value.ToString() }, tct);
-                }
-                return outcome;
-            }, ct);
-
-            if (!removed)
-                return ServiceError.NotFound("Asset is not linked to this collection");
-
-            if (softDeleted)
-                await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
-
-            return ServiceResult.Success;
+            var canAccess = await _authService.CheckAccessAsync(userId, fromCollectionId, RoleHierarchy.Roles.Manager, ct);
+            if (!canAccess)
+                return ServiceError.Forbidden();
         }
 
-        // Full delete (no specific collection context) — soft-delete to Trash. Permanent purge
-        // happens via the AdminTrash endpoints or the TrashPurge background worker after TTL.
-        var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(id, ct);
-        var partialDelete = await TryPartialDeleteAsync(id, asset.Title, userId, assetCollections, ct);
+        // Unlink (and soft-delete if last collection) + audit atomic (A-4).
+        // The deletion service performs only DB mutations on this path —
+        // MinIO purge is a later worker.
+        var (removed, softDeleted) = await _uow.ExecuteAsync(async tct =>
+        {
+            var outcome = await _deletionService.RemoveFromCollectionAsync(asset, fromCollectionId, userId, _bucketName, tct);
+            if (!outcome.Removed) return outcome;
+
+            var auditEvent = outcome.SoftDeleted ? "asset.deleted" : "asset.removed_from_collection";
+            var auditDetails = outcome.SoftDeleted
+                ? new Dictionary<string, object> { [AuditKeyTitle] = asset.Title, ["reason"] = "last_collection" }
+                : new Dictionary<string, object> { [AuditKeyTitle] = asset.Title, ["collectionId"] = fromCollectionId.ToString() };
+            await _audit.LogAsync(auditEvent, Constants.ScopeTypes.Asset, asset.Id, userId, auditDetails, tct);
+            return outcome;
+        }, ct);
+
+        if (!removed)
+            return ServiceError.NotFound("Asset is not linked to this collection");
+
+        if (softDeleted)
+            await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
+
+        return ServiceResult.Success;
+    }
+
+    private async Task<ServiceResult> SoftDeleteFullAsync(
+        Domain.Entities.Asset asset, string userId, CancellationToken ct)
+    {
+        // Full delete (no specific collection context) — soft-delete to Trash.
+        // Permanent purge happens via AdminTrash endpoints or the TrashPurge
+        // background worker after TTL.
+        var assetCollections = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(asset.Id, ct);
+        var partialDelete = await TryPartialDeleteAsync(asset.Id, asset.Title, userId, assetCollections, ct);
         if (partialDelete is not null)
             return partialDelete;
 
@@ -211,12 +218,11 @@ public sealed class AssetService : IAssetService
         await _uow.ExecuteAsync(async tct =>
         {
             await _deletionService.SoftDeleteAsync(asset, userId, tct);
-            await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, id, userId,
+            await _audit.LogAsync("asset.deleted", Constants.ScopeTypes.Asset, asset.Id, userId,
                 new() { [AuditKeyTitle] = asset.Title }, tct);
         }, ct);
 
         await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
-
         return ServiceResult.Success;
     }
 

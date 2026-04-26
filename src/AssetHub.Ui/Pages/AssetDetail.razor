@@ -253,7 +253,7 @@ else
                         }
 
                         <!-- Metadata (Expandable) -->
-                        @if (_asset.MetadataJson.Where(k => k.Key != "error").Any())
+                        @if (_asset.MetadataJson.Any(k => k.Key != "error"))
                         {
                             <MudExpansionPanels Elevation="0" Class="share-panel-reset">
                                 <MudExpansionPanel MaxHeight="400"
@@ -292,7 +292,7 @@ else
 
                         <WorkflowPanel AssetId="@AssetId" />
 
-                        <AssetCommentsPanel AssetId="@AssetId" AssetTitle="@(_asset?.Title ?? string.Empty)" />
+                        <AssetCommentsPanel AssetId="@AssetId" AssetTitle="@_asset.Title" />
 
                         <MudDivider />
 
@@ -401,7 +401,9 @@ else
 
     private AssetResponseDto? _asset;
     private List<AssetCollectionDto> _assetCollections = new();
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding to <DerivativesPanel Derivatives=\"_derivatives\" />.")]
     private List<AssetDerivativeDto> _derivatives = new();
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor @ref binding to <AssetVersionHistoryPanel @ref=\"_versionPanel\" />.")]
     private AssetVersionHistoryPanel? _versionPanel;
     private bool _isAdmin;
     private bool _isLoading = true;

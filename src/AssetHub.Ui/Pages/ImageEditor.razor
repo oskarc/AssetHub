@@ -107,7 +107,11 @@ else
     private string? _errorMessage;
     private bool _hasUnsavedChanges;
     private bool _isSaving;
+    // S4487 false positive: bound to <EditorToolbar IsCropping="_isCropping" CropAspect="_cropAspect" />
+    // — Sonar's analyser doesn't follow Razor markup back to fields it parameter-binds.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding to child component parameters.")]
     private bool _isCropping;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding to child component parameters.")]
     private double? _cropAspect;
     private bool _navigationConfirmed;
     private bool _editorInitStarted;
@@ -115,6 +119,7 @@ else
     private string _savingOverlayHint = "";
 
     // Layer state
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding to child <EditorLayerPanel Layers=\"_layers\" />.")]
     private List<LayerInfo> _layers = new();
     private string? _selectedLayerId;
     private LayerProps? _selectedLayerProps;
@@ -138,7 +143,7 @@ else
             if (_jsModule is not null)
             {
                 try { await _jsModule.InvokeVoidAsync("dispose"); }
-                catch (JSDisconnectedException) { }
+                catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable, nothing to do */ }
             }
         }
 
@@ -251,7 +256,7 @@ else
                 await _jsModule.InvokeVoidAsync("loadEditDocument", _asset.EditDocument);
             }
         }
-        catch (JSDisconnectedException) { }
+        catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable, nothing to do */ }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to initialize image editor for asset {AssetId}", Id);
@@ -326,7 +331,7 @@ else
     {
         if (_jsModule is null) return;
         try { await _jsModule.InvokeVoidAsync(identifier, args); }
-        catch (JSDisconnectedException) { }
+        catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable, nothing to do */ }
     }
 
     private async Task<T?> InvokeJsAsync<T>(string identifier, params object?[] args)
@@ -460,71 +465,76 @@ else
 
     private Task OnToolbarSaveAsync(EditorToolbar.SaveMethod method) => SaveWithMethodAsync(method);
 
-    private async Task SaveWithMethodAsync(EditorToolbar.SaveMethod method)
+    private Task SaveWithMethodAsync(EditorToolbar.SaveMethod method) => method switch
     {
-        if (method == EditorToolbar.SaveMethod.Replace)
+        EditorToolbar.SaveMethod.Replace => SaveReplaceFlowAsync(),
+        EditorToolbar.SaveMethod.ExportWithPresets => SaveWithPresetsFlowAsync(),
+        _ => SaveCopyFlowAsync(),
+    };
+
+    private async Task SaveReplaceFlowAsync()
+    {
+        var confirmed = await DialogService.ShowConfirmAsync(
+            Loc["SaveDialog_ConfirmReplaceTitle"],
+            Loc["SaveDialog_ConfirmReplaceMessage"],
+            Loc["Btn_ReplaceOriginal"],
+            Icons.Material.Filled.Warning,
+            Color.Warning,
+            Color.Error);
+        if (!confirmed) return;
+
+        await ShowSavingOverlayAsync();
+        await SaveAsReplaceAsync();
+    }
+
+    private async Task SaveWithPresetsFlowAsync()
+    {
+        var isManager = RolePermissions.CanDelete(_asset?.UserRole);
+        var presetsParams = new DialogParameters<ExportPresetsDialog>
         {
-            var confirmed = await DialogService.ShowConfirmAsync(
-                Loc["SaveDialog_ConfirmReplaceTitle"],
-                Loc["SaveDialog_ConfirmReplaceMessage"],
-                Loc["Btn_ReplaceOriginal"],
-                Icons.Material.Filled.Warning,
-                Color.Warning,
-                Color.Error);
+            { x => x.ShowReplaceToggle, isManager }
+        };
+        var presetsOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        var presetsDialog = await DialogService.ShowAsync<ExportPresetsDialog>(
+            Loc["ExportPresets_Title"], presetsParams, presetsOptions);
+        var presetsResult = await presetsDialog.Result;
 
-            if (!confirmed) return;
+        if (presetsResult is null || presetsResult.Canceled) return;
+        if (presetsResult.Data is not ExportPresetsDialog.ExportPresetsResult presetsData) return;
 
-            await ShowSavingOverlayAsync();
-            await SaveAsReplaceAsync();
-        }
-        else if (method == EditorToolbar.SaveMethod.ExportWithPresets)
+        await ShowSavingOverlayAsync();
+        await SaveWithPresetsAsync(presetsData.PresetIds, presetsData.AlsoReplace);
+    }
+
+    private async Task SaveCopyFlowAsync()
+    {
+        var defaultFormat = _asset!.ContentType == "image/png" ? "png" : "jpeg";
+        var defaultTitle = _asset.Title + " (edited)";
+
+        Guid? sourceCollectionId = null;
+        try
         {
-            var isManager = RolePermissions.CanDelete(_asset?.UserRole);
-            var presetsParams = new DialogParameters<ExportPresetsDialog>
-            {
-                { x => x.ShowReplaceToggle, isManager }
-            };
-            var presetsOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
-            var presetsDialog = await DialogService.ShowAsync<ExportPresetsDialog>(
-                Loc["ExportPresets_Title"], presetsParams, presetsOptions);
-            var presetsResult = await presetsDialog.Result;
-
-            if (presetsResult is null || presetsResult.Canceled) return;
-            if (presetsResult.Data is not ExportPresetsDialog.ExportPresetsResult presetsData) return;
-
-            await ShowSavingOverlayAsync();
-            await SaveWithPresetsAsync(presetsData.PresetIds, presetsData.AlsoReplace);
+            var assetCollections = await Api.GetAssetCollectionsAsync(Id, _cts.Token);
+            sourceCollectionId = assetCollections.FirstOrDefault()?.Id;
         }
-        else
+        catch { /* Non-critical: copy still works without a default collection */ }
+
+        var copyParams = new DialogParameters<SaveImageCopyDialog>
         {
-            var defaultFormat = _asset!.ContentType == "image/png" ? "png" : "jpeg";
-            var defaultTitle = _asset.Title + " (edited)";
+            { x => x.DefaultTitle, defaultTitle },
+            { x => x.DefaultFormat, defaultFormat },
+            { x => x.SourceCollectionId, sourceCollectionId }
+        };
+        var copyOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        var copyDialog = await DialogService.ShowAsync<SaveImageCopyDialog>(
+            Loc["SaveCopyDialog_Title"], copyParams, copyOptions);
+        var copyResult = await copyDialog.Result;
 
-            Guid? sourceCollectionId = null;
-            try
-            {
-                var assetCollections = await Api.GetAssetCollectionsAsync(Id, _cts.Token);
-                sourceCollectionId = assetCollections.FirstOrDefault()?.Id;
-            }
-            catch { /* Non-critical */ }
+        if (copyResult is null || copyResult.Canceled) return;
+        if (copyResult.Data is not SaveImageCopyDialog.SaveCopyResult copyData) return;
 
-            var copyParams = new DialogParameters<SaveImageCopyDialog>
-            {
-                { x => x.DefaultTitle, defaultTitle },
-                { x => x.DefaultFormat, defaultFormat },
-                { x => x.SourceCollectionId, sourceCollectionId }
-            };
-            var copyOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
-            var copyDialog = await DialogService.ShowAsync<SaveImageCopyDialog>(
-                Loc["SaveCopyDialog_Title"], copyParams, copyOptions);
-            var copyResult = await copyDialog.Result;
-
-            if (copyResult is null || copyResult.Canceled) return;
-            if (copyResult.Data is not SaveImageCopyDialog.SaveCopyResult copyData) return;
-
-            await ShowSavingOverlayAsync();
-            await SaveAsCopyAsync(copyData.Title, copyData.CollectionId);
-        }
+        await ShowSavingOverlayAsync();
+        await SaveAsCopyAsync(copyData.Title, copyData.CollectionId);
     }
 
     private async Task ShowSavingOverlayAsync()
@@ -537,12 +547,15 @@ else
     }
 
     /// <summary>
-    /// Result from the JS saveEdit fetch call.
+    /// Result from the JS saveEdit fetch call. Defaults make the
+    /// "JS interop never returned" path explicit instead of leaving
+    /// the properties as default(bool/int) without a written assignment
+    /// (S3459); deserialisation overwrites them when the JS call succeeds.
     /// </summary>
     private sealed class JsSaveResult
     {
-        public bool Ok { get; set; }
-        public int Status { get; set; }
+        public bool Ok { get; set; } = false;
+        public int Status { get; set; } = 0;
         public ImageEditResultDto? Body { get; set; }
     }
 
@@ -590,7 +603,7 @@ else
             var url = getNavigateUrl?.Invoke(result.Body) ?? "/assets/" + result.Body.AssetId;
             Nav.NavigateTo(url);
         }
-        catch (JSDisconnectedException) { }
+        catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable, nothing to do */ }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed {Description} for asset {AssetId}", logDescription, Id);
@@ -659,7 +672,7 @@ else
                     Feedback.ShowSuccess(string.Format(Loc["ExportPresets_Success"].Value, presetIds.Length));
                 });
         }
-        catch (JSDisconnectedException) { }
+        catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable, nothing to do */ }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed saving with presets for asset {AssetId}", Id);
@@ -741,7 +754,7 @@ else
                 await _jsModule.InvokeVoidAsync("dispose");
                 await _jsModule.DisposeAsync();
             }
-            catch (JSDisconnectedException) { }
+            catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable, nothing to do */ }
         }
 
         _dotNetRef?.Dispose();

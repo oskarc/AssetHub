@@ -56,7 +56,6 @@
     var succeeded = _uploads.Count(u => u.Status == UploadStatus.Completed);
     var failed = _uploads.Count(u => u.Status == UploadStatus.Failed);
     var total = succeeded + failed;
-    var allSuccess = failed == 0;
 
     <MudPaper Class="pa-3 mt-3" Elevation="0" Outlined="true">
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
@@ -201,7 +200,7 @@ else if (_uploads.Any())
 
     private InputFile? _inputFile;
     private IJSObjectReference? _jsModule;
-    private List<UploadItem> _uploads = new();
+    private readonly List<UploadItem> _uploads = new();
     private bool _isUploading = false;
     private int _activeProcessingCount = 0;
     private bool _isDragOver = false;
@@ -563,7 +562,7 @@ else if (_uploads.Any())
         StateHasChanged();
     }
 
-    private Color GetStatusColor(UploadStatus status)
+    private static Color GetStatusColor(UploadStatus status)
     {
         return status switch
         {
@@ -585,10 +584,10 @@ else if (_uploads.Any())
         await DisableBeforeUnloadAsync();
         try
         {
-            if (_jsModule != null)
+            if (_jsModule is not null)
                 await _jsModule.DisposeAsync();
         }
-        catch (JSDisconnectedException) { }
+        catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable */ }
     }
 
     private bool HasActiveUploads => _uploads.Any(u =>
@@ -686,7 +685,7 @@ else if (_uploads.Any())
         return errorMessage;
     }
 
-    private class UploadItem
+    private sealed class UploadItem
     {
         public string FileName { get; set; } = "";
         public long Size { get; set; }
@@ -715,7 +714,7 @@ else if (_uploads.Any())
     /// <summary>
     /// JS interop callback helper — receives progress/completion events from the JS upload module.
     /// </summary>
-    private class UploadCallbackHelper(UploadItem upload, Func<Task> stateChanged)
+    private sealed class UploadCallbackHelper(UploadItem upload, Func<Task> stateChanged)
     {
         [JSInvokable]
         public async Task OnUploadProgress(int percent, long loaded, long total)
@@ -743,10 +742,10 @@ else if (_uploads.Any())
     /// <summary>
     /// File metadata returned by JS interop — avoids reading file content over SignalR.
     /// </summary>
-    private class FileMetadata
+    private sealed class FileMetadata
     {
         public string Name { get; set; } = "";
-        public long Size { get; set; }
+        public long Size { get; set; } = 0;
         public string Type { get; set; } = "";
     }
 }

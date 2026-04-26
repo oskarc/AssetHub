@@ -174,11 +174,12 @@
         bool added;
         do
         {
-            added = false;
-            foreach (var t in _terms.Where(t => t.ParentLocalId.HasValue && descendants.Contains(t.ParentLocalId!.Value)))
-            {
-                if (descendants.Add(t.LocalId)) added = true;
-            }
+            // descendants.Add returns true only when LocalId wasn't already present;
+            // counting those is a single-pass closure-of-children expansion.
+            var newlyAdded = _terms
+                .Where(t => t.ParentLocalId.HasValue && descendants.Contains(t.ParentLocalId!.Value))
+                .Count(t => descendants.Add(t.LocalId));
+            added = newlyAdded > 0;
         } while (added);
 
         return _terms.Where(t => !descendants.Contains(t.LocalId));

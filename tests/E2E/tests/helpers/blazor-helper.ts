@@ -23,7 +23,7 @@ export async function waitForBlazorInteractive(page: Page, timeout = 15_000): Pr
   try {
     await page.waitForFunction(
       () => {
-        const w = window as any;
+        const w = globalThis as any;
         if (w.Blazor?._internal?.navigationManager) return true;
         if (w.Blazor?._internal?.circuitId) return true;
         if (w.Blazor?._internal?.attachWebRendererInterop) return true;

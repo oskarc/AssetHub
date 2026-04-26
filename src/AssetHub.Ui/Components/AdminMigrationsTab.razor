@@ -217,7 +217,7 @@
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { /* polling cancelled on dispose */ }
     }
 
     private async Task LoadAsync(bool reset = false)

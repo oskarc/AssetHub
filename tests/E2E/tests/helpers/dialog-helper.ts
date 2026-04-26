@@ -45,9 +45,8 @@ export class DialogHelper {
   }
 
   /** Confirm/submit a dialog */
-  async confirmDialog(buttonName?: string | RegExp) {
-    const pattern = buttonName || /ok|confirm|create|save|delete|yes|submit|share|revoke/i;
-    await this.dialog.getByRole('button', { name: pattern }).click();
+  async confirmDialog(buttonName: string | RegExp = /ok|confirm|create|save|delete|yes|submit|share|revoke/i) {
+    await this.dialog.getByRole('button', { name: buttonName }).click();
     await this.page.waitForTimeout(env.timeouts.animation);
   }
 

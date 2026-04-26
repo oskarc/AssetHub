@@ -178,11 +178,8 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            if (await Theme.InitializeFromLocalStorageAsync())
-                StateHasChanged();
-        }
+        if (firstRender && await Theme.InitializeFromLocalStorageAsync())
+            StateHasChanged();
     }
 
     private void DrawerToggle() => _drawerOpen = !_drawerOpen;

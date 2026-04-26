@@ -126,7 +126,7 @@
 
                         <MudSelect T="Guid" MultiSelection="true" @bind-SelectedValues="_selectedCollectionIds"
                                    Label="@CommonLoc["Label_Collections"].Value" Variant="Variant.Outlined"
-                                   MultiSelectionTextFunc="@(ids => string.Format(CommonLoc["User_CollectionsSelected"].Value, ids.Count()))"
+                                   MultiSelectionTextFunc="@(ids => string.Format(CommonLoc["User_CollectionsSelected"].Value, ids.Count))"
                                    HelperText="@CommonLoc["User_SelectCollections"].Value">
                             @foreach (var col in _flatCollections)
                             {
@@ -181,7 +181,7 @@
     private string? _errorMessage;
     private CreateUserResponse? _createdUser;
 
-    private CreateUserFormModel _model = new()
+    private readonly CreateUserFormModel _model = new()
     {
         InitialRole = RoleHierarchy.Roles.Viewer
     };
@@ -252,7 +252,7 @@
     private static string? ValidateUsername(string value) => InputValidation.ValidateUsername(value);
     private static string? ValidateEmail(string value) => InputValidation.ValidateEmail(value);
 
-    private class CreateUserFormModel
+    private sealed class CreateUserFormModel
     {
         public string Username { get; set; } = "";
         public string Email { get; set; } = "";

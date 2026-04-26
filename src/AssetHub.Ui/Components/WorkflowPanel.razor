@@ -119,7 +119,7 @@
             _loadError = false;
             _workflow = await Api.GetAssetWorkflowAsync(AssetId, _cts.Token);
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { /* component disposing — caller owns cleanup */ }
         catch
         {
             _loadError = true;
@@ -138,7 +138,7 @@
         bool needsReason = action == "reject";
         string? reason = null;
 
-        if (needsReason || NeedsNote(action))
+        if (needsReason)
         {
             var result = await DialogService.ShowMessageBox(
                 LocalizeAction(action),
@@ -188,8 +188,6 @@
             StateHasChanged();
         }
     }
-
-    private static bool NeedsNote(string action) => false; // note optional today
 
     private string LocalizeState(string dbState) => Loc[$"State_{dbState}"];
     private string LocalizeAction(string action) => Loc[$"Action_{action}"];

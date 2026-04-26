@@ -349,7 +349,7 @@
 </MudContainer>
 
 @code {
-    private List<AssetResponseDto> _assets = new();
+    private readonly List<AssetResponseDto> _assets = new();
     private List<CollectionResponseDto> _collections = new();
     private int _total = 0;
     private int _skip = 0;
@@ -372,8 +372,8 @@
     private readonly CancellationTokenSource _cts = new();
     
     // Role-based UI visibility using centralized permissions
-    private bool CanShare(AssetResponseDto asset) => RolePermissions.CanShare(asset.UserRole);
-    private bool CanDelete(AssetResponseDto asset) => RolePermissions.CanDelete(asset.UserRole);
+    private static bool CanShare(AssetResponseDto asset) => RolePermissions.CanShare(asset.UserRole);
+    private static bool CanDelete(AssetResponseDto asset) => RolePermissions.CanDelete(asset.UserRole);
 
     protected override async Task OnInitializedAsync()
     {
@@ -481,12 +481,10 @@
         await RefreshAsync();
     }
 
-    private async Task SearchAsync()
-    {
-        _skip = 0;
-        _assets.Clear();
-        await LoadAssetsAsync();
-    }
+    // SearchAsync is the same operation as RefreshAsync — both reset paging and
+    // reload from the top. Kept as a separate name so the search-input handler's
+    // intent reads correctly at the call site.
+    private Task SearchAsync() => RefreshAsync();
 
     private async Task OnFilterChanged(string? value)
     {

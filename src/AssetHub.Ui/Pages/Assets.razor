@@ -230,6 +230,7 @@
 
     // Collection browser state
     private List<CollectionResponseDto>? _allCollections;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding (Loading=\"_allCollectionsLoading\").")]
     private bool _allCollectionsLoading = true;
     private string _collectionSearchString = "";
     private string _collectionViewMode = Constants.ViewModes.Grid;
@@ -593,7 +594,7 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private record ZipDownloadResult(bool Success, string? Error);
+    private sealed record ZipDownloadResult(bool Success, string? Error);
 
     // ── Callbacks ────────────────────────────────────────────────
 
@@ -737,7 +738,8 @@
         _dotNetRef?.Dispose();
         if (_jsModule is not null)
         {
-            try { await _jsModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+            try { await _jsModule.DisposeAsync(); }
+            catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable */ }
         }
     }
 }

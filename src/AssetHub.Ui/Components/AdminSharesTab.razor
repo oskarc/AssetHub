@@ -40,11 +40,11 @@ else
             <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
             <MudTooltip Text="@AdminLoc["DeleteAllExpired"]">
                 <MudIconButton Icon="@Icons.Material.Filled.EventBusy" Color="Color.Warning" Size="Size.Small"
-                    OnClick="BulkDeleteExpired" Disabled="@(_sharesLoading || _shares.Count(s => s.Status == Constants.ShareStatus.Expired) == 0)" />
+                    OnClick="BulkDeleteExpired" Disabled="@(_sharesLoading || !_shares.Any(s => s.Status == Constants.ShareStatus.Expired))" />
             </MudTooltip>
             <MudTooltip Text="@AdminLoc["DeleteAllRevoked"]">
                 <MudIconButton Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Error" Size="Size.Small"
-                    OnClick="BulkDeleteRevoked" Disabled="@(_sharesLoading || _shares.Count(s => s.Status == Constants.ShareStatus.Revoked) == 0)" />
+                    OnClick="BulkDeleteRevoked" Disabled="@(_sharesLoading || !_shares.Any(s => s.Status == Constants.ShareStatus.Revoked))" />
             </MudTooltip>
         </ToolBarContent>
         <HeaderContent>
@@ -374,7 +374,7 @@ else
         if (!confirmed)
             return;
 
-        var (success, deleted) = await Feedback.ExecuteWithFeedbackAsync(
+        var (success, _) = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.BulkDeleteSharesByStatusAsync(Constants.ShareStatus.Expired),
             "delete expired shares",
             string.Format(AdminLoc["BulkSharesDeletedSuccess"], count));
@@ -400,7 +400,7 @@ else
         if (!confirmed)
             return;
 
-        var (success, deleted) = await Feedback.ExecuteWithFeedbackAsync(
+        var (success, _) = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.BulkDeleteSharesByStatusAsync(Constants.ShareStatus.Revoked),
             "delete revoked shares",
             string.Format(AdminLoc["BulkSharesDeletedSuccess"], count));

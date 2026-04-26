@@ -279,7 +279,9 @@ public sealed class ZipBuildService(
                 asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
 
             var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
-            await using var entryStream = entry.Open();
+            // ZipArchiveEntry.Open() is sync-only in .NET 9 (no OpenAsync); the
+            // CopyToAsync below remains async.
+            await using var entryStream = entry.Open(); // NOSONAR S6966
             await assetStream.CopyToAsync(entryStream, ct);
         }
         catch (OperationCanceledException) { throw; }
@@ -295,7 +297,9 @@ public sealed class ZipBuildService(
     private static async Task WriteErrorsEntryAsync(ZipArchive archive, List<string> errors)
     {
         var errEntry = archive.CreateEntry("_errors.txt", CompressionLevel.Fastest);
-        await using var errStream = errEntry.Open();
+        // ZipArchiveEntry.Open() is sync-only in .NET 9; the WriteLineAsync calls
+        // below remain async.
+        await using var errStream = errEntry.Open(); // NOSONAR S6966
         await using var writer = new StreamWriter(errStream);
         await writer.WriteLineAsync("The following files could not be included:");
         foreach (var err in errors)

@@ -74,13 +74,10 @@ public static class OutboundUrlGuard
             return false;
         }
 
-        foreach (var address in addresses)
+        if (addresses.Any(IsPrivateOrInternal))
         {
-            if (IsPrivateOrInternal(address))
-            {
-                error = "URL must point to a public address — private, loopback, and link-local ranges are not allowed.";
-                return false;
-            }
+            error = "URL must point to a public address — private, loopback, and link-local ranges are not allowed.";
+            return false;
         }
 
         error = null;

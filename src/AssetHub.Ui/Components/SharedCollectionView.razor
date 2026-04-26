@@ -304,14 +304,15 @@ else
         InvokeAsync(StateHasChanged);
     }
 
-    private record ZipDownloadResult(bool Success, string? Error);
+    private sealed record ZipDownloadResult(bool Success, string? Error);
 
     public async ValueTask DisposeAsync()
     {
         _dotNetRef?.Dispose();
         if (_jsModule is not null)
         {
-            try { await _jsModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+            try { await _jsModule.DisposeAsync(); }
+            catch (JSDisconnectedException) { /* circuit gone — JS module is unreachable */ }
         }
     }
 }

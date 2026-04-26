@@ -119,7 +119,7 @@ else
                                 {
                                     <div class="audit-detail-row">
                                         <span class="audit-detail-key">@GetLocalizedDetailKey(kvp.Key):</span>
-                                        <span class="audit-detail-value">@FormatDetailValue(kvp.Key, kvp.Value)</span>
+                                        <span class="audit-detail-value">@FormatDetailValue(kvp.Value)</span>
                                     </div>
                                 }
                             </div>
@@ -385,7 +385,7 @@ else
         return localized.ResourceNotFound ? FormatCamelCase(key) : localized.Value;
     }
 
-    private string FormatDetailValue(string key, object value)
+    private string FormatDetailValue(object value)
     {
         var str = value?.ToString() ?? "";
         if (str is "True" or "true") return CommonLoc["Text_Yes"].Value;

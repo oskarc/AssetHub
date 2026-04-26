@@ -268,12 +268,10 @@
             }
 
             // Add empty standard fields that don't exist yet
-            foreach (var key in StandardMetadataKeys)
+            foreach (var key in StandardMetadataKeys.Where(key =>
+                !_metadataFields.Any(f => f.Key.Equals(key, StringComparison.OrdinalIgnoreCase))))
             {
-                if (!_metadataFields.Any(f => f.Key.Equals(key, StringComparison.OrdinalIgnoreCase)))
-                {
-                    _metadataFields.Add(new MetadataField { Key = key, Value = "", InitiallyEmpty = true });
-                }
+                _metadataFields.Add(new MetadataField { Key = key, Value = "", InitiallyEmpty = true });
             }
 
             // Sort: fields with values first, then empty fields
@@ -354,7 +352,7 @@
             MudDialog.Close(DialogResult.Ok(updatedAsset));
     }
 
-    private class MetadataField
+    private sealed class MetadataField
     {
         public string Key { get; set; } = "";
         public string Value { get; set; } = "";

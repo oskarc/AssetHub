@@ -135,6 +135,9 @@ public sealed class KeycloakUserService : IKeycloakUserService
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell", "S107:Methods should not have too many parameters",
+        Justification = "Mirrors the Keycloak Admin API user-create payload — token + 5 user fields + temporary-password flag + ct. Bundling into a DTO would just mirror the JSON shape we send.")]
     private async Task<HttpResponseMessage> PostCreateUserRequestAsync(
         string token, string username, string email, string firstName, string lastName,
         string password, bool temporaryPassword, CancellationToken ct)

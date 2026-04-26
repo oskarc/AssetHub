@@ -428,13 +428,6 @@
         public decimal? NumericMin { get; set; }
         public decimal? NumericMax { get; set; }
         public string SelectOptionsRaw { get; set; } = string.Empty;
-        public List<string> SelectOptions =>
-            string.IsNullOrWhiteSpace(SelectOptionsRaw)
-                ? new()
-                : SelectOptionsRaw.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim())
-                    .Where(s => s.Length > 0)
-                    .ToList();
         public Guid? TaxonomyId { get; set; }
         public int SortOrder { get; set; }
 

@@ -26,7 +26,7 @@ public sealed class S3MigrationSourceConnector(
     {
         if (dto.S3Config is null)
             return ServiceError.BadRequest("S3 source config is required when sourceType is 's3'.");
-        return (Dictionary<string, object>?)MigrationS3ConfigCodec.Write(dto.S3Config, secretProtector);
+        return MigrationS3ConfigCodec.Write(dto.S3Config, secretProtector);
     }
 
     public async Task<IReadOnlyList<MigrationObjectInfo>> ScanAsync(Migration migration, CancellationToken ct)

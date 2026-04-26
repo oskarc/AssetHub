@@ -83,13 +83,19 @@
         await DialogService.ShowAsync<ShareInfoDialog>(Loc["Dashboard_ShareDetails"], parameters);
     }
 
-    private Color GetShareStatusColor(string status) => status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase) ? Color.Success
-        : status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase) ? Color.Warning
-        : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Color.Error
-        : Color.Default;
+    private static Color GetShareStatusColor(string status)
+    {
+        if (status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase)) return Color.Success;
+        if (status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase)) return Color.Warning;
+        if (status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase)) return Color.Error;
+        return Color.Default;
+    }
 
-    private string GetShareStatusLabel(string status) => status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareActive"].Value
-        : status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareExpired"].Value
-        : status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase) ? Loc["Dashboard_ShareRevoked"].Value
-        : status;
+    private string GetShareStatusLabel(string status)
+    {
+        if (status.Equals(Constants.ShareStatus.Active, StringComparison.OrdinalIgnoreCase)) return Loc["Dashboard_ShareActive"].Value;
+        if (status.Equals(Constants.ShareStatus.Expired, StringComparison.OrdinalIgnoreCase)) return Loc["Dashboard_ShareExpired"].Value;
+        if (status.Equals(Constants.ShareStatus.Revoked, StringComparison.OrdinalIgnoreCase)) return Loc["Dashboard_ShareRevoked"].Value;
+        return status;
+    }
 }

@@ -210,7 +210,7 @@
         }
     }
 
-    private (string LocKey, Color Color, string Icon) GetStatus(PersonalAccessTokenDto t)
+    private static (string LocKey, Color Color, string Icon) GetStatus(PersonalAccessTokenDto t)
     {
         if (t.IsActive)
             return ("Pat_Status_Active", Color.Success, Icons.Material.Filled.CheckCircle);

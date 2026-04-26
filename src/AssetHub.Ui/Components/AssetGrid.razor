@@ -93,7 +93,7 @@ else
     [Parameter]
     public EventCallback<HashSet<Guid>> SelectedAssetIdsChanged { get; set; }
 
-    private List<AssetResponseDto> _assets = new();
+    private readonly List<AssetResponseDto> _assets = new();
     private int _total = 0;
     private int _skip = 0;
     private const int _take = 24;

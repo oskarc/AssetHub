@@ -15,13 +15,7 @@ public static class OpenTelemetryExtensions
         ["/health", "/_blazor", "/_framework", "/css", "/js"];
 
     private static bool IsExcludedTracePath(Microsoft.AspNetCore.Http.PathString path)
-    {
-        foreach (var prefix in ExcludedTracePathPrefixes)
-        {
-            if (path.StartsWithSegments(prefix)) return true;
-        }
-        return false;
-    }
+        => ExcludedTracePathPrefixes.Any(prefix => path.StartsWithSegments(prefix));
 
     public static IServiceCollection AddAssetHubOpenTelemetry(
         this IServiceCollection services,

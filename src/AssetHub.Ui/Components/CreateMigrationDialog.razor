@@ -183,6 +183,22 @@
 
         try
         {
+            // Hoist the optional-empty trims out of the object initializer so the
+            // ternaries don't sit nested inside another ternary (S3358).
+            var prefix = string.IsNullOrWhiteSpace(_s3Prefix) ? null : _s3Prefix.Trim();
+            var region = string.IsNullOrWhiteSpace(_s3Region) ? null : _s3Region.Trim();
+            var s3Config = _sourceType == "s3"
+                ? new S3SourceConfigDto
+                {
+                    Endpoint = _s3Endpoint.Trim(),
+                    Bucket = _s3Bucket.Trim(),
+                    Prefix = prefix,
+                    Region = region,
+                    AccessKey = _s3AccessKey.Trim(),
+                    SecretKey = _s3SecretKey
+                }
+                : null;
+
             var dto = new CreateMigrationDto
             {
                 Name = _name.Trim(),
@@ -192,17 +208,7 @@
                     ? _newCollectionName.Trim()
                     : null,
                 DryRun = _dryRun,
-                S3Config = _sourceType == "s3"
-                    ? new S3SourceConfigDto
-                    {
-                        Endpoint = _s3Endpoint.Trim(),
-                        Bucket = _s3Bucket.Trim(),
-                        Prefix = string.IsNullOrWhiteSpace(_s3Prefix) ? null : _s3Prefix.Trim(),
-                        Region = string.IsNullOrWhiteSpace(_s3Region) ? null : _s3Region.Trim(),
-                        AccessKey = _s3AccessKey.Trim(),
-                        SecretKey = _s3SecretKey
-                    }
-                    : null
+                S3Config = s3Config
             };
 
             var created = await Api.CreateMigrationAsync(dto);

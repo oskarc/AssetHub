@@ -8,6 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace AssetHub.Infrastructure.Services;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for asset-metadata commands: 5 repos + auth + scoped CurrentUser + logger. Collapsing to a holder relocates the parameter count without changing intent.")]
 public sealed class AssetMetadataService(
     IAssetMetadataRepository metadataRepo,
     IMetadataSchemaRepository schemaRepo,

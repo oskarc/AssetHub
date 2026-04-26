@@ -169,7 +169,7 @@
                 catch { /* transient — try again next tick */ }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { /* polling cancelled on dispose */ }
     }
 
     private async Task ActivateAsync(NotificationDto n)
@@ -239,9 +239,8 @@
 
     public async ValueTask DisposeAsync()
     {
-        _pollCts?.Cancel();
+        if (_pollCts is not null) await _pollCts.CancelAsync();
         _pollTimer?.Dispose();
         _pollCts?.Dispose();
-        await Task.CompletedTask;
     }
 }

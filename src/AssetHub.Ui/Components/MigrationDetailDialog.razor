@@ -325,6 +325,7 @@
     private bool _itemsHasMore;
     private int _itemsTotal;
     private string? _itemStatusFilter;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor @ref binding to <MudFileUpload @ref=\"_fileUpload\" />.")]
     private MudFileUpload<IReadOnlyList<IBrowserFile>>? _fileUpload;
     private CancellationTokenSource? _pollCts;
 
@@ -387,7 +388,7 @@
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { /* dialog closed mid-poll */ }
     }
 
     private async Task OnFilterChanged(string? value)
@@ -495,7 +496,7 @@
             var maxSizeBytes = Constants.Limits.MaxMigrationFileSizeMb * 1024L * 1024L;
             var fileData = files.Select(f => (
                 f.Name,
-                (Stream)f.OpenReadStream(maxAllowedSize: maxSizeBytes),
+                f.OpenReadStream(maxAllowedSize: maxSizeBytes),
                 f.ContentType ?? "application/octet-stream"
             ));
 

@@ -215,14 +215,8 @@ public static class AssetDisplayHelpers
     public static MudBlazor.Color GetAuditEventColor(string eventType)
     {
         var lowered = eventType.ToLowerInvariant();
-        foreach (var (fragments, color) in AuditColorRules)
-        {
-            foreach (var fragment in fragments)
-            {
-                if (lowered.Contains(fragment)) return color;
-            }
-        }
-        return MudBlazor.Color.Default;
+        var match = AuditColorRules.FirstOrDefault(rule => rule.Fragments.Any(lowered.Contains));
+        return match.Fragments is null ? MudBlazor.Color.Default : match.Color;
     }
 
     // ===== ROLE DISPLAY =====

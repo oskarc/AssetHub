@@ -103,6 +103,7 @@
         Take = 60,
         Facets = new() { "asset_type", "status", "collection", "tag" }
     };
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding (Facets=\"_facets\").")]
     private Dictionary<string, List<FacetBucket>> _facets = new();
     private List<AssetResponseDto> _items = new();
     private List<MetadataFieldDto> _facetableFields = new();

@@ -91,3 +91,5 @@ certs/
 .claude/settings.local.json
 Claude-Processing.md
 Copilot-Processing.md
+scripts/sonar-issues-by-file.txt
+scripts/sonar-raw.json

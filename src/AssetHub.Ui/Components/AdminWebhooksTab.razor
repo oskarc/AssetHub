@@ -130,7 +130,7 @@
             _loading = true;
             _webhooks = await Api.GetWebhooksAsync(_cts.Token);
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { /* tab disposing */ }
         catch (Exception ex)
         {
             Feedback.HandleError(ex, "load webhooks");

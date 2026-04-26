@@ -71,6 +71,7 @@
 
     private static readonly IReadOnlyList<string> _knownEvents = WebhookEvents.All.OrderBy(e => e).ToList();
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor @ref binding to <MudForm @ref=\"_form\" />.")]
     private MudForm? _form;
     private bool _isValid;
     private bool _submitting;
