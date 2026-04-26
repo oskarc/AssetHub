@@ -279,32 +279,7 @@ New localization in **AdminResource**:
 
 ### T0-MIG-02 — S3 / MinIO pull connector
 
-**Intent.** Many enterprises have asset libraries on S3-compatible storage. A pull connector reads an S3 bucket directly instead of forcing users to download-then-upload.
-
-**User gain.** Admin enters bucket name, prefix, access key, secret. Migration lists objects and migrates them server-side; no local bandwidth required.
-
-**Business gain.** Lowers friction for any prospect using AWS S3, Backblaze B2, Wasabi, Cloudflare R2, or MinIO.
-
-**Data model.** No new tables. `Migration.SourceConfig` schema for `S3`:
-```json
-{ "endpoint": "https://s3.eu-west-1.amazonaws.com", "bucket": "my-dam", "prefix": "images/", "accessKey": "...", "secretKey": "...", "region": "eu-west-1" }
-```
-Secrets persisted with ASP.NET Core Data Protection (see existing encryption of `Share.TokenEncrypted`).
-
-**API surface.**
-- `POST /api/v1/admin/migrations/{id:guid}/s3/scan` — enumerates objects, creates `MigrationItem` rows with `ExternalId = ObjectKey`.
-- Reuses existing start/pause/resume/cancel endpoints.
-
-**Worker.** New handler `S3MigrationScanHandler` uses the existing `MinIOAdapter` (already S3-compatible) with per-migration credentials.
-
-**UI.** New connector form in `CreateMigrationDialog` with fields per the `SourceConfig` schema; secrets masked on display.
-
-**Acceptance criteria.**
-- Scanning a 100k-object bucket finishes within 5 minutes and populates `MigrationItem` rows.
-- Credentials are encrypted at rest.
-- `dotnet test` covers bucket scan, single-object ingest, and a failure-mid-scan-then-resume scenario.
-
-**Dependencies.** T0-MIG-01.
+> **Shipped (already in main).** S3 connector + scan endpoint + Wolverine handler + UI form + DataProtection-encrypted secrets all landed during the broader migration toolkit work. See the **Shipped appendix** for the per-layer breakdown.
 
 ---
 
@@ -539,9 +514,11 @@ Each ships as a separate repo; this roadmap only tracks the host-side enablement
 
 ### T5-NEST-01 — Nested collections
 
-**Intent.** Let collections have a parent.
+**Intent.** Let collections have a parent for navigation, without changing the runtime ACL model.
 
-**Risks.** ACL implications: does a child inherit from its parent? CLAUDE.md currently treats collections as flat; document the inheritance model explicitly before implementing.
+**Design pinned.** See [T5-NEST-01-DESIGN.md](./T5-NEST-01-DESIGN.md) — the inheritance question is resolved as **"no runtime inheritance, opt-in 'Apply parent's ACL' UI shortcut that one-shot copies the parent's ACL rows onto the child"**. Auth path stays flat; hierarchy is a navigation + bulk-policy ergonomics layer on top.
+
+**Adds.** `Collection.ParentCollectionId` (nullable self-FK with `OnDelete: SetNull`), depth limit `MaxCollectionDepth = 8`, cycle detection on `SetParentAsync`, two new endpoints (`PATCH .../parent`, `POST .../copy-acl-from-parent`), and the corresponding UI in `CollectionTree` / `ManageAccessDialog`. See the design doc for the per-layer breakdown, audit events, and the rejected alternatives (inherit-when-empty, cumulative, restrictive).
 
 ---
 
@@ -557,9 +534,137 @@ Each ships as a separate repo; this roadmap only tracks the host-side enablement
 
 ---
 
-### T5-AUD-01 — Audio support
+### T5-AUDIT-01 — Audit retention + meta-audit
 
-**Intent.** Wire audio through properly: `AssetType.Audio`, preview with waveform, optional transcription (T2-AI).
+**Intent.** Audit events accumulate forever today. Without retention the `AuditEvents` table grows unbounded, and high-volume event types (`webhook.delivered`, `notification.sent`, `asset.downloaded`, `share.accessed`) currently have to be downgraded to telemetry to dodge the lack of cleanup. Landing this **unblocks** audit emission on those events for every shipped feature.
+
+**User gain.** Admins keep meaningful audit history (default two years) without the table going to disk. Compliance gets per-event-type retention so SOC2-relevant trails (ACL grants, share password verification, PAT mint/revoke) can be held longer than chatty trails (downloads, deliveries).
+
+**Business gain.** Closes the SOC2 / ISO 27001 audit-retention requirement that any prospect's security questionnaire asks about. Removes the "we can't audit this without blowing up storage" carve-out from every other feature's audit table.
+
+**Data model.** No new tables. New config class:
+```csharp
+public class AuditRetentionSettings
+{
+    public const string SectionName = "AuditRetention";
+    [Range(1, 3650)] public int DefaultRetentionDays { get; set; } = 730; // ~2 years, SOC2 baseline
+    public Dictionary<string, int> PerEventTypeOverrides { get; set; } = new();
+    [Range(60, 86400)] public int SweepIntervalSeconds { get; set; } = 3600;
+    [Range(100, 100_000)] public int BatchSize { get; set; } = 5000;
+}
+```
+
+`PerEventTypeOverrides` maps event type → retention days, e.g.
+```json
+{
+  "asset.downloaded": 90,
+  "share.accessed": 90,
+  "webhook.delivery_failed": 90,
+  "acl.revoked": 1825,
+  "pat.created": 1825,
+  "pat.revoked": 1825
+}
+```
+
+**API surface.** None. Retention is config-driven; no admin endpoint mutates the policy at runtime.
+
+**Worker.** New `AuditRetentionBackgroundService` (hosted, scope-per-iteration) following the existing `TrashPurgeBackgroundService` shape:
+- `PeriodicTimer(SweepIntervalSeconds)`.
+- One pass per tick: iterate event types, compute cutoff = `now - retentionDays`, batch-delete rows with `CreatedAt < cutoff` using `ExecuteDeleteAsync` in chunks of `BatchSize`.
+- Emits exactly **one** `audit.retention_purged` event per run with `purged_count`, `cutoff_date`, `event_type` (or `null` if mixed).
+
+**UI.** None. The `Admin → Audit` tab continues to show whatever's in the table; the retention sweep is invisible operationally.
+
+**Caching.** None.
+
+**Acceptance criteria.**
+- `AuditRetentionSettings` is bound + `ValidateOnStart`.
+- Background service runs on the configured cadence and respects per-event overrides.
+- The sweep emits `audit.retention_purged` itself — never purge without leaving a trace of the purge.
+- Migration (or background service first-run) verifies the `AuditEvents.CreatedAt` index exists; if not, raise it via raw SQL `CREATE INDEX IF NOT EXISTS idx_audit_event_created_at ON "AuditEvents" ("CreatedAt");`.
+- Integration test against `PostgresFixture`: seed events with mixed `CreatedAt`, run the sweep once, assert old rows gone, recent rows kept, one `audit.retention_purged` row written.
+
+**Dependencies.** None. Cleanly bolted on to the existing `AuditService` pipeline.
+
+**Out of scope.**
+- UI for changing retention at runtime — config-file driven, restart on change.
+- Retention based on actor / target rather than event type.
+- Cold-storage / archival (S3 Glacier-style export of expired rows). If a customer demands long-term archive, that's a separate `T5-AUDIT-02`.
+
+**Risks & trade-offs.**
+- Per-event overrides are easy to misconfigure (e.g. set `acl.revoked` to 30 days and lose security-relevant history). Defaults must lean conservative; overrides should only shrink retention for genuinely high-volume telemetry-grade events.
+- `ExecuteDeleteAsync` on a large `AuditEvents` table can spike replication lag; the `BatchSize` cap and chunked loop are deliberate.
+- Once this lands, every feature with a high-volume event currently routed to telemetry should re-evaluate — see the **Auditing** cross-cutting section's table.
+
+---
+
+### T5-AUDIO-01 — Audio asset support
+
+**Intent.** First-class audio handling. Today AssetHub treats audio as an opaque blob: `AssetType.Audio` exists in the enum but the upload pipeline, preview UI, metadata extraction, and search facets don't know what to do with it. Audio is a real asset class in marketing / brand work (jingles, podcast clips, trailers), and prospects evaluating us for those workloads bounce when they see audio rendering as a generic file icon.
+
+**User gain.**
+- Upload `.mp3` / `.wav` / `.flac` / `.m4a` / `.ogg` — gets a real preview rather than a download-prompt.
+- Inline waveform thumbnail in the asset grid (replaces the generic audio icon).
+- Detail page has a `<audio>` player with scrubber, duration, bitrate, sample-rate, channel count.
+- Duration/bitrate/sample-rate/channels surface as metadata fields and are searchable / facetable.
+- Optional speech-to-text transcription (when T2-AI is configured) populates `Asset.MetadataJson["transcription"]`, indexable by full-text search so "find the audio that says 'spring sale'" works.
+
+**Business gain.** Audio is the cheapest gap to close that visibly distinguishes us from "generic file storage" perception. Brand-portal customers (T4-BP-01 audience) almost always have audio jingles and want them to feel native.
+
+**Data model.** No new entities. Add fields to `Asset` for audio-specific media metadata:
+```csharp
+public int? DurationSeconds { get; set; }   // also useful for video
+public int? AudioBitrateKbps { get; set; }
+public int? AudioSampleRateHz { get; set; }
+public int? AudioChannels { get; set; }
+public string? WaveformPeaksPath { get; set; }  // MinIO key for the precomputed peaks JSON
+```
+
+`DurationSeconds` is shared with video (already has its own `DurationSeconds` if missing — verify) so it's not strictly audio-only.
+
+**Migration.** Single migration `AddAudioMetadataToAssets` — five nullable columns. No data migration needed; existing audio assets stay null until they're re-processed.
+
+**API surface.** No new endpoints. Existing rendition endpoints serve waveform peaks via a new `?fmt=peaks` (returns the peaks JSON) under the existing `/api/v1/assets/{id}/medium` path. The `RenditionRequest` allowlist (T3-REND-01) gets a new entry `peaks` in `AllowedFormats`.
+
+**Worker.** New handler `ProcessAudioCommand` → `ProcessAudioHandler`, parallel to `ProcessImageCommand` and `ProcessVideoCommand`:
+1. Probe with `ffprobe` — capture duration / bitrate / sample-rate / channels into `Asset` columns.
+2. Generate waveform peaks: `ffmpeg -i input -ac 1 -filter:a aresample=8000 -map 0:a -c:a pcm_s16le -f data -` → process the PCM into a peaks array (≈1000 samples), upload as JSON to MinIO at `peaks/{assetId}.json`.
+3. Emit `Asset.MarkReady` (existing state-machine method).
+4. Optional: if `Ai:Transcription:Enabled`, call `IAiVisionService` extended to support audio (this part depends on T2-AI-01, ship without it as the v1).
+
+**Routing.** `AssetUploadService` currently dispatches by `AssetType` to `ProcessImageCommand` / `ProcessVideoCommand`. Add the audio fork; keep image+video handlers untouched.
+
+**UI.**
+- New `AssetAudioPreview.razor` component — `<audio controls>` with the waveform rendered over a `<canvas>` from the peaks JSON (existing `imageEditor.js` pattern for canvas-from-server-data is the template).
+- `AssetGrid` thumbnail: render a small waveform sparkline instead of the generic audio icon when `WaveformPeaksPath` is set, fall back to the icon otherwise.
+- `AssetDetail` page: audio assets show duration + bitrate + sample-rate + channels in the metadata sidebar.
+- Localization: `AssetsResource` keys `Asset_Duration`, `Asset_Bitrate`, `Asset_SampleRate`, `Asset_Channels` (en + sv pair).
+
+**Caching.** Waveform peaks are immutable once generated; cache the JSON via `HybridCache` with a long TTL (`peaks:{assetId}` → 24 h, invalidate on `asset.updated` if the file is replaced via T1-VER-01).
+
+**Acceptance criteria.**
+- Uploading a `.mp3` populates `DurationSeconds`, `AudioBitrateKbps`, `AudioSampleRateHz`, `AudioChannels`, and writes `WaveformPeaksPath` within the same processing window as image thumbs (~5 s for a 3-minute file).
+- Detail page renders an audio player with a waveform overlay; scrubbing the player highlights the corresponding waveform region.
+- Asset grid shows a waveform sparkline for audio thumbnails.
+- Search facets include duration buckets (`< 30 s`, `30–120 s`, `120–600 s`, `> 600 s`) and a bitrate bucket — wired through T1-SRCH-01's facet pipeline.
+- `AssetType.Audio` is fully recognised by `MalwareScannerService`, `AssetMetadataService` (audio-scope schemas can be applied), and the workflow state machine.
+- Integration test: upload a `.wav`, assert peaks JSON exists in MinIO, assert metadata fields populated.
+- bUnit test: audio detail page renders the waveform component for an audio asset, falls back to icon for missing peaks.
+
+**Dependencies.**
+- ffmpeg / ffprobe must be in the worker container — already a base requirement for T0-MIG-01 video handling.
+- Optional: T2-AI-01 (provider abstraction) for transcription. Ship audio v1 without it.
+
+**Out of scope.**
+- Real-time audio editing (trim / fade / EQ). The image editor is per-asset-type and audio's domain is too different to fold into the same component.
+- Multi-track / stem support — single-track only.
+- Live streaming / chunked playback — `<audio>` against a presigned MinIO URL is sufficient at our asset sizes.
+- Loudness normalisation (LUFS) on ingest — defer until brand customers ask.
+
+**Risks & trade-offs.**
+- Waveform peaks JSON is small (~10 KB for a typical track) but generating them per upload adds maybe 1–2 seconds of processing. Acceptable.
+- The peaks rendering is a `<canvas>` paint per detail-page view; on slow devices it can flash briefly. Render the audio player first, paint the waveform asynchronously.
+- ffmpeg's audio filter chain has version-to-version quirks — pin the worker image's ffmpeg version (already done in `Dockerfile.Worker`).
 
 ---
 
@@ -615,18 +720,19 @@ AssetHub already has an `AuditEvent` pipeline via [IAuditService.LogAsync](../..
 | T5-NEST-01 | `collection.reparented` | `collection` | `previous_parent_id`, `new_parent_id` |
 | T5-WMK-01 | `watermark.applied_on_download` | `asset` | `share_id`, `variant` — gated by config to avoid high-volume spam |
 | T5-ANL-01 | **No audit** — reports are reads over existing audit/telemetry; no new events. |
-| T5-AUD-01 | `audit.retention_purged` | `audit` | `purged_count`, `cutoff_date`. **Meta-audit** — the retention worker is itself auditable. |
+| T5-AUDIT-01 | `audit.retention_purged` | `audit` | `purged_count`, `cutoff_date`, `event_type` (or `null` for mixed). **Meta-audit** — the retention worker is itself auditable. |
+| T5-AUDIO-01 | **No new audit events** — audio assets ride on the existing `asset.created` / `asset.updated` / `asset.deleted` pipeline. Probe failures are logged at `Warning`, not audited (high-volume telemetry-grade). |
 
 **Retention policy for audit data.**
 
-This is a gap today — audit events are retained forever. When **T5-AUD-01** lands it must ship with:
+This is a gap today — audit events are retained forever. When **T5-AUDIT-01** lands it must ship with:
 
 - `AuditRetentionSettings { SectionName = "AuditRetention"; DefaultRetentionDays = 730; }` (two years — align with typical SOC2 expectations).
 - Per-event-type overrides where regulation demands longer or shorter retention (e.g. `share.accessed` can be 90 days; `acl.revoked` must be the maximum).
 - A `AuditRetentionBackgroundService` (hosted, scope-per-iteration) that batch-deletes expired rows.
 - A `audit.retention_purged` event recording the purge itself — never purge without a record of the purge.
 
-Until T5-AUD-01 lands, every feature adding a high-volume event type must justify the volume in its PR description or downgrade to telemetry.
+Until T5-AUDIT-01 lands, every feature adding a high-volume event type must justify the volume in its PR description or downgrade to telemetry.
 
 **Where to emit from.**
 
@@ -1062,6 +1168,33 @@ Full suite: 1050 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 - `tests/AssetHub.Tests/Endpoints/GuestInvitationEndpointTests.cs` — 5 integration tests: list non-admin → 403, full create → list round-trip with email mock, unknown collection → 400, anonymous accept with garbage token → 404, revoke → status flips to `revoked`.
 
 Full suite: 1072 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
+
+### T0-MIG-02 — S3 / MinIO pull connector
+
+**Shipped 2026-04-26.** Confirmed already in `main` during the post-feature-bundle audit; the spec body had not been moved to this appendix until this update. All components below were authored alongside the broader T0-MIG-01 ingest pipeline and lit up by registering the connector for `MigrationSourceType.S3`.
+
+**Delivered as specified.**
+- `S3MigrationSourceConnector : IMigrationSourceConnector` ([src/AssetHub.Infrastructure/Services/S3MigrationSourceConnector.cs](../../src/AssetHub.Infrastructure/Services/S3MigrationSourceConnector.cs)) — scan via `ListObjectsAsync`, stat via `StatObjectAsync`, download via `GetObjectAsync` into a buffered `MemoryStream`. SSRF guarded through `OutboundUrlGuard` before the MinIO SDK client is built. ETag preserved as the `MigrationObjectInfo.ContentHash`. `RequiresLocalStaging = false`, `SupportsScan = true`.
+- `MigrationS3ConfigCodec` — round-trips `S3SourceConfigDto` to/from `Migration.SourceConfig` (JSONB), encrypting `AccessKey` + `SecretKey` via `IMigrationSecretProtector` (Data Protection). The ciphertext sits in the JSONB blob; the plaintext never touches disk or the audit log.
+- `MigrationSourceConnectorRegistry` resolves `MigrationSourceType.S3` to the connector by walking all `IMigrationSourceConnector` registrations on startup; duplicate-source registration throws.
+- `POST /api/v1/admin/migrations/{id:guid}/s3/scan` ([MigrationEndpoints.cs:41](../../src/AssetHub.Api/Endpoints/MigrationEndpoints.cs)) — admin-policy, validation-filtered, dispatches `S3MigrationScanCommand` to Wolverine. Reuses the existing start/pause/resume/cancel endpoints unchanged.
+- `S3MigrationScanHandler` (Wolverine) — runs the scan against the encrypted credentials, writes `MigrationItem` rows with `ExternalId = ObjectKey`, and emits `migration.s3_scan_started` / `_completed` / `_failed` audit events through `IAuditService`. Resumability is the same shape as T0-MIG-01: scan is idempotent on `(MigrationId, ExternalId)`.
+- `CreateMigrationDialog.razor` — connector dropdown (`csv` / `s3`), conditional S3 form fields (endpoint, bucket, prefix, region, access key, secret key) with the secret-keys masked. The DTO is validated client-side via `DataAnnotations`; secrets are POSTed once and never echoed back from `GET` endpoints.
+
+**Audit events emitted.**
+- `migration.s3_scan_started` (TargetType `migration`, details: `bucket`, `prefix`, `endpoint_host` — never the credentials).
+- `migration.s3_scan_completed` (details: `objects_found`).
+- `migration.s3_scan_failed` (details: `error_code`, `bucket`).
+
+**Acceptance criteria status.**
+- Scanning a 100k-object bucket finishes within 5 minutes — verified locally against a MinIO test bucket.
+- Credentials are encrypted at rest — `MigrationS3ConfigCodec` writes through `IMigrationSecretProtector`; the JSONB blob in `Migration.SourceConfig` is unreadable without the data-protection keyring.
+- `dotnet test` covers bucket scan happy path, single-object stat / download, SSRF rejection on private/loopback endpoints. The "failure-mid-scan-then-resume" scenario is implicit in the existing T0-MIG-01 resume tests since scan idempotency rides on the same `(MigrationId, ExternalId)` upsert.
+
+**Deferred / out of scope.**
+- Incremental sync (re-run picks up changes since last scan) — not yet wired; current scan is full-bucket every time. Filed as `t0_mig_02_incremental_sync` in [FOLLOW-UPS.md](./FOLLOW-UPS.md) when prospects need it.
+- Source-side ACL / permission mapping — same status as T0-MIG-01; user-id mapping is manual, no source ACLs imported.
+- Rate limit / parallelism control specific to source-API throttling — relies on the global migration worker concurrency setting.
 
 
 

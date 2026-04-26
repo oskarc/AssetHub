@@ -35,9 +35,9 @@ Commercial DAMs understand that buyers won't evaluate a tool they can't migrate 
 - External-ID preservation for rollback or two-way sync.
 
 **Source-specific importers**
-- Direct connectors to Bynder, Canto, Frontify, SharePoint, Google Drive, Dropbox, Box, S3-compatible buckets, local NAS.
-- OAuth / API-key authentication per connector.
-- Incremental sync — re-run to pick up changes since the last import.
+- Direct connectors to Bynder, Canto, Frontify, SharePoint, Google Drive, Dropbox, Box, S3-compatible buckets, local NAS. *(S3-compatible shipped via T0-MIG-02; Bynder / Canto / SharePoint specced as T0-MIG-03..05, ship-on-demand.)*
+- OAuth / API-key authentication per connector. *(API-key auth done for S3; OAuth flows pending per-connector.)*
+- Incremental sync — re-run to pick up changes since the last import. *(Pending — current scan is full-bucket every run.)*
 
 **Metadata mapping layer**
 - UI to map source fields → AssetHub fields / custom schema.
