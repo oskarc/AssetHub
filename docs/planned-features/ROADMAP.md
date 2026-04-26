@@ -536,65 +536,7 @@ Each ships as a separate repo; this roadmap only tracks the host-side enablement
 
 ### T5-AUDIT-01 — Audit retention + meta-audit
 
-**Intent.** Audit events accumulate forever today. Without retention the `AuditEvents` table grows unbounded, and high-volume event types (`webhook.delivered`, `notification.sent`, `asset.downloaded`, `share.accessed`) currently have to be downgraded to telemetry to dodge the lack of cleanup. Landing this **unblocks** audit emission on those events for every shipped feature.
-
-**User gain.** Admins keep meaningful audit history (default two years) without the table going to disk. Compliance gets per-event-type retention so SOC2-relevant trails (ACL grants, share password verification, PAT mint/revoke) can be held longer than chatty trails (downloads, deliveries).
-
-**Business gain.** Closes the SOC2 / ISO 27001 audit-retention requirement that any prospect's security questionnaire asks about. Removes the "we can't audit this without blowing up storage" carve-out from every other feature's audit table.
-
-**Data model.** No new tables. New config class:
-```csharp
-public class AuditRetentionSettings
-{
-    public const string SectionName = "AuditRetention";
-    [Range(1, 3650)] public int DefaultRetentionDays { get; set; } = 730; // ~2 years, SOC2 baseline
-    public Dictionary<string, int> PerEventTypeOverrides { get; set; } = new();
-    [Range(60, 86400)] public int SweepIntervalSeconds { get; set; } = 3600;
-    [Range(100, 100_000)] public int BatchSize { get; set; } = 5000;
-}
-```
-
-`PerEventTypeOverrides` maps event type → retention days, e.g.
-```json
-{
-  "asset.downloaded": 90,
-  "share.accessed": 90,
-  "webhook.delivery_failed": 90,
-  "acl.revoked": 1825,
-  "pat.created": 1825,
-  "pat.revoked": 1825
-}
-```
-
-**API surface.** None. Retention is config-driven; no admin endpoint mutates the policy at runtime.
-
-**Worker.** New `AuditRetentionBackgroundService` (hosted, scope-per-iteration) following the existing `TrashPurgeBackgroundService` shape:
-- `PeriodicTimer(SweepIntervalSeconds)`.
-- One pass per tick: iterate event types, compute cutoff = `now - retentionDays`, batch-delete rows with `CreatedAt < cutoff` using `ExecuteDeleteAsync` in chunks of `BatchSize`.
-- Emits exactly **one** `audit.retention_purged` event per run with `purged_count`, `cutoff_date`, `event_type` (or `null` if mixed).
-
-**UI.** None. The `Admin → Audit` tab continues to show whatever's in the table; the retention sweep is invisible operationally.
-
-**Caching.** None.
-
-**Acceptance criteria.**
-- `AuditRetentionSettings` is bound + `ValidateOnStart`.
-- Background service runs on the configured cadence and respects per-event overrides.
-- The sweep emits `audit.retention_purged` itself — never purge without leaving a trace of the purge.
-- Migration (or background service first-run) verifies the `AuditEvents.CreatedAt` index exists; if not, raise it via raw SQL `CREATE INDEX IF NOT EXISTS idx_audit_event_created_at ON "AuditEvents" ("CreatedAt");`.
-- Integration test against `PostgresFixture`: seed events with mixed `CreatedAt`, run the sweep once, assert old rows gone, recent rows kept, one `audit.retention_purged` row written.
-
-**Dependencies.** None. Cleanly bolted on to the existing `AuditService` pipeline.
-
-**Out of scope.**
-- UI for changing retention at runtime — config-file driven, restart on change.
-- Retention based on actor / target rather than event type.
-- Cold-storage / archival (S3 Glacier-style export of expired rows). If a customer demands long-term archive, that's a separate `T5-AUDIT-02`.
-
-**Risks & trade-offs.**
-- Per-event overrides are easy to misconfigure (e.g. set `acl.revoked` to 30 days and lose security-relevant history). Defaults must lean conservative; overrides should only shrink retention for genuinely high-volume telemetry-grade events.
-- `ExecuteDeleteAsync` on a large `AuditEvents` table can spike replication lag; the `BatchSize` cap and chunked loop are deliberate.
-- Once this lands, every feature with a high-volume event currently routed to telemetry should re-evaluate — see the **Auditing** cross-cutting section's table.
+> **Shipped 2026-04-26.** `AuditRetentionSettings` (default 730 d + per-event-type overrides + 1 h cadence) is bound and `ValidateOnStart`. `IAuditRetentionSweeper` runs the per-event-type passes followed by a default-retention pass and emits exactly one `audit.retention_purged` meta-event per non-empty run. `AuditRetentionService` is the hosted cron loop that delegates. Integration tests against `PostgresFixture` cover the per-event override path, the no-op path, the empty-overrides default-only path, and the multi-batch drain path. See the **Shipped appendix** for the per-layer breakdown.
 
 ---
 
@@ -1195,6 +1137,35 @@ Full suite: 1072 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 - Incremental sync (re-run picks up changes since last scan) — not yet wired; current scan is full-bucket every time. Filed as `t0_mig_02_incremental_sync` in [FOLLOW-UPS.md](./FOLLOW-UPS.md) when prospects need it.
 - Source-side ACL / permission mapping — same status as T0-MIG-01; user-id mapping is manual, no source ACLs imported.
 - Rate limit / parallelism control specific to source-API throttling — relies on the global migration worker concurrency setting.
+
+### T5-AUDIT-01 — Audit retention + meta-audit
+
+**Shipped 2026-04-26.** Replaces the previous weekly `AuditRetentionService` that used a single retention period for everything (365 d default, no per-event overrides, no meta-audit) — a partial implementation that pre-dated the spec.
+
+**Delivered as specified.**
+- `AuditRetentionSettings` ([src/AssetHub.Application/Configuration/AuditRetentionSettings.cs](../../src/AssetHub.Application/Configuration/AuditRetentionSettings.cs)) — `[Range]`-validated `DefaultRetentionDays` (730 d), `PerEventTypeOverrides` map, `SweepIntervalSeconds` (1 h), `BatchSize` (5000). Bound and `ValidateOnStart()` in the Worker so misconfiguration fails the worker's startup loudly.
+- `IAuditEventRepository` gained `DeleteByEventTypeOlderThanBatchAsync(eventType, cutoff, batchSize, ct)` and `DeleteOlderThanBatchExcludingTypesAsync(cutoff, excludedEventTypes, batchSize, ct)`. The per-event-type query rides the existing `idx_audit_event_type_created` composite index; the default pass rides `idx_audit_created_at`. Both already existed in `OnModelCreating` — no migration required.
+- `IAuditRetentionSweeper` / `AuditRetentionSweeper` ([src/AssetHub.Infrastructure/Services/AuditRetentionSweeper.cs](../../src/AssetHub.Infrastructure/Services/AuditRetentionSweeper.cs)) — runs per-event passes first (each drains until a batch returns fewer rows than `BatchSize`), then a single default pass excluding the override keys. Emits one `audit.retention_purged` meta-event per non-empty run with `purged_count` / `default_cutoff_date` / `default_retention_days` / `per_event_type` (Dictionary). Wraps the audit write in try/catch so audit-write failures don't roll back the retention work that already committed.
+- `AuditRetentionService` background worker is now a thin cron loop that resolves `IAuditRetentionSweeper` on each tick. Extracting the sweep into a service was driven by testability — integration tests drive `SweepAsync` directly without spinning up the BackgroundService.
+- `appsettings.json` ships sensible defaults: `asset.downloaded` / `share.accessed` / `webhook.delivery_failed` capped at 90 d (chatty / telemetry-grade); `acl.revoked` / `pat.created` / `pat.revoked` held for 1825 d / ~5 y (security-relevant trails).
+- `Constants.AuditEvents.AuditRetentionPurged` and `Constants.ScopeTypes.Audit` added; the dead `Constants.Limits.AuditRetentionDays` constant removed.
+
+**Tests.**
+- `AuditEventRepositoryTests` — 5 tests covering `DeleteOlderThanBatchAsync` cutoff + batch cap, per-event-type filter, the excluding-types path, and the empty-exclusion-list fallback to the unfiltered batch delete.
+- `AuditRetentionSweeperTests` — 4 integration tests against `PostgresFixture`: representative-mix (per-event purge + default purge + meta-event emitted with correct shape), no-op (no rows old enough → no meta-event written), empty-overrides (default applies to all types), backlogged-event (25 rows + batch 10 → 3 round-trips drain).
+
+Total: 9 new tests, full suite at 1081 passing in `AssetHub.Tests` + 234 in `AssetHub.Ui.Tests` (1315 total, +9 from this feature).
+
+**High-volume audit events unblocked by this feature.** The cross-cutting Auditing section's table calls out events currently downgraded to telemetry. Now that retention exists, the following can be promoted to audit when their owning features are revisited (separate PRs, not this one):
+- `asset.downloaded` (T1-API-01 / T3-REND-01) — currently telemetry only.
+- `share.accessed` (T3-NTF-01 / T4-BP-01) — currently telemetry only.
+- `webhook.delivered` / `webhook.delivery_failed` (T3-INT-01) — currently `webhook.delivery_failed_permanently` audited; the per-attempt events stay telemetry but failed-permanently is now safely kept long-term.
+- `notification.sent` / `notification.email_sent` (T3-NTF-01) — currently telemetry only.
+
+**Out of scope (deferred).**
+- UI for changing retention at runtime. Config-file driven, requires worker restart. Filed as `t5_audit_01_runtime_retention_ui` if a customer asks.
+- Cold-storage / archival of expired rows (S3 Glacier-style). Would be `T5-AUDIT-02`.
+- Per-actor / per-target retention rules. Per-event-type covers the practical cases; if more granularity is needed, revisit.
 
 
 

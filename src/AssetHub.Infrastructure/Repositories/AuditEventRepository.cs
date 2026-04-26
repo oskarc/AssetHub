@@ -72,4 +72,33 @@ public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEv
             .Take(batchSize)
             .ExecuteDeleteAsync(ct);
     }
+
+    /// <inheritdoc/>
+    public async Task<int> DeleteByEventTypeOlderThanBatchAsync(
+        string eventType, DateTime cutoff, int batchSize, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
+        return await dbContext.AuditEvents
+            .Where(e => e.EventType == eventType && e.CreatedAt < cutoff)
+            .OrderBy(e => e.CreatedAt)
+            .Take(batchSize)
+            .ExecuteDeleteAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<int> DeleteOlderThanBatchExcludingTypesAsync(
+        DateTime cutoff,
+        IReadOnlyCollection<string> excludedEventTypes,
+        int batchSize,
+        CancellationToken ct = default)
+    {
+        if (excludedEventTypes.Count == 0)
+            return await DeleteOlderThanBatchAsync(cutoff, batchSize, ct);
+
+        return await dbContext.AuditEvents
+            .Where(e => e.CreatedAt < cutoff && !excludedEventTypes.Contains(e.EventType))
+            .OrderBy(e => e.CreatedAt)
+            .Take(batchSize)
+            .ExecuteDeleteAsync(ct);
+    }
 }

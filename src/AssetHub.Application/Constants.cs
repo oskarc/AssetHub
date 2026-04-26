@@ -49,6 +49,22 @@ public static class Constants
         public const string WebhookDelivery = "webhook_delivery";
         public const string Brand = "brand";
         public const string GuestInvitation = "guest_invitation";
+        public const string Audit = "audit";
+    }
+
+    /// <summary>
+    /// Audit event-type strings emitted by cross-cutting infrastructure
+    /// (background workers, retention sweeps) rather than by a specific
+    /// feature service. Feature-specific events stay with their service.
+    /// </summary>
+    public static class AuditEvents
+    {
+        /// <summary>
+        /// Meta-audit event emitted exactly once per <c>AuditRetentionService</c>
+        /// run summarising what was purged. Never purge audit rows without
+        /// leaving a row of the purge (T5-AUDIT-01).
+        /// </summary>
+        public const string AuditRetentionPurged = "audit.retention_purged";
     }
 
     /// <summary>
@@ -322,12 +338,6 @@ public static class Constants
         /// so the UI shows "10 000+" rather than scanning the entire table.
         /// </summary>
         public const int AuditCountDisplayCap = 10_000;
-
-        /// <summary>
-        /// Number of days to retain audit events. Events older than this are deleted
-        /// by the <c>AuditRetentionJob</c> recurring background job.
-        /// </summary>
-        public const int AuditRetentionDays = 365;
     }
 
     /// <summary>

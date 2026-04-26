@@ -34,4 +34,24 @@ public interface IAuditEventRepository
     /// Returns the number of rows actually deleted (0 when no more rows match).
     /// </summary>
     Task<int> DeleteOlderThanBatchAsync(DateTime cutoff, int batchSize, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes up to <paramref name="batchSize"/> audit events of <paramref name="eventType"/>
+    /// created before <paramref name="cutoff"/>. Uses the <c>idx_audit_event_type_created</c>
+    /// composite index for the sweep, so this is the cheap per-event-type retention path even
+    /// on a large table.
+    /// </summary>
+    Task<int> DeleteByEventTypeOlderThanBatchAsync(
+        string eventType, DateTime cutoff, int batchSize, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes up to <paramref name="batchSize"/> audit events created before <paramref name="cutoff"/>
+    /// whose event type is NOT in <paramref name="excludedEventTypes"/>. Used by the retention
+    /// sweeper for the "default retention" pass after per-event-type overrides have run.
+    /// </summary>
+    Task<int> DeleteOlderThanBatchExcludingTypesAsync(
+        DateTime cutoff,
+        IReadOnlyCollection<string> excludedEventTypes,
+        int batchSize,
+        CancellationToken ct = default);
 }

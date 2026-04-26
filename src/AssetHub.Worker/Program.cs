@@ -83,6 +83,7 @@ static class Program
                 services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // Returns null HttpContext for Worker
                 services.AddScoped<IAuditService, AuditService>();
                 services.AddScoped<IUnitOfWork, UnitOfWork>();
+                services.AddScoped<IAuditRetentionSweeper, AuditRetentionSweeper>();
 
                 // CurrentUser is HTTP-scoped in the API. In the Worker there is no
                 // HttpContext, so we register an always-anonymous instance per
@@ -120,6 +121,12 @@ static class Program
                 // ── RabbitMQ settings validation ─────────────────────────────
                 services.AddOptions<RabbitMQSettings>()
                     .BindConfiguration(RabbitMQSettings.SectionName)
+                    .ValidateDataAnnotations()
+                    .ValidateOnStart();
+
+                // ── AuditRetention (AuditRetentionService, T5-AUDIT-01) ─────
+                services.AddOptions<AuditRetentionSettings>()
+                    .BindConfiguration(AuditRetentionSettings.SectionName)
                     .ValidateDataAnnotations()
                     .ValidateOnStart();
 
