@@ -45,7 +45,13 @@ OpenAPI / Swagger **is** used, but only for the curated public integration surfa
 ## C# Conventions
 
 - **Nullable reference types** enabled globally — use `is null` / `is not null`, never `== null` / `!= null` in plain C#. (EF Core LINQ predicates inside `.Where(...)` / `.Count(...)` are the lone exception: `s.RevokedAt == null` translates to SQL; `is null` may not. Use `==`/`!=` only inside expression trees that hit the database.)
-- **`sealed` on every service, repository, adapter, and background-service implementation. No exceptions.** Concrete classes that aren't designed for inheritance must say so. If you find yourself adding a `public class Foo : IFoo`, change it to `public sealed class` in the same edit.
+- **`sealed` on every service, repository, adapter, and background-service implementation. No exceptions.** Concrete classes that aren't designed for inheritance must say so. If you find yourself adding a `public class Foo : IFoo`, change it to `public sealed class` in the same edit. **Same for private nested classes / records inside Razor `@code` blocks** — `private sealed class FormModel`, `private sealed record JsResult(...)`. Sonar's S3260 catches the rest, but writing it sealed first is cheaper than fixing it later.
+- **`private readonly` for fields that aren't reassigned.** Especially `CancellationTokenSource _cts = new()`, `List<X> _items = new()`, dialog `_form` refs, table refs — anything initialized at field declaration and only mutated through methods (Add / Cancel / Dispose) is `readonly`. Sonar's S2933 fires hard on these.
+- **`private static` for methods that don't touch `this`.** Pure helpers in Razor / services should be static — Sonar's S2325 catches them otherwise.
+- **No empty catch blocks.** A `catch (JSDisconnectedException) { }` or `catch { }` is S108 + a code smell. Either fill it with a one-line comment explaining why the exception is benign (`/* circuit gone — JS module unreachable */`), or delete the catch and let the exception bubble. Empty-with-just-a-comment is fine; empty-with-nothing is not.
+- **No nested ternaries.** S3358 catches `a ? b : c ? d : e`. Hoist branches into local variables or use an `if / else if / else` chain. Object-initializer bodies are common offenders — extract the branch above the `new { ... }` block.
+- **No floating-point `==`.** S1244. Use `Math.Abs(a - b) < epsilon`, or define an `IsApprox` helper and reuse it.
+- **No hardcoded credentials, including "well-known" defaults.** S2068. `?? "guest"` for RabbitMQ Username/Password is the exact regression we just fixed — use `?? string.Empty` and let `ValidateOnStart()` fail loudly. Same shape applies to `?? "admin"` / `?? "postgres"` / any literal that maps to a default credential. UI mask placeholders (`"********"` etc.) are not credentials but require a `[SuppressMessage("...", "S2068", Justification = "...")]` to silence the rule.
 - **Primary constructors** preferred for DI injection in services and repositories.
 - **DataAnnotations only** for DTO validation — `[Required]`, `[StringLength]`, `[Range]`.
 - **File-scoped namespaces**, pattern matching, `nameof`.
@@ -591,6 +597,13 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - Key pattern `Area_Context_Element`. `Common_` prefix only for genuinely shared strings.
 - Inject the most specific `IStringLocalizer<T>` — don't default to `CommonResource`.
 
+**Reliability / Sonar hotspots specific to Razor:**
+- **Components that own a `CancellationTokenSource` or `Timer` `@implements IAsyncDisposable`** and dispose it in `DisposeAsync` (`await _cts.CancelAsync(); _cts.Dispose();`). Forgetting this leaves cancellation registrations alive across the Blazor circuit (S2930). Pages that hold a CTS the same way.
+- **Component-scoped fields default to `private readonly`** when assigned only at field declaration (`private readonly CancellationTokenSource _cts = new();`, `private readonly List<X> _items = new();`). Sonar's S2933 catches the rest, but writing it readonly first is cheaper than fixing it later. The exception is genuine reassignment patterns (e.g. `AssetCommentsPanel` allocates a new `_cts` when the asset id changes) — keep those mutable.
+- **`IBrowserFile.OpenReadStream` always pairs a `file.Size > maxBytes` pre-flight check with a `maxAllowedSize:` argument** before the call. The pre-flight aborts before any buffer is allocated; the cap is the second-line defense. Show `Common.Error_FileTooLarge` via `IUserFeedbackService.ShowError` on rejection. S5693 hotspot is satisfied behaviourally by the explicit Size check.
+- **`@ref`-bound and parameter-bound private fields need a `[SuppressMessage("...", "S4487", Justification = "Read by Razor markup binding to <X @ref=\"_field\" />")]`** because Sonar's C# analyser doesn't follow Razor markup back to source. Apply per-field, never globally.
+- **Empty `catch (JSDisconnectedException) { }` blocks always carry a one-line comment** like `/* circuit gone — JS module unreachable */`. Empty-with-no-comment is S108.
+
 ### When editing API endpoints (`src/AssetHub.Api/Endpoints/`)
 
 - Group has `.RequireAuthorization("Require…")` — never rely on per-endpoint auth alone.
@@ -613,6 +626,10 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - Return `ServiceResult<T>` — never throw for business errors. Catch infra exceptions and wrap as `ServiceError.Server(...)`.
 - Mutating service methods that emit an audit event wrap action + audit in `IUnitOfWork.ExecuteAsync` so a torn write can't leave the mutation without its trail (A-4). External side-effects (MinIO, webhooks, cache invalidation, mention fan-out) stay outside the transaction.
 - Use `is null` / `is not null` in plain C#. The only place `== null` / `!= null` is acceptable is inside an EF Core query expression that gets translated to SQL — patterns like `.Where(s => s.RevokedAt == null)` are load-bearing.
+- **Static methods that don't touch `this`.** Pure helpers (validators, mappers, predicate-only-on-args methods) are `private static`. Sonar's S2325 fires on every instance helper that could be static.
+- **No `foreach (...) { if (cond) ... }` loops** when the loop body is just filter-then-do. Collapse to `.Where(cond)` or `.Any(cond)` (S3267). The exception is when the loop has multiple branches with side effects.
+- **No nested ternaries inside object initialisers.** Hoist branches into local variables above the `new { ... }` block (S3358). Common offender: DTO construction with multiple `string.IsNullOrWhiteSpace(x) ? null : x.Trim()` legs — extract each.
+- **Service method parameter count > 7 keeps the `[SuppressMessage("...", "S107", Justification = "Composition root for X: ...")]` template** used across the existing services. Don't bundle into a parameter holder for the sake of the count — the holder relocates the count without solving anything. Do bundle when the cluster is genuinely cohesive (`AssetServiceRepositories`, `CollectionServiceRepositories` are the right shape).
 
 ### When editing DTOs (`src/AssetHub.Application/Dtos/`)
 
@@ -632,6 +649,31 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - `ct.ThrowIfCancellationRequested()` inside long loops; catch `OperationCanceledException` at the top level.
 - Use `IServiceScopeFactory` for scoped dependencies; one scope per iteration.
 - Log with counts at `Information` (start/summary), `Debug` (per-batch), `Warning` (per-item failures).
+- **No hardcoded credential defaults** — `?? "guest"` for RabbitMQ Username/Password is the regression we just fixed. Use `?? string.Empty`; `RabbitMQSettings.ValidateOnStart()` then catches missing config with a clear error. Same shape for any future config that maps to a default credential.
+- **No empty `catch (OperationCanceledException) { }` blocks** — fill with `/* polling cancelled on dispose */` or similar one-liner so S108 doesn't fire and the intent is obvious to the next reader.
+
+### Sonar suppression discipline
+
+Suppressing a Sonar rule is a documented decision, not a way to silence noise. Every existing suppression in the repo (39 of them at the time of writing) has a `Justification = "..."` arg or an inline comment after `// NOSONAR`. New suppressions must do the same — drive-by `// NOSONAR` with no reason will be reverted.
+
+**When suppression is the right answer.** All four conditions must hold:
+
+1. The rule's *behaviour* is satisfied even though the *syntax* isn't (e.g. `exit 1` terminates a bash function but Sonar wants a `return`; a Razor field IS read but the C# analyser can't see Razor markup; a record-struct `Open()` API has no async variant in .NET 9).
+2. The fix would introduce worse code (unreachable statements, parameter-holders that just relocate the count, dead `if` branches).
+3. The suppression is the **smallest scope possible** — line-level `// NOSONAR` over file-level `#pragma`, attribute on the offending member over project-level `<NoWarn>`.
+4. The reason is recorded inline, in the form of a `Justification = "..."` or a one-line comment.
+
+**When suppression is wrong.** If the rule is firing because the *behaviour* is incorrect — a real unread field that nobody uses, a real empty catch that swallows a real exception, a real cognitive-complexity hit that means the method is too long — the answer is to fix the code, not to suppress.
+
+**Existing suppression clusters and their reasoning** (so future-you doesn't relitigate them):
+
+- **`S107` (too many params) on services / Wolverine handlers.** ~20 services. Composition-root shape; bundling into a holder relocates the count without solving anything. Always include the constant `Justification = "Composition root for X: ..."`.
+- **`S1200` (class coupled to too many others) on endpoint mappers / `AssetHubApiClient` / DI extensions.** Wiring is the point. Same pattern.
+- **`S4487` (unread private field) on Razor `_form` / `@ref` / parameter-bound fields.** False positive — Sonar's C# analyser doesn't follow Razor markup back to source. Apply `[SuppressMessage]` on the field with the markup line in the justification (`Read by Razor @ref binding to <MudForm @ref="_form" />`).
+- **`S6966` (sync IO) on `ZipArchiveEntry.Open()`.** No `OpenAsync()` exists in .NET 9. Inline `// NOSONAR S6966` with comment.
+- **`S2068` UI password-mask placeholders (`"********"`).** Not credentials. Attribute with explicit `Justification = "UI mask placeholder, not a credential"`.
+
+If a new feature ends up with a suppression cluster that doesn't match one of these, it probably means the design is wrong — push back on the design before suppressing.
 
 ### Pre-commit grep sweep
 
@@ -639,13 +681,21 @@ When the changeset is non-trivial (new endpoints, services, repos, resource keys
 
 | Pattern | What it catches | Acceptable matches |
 |---------|-----------------|--------------------|
-| `^public class.*(?:Service\|Repository\|Adapter)\(` in `src/AssetHub.Infrastructure/` | Missing `sealed` on a service / repo / adapter | None — every match is a fix |
+| `^public class.*(?:Service\|Repository\|Adapter)\(` in `src/AssetHub.Infrastructure/` | Missing `sealed` on a service / repo / adapter (S3260 + house rule) | None — every match is a fix |
+| `private (class\|record)` in `src/AssetHub.Ui/` without `sealed` | Nested private types not sealed (S3260) | None |
 | `Results\.BadRequest\(new \{ error` in `src/AssetHub.Api/Endpoints/` | Anonymous error shape leaking out | None — convert to `ApiError.BadRequest(...)` |
 | `\.MarkAsPublicApi\(\)` lines in `src/AssetHub.Api/Endpoints/` | Public-API endpoint without scope filter | Only the PAT self-service routes (commented exception) |
 | `\.RequireAuthorization\(.*\)$` on a `MapGroup` whose body has POST/PATCH/PUT/DELETE — without a sibling `RequireAntiforgeryUnlessBearer()` | Mutating group missing CSRF gate | None |
 | ` == null\| != null` outside `.Where(...)` / `.Count(...)` / projection trees | Plain C# nullability drift | EF query expressions only |
 | `data name="…"` count in `Foo.resx` vs `Foo.sv.resx` | Missing Swedish translation | Counts must match |
 | `class .* : I.*Service` without `sealed` keyword anywhere on the line | Same as the first row, broader | None |
+| `catch \([^)]+\)\s*\{\s*\}` (empty catch) in `src/` | S108 — empty exception block | None — fill with one-line reason or delete the catch |
+| `private (?!readonly\|const\|static)\s+(List\|Dictionary\|HashSet\|CancellationTokenSource)<` initialised at field declaration | Likely missing `readonly` (S2933) | Only if the field is genuinely reassigned later in the file |
+| `\?\? "guest"\|\?\? "admin"\|\?\? "postgres"\|\?\? "root"` | Hardcoded credential default (S2068) | None — use `string.Empty` and let validation fail |
+| `\bdouble\b.*== \|\bfloat\b.*==` outside test code | FP equality (S1244) | None — use `Math.Abs(a-b) < ε` |
+| `OpenReadStream\(` in Razor without a `file.Size > maxBytes` check above | Missing pre-flight upload guard (S5693 hotspot) | None — every IBrowserFile upload checks Size first |
+| `Count\(\) [><=]+ 0` in service / Razor code | Use `.Any()` / `.Count` property (S1155) | None |
+| `// NOSONAR\b` without a rule id and reason | Drive-by suppression | Each must include the rule (`// NOSONAR S6966 — ...`) and a one-line why |
 
 A passing sweep doesn't replace the per-area checklists above — it's a final mechanical pass for the things that hide in plain sight.
 
