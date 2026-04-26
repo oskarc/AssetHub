@@ -315,6 +315,28 @@ public sealed class CollectionRepository(
         return result;
     }
 
+    public async Task<int> GetMaxSubtreeDepthAsync(Guid id, int cap, CancellationToken ct = default)
+    {
+        // Walk DOWN from id one level at a time. Bound by `cap` so we stop the
+        // moment we know the answer is "too deep" — no need to enumerate the
+        // whole subtree just to reject a reparent.
+        var depth = 1;
+        var frontier = new List<Guid> { id };
+        while (depth <= cap)
+        {
+            var children = await dbContext.Collections
+                .AsNoTracking()
+                .Where(c => c.ParentCollectionId != null
+                    && frontier.Contains(c.ParentCollectionId.Value))
+                .Select(c => c.Id)
+                .ToListAsync(ct);
+            if (children.Count == 0) return depth;
+            depth++;
+            frontier = children;
+        }
+        return depth; // hit cap + 1 — caller treats this as "exceeded"
+    }
+
     public async Task<List<Guid>> GetInheritingDescendantIdsAsync(Guid rootId, CancellationToken ct = default)
     {
         // Walk DOWN from rootId, collecting any child whose InheritParentAcl
