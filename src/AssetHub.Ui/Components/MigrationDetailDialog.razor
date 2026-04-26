@@ -453,17 +453,27 @@
     {
         if (file is null) return;
 
+        // Pre-flight: reject oversized files BEFORE opening any stream so we
+        // never allocate a buffer for a doomed upload (S5693). The browser
+        // reports file.Size from the metadata; OpenReadStream's maxAllowedSize
+        // remains as the second-line defense if Size is somehow under-reported.
+        var maxBytes = Constants.Limits.MaxMigrationManifestSizeMb * 1024L * 1024L;
+        if (file.Size > maxBytes)
+        {
+            Feedback.ShowError(string.Format(
+                CommonLoc["Error_FileTooLarge"].Value,
+                file.Name,
+                Constants.Limits.MaxMigrationManifestSizeMb));
+            return;
+        }
+
         _uploadingManifest = true;
         _manifestUploaded = false;
         StateHasChanged();
 
         try
         {
-            // Admin-only upload, bounded by Constants.Limits.MaxMigrationManifestSizeMb (50 MB).
-            // The constant is deliberately tight because a manifest is metadata, not bytes;
-            // crossing it throws InvalidOperationException before any allocation grows.
-            using var stream = file.OpenReadStream( // NOSONAR S5693 — explicit, audited cap
-                maxAllowedSize: Constants.Limits.MaxMigrationManifestSizeMb * 1024L * 1024L);
+            using var stream = file.OpenReadStream(maxAllowedSize: maxBytes);
             await Api.UploadMigrationManifestAsync(MigrationId, stream, file.Name);
             _manifestUploaded = true;
             _instructionsExpanded = false;
@@ -488,19 +498,28 @@
     {
         if (files is null || files.Count == 0) return;
 
+        // Pre-flight: reject the whole batch if any file exceeds the per-file cap,
+        // before any stream is opened (S5693). Naming the offender first helps the
+        // admin retry without re-picking everything else from the file dialog.
+        var maxSizeBytes = Constants.Limits.MaxMigrationFileSizeMb * 1024L * 1024L;
+        var oversize = files.FirstOrDefault(f => f.Size > maxSizeBytes);
+        if (oversize is not null)
+        {
+            Feedback.ShowError(string.Format(
+                CommonLoc["Error_FileTooLarge"].Value,
+                oversize.Name,
+                Constants.Limits.MaxMigrationFileSizeMb));
+            return;
+        }
+
         _uploadingFiles = true;
         StateHasChanged();
 
         try
         {
-            // Admin-only path, bounded by Constants.Limits.MaxMigrationFileSizeMb.
-            // Tighter than the general asset uploader because migrations fan out
-            // many files in parallel — see comment on the constant. Crossing the
-            // cap throws InvalidOperationException before allocation grows.
-            var maxSizeBytes = Constants.Limits.MaxMigrationFileSizeMb * 1024L * 1024L;
             var fileData = files.Select(f => (
                 f.Name,
-                f.OpenReadStream(maxAllowedSize: maxSizeBytes), // NOSONAR S5693 — explicit, audited cap
+                f.OpenReadStream(maxAllowedSize: maxSizeBytes),
                 f.ContentType ?? "application/octet-stream"
             ));
 

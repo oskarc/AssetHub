@@ -8,6 +8,7 @@
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
 @inject IStringLocalizer<BrandsResource> Loc
+@inject IStringLocalizer<CommonResource> CommonLoc
 
 <MudDialog>
     <TitleContent>
@@ -65,14 +66,25 @@
     private async Task SubmitAsync()
     {
         if (_file is null) return;
+
+        // Pre-flight: reject oversized files BEFORE opening any stream so we
+        // never allocate a buffer for a doomed upload (S5693). The server enforces
+        // the same cap independently; OpenReadStream's maxAllowedSize remains as
+        // the second-line defense if Size is somehow under-reported by the browser.
+        var maxBytes = Constants.Limits.MaxEditorImageSizeMb * 1024L * 1024L;
+        if (_file.Size > maxBytes)
+        {
+            Feedback.ShowError(string.Format(
+                CommonLoc["Error_FileTooLarge"].Value,
+                _file.Name,
+                Constants.Limits.MaxEditorImageSizeMb));
+            return;
+        }
+
         _uploading = true;
         try
         {
-            // Server caps at 1 MB; mirroring here keeps the browser from
-            // streaming a doomed upload. Crossing the cap throws
-            // InvalidOperationException before allocation grows.
-            var maxBytes = Constants.Limits.MaxEditorImageSizeMb * 1024L * 1024L;
-            await using var stream = _file.OpenReadStream(maxBytes); // NOSONAR S5693 — explicit, audited cap
+            await using var stream = _file.OpenReadStream(maxBytes);
             await Api.UploadBrandLogoAsync(Brand.Id, stream, _file.Name, _file.ContentType);
             MudDialog.Close(DialogResult.Ok(true));
         }
