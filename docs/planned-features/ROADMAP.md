@@ -514,11 +514,7 @@ Each ships as a separate repo; this roadmap only tracks the host-side enablement
 
 ### T5-NEST-01 — Nested collections
 
-**Intent.** Let collections have a parent for navigation and bulk policy, matching the inheritance UX of every commercial DAM (Bynder / Canto / Frontify / AEM / SharePoint) without paying the runtime cost on every authorization check.
-
-**Design pinned.** See [T5-NEST-01-DESIGN.md](./T5-NEST-01-DESIGN.md). The inheritance question is resolved as **"opt-in inheritance per child collection via an `InheritParentAcl` flag (default `false`), with the parent-chain walk capped at `MaxCollectionDepth = 8` and short-circuited at the first ancestor with the flag off"**. Plus a separate UI affordance — "Apply parent's ACL" — for admins who want a one-shot snapshot rather than live inheritance.
-
-**Adds.** `Collection.ParentCollectionId` (nullable self-FK, `OnDelete: SetNull`), `Collection.InheritParentAcl` (default false), depth limit `MaxCollectionDepth = 8`, cycle detection on `SetParentAsync`, three new endpoints (`PATCH .../parent`, `PATCH .../inherit-acl`, `POST .../copy-acl-from-parent`), and the corresponding UI in `CollectionTree` / `ManageAccessDialog`. `ICollectionAuthorizationService` gains a parent-chain walk that only fires for collections with the flag on. Cache invalidation cascades through descendants only when an inheriting node's ACL changes. See the design doc for the per-layer breakdown, audit events, and the rejected alternatives (default-off no-inheritance, default-on inheritance, restrictive inheritance).
+> **Shipped 2026-04-26** across five phases. Opt-in inheritance via `InheritParentAcl`, parent-chain walk capped at `MaxCollectionDepth = 8` with short-circuit at the first ancestor with the flag off, plus admin-only `SetParent` / `SetInherit` / `CopyParentAcl` mutations and a parent panel in `ManageAccessDialog`. See the **Shipped appendix** for the per-layer breakdown.
 
 ---
 
@@ -1167,8 +1163,30 @@ Total: 9 new tests, full suite at 1081 passing in `AssetHub.Tests` + 234 in `Ass
 - Cold-storage / archival of expired rows (S3 Glacier-style). Would be `T5-AUDIT-02`.
 - Per-actor / per-target retention rules. Per-event-type covers the practical cases; if more granularity is needed, revisit.
 
+### T5-NEST-01 — Nested collections
 
+**Shipped 2026-04-26** across five phases (commits `767ffa1`, `db24edc`, `1870628`, `171c829`). Design pinned in [T5-NEST-01-DESIGN.md](./T5-NEST-01-DESIGN.md) — option B (opt-in inheritance + AEM-style break-inheritance + standalone copy snapshot), chosen after surveying Bynder / Canto / Frontify / AEM / SharePoint / MediaValet.
 
+**Delivered as specified.**
+- `Collection.ParentCollectionId` (nullable self-FK, `OnDelete: SetNull`) and `Collection.InheritParentAcl` (default false). Migration `20260426185612_AddCollectionParentIdAndInheritFlag` adds both columns plus `idx_collections_parent_id`. `Constants.Limits.MaxCollectionDepth = 8`.
+- `ICollectionRepository` gained four nesting helpers: `GetParentIdAsync` (single-hop for cycle walk), `GetAncestorChainAsync` (batch breadth-walk over `MaxCollectionDepth` hops in at most 8 round-trips, used by the auth path), `GetInheritingDescendantIdsAsync` (only follows chains where every link has `InheritParentAcl = true`, used for cache cascade), and `GetMaxSubtreeDepthAsync(id, cap)` (early-exits when the answer would exceed the budget — drives the reparent-depth check without enumerating the whole subtree).
+- `ICollectionAuthorizationService.GetUserRolesAsync` rewritten as a batch resolver: pre-load ancestor chain + user's ACL rows in two round-trips, walk each seed in memory via a `WalkEffectiveRole` helper. Highest role wins; the walk stops at the first ancestor with the flag off; flat collections take the same fast path as before.
+- Three new `ICollectionService` mutations, all admin-only and all wrapping action + audit in `IUnitOfWork.ExecuteAsync` (A-4): `SetParentAsync` (with self-cycle / transitive-cycle / depth-exceeded / unknown-parent rejection), `SetInheritParentAclAsync` (rejects enable-without-parent), `CopyParentAclAsync` (snapshot — adds parent rows missing on child, never overwrites, never enables inheritance). Audit events: `collection.reparented`, `collection.inheritance_enabled`, `collection.inheritance_disabled`, `collection.acl_copied_from_parent`. Cache cascade through `GetInheritingDescendantIdsAsync` happens post-commit so the new effective ACL is visible to the very next request.
+- API: `PATCH /api/v1/collections/{id}/parent`, `PATCH /api/v1/collections/{id}/inherit-acl`, `POST /api/v1/collections/{id}/copy-acl-from-parent`. The two PATCH endpoints are `[PublicApi]` with `collections:write` scope; the copy endpoint stays internal (admin UX, not part of the contract). `CreateCollectionDto` gains optional `ParentCollectionId` + `InheritParentAcl` (admin-only when nesting, mirroring the SetParent gate). `CollectionResponseDto` and `CollectionMapper` surface the new fields on every read path.
+- UI: `ManageAccessDialog` grows a parent panel (admin-only, only when the collection has a parent) showing the parent name, an inheritance toggle, and a copy button with a confirm dialog. `CollectionTree` renders a small chain-link icon next to inheriting collections. 13 new resource keys per language (en + sv); diff parity verified.
 
+**Tests.**
+- `CollectionInheritanceWalkTests` (8) — auth-path coverage: flat parent grant doesn't apply to child; inheriting child sees parent grant; highest role wins across chain; break in mid-chain hides ancestors above; depth cap hides grants past `MaxCollectionDepth`; `FilterAccessibleAsync` respects inheritance per-collection; orphan + no-grant returns null; `GetInheritingDescendantIds` only follows flag-on links.
+- `CollectionServiceNestingTests` (16) — service-mutation coverage: non-admin forbidden on all three; happy paths persist + audit; same-parent / no-change paths skip audit; self-cycle, transitive-cycle, depth-exceeded, unknown parent / unknown collection all map to the right `ServiceError`; inheritance enable rejects orphans; copy partial-overlap leaves existing rows untouched and reports the actual added count; copy doesn't enable live inheritance.
+- `CollectionEndpointTests` (5 new) — admin reparent returns 204 and round-trips through GET; non-admin reparent 403; inherit toggle round-trip; copy returns count > 0; non-admin nested-create 403.
+
+Total: 29 new tests, full suite at 1110 passing in `AssetHub.Tests` + 234 in `AssetHub.Ui.Tests` (1344 total).
+
+**Out of scope (deferred).**
+- Drag-and-drop reparenting in the tree UI — autocomplete picker is the v1 affordance for reparenting, and even that ships as API-only. The "Apply parent's permissions" button + the inheritance toggle are the only GUI nesting affordances in v1; reparenting itself is admin-script-only via `PATCH .../parent`.
+- Reparent picker in the collection edit dialog. Filed as a UI follow-up.
+- Recursive tree rendering with proper indentation in `CollectionTree`. Today the tree is still flat with a chain-link badge for inheriting collections; the `Depth` field on the DTO + a recursive walk over `ParentCollectionId` would visualise the hierarchy. Cheap follow-up.
+- Default-on inheritance for newly-created child collections. Admins opt in explicitly; revisit if customer demand suggests otherwise.
+- Restrictive inheritance (child ⊆ parent), cross-tenant nesting, sibling ordering, soft-deleted parents, per-asset effective-permissions cache — all explicitly out of scope per the design doc.
 
 
