@@ -514,11 +514,11 @@ Each ships as a separate repo; this roadmap only tracks the host-side enablement
 
 ### T5-NEST-01 — Nested collections
 
-**Intent.** Let collections have a parent for navigation, without changing the runtime ACL model.
+**Intent.** Let collections have a parent for navigation and bulk policy, matching the inheritance UX of every commercial DAM (Bynder / Canto / Frontify / AEM / SharePoint) without paying the runtime cost on every authorization check.
 
-**Design pinned.** See [T5-NEST-01-DESIGN.md](./T5-NEST-01-DESIGN.md) — the inheritance question is resolved as **"no runtime inheritance, opt-in 'Apply parent's ACL' UI shortcut that one-shot copies the parent's ACL rows onto the child"**. Auth path stays flat; hierarchy is a navigation + bulk-policy ergonomics layer on top.
+**Design pinned.** See [T5-NEST-01-DESIGN.md](./T5-NEST-01-DESIGN.md). The inheritance question is resolved as **"opt-in inheritance per child collection via an `InheritParentAcl` flag (default `false`), with the parent-chain walk capped at `MaxCollectionDepth = 8` and short-circuited at the first ancestor with the flag off"**. Plus a separate UI affordance — "Apply parent's ACL" — for admins who want a one-shot snapshot rather than live inheritance.
 
-**Adds.** `Collection.ParentCollectionId` (nullable self-FK with `OnDelete: SetNull`), depth limit `MaxCollectionDepth = 8`, cycle detection on `SetParentAsync`, two new endpoints (`PATCH .../parent`, `POST .../copy-acl-from-parent`), and the corresponding UI in `CollectionTree` / `ManageAccessDialog`. See the design doc for the per-layer breakdown, audit events, and the rejected alternatives (inherit-when-empty, cumulative, restrictive).
+**Adds.** `Collection.ParentCollectionId` (nullable self-FK, `OnDelete: SetNull`), `Collection.InheritParentAcl` (default false), depth limit `MaxCollectionDepth = 8`, cycle detection on `SetParentAsync`, three new endpoints (`PATCH .../parent`, `PATCH .../inherit-acl`, `POST .../copy-acl-from-parent`), and the corresponding UI in `CollectionTree` / `ManageAccessDialog`. `ICollectionAuthorizationService` gains a parent-chain walk that only fires for collections with the flag on. Cache invalidation cascades through descendants only when an inheriting node's ACL changes. See the design doc for the per-layer breakdown, audit events, and the rejected alternatives (default-off no-inheritance, default-on inheritance, restrictive inheritance).
 
 ---
 
@@ -717,7 +717,7 @@ AssetHub already has an `AuditEvent` pipeline via [IAuditService.LogAsync](../..
 | T3-NTF-01 | `notification.preferences_updated` | `user_preferences` | `category_changes[]`. Individual notification deliveries are telemetry. |
 | T4-BP-01 | `brand.created`, `brand.updated`, `brand.deleted` | `brand` | `scope` (`global`/`collection`), `changed_fields[]` |
 | T4-GUEST-01 | `guest.invited`, `guest.accepted`, `guest.access_revoked`, `guest.expired` | `user` | `invited_email`, `collection_ids[]`, `expires_at` |
-| T5-NEST-01 | `collection.reparented` | `collection` | `previous_parent_id`, `new_parent_id` |
+| T5-NEST-01 | `collection.reparented`, `collection.inheritance_enabled`, `collection.inheritance_disabled`, `collection.acl_copied_from_parent` | `collection` | `previous_parent_id`, `new_parent_id`, `parent_collection_id`, `principals_added` (copy only) |
 | T5-WMK-01 | `watermark.applied_on_download` | `asset` | `share_id`, `variant` — gated by config to avoid high-volume spam |
 | T5-ANL-01 | **No audit** — reports are reads over existing audit/telemetry; no new events. |
 | T5-AUDIT-01 | `audit.retention_purged` | `audit` | `purged_count`, `cutoff_date`, `event_type` (or `null` for mixed). **Meta-audit** — the retention worker is itself auditable. |
