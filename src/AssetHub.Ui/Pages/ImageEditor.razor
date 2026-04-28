@@ -15,6 +15,7 @@
 @inject IJSRuntime JS
 @inject IUserFeedbackService Feedback
 @inject ILogger<ImageEditor> Logger
+@inject Microsoft.AspNetCore.Components.Forms.AntiforgeryStateProvider Antiforgery
 
 <PageTitle>@(_isLoading ? Loc["Editor_Loading"] : _asset?.Title ?? Loc["Error_AssetNotFound"]) - @CommonLoc["AppName"]</PageTitle>
 
@@ -573,9 +574,13 @@ else
         {
             // The JS saveEdit function exports the canvas and POSTs it directly
             // to the API via fetch(), bypassing the SignalR circuit entirely.
+            // Cookie-authenticated mutations need the antiforgery token (P-12 /
+            // A-7); the JS fetch can't read the HttpOnly cookie, so we hand it
+            // the request token to embed as X-CSRF-TOKEN.
             Logger.LogInformation("Saving image via JS fetch: {Description} for asset {AssetId}", logDescription, Id);
+            var csrfToken = Antiforgery.GetAntiforgeryToken()?.Value ?? string.Empty;
             var result = await _jsModule.InvokeAsync<JsSaveResult?>("saveEdit",
-                Id.ToString(), fileName, saveMode, options);
+                Id.ToString(), fileName, saveMode, options, csrfToken);
 
             if (result is null || !result.Ok || result.Body is null)
             {
@@ -646,8 +651,9 @@ else
             if (alsoReplace)
             {
                 Logger.LogInformation("Replacing original before preset export for asset {AssetId}", Id);
+                var csrfToken = Antiforgery.GetAntiforgeryToken()?.Value ?? string.Empty;
                 var replaceResult = await _jsModule.InvokeAsync<JsSaveResult?>("saveEdit",
-                    Id.ToString(), fileName, "Replace", null);
+                    Id.ToString(), fileName, "Replace", null, csrfToken);
 
                 if (replaceResult is null || !replaceResult.Ok)
                 {

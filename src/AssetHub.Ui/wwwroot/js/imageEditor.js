@@ -1177,7 +1177,7 @@ export async function exportPng() {
  * @param {object} options - { title?, editDocument?, destinationCollectionId?, presetIds? }
  * @returns {Promise<{ok: boolean, status: number, body: object|null}>}
  */
-export async function saveEdit(assetId, fileName, saveMode, options) {
+export async function saveEdit(assetId, fileName, saveMode, options, csrfToken) {
     console.log('[ImageEditor] saveEdit called', { assetId, fileName, saveMode, options });
 
     const blob = await exportPng();
@@ -1208,9 +1208,19 @@ export async function saveEdit(assetId, fileName, saveMode, options) {
         }
     }
 
+    // Cookie-authenticated mutating endpoints require the antiforgery
+    // request token in X-CSRF-TOKEN (P-12 / A-7). The cookie itself is
+    // HttpOnly so we can't read it from JS — Blazor passes the request
+    // token in via the InvokeAsync parameter list.
+    const headers = {};
+    if (csrfToken) {
+        headers['X-CSRF-TOKEN'] = csrfToken;
+    }
+
     try {
         const response = await fetch(`/api/v1/assets/${assetId}/edit`, {
             method: 'POST',
+            headers,
             body: form,
             credentials: 'same-origin'
         });

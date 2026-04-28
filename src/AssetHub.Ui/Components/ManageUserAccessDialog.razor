@@ -306,10 +306,12 @@
 
     private void UpdateAvailableCollections()
     {
-        var userCollectionIds = _userCollections.Select(c => c.CollectionId).ToHashSet();
-        _availableCollections = _allCollections
-            .Where(c => !userCollectionIds.Contains(c.Id))
-            .ToList();
+        // Show every collection in the dropdown — the underlying API
+        // (AdminSetAccessAsync) is upsert. Filtering out collections the user
+        // already has access to forces admins through "remove + re-add" just
+        // to change a role. The inline edit pencil on each row also works,
+        // but keeping the dropdown universal removes the dead end.
+        _availableCollections = _allCollections.ToList();
     }
 
     private async Task AddCollectionAccess()
