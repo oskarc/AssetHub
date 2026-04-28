@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace AssetHub.Domain.Entities;
 
 public class TaxonomyTerm
@@ -9,7 +11,13 @@ public class TaxonomyTerm
     public string? LabelSv { get; set; }
     public string Slug { get; set; } = string.Empty;
     public int SortOrder { get; set; }
+
+    // Back-references — JsonIgnore breaks the Taxonomy → Terms ↔ Term and
+    // ParentTerm → Children cycles that crash HybridCache JSON serialization.
+    // The ID columns above already carry the relationships.
+    [JsonIgnore]
     public Taxonomy? Taxonomy { get; set; }
+    [JsonIgnore]
     public TaxonomyTerm? ParentTerm { get; set; }
     public ICollection<TaxonomyTerm> Children { get; set; } = new List<TaxonomyTerm>();
 }

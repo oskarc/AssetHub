@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace AssetHub.Domain.Entities;
 
 public class MetadataField
@@ -18,6 +20,12 @@ public class MetadataField
     public List<string> SelectOptions { get; set; } = new();
     public Guid? TaxonomyId { get; set; }
     public int SortOrder { get; set; }
+
+    // Back-references — JsonIgnore breaks the MetadataSchema → Fields ↔ Field
+    // cycle that crashed HybridCache JSON serialization. ID columns above
+    // already carry the relationship for any consumer that needs it.
+    [JsonIgnore]
     public MetadataSchema? MetadataSchema { get; set; }
+    [JsonIgnore]
     public Taxonomy? Taxonomy { get; set; }
 }
