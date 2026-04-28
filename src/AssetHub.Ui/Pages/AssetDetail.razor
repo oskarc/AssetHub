@@ -285,11 +285,6 @@ else
 
                         <DerivativesPanel Derivatives="_derivatives" />
 
-                        <AssetVersionHistoryPanel @ref="_versionPanel"
-                                                  AssetId="@AssetId"
-                                                  CanPrune="@_isAdmin"
-                                                  OnVersionRestored="OnVersionRestored" />
-
                         <WorkflowPanel AssetId="@AssetId" />
 
                         <AssetCommentsPanel AssetId="@AssetId" AssetTitle="@_asset.Title" />
@@ -374,6 +369,22 @@ else
                             </MudButton>
                             }
 
+                            @* Version history — contributor+. Greyed out when there's
+                               nothing to show (CurrentVersionNumber == 1 means no
+                               historical AssetVersion rows have been created yet). *@
+                            @if (RolePermissions.CanEdit(_asset?.UserRole))
+                            {
+                            <MudTooltip Text="@(HasVersionHistory ? AssetLoc["Versions_Btn_Open"] : AssetLoc["Versions_None"])">
+                                <MudButton Variant="Variant.Outlined"
+                                           StartIcon="@Icons.Material.Filled.History"
+                                           FullWidth="true"
+                                           Disabled="@(!HasVersionHistory)"
+                                           OnClick="OpenVersionHistoryAsync">
+                                    @AssetLoc["Versions_Btn_Open"]
+                                </MudButton>
+                            </MudTooltip>
+                            }
+
                             @if (RolePermissions.CanDelete(_asset?.UserRole))
                             {
                             <MudButton Variant="Variant.Outlined"
@@ -403,8 +414,6 @@ else
     private List<AssetCollectionDto> _assetCollections = new();
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding to <DerivativesPanel Derivatives=\"_derivatives\" />.")]
     private List<AssetDerivativeDto> _derivatives = new();
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor @ref binding to <AssetVersionHistoryPanel @ref=\"_versionPanel\" />.")]
-    private AssetVersionHistoryPanel? _versionPanel;
     private bool _isAdmin;
     private bool _isLoading = true;
     private bool _isPollingProcessing;
@@ -421,11 +430,38 @@ else
         }
     }
 
-    private async Task OnVersionRestored()
+    /// <summary>
+    /// True when there is at least one historical AssetVersion row to show
+    /// (CurrentVersionNumber &gt; 1). The button is rendered disabled / with
+    /// a "no versions yet" tooltip when this is false, so contributors don't
+    /// open an empty dialog.
+    /// </summary>
+    private bool HasVersionHistory => _asset is { CurrentVersionNumber: > 1 };
+
+    private async Task OpenVersionHistoryAsync()
     {
-        // Restore changes the asset's bytes/keys/edit-document — pull a fresh copy so the
-        // detail view (thumbnails, edit panel, current-version badge) reflects the new state.
-        await LoadAssetAsync();
+        if (!HasVersionHistory) return;
+
+        var parameters = new DialogParameters<AssetVersionHistoryDialog>
+        {
+            { x => x.AssetId, AssetId },
+            { x => x.CanPrune, _isAdmin }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true,
+            CloseOnEscapeKey = true,
+            CloseButton = true
+        };
+        var dialog = await DialogService.ShowAsync<AssetVersionHistoryDialog>(
+            AssetLoc["Versions_Section_Title"], parameters, options);
+        var result = await dialog.Result;
+        // Dialog returns true via DialogResult.Ok when at least one restore
+        // happened; refresh the asset so thumbnails / current version / edit
+        // document reflect the new state.
+        if (result is { Canceled: false, Data: true })
+            await LoadAssetAsync();
     }
 
     protected override async Task OnParametersSetAsync()

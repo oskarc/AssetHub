@@ -686,4 +686,65 @@ public sealed class KeycloakUserService : IKeycloakUserService
             throw new KeycloakApiException($"Timeout assigning realm role: {ex.Message}", 0, ex);
         }
     }
+
+    public async Task RemoveRealmRoleAsync(string userId, string roleName, CancellationToken ct = default)
+    {
+        try
+        {
+            var token = await GetAdminTokenAsync(ct);
+
+            // Resolve the role's id+name first — Keycloak's DELETE expects the
+            // same RoleRepresentation array shape as POST.
+            var getRoleUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles/{Uri.EscapeDataString(roleName)}";
+            using var getRoleRequest = new HttpRequestMessage(HttpMethod.Get, getRoleUrl);
+            getRoleRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
+
+            using var getRoleResponse = await _httpClient.SendAsync(getRoleRequest, ct);
+            if (!getRoleResponse.IsSuccessStatusCode)
+            {
+                var errorBody = await getRoleResponse.Content.ReadAsStringAsync(ct);
+                var error = ExtractKeycloakErrorMessage(errorBody);
+                throw new KeycloakApiException(
+                    $"Failed to get realm role '{roleName}': {error ?? getRoleResponse.ReasonPhrase}",
+                    (int)getRoleResponse.StatusCode);
+            }
+
+            var roleJson = await getRoleResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+            var roleId = roleJson.GetProperty("id").GetString();
+            var roleNameActual = roleJson.GetProperty("name").GetString();
+
+            // DELETE /admin/realms/{realm}/users/{userId}/role-mappings/realm
+            // with a JSON-array body of RoleRepresentations.
+            var removeUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users/{userId}/role-mappings/realm";
+            var rolePayload = new[] { new { id = roleId, name = roleNameActual } };
+
+            using var removeRequest = new HttpRequestMessage(HttpMethod.Delete, removeUrl);
+            removeRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
+            removeRequest.Content = JsonContent.Create(rolePayload);
+
+            using var removeResponse = await _httpClient.SendAsync(removeRequest, ct);
+            if (!removeResponse.IsSuccessStatusCode)
+            {
+                var errorBody = await removeResponse.Content.ReadAsStringAsync(ct);
+                var error = ExtractKeycloakErrorMessage(errorBody);
+                throw new KeycloakApiException(
+                    $"Failed to remove realm role '{roleName}' from user: {error ?? removeResponse.ReasonPhrase}",
+                    (int)removeResponse.StatusCode);
+            }
+
+            _logger.LogInformation("Removed realm role '{Role}' from user {UserId}", roleName, userId);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new KeycloakApiException($"Network error removing realm role: {ex.Message}", 0, ex);
+        }
+        catch (SocketException ex)
+        {
+            throw new KeycloakApiException($"Connection error removing realm role: {ex.Message}", 0, ex);
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            throw new KeycloakApiException($"Timeout removing realm role: {ex.Message}", 0, ex);
+        }
+    }
 }

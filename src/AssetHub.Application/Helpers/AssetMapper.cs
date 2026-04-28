@@ -37,6 +37,7 @@ public static class AssetMapper
             HasEditDocument = asset.EditDocument is not null,
             EditDocument = includeEditDocument ? asset.EditDocument : null,
             DerivativeCount = derivativeCount,
+            CurrentVersionNumber = asset.CurrentVersionNumber,
             UserRole = userRole
         };
     }

@@ -36,4 +36,12 @@ public interface IUserAdminService
 
     /// <summary>Delete a user from Keycloak and clean up app data.</summary>
     Task<ServiceResult<DeleteUserResponse>> DeleteUserAsync(string userId, CancellationToken ct);
+
+    /// <summary>
+    /// Promote or demote a user to/from the global "admin" Keycloak realm role.
+    /// Only existing admins (system admins) may call this. The caller cannot
+    /// demote themselves — that prevents the last admin from accidentally
+    /// locking themselves and the system out of the realm.
+    /// </summary>
+    Task<ServiceResult> SetAdminAsync(string userId, bool isAdmin, CancellationToken ct);
 }

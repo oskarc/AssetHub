@@ -384,6 +384,59 @@ public sealed class UserAdminService(
         }
     }
 
+    public async Task<ServiceResult> SetAdminAsync(string userId, bool isAdmin, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return ServiceError.BadRequest("User ID is required");
+
+        // Block self-demotion. The last admin demoting themselves locks the
+        // realm out of admin operations from the AssetHub UI; another admin
+        // (or a Keycloak operator) is required to recover. Promotion of self
+        // is also unnecessary since the caller is already admin to be here.
+        if (string.Equals(userId, currentUser.UserId, StringComparison.OrdinalIgnoreCase))
+            return ServiceError.BadRequest(isAdmin
+                ? "You are already an administrator."
+                : "You cannot remove the administrator role from your own account.");
+
+        var username = await lifecycle.UserLookup.GetUserNameAsync(userId, ct) ?? userId;
+
+        try
+        {
+            // Mutation + audit are intentionally NOT wrapped in IUnitOfWork:
+            // the Keycloak Admin API is the source of truth and rolls back
+            // independently if it fails. The audit row is best-effort.
+            if (isAdmin)
+                await lifecycle.KeycloakUserService.AssignRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
+            else
+                await lifecycle.KeycloakUserService.RemoveRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
+
+            var auditEvent = isAdmin ? "user.promoted_to_admin" : "user.demoted_from_admin";
+            await audit.LogAsync(auditEvent, Constants.ScopeTypes.User,
+                Guid.TryParse(userId, out var uid) ? uid : null, currentUser.UserId,
+                new() { [AuditKeyUsername] = username }, ct);
+
+            logger.LogInformation(
+                "Admin {ActorId} {Action} user '{Username}' ({UserId})",
+                currentUser.UserId,
+                isAdmin ? "promoted to admin" : "demoted from admin",
+                username, userId);
+
+            return ServiceResult.Success;
+        }
+        catch (KeycloakApiException ex)
+        {
+            logger.LogWarning(ex, "Keycloak API error setting admin role on user '{UserId}'", userId);
+            return ex.StatusCode == 404
+                ? ServiceError.NotFound(ex.Message)
+                : ServiceError.BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error setting admin role on user '{UserId}'", userId);
+            return ServiceError.Server(UnexpectedError);
+        }
+    }
+
     private static (int CollectionCount, string? HighestRole) ResolveUserAccess(
         bool isAdmin, bool hasAccess, int aclCollectionCount, string? aclHighestRole)
     {

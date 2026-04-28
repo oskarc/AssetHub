@@ -134,6 +134,30 @@
                                    Size="Size.Small"
                                    OnClick="@(() => ManageUserAccess(context))" />
                 </MudTooltip>
+                @* Promote / demote admin. The service refuses self-mutation
+                   (last-admin-lockout protection); we hide the button on the
+                   current user's own row to make that obvious in the UI. *@
+                @if (!string.Equals(context.Id, _currentUserId, StringComparison.OrdinalIgnoreCase))
+                {
+                    @if (context.IsSystemAdmin)
+                    {
+                        <MudTooltip Text="@AdminLoc["DemoteFromAdmin"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.RemoveModerator"
+                                           Color="Color.Warning"
+                                           Size="Size.Small"
+                                           OnClick="@(() => SetAdmin(context, isAdmin: false))" />
+                        </MudTooltip>
+                    }
+                    else
+                    {
+                        <MudTooltip Text="@AdminLoc["PromoteToAdmin"]">
+                            <MudIconButton Icon="@Icons.Material.Filled.AdminPanelSettings"
+                                           Color="Color.Secondary"
+                                           Size="Size.Small"
+                                           OnClick="@(() => SetAdmin(context, isAdmin: true))" />
+                        </MudTooltip>
+                    }
+                }
                 <MudTooltip Text="@AdminLoc["DeleteUser"]">
                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                    Color="Color.Error"
@@ -155,6 +179,8 @@
     /// </summary>
     [Parameter] public EventCallback OnChanged { get; set; }
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
+
     private MudTable<KeycloakUserDto>? _table;
     private string _userSearchString = "";
     private bool _isSyncing;
@@ -163,8 +189,24 @@
     private int _withAccessCount;
     private int _adminCount;
     private int _noAccessCount;
+    /// <summary>
+    /// Resolved at OnInitializedAsync from AuthenticationState. Used to hide
+    /// the promote/demote button on the current user's own row — the service
+    /// also blocks self-mutation, but hiding the affordance avoids confusing
+    /// UX where clicking it returns a 400 every time.
+    /// </summary>
+    private string? _currentUserId;
 
     private const string StorageKeyCategory = "adminUsers_category";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask is not null)
+        {
+            var state = await AuthStateTask;
+            _currentUserId = state.User.GetUserId();
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -267,6 +309,31 @@
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled)
+        {
+            if (_table != null) await _table.ReloadServerData();
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    private async Task SetAdmin(KeycloakUserDto user, bool isAdmin)
+    {
+        var titleKey = isAdmin ? "PromoteToAdmin" : "DemoteFromAdmin";
+        var confirmKey = isAdmin ? "ConfirmPromoteToAdmin" : "ConfirmDemoteFromAdmin";
+        var confirmed = await DialogService.ShowConfirmAsync(
+            AdminLoc[titleKey],
+            string.Format(AdminLoc[confirmKey].Value, user.Username),
+            AdminLoc[titleKey],
+            isAdmin ? Icons.Material.Filled.AdminPanelSettings : Icons.Material.Filled.RemoveModerator,
+            isAdmin ? Color.Secondary : Color.Warning,
+            isAdmin ? Color.Primary : Color.Warning);
+        if (!confirmed) return;
+
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SetUserAdminAsync(user.Id, isAdmin),
+            isAdmin ? "promote user to admin" : "demote user from admin",
+            string.Format(AdminLoc[isAdmin ? "PromotedToAdminSuccess" : "DemotedFromAdminSuccess"].Value, user.Username));
+
+        if (success)
         {
             if (_table != null) await _table.ReloadServerData();
             await OnChanged.InvokeAsync();

@@ -617,6 +617,12 @@ public class AssetHubApiClient(
         return Unwrap(result, "Delete user");
     }
 
+    public virtual async Task SetUserAdminAsync(string userId, bool isAdmin, CancellationToken ct = default)
+    {
+        var result = await userAdminService.SetAdminAsync(userId, isAdmin, ct);
+        EnsureSuccess(result, isAdmin ? "Promote user to admin" : "Demote user from admin");
+    }
+
     public virtual async Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default)
     {
         var result = await userAdminService.SyncDeletedUsersAsync(dryRun, ct);

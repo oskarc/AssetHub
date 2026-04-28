@@ -223,6 +223,16 @@
   <data name="ConfirmDeleteUser" xml:space="preserve"><value>Är du säker på att du permanent vill ta bort användaren "{0}"? All samlingsåtkomst och delade länkar kommer att tas bort. Denna åtgärd kan inte ångras.</value></data>
   <data name="UserDeletedSuccess" xml:space="preserve"><value>Användaren "{0}" har tagits bort</value></data>
 
+  <!-- Promote / demote admin -->
+  <data name="PromoteToAdmin" xml:space="preserve"><value>Befordra till administratör</value></data>
+  <data name="DemoteFromAdmin" xml:space="preserve"><value>Ta bort administratörsroll</value></data>
+  <data name="ConfirmPromoteToAdmin" xml:space="preserve"><value>Befordra "{0}" till systemadministratör? Användaren får då åtkomst till alla samlingar, alla administratörsflikar och alla användarhanteringsåtgärder.</value></data>
+  <data name="ConfirmDemoteFromAdmin" xml:space="preserve"><value>Ta bort systemadministratörsrollen från "{0}"? Användaren behåller endast den per-samlingsåtkomst som beviljats explicit.</value></data>
+  <data name="PromotedToAdminSuccess" xml:space="preserve"><value>"{0}" är nu systemadministratör</value></data>
+  <data name="DemotedFromAdminSuccess" xml:space="preserve"><value>"{0}" är inte längre systemadministratör</value></data>
+  <data name="Event_user.promoted_to_admin" xml:space="preserve"><value>Befordrad till administratör</value></data>
+  <data name="Event_user.demoted_from_admin" xml:space="preserve"><value>Nedgraderad från administratör</value></data>
+
   <!-- User Sync -->
   <data name="Btn_SyncUsers" xml:space="preserve"><value>Synka användare</value></data>
   <data name="SyncUsersTooltip" xml:space="preserve"><value>Kontrollera om användare tagits bort i Keycloak och rensa upp deras kvarvarande data</value></data>

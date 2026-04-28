@@ -223,6 +223,16 @@
   <data name="ConfirmDeleteUser" xml:space="preserve"><value>Are you sure you want to permanently delete user "{0}"? This will remove all their collection access and revoke their shares. This action cannot be undone.</value></data>
   <data name="UserDeletedSuccess" xml:space="preserve"><value>User "{0}" has been deleted</value></data>
 
+  <!-- Promote / demote admin -->
+  <data name="PromoteToAdmin" xml:space="preserve"><value>Promote to admin</value></data>
+  <data name="DemoteFromAdmin" xml:space="preserve"><value>Demote from admin</value></data>
+  <data name="ConfirmPromoteToAdmin" xml:space="preserve"><value>Promote "{0}" to system administrator? They will gain access to every collection, every admin tab, and every user-management action.</value></data>
+  <data name="ConfirmDemoteFromAdmin" xml:space="preserve"><value>Remove the system administrator role from "{0}"? They will only retain whatever per-collection access has been granted to them explicitly.</value></data>
+  <data name="PromotedToAdminSuccess" xml:space="preserve"><value>"{0}" is now a system administrator</value></data>
+  <data name="DemotedFromAdminSuccess" xml:space="preserve"><value>"{0}" is no longer a system administrator</value></data>
+  <data name="Event_user.promoted_to_admin" xml:space="preserve"><value>Promoted to Admin</value></data>
+  <data name="Event_user.demoted_from_admin" xml:space="preserve"><value>Demoted from Admin</value></data>
+
   <!-- User Sync -->
   <data name="Btn_SyncUsers" xml:space="preserve"><value>Sync Users</value></data>
   <data name="SyncUsersTooltip" xml:space="preserve"><value>Check for users deleted in Keycloak and clean up their orphaned data</value></data>

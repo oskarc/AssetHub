@@ -34,6 +34,13 @@ public class AssetResponseDto
     public int DerivativeCount { get; set; }
 
     /// <summary>
+    /// Current version number on the asset (1 = no edits yet, n &gt; 1 means
+    /// there are <c>n - 1</c> historical AssetVersion rows). Used by the UI
+    /// to grey out the version-history button when there's nothing to show.
+    /// </summary>
+    public int CurrentVersionNumber { get; set; } = 1;
+
+    /// <summary>
     /// The current user's role in this asset's collection.
     /// Used for UI visibility of actions. Values: "viewer", "contributor", "manager", "admin"
     /// </summary>

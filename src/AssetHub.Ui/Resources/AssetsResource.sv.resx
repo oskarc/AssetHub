@@ -172,6 +172,7 @@
 
   <!-- Versions -->
   <data name="Versions_Section_Title" xml:space="preserve"><value>Versionshistorik</value></data>
+  <data name="Versions_Btn_Open" xml:space="preserve"><value>Versionshistorik</value></data>
   <data name="Versions_None" xml:space="preserve"><value>Inga tidigare versioner ännu. Första gången du ersätter den här tillgången sparas originalet här.</value></data>
   <data name="Versions_Header_Version" xml:space="preserve"><value>Version</value></data>
   <data name="Versions_Header_When" xml:space="preserve"><value>Skapad</value></data>

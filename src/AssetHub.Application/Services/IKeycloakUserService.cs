@@ -84,6 +84,16 @@ public interface IKeycloakUserService
     /// <param name="ct">Cancellation token.</param>
     /// <exception cref="KeycloakApiException">Thrown when role assignment fails.</exception>
     Task AssignRealmRoleAsync(string userId, string roleName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes a realm role from a user. No-op when the user does not have
+    /// the role — Keycloak's DELETE /role-mappings endpoint accepts that.
+    /// </summary>
+    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="roleName">The realm role name (e.g., "admin").</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="KeycloakApiException">Thrown when role removal fails.</exception>
+    Task RemoveRealmRoleAsync(string userId, string roleName, CancellationToken ct = default);
 }
 
 /// <summary>
