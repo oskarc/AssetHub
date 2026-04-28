@@ -137,7 +137,14 @@ public sealed class AssetRepository(
     {
         await using var lease = await provider.AcquireAsync(cancellationToken);
         var dbContext = lease.Db;
-        var asset = await dbContext.Assets.FindAsync(new object[] { id }, cancellationToken);
+        // IgnoreQueryFilters bypasses the global soft-delete filter (DeletedAt IS NULL)
+        // — without it, the trash-purge path (which feeds soft-deleted assets to this
+        // method via AssetDeletionService.PurgeAsync) finds nothing and the row stays.
+        // The other callers (upload validation rollback) delete pre-soft-delete rows
+        // and are unaffected by the change.
+        var asset = await dbContext.Assets
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
         if (asset is not null)
         {
             dbContext.Assets.Remove(asset);

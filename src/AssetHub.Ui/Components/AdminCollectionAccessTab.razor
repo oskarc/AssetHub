@@ -109,9 +109,22 @@ else
                                     </MudStack>
                                 </MudTd>
                                 <MudTd DataLabel="@CommonLoc["Label_Role"]">
-                                    <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(acl.Role)">
-                                        @CommonLoc[AssetDisplayHelpers.GetRoleKey(acl.Role)]
-                                    </MudChip>
+                                    @if (_editingAclId == acl.Id)
+                                    {
+                                        <MudSelect T="string" @bind-Value="_editingRole"
+                                                   Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                   Dense="true" Class="dialog-role-select">
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Viewer">@CommonLoc["Role_Viewer"]</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Contributor">@CommonLoc["Role_Contributor"]</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@RoleHierarchy.Roles.Manager">@CommonLoc["Role_Manager"]</MudSelectItem>
+                                        </MudSelect>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="@AssetDisplayHelpers.GetRoleColor(acl.Role)">
+                                            @CommonLoc[AssetDisplayHelpers.GetRoleKey(acl.Role)]
+                                        </MudChip>
+                                    }
                                 </MudTd>
                                 <MudTd DataLabel="@CommonLoc["Label_Actions"]">
                                     @if (acl.IsSystemAdmin)
@@ -121,12 +134,31 @@ else
                                                      Size="Size.Small" Color="Color.Default" />
                                         </MudTooltip>
                                     }
+                                    else if (_editingAclId == acl.Id)
+                                    {
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudTooltip Text="@CommonLoc["Btn_Save"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Save" Color="Color.Success"
+                                                    Size="Size.Small" OnClick="@(() => SaveRoleEditAsync(acl))" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="@CommonLoc["Btn_Cancel"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Default"
+                                                    Size="Size.Small" OnClick="CancelRoleEdit" />
+                                            </MudTooltip>
+                                        </MudStack>
+                                    }
                                     else
                                     {
-                                        <MudTooltip Text="@CommonLoc["Btn_Remove"]">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                                Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
-                                        </MudTooltip>
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudTooltip Text="@CommonLoc["Btn_Edit"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                                    Size="Size.Small" OnClick="@(() => StartRoleEdit(acl))" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="@CommonLoc["Btn_Remove"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                    Size="Size.Small" OnClick="@(() => RemoveCollectionAccess(acl))" />
+                                            </MudTooltip>
+                                        </MudStack>
                                     }
                                 </MudTd>
                             </RowTemplate>
@@ -144,6 +176,12 @@ else
     private CollectionAccessDto? _selectedCollection;
     private UserSearchResultDto? _newAclUser;
     private string _newAclRole = RoleHierarchy.Roles.Viewer;
+
+    // Inline role-edit state. Mirrors the pattern in ManageAccessDialog +
+    // ManageUserAccessDialog so admins don't have to remove + re-add a user
+    // just to bump them from viewer to contributor.
+    private Guid? _editingAclId;
+    private string _editingRole = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -237,6 +275,38 @@ else
                 Feedback.ShowWarning(string.Format(CommonLoc["Warning_UserNotFound"], username));
             else
                 Feedback.HandleError(ex, "add access");
+        }
+    }
+
+    private void StartRoleEdit(CollectionAclResponseDto acl)
+    {
+        _editingAclId = acl.Id;
+        _editingRole = acl.Role;
+    }
+
+    private void CancelRoleEdit()
+    {
+        _editingAclId = null;
+        _editingRole = "";
+    }
+
+    private async Task SaveRoleEditAsync(CollectionAclResponseDto acl)
+    {
+        if (_selectedCollection == null || _editingAclId != acl.Id) return;
+
+        // AdminSetAccessAsync is upsert — same call as Add. The server replaces
+        // the role atomically; no need to remove + re-add.
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.AddCollectionAclAsync(_selectedCollection.Id, acl.PrincipalType, acl.PrincipalId, _editingRole),
+            "update role",
+            string.Format(AdminLoc["RoleUpdatedSuccess"], acl.PrincipalName ?? acl.PrincipalId));
+
+        if (success)
+        {
+            _editingAclId = null;
+            _editingRole = "";
+            await LoadCollectionsAsync();
+            _selectedCollection = CollectionTreeHelper.FindById(_collections, _selectedCollection.Id);
         }
     }
 

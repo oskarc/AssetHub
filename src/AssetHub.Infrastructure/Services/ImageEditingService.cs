@@ -92,11 +92,20 @@ public sealed class ImageEditingService(
         var objectKey = replaceResult.Value!.ObjectKey;
         await minioAdapter.UploadAsync(_bucketName, objectKey, renderedPng, PngContentType, ct);
 
-        // Save edit document if provided
+        // Save edit document if provided. Re-fetch the asset first — the
+        // `sourceAsset` we have in this scope was loaded BEFORE
+        // ReplaceImageFileAsync mutated the row (new ObjectKey, Status=Uploading,
+        // CurrentVersionNumber++). Calling UpdateAsync on the stale instance
+        // would clobber those changes back to the pre-replace state and break
+        // ConfirmPreScannedUploadAsync's `Status == Uploading` invariant.
         if (dto.EditDocument is not null)
         {
-            sourceAsset.EditDocument = dto.EditDocument;
-            await assetRepo.UpdateAsync(sourceAsset, ct);
+            var fresh = await assetRepo.GetByIdAsync(sourceAsset.Id, ct);
+            if (fresh is not null)
+            {
+                fresh.EditDocument = dto.EditDocument;
+                await assetRepo.UpdateAsync(fresh, ct);
+            }
         }
 
         // Confirm — skip scan (canvas-rendered) and metadata extraction (no EXIF in edited PNGs)
