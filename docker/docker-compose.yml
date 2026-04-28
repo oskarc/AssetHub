@@ -216,6 +216,10 @@ services:
       # whether a future entry point switches host builder.
       DOTNET_ENVIRONMENT: Development
       ASPNETCORE_ENVIRONMENT: Development
+      # Worker registers AppSettings with ValidateOnStart since T3-NTF-01 —
+      # email templates embed absolute URLs built from App:BaseUrl. Keep this
+      # in sync with the api service above.
+      App__BaseUrl: "https://assethub.local:7252"
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
