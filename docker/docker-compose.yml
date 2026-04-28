@@ -146,6 +146,12 @@ services:
       Keycloak__AdminPassword: "${KEYCLOAK_ADMIN_API_PASSWORD}"
       Keycloak__AdminClientId: "${KEYCLOAK_ADMIN_CLIENT_ID:-admin-cli}"
       Keycloak__AdminClientSecret: "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}"
+      # AllowAdminPasswordGrant: required when AdminClientSecret is empty.
+      # KeycloakUserService refuses to start otherwise (A-6 guard) — password
+      # grant bypasses MFA and is OAuth 2.1-deprecated. Dev defaults to true
+      # so the local stack works without a service-account client; when you
+      # set KEYCLOAK_ADMIN_CLIENT_SECRET, flip this to false (or just unset).
+      Keycloak__AllowAdminPasswordGrant: "${KEYCLOAK_ALLOW_ADMIN_PASSWORD_GRANT:-true}"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
       MinIO__SecretKey: "${MINIO_SECRET_KEY}"
