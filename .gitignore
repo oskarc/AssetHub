@@ -41,7 +41,6 @@ appsettings.Local.json
 
 # Docker
 docker-compose.override.yml
-.dockerignore
 
 # Database and storage
 pgdata/
@@ -87,7 +86,13 @@ temp/
 Thumbs.db
 .DS_Store
 
-certs/
+# Ignore the contents of certs/ (private keys, dev cert) but keep the
+# directory tracked via .gitkeep so CI checkouts have it on disk —
+# the Dockerfile's unconditional COPY certs/ otherwise fails with
+# "/certs: not found". A bare "certs/" rule excludes the directory
+# itself, which would block any !certs/<file> negation below.
+certs/*
+!certs/.gitkeep
 .claude/settings.local.json
 Claude-Processing.md
 Copilot-Processing.md

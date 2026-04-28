@@ -1,0 +1,32 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/.vs/
+**/.vscode/
+**/tests/
+**/E2E/
+**/TestResults/
+**/playwright-report/
+**/test-results/
+*.md
+*.user
+*.suo
+.git/
+.gitignore
+docker/docker-compose*.yml
+docker/init-keycloak-db.sh
+**/appsettings.Local.json
+docs/
+certs/*
+# Allow only the public cert into the build context. Used (opt-in via the
+# TRUST_LOCAL_DEV_CERT Dockerfile arg) when running the prod compose locally
+# so the OS trust store can validate the self-signed Keycloak cert.
+# Private keys and other artefacts under certs/ remain ignored.
+!certs/dev-cert.crt
+# Tracked placeholder so the certs/ directory exists in CI even when no
+# dev cert is present — without this the unconditional COPY certs/ in the
+# Dockerfile fails with "/certs: not found".
+!certs/.gitkeep
+CREDENTIALS.md
+.env
+.env.*
