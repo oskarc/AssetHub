@@ -287,6 +287,68 @@
   <data name="Event_asset.copy_created_via_edit" xml:space="preserve"><value>Bildkopia skapad via redigering</value></data>
   <data name="Event_asset.exported_with_preset" xml:space="preserve"><value>Bild exporterad med mall</value></data>
 
+  <!-- Lifecycle / trash / versioning / workflow / dup / audit / PAT -->
+  <data name="Event_asset.purged" xml:space="preserve"><value>Tillgång rensad</value></data>
+  <data name="Event_asset.restored" xml:space="preserve"><value>Tillgång återställd</value></data>
+  <data name="Event_asset.trash_emptied" xml:space="preserve"><value>Papperskorg tömd</value></data>
+  <data name="Event_asset.duplicate_blocked" xml:space="preserve"><value>Dubblett blockerad</value></data>
+  <data name="Event_asset.duplicate_override" xml:space="preserve"><value>Dubblett tillåten</value></data>
+  <data name="Event_asset.version_restored" xml:space="preserve"><value>Version återställd</value></data>
+  <data name="Event_asset.version_pruned" xml:space="preserve"><value>Version rensad</value></data>
+  <data name="Event_asset.workflow_submitted" xml:space="preserve"><value>Inskickad för granskning</value></data>
+  <data name="Event_asset.workflow_approved" xml:space="preserve"><value>Godkänd</value></data>
+  <data name="Event_asset.workflow_rejected" xml:space="preserve"><value>Avvisad</value></data>
+  <data name="Event_asset.workflow_published" xml:space="preserve"><value>Publicerad</value></data>
+  <data name="Event_asset.workflow_unpublished" xml:space="preserve"><value>Avpublicerad</value></data>
+  <data name="Event_audit.retention_purged" xml:space="preserve"><value>Granskningslogg rensad</value></data>
+  <data name="Event_pat.created" xml:space="preserve"><value>Personlig åtkomsttoken skapad</value></data>
+  <data name="Event_pat.revoked" xml:space="preserve"><value>Personlig åtkomsttoken återkallad</value></data>
+
+  <!-- Nested collections (T5-NEST-01) -->
+  <data name="Event_collection.reparented" xml:space="preserve"><value>Samling flyttad till ny förälder</value></data>
+  <data name="Event_collection.inheritance_enabled" xml:space="preserve"><value>ACL-arv aktiverat</value></data>
+  <data name="Event_collection.inheritance_disabled" xml:space="preserve"><value>ACL-arv inaktiverat</value></data>
+  <data name="Event_collection.acl_copied_from_parent" xml:space="preserve"><value>ACL kopierad från förälder</value></data>
+
+  <!-- Comments / mentions (T3-COL-01) -->
+  <data name="Event_comment.created" xml:space="preserve"><value>Kommentar publicerad</value></data>
+  <data name="Event_comment.updated" xml:space="preserve"><value>Kommentar redigerad</value></data>
+  <data name="Event_comment.deleted" xml:space="preserve"><value>Kommentar borttagen</value></data>
+  <data name="Event_comment.mention_delivered" xml:space="preserve"><value>Omnämnande levererat</value></data>
+
+  <!-- Webhooks (T3-INT-01) -->
+  <data name="Event_webhook.created" xml:space="preserve"><value>Webhook skapad</value></data>
+  <data name="Event_webhook.updated" xml:space="preserve"><value>Webhook uppdaterad</value></data>
+  <data name="Event_webhook.deleted" xml:space="preserve"><value>Webhook borttagen</value></data>
+  <data name="Event_webhook.secret_rotated" xml:space="preserve"><value>Webhook-hemlighet roterad</value></data>
+  <data name="Event_webhook.delivery_failed_permanently" xml:space="preserve"><value>Webhook-leverans misslyckades</value></data>
+  <data name="Event_webhook.test" xml:space="preserve"><value>Webhook-test</value></data>
+
+  <!-- Brands (T4-BP-01) -->
+  <data name="Event_brand.created" xml:space="preserve"><value>Varumärke skapat</value></data>
+  <data name="Event_brand.updated" xml:space="preserve"><value>Varumärke uppdaterat</value></data>
+  <data name="Event_brand.deleted" xml:space="preserve"><value>Varumärke borttaget</value></data>
+
+  <!-- Guests (T4-GUEST-01) -->
+  <data name="Event_guest.invited" xml:space="preserve"><value>Gäst inbjuden</value></data>
+  <data name="Event_guest.accepted" xml:space="preserve"><value>Gäst accepterade inbjudan</value></data>
+  <data name="Event_guest.access_revoked" xml:space="preserve"><value>Gäståtkomst återkallad</value></data>
+  <data name="Event_guest.expired" xml:space="preserve"><value>Gästinbjudan utgången</value></data>
+
+  <!-- Notifications -->
+  <data name="Event_notification.preferences_updated" xml:space="preserve"><value>Aviseringspreferenser uppdaterade</value></data>
+  <data name="Event_notification.unsubscribed_via_email" xml:space="preserve"><value>Avregistrerad via e-post</value></data>
+
+  <!-- Saved searches (T1-SRCH-01) -->
+  <data name="Event_saved_search.digest_sent" xml:space="preserve"><value>Sparad sökning sammandrag skickat</value></data>
+
+  <!-- Migrations -->
+  <data name="Event_migration.completed" xml:space="preserve"><value>Migration slutförd</value></data>
+  <data name="Event_migration.item_failed" xml:space="preserve"><value>Migrationsobjekt misslyckades</value></data>
+  <data name="Event_migration.item_skipped_duplicate" xml:space="preserve"><value>Migrationsobjekt hoppat över (dubblett)</value></data>
+  <data name="Event_migration.s3_scan_started" xml:space="preserve"><value>S3-skanning startad</value></data>
+  <data name="Event_migration.s3_scan_completed" xml:space="preserve"><value>S3-skanning slutförd</value></data>
+
   <!-- Migrations -->
   <data name="Tab_Migrations" xml:space="preserve"><value>Massimport</value></data>
   <data name="Migration_Title" xml:space="preserve"><value>Massimportmigrationer</value></data>

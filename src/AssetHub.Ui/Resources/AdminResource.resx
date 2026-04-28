@@ -287,6 +287,68 @@
   <data name="Event_asset.copy_created_via_edit" xml:space="preserve"><value>Image Copy Created via Edit</value></data>
   <data name="Event_asset.exported_with_preset" xml:space="preserve"><value>Image Exported with Preset</value></data>
 
+  <!-- Lifecycle / trash / versioning / workflow / dup / audit / PAT -->
+  <data name="Event_asset.purged" xml:space="preserve"><value>Asset Purged</value></data>
+  <data name="Event_asset.restored" xml:space="preserve"><value>Asset Restored</value></data>
+  <data name="Event_asset.trash_emptied" xml:space="preserve"><value>Trash Emptied</value></data>
+  <data name="Event_asset.duplicate_blocked" xml:space="preserve"><value>Duplicate Blocked</value></data>
+  <data name="Event_asset.duplicate_override" xml:space="preserve"><value>Duplicate Override</value></data>
+  <data name="Event_asset.version_restored" xml:space="preserve"><value>Version Restored</value></data>
+  <data name="Event_asset.version_pruned" xml:space="preserve"><value>Version Pruned</value></data>
+  <data name="Event_asset.workflow_submitted" xml:space="preserve"><value>Submitted for Review</value></data>
+  <data name="Event_asset.workflow_approved" xml:space="preserve"><value>Approved</value></data>
+  <data name="Event_asset.workflow_rejected" xml:space="preserve"><value>Rejected</value></data>
+  <data name="Event_asset.workflow_published" xml:space="preserve"><value>Published</value></data>
+  <data name="Event_asset.workflow_unpublished" xml:space="preserve"><value>Unpublished</value></data>
+  <data name="Event_audit.retention_purged" xml:space="preserve"><value>Audit Retention Purge</value></data>
+  <data name="Event_pat.created" xml:space="preserve"><value>Personal Access Token Created</value></data>
+  <data name="Event_pat.revoked" xml:space="preserve"><value>Personal Access Token Revoked</value></data>
+
+  <!-- Nested collections (T5-NEST-01) -->
+  <data name="Event_collection.reparented" xml:space="preserve"><value>Collection Reparented</value></data>
+  <data name="Event_collection.inheritance_enabled" xml:space="preserve"><value>ACL Inheritance Enabled</value></data>
+  <data name="Event_collection.inheritance_disabled" xml:space="preserve"><value>ACL Inheritance Disabled</value></data>
+  <data name="Event_collection.acl_copied_from_parent" xml:space="preserve"><value>ACL Copied from Parent</value></data>
+
+  <!-- Comments / mentions (T3-COL-01) -->
+  <data name="Event_comment.created" xml:space="preserve"><value>Comment Posted</value></data>
+  <data name="Event_comment.updated" xml:space="preserve"><value>Comment Edited</value></data>
+  <data name="Event_comment.deleted" xml:space="preserve"><value>Comment Deleted</value></data>
+  <data name="Event_comment.mention_delivered" xml:space="preserve"><value>Mention Delivered</value></data>
+
+  <!-- Webhooks (T3-INT-01) -->
+  <data name="Event_webhook.created" xml:space="preserve"><value>Webhook Created</value></data>
+  <data name="Event_webhook.updated" xml:space="preserve"><value>Webhook Updated</value></data>
+  <data name="Event_webhook.deleted" xml:space="preserve"><value>Webhook Deleted</value></data>
+  <data name="Event_webhook.secret_rotated" xml:space="preserve"><value>Webhook Secret Rotated</value></data>
+  <data name="Event_webhook.delivery_failed_permanently" xml:space="preserve"><value>Webhook Delivery Failed</value></data>
+  <data name="Event_webhook.test" xml:space="preserve"><value>Webhook Test</value></data>
+
+  <!-- Brands (T4-BP-01) -->
+  <data name="Event_brand.created" xml:space="preserve"><value>Brand Created</value></data>
+  <data name="Event_brand.updated" xml:space="preserve"><value>Brand Updated</value></data>
+  <data name="Event_brand.deleted" xml:space="preserve"><value>Brand Deleted</value></data>
+
+  <!-- Guests (T4-GUEST-01) -->
+  <data name="Event_guest.invited" xml:space="preserve"><value>Guest Invited</value></data>
+  <data name="Event_guest.accepted" xml:space="preserve"><value>Guest Accepted Invitation</value></data>
+  <data name="Event_guest.access_revoked" xml:space="preserve"><value>Guest Access Revoked</value></data>
+  <data name="Event_guest.expired" xml:space="preserve"><value>Guest Invitation Expired</value></data>
+
+  <!-- Notifications -->
+  <data name="Event_notification.preferences_updated" xml:space="preserve"><value>Notification Preferences Updated</value></data>
+  <data name="Event_notification.unsubscribed_via_email" xml:space="preserve"><value>Unsubscribed via Email</value></data>
+
+  <!-- Saved searches (T1-SRCH-01) -->
+  <data name="Event_saved_search.digest_sent" xml:space="preserve"><value>Saved Search Digest Sent</value></data>
+
+  <!-- Migrations -->
+  <data name="Event_migration.completed" xml:space="preserve"><value>Migration Completed</value></data>
+  <data name="Event_migration.item_failed" xml:space="preserve"><value>Migration Item Failed</value></data>
+  <data name="Event_migration.item_skipped_duplicate" xml:space="preserve"><value>Migration Item Skipped (Duplicate)</value></data>
+  <data name="Event_migration.s3_scan_started" xml:space="preserve"><value>S3 Scan Started</value></data>
+  <data name="Event_migration.s3_scan_completed" xml:space="preserve"><value>S3 Scan Completed</value></data>
+
   <!-- Migrations -->
   <data name="Tab_Migrations" xml:space="preserve"><value>Bulk Import</value></data>
   <data name="Migration_Title" xml:space="preserve"><value>Bulk Import Migrations</value></data>
