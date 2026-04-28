@@ -67,6 +67,13 @@ public static class InfrastructureServiceExtensions
         var dataSource = dataSourceBuilder.Build();
         services.AddSingleton(dataSource);
 
+        // optionsLifetime: Singleton is load-bearing here. Both AddDbContext (below)
+        // and AddDbContextFactory (further down) share a single DbContextOptions<>
+        // registration. The factory MUST be Singleton (see comment on the factory
+        // call), so its options must also be Singleton — otherwise ValidateScopes
+        // throws "Cannot consume scoped service DbContextOptions<> from singleton
+        // IDbContextFactory<>". The Scoped context registration consumes Singleton
+        // options just fine; only the captive-dependency direction is forbidden.
         services.AddDbContext<AssetHubDbContext>(options =>
         {
             options.UseNpgsql(dataSource);
@@ -81,7 +88,7 @@ public static class InfrastructureServiceExtensions
                 else
                     w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
             });
-        });
+        }, contextLifetime: ServiceLifetime.Scoped, optionsLifetime: ServiceLifetime.Singleton);
 
         // IDbContextFactory must be Singleton: it's the EF-recommended default,
         // and DbContextProvider (also Singleton) depends on it. Registering the
