@@ -384,6 +384,10 @@ services:
     restart: unless-stopped
     environment:
       TZ: ${TZ:-Europe/Stockholm}
+      # Worker uses Host.CreateDefaultBuilder which reads DOTNET_ENVIRONMENT,
+      # not ASPNETCORE_ENVIRONMENT. We set both so the env override sticks
+      # whether a future entry point switches host builder.
+      DOTNET_ENVIRONMENT: Production
       ASPNETCORE_ENVIRONMENT: Production
       App__BaseUrl: "${APP_BASE_URL}"
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
