@@ -24,7 +24,8 @@ public class MediaProcessingServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new AssetRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<AssetRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new AssetRepository(_fixture.CreateDbContextProvider(dbName), TestCacheHelper.CreateHybridCache(), NullLogger<AssetRepository>.Instance);
     }
 
     public async Task DisposeAsync()

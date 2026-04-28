@@ -172,120 +172,72 @@
             _isLoading = true;
             _error = null;
 
-            var response = await Api.GetSharedContentAsync(Token, password);
-
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            ISharedContentDto content;
+            try
             {
-                // First check if this is an error response (revoked/expired) vs password required
-                string? errorCode = null;
-                string? responseBody = await response.Content.ReadAsStringAsync();
-                try
-                {
-                    var errorDto = System.Text.Json.JsonSerializer.Deserialize<AssetHub.Application.Dtos.ApiError>(
-                        responseBody, 
-                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    errorCode = errorDto?.Code;
-                }
-                catch { /* not an error response */ }
-
-                // Handle revoked/expired shares before password logic
-                if (errorCode == Constants.ShareErrorCodes.Revoked)
-                {
-                    SetError(ShareLoc["LinkRevoked"].Value, ShareLoc["LinkRevokedDesc"].Value, Icons.Material.Filled.LinkOff);
-                    _isLoading = false;
-                    return;
-                }
-                if (errorCode == Constants.ShareErrorCodes.Expired)
-                {
-                    SetError(ShareLoc["LinkExpired"].Value, ShareLoc["LinkExpiredDesc"].Value, Icons.Material.Filled.TimerOff);
-                    _isLoading = false;
-                    return;
-                }
-
-                // Check if it requires password
-                PasswordRequiredResponse? authContent = null;
-                try
-                {
-                    authContent = System.Text.Json.JsonSerializer.Deserialize<PasswordRequiredResponse>(
-                        responseBody,
-                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                }
-                catch { /* not a password required response */ }
-
-                if (authContent?.RequiresPassword == true)
-                {
-                    _requiresPassword = true;
-                    _isLoading = false;
-                    
-                    // If we tried with a stored password and failed, clear it and show error
-                    if (!string.IsNullOrEmpty(password) && _initialLoadComplete)
-                    {
-                        _error = ShareLoc["InvalidPassword"].Value;
-                        _password = password; // Show what was attempted
-                        
-                        // Clear the invalid stored password
-                        if (_jsModule != null)
-                        {
-                            var cookieName = $"share_pwd_{Token}";
-                            await _jsModule.InvokeVoidAsync("setCookie", cookieName, "", 0);
-                        }
-                    }
-                    return;
-                }
-                _error = ShareLoc["InvalidPassword"].Value;
-                _isLoading = false;
-                return;
+                content = await Api.GetSharedContentAsync(Token, password);
             }
-
-            if (!response.IsSuccessStatusCode)
+            catch (ApiException ex)
             {
-                string? errorCode = null;
-                try
+                switch (ex.ErrorCode)
                 {
-                    var errorDto = await response.Content.ReadFromJsonAsync<AssetHub.Application.Dtos.ApiError>();
-                    errorCode = errorDto?.Code;
-                }
-                catch { /* non-JSON body — fall through to generic message */ }
+                    case "PASSWORD_REQUIRED":
+                        _requiresPassword = true;
+                        _isLoading = false;
 
-                switch (errorCode)
-                {
-                    case Constants.ShareErrorCodes.Expired:
-                        SetError(ShareLoc["LinkExpired"].Value, ShareLoc["LinkExpiredDesc"].Value, Icons.Material.Filled.TimerOff);
-                        break;
+                        // If we tried with a stored password and failed, clear it and show error
+                        if (!string.IsNullOrEmpty(password) && _initialLoadComplete)
+                        {
+                            _error = ShareLoc["InvalidPassword"].Value;
+                            _password = password; // Show what was attempted
+
+                            // Clear the invalid stored password
+                            if (_jsModule != null)
+                            {
+                                var cookieName = $"share_pwd_{Token}";
+                                await _jsModule.InvokeVoidAsync("setCookie", cookieName, "", 0);
+                            }
+                        }
+                        return;
                     case Constants.ShareErrorCodes.Revoked:
                         SetError(ShareLoc["LinkRevoked"].Value, ShareLoc["LinkRevokedDesc"].Value, Icons.Material.Filled.LinkOff);
-                        break;
+                        _isLoading = false;
+                        return;
+                    case Constants.ShareErrorCodes.Expired:
+                        SetError(ShareLoc["LinkExpired"].Value, ShareLoc["LinkExpiredDesc"].Value, Icons.Material.Filled.TimerOff);
+                        _isLoading = false;
+                        return;
                     default:
-                        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                        {
+                            // Invalid password (different from PASSWORD_REQUIRED above).
+                            _requiresPassword = true;
+                            _error = ShareLoc["InvalidPassword"].Value;
+                        }
+                        else if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        {
                             SetError(ShareLoc["InvalidOrRemoved"].Value, ShareLoc["InvalidOrRemovedDesc"].Value, Icons.Material.Filled.LinkOff);
+                        }
                         else
+                        {
                             SetError(ShareLoc["ErrorLoading"].Value, ShareLoc["ErrorLoadingDesc"].Value, Icons.Material.Filled.ErrorOutline);
-                        break;
+                        }
+                        _isLoading = false;
+                        return;
                 }
-                _isLoading = false;
-                return;
             }
 
-            // The API returns either SharedAssetDto or SharedCollectionDto
-            // We distinguish by the "type" discriminator property set server-side
-            var jsonString = await response.Content.ReadAsStringAsync();
-            var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            using var jsonDoc = System.Text.Json.JsonDocument.Parse(jsonString);
-            var scopeType = jsonDoc.RootElement.TryGetProperty("type", out var typeProp) 
-                ? typeProp.GetString() 
-                : null;
-
-            if (scopeType == Constants.ScopeTypes.Collection)
+            // Success — dispatch on concrete content type.
+            if (content is SharedCollectionDto col)
             {
-                _sharedCollection = System.Text.Json.JsonSerializer.Deserialize<SharedCollectionDto>(jsonString, jsonOptions);
-                _brand = _sharedCollection?.Brand;
+                _sharedCollection = col;
+                _brand = col.Brand;
                 _requiresPassword = false;
             }
-            else
+            else if (content is SharedAssetDto ass)
             {
-                _sharedAsset = System.Text.Json.JsonSerializer.Deserialize<SharedAssetDto>(jsonString, jsonOptions);
-                _brand = _sharedAsset?.Brand;
+                _sharedAsset = ass;
+                _brand = ass.Brand;
                 _requiresPassword = false;
             }
 

@@ -7,11 +7,13 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class AssetVersionRepository(
-    AssetHubDbContext db,
+    DbContextProvider provider,
     ILogger<AssetVersionRepository> logger) : IAssetVersionRepository
 {
     public async Task<List<AssetVersion>> GetByAssetIdAsync(Guid assetId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.AssetVersions
             .AsNoTracking()
             .Where(v => v.AssetId == assetId)
@@ -21,6 +23,8 @@ public sealed class AssetVersionRepository(
 
     public async Task<AssetVersion?> GetAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.AssetVersions
             .AsNoTracking()
             .FirstOrDefaultAsync(v => v.AssetId == assetId && v.VersionNumber == versionNumber, ct);
@@ -28,6 +32,8 @@ public sealed class AssetVersionRepository(
 
     public async Task<AssetVersion> CreateAsync(AssetVersion version, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         if (version.Id == Guid.Empty)
             version.Id = Guid.NewGuid();
         if (version.CreatedAt == default)
@@ -42,6 +48,8 @@ public sealed class AssetVersionRepository(
 
     public async Task DeleteAsync(Guid versionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var deleted = await db.AssetVersions
             .Where(v => v.Id == versionId)
             .ExecuteDeleteAsync(ct);

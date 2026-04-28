@@ -113,4 +113,21 @@
   <data name="Parent_CopyAcl_Success" xml:space="preserve"><value>Added {0} permission entries from parent.</value></data>
   <data name="Parent_CopyAcl_NoneToAdd" xml:space="preserve"><value>No new entries to copy — child already has every parent grant.</value></data>
   <data name="Inheriting_RowTag" xml:space="preserve"><value>Inherits from parent</value></data>
+
+  <!-- ManageAccessDialog — parent panel sections (T5-NEST-01 UX follow-up) -->
+  <data name="Parent_Live_Header" xml:space="preserve"><value>Live permissions</value></data>
+  <data name="Parent_Static_Header" xml:space="preserve"><value>One-time permission copy</value></data>
+  <data name="Parent_Inherit_BreakTitle" xml:space="preserve"><value>Disable inheritance?</value></data>
+  <data name="Parent_Inherit_BreakBody" xml:space="preserve"><value>Users added via 'Apply parent's permissions' will keep their direct access to this collection.</value></data>
+  <data name="Parent_Inherit_BreakBtn" xml:space="preserve"><value>Disable</value></data>
+  <data name="Parent_OpenPermissions" xml:space="preserve"><value>View parent permissions</value></data>
+  <!-- ManageAccessDialog — inherited access section -->
+  <data name="InheritedAccess_Header" xml:space="preserve"><value>Inherited access</value></data>
+  <data name="InheritedAccess_Desc" xml:space="preserve"><value>These users have access through a parent collection. Manage grants from the parent's permissions.</value></data>
+  <data name="InheritedAccess_Source" xml:space="preserve"><value>Source</value></data>
+  <!-- EditCollectionDialog — reparent picker -->
+  <data name="Parent_PickerLabel" xml:space="preserve"><value>Parent collection</value></data>
+  <data name="Parent_PickerHelperText" xml:space="preserve"><value>Organize this collection under a parent. Leave blank for a root collection.</value></data>
+  <data name="Parent_Changed" xml:space="preserve"><value>Parent updated</value></data>
+  <data name="Parent_Section_Header" xml:space="preserve"><value>Hierarchy</value></data>
 </root>

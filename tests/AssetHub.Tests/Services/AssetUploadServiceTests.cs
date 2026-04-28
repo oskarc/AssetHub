@@ -8,6 +8,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -27,6 +28,8 @@ public class AssetUploadServiceTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private string _dbName = null!;
+    private DbContextProvider _provider = null!;
     private AssetRepository _assetRepo = null!;
     private AssetCollectionRepository _acRepo = null!;
     private CollectionAuthorizationService _authService = null!;
@@ -46,12 +49,14 @@ public class AssetUploadServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
+        _dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(_dbName);
 
         var cache = TestCacheHelper.CreateHybridCache();
-        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        _acRepo = new AssetCollectionRepository(_db, cache, NullLogger<AssetCollectionRepository>.Instance);
-        var colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_db, colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        _assetRepo = new AssetRepository(_provider, cache, NullLogger<AssetRepository>.Instance);
+        _acRepo = new AssetCollectionRepository(_provider, cache, NullLogger<AssetCollectionRepository>.Instance);
+        var colRepo = new CollectionRepository(_provider, cache, NullLogger<CollectionRepository>.Instance);
+        _authService = new CollectionAuthorizationService(_provider, colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
@@ -91,7 +96,7 @@ public class AssetUploadServiceTests : IAsyncLifetime
         return new AssetUploadService(
             repos,
             pipeline,
-            new AssetVersionRepository(_db, NullLogger<AssetVersionRepository>.Instance),
+            new AssetVersionRepository(_provider, NullLogger<AssetVersionRepository>.Instance),
             _authService,
             _auditMock.Object,
             new CurrentUser(userId, isSystemAdmin),

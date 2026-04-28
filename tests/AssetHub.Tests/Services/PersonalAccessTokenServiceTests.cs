@@ -29,10 +29,13 @@ public class PersonalAccessTokenServiceTests : IAsyncLifetime
 
     public PersonalAccessTokenServiceTests(PostgresFixture fixture) => _fixture = fixture;
 
+    private string _dbName = null!;
+
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new PersonalAccessTokenRepository(_db, NullLogger<PersonalAccessTokenRepository>.Instance);
+        _dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new PersonalAccessTokenRepository(_fixture.CreateDbContextProvider(_dbName), NullLogger<PersonalAccessTokenRepository>.Instance);
         _auditMock = new Mock<IAuditService>();
     }
 
@@ -42,12 +45,12 @@ public class PersonalAccessTokenServiceTests : IAsyncLifetime
     }
 
     private PersonalAccessTokenService NewServiceFor(string userId) =>
-        new(_repo, _auditMock.Object, new UnitOfWork(_db),
+        new(_repo, _auditMock.Object, new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)),
             new CurrentUser(userId, isSystemAdmin: false),
             NullLogger<PersonalAccessTokenService>.Instance);
 
     private PersonalAccessTokenService AnonymousService() =>
-        new(_repo, _auditMock.Object, new UnitOfWork(_db), CurrentUser.Anonymous,
+        new(_repo, _auditMock.Object, new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)), CurrentUser.Anonymous,
             NullLogger<PersonalAccessTokenService>.Instance);
 
     // ── CreateAsync ──────────────────────────────────────────────────────────

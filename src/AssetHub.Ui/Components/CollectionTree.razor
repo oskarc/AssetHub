@@ -6,7 +6,7 @@
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
 }
-else if (!_collections.Any())
+else if (!_treeItems.Any())
 {
     <EmptyState Title="@CollectionLoc["NoCollectionsYet"]"
                 Description="@CollectionLoc["CreateFirstHint"]"
@@ -15,15 +15,16 @@ else if (!_collections.Any())
 else
 {
     <MudNavMenu>
-        @foreach (var collection in _collections)
+        @foreach (var item in _treeItems)
         {
-            <MudNavLink Icon="@Icons.Material.Filled.Folder"
-                        Class="@(SelectedCollectionId == collection.Id ? "mud-nav-link-active" : null)"
-                        @onclick="@(() => OnCollectionSelected.InvokeAsync(collection.Id))">
+            <MudNavLink Icon="@(item.HasChildren ? Icons.Material.Filled.FolderOpen : Icons.Material.Filled.Folder)"
+                        Style="@(item.Depth > 0 ? $"margin-left: {item.Depth * 20}px;" : null)"
+                        Class="@(SelectedCollectionId == item.Collection.Id ? "mud-nav-link-active" : null)"
+                        @onclick="@(() => OnCollectionSelected.InvokeAsync(item.Collection.Id))">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                        <span>@collection.Name</span>
-                        @if (collection.InheritParentAcl)
+                        <span>@item.Collection.Name</span>
+                        @if (item.Collection.InheritParentAcl)
                         {
                             <MudTooltip Text="@CollectionLoc["Inheriting_RowTag"]">
                                 <MudIcon Icon="@Icons.Material.Filled.Link"
@@ -32,9 +33,9 @@ else
                             </MudTooltip>
                         }
                     </MudStack>
-                    @if (collection.AssetCount > 0)
+                    @if (item.Collection.AssetCount > 0)
                     {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Default">@collection.AssetCount</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">@item.Collection.AssetCount</MudChip>
                     }
                 </MudStack>
             </MudNavLink>
@@ -51,14 +52,17 @@ else
     [Parameter]
     public EventCallback<Guid?> OnCollectionSelected { get; set; }
 
-    private List<CollectionResponseDto> _collections = new();
+    private sealed record CollectionTreeItem(CollectionResponseDto Collection, int Depth, bool HasChildren);
+
+    private List<CollectionTreeItem> _treeItems = new();
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            _collections = await Api.GetCollectionsAsync();
+            var all = await Api.GetCollectionsAsync();
+            _treeItems = BuildTreeItems(all);
         }
         catch (Exception ex)
         {
@@ -68,5 +72,37 @@ else
         {
             _loading = false;
         }
+    }
+
+    private static List<CollectionTreeItem> BuildTreeItems(List<CollectionResponseDto> all)
+    {
+        var allIds = new HashSet<Guid>(all.Select(c => c.Id));
+        var byParent = all
+            .Where(c => c.ParentCollectionId is not null && allIds.Contains(c.ParentCollectionId.Value))
+            .GroupBy(c => c.ParentCollectionId!.Value)
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Name).ToList());
+
+        // Collections whose parent is absent from the loaded set appear as roots
+        // (happens when the user has access to a child but not its parent).
+        var roots = all
+            .Where(c => c.ParentCollectionId is null || !allIds.Contains(c.ParentCollectionId.Value))
+            .OrderBy(c => c.Name)
+            .ToList();
+
+        var result = new List<CollectionTreeItem>(all.Count);
+
+        void Walk(CollectionResponseDto c, int depth)
+        {
+            var hasChildren = byParent.ContainsKey(c.Id);
+            result.Add(new CollectionTreeItem(c, depth, hasChildren));
+            if (hasChildren)
+                foreach (var child in byParent[c.Id])
+                    Walk(child, depth + 1);
+        }
+
+        foreach (var root in roots)
+            Walk(root, 0);
+
+        return result;
     }
 }

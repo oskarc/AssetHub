@@ -83,6 +83,11 @@ public static class InfrastructureServiceExtensions
             });
         });
 
+        // IDbContextFactory must be Singleton: it's the EF-recommended default,
+        // and DbContextProvider (also Singleton) depends on it. Registering the
+        // factory as Scoped would create a captive-dependency / scope-validation
+        // failure under Development's ValidateScopes=true, and silently "capture"
+        // the first request's scope in Production.
         services.AddDbContextFactory<AssetHubDbContext>(options =>
         {
             options.UseNpgsql(dataSource);
@@ -97,7 +102,13 @@ public static class InfrastructureServiceExtensions
                 else
                     w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
             });
-        }, ServiceLifetime.Scoped);
+        });
+
+        // Per-call DbContext lease provider (factory-backed, ambient-aware).
+        // Repositories and services use this instead of injecting AssetHubDbContext
+        // directly so that concurrent component-driven calls in a Blazor circuit
+        // each get their own context and don't trip EF's concurrency detector.
+        services.AddSingleton<DbContextProvider>();
 
         // ── Options ─────────────────────────────────────────────────────────
         services.AddOptions<MinIOSettings>()
@@ -198,9 +209,10 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<IGuestInvitationTokenService, GuestInvitationTokenService>();
         // Migration source connectors: one impl per MigrationSourceType.
         // Registry fans them out by SourceType at resolve time.
-        services.AddSingleton<IMigrationSourceConnector, CsvMigrationSourceConnector>();
-        services.AddSingleton<IMigrationSourceConnector, S3MigrationSourceConnector>();
-        services.AddSingleton<IMigrationSourceConnectorRegistry, MigrationSourceConnectorRegistry>();
+        // Scoped (not singleton): CsvMigrationSourceConnector injects the scoped IMinIOAdapter.
+        services.AddScoped<IMigrationSourceConnector, CsvMigrationSourceConnector>();
+        services.AddScoped<IMigrationSourceConnector, S3MigrationSourceConnector>();
+        services.AddScoped<IMigrationSourceConnectorRegistry, MigrationSourceConnectorRegistry>();
 
         return services;
     }

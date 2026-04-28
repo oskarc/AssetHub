@@ -16,8 +16,10 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
 
     protected BunitTestBase()
     {
-        // Create mocks
-        MockApi = new Mock<AssetHubApiClient>(MockBehavior.Loose, new HttpClient());
+        // Create mocks. AssetHubApiClient was an HTTP-backed class; it's now an
+        // in-process facade with ~36 service deps. We mock it via the protected
+        // parameterless constructor exposed for Castle DynamicProxy.
+        MockApi = new Mock<AssetHubApiClient>(MockBehavior.Loose);
         MockFeedback = new Mock<IUserFeedbackService>();
         MockDialogService = new Mock<IDialogService>();
 

@@ -8,11 +8,13 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 
 public sealed class CollectionAclRepository(
-    AssetHubDbContext dbContext,
+    DbContextProvider provider,
     ILogger<CollectionAclRepository> logger) : ICollectionAclRepository
 {
     public async Task<IEnumerable<CollectionAcl>> GetByCollectionAsync(Guid collectionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.CollectionAcls
             .AsNoTracking()
             .Where(a => a.CollectionId == collectionId)
@@ -23,6 +25,8 @@ public sealed class CollectionAclRepository(
 
     public async Task<CollectionAcl?> GetByPrincipalAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var pt = Enum.Parse<PrincipalType>(principalType, true);
         return await dbContext.CollectionAcls
             .FirstOrDefaultAsync(a =>
@@ -33,6 +37,8 @@ public sealed class CollectionAclRepository(
     
     public async Task<IEnumerable<CollectionAcl>> GetByUserAsync(string userId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.CollectionAcls
             .AsNoTracking()
             .Where(a => a.PrincipalType == PrincipalType.User && a.PrincipalId == userId)
@@ -41,6 +47,8 @@ public sealed class CollectionAclRepository(
 
     public async Task<CollectionAcl> SetAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         // Use a retry loop to handle the read-then-write race condition
         // when concurrent requests try to set access for the same principal.
         for (var attempt = 0; attempt < 3; attempt++)
@@ -91,6 +99,8 @@ public sealed class CollectionAclRepository(
 
     public async Task RevokeAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var acl = await GetByPrincipalAsync(collectionId, principalType, principalId, ct);
         if (acl is null)
         {
@@ -109,6 +119,8 @@ public sealed class CollectionAclRepository(
 
     public async Task RevokeAllAccessAsync(Guid collectionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var acls = await dbContext.CollectionAcls
             .Where(a => a.CollectionId == collectionId)
             .ToListAsync(ct);
@@ -119,6 +131,8 @@ public sealed class CollectionAclRepository(
 
     public async Task<IEnumerable<CollectionAcl>> GetAllAsync(CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.CollectionAcls
             .AsNoTracking()
             .OrderBy(a => a.CollectionId)
@@ -128,6 +142,8 @@ public sealed class CollectionAclRepository(
 
     public async Task<int> DeleteByUserAsync(string userId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.CollectionAcls
             .Where(a => a.PrincipalType == PrincipalType.User && a.PrincipalId == userId)
             .ExecuteDeleteAsync(ct);

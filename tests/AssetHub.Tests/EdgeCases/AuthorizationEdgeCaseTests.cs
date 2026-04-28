@@ -4,6 +4,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.EdgeCases;
@@ -31,10 +32,12 @@ public class AuthorizationEdgeCaseTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
-        _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        var provider = _fixture.CreateDbContextProvider(dbName);
+        _collectionRepo = new CollectionRepository(provider, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        _aclRepo = new CollectionAclRepository(provider, NullLogger<CollectionAclRepository>.Instance);
         _authService = new CollectionAuthorizationService(
-            _db, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            provider, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
     }
 
     public async Task DisposeAsync()

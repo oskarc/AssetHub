@@ -68,7 +68,13 @@ public static class AuthenticationExtensions
             PersonalAccessTokenAuthenticationHandler.SchemeName, _ => { })
         .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
         {
-            options.Cookie.Name = "__Host.assethub.auth";
+            // In Production we use the real "__Host-" prefix (hyphen!) so the
+            // browser enforces Secure + Path=/ + no Domain. In Development the
+            // cookie isn't Secure under HTTP, and "__Host-" without Secure is
+            // rejected by browsers — so we drop the prefix there.
+            options.Cookie.Name = environment.IsDevelopment()
+                ? "assethub.auth"
+                : "__Host-assethub.auth";
             options.Cookie.SameSite = SameSiteMode.Strict;
             options.Cookie.HttpOnly = true;
             options.Cookie.SecurePolicy = environment.IsDevelopment()
@@ -108,7 +114,11 @@ public static class AuthenticationExtensions
         options.RequireHttpsMetadata = requireHttpsMetadata;
         if (environment.IsDevelopment())
         {
-            // Development only: self-signed certs for local Keycloak
+            // Development only: self-signed certs for local Keycloak. Production
+            // images get the dev cert into the OS trust store at build time
+            // (see Dockerfile TRUST_LOCAL_DEV_CERT build arg) when the prod
+            // compose is being run locally; real production deployments rely
+            // on the system CA bundle.
 #pragma warning disable S4830 // Server certificates should be verified during SSL/TLS connections
             options.BackchannelHttpHandler = new HttpClientHandler
             {
@@ -193,7 +203,8 @@ public static class AuthenticationExtensions
         options.RequireHttpsMetadata = requireHttpsMetadata;
         if (environment.IsDevelopment())
         {
-            // Development only: self-signed certs for local Keycloak
+            // Development only: self-signed certs for local Keycloak. See
+            // ConfigureJwtBearer for the production-image trust-store path.
 #pragma warning disable S4830 // Server certificates should be verified during SSL/TLS connections
             options.BackchannelHttpHandler = new HttpClientHandler
             {

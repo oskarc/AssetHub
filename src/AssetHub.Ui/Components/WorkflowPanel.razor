@@ -142,9 +142,7 @@
         {
             var result = await DialogService.ShowMessageBox(
                 LocalizeAction(action),
-                (MarkupString)(needsReason
-                    ? $"<p>{Loc["Dialog_Reason_Required_Label"]}</p>"
-                    : $"<p>{Loc["Dialog_Reason_Label"]}</p>"),
+                (MarkupString)$"<p>{Loc["Dialog_Reason_Required_Label"]}</p>",
                 yesText: Loc["Dialog_Confirm"],
                 cancelText: Loc["Dialog_Cancel"]);
 
@@ -153,7 +151,7 @@
             // MudBlazor MessageBox doesn't support inline inputs; for v1 we
             // simply send empty / a placeholder. An inline dialog upgrade is
             // tracked as a FOLLOW-UP.
-            reason = needsReason ? "(provided via API)" : null;
+            reason = "(provided via API)";
         }
 
         _working = true;

@@ -12,7 +12,7 @@ using NpgsqlTypes;
 namespace AssetHub.Infrastructure.Services;
 
 public sealed class AssetSearchService(
-    AssetHubDbContext db,
+    DbContextProvider provider,
     ICollectionRepository collectionRepo,
     CurrentUser currentUser,
     ILogger<AssetSearchService> logger) : IAssetSearchService
@@ -23,6 +23,9 @@ public sealed class AssetSearchService(
     {
         if (!currentUser.IsAuthenticated)
             return ServiceError.Forbidden();
+
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
 
         // Resolve the set of collections the caller can see. Admins get all, others get only the
         // collections their ACL allows. Results are always implicitly scoped to these ids.
@@ -41,7 +44,7 @@ public sealed class AssetSearchService(
             };
         }
 
-        var mainQuery = BuildBaseQuery(request, accessibleCollectionIds, excludeDimension: null);
+        var mainQuery = BuildBaseQuery(db, request, accessibleCollectionIds, excludeDimension: null);
 
         var total = await mainQuery.CountAsync(ct);
 
@@ -50,7 +53,7 @@ public sealed class AssetSearchService(
 
         var items = assets.Select(a => AssetMapper.ToDto(a)).ToList();
 
-        var facets = await BuildFacetsAsync(request, accessibleCollectionIds, ct);
+        var facets = await BuildFacetsAsync(db, request, accessibleCollectionIds, ct);
 
         logger.LogInformation("Search by user {UserId} matched {Total} assets (took={Take}, facets={FacetCount})",
             currentUser.UserId, total, request.Take, facets.Count);
@@ -65,7 +68,8 @@ public sealed class AssetSearchService(
 
     // ── Base query ──────────────────────────────────────────────────────
 
-    private IQueryable<Asset> BuildBaseQuery(
+    private static IQueryable<Asset> BuildBaseQuery(
+        AssetHubDbContext db,
         AssetSearchRequest request,
         List<Guid> accessibleCollectionIds,
         string? excludeDimension)
@@ -82,7 +86,7 @@ public sealed class AssetSearchService(
         q = ApplyCollectionFilter(q, request, accessibleCollectionIds, excludeDimension);
         q = ApplyTagFilter(q, request, excludeDimension);
         q = ApplyCreatedRangeFilter(q, request);
-        q = ApplyMetadataFilters(q, request, excludeDimension);
+        q = ApplyMetadataFilters(db, q, request, excludeDimension);
         return q;
     }
 
@@ -144,8 +148,8 @@ public sealed class AssetSearchService(
         return q;
     }
 
-    private IQueryable<Asset> ApplyMetadataFilters(
-        IQueryable<Asset> q, AssetSearchRequest request, string? excludeDimension)
+    private static IQueryable<Asset> ApplyMetadataFilters(
+        AssetHubDbContext db, IQueryable<Asset> q, AssetSearchRequest request, string? excludeDimension)
     {
         if (request.MetadataFilters is null) return q;
         foreach (var (fieldId, values) in request.MetadataFilters)
@@ -181,7 +185,8 @@ public sealed class AssetSearchService(
 
     // ── Facets ─────────────────────────────────────────────────────────
 
-    private async Task<Dictionary<string, List<FacetBucket>>> BuildFacetsAsync(
+    private static async Task<Dictionary<string, List<FacetBucket>>> BuildFacetsAsync(
+        AssetHubDbContext db,
         AssetSearchRequest request,
         List<Guid> accessibleCollectionIds,
         CancellationToken ct)
@@ -191,14 +196,15 @@ public sealed class AssetSearchService(
 
         foreach (var dimension in request.Facets)
         {
-            var buckets = await AggregateFacetAsync(dimension, request, accessibleCollectionIds, ct);
+            var buckets = await AggregateFacetAsync(db, dimension, request, accessibleCollectionIds, ct);
             if (buckets is not null) result[dimension] = buckets;
         }
 
         return result;
     }
 
-    private async Task<List<FacetBucket>?> AggregateFacetAsync(
+    private static async Task<List<FacetBucket>?> AggregateFacetAsync(
+        AssetHubDbContext db,
         string dimension,
         AssetSearchRequest request,
         List<Guid> accessibleCollectionIds,
@@ -206,16 +212,16 @@ public sealed class AssetSearchService(
     {
         // Each dimension re-builds the base query excluding its own filter, so the returned bucket
         // counts represent "how many assets would match if I added this value to my filters".
-        var q = BuildBaseQuery(request, accessibleCollectionIds, excludeDimension: dimension);
+        var q = BuildBaseQuery(db, request, accessibleCollectionIds, excludeDimension: dimension);
 
         return dimension switch
         {
             "asset_type" => await AssetTypeBuckets(q, ct),
             "status" => await StatusBuckets(q, ct),
-            "collection" => await CollectionBuckets(q, ct),
+            "collection" => await CollectionBuckets(db, q, ct),
             "tag" => await TagBuckets(q, ct),
             _ when dimension.StartsWith("meta:", StringComparison.OrdinalIgnoreCase)
-                && Guid.TryParse(dimension[5..], out var fieldId) => await MetadataBuckets(q, fieldId, ct),
+                && Guid.TryParse(dimension[5..], out var fieldId) => await MetadataBuckets(db, q, fieldId, ct),
             _ => null
         };
     }
@@ -254,7 +260,7 @@ public sealed class AssetSearchService(
         }).ToList();
     }
 
-    private async Task<List<FacetBucket>> CollectionBuckets(IQueryable<Asset> q, CancellationToken ct)
+    private static async Task<List<FacetBucket>> CollectionBuckets(AssetHubDbContext db, IQueryable<Asset> q, CancellationToken ct)
     {
         var raw = await q
             .SelectMany(a => a.AssetCollections)
@@ -294,7 +300,7 @@ public sealed class AssetSearchService(
             .ToList();
     }
 
-    private async Task<List<FacetBucket>?> MetadataBuckets(IQueryable<Asset> q, Guid fieldId, CancellationToken ct)
+    private static async Task<List<FacetBucket>?> MetadataBuckets(AssetHubDbContext db, IQueryable<Asset> q, Guid fieldId, CancellationToken ct)
     {
         var field = await db.MetadataFields.AsNoTracking()
             .Include(f => f.Taxonomy)

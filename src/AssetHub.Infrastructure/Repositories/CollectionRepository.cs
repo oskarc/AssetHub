@@ -9,12 +9,14 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class CollectionRepository(
-    AssetHubDbContext dbContext,
+    DbContextProvider provider,
     HybridCache cache,
     ILogger<CollectionRepository> logger) : ICollectionRepository
 {
     public async Task<Collection?> GetByIdAsync(Guid id, bool includeAcls = false, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var query = dbContext.Collections.AsQueryable();
 
         if (includeAcls)
@@ -25,6 +27,8 @@ public sealed class CollectionRepository(
 
     public async Task<Collection?> GetByNameAsync(string name, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Collections
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower(), ct);
@@ -32,6 +36,8 @@ public sealed class CollectionRepository(
 
     public async Task<IEnumerable<Collection>> GetRootCollectionsAsync(CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Collections
             .AsNoTracking()
             .OrderBy(c => c.Name)
@@ -40,6 +46,8 @@ public sealed class CollectionRepository(
 
     public async Task<IEnumerable<Collection>> GetAccessibleCollectionsAsync(string userId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         // Cache the accessible collection IDs per user, then load full entities
         var accessibleIds = await cache.GetOrCreateAsync(
             CacheKeys.CollectionAccess(userId),
@@ -68,6 +76,8 @@ public sealed class CollectionRepository(
 
     public async Task<Collection> CreateAsync(Collection collection, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         if (collection.Id == Guid.Empty)
             collection.Id = Guid.NewGuid();
         if (collection.CreatedAt == default)
@@ -82,6 +92,8 @@ public sealed class CollectionRepository(
 
     public async Task<Collection> UpdateAsync(Collection collection, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         dbContext.Collections.Update(collection);
         await dbContext.SaveChangesAsync(ct);
         await cache.RemoveByTagAsync(CacheKeys.Tags.Collection(collection.Id), ct);
@@ -90,6 +102,8 @@ public sealed class CollectionRepository(
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var collection = await dbContext.Collections.FindAsync([id], ct);
         if (collection is null)
         {
@@ -106,11 +120,15 @@ public sealed class CollectionRepository(
 
     public async Task<bool> ExistsAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Collections.AnyAsync(c => c.Id == id, ct);
     }
 
     public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Collections
             .Where(c => c.Name.ToLower() == name.ToLower())
             .Where(c => !excludeId.HasValue || c.Id != excludeId.Value)
@@ -119,6 +137,8 @@ public sealed class CollectionRepository(
 
     public async Task<Dictionary<Guid, List<string>>> GetCollectionNamesForAssetsAsync(List<Guid> assetIds, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         if (assetIds.Count == 0)
             return new Dictionary<Guid, List<string>>();
 
@@ -138,6 +158,8 @@ public sealed class CollectionRepository(
 
     public async Task<IEnumerable<Collection>> GetAllWithAclsAsync(CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Collections
             .AsNoTracking()
             .Include(c => c.Acls)
@@ -148,6 +170,8 @@ public sealed class CollectionRepository(
 
     public async Task<Dictionary<Guid, string>> GetNamesByIdsAsync(List<Guid> ids, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         if (ids.Count == 0)
             return [];
 
@@ -205,6 +229,8 @@ public sealed class CollectionRepository(
 
     public async Task<Dictionary<Guid, int>> GetAssetCountsAsync(IEnumerable<Guid> collectionIds, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var idList = collectionIds.ToList();
         if (idList.Count == 0)
             return new Dictionary<Guid, int>();
@@ -263,6 +289,8 @@ public sealed class CollectionRepository(
 
     public async Task<int> GetOrphanedAssetCountAsync(Guid collectionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         // Count assets in this collection that are NOT in any other collection
         return await dbContext.AssetCollections
             .Where(ac => ac.CollectionId == collectionId)
@@ -275,6 +303,8 @@ public sealed class CollectionRepository(
 
     public async Task<Guid?> GetParentIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Collections
             .AsNoTracking()
             .Where(c => c.Id == id)
@@ -285,6 +315,8 @@ public sealed class CollectionRepository(
     public async Task<Dictionary<Guid, (Guid? ParentId, bool InheritParentAcl)>> GetAncestorChainAsync(
         IEnumerable<Guid> ids, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var seedIds = ids as IReadOnlyCollection<Guid> ?? ids.ToList();
         if (seedIds.Count == 0) return new();
 
@@ -317,6 +349,8 @@ public sealed class CollectionRepository(
 
     public async Task<int> GetMaxSubtreeDepthAsync(Guid id, int cap, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         // Walk DOWN from id one level at a time. Bound by `cap` so we stop the
         // moment we know the answer is "too deep" — no need to enumerate the
         // whole subtree just to reject a reparent.
@@ -339,6 +373,8 @@ public sealed class CollectionRepository(
 
     public async Task<List<Guid>> GetInheritingDescendantIdsAsync(Guid rootId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         // Walk DOWN from rootId, collecting any child whose InheritParentAcl
         // is true. Depth-first traversal with a HashSet guard so any
         // accidental cycle (the service layer should prevent these, but

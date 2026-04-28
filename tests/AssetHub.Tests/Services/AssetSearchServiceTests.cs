@@ -6,6 +6,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.Services;
@@ -20,6 +21,7 @@ public class AssetSearchServiceTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private DbContextProvider _provider = null!;
     private CollectionRepository _collectionRepo = null!;
 
     public AssetSearchServiceTests(PostgresFixture fixture) => _fixture = fixture;
@@ -27,7 +29,9 @@ public class AssetSearchServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateMigratedDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(dbName);
+        _collectionRepo = new CollectionRepository(_provider, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -39,7 +43,7 @@ public class AssetSearchServiceTests : IAsyncLifetime
     private AssetSearchService CreateService(string userId, bool isAdmin)
     {
         var currentUser = new CurrentUser(userId, isAdmin);
-        return new AssetSearchService(_db, _collectionRepo, currentUser, NullLogger<AssetSearchService>.Instance);
+        return new AssetSearchService(_provider, _collectionRepo, currentUser, NullLogger<AssetSearchService>.Instance);
     }
 
     /// <summary>Seeds a collection the given user can see, then inserts assets into it.</summary>

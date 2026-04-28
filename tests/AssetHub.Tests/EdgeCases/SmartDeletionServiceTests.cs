@@ -27,6 +27,8 @@ public class SmartDeletionServiceTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private string _dbName = null!;
+    private DbContextProvider _provider = null!;
     private AssetRepository _assetRepo = null!;
     private AssetCollectionRepository _acRepo = null!;
     private ICollectionRepository _colRepo = null!;
@@ -49,23 +51,25 @@ public class SmartDeletionServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
+        _dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(_dbName);
 
         var cache = TestCacheHelper.CreateHybridCache();
-        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        _acRepo = new AssetCollectionRepository(_db, cache,
+        _assetRepo = new AssetRepository(_provider, cache, NullLogger<AssetRepository>.Instance);
+        _acRepo = new AssetCollectionRepository(_provider, cache,
             NullLogger<AssetCollectionRepository>.Instance);
-        _colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
-        _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
+        _colRepo = new CollectionRepository(_provider, cache, NullLogger<CollectionRepository>.Instance);
+        _shareRepo = new ShareRepository(_provider, NullLogger<ShareRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
-            _db, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            _provider, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
-        _versionRepo = new AssetVersionRepository(_db, NullLogger<AssetVersionRepository>.Instance);
+        _versionRepo = new AssetVersionRepository(_provider, NullLogger<AssetVersionRepository>.Instance);
 
         _deletionService = new AssetDeletionService(
-            _assetRepo, _acRepo, _versionRepo, _shareRepo, new OrphanedObjectRepository(_db));
+            _assetRepo, _acRepo, _versionRepo, _shareRepo, new OrphanedObjectRepository(_provider));
     }
 
     public async Task DisposeAsync()
@@ -83,7 +87,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
             _authService,
             _deletionService,
             _auditMock.Object,
-            new UnitOfWork(_db),
+            new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)),
             TestCacheHelper.CreateHybridCache(),
             currentUser,
             minioSettings);
@@ -244,16 +248,15 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         var deleteResult = await sutPartial.DeleteAsync(asset.Id, fromCollectionId: null, CancellationToken.None);
         Assert.True(deleteResult.IsSuccess);
 
-        // Now verify: ManagerUser with access to col2 can still retrieve the asset
-        // Re-create a fresh DbContext to avoid stale tracking
-        var dbName = new Npgsql.NpgsqlConnectionStringBuilder(_db.Database.GetConnectionString()!).Database!;
-        var db2 = _fixture.CreateDbContextForExistingDb(dbName);
+        // Now verify: ManagerUser with access to col2 can still retrieve the asset.
+        // The repos already lease their own contexts per call, so no stale-tracking workaround needed.
+        var provider2 = _fixture.CreateDbContextProvider(_dbName);
         var cache2 = TestCacheHelper.CreateHybridCache();
-        var assetRepo2 = new AssetRepository(db2, cache2, NullLogger<AssetRepository>.Instance);
-        var acRepo2 = new AssetCollectionRepository(db2, cache2,
+        var assetRepo2 = new AssetRepository(provider2, cache2, NullLogger<AssetRepository>.Instance);
+        var acRepo2 = new AssetCollectionRepository(provider2, cache2,
             NullLogger<AssetCollectionRepository>.Instance);
-        var colRepo2 = new CollectionRepository(db2, cache2, NullLogger<CollectionRepository>.Instance);
-        var authService2 = new CollectionAuthorizationService(db2, colRepo2,
+        var colRepo2 = new CollectionRepository(provider2, cache2, NullLogger<CollectionRepository>.Instance);
+        var authService2 = new CollectionAuthorizationService(provider2, colRepo2,
             CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         // Asset still exists
@@ -269,8 +272,6 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         var linkedCollections = await acRepo2.GetCollectionIdsForAssetAsync(asset.Id);
         Assert.Single(linkedCollections);
         Assert.Equal(col2.Id, linkedCollections[0]);
-
-        await db2.DisposeAsync();
     }
 
     // ── GetDeletionContext ──────────────────────────────────────────

@@ -10,7 +10,7 @@ namespace AssetHub.Infrastructure.Repositories;
 /// <summary>
 /// Read-only EF Core access to <see cref="AuditEvent"/> rows.
 /// </summary>
-public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEventRepository
+public sealed class AuditEventRepository(DbContextProvider provider) : IAuditEventRepository
 {
     /// <inheritdoc/>
     /// <remarks>
@@ -21,6 +21,8 @@ public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEv
     public async Task<(List<AuditEvent> Events, int TotalCount)> GetPageAsync(
         AuditQueryRequest request, int take, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var query = dbContext.AuditEvents.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(request.EventType))
@@ -48,6 +50,8 @@ public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEv
 
     public async Task<List<AuditEvent>> GetRecentAsync(int take, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.AuditEvents
             .AsNoTracking()
             .OrderByDescending(e => e.CreatedAt)
@@ -58,6 +62,8 @@ public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEv
     /// <inheritdoc/>
     public async Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.AuditEvents
             .Where(e => e.CreatedAt < cutoff)
             .ExecuteDeleteAsync(ct);
@@ -66,6 +72,8 @@ public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEv
     /// <inheritdoc/>
     public async Task<int> DeleteOlderThanBatchAsync(DateTime cutoff, int batchSize, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.AuditEvents
             .Where(e => e.CreatedAt < cutoff)
             .OrderBy(e => e.CreatedAt)
@@ -77,6 +85,8 @@ public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEv
     public async Task<int> DeleteByEventTypeOlderThanBatchAsync(
         string eventType, DateTime cutoff, int batchSize, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
         return await dbContext.AuditEvents
             .Where(e => e.EventType == eventType && e.CreatedAt < cutoff)
@@ -92,6 +102,8 @@ public sealed class AuditEventRepository(AssetHubDbContext dbContext) : IAuditEv
         int batchSize,
         CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         if (excludedEventTypes.Count == 0)
             return await DeleteOlderThanBatchAsync(cutoff, batchSize, ct);
 

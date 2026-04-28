@@ -6,6 +6,7 @@ using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -31,7 +32,8 @@ public class NotificationPreferencesServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new NotificationPreferencesRepository(_db);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new NotificationPreferencesRepository(_fixture.CreateDbContextProvider(dbName));
         _audit = new Mock<IAuditService>();
         _tokens = new Mock<INotificationUnsubscribeTokenService>();
     }

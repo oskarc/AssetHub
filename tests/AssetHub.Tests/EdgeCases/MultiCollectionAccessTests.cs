@@ -28,12 +28,14 @@ public class MultiCollectionAccessTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
+        var dbName = _db.Database.GetDbConnection().Database!;
+        var provider = _fixture.CreateDbContextProvider(dbName);
         var cache = TestCacheHelper.CreateHybridCache();
         var logger = NullLogger<AssetCollectionRepository>.Instance;
-        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        _acRepo = new AssetCollectionRepository(_db, cache, logger);
-        _collectionRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
-        _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
+        _assetRepo = new AssetRepository(provider, cache, NullLogger<AssetRepository>.Instance);
+        _acRepo = new AssetCollectionRepository(provider, cache, logger);
+        _collectionRepo = new CollectionRepository(provider, cache, NullLogger<CollectionRepository>.Instance);
+        _aclRepo = new CollectionAclRepository(provider, NullLogger<CollectionAclRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -149,6 +151,8 @@ public class MultiCollectionAccessTests : IAsyncLifetime
 
         await _collectionRepo.DeleteAsync(collection.Id);
 
+        // Repo uses a fresh context; clear our tracker so FindAsync hits DB.
+        _db.ChangeTracker.Clear();
         // The collection and AssetCollection join entries are gone
         Assert.Null(await _db.Collections.FindAsync(collection.Id));
         Assert.Empty(await _db.AssetCollections.Where(ac => ac.CollectionId == collection.Id).ToListAsync());

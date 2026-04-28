@@ -7,11 +7,13 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class SavedSearchRepository(
-    AssetHubDbContext db,
+    DbContextProvider provider,
     ILogger<SavedSearchRepository> logger) : ISavedSearchRepository
 {
     public async Task<List<SavedSearch>> GetByOwnerAsync(string ownerUserId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.SavedSearches
             .AsNoTracking()
             .Where(s => s.OwnerUserId == ownerUserId)
@@ -21,6 +23,8 @@ public sealed class SavedSearchRepository(
 
     public async Task<SavedSearch?> GetByIdAsync(Guid id, string ownerUserId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.SavedSearches
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == id && s.OwnerUserId == ownerUserId, ct);
@@ -28,6 +32,8 @@ public sealed class SavedSearchRepository(
 
     public async Task<bool> ExistsByNameAsync(string ownerUserId, string name, Guid? excludeId = null, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var query = db.SavedSearches.Where(s => s.OwnerUserId == ownerUserId && s.Name == name);
         if (excludeId.HasValue)
             query = query.Where(s => s.Id != excludeId.Value);
@@ -36,6 +42,8 @@ public sealed class SavedSearchRepository(
 
     public async Task<SavedSearch> CreateAsync(SavedSearch savedSearch, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         if (savedSearch.Id == Guid.Empty)
             savedSearch.Id = Guid.NewGuid();
         if (savedSearch.CreatedAt == default)
@@ -50,6 +58,8 @@ public sealed class SavedSearchRepository(
 
     public async Task<SavedSearch> UpdateAsync(SavedSearch savedSearch, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         db.SavedSearches.Update(savedSearch);
         await db.SaveChangesAsync(ct);
         logger.LogInformation("User {UserId} updated saved search {Id}",
@@ -59,6 +69,8 @@ public sealed class SavedSearchRepository(
 
     public async Task DeleteAsync(Guid id, string ownerUserId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var deleted = await db.SavedSearches
             .Where(s => s.Id == id && s.OwnerUserId == ownerUserId)
             .ExecuteDeleteAsync(ct);
@@ -68,6 +80,8 @@ public sealed class SavedSearchRepository(
 
     public async Task<List<SavedSearch>> GetWithNotificationsEnabledAsync(CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.SavedSearches
             .AsNoTracking()
             .Where(s => s.Notify != SavedSearchNotifyCadence.None)
@@ -77,6 +91,8 @@ public sealed class SavedSearchRepository(
 
     public async Task MarkRunAsync(Guid id, DateTime runAt, Guid? highestSeenAssetId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         if (highestSeenAssetId is Guid newHighest)
         {
             await db.SavedSearches

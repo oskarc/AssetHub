@@ -53,14 +53,12 @@ public class ConcurrencyTests : IAsyncLifetime
         await _db.SaveChangesAsync();
         var assetId = asset.Id;
 
-        // Create multiple repos with separate contexts
-        await using var db1 = _fixture.CreateDbContextForExistingDb(_dbName);
-        await using var db2 = _fixture.CreateDbContextForExistingDb(_dbName);
+        // Repos lease their own contexts per call — independent transactions.
         var cache = TestCacheHelper.CreateHybridCache();
-        var repo1 = new AssetRepository(db1, cache, NullLogger<AssetRepository>.Instance);
-        var repo2 = new AssetRepository(db2, cache, NullLogger<AssetRepository>.Instance);
+        var repo1 = new AssetRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetRepository>.Instance);
+        var repo2 = new AssetRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetRepository>.Instance);
 
-        // Act: Delete from both contexts concurrently
+        // Act: Delete concurrently
         var task1 = repo1.DeleteAsync(assetId);
         var task2 = repo2.DeleteAsync(assetId);
 
@@ -84,12 +82,11 @@ public class ConcurrencyTests : IAsyncLifetime
         await _db.SaveChangesAsync();
         var assetIds = assets.Select(a => a.Id).ToList();
 
-        // Act: Delete all concurrently with separate contexts
+        // Act: Delete all concurrently — each repo leases its own context per call.
         var deleteTasks = assetIds.Select(async id =>
         {
-            await using var db = _fixture.CreateDbContextForExistingDb(_dbName);
             var cache = TestCacheHelper.CreateHybridCache();
-            var repo = new AssetRepository(db, cache, NullLogger<AssetRepository>.Instance);
+            var repo = new AssetRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetRepository>.Instance);
             await repo.DeleteAsync(id);
         });
 
@@ -111,11 +108,9 @@ public class ConcurrencyTests : IAsyncLifetime
         _db.Collections.Add(collection);
         await _db.SaveChangesAsync();
 
-        // Create two repos with separate contexts
-        await using var db1 = _fixture.CreateDbContextForExistingDb(_dbName);
-        await using var db2 = _fixture.CreateDbContextForExistingDb(_dbName);
-        var repo1 = new CollectionAclRepository(db1, NullLogger<CollectionAclRepository>.Instance);
-        var repo2 = new CollectionAclRepository(db2, NullLogger<CollectionAclRepository>.Instance);
+        // Two repos, each leasing its own context per call.
+        var repo1 = new CollectionAclRepository(_fixture.CreateDbContextProvider(_dbName), NullLogger<CollectionAclRepository>.Instance);
+        var repo2 = new CollectionAclRepository(_fixture.CreateDbContextProvider(_dbName), NullLogger<CollectionAclRepository>.Instance);
 
         // Act: Set access for the same user concurrently with different roles
         var task1 = repo1.SetAccessAsync(collection.Id, "user", User1, "viewer");
@@ -143,11 +138,10 @@ public class ConcurrencyTests : IAsyncLifetime
 
         var users = new[] { User1, User2, User3, "user-4", "user-5" };
 
-        // Act: Set access for different users concurrently
+        // Act: Set access for different users concurrently — each repo leases its own context.
         var tasks = users.Select(async (userId, i) =>
         {
-            await using var db = _fixture.CreateDbContextForExistingDb(_dbName);
-            var repo = new CollectionAclRepository(db, NullLogger<CollectionAclRepository>.Instance);
+            var repo = new CollectionAclRepository(_fixture.CreateDbContextProvider(_dbName), NullLogger<CollectionAclRepository>.Instance);
             await repo.SetAccessAsync(collection.Id, "user", userId, "viewer");
         });
 
@@ -171,11 +165,9 @@ public class ConcurrencyTests : IAsyncLifetime
         _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, User2, AclRole.Contributor));
         await _db.SaveChangesAsync();
 
-        // Act: Concurrently revoke User1 and set User3
-        await using var db1 = _fixture.CreateDbContextForExistingDb(_dbName);
-        await using var db2 = _fixture.CreateDbContextForExistingDb(_dbName);
-        var repo1 = new CollectionAclRepository(db1, NullLogger<CollectionAclRepository>.Instance);
-        var repo2 = new CollectionAclRepository(db2, NullLogger<CollectionAclRepository>.Instance);
+        // Act: Concurrently revoke User1 and set User3 — independent leases.
+        var repo1 = new CollectionAclRepository(_fixture.CreateDbContextProvider(_dbName), NullLogger<CollectionAclRepository>.Instance);
+        var repo2 = new CollectionAclRepository(_fixture.CreateDbContextProvider(_dbName), NullLogger<CollectionAclRepository>.Instance);
 
         var revokeTask = repo1.RevokeAccessAsync(collection.Id, "user", User1);
         var setTask = repo2.SetAccessAsync(collection.Id, "user", User3, "manager");
@@ -207,11 +199,10 @@ public class ConcurrencyTests : IAsyncLifetime
 
         const int concurrentRequests = 20;
 
-        // Act: Increment access count concurrently
+        // Act: Increment access count concurrently — each repo leases its own context.
         var incrementTasks = Enumerable.Range(0, concurrentRequests).Select(async _ =>
         {
-            await using var db = _fixture.CreateDbContextForExistingDb(_dbName);
-            var repo = new ShareRepository(db, NullLogger<ShareRepository>.Instance);
+            var repo = new ShareRepository(_fixture.CreateDbContextProvider(_dbName), NullLogger<ShareRepository>.Instance);
             await repo.IncrementAccessAsync(shareId);
         });
 
@@ -234,11 +225,10 @@ public class ConcurrencyTests : IAsyncLifetime
 
         const int concurrentRequests = 100;
 
-        // Act: Increment access count with high concurrency
+        // Act: Increment access count with high concurrency — each call gets its own lease.
         var incrementTasks = Enumerable.Range(0, concurrentRequests).Select(async _ =>
         {
-            await using var db = _fixture.CreateDbContextForExistingDb(_dbName);
-            var repo = new ShareRepository(db, NullLogger<ShareRepository>.Instance);
+            var repo = new ShareRepository(_fixture.CreateDbContextProvider(_dbName), NullLogger<ShareRepository>.Instance);
             await repo.IncrementAccessAsync(shareId);
         });
 
@@ -260,23 +250,20 @@ public class ConcurrencyTests : IAsyncLifetime
         _db.Collections.Add(collection);
         await _db.SaveChangesAsync();
 
-        // Create separate contexts
-        await using var db1 = _fixture.CreateDbContextForExistingDb(_dbName);
-        await using var db2 = _fixture.CreateDbContextForExistingDb(_dbName);
-        await using var db3 = _fixture.CreateDbContextForExistingDb(_dbName);
-        var repo1 = new CollectionRepository(db1, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
-        var repo2 = new CollectionRepository(db2, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
-        var repo3 = new CollectionRepository(db3, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        // Three independent repos — each leases its own context per call.
+        var repo1 = new CollectionRepository(_fixture.CreateDbContextProvider(_dbName), TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        var repo2 = new CollectionRepository(_fixture.CreateDbContextProvider(_dbName), TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        var repo3 = new CollectionRepository(_fixture.CreateDbContextProvider(_dbName), TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
 
-        // Load in all contexts
+        // Load in all repos
         var c1 = await repo1.GetByIdAsync(collection.Id);
         var c2 = await repo2.GetByIdAsync(collection.Id);
         var c3 = await repo3.GetByIdAsync(collection.Id);
 
         // Act: Update concurrently with different names
-        c1!.Name = "Name from Context 1";
-        c2!.Name = "Name from Context 2";
-        c3!.Name = "Name from Context 3";
+        c1!.Name = "Name from Repo 1";
+        c2!.Name = "Name from Repo 2";
+        c3!.Name = "Name from Repo 3";
 
         var task1 = repo1.UpdateAsync(c1);
         var task2 = repo2.UpdateAsync(c2);
@@ -288,7 +275,7 @@ public class ConcurrencyTests : IAsyncLifetime
         _db.ChangeTracker.Clear();
         var final = await _db.Collections.FindAsync(collection.Id);
         Assert.NotNull(final);
-        Assert.Contains(final.Name, new[] { "Name from Context 1", "Name from Context 2", "Name from Context 3" });
+        Assert.Contains(final.Name, new[] { "Name from Repo 1", "Name from Repo 2", "Name from Repo 3" });
     }
 
     // ── Concurrent Asset-Collection Linking ──────────────────────────────────
@@ -303,12 +290,10 @@ public class ConcurrencyTests : IAsyncLifetime
         _db.Collections.Add(collection);
         await _db.SaveChangesAsync();
 
-        // Create separate contexts
+        // Independent repos — each leases its own context per call.
         var cache = TestCacheHelper.CreateHybridCache();
-        await using var db1 = _fixture.CreateDbContextForExistingDb(_dbName);
-        await using var db2 = _fixture.CreateDbContextForExistingDb(_dbName);
-        var repo1 = new AssetCollectionRepository(db1, cache, NullLogger<AssetCollectionRepository>.Instance);
-        var repo2 = new AssetCollectionRepository(db2, cache, NullLogger<AssetCollectionRepository>.Instance);
+        var repo1 = new AssetCollectionRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetCollectionRepository>.Instance);
+        var repo2 = new AssetCollectionRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetCollectionRepository>.Instance);
 
         // Act: Try to add the same asset to the same collection from two contexts
         var task1 = repo1.AddToCollectionAsync(asset.Id, collection.Id, User1);
@@ -342,11 +327,10 @@ public class ConcurrencyTests : IAsyncLifetime
 
         var cache = TestCacheHelper.CreateHybridCache();
 
-        // Act: Add asset to all collections concurrently
+        // Act: Add asset to all collections concurrently — each repo leases its own context.
         var tasks = collections.Select(async c =>
         {
-            await using var db = _fixture.CreateDbContextForExistingDb(_dbName);
-            var repo = new AssetCollectionRepository(db, cache, NullLogger<AssetCollectionRepository>.Instance);
+            var repo = new AssetCollectionRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetCollectionRepository>.Instance);
             return await repo.AddToCollectionAsync(asset.Id, c.Id, User1);
         });
 
@@ -374,11 +358,9 @@ public class ConcurrencyTests : IAsyncLifetime
 
         var cache = TestCacheHelper.CreateHybridCache();
 
-        // Act: Concurrently delete and try to read
-        await using var dbDelete = _fixture.CreateDbContextForExistingDb(_dbName);
-        await using var dbRead = _fixture.CreateDbContextForExistingDb(_dbName);
-        var repoDelete = new AssetRepository(dbDelete, cache, NullLogger<AssetRepository>.Instance);
-        var repoRead = new AssetRepository(dbRead, cache, NullLogger<AssetRepository>.Instance);
+        // Act: Concurrently delete and try to read — independent leases.
+        var repoDelete = new AssetRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetRepository>.Instance);
+        var repoRead = new AssetRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetRepository>.Instance);
 
         var deleteTask = repoDelete.DeleteAsync(assetId);
         var readTask = repoRead.GetByIdAsync(assetId);
@@ -413,16 +395,14 @@ public class ConcurrencyTests : IAsyncLifetime
         var assetIds = assets.Select(a => a.Id).ToList();
         var cache = TestCacheHelper.CreateHybridCache();
 
-        // Act: Delete collection assets while concurrently reading them
-        await using var dbDelete = _fixture.CreateDbContextForExistingDb(_dbName);
-        var repoDelete = new AssetRepository(dbDelete, cache, NullLogger<AssetRepository>.Instance);
+        // Act: Delete collection assets while concurrently reading them.
+        var repoDelete = new AssetRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetRepository>.Instance);
 
         var deleteTask = repoDelete.DeleteByCollectionAsync(collection.Id);
 
         var readTasks = assetIds.Select(async id =>
         {
-            await using var db = _fixture.CreateDbContextForExistingDb(_dbName);
-            var repo = new AssetRepository(db, cache, NullLogger<AssetRepository>.Instance);
+            var repo = new AssetRepository(_fixture.CreateDbContextProvider(_dbName), cache, NullLogger<AssetRepository>.Instance);
             return await repo.GetByIdAsync(id);
         });
 

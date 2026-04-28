@@ -7,11 +7,13 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class AssetMetadataRepository(
-    AssetHubDbContext db,
+    DbContextProvider provider,
     ILogger<AssetMetadataRepository> logger) : IAssetMetadataRepository
 {
     public async Task<List<AssetMetadataValue>> GetByAssetIdAsync(Guid assetId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.AssetMetadataValues
             .AsNoTracking()
             .Include(v => v.MetadataField)
@@ -22,6 +24,8 @@ public sealed class AssetMetadataRepository(
 
     public async Task<Dictionary<Guid, List<AssetMetadataValue>>> GetByAssetIdsAsync(IEnumerable<Guid> assetIds, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var values = await db.AssetMetadataValues
             .AsNoTracking()
             .Include(v => v.MetadataField)
@@ -35,6 +39,8 @@ public sealed class AssetMetadataRepository(
 
     public async Task ReplaceForAssetAsync(Guid assetId, List<AssetMetadataValue> values, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         // Run delete + insert in one transaction so a mid-operation failure doesn't leave the asset with partial metadata.
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await db.AssetMetadataValues.Where(v => v.AssetId == assetId).ExecuteDeleteAsync(ct);
@@ -54,6 +60,8 @@ public sealed class AssetMetadataRepository(
 
     public async Task ReplaceForAssetsAsync(IEnumerable<(Guid AssetId, List<AssetMetadataValue> Values)> batch, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var entries = batch.ToList();
         if (entries.Count == 0) return;
 
@@ -80,6 +88,8 @@ public sealed class AssetMetadataRepository(
 
     public async Task DeleteByAssetIdAsync(Guid assetId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var count = await db.AssetMetadataValues.Where(v => v.AssetId == assetId).ExecuteDeleteAsync(ct);
         if (count > 0)
             logger.LogInformation("Deleted {Count} metadata values for asset {AssetId}", count, assetId);
@@ -87,6 +97,8 @@ public sealed class AssetMetadataRepository(
 
     public async Task DeleteBySchemaIdAsync(Guid schemaId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var fieldIds = await db.MetadataFields
             .Where(f => f.MetadataSchemaId == schemaId)
             .Select(f => f.Id)

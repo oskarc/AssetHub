@@ -10,6 +10,7 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -26,6 +27,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private DbContextProvider _provider = null!;
     private AssetRepository _assetRepo = null!;
     private AssetCollectionRepository _acRepo = null!;
     private ICollectionRepository _colRepo = null!;
@@ -43,15 +45,17 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(dbName);
 
         var cache = TestCacheHelper.CreateHybridCache();
-        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        _acRepo = new AssetCollectionRepository(_db, cache,
+        _assetRepo = new AssetRepository(_provider, cache, NullLogger<AssetRepository>.Instance);
+        _acRepo = new AssetCollectionRepository(_provider, cache,
             NullLogger<AssetCollectionRepository>.Instance);
-        _colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
+        _colRepo = new CollectionRepository(_provider, cache, NullLogger<CollectionRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
-            _db, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            _provider, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
@@ -78,7 +82,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         return new AssetUploadService(
             repos,
             pipeline,
-            new AssetVersionRepository(_db, NullLogger<AssetVersionRepository>.Instance),
+            new AssetVersionRepository(_provider, NullLogger<AssetVersionRepository>.Instance),
             _authService,
             _auditMock.Object,
             currentUser,

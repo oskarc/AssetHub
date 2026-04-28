@@ -9,12 +9,14 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class MetadataSchemaRepository(
-    AssetHubDbContext db,
+    DbContextProvider provider,
     HybridCache cache,
     ILogger<MetadataSchemaRepository> logger) : IMetadataSchemaRepository
 {
     public async Task<MetadataSchema?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await cache.GetOrCreateAsync(
             CacheKeys.MetadataSchema(id),
             async ct => await db.MetadataSchemas
@@ -32,6 +34,8 @@ public sealed class MetadataSchemaRepository(
 
     public async Task<MetadataSchema?> GetByIdForUpdateAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.MetadataSchemas
             .Include(s => s.Fields.OrderBy(f => f.SortOrder))
             .FirstOrDefaultAsync(s => s.Id == id, ct);
@@ -39,6 +43,8 @@ public sealed class MetadataSchemaRepository(
 
     public async Task<List<MetadataSchema>> GetAllAsync(CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await cache.GetOrCreateAsync(
             CacheKeys.MetadataSchemasAll(),
             async ct => await db.MetadataSchemas
@@ -57,6 +63,8 @@ public sealed class MetadataSchemaRepository(
 
     public async Task<List<MetadataSchema>> GetApplicableAsync(AssetType? assetType, Guid? collectionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var assetTypeMatch = assetType != null;
         var collectionMatch = collectionId != null;
         var query = db.MetadataSchemas
@@ -72,6 +80,8 @@ public sealed class MetadataSchemaRepository(
 
     public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var query = db.MetadataSchemas.Where(s => s.Name == name);
         if (excludeId.HasValue)
             query = query.Where(s => s.Id != excludeId.Value);
@@ -80,12 +90,16 @@ public sealed class MetadataSchemaRepository(
 
     public async Task<bool> HasMetadataValuesAsync(Guid schemaId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.AssetMetadataValues
             .AnyAsync(v => v.MetadataField!.MetadataSchemaId == schemaId, ct);
     }
 
     public async Task<MetadataSchema> CreateAsync(MetadataSchema schema, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         if (schema.Id == Guid.Empty)
             schema.Id = Guid.NewGuid();
         if (schema.CreatedAt == default)
@@ -107,6 +121,8 @@ public sealed class MetadataSchemaRepository(
 
     public async Task<MetadataSchema> UpdateAsync(MetadataSchema schema, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         await db.SaveChangesAsync(ct);
         await cache.RemoveByTagAsync(CacheKeys.Tags.MetadataSchemas, ct);
         logger.LogInformation("Updated metadata schema {SchemaId} '{SchemaName}'", schema.Id, schema.Name);
@@ -115,6 +131,8 @@ public sealed class MetadataSchemaRepository(
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         await db.MetadataSchemas.Where(s => s.Id == id).ExecuteDeleteAsync(ct);
         await cache.RemoveByTagAsync(CacheKeys.Tags.MetadataSchemas, ct);
         logger.LogInformation("Deleted metadata schema {SchemaId}", id);

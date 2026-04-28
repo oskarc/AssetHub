@@ -6,16 +6,20 @@ using Microsoft.EntityFrameworkCore;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class MigrationRepository(
-    AssetHubDbContext dbContext) : IMigrationRepository
+    DbContextProvider provider) : IMigrationRepository
 {
     public async Task<Migration?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Migrations
             .FirstOrDefaultAsync(m => m.Id == id, ct);
     }
 
     public async Task<Migration?> GetByIdWithItemsAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Migrations
             .Include(m => m.Items)
             .FirstOrDefaultAsync(m => m.Id == id, ct);
@@ -23,6 +27,8 @@ public sealed class MigrationRepository(
 
     public async Task<List<Migration>> ListAsync(int skip, int take, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Migrations
             .AsNoTracking()
             .OrderByDescending(m => m.CreatedAt)
@@ -33,11 +39,15 @@ public sealed class MigrationRepository(
 
     public async Task<int> CountAsync(CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.Migrations.CountAsync(ct);
     }
 
     public async Task<Migration> CreateAsync(Migration migration, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         dbContext.Migrations.Add(migration);
         await dbContext.SaveChangesAsync(ct);
         return migration;
@@ -45,12 +55,16 @@ public sealed class MigrationRepository(
 
     public async Task UpdateAsync(Migration migration, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         dbContext.Migrations.Update(migration);
         await dbContext.SaveChangesAsync(ct);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var migration = await dbContext.Migrations
             .Include(m => m.Items)
             .FirstOrDefaultAsync(m => m.Id == id, ct);
@@ -64,6 +78,8 @@ public sealed class MigrationRepository(
 
     public async Task AddItemsAsync(IEnumerable<MigrationItem> items, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         dbContext.MigrationItems.AddRange(items);
         await dbContext.SaveChangesAsync(ct);
     }
@@ -71,6 +87,8 @@ public sealed class MigrationRepository(
     public async Task<List<MigrationItem>> GetItemsAsync(
         Guid migrationId, string? statusFilter, int skip, int take, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var query = dbContext.MigrationItems
             .AsNoTracking()
             .Where(i => i.MigrationId == migrationId);
@@ -90,6 +108,8 @@ public sealed class MigrationRepository(
 
     public async Task<int> CountItemsAsync(Guid migrationId, string? statusFilter, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var query = dbContext.MigrationItems
             .Where(i => i.MigrationId == migrationId);
 
@@ -104,18 +124,24 @@ public sealed class MigrationRepository(
 
     public async Task<MigrationItem?> GetItemByIdAsync(Guid itemId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.MigrationItems
             .FirstOrDefaultAsync(i => i.Id == itemId, ct);
     }
 
     public async Task UpdateItemAsync(MigrationItem item, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         dbContext.MigrationItems.Update(item);
         await dbContext.SaveChangesAsync(ct);
     }
 
     public async Task<List<MigrationItem>> GetPendingItemsAsync(Guid migrationId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.MigrationItems
             .Where(i => i.MigrationId == migrationId && i.Status == MigrationItemStatus.Pending)
             .OrderBy(i => i.RowNumber)
@@ -124,6 +150,8 @@ public sealed class MigrationRepository(
 
     public async Task<List<MigrationItem>> GetFailedItemsAsync(Guid migrationId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.MigrationItems
             .Where(i => i.MigrationId == migrationId && i.Status == MigrationItemStatus.Failed)
             .OrderBy(i => i.RowNumber)
@@ -132,6 +160,8 @@ public sealed class MigrationRepository(
 
     public async Task<MigrationItemCounts> GetItemCountsAsync(Guid migrationId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var items = dbContext.MigrationItems.Where(i => i.MigrationId == migrationId);
 
         var counts = await items
@@ -154,6 +184,8 @@ public sealed class MigrationRepository(
 
     public async Task RemoveAllItemsAsync(Guid migrationId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         await dbContext.MigrationItems
             .Where(i => i.MigrationId == migrationId)
             .ExecuteDeleteAsync(ct);
@@ -161,6 +193,8 @@ public sealed class MigrationRepository(
 
     public async Task<int> MarkItemsStagedAsync(Guid migrationId, IEnumerable<string> fileNames, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var nameSet = fileNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var items = await dbContext.MigrationItems
@@ -180,6 +214,8 @@ public sealed class MigrationRepository(
 
     public async Task<int> DeleteByStatusAsync(IReadOnlyList<MigrationStatus> statuses, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var query = dbContext.Migrations.Where(m => statuses.Contains(m.Status));
 
         // Delete items first (cascade may not cover ExecuteDeleteAsync)

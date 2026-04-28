@@ -40,10 +40,11 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
     {
         _dbName = $"test_{Guid.NewGuid():N}";
         _db = await _fixture.CreateDbContextAsync(_dbName);
+        var provider = _fixture.CreateDbContextProvider(_dbName);
 
         var cache = TestCacheHelper.CreateHybridCache();
-        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        _colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
+        _assetRepo = new AssetRepository(provider, cache, NullLogger<AssetRepository>.Instance);
+        _colRepo = new CollectionRepository(provider, cache, NullLogger<CollectionRepository>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();

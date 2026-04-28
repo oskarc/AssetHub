@@ -15,13 +15,15 @@ namespace AssetHub.Infrastructure.Services;
 /// the orchestrating <see cref="DashboardService"/>.
 /// </summary>
 public sealed class DashboardQueryService(
-    AssetHubDbContext db,
+    DbContextProvider provider,
     IUserLookupService userLookup,
     HybridCache cache) : IDashboardQueryService
 {
 
     public async Task<string> GetHighestRoleAsync(string userId, CancellationToken ct)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var acls = await db.CollectionAcls
             .Where(a => a.PrincipalId == userId)
             .Select(a => a.Role)
@@ -40,6 +42,8 @@ public sealed class DashboardQueryService(
     public async Task<Dictionary<Guid, DateTime>> GetLatestUpdatesByCollectionAsync(
         IEnumerable<Guid> collectionIds, CancellationToken ct)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.AssetCollections
             .AsNoTracking()
             .Where(ac => collectionIds.Contains(ac.CollectionId))
@@ -51,6 +55,8 @@ public sealed class DashboardQueryService(
     public async Task<List<DashboardShareDto>> GetRecentSharesAsync(
         string? userId, int take, CancellationToken ct)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var query = db.Shares.AsNoTracking();
         if (userId is not null)
             query = query.Where(s => s.CreatedByUserId == userId);
@@ -102,6 +108,8 @@ public sealed class DashboardQueryService(
     public async Task<List<AuditEventDto>> GetRecentActivityAsync(
         string? userId, int take, CancellationToken ct)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var query = db.AuditEvents.AsNoTracking();
         if (userId is not null)
             query = query.Where(e => e.ActorUserId == userId);
@@ -147,6 +155,8 @@ public sealed class DashboardQueryService(
 
     public async Task<DashboardStatsDto> GetGlobalStatsAsync(CancellationToken ct)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await cache.GetOrCreateAsync(
             CacheKeys.DashboardSummary("global"),
             async cancel =>

@@ -3,6 +3,7 @@ using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.Repositories;
@@ -22,7 +23,8 @@ public class ExportPresetRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new ExportPresetRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<ExportPresetRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new ExportPresetRepository(_fixture.CreateDbContextProvider(dbName), TestCacheHelper.CreateHybridCache(), NullLogger<ExportPresetRepository>.Instance);
     }
 
     public async Task DisposeAsync()

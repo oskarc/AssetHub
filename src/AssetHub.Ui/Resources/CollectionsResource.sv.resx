@@ -113,4 +113,21 @@
   <data name="Parent_CopyAcl_Success" xml:space="preserve"><value>{0} behörighetsrader tillagda från föräldern.</value></data>
   <data name="Parent_CopyAcl_NoneToAdd" xml:space="preserve"><value>Inga nya rader att kopiera — barnet har redan alla föräldraobjekt.</value></data>
   <data name="Inheriting_RowTag" xml:space="preserve"><value>Ärver från förälder</value></data>
+
+  <!-- ManageAccessDialog — parent panel sections (T5-NEST-01 UX follow-up) -->
+  <data name="Parent_Live_Header" xml:space="preserve"><value>Löpande behörigheter</value></data>
+  <data name="Parent_Static_Header" xml:space="preserve"><value>Engångskopia av behörigheter</value></data>
+  <data name="Parent_Inherit_BreakTitle" xml:space="preserve"><value>Inaktivera arv?</value></data>
+  <data name="Parent_Inherit_BreakBody" xml:space="preserve"><value>Användare som lagts till via 'Tillämpa förälderns behörigheter' behåller sin direkta åtkomst till den här samlingen.</value></data>
+  <data name="Parent_Inherit_BreakBtn" xml:space="preserve"><value>Inaktivera</value></data>
+  <data name="Parent_OpenPermissions" xml:space="preserve"><value>Visa förälderns behörigheter</value></data>
+  <!-- ManageAccessDialog — inherited access section -->
+  <data name="InheritedAccess_Header" xml:space="preserve"><value>Ärvd åtkomst</value></data>
+  <data name="InheritedAccess_Desc" xml:space="preserve"><value>Dessa användare har åtkomst via en föräldersamling. Hantera behörigheter i förälderns inställningar.</value></data>
+  <data name="InheritedAccess_Source" xml:space="preserve"><value>Källa</value></data>
+  <!-- EditCollectionDialog — reparent picker -->
+  <data name="Parent_PickerLabel" xml:space="preserve"><value>Föräldersamling</value></data>
+  <data name="Parent_PickerHelperText" xml:space="preserve"><value>Organisera den här samlingen under en förälder. Lämna blankt för en rotsamling.</value></data>
+  <data name="Parent_Changed" xml:space="preserve"><value>Förälder uppdaterad</value></data>
+  <data name="Parent_Section_Header" xml:space="preserve"><value>Hierarki</value></data>
 </root>

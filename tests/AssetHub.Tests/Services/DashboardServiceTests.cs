@@ -6,6 +6,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -37,16 +38,18 @@ public class DashboardServiceTests : IAsyncLifetime
     {
         var currentUser = new CurrentUser(userId, isAdmin);
         var cache = TestCacheHelper.CreateHybridCache();
-        var collectionRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
-        var assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        var authService = new CollectionAuthorizationService(_db, collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        var provider = _fixture.CreateDbContextProvider(dbName);
+        var collectionRepo = new CollectionRepository(provider, cache, NullLogger<CollectionRepository>.Instance);
+        var assetRepo = new AssetRepository(provider, cache, NullLogger<AssetRepository>.Instance);
+        var authService = new CollectionAuthorizationService(provider, collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         var userLookupMock = new Mock<IUserLookupService>();
         userLookupMock.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(userNames ?? new Dictionary<string, string>());
         userLookupMock.Setup(m => m.GetAllUsersAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>());
 
-        var queryService = new DashboardQueryService(_db, userLookupMock.Object, cache);
+        var queryService = new DashboardQueryService(provider, userLookupMock.Object, cache);
         var keycloakMock = new Mock<IKeycloakUserService>();
         keycloakMock.Setup(m => m.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<string>());

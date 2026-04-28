@@ -9,12 +9,14 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class ExportPresetRepository(
-    AssetHubDbContext dbContext,
+    DbContextProvider provider,
     HybridCache cache,
     ILogger<ExportPresetRepository> logger) : IExportPresetRepository
 {
     public async Task<ExportPreset?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await cache.GetOrCreateAsync(
             CacheKeys.ExportPreset(id),
             async cancel => await dbContext.ExportPresets
@@ -31,6 +33,8 @@ public sealed class ExportPresetRepository(
 
     public async Task<List<ExportPreset>> GetAllAsync(CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await cache.GetOrCreateAsync(
             CacheKeys.ExportPresetsAll(),
             async cancel => await dbContext.ExportPresets
@@ -48,6 +52,8 @@ public sealed class ExportPresetRepository(
 
     public async Task<List<ExportPreset>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var idList = ids.ToList();
         return await dbContext.ExportPresets
             .AsNoTracking()
@@ -57,6 +63,8 @@ public sealed class ExportPresetRepository(
 
     public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var query = dbContext.ExportPresets.Where(p => p.Name == name);
         if (excludeId.HasValue)
             query = query.Where(p => p.Id != excludeId.Value);
@@ -65,6 +73,8 @@ public sealed class ExportPresetRepository(
 
     public async Task<ExportPreset> CreateAsync(ExportPreset preset, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         if (preset.Id == Guid.Empty)
             preset.Id = Guid.NewGuid();
         if (preset.CreatedAt == default)
@@ -80,12 +90,16 @@ public sealed class ExportPresetRepository(
 
     public async Task<ExportPreset?> GetByIdForUpdateAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         return await dbContext.ExportPresets
             .FirstOrDefaultAsync(p => p.Id == id, ct);
     }
 
     public async Task<ExportPreset> UpdateAsync(ExportPreset preset, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         dbContext.ExportPresets.Update(preset);
         await dbContext.SaveChangesAsync(ct);
         await cache.RemoveByTagAsync(CacheKeys.Tags.ExportPresets, ct);
@@ -96,6 +110,8 @@ public sealed class ExportPresetRepository(
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         var preset = await dbContext.ExportPresets.FindAsync([id], ct);
         if (preset is not null)
         {

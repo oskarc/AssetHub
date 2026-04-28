@@ -21,7 +21,8 @@ public class ShareRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new ShareRepository(_fixture.CreateDbContextProvider(dbName), NullLogger<ShareRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -134,6 +135,7 @@ public class ShareRepositoryTests : IAsyncLifetime
 
         await _repo.DeleteAsync(share.Id);
 
+        _db.ChangeTracker.Clear();
         Assert.Null(await _db.Shares.FindAsync(share.Id));
     }
 

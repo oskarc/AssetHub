@@ -8,17 +8,21 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class ShareRepository(
-    AssetHubDbContext dbContext,
+    DbContextProvider provider,
     ILogger<ShareRepository> logger) : IShareRepository
 {
     public async Task<Share?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Shares
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 
     public async Task<Share?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Shares
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.TokenHash == tokenHash, cancellationToken);
@@ -26,6 +30,8 @@ public sealed class ShareRepository(
 
     public async Task<List<Share>> GetByScopeAsync(string scopeType, Guid scopeId, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var scope = Enum.Parse<ShareScopeType>(scopeType, true);
         return await dbContext.Shares
             .AsNoTracking()
@@ -36,6 +42,8 @@ public sealed class ShareRepository(
 
     public async Task<List<Share>> GetByUserAsync(string userId, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Shares
             .AsNoTracking()
             .Where(s => s.CreatedByUserId == userId)
@@ -47,11 +55,15 @@ public sealed class ShareRepository(
 
     public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Shares.CountAsync(cancellationToken);
     }
 
     public async Task<List<Share>> GetAllAsync(ShareQueryOptions? options = null, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         options ??= new ShareQueryOptions();
 
         var shares = await dbContext.Shares
@@ -74,6 +86,8 @@ public sealed class ShareRepository(
 
     private async Task LoadAssetsAsync(List<Share> shares, CancellationToken cancellationToken)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var assetShares = shares.Where(s => s.ScopeType == ShareScopeType.Asset).ToList();
         if (assetShares.Count == 0)
             return;
@@ -92,6 +106,8 @@ public sealed class ShareRepository(
 
     private async Task LoadCollectionsAsync(List<Share> shares, CancellationToken cancellationToken)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var collectionShares = shares.Where(s => s.ScopeType == ShareScopeType.Collection).ToList();
         if (collectionShares.Count == 0)
             return;
@@ -110,6 +126,8 @@ public sealed class ShareRepository(
 
     public async Task CreateAsync(Share share, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         dbContext.Shares.Add(share);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Created share {ShareId} for {ScopeType} {ScopeId}", share.Id, share.ScopeType, share.ScopeId);
@@ -117,12 +135,16 @@ public sealed class ShareRepository(
 
     public async Task UpdateAsync(Share share, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         dbContext.Shares.Update(share);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var share = await dbContext.Shares.FindAsync(new object[] { id }, cancellationToken);
         if (share is not null)
         {
@@ -138,6 +160,8 @@ public sealed class ShareRepository(
 
     public async Task DeleteByScopeAsync(string scopeType, Guid scopeId, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var scope = Enum.Parse<ShareScopeType>(scopeType, true);
         await dbContext.Shares
             .Where(s => s.ScopeType == scope && s.ScopeId == scopeId)
@@ -146,6 +170,8 @@ public sealed class ShareRepository(
 
     public async Task DeleteByScopeBatchAsync(string scopeType, IEnumerable<Guid> scopeIds, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var ids = scopeIds.ToList();
         if (ids.Count == 0) return;
 
@@ -157,6 +183,8 @@ public sealed class ShareRepository(
 
     public async Task IncrementAccessAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         await dbContext.Shares
             .Where(s => s.Id == id)
             .ExecuteUpdateAsync(s => s
@@ -167,6 +195,8 @@ public sealed class ShareRepository(
 
     public async Task<int> DeleteOrphanedAsync(CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         // Find shares pointing to non-existent assets
         var orphanedAssetShares = await dbContext.Shares
             .Where(s => s.ScopeType == ShareScopeType.Asset)
@@ -199,6 +229,8 @@ public sealed class ShareRepository(
 
     public async Task<int> DeleteExpiredAsync(CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var deleted = await dbContext.Shares
             .Where(s => s.RevokedAt == null && s.ExpiresAt <= DateTime.UtcNow)
             .ExecuteDeleteAsync(cancellationToken);
@@ -209,6 +241,8 @@ public sealed class ShareRepository(
 
     public async Task<int> DeleteRevokedAsync(CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var deleted = await dbContext.Shares
             .Where(s => s.RevokedAt != null)
             .ExecuteDeleteAsync(cancellationToken);

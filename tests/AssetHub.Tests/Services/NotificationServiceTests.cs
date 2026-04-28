@@ -7,6 +7,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Wolverine;
@@ -35,7 +36,8 @@ public class NotificationServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new NotificationRepository(_db);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new NotificationRepository(_fixture.CreateDbContextProvider(dbName));
         _prefs = new Mock<INotificationPreferencesService>();
         _bus = new Mock<IMessageBus>();
         // Default: in-app enabled, email enabled, instant — the typical shape.

@@ -1,7 +1,9 @@
+using System.Text.Json;
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Tests.Fixtures;
+using Microsoft.EntityFrameworkCore;
 
 namespace AssetHub.Tests.Repositories;
 
@@ -17,7 +19,8 @@ public class MigrationRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new MigrationRepository(_db);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new MigrationRepository(_fixture.CreateDbContextProvider(dbName));
     }
 
     public async Task DisposeAsync()
@@ -74,7 +77,9 @@ public class MigrationRepositoryTests : IAsyncLifetime
         Assert.NotNull(loaded);
         Assert.Equal("Test migration", loaded.Name);
         Assert.Equal(MigrationStatus.Draft, loaded.Status);
-        Assert.Equal(42L, Convert.ToInt64(loaded.SourceConfig["rowCount"]));
+        // SourceConfig is Dictionary<string, object> — JSONB roundtrip yields JsonElement values.
+        // FieldMapping is Dictionary<string, string> — values stay strings.
+        Assert.Equal(42L, ((JsonElement)loaded.SourceConfig["rowCount"]).GetInt64());
         Assert.Equal("title", loaded.FieldMapping["csv_title"]);
     }
 

@@ -7,6 +7,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace AssetHub.Tests.Services;
@@ -35,16 +36,18 @@ public class AssetDeletionServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
+        var dbName = _db.Database.GetDbConnection().Database!;
+        var provider = _fixture.CreateDbContextProvider(dbName);
         var cache = TestCacheHelper.CreateHybridCache();
-        _assetRepo = new AssetRepository(_db, cache,
+        _assetRepo = new AssetRepository(provider, cache,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AssetRepository>.Instance);
-        _assetCollectionRepo = new AssetCollectionRepository(_db, cache,
+        _assetCollectionRepo = new AssetCollectionRepository(provider, cache,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AssetCollectionRepository>.Instance);
-        _shareRepo = new ShareRepository(_db,
+        _shareRepo = new ShareRepository(provider,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareRepository>.Instance);
-        _versionRepo = new AssetVersionRepository(_db,
+        _versionRepo = new AssetVersionRepository(provider,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AssetVersionRepository>.Instance);
-        _orphanedRepo = new OrphanedObjectRepository(_db);
+        _orphanedRepo = new OrphanedObjectRepository(provider);
 
         _sut = new AssetDeletionService(_assetRepo, _assetCollectionRepo, _versionRepo, _shareRepo, _orphanedRepo);
     }

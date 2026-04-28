@@ -216,10 +216,10 @@ public sealed class SavedSearchDigestBackgroundService(
         // synchronously. Since the digest runs outside any HTTP scope, build
         // it by hand so we can impersonate the owner without mutating the
         // scope's CurrentUser registration.
-        var db = provider.GetRequiredService<AssetHubDbContext>();
+        var dbProvider = provider.GetRequiredService<DbContextProvider>();
         var collectionRepo = provider.GetRequiredService<ICollectionRepository>();
         var logger = provider.GetRequiredService<ILogger<AssetSearchService>>();
-        return new AssetSearchService(db, collectionRepo, new CurrentUser(ownerUserId, isSystemAdmin: false), logger);
+        return new AssetSearchService(dbProvider, collectionRepo, new CurrentUser(ownerUserId, isSystemAdmin: false), logger);
     }
 
     private static AssetSearchRequest? DeserializeRequest(SavedSearch search)

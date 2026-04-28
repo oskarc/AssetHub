@@ -22,7 +22,8 @@ public class AssetRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new AssetRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<AssetRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new AssetRepository(_fixture.CreateDbContextProvider(dbName), TestCacheHelper.CreateHybridCache(), NullLogger<AssetRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -169,6 +170,8 @@ public class AssetRepositoryTests : IAsyncLifetime
 
         await _repo.DeleteAsync(asset.Id);
 
+        // Repo uses a fresh context; clear our tracker so FindAsync hits DB.
+        _db.ChangeTracker.Clear();
         var found = await _db.Assets.FindAsync(asset.Id);
         Assert.Null(found);
     }
@@ -198,6 +201,7 @@ public class AssetRepositoryTests : IAsyncLifetime
 
         await _repo.DeleteByCollectionAsync(col1.Id);
 
+        _db.ChangeTracker.Clear();
         Assert.Null(await _db.Assets.FindAsync(asset1.Id));
         Assert.NotNull(await _db.Assets.FindAsync(asset2.Id));
     }
@@ -805,11 +809,10 @@ public class AssetRepositoryTests : IAsyncLifetime
         _db.Assets.Add(asset);
         await _db.SaveChangesAsync();
 
-        var dbName = _db.Database.GetDbConnection().Database;
+        var dbName = _db.Database.GetDbConnection().Database!;
 
-        // Create second context + repo pointing to same DB
-        await using var db2 = _fixture.CreateDbContextForExistingDb(dbName!);
-        var repo2 = new AssetRepository(db2, TestCacheHelper.CreateHybridCache(), NullLogger<AssetRepository>.Instance);
+        // Create a second repository against the same DB (its own provider/lease).
+        var repo2 = new AssetRepository(_fixture.CreateDbContextProvider(dbName), TestCacheHelper.CreateHybridCache(), NullLogger<AssetRepository>.Instance);
 
         // Load the same entity in both contexts
         var asset1 = await _repo.GetByIdAsync(asset.Id);

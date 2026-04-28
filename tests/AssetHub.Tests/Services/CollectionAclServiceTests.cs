@@ -7,6 +7,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -22,6 +23,8 @@ public class CollectionAclServiceTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private string _dbName = null!;
+    private DbContextProvider _provider = null!;
     private CollectionRepository _collectionRepo = null!;
     private CollectionAclRepository _aclRepo = null!;
     private CollectionAuthorizationService _authService = null!;
@@ -39,9 +42,11 @@ public class CollectionAclServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
-        _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_db, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        _dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(_dbName);
+        _collectionRepo = new CollectionRepository(_provider, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        _aclRepo = new CollectionAclRepository(_provider, NullLogger<CollectionAclRepository>.Instance);
+        _authService = new CollectionAuthorizationService(_provider, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         _userLookupMock = new Mock<IUserLookupService>();
         _keycloakMock = new Mock<IKeycloakUserService>();
         _auditMock = new Mock<IAuditService>();
@@ -61,7 +66,7 @@ public class CollectionAclServiceTests : IAsyncLifetime
 
         return new CollectionAclService(
             new CollectionAclRepositories(_collectionRepo, _aclRepo), _authService, _userLookupMock.Object,
-            _keycloakMock.Object, _auditMock.Object, new UnitOfWork(_db), TestCacheHelper.CreateHybridCache(), currentUser);
+            _keycloakMock.Object, _auditMock.Object, new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)), TestCacheHelper.CreateHybridCache(), currentUser);
     }
 
     public async Task DisposeAsync()

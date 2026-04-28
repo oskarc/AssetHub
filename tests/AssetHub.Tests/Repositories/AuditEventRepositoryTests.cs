@@ -2,6 +2,7 @@ using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
 using AssetHub.Tests.Fixtures;
+using Microsoft.EntityFrameworkCore;
 
 namespace AssetHub.Tests.Repositories;
 
@@ -21,7 +22,8 @@ public class AuditEventRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new AuditEventRepository(_db);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new AuditEventRepository(_fixture.CreateDbContextProvider(dbName));
     }
 
     public async Task DisposeAsync()

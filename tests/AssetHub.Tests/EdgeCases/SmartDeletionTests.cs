@@ -23,7 +23,8 @@ public class SmartDeletionTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _assetRepo = new AssetRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<AssetRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _assetRepo = new AssetRepository(_fixture.CreateDbContextProvider(dbName), TestCacheHelper.CreateHybridCache(), NullLogger<AssetRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -49,6 +50,7 @@ public class SmartDeletionTests : IAsyncLifetime
 
         Assert.Single(deleted);
         Assert.Equal(asset.Id, deleted[0].Id);
+        _db.ChangeTracker.Clear();
         Assert.Null(await _db.Assets.FindAsync(asset.Id));
         Assert.Empty(await _db.AssetCollections.Where(ac => ac.CollectionId == collection.Id).ToListAsync());
     }
@@ -102,6 +104,7 @@ public class SmartDeletionTests : IAsyncLifetime
         Assert.Single(deleted);
         Assert.Equal(exclusiveAsset.Id, deleted[0].Id);
 
+        _db.ChangeTracker.Clear();
         // Exclusive asset removed from DB
         Assert.Null(await _db.Assets.FindAsync(exclusiveAsset.Id));
 
@@ -168,6 +171,7 @@ public class SmartDeletionTests : IAsyncLifetime
         var deleted = await _assetRepo.DeleteByCollectionAsync(collection.Id);
 
         Assert.Equal(3, deleted.Count);
+        _db.ChangeTracker.Clear();
         Assert.Null(await _db.Assets.FindAsync(asset1.Id));
         Assert.Null(await _db.Assets.FindAsync(asset2.Id));
         Assert.Null(await _db.Assets.FindAsync(asset3.Id));

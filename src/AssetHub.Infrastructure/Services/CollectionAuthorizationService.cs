@@ -30,7 +30,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed class CollectionAuthorizationService(
-    AssetHubDbContext dbContext,
+    DbContextProvider provider,
     ICollectionRepository collectionRepo,
     CurrentUser currentUser,
     ILogger<CollectionAuthorizationService> logger) : ICollectionAuthorizationService
@@ -117,6 +117,8 @@ public sealed class CollectionAuthorizationService(
     private async Task<Dictionary<Guid, string?>> ResolveRolesAsync(
         string userId, IReadOnlyCollection<Guid> seedIds, CancellationToken ct)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
         // Skip seeds we already resolved this request — saves a round-trip
         // when callers re-ask for the same collection inside one request.
         var uncached = seedIds.Where(id => !_roleCache.ContainsKey($"{userId}:{id}")).Distinct().ToList();

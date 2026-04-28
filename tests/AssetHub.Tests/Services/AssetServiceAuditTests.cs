@@ -9,6 +9,7 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -38,15 +39,17 @@ public class AssetServiceAuditTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
+        var dbName = _db.Database.GetDbConnection().Database!;
+        var provider = _fixture.CreateDbContextProvider(dbName);
 
         var cache = TestCacheHelper.CreateHybridCache();
-        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        _acRepo = new AssetCollectionRepository(_db, cache,
+        _assetRepo = new AssetRepository(provider, cache, NullLogger<AssetRepository>.Instance);
+        _acRepo = new AssetCollectionRepository(provider, cache,
             NullLogger<AssetCollectionRepository>.Instance);
-        _colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
+        _colRepo = new CollectionRepository(provider, cache, NullLogger<CollectionRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
-            _db, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            provider, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();

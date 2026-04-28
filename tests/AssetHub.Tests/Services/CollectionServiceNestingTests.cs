@@ -7,6 +7,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -24,6 +25,8 @@ public class CollectionServiceNestingTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private string _dbName = null!;
+    private DbContextProvider _provider = null!;
     private CollectionRepository _collectionRepo = null!;
     private CollectionAclRepository _aclRepo = null!;
     private ShareRepository _shareRepo = null!;
@@ -37,10 +40,12 @@ public class CollectionServiceNestingTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
-        _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
-        _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_db, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        _dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(_dbName);
+        _collectionRepo = new CollectionRepository(_provider, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        _aclRepo = new CollectionAclRepository(_provider, NullLogger<CollectionAclRepository>.Instance);
+        _shareRepo = new ShareRepository(_provider, NullLogger<ShareRepository>.Instance);
+        _authService = new CollectionAuthorizationService(_provider, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         _auditMock = new Mock<IAuditService>();
     }
 
@@ -61,7 +66,7 @@ public class CollectionServiceNestingTests : IAsyncLifetime
             new Mock<IAssetDeletionService>().Object,
             new Mock<IZipBuildService>().Object,
             _auditMock.Object,
-            new UnitOfWork(_db),
+            new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)),
             minio,
             currentUser);
     }
@@ -102,6 +107,7 @@ public class CollectionServiceNestingTests : IAsyncLifetime
         var result = await CreateService().SetParentAsync(child.Id, parent.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+        _db.ChangeTracker.Clear();
         var reloaded = await _db.Collections.FindAsync(child.Id);
         Assert.Equal(parent.Id, reloaded!.ParentCollectionId);
         _auditMock.Verify(
@@ -204,6 +210,7 @@ public class CollectionServiceNestingTests : IAsyncLifetime
         var result = await CreateService().SetInheritParentAclAsync(child.Id, true, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+        _db.ChangeTracker.Clear();
         var reloaded = await _db.Collections.FindAsync(child.Id);
         Assert.True(reloaded!.InheritParentAcl);
         _auditMock.Verify(
@@ -221,6 +228,7 @@ public class CollectionServiceNestingTests : IAsyncLifetime
         var result = await CreateService().SetInheritParentAclAsync(child.Id, false, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+        _db.ChangeTracker.Clear();
         var reloaded = await _db.Collections.FindAsync(child.Id);
         Assert.False(reloaded!.InheritParentAcl);
         _auditMock.Verify(

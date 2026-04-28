@@ -367,37 +367,32 @@ public static class WebApplicationExtensions
 
     private static async Task MigrateDatabaseAsync(IServiceProvider services, Microsoft.Extensions.Logging.ILogger logger, bool autoMigrate)
     {
-        try
+        // Intentionally NOT wrapped in try/catch: a migration failure leaves the
+        // schema in an unknown state. Starting the app anyway means it serves
+        // requests against a stale schema (silent data corruption / 500 storms).
+        // Fail fast — let the orchestrator restart and surface the failure.
+        var db = services.GetRequiredService<AssetHub.Infrastructure.Data.AssetHubDbContext>();
+        var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+        if (pending.Count > 0)
         {
-            var db = services.GetRequiredService<AssetHub.Infrastructure.Data.AssetHubDbContext>();
-            var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
-            if (pending.Count > 0)
+            if (autoMigrate)
             {
-                if (autoMigrate)
-                {
-                    logger.LogInformation("Applying {Count} pending migration(s): {Migrations}",
-                        pending.Count, string.Join(", ", pending));
-                    await db.Database.MigrateAsync();
-                    logger.LogInformation("Database migrations applied successfully.");
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "Database has {Count} pending migration(s) but auto-migration is disabled (Database:AutoMigrate=false). " +
-                        "Pending: {Migrations}. Run migrations manually before deploying.",
-                        pending.Count, string.Join(", ", pending));
-                }
+                logger.LogInformation("Applying {Count} pending migration(s): {Migrations}",
+                    pending.Count, string.Join(", ", pending));
+                await db.Database.MigrateAsync();
+                logger.LogInformation("Database migrations applied successfully.");
             }
             else
             {
-                logger.LogInformation("Database is up to date — no pending migrations.");
+                logger.LogWarning(
+                    "Database has {Count} pending migration(s) but auto-migration is disabled (Database:AutoMigrate=false). " +
+                    "Pending: {Migrations}. Run migrations manually before deploying.",
+                    pending.Count, string.Join(", ", pending));
             }
         }
-        catch (Exception ex)
+        else
         {
-            logger.LogError(ex,
-                "Failed to apply database migrations. The application will start " +
-                "but may not function correctly.");
+            logger.LogInformation("Database is up to date — no pending migrations.");
         }
     }
 

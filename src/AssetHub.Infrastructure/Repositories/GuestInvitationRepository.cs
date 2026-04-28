@@ -5,19 +5,30 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public sealed class GuestInvitationRepository(AssetHubDbContext db) : IGuestInvitationRepository
+public sealed class GuestInvitationRepository(DbContextProvider provider) : IGuestInvitationRepository
 {
     public async Task<List<GuestInvitation>> ListAllAsync(CancellationToken ct = default)
-        => await db.GuestInvitations.AsNoTracking().OrderByDescending(g => g.CreatedAt).ToListAsync(ct);
+    {
+        await using var lease = await provider.AcquireAsync(ct);
+        return await lease.Db.GuestInvitations.AsNoTracking().OrderByDescending(g => g.CreatedAt).ToListAsync(ct);
+    }
 
     public async Task<GuestInvitation?> GetByIdAsync(Guid id, CancellationToken ct = default)
-        => await db.GuestInvitations.FirstOrDefaultAsync(g => g.Id == id, ct);
+    {
+        await using var lease = await provider.AcquireAsync(ct);
+        return await lease.Db.GuestInvitations.FirstOrDefaultAsync(g => g.Id == id, ct);
+    }
 
     public async Task<GuestInvitation?> GetByTokenHashAsync(string tokenHash, CancellationToken ct = default)
-        => await db.GuestInvitations.FirstOrDefaultAsync(g => g.TokenHash == tokenHash, ct);
+    {
+        await using var lease = await provider.AcquireAsync(ct);
+        return await lease.Db.GuestInvitations.FirstOrDefaultAsync(g => g.TokenHash == tokenHash, ct);
+    }
 
     public async Task<GuestInvitation> CreateAsync(GuestInvitation invitation, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         if (invitation.Id == Guid.Empty) invitation.Id = Guid.NewGuid();
         if (invitation.CreatedAt == default) invitation.CreatedAt = DateTime.UtcNow;
         db.GuestInvitations.Add(invitation);
@@ -27,6 +38,8 @@ public sealed class GuestInvitationRepository(AssetHubDbContext db) : IGuestInvi
 
     public async Task UpdateAsync(GuestInvitation invitation, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         db.GuestInvitations.Update(invitation);
         await db.SaveChangesAsync(ct);
     }
@@ -34,6 +47,8 @@ public sealed class GuestInvitationRepository(AssetHubDbContext db) : IGuestInvi
     public async Task<bool> TryMarkAcceptedAsync(
         Guid id, string keycloakUserId, DateTime acceptedAtUtc, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         // Single-statement conditional update — Postgres handles concurrency:
         // exactly one of N concurrent accepts will see AcceptedAt = NULL and
         // change the row; the rest get 0 affected rows and lose the race.
@@ -50,6 +65,8 @@ public sealed class GuestInvitationRepository(AssetHubDbContext db) : IGuestInvi
 
     public async Task<List<GuestInvitation>> ListExpiredAcceptedAsync(DateTime cutoff, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.GuestInvitations
             .AsNoTracking()
             .Where(g => g.AcceptedAt != null && g.RevokedAt == null && g.ExpiresAt <= cutoff)

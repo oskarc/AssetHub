@@ -20,7 +20,8 @@ public class CollectionRepositoryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _repo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _repo = new CollectionRepository(_fixture.CreateDbContextProvider(dbName), TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -74,12 +75,8 @@ public class CollectionRepositoryTests : IAsyncLifetime
         _db.CollectionAcls.Add(TestData.CreateAcl(collection.Id, "user1", AclRole.Viewer));
         await _db.SaveChangesAsync();
 
-        // Use a fresh context to avoid change-tracker populating the navigation
-        var dbName = _db.Database.GetDbConnection().Database!;
-        await using var freshDb = _fixture.CreateDbContextForExistingDb(dbName);
-        var freshRepo = new CollectionRepository(freshDb, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
-
-        var result = await freshRepo.GetByIdAsync(collection.Id);
+        // Repo leases its own context per call, so it never sees this test's change-tracker state.
+        var result = await _repo.GetByIdAsync(collection.Id);
 
         Assert.NotNull(result);
         // Navigation not loaded — default empty collection
@@ -175,6 +172,7 @@ public class CollectionRepositoryTests : IAsyncLifetime
 
         await _repo.DeleteAsync(collection.Id);
 
+        _db.ChangeTracker.Clear();
         Assert.Null(await _db.Collections.FindAsync(collection.Id));
     }
 

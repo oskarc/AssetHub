@@ -147,6 +147,34 @@ public class PostgresFixture : IAsyncLifetime
 
         return new AssetHubDbContext(options);
     }
+
+    /// <summary>
+    /// Returns an <see cref="IDbContextFactory{TContext}"/> that mints fresh contexts
+    /// against the given (already-created) database — what production code expects
+    /// after the DbContextProvider refactor. Reuses the per-database NpgsqlDataSource.
+    /// </summary>
+    public IDbContextFactory<AssetHubDbContext> CreateDbContextFactory(string dbName)
+        => new TestDbContextFactory(GetOrCreateDataSource(dbName));
+
+    /// <summary>
+    /// Returns a <see cref="DbContextProvider"/> bound to the given (already-created)
+    /// database. Use this to construct repositories in tests after the provider
+    /// refactor — repos take a provider and lease per call.
+    /// </summary>
+    public DbContextProvider CreateDbContextProvider(string dbName)
+        => new(CreateDbContextFactory(dbName));
+
+    private sealed class TestDbContextFactory(NpgsqlDataSource dataSource) : IDbContextFactory<AssetHubDbContext>
+    {
+        public AssetHubDbContext CreateDbContext()
+        {
+            var options = new DbContextOptionsBuilder<AssetHubDbContext>()
+                .UseNpgsql(dataSource)
+                .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+                .Options;
+            return new AssetHubDbContext(options);
+        }
+    }
 }
 
 [CollectionDefinition("Database")]

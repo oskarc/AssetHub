@@ -35,18 +35,30 @@
             </MudPaper>
 
             @* Parent panel — admin-only, only when this collection actually has a parent.
-               Reparenting itself is API-only in v1; the GUI surface here is the inheritance
-               toggle + the snapshot-copy button (T5-NEST-01). *@
+               Live-inheritance toggle and snapshot-copy are deliberately in separate sections
+               so admins can't confuse "sync now" with "create a live link". *@
             @if (_isAdmin && _parentId is not null)
             {
                 <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
                     <div class="dialog-section-title">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                            <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
-                            <span>@CollLoc["Parent_Header"]: @(_parentName ?? "…")</span>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
+                                <span>@CollLoc["Parent_Header"]: @(_parentName ?? "…")</span>
+                            </MudStack>
+                            <MudTooltip Text="@CollLoc["Parent_OpenPermissions"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.OpenInNew"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               aria-label="@CollLoc["Parent_OpenPermissions"]"
+                                               OnClick="OpenParentPermissionsAsync" />
+                            </MudTooltip>
                         </MudStack>
                     </div>
                     <MudStack Spacing="2">
+
+                        <!-- Live permissions -->
+                        <MudText Typo="Typo.caption"><strong>@CollLoc["Parent_Live_Header"]</strong></MudText>
                         <MudSwitch T="bool"
                                    Value="_inheritParentAcl"
                                    ValueChanged="OnToggleInheritAsync"
@@ -56,7 +68,11 @@
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                             @CollLoc["Parent_Inherit_HelperText"]
                         </MudText>
+
                         <MudDivider />
+
+                        <!-- One-time permission copy -->
+                        <MudText Typo="Typo.caption"><strong>@CollLoc["Parent_Static_Header"]</strong></MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudButton Variant="Variant.Outlined"
                                        Color="Color.Primary"
@@ -119,13 +135,13 @@
                                Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.PersonAdd"
                                OnClick="GrantAccessAsync"
-                               Disabled="@(_selectedUser == null || _isGranting)">
+                               Disabled="@(_selectedUser is null || _isGranting)">
                         @CommonLoc["Btn_Add"]
                     </MudButton>
                 </MudStack>
             </MudPaper>
 
-            <!-- Current Access List -->
+            <!-- Direct Access List -->
             <MudText Typo="Typo.subtitle2" Class="mt-2">
                 @CollLoc["CurrentAccess"] (@_aclEntries.Count)
             </MudText>
@@ -243,6 +259,53 @@
                     </tbody>
                 </MudSimpleTable>
             }
+
+            @* Inherited access — shown when live inheritance is on and ancestor chain contributes entries.
+               Read-only; to change these, manage them from the parent collection. *@
+            @if (_inheritParentAcl && _inheritedAclEntries.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3">
+                    @CollLoc["InheritedAccess_Header"] (@_inheritedAclEntries.Count)
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">
+                    @CollLoc["InheritedAccess_Desc"]
+                </MudText>
+                <MudSimpleTable Dense="true" Hover="false" Striped="true" Elevation="0" Class="table-outlined">
+                    <thead>
+                        <tr>
+                            <th>@CollLoc["User"]</th>
+                            <th>@CommonLoc["Label_Role"]</th>
+                            <th>@CollLoc["InheritedAccess_Source"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in _inheritedAclEntries.OrderBy(e => e.Acl.PrincipalName ?? e.Acl.PrincipalId, new NaturalSortComparer()))
+                        {
+                            <tr>
+                                <td>
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body2">@(entry.Acl.PrincipalName ?? entry.Acl.PrincipalId)</MudText>
+                                        @if (!string.IsNullOrEmpty(entry.Acl.PrincipalEmail))
+                                        {
+                                            <MudText Typo="Typo.caption" Class="text-secondary">@entry.Acl.PrincipalEmail</MudText>
+                                        }
+                                    </MudStack>
+                                </td>
+                                <td>
+                                    <MudChip T="string" Size="Size.Small"
+                                             Color="@AssetDisplayHelpers.GetRoleColor(entry.Acl.Role)"
+                                             Variant="Variant.Outlined">
+                                        @CommonLoc[AssetDisplayHelpers.GetRoleKey(entry.Acl.Role)]
+                                    </MudChip>
+                                </td>
+                                <td>
+                                    <MudText Typo="Typo.caption">@entry.SourceName</MudText>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -285,6 +348,9 @@
     private bool _isInheritToggling;
     private bool _isCopyingAcl;
 
+    private sealed record InheritedAclEntry(CollectionAclResponseDto Acl, string SourceName);
+    private readonly List<InheritedAclEntry> _inheritedAclEntries = new();
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthStateTask is not null)
@@ -294,7 +360,7 @@
         }
 
         await LoadCollectionMetaAsync();
-        await LoadAclsAsync();
+        await Task.WhenAll(LoadAclsAsync(), LoadInheritedAclsAsync());
     }
 
     private async Task LoadCollectionMetaAsync()
@@ -317,9 +383,57 @@
         }
     }
 
+    // Walks the ancestor chain following InheritParentAcl flags, collecting all
+    // contributed ACL entries. Used to show the "Inherited access" read-only table.
+    private async Task LoadInheritedAclsAsync()
+    {
+        _inheritedAclEntries.Clear();
+        if (!_inheritParentAcl || _parentId is null) return;
+
+        try
+        {
+            var cursor = _parentId;
+            var visited = new HashSet<Guid>();
+
+            while (cursor is { } ancestorId && !visited.Contains(ancestorId))
+            {
+                visited.Add(ancestorId);
+                var ancestor = await Api.GetCollectionAsync(ancestorId);
+                if (ancestor is null) break;
+
+                var acls = await Api.GetCollectionAclsAsync(ancestorId);
+                var label = ancestor.Name;
+                foreach (var acl in acls)
+                    _inheritedAclEntries.Add(new InheritedAclEntry(acl, label));
+
+                cursor = ancestor.InheritParentAcl && ancestor.ParentCollectionId.HasValue
+                    ? ancestor.ParentCollectionId
+                    : null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load inherited access");
+        }
+    }
+
     private async Task OnToggleInheritAsync(bool newValue)
     {
         if (_isInheritToggling) return;
+
+        // Warn before breaking the live link — snapshot-copied rows persist.
+        if (!newValue)
+        {
+            var confirmed = await DialogService.ShowConfirmAsync(
+                CollLoc["Parent_Inherit_BreakTitle"],
+                CollLoc["Parent_Inherit_BreakBody"],
+                CollLoc["Parent_Inherit_BreakBtn"],
+                Icons.Material.Filled.LinkOff,
+                Color.Warning,
+                Color.Warning);
+            if (!confirmed) return;
+        }
+
         _isInheritToggling = true;
         StateHasChanged();
 
@@ -331,7 +445,7 @@
         if (success)
         {
             _inheritParentAcl = newValue;
-            await LoadAclsAsync();
+            await Task.WhenAll(LoadAclsAsync(), LoadInheritedAclsAsync());
         }
 
         _isInheritToggling = false;
@@ -378,6 +492,25 @@
         }
     }
 
+    private async Task OpenParentPermissionsAsync()
+    {
+        if (_parentId is null) return;
+
+        var parameters = new DialogParameters<ManageAccessDialog>
+        {
+            { x => x.CollectionId, _parentId.Value },
+            { x => x.CollectionName, _parentName ?? CollLoc["Parent_Header"].Value },
+            { x => x.CurrentUserRole, RoleHierarchy.Roles.Admin }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+        await DialogService.ShowAsync<ManageAccessDialog>(CollLoc["Parent_OpenPermissions"], parameters, options);
+    }
+
     private async Task LoadAclsAsync()
     {
         _isLoading = true;
@@ -409,7 +542,7 @@
 
     private async Task GrantAccessAsync()
     {
-        if (_selectedUser == null) return;
+        if (_selectedUser is null) return;
 
         _isGranting = true;
         StateHasChanged();
@@ -447,7 +580,7 @@
 
     private async Task SaveRoleEditAsync()
     {
-        if (_editingEntryId == null) return;
+        if (_editingEntryId is null) return;
 
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.SetCollectionAccessAsync(CollectionId, Constants.PrincipalTypes.User, _editingPrincipalId, _editingRole),

@@ -1,281 +1,242 @@
-using System.Net.Http.Json;
-using System.Text.Json;
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
+using System.Net;
+using System.Text;
+using AssetHub.Application;
+using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
-using AssetHub.Application;
+using Microsoft.Extensions.Options;
 
 namespace AssetHub.Ui.Services;
 
 /// <summary>
-/// HTTP client for AssetHub API endpoints.
-/// Provides a strongly-typed interface for all API operations with consistent error handling.
+/// In-process facade over AssetHub application services. Preserves the legacy
+/// "API client" surface (DTO-or-throw <see cref="ApiException"/>) so Razor pages
+/// keep their existing call sites, while eliminating the HTTP loopback the
+/// original HttpClient-based implementation forced.
+///
+/// Errors from <see cref="ServiceResult{T}"/> are translated into <see cref="ApiException"/>
+/// with the matching status code, error code, and details — same shape callers
+/// already handle. DTO inputs are validated against their DataAnnotations before
+/// being passed to services (replicating <c>ValidationFilter&lt;T&gt;</c> on endpoints).
 /// </summary>
-/// <remarks>
-/// All methods use <see cref="EnsureSuccessAsync"/> for consistent error handling.
-/// On failure, an <see cref="ApiException"/> is thrown with the server's error message.
-/// </remarks>
-[System.Diagnostics.CodeAnalysis.SuppressMessage(
-    "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
-    Justification = "Single HTTP-client facade for the UI — every domain DTO it serialises counts as a coupled type. Splitting into per-domain clients adds N facades for the same surface area.")]
-public class AssetHubApiClient
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters",
+    Justification = "Composition root for the UI's API surface — every domain service it routes to is one constructor parameter.")]
+[SuppressMessage("Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
+    Justification = "Single facade for the UI — every domain service it routes to counts as a coupled type.")]
+public class AssetHubApiClient(
+    IDashboardService dashboardService,
+    ICollectionQueryService collectionQueryService,
+    ICollectionService collectionService,
+    ICollectionAclService collectionAclService,
+    IAdminCollectionAclService adminCollectionAclService,
+    ICollectionAdminService collectionAdminService,
+    IAssetService assetService,
+    IAssetQueryService assetQueryService,
+    IAssetUploadService assetUploadService,
+    IImageEditingService imageEditingService,
+    IAssetMetadataService assetMetadataService,
+    IAssetSearchService assetSearchService,
+    ISavedSearchService savedSearchService,
+    IAssetTrashService assetTrashService,
+    IAssetVersionService assetVersionService,
+    IAssetCommentService assetCommentService,
+    IAssetWorkflowService assetWorkflowService,
+    IAuthenticatedShareAccessService authShareAccessService,
+    IPublicShareAccessService publicShareAccessService,
+    IShareAdminService shareAdminService,
+    IUserAdminQueryService userAdminQueryService,
+    IUserAdminService userAdminService,
+    IAuditQueryService auditQueryService,
+    IExportPresetQueryService exportPresetQueryService,
+    IExportPresetService exportPresetService,
+    IPersonalAccessTokenService personalAccessTokenService,
+    INotificationService notificationService,
+    INotificationPreferencesService notificationPreferencesService,
+    IMigrationService migrationService,
+    IMetadataSchemaService metadataSchemaService,
+    IMetadataSchemaQueryService metadataSchemaQueryService,
+    ITaxonomyService taxonomyService,
+    ITaxonomyQueryService taxonomyQueryService,
+    IWebhookService webhookService,
+    IBrandService brandService,
+    IGuestInvitationService guestInvitationService,
+    IOptions<AppSettings> appSettings)
 {
-    private readonly HttpClient _http;
+    private readonly AppSettings _appSettings = appSettings.Value;
 
-    public AssetHubApiClient(HttpClient http)
+    /// <summary>
+    /// Test-only constructor. Castle DynamicProxy (used by Moq) needs a parameterless
+    /// constructor to subclass this type for mocking. Production code MUST use the
+    /// primary constructor — this one leaves every backing service null and any
+    /// non-mocked virtual call would NRE. <see cref="EditorBrowsableAttribute"/> hides
+    /// it from IntelliSense to discourage accidental use.
+    /// </summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    protected AssetHubApiClient()
+        : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
+               null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
+               null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
+               null!, null!, null!, null!, null!, null!, Options.Create(new AppSettings()))
     {
-        _http = http;
     }
 
     #region Helpers
 
-    /// <summary>
-    /// Ensures the response is successful, throwing an exception with the server's error message if not.
-    /// </summary>
-    /// <param name="response">The HTTP response to check.</param>
-    /// <param name="operation">A human-readable description of the operation (used in error messages).</param>
-    /// <exception cref="ApiException">Thrown when the response indicates failure.</exception>
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, string operation)
+    /// <summary>Unwrap a value-bearing result. Throws <see cref="ApiException"/> on failure.</summary>
+    private static T Unwrap<T>(ServiceResult<T> result, string operation)
     {
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            var (message, errorCode, details) = ExtractErrorInfo(errorContent, operation, response);
-            throw new ApiException(message, response.StatusCode, errorCode, details);
-        }
-    }
-    
-    /// <summary>
-    /// Extracts a user-friendly error message, error code, and details from the response content.
-    /// Handles JSON error responses like {"code": "...", "message": "...", "details": {...}}.
-    /// </summary>
-    private static (string Message, string? Code, Dictionary<string, string>? Details) ExtractErrorInfo(
-        string errorContent, string operation, HttpResponseMessage response)
-    {
-        if (string.IsNullOrWhiteSpace(errorContent))
-            return ($"{operation} failed with status {(int)response.StatusCode} ({response.ReasonPhrase})", null, null);
-
-        try
-        {
-            using var doc = System.Text.Json.JsonDocument.Parse(errorContent);
-            var root = doc.RootElement;
-
-            var code = TryGetStringProperty(root, "code");
-            var details = ExtractDetailsDictionary(root);
-            var message = ExtractFirstAvailableMessage(root);
-
-            return (message ?? errorContent, code, details);
-        }
-        catch
-        {
-            // Not JSON, return as-is
-        }
-
-        return (errorContent, null, null);
+        if (result.IsSuccess && result.Value is not null) return result.Value;
+        if (result.IsSuccess)
+            throw new ApiException($"{operation} returned an empty response", HttpStatusCode.InternalServerError);
+        throw ToApiException(result.Error!, operation);
     }
 
-    private static string? TryGetStringProperty(System.Text.Json.JsonElement root, string name)
-        => root.TryGetProperty(name, out var prop) ? prop.GetString() : null;
-
-    private static Dictionary<string, string>? ExtractDetailsDictionary(System.Text.Json.JsonElement root)
+    /// <summary>Unwrap a result, returning null when the error status matches one of the listed codes.</summary>
+    private static T? UnwrapOrNullOn<T>(ServiceResult<T> result, string operation, params int[] nullStatusCodes)
+        where T : class
     {
-        if (!root.TryGetProperty("details", out var detailsProp)
-            || detailsProp.ValueKind != System.Text.Json.JsonValueKind.Object) return null;
+        if (result.IsSuccess) return result.Value;
+        if (nullStatusCodes.Contains(result.Error!.StatusCode)) return null;
+        throw ToApiException(result.Error, operation);
+    }
+
+    /// <summary>Throw <see cref="ApiException"/> if the operation failed; otherwise no-op.</summary>
+    private static void EnsureSuccess(ServiceResult result, string operation)
+    {
+        if (result.IsSuccess) return;
+        throw ToApiException(result.Error!, operation);
+    }
+
+    /// <summary>Run DataAnnotations validation; throw <see cref="ApiException"/>(400, VALIDATION_ERROR) on failure.</summary>
+    private static void Validate<T>(T dto, string operation) where T : notnull
+    {
+        var ctx = new ValidationContext(dto);
+        var results = new List<ValidationResult>();
+        if (Validator.TryValidateObject(dto, ctx, results, validateAllProperties: true))
+            return;
 
         var details = new Dictionary<string, string>();
-        foreach (var prop in detailsProp.EnumerateObject())
+        foreach (var r in results)
         {
-            details[prop.Name] = prop.Value.GetString() ?? prop.Value.ToString();
+            var key = r.MemberNames.FirstOrDefault() ?? "";
+            details[key] = r.ErrorMessage ?? "Invalid value";
         }
-        return details;
+        throw new ApiException(
+            $"{operation} validation failed",
+            HttpStatusCode.BadRequest,
+            "VALIDATION_ERROR",
+            details);
     }
 
-    private static readonly string[] MessagePropertyNames = { "error", "message", "detail", "title" };
-
-    private static string? ExtractFirstAvailableMessage(System.Text.Json.JsonElement root)
+    private static ApiException ToApiException(ServiceError error, string operation)
     {
-        foreach (var name in MessagePropertyNames)
-        {
-            var value = TryGetStringProperty(root, name);
-            if (value is not null) return value;
-        }
-        return null;
+        var statusCode = (HttpStatusCode)error.StatusCode;
+        var message = string.IsNullOrEmpty(error.Message) ? $"{operation} failed" : error.Message;
+        return new ApiException(message, statusCode, error.Code, error.Details);
     }
 
-    /// <summary>
-    /// Reads the response content as JSON, throwing if the result is null.
-    /// </summary>
-    private static async Task<T> ReadRequiredJsonAsync<T>(HttpResponseMessage response, string operation)
-    {
-        var result = await response.Content.ReadFromJsonAsync<T>();
-        return result ?? throw new ApiException($"{operation} returned an empty response", response.StatusCode);
-    }
+    private string BaseUrl() => (_appSettings.BaseUrl ?? "").TrimEnd('/');
 
     #endregion
 
     #region Dashboard
 
-    /// <summary>
-    /// Gets aggregated dashboard data scoped to the current user's role.
-    /// </summary>
     public virtual async Task<DashboardDto?> GetDashboardAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/dashboard", ct);
-        await EnsureSuccessAsync(response, "Get dashboard");
-        return await response.Content.ReadFromJsonAsync<DashboardDto>(ct);
+        var result = await dashboardService.GetDashboardAsync(ct);
+        return Unwrap(result, "Get dashboard");
     }
 
     #endregion
 
     #region Collections
 
-    /// <summary>
-    /// Gets all collections.
-    /// </summary>
-    /// <returns>List of collections (empty if none found).</returns>
     public virtual async Task<List<CollectionResponseDto>> GetCollectionsAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/collections", ct);
-        await EnsureSuccessAsync(response, "Get collections");
-        return await response.Content.ReadFromJsonAsync<List<CollectionResponseDto>>(ct) ?? new();
+        var result = await collectionQueryService.GetRootCollectionsAsync(ct);
+        return Unwrap(result, "Get collections");
     }
 
-    /// <summary>
-    /// Gets a single collection by ID.
-    /// </summary>
-    /// <returns>The collection, or null if not found.</returns>
     public virtual async Task<CollectionResponseDto?> GetCollectionAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/collections/{id}", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            return null;
-        await EnsureSuccessAsync(response, "Get collection");
-        return await response.Content.ReadFromJsonAsync<CollectionResponseDto>(ct);
+        var result = await collectionQueryService.GetByIdAsync(id, ct);
+        return UnwrapOrNullOn(result, "Get collection", 404);
     }
 
-    /// <summary>
-    /// Creates a new collection.
-    /// </summary>
     public virtual async Task<CollectionResponseDto> CreateCollectionAsync(CreateCollectionDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/collections", dto, ct);
-        await EnsureSuccessAsync(response, "Create collection");
-        return await ReadRequiredJsonAsync<CollectionResponseDto>(response, "Create collection");
+        Validate(dto, "Create collection");
+        var result = await collectionService.CreateAsync(dto, ct);
+        return Unwrap(result, "Create collection");
     }
 
-    /// <summary>
-    /// Updates an existing collection.
-    /// </summary>
     public virtual async Task UpdateCollectionAsync(Guid id, UpdateCollectionDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/collections/{id}", dto, ct);
-        await EnsureSuccessAsync(response, "Update collection");
+        Validate(dto, "Update collection");
+        var result = await collectionService.UpdateAsync(id, dto, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Update collection");
     }
 
-    /// <summary>
-    /// Deletes a collection.
-    /// </summary>
     public virtual async Task DeleteCollectionAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/collections/{id}", ct);
-        await EnsureSuccessAsync(response, "Delete collection");
+        var result = await collectionService.DeleteAsync(id, ct);
+        EnsureSuccess(result, "Delete collection");
     }
 
-    /// <summary>
-    /// Gets deletion context (asset count + orphan count) for a collection.
-    /// </summary>
     public virtual async Task<CollectionDeletionContextDto?> GetCollectionDeletionContextAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/collections/{id}/deletion-context", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-            return null;
-        await EnsureSuccessAsync(response, "Get collection deletion context");
-        return await response.Content.ReadFromJsonAsync<CollectionDeletionContextDto>(ct);
+        var result = await collectionQueryService.GetDeletionContextAsync(id, ct);
+        return UnwrapOrNullOn(result, "Get collection deletion context", 403, 404);
     }
 
-    /// <summary>
-    /// Reparents a collection (admin-only). Pass <paramref name="parentId"/> = <c>null</c>
-    /// to move it to root level.
-    /// </summary>
     public virtual async Task SetCollectionParentAsync(Guid collectionId, Guid? parentId, CancellationToken ct = default)
     {
-        var body = new SetParentRequestDto { ParentId = parentId };
-        var response = await _http.PatchAsJsonAsync($"/api/v1/collections/{collectionId}/parent", body, ct);
-        await EnsureSuccessAsync(response, "Set collection parent");
+        var result = await collectionService.SetParentAsync(collectionId, parentId, ct);
+        EnsureSuccess(result, "Set collection parent");
     }
 
-    /// <summary>
-    /// Toggles whether a collection inherits its parent's ACL at runtime (admin-only).
-    /// </summary>
     public virtual async Task SetCollectionInheritParentAclAsync(Guid collectionId, bool inherit, CancellationToken ct = default)
     {
-        var body = new SetInheritAclRequestDto { Inherit = inherit };
-        var response = await _http.PatchAsJsonAsync($"/api/v1/collections/{collectionId}/inherit-acl", body, ct);
-        await EnsureSuccessAsync(response, "Set collection inherit-acl");
+        var result = await collectionService.SetInheritParentAclAsync(collectionId, inherit, ct);
+        EnsureSuccess(result, "Set collection inherit-acl");
     }
 
-    /// <summary>
-    /// Snapshot-copies the parent's ACL rows that aren't already on this collection
-    /// (admin-only). Does not enable runtime inheritance. Returns the count added.
-    /// </summary>
     public virtual async Task<int> CopyCollectionAclFromParentAsync(Guid collectionId, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/collections/{collectionId}/copy-acl-from-parent", content: null, ct);
-        await EnsureSuccessAsync(response, "Copy collection ACL from parent");
-        var body = await response.Content.ReadFromJsonAsync<CopyParentAclResponseDto>(ct);
-        return body?.PrincipalsAdded ?? 0;
+        var result = await collectionService.CopyParentAclAsync(collectionId, ct);
+        return Unwrap(result, "Copy collection ACL from parent");
     }
 
-    /// <summary>
-    /// Gets the ACL entries for a collection (manager+).
-    /// </summary>
     public virtual async Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/collections/{collectionId}/acl", ct);
-        await EnsureSuccessAsync(response, "Get collection ACLs");
-        return await response.Content.ReadFromJsonAsync<List<CollectionAclResponseDto>>(ct) ?? new();
+        var result = await collectionAclService.GetAclsAsync(collectionId, ct);
+        return Unwrap(result, "Get collection ACLs").ToList();
     }
 
-    /// <summary>
-    /// Sets (adds or updates) a user's access on a collection (manager+).
-    /// </summary>
     public virtual async Task SetCollectionAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default)
     {
-        var request = new { principalType, principalId, role };
-        var response = await _http.PostAsJsonAsync($"/api/v1/collections/{collectionId}/acl", request, ct);
-        await EnsureSuccessAsync(response, "Set collection access");
+        var result = await collectionAclService.SetAccessAsync(collectionId, principalType, principalId, role, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Set collection access");
     }
 
-    /// <summary>
-    /// Revokes a user's access from a collection (manager+).
-    /// </summary>
     public virtual async Task RevokeCollectionAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
-        var url = $"/api/v1/collections/{collectionId}/acl/{Uri.EscapeDataString(principalType)}/{Uri.EscapeDataString(principalId)}";
-        var response = await _http.DeleteAsync(url, ct);
-        await EnsureSuccessAsync(response, "Revoke collection access");
+        var result = await collectionAclService.RevokeAccessAsync(collectionId, principalType, principalId, ct);
+        EnsureSuccess(result, "Revoke collection access");
     }
 
-    /// <summary>
-    /// Searches for users that can be added to a collection's ACL (manager+).
-    /// Excludes users who already have direct access.
-    /// </summary>
     public virtual async Task<List<UserSearchResultDto>> SearchUsersForAclAsync(Guid collectionId, string? query = null, CancellationToken ct = default)
     {
-        var url = $"/api/v1/collections/{collectionId}/acl/users/search";
-        if (!string.IsNullOrWhiteSpace(query))
-            url += $"?q={Uri.EscapeDataString(query)}";
-        var response = await _http.GetAsync(url, ct);
-        await EnsureSuccessAsync(response, "Search users");
-        return await response.Content.ReadFromJsonAsync<List<UserSearchResultDto>>(ct) ?? new();
+        var result = await collectionAclService.SearchUsersForAclAsync(collectionId, query, ct);
+        return Unwrap(result, "Search users for ACL");
     }
 
     #endregion
 
     #region Assets
 
-    /// <summary>
-    /// Gets assets in a specific collection with optional filtering.
-    /// </summary>
     public virtual async Task<AssetListResponse> GetAssetsAsync(
         Guid collectionId,
         string? query = null,
@@ -285,46 +246,23 @@ public class AssetHubApiClient
         int take = 50,
         CancellationToken ct = default)
     {
-        var url = $"/api/v1/assets/collection/{collectionId}?skip={skip}&take={take}&sortBy={sortBy}";
-        if (!string.IsNullOrWhiteSpace(query))
-            url += $"&query={Uri.EscapeDataString(query)}";
-        if (!string.IsNullOrWhiteSpace(type))
-            url += $"&type={Uri.EscapeDataString(type)}";
-
-        var response = await _http.GetAsync(url, ct);
-        await EnsureSuccessAsync(response, "Get assets");
-        return await response.Content.ReadFromJsonAsync<AssetListResponse>(ct)
-            ?? new AssetListResponse { CollectionId = collectionId, Total = 0, Items = new() };
+        var result = await assetQueryService.GetAssetsByCollectionAsync(collectionId, query, type, sortBy, skip, take, ct);
+        return Unwrap(result, "Get assets");
     }
 
-    /// <summary>
-    /// Gets a single asset by ID.
-    /// </summary>
-    /// <returns>The asset, or null if not found.</returns>
     public virtual async Task<AssetResponseDto?> GetAssetAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/assets/{id}", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            return null;
-        await EnsureSuccessAsync(response, "Get asset");
-        return await response.Content.ReadFromJsonAsync<AssetResponseDto>(ct);
+        var result = await assetQueryService.GetAssetAsync(id, ct);
+        return UnwrapOrNullOn(result, "Get asset", 404);
     }
 
-    /// <summary>
-    /// Updates an existing asset's metadata.
-    /// </summary>
     public virtual async Task<AssetResponseDto> UpdateAssetAsync(Guid id, UpdateAssetDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/assets/{id}", dto, ct);
-        await EnsureSuccessAsync(response, "Update asset");
-        return await ReadRequiredJsonAsync<AssetResponseDto>(response, "Update asset");
+        Validate(dto, "Update asset");
+        var result = await assetService.UpdateAsync(id, dto, ct);
+        return Unwrap(result, "Update asset");
     }
 
-    /// <summary>
-    /// Uploads a new asset to a collection via IFormFile (legacy fallback).
-    /// Prefer <see cref="InitUploadAsync"/> + JS interop + <see cref="ConfirmUploadAsync"/>
-    /// for large files, which bypasses SignalR and uploads directly to MinIO.
-    /// </summary>
     public virtual async Task<AssetUploadResult> UploadAssetAsync(
         Guid collectionId,
         string title,
@@ -333,20 +271,18 @@ public class AssetHubApiClient
         string contentType,
         CancellationToken ct = default)
     {
-        using var content = new MultipartFormDataContent();
-        content.Add(new StreamContent(fileStream), "file", fileName);
-        content.Add(new StringContent(collectionId.ToString()), "collectionId");
-        content.Add(new StringContent(title), "title");
+        // Direct upload path through IAssetUploadService — replaces the multipart
+        // form post the legacy HttpClient client used. fileSize defaults to -1
+        // when unknown; the service prefers it but tolerates -1.
+        long fileSize = -1;
+        try { if (fileStream.CanSeek) fileSize = fileStream.Length; } catch { /* not seekable */ }
 
-        var response = await _http.PostAsync("/api/v1/assets", content, ct);
-        await EnsureSuccessAsync(response, "Upload asset");
-        return await ReadRequiredJsonAsync<AssetUploadResult>(response, "Upload asset");
+        var result = await assetUploadService.UploadAsync(
+            fileStream, fileName, contentType, fileSize, collectionId, title,
+            skipDuplicateCheck: false, ct);
+        return Unwrap(result, "Upload asset");
     }
 
-    /// <summary>
-    /// Step 1 of presigned upload: Creates an asset record and returns a presigned PUT URL.
-    /// The browser then uploads the file directly to MinIO via JS interop.
-    /// </summary>
     public virtual async Task<InitUploadResponse> InitUploadAsync(
         Guid? collectionId,
         string fileName,
@@ -355,62 +291,55 @@ public class AssetHubApiClient
         string? title = null,
         CancellationToken ct = default)
     {
-        var request = new
+        var request = new InitUploadRequest
         {
-            collectionId,
-            fileName,
-            contentType,
-            fileSize,
-            title = title ?? Path.GetFileNameWithoutExtension(fileName)
+            CollectionId = collectionId,
+            FileName = fileName,
+            ContentType = contentType,
+            FileSize = fileSize,
+            Title = title ?? Path.GetFileNameWithoutExtension(fileName)
         };
-
-        var response = await _http.PostAsJsonAsync("/api/v1/assets/init-upload", request, ct);
-        await EnsureSuccessAsync(response, "Init upload");
-        return await ReadRequiredJsonAsync<InitUploadResponse>(response, "Init upload");
+        Validate(request, "Init upload");
+        var result = await assetUploadService.InitUploadAsync(request, ct);
+        return Unwrap(result, "Init upload");
     }
 
-    /// <summary>
-    /// Step 2 of presigned upload: Confirms the file was uploaded to MinIO and triggers processing.
-    /// </summary>
-    /// <param name="force">When true, skip duplicate detection (admin override).</param>
     public virtual async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, bool force = false, CancellationToken ct = default)
     {
-        var url = force
-            ? $"/api/v1/assets/{assetId}/confirm-upload?force=true"
-            : $"/api/v1/assets/{assetId}/confirm-upload";
-        var response = await _http.PostAsync(url, null, ct);
-        await EnsureSuccessAsync(response, "Confirm upload");
-        return await ReadRequiredJsonAsync<AssetUploadResult>(response, "Confirm upload");
+        var result = await assetUploadService.ConfirmUploadAsync(assetId, skipDuplicateCheck: force, ct);
+        return Unwrap(result, "Confirm upload");
     }
 
-    /// <summary>
-    /// Save an edited image as a new copy of the source asset.
-    /// Returns a presigned URL for uploading the edited file.
-    /// </summary>
     public virtual async Task<InitUploadResponse> SaveImageCopyAsync(
         Guid sourceAssetId, string contentType, long fileSize, string? title = null, Guid? collectionId = null, CancellationToken ct = default)
     {
-        var request = new { contentType, fileSize, title, collectionId };
-        var response = await _http.PostAsJsonAsync($"/api/v1/assets/{sourceAssetId}/save-copy", request, ct);
-        await EnsureSuccessAsync(response, "Save image copy");
-        return await ReadRequiredJsonAsync<InitUploadResponse>(response, "Save image copy");
+        var request = new SaveImageCopyRequest
+        {
+            ContentType = contentType,
+            FileSize = fileSize,
+            Title = title,
+            CollectionId = collectionId
+        };
+        Validate(request, "Save image copy");
+        var result = await assetUploadService.SaveImageCopyAsync(sourceAssetId, request, ct);
+        return Unwrap(result, "Save image copy");
     }
 
-    /// <summary>
-    /// Replace the original file of an asset with an edited version.
-    /// Returns a presigned URL for uploading the replacement file.
-    /// </summary>
     public virtual async Task<InitUploadResponse> ReplaceImageFileAsync(
         Guid assetId, string contentType, long fileSize, CancellationToken ct = default)
     {
-        var request = new { contentType, fileSize };
-        var response = await _http.PostAsJsonAsync($"/api/v1/assets/{assetId}/replace-file", request, ct);
-        await EnsureSuccessAsync(response, "Replace image file");
-        return await ReadRequiredJsonAsync<InitUploadResponse>(response, "Replace image file");
+        var request = new ReplaceImageFileRequest
+        {
+            ContentType = contentType,
+            FileSize = fileSize
+        };
+        Validate(request, "Replace image file");
+        var result = await assetUploadService.ReplaceImageFileAsync(assetId, request, ct);
+        return Unwrap(result, "Replace image file");
     }
 
     /// <summary>
-    /// Optional parameters for <see cref="AssetHubApiClient.ApplyEditAsync"/>.
+    /// Optional parameters for <see cref="ApplyEditAsync"/>.
     /// </summary>
     public record ImageEditOptions(
         string? Title = null,
@@ -418,89 +347,54 @@ public class AssetHubApiClient
         Guid? DestinationCollectionId = null,
         Guid[]? PresetIds = null);
 
-    /// <summary>
-    /// Apply an image edit by uploading a rendered PNG and edit metadata via multipart form.
-    /// </summary>
     public virtual async Task<ImageEditResultDto> ApplyEditAsync(
         Guid assetId, Stream renderedPng, string fileName, ImageEditSaveMode saveMode,
         ImageEditOptions? options = null, CancellationToken ct = default)
     {
         options ??= new ImageEditOptions();
 
-        using var content = new MultipartFormDataContent();
-        content.Add(new StreamContent(renderedPng), "file", fileName);
-        content.Add(new StringContent(saveMode.ToString()), "SaveMode");
-
-        if (!string.IsNullOrEmpty(options.Title))
-            content.Add(new StringContent(options.Title), "Title");
-
-        if (!string.IsNullOrEmpty(options.EditDocument))
-            content.Add(new StringContent(options.EditDocument), "EditDocument");
-
-        if (options.DestinationCollectionId.HasValue)
-            content.Add(new StringContent(options.DestinationCollectionId.Value.ToString()), "DestinationCollectionId");
-
-        if (options.PresetIds is { Length: > 0 })
+        var dto = new ImageEditRequestDto
         {
-            foreach (var pid in options.PresetIds)
-                content.Add(new StringContent(pid.ToString()), "PresetIds");
-        }
+            SaveMode = saveMode,
+            PresetIds = options.PresetIds,
+            Title = options.Title,
+            EditDocument = options.EditDocument,
+            DestinationCollectionId = options.DestinationCollectionId
+        };
+        Validate(dto, "Apply image edit");
 
-        var response = await _http.PostAsync($"/api/v1/assets/{assetId}/edit", content, ct);
-        await EnsureSuccessAsync(response, "Apply image edit");
-        return await ReadRequiredJsonAsync<ImageEditResultDto>(response, "Apply image edit");
+        long fileSize = -1;
+        try { if (renderedPng.CanSeek) fileSize = renderedPng.Length; } catch { /* not seekable */ }
+
+        var result = await imageEditingService.ApplyEditAsync(assetId, dto, renderedPng, fileName, fileSize, ct);
+        return Unwrap(result, "Apply image edit");
     }
 
-    /// <summary>
-    /// Deletes an asset. When fromCollectionId is set the asset is removed from that
-    /// collection (and auto-deleted by the backend when orphaned). Without fromCollectionId
-    /// a full permanent delete is performed.
-    /// </summary>
     public virtual async Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, CancellationToken ct = default)
     {
-        var url = $"/api/v1/assets/{id}";
-        if (fromCollectionId.HasValue)
-            url += $"?fromCollectionId={fromCollectionId.Value}";
-
-        var response = await _http.DeleteAsync(url, ct);
-        await EnsureSuccessAsync(response, "Delete asset");
+        var result = await assetService.DeleteAsync(id, fromCollectionId, ct);
+        EnsureSuccess(result, "Delete asset");
     }
 
-    /// <summary>
-    /// Bulk-deletes multiple assets, optionally from a specific collection.
-    /// </summary>
     public virtual async Task<BulkDeleteAssetsResponse> BulkDeleteAssetsAsync(
         List<Guid> assetIds, Guid? fromCollectionId = null, CancellationToken ct = default)
     {
-        var request = new { assetIds, fromCollectionId };
-        var response = await _http.PostAsJsonAsync("/api/v1/assets/bulk-delete", request, ct);
-        await EnsureSuccessAsync(response, "Bulk delete assets");
-        return await ReadRequiredJsonAsync<BulkDeleteAssetsResponse>(response, "Bulk delete assets");
+        var request = new BulkDeleteAssetsRequest { AssetIds = assetIds, FromCollectionId = fromCollectionId };
+        Validate(request, "Bulk delete assets");
+        var result = await assetService.BulkDeleteAsync(request, ct);
+        return Unwrap(result, "Bulk delete assets");
     }
 
-    /// <summary>
-    /// Returns deletion context for an asset: how many collections it belongs to
-    /// and whether the current user can permanently delete it.
-    /// </summary>
     public virtual async Task<AssetDeletionContextDto> GetAssetDeletionContextAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/assets/{id}/deletion-context", ct);
-        await EnsureSuccessAsync(response, "Get asset deletion context");
-        return await ReadRequiredJsonAsync<AssetDeletionContextDto>(response, "Get asset deletion context");
+        var result = await assetQueryService.GetDeletionContextAsync(id, ct);
+        return Unwrap(result, "Get asset deletion context");
     }
 
     #endregion
 
     #region Shares
 
-    /// <summary>
-    /// Creates a new share link for an asset or collection.
-    /// </summary>
-    /// <param name="scopeId">The ID of the asset or collection to share.</param>
-    /// <param name="scopeType">"asset" or "collection".</param>
-    /// <param name="expiresAt">When the share expires (defaults to 7 days).</param>
-    /// <param name="password">Optional password (if not provided, one will be generated).</param>
-    /// <param name="notifyEmails">Optional list of email addresses to notify about the share.</param>
     public virtual async Task<ShareResponseDto> CreateShareAsync(
         Guid scopeId,
         string scopeType,
@@ -509,7 +403,7 @@ public class AssetHubApiClient
         List<string>? notifyEmails = null,
         CancellationToken ct = default)
     {
-        var dto = new
+        var dto = new CreateShareDto
         {
             ScopeId = scopeId,
             ScopeType = scopeType,
@@ -517,98 +411,70 @@ public class AssetHubApiClient
             Password = password,
             NotifyEmails = notifyEmails
         };
-
-        var response = await _http.PostAsJsonAsync("/api/v1/shares", dto, ct);
-        await EnsureSuccessAsync(response, "Create share");
-        return await ReadRequiredJsonAsync<ShareResponseDto>(response, "Create share");
+        Validate(dto, "Create share");
+        var result = await authShareAccessService.CreateShareAsync(dto, BaseUrl(), ct);
+        return Unwrap(result, "Create share");
     }
 
-    /// <summary>
-    /// Updates the password for an existing share.
-    /// </summary>
     public virtual async Task UpdateSharePasswordAsync(Guid shareId, string newPassword, CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync($"/api/v1/shares/{shareId}/password", new { Password = newPassword }, ct);
-        await EnsureSuccessAsync(response, "Update share password");
+        var dto = new UpdateSharePasswordDto { Password = newPassword };
+        Validate(dto, "Update share password");
+        var result = await authShareAccessService.UpdateSharePasswordAsync(shareId, newPassword, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Update share password");
     }
 
-    /// <summary>
-    /// Retrieves the plaintext token for a share if available (admin-only).
-    /// Returns empty string when the share predates token encryption.
-    /// </summary>
     public virtual async Task<string> GetShareTokenAsync(Guid shareId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/shares/{shareId}/token", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            return string.Empty;
-        await EnsureSuccessAsync(response, "Get share token");
-        var dto = await response.Content.ReadFromJsonAsync<ShareTokenResponse>(cancellationToken: ct);
-        return dto?.Token ?? string.Empty;
+        var result = await shareAdminService.GetShareTokenAsync(shareId, ct);
+        if (!result.IsSuccess && result.Error!.StatusCode == 404) return string.Empty;
+        return Unwrap(result, "Get share token").Token ?? string.Empty;
     }
 
-    /// <summary>
-    /// Retrieves the plaintext password for a share if available (admin-only).
-    /// Returns empty string when the share predates password encryption or has no password.
-    /// </summary>
     public virtual async Task<string?> GetSharePasswordAsync(Guid shareId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/shares/{shareId}/password", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            return null;
-        await EnsureSuccessAsync(response, "Get share password");
-        var dto = await response.Content.ReadFromJsonAsync<SharePasswordResponse>(cancellationToken: ct);
-        return dto?.Password;
+        var result = await shareAdminService.GetSharePasswordAsync(shareId, ct);
+        if (!result.IsSuccess && result.Error!.StatusCode == 404) return null;
+        return Unwrap(result, "Get share password").Password;
     }
 
-    /// <summary>
-    /// Revokes a share link (user-level, for own shares).
-    /// </summary>
     public virtual async Task RevokeShareAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/shares/{id}", ct);
-        await EnsureSuccessAsync(response, "Revoke share");
+        var result = await authShareAccessService.RevokeShareAsync(id, ct);
+        EnsureSuccess(result, "Revoke share");
     }
 
     /// <summary>
-    /// Gets shared content by token (for public share pages).
+    /// Gets shared content by token. Returns the content DTO on success, or throws
+    /// <see cref="ApiException"/> on failure (callers should inspect <c>ErrorCode</c>
+    /// for "PASSWORD_REQUIRED", <see cref="Constants.ShareErrorCodes.Revoked"/>, etc.).
     /// </summary>
-    /// <remarks>
-    /// Returns the raw response to allow handling password prompts and different content types.
-    /// </remarks>
-    public virtual async Task<HttpResponseMessage> GetSharedContentAsync(string token, string? password = null, CancellationToken ct = default)
+    public virtual async Task<ISharedContentDto> GetSharedContentAsync(
+        string token, string? password = null, int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var url = $"/api/v1/shares/{Uri.EscapeDataString(token)}";
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        if (!string.IsNullOrEmpty(password))
-            request.Headers.TryAddWithoutValidation("X-Share-Password", password);
-        return await _http.SendAsync(request, ct);
+        var result = await publicShareAccessService.GetSharedContentAsync(token, password, skip, take, ct);
+        return Unwrap(result, "Get shared content");
     }
 
     /// <summary>
-    /// Requests a short-lived access token for a password-protected share.
-    /// The access token can be used in query strings (img src, a href) without
-    /// exposing the actual password.
+    /// Requests a short-lived access token for a password-protected share. Returns
+    /// null on any error (preserves the legacy nullable-on-error contract).
     /// </summary>
     public virtual async Task<ShareAccessTokenResponse?> GetShareAccessTokenAsync(
         string token, string password, CancellationToken ct = default)
     {
-        var url = $"/api/v1/shares/{Uri.EscapeDataString(token)}/access-token";
-        using var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Headers.TryAddWithoutValidation("X-Share-Password", password);
-        var response = await _http.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode) return null;
-        return await response.Content.ReadFromJsonAsync<ShareAccessTokenResponse>(ct);
+        var result = await publicShareAccessService.CreateAccessTokenAsync(token, password, ct);
+        return result.IsSuccess ? result.Value : null;
     }
 
     #endregion
 
     #region Presigned URLs
 
-    /// <summary>
-    /// Gets the download URL for an asset.
-    /// </summary>
     public virtual Task<string> GetPresignedDownloadUrlAsync(Guid assetId, string objectKey, CancellationToken ct = default)
     {
+        // Browsers hit the rendition endpoint by URL; the service issues the
+        // presigned 302 redirect at request time. Nothing to do here.
         return Task.FromResult($"/api/v1/assets/{assetId}/download");
     }
 
@@ -616,58 +482,36 @@ public class AssetHubApiClient
 
     #region Admin
 
-    /// <summary>
-    /// Gets all shares in the system (admin only).
-    /// </summary>
     public virtual async Task<AdminSharesResponse> GetAllSharesAsync(int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/shares?skip={skip}&take={take}", ct);
-        await EnsureSuccessAsync(response, "Get all shares");
-        return await response.Content.ReadFromJsonAsync<AdminSharesResponse>(ct) ?? new();
+        var result = await shareAdminService.GetAllSharesAsync(skip, take, ct);
+        return Unwrap(result, "Get all shares");
     }
 
-    /// <summary>
-    /// Revokes any share by ID (admin only).
-    /// </summary>
     public virtual async Task RevokeShareAdminAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/shares/{id}", ct);
-        await EnsureSuccessAsync(response, "Revoke share");
+        var result = await shareAdminService.AdminRevokeShareAsync(id, ct);
+        EnsureSuccess(result, "Revoke share");
     }
 
-    /// <summary>
-    /// Permanently deletes a share (must be expired or revoked, admin only).
-    /// </summary>
     public virtual async Task DeleteShareAdminAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/shares/{id}/permanent", ct);
-        await EnsureSuccessAsync(response, "Delete share");
+        var result = await shareAdminService.DeleteShareAsync(id, ct);
+        EnsureSuccess(result, "Delete share");
     }
 
-    /// <summary>
-    /// Bulk deletes all shares with the given status ("expired" or "revoked", admin only).
-    /// Returns the number of shares deleted.
-    /// </summary>
     public virtual async Task<int> BulkDeleteSharesByStatusAsync(string status, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/shares/bulk/{status}", ct);
-        await EnsureSuccessAsync(response, $"Bulk delete {status} shares");
-        return await response.Content.ReadFromJsonAsync<int>(ct);
+        var result = await shareAdminService.BulkDeleteSharesByStatusAsync(status, ct);
+        return Unwrap(result, $"Bulk delete {status} shares");
     }
 
-    /// <summary>
-    /// Gets all collections with their ACLs (admin only).
-    /// </summary>
     public virtual async Task<List<CollectionAccessDto>> GetCollectionAccessAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/admin/collections/access", ct);
-        await EnsureSuccessAsync(response, "Get collection access");
-        return await response.Content.ReadFromJsonAsync<List<CollectionAccessDto>>(ct) ?? new();
+        var result = await adminCollectionAclService.GetCollectionAccessTreeAsync(ct);
+        return Unwrap(result, "Get collection access");
     }
 
-    /// <summary>
-    /// Adds a user or group to a collection's ACL (admin only).
-    /// </summary>
     public virtual async Task AddCollectionAclAsync(
         Guid collectionId,
         string principalType,
@@ -675,14 +519,17 @@ public class AssetHubApiClient
         string role,
         CancellationToken ct = default)
     {
-        var request = new { principalType, principalId, role };
-        var response = await _http.PostAsJsonAsync($"/api/v1/admin/collections/{collectionId}/acl", request, ct);
-        await EnsureSuccessAsync(response, "Add collection access");
+        var request = new SetCollectionAccessRequest
+        {
+            PrincipalType = principalType,
+            PrincipalId = principalId,
+            Role = role
+        };
+        Validate(request, "Add collection access");
+        var result = await adminCollectionAclService.AdminSetAccessAsync(collectionId, request, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Add collection access");
     }
 
-    /// <summary>
-    /// Updates a user or group's role in a collection's ACL (admin only).
-    /// </summary>
     public virtual async Task UpdateCollectionAclAsync(
         Guid collectionId,
         string principalType,
@@ -690,135 +537,98 @@ public class AssetHubApiClient
         string role,
         CancellationToken ct = default)
     {
-        var request = new { principalType, principalId, role };
-        var response = await _http.PostAsJsonAsync($"/api/v1/admin/collections/{collectionId}/acl", request, ct);
-        await EnsureSuccessAsync(response, "Update collection access");
+        // Same endpoint as Add — set semantics handle both create and update.
+        var request = new SetCollectionAccessRequest
+        {
+            PrincipalType = principalType,
+            PrincipalId = principalId,
+            Role = role
+        };
+        Validate(request, "Update collection access");
+        var result = await adminCollectionAclService.AdminSetAccessAsync(collectionId, request, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Update collection access");
     }
 
-    /// <summary>
-    /// Removes a user or group from a collection's ACL (admin only).
-    /// </summary>
     public virtual async Task RemoveCollectionAclAsync(Guid collectionId, string principalId, string principalType, CancellationToken ct = default)
     {
-        var url = $"/api/v1/admin/collections/{collectionId}/acl/{Uri.EscapeDataString(principalId)}?principalType={principalType}";
-        var response = await _http.DeleteAsync(url, ct);
-        await EnsureSuccessAsync(response, "Remove collection access");
+        var result = await adminCollectionAclService.AdminRevokeAccessAsync(collectionId, principalType, principalId, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Remove collection access");
     }
 
-    /// <summary>
-    /// Bulk-deletes multiple collections (admin only).
-    /// </summary>
     public virtual async Task<BulkDeleteCollectionsResponse> BulkDeleteCollectionsAsync(List<Guid> collectionIds, bool deleteAssets = true, CancellationToken ct = default)
     {
-        var request = new { collectionIds, deleteAssets };
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/collections/bulk-delete", request, ct);
-        await EnsureSuccessAsync(response, "Bulk delete collections");
-        return await ReadRequiredJsonAsync<BulkDeleteCollectionsResponse>(response, "Bulk delete collections");
+        var result = await collectionAdminService.BulkDeleteAsync(collectionIds, deleteAssets, ct);
+        return Unwrap(result, "Bulk delete collections");
     }
 
-    /// <summary>
-    /// Bulk sets access on multiple collections (admin only).
-    /// </summary>
     public virtual async Task<BulkSetCollectionAccessResponse> BulkSetCollectionAccessAsync(
         List<Guid> collectionIds, string principalId, string role, CancellationToken ct = default)
     {
-        var request = new { collectionIds, principalType = Constants.PrincipalTypes.User, principalId, role };
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/collections/bulk-set-access", request, ct);
-        await EnsureSuccessAsync(response, "Bulk set collection access");
-        return await ReadRequiredJsonAsync<BulkSetCollectionAccessResponse>(response, "Bulk set collection access");
+        var request = new BulkSetCollectionAccessRequest
+        {
+            CollectionIds = collectionIds,
+            PrincipalType = Constants.PrincipalTypes.User,
+            PrincipalId = principalId,
+            Role = role
+        };
+        Validate(request, "Bulk set collection access");
+        var result = await collectionAdminService.BulkSetAccessAsync(request, ct);
+        return Unwrap(result, "Bulk set collection access");
     }
 
-    /// <summary>
-    /// Gets all users who have access to collections (admin only).
-    /// </summary>
     public virtual async Task<List<UserAccessSummaryDto>> GetUsersAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/admin/users", ct);
-        await EnsureSuccessAsync(response, "Get users");
-        return await response.Content.ReadFromJsonAsync<List<UserAccessSummaryDto>>(ct) ?? new();
+        var result = await userAdminQueryService.GetUsersAsync(ct);
+        return Unwrap(result, "Get users");
     }
 
-    /// <summary>
-    /// Gets all users from Keycloak realm (admin only).
-    /// </summary>
     public virtual async Task<List<KeycloakUserDto>> GetKeycloakUsersAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/admin/keycloak-users", ct);
-        await EnsureSuccessAsync(response, "Get Keycloak users");
-        return await response.Content.ReadFromJsonAsync<List<KeycloakUserDto>>(ct) ?? new();
+        var result = await userAdminQueryService.GetKeycloakUsersAsync(ct);
+        return Unwrap(result, "Get Keycloak users");
     }
 
-    /// <summary>
-    /// Gets paginated users from Keycloak with filtering, sorting, and category counts (admin only).
-    /// </summary>
     public virtual async Task<PaginatedKeycloakUsersResponse> GetKeycloakUsersPaginatedAsync(
         string? search = null, string? category = null,
         string? sortBy = null, bool sortDesc = false,
         int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var url = $"/api/v1/admin/keycloak-users/paginated?skip={skip}&take={take}";
-        if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
-        if (!string.IsNullOrEmpty(category)) url += $"&category={Uri.EscapeDataString(category)}";
-        if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
-        if (sortDesc) url += "&sortDesc=true";
-        var response = await _http.GetAsync(url, ct);
-        await EnsureSuccessAsync(response, "Get Keycloak users (paginated)");
-        return await response.Content.ReadFromJsonAsync<PaginatedKeycloakUsersResponse>(ct)
-            ?? new PaginatedKeycloakUsersResponse();
+        var result = await userAdminQueryService.GetKeycloakUsersPaginatedAsync(
+            search, category, sortBy, sortDesc, skip, take, ct);
+        return Unwrap(result, "Get Keycloak users (paginated)");
     }
 
-    /// <summary>
-    /// Creates a new user in Keycloak (admin only).
-    /// </summary>
     public virtual async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/users", request, ct);
-        await EnsureSuccessAsync(response, "Create user");
-        return await ReadRequiredJsonAsync<CreateUserResponse>(response, "Create user");
+        Validate(request, "Create user");
+        var result = await userAdminService.CreateUserAsync(request, BaseUrl(), ct);
+        return Unwrap(result, "Create user");
     }
 
-    /// <summary>
-    /// Sends a password reset email to a user via Keycloak (admin only).
-    /// </summary>
     public virtual async Task SendPasswordResetEmailAsync(string userId, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/users/{userId}/reset-password", null, ct);
-        await EnsureSuccessAsync(response, "Send password reset email");
+        var result = await userAdminService.SendPasswordResetEmailAsync(userId, ct);
+        EnsureSuccess(result, "Send password reset email");
     }
 
-    /// <summary>
-    /// Deletes a user from Keycloak and cleans up app data (admin only).
-    /// </summary>
     public virtual async Task<DeleteUserResponse> DeleteUserAsync(string userId, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/users/{userId}", ct);
-        await EnsureSuccessAsync(response, "Delete user");
-        return await ReadRequiredJsonAsync<DeleteUserResponse>(response, "Delete user");
+        var result = await userAdminService.DeleteUserAsync(userId, ct);
+        return Unwrap(result, "Delete user");
     }
 
-    /// <summary>
-    /// Syncs deleted users — detects and cleans up Keycloak users that no longer exist (admin only).
-    /// </summary>
     public virtual async Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/users/sync?dryRun={dryRun.ToString().ToLowerInvariant()}", null, ct);
-        await EnsureSuccessAsync(response, "Sync deleted users");
-        return await ReadRequiredJsonAsync<UserSyncResult>(response, "Sync deleted users");
+        var result = await userAdminService.SyncDeletedUsersAsync(dryRun, ct);
+        return Unwrap(result, "Sync deleted users");
     }
 
-    /// <summary>
-    /// Gets all audit events (admin only).
-    /// </summary>
     public virtual async Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/audit?take={take}", ct);
-        await EnsureSuccessAsync(response, "Get audit events");
-        return await response.Content.ReadFromJsonAsync<List<AuditEventDto>>(ct) ?? new();
+        var result = await auditQueryService.GetRecentAuditEventsAsync(take, ct);
+        return Unwrap(result, "Get audit events");
     }
 
-    /// <summary>
-    /// Gets audit events with pagination and filtering (admin only).
-    /// </summary>
     public virtual async Task<AuditQueryResponse> GetAuditEventsPaginatedAsync(
         int pageSize = 50,
         DateTime? cursor = null,
@@ -827,106 +637,74 @@ public class AssetHubApiClient
         string? actorUserId = null,
         CancellationToken ct = default)
     {
-        var queryParams = new List<string> { $"pageSize={pageSize}" };
-        if (cursor.HasValue)
-            queryParams.Add($"cursor={cursor.Value:O}");
-        if (!string.IsNullOrWhiteSpace(eventType))
-            queryParams.Add($"eventType={Uri.EscapeDataString(eventType)}");
-        if (!string.IsNullOrWhiteSpace(targetType))
-            queryParams.Add($"targetType={Uri.EscapeDataString(targetType)}");
-        if (!string.IsNullOrWhiteSpace(actorUserId))
-            queryParams.Add($"actorUserId={Uri.EscapeDataString(actorUserId)}");
-
-        var url = $"/api/v1/admin/audit/paginated?{string.Join("&", queryParams)}";
-        var response = await _http.GetAsync(url, ct);
-        await EnsureSuccessAsync(response, "Get audit events paginated");
-        return await response.Content.ReadFromJsonAsync<AuditQueryResponse>(ct) ?? new();
+        var request = new AuditQueryRequest
+        {
+            PageSize = pageSize,
+            Cursor = cursor,
+            EventType = eventType,
+            TargetType = targetType,
+            ActorUserId = actorUserId
+        };
+        Validate(request, "Get audit events paginated");
+        var result = await auditQueryService.GetAuditEventsAsync(request, ct);
+        return Unwrap(result, "Get audit events paginated");
     }
 
-    /// <summary>
-    /// Gets all export presets (available to all authenticated users).
-    /// </summary>
     public virtual async Task<List<ExportPresetDto>> GetExportPresetsAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/export-presets", ct);
-        await EnsureSuccessAsync(response, "Get export presets");
-        return await response.Content.ReadFromJsonAsync<List<ExportPresetDto>>(ct) ?? new();
+        var result = await exportPresetQueryService.GetAllAsync(ct);
+        return Unwrap(result, "Get export presets");
     }
 
-    /// <summary>
-    /// Gets a single export preset by ID (admin only).
-    /// </summary>
     public virtual async Task<ExportPresetDto?> GetExportPresetAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/export-presets/{id}", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            return null;
-        await EnsureSuccessAsync(response, "Get export preset");
-        return await response.Content.ReadFromJsonAsync<ExportPresetDto>(ct);
+        var result = await exportPresetQueryService.GetByIdAsync(id, ct);
+        return UnwrapOrNullOn(result, "Get export preset", 404);
     }
 
-    /// <summary>
-    /// Creates a new export preset (admin only).
-    /// </summary>
     public virtual async Task<ExportPresetDto> CreateExportPresetAsync(CreateExportPresetDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/export-presets", dto, ct);
-        await EnsureSuccessAsync(response, "Create export preset");
-        return await ReadRequiredJsonAsync<ExportPresetDto>(response, "Create export preset");
+        Validate(dto, "Create export preset");
+        var result = await exportPresetService.CreateAsync(dto, ct);
+        return Unwrap(result, "Create export preset");
     }
 
-    /// <summary>
-    /// Updates an existing export preset (admin only).
-    /// </summary>
     public virtual async Task UpdateExportPresetAsync(Guid id, UpdateExportPresetDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/export-presets/{id}", dto, ct);
-        await EnsureSuccessAsync(response, "Update export preset");
+        Validate(dto, "Update export preset");
+        var result = await exportPresetService.UpdateAsync(id, dto, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Update export preset");
     }
 
-    /// <summary>
-    /// Deletes an export preset (admin only).
-    /// </summary>
     public virtual async Task DeleteExportPresetAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/export-presets/{id}", ct);
-        await EnsureSuccessAsync(response, "Delete export preset");
+        var result = await exportPresetService.DeleteAsync(id, ct);
+        EnsureSuccess(result, "Delete export preset");
     }
 
     #endregion
 
     #region Personal Access Tokens
 
-    /// <summary>
-    /// Lists the current user's personal access tokens (active + revoked + expired), newest first.
-    /// </summary>
     public virtual async Task<List<PersonalAccessTokenDto>> GetMyPersonalAccessTokensAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/me/personal-access-tokens", ct);
-        await EnsureSuccessAsync(response, "List personal access tokens");
-        return await response.Content.ReadFromJsonAsync<List<PersonalAccessTokenDto>>(ct) ?? new();
+        var result = await personalAccessTokenService.ListMineAsync(ct);
+        return Unwrap(result, "List personal access tokens");
     }
 
-    /// <summary>
-    /// Mints a new personal access token. The plaintext token is present in the response
-    /// exactly once — it is not recoverable from later GETs.
-    /// </summary>
     public virtual async Task<CreatedPersonalAccessTokenDto> CreatePersonalAccessTokenAsync(
         CreatePersonalAccessTokenRequest request,
         CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/me/personal-access-tokens", request, ct);
-        await EnsureSuccessAsync(response, "Create personal access token");
-        return await ReadRequiredJsonAsync<CreatedPersonalAccessTokenDto>(response, "Create personal access token");
+        Validate(request, "Create personal access token");
+        var result = await personalAccessTokenService.CreateAsync(request, ct);
+        return Unwrap(result, "Create personal access token");
     }
 
-    /// <summary>
-    /// Revokes one of the current user's personal access tokens. Idempotent.
-    /// </summary>
     public virtual async Task RevokePersonalAccessTokenAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/me/personal-access-tokens/{id}", ct);
-        await EnsureSuccessAsync(response, "Revoke personal access token");
+        var result = await personalAccessTokenService.RevokeAsync(id, ct);
+        EnsureSuccess(result, "Revoke personal access token");
     }
 
     #endregion
@@ -936,56 +714,46 @@ public class AssetHubApiClient
     public virtual async Task<NotificationListResponse> GetNotificationsAsync(
         bool unreadOnly = false, int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync(
-            $"/api/v1/notifications?unreadOnly={unreadOnly.ToString().ToLowerInvariant()}&skip={skip}&take={take}",
-            ct);
-        await EnsureSuccessAsync(response, "Get notifications");
-        return await response.Content.ReadFromJsonAsync<NotificationListResponse>(ct)
-            ?? throw new ApiException("Failed to deserialize notifications", System.Net.HttpStatusCode.InternalServerError);
+        var result = await notificationService.ListForCurrentUserAsync(unreadOnly, skip, take, ct);
+        return Unwrap(result, "Get notifications");
     }
 
     public virtual async Task<int> GetNotificationUnreadCountAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/notifications/unread-count", ct);
-        await EnsureSuccessAsync(response, "Get notification unread count");
-        var body = await response.Content.ReadFromJsonAsync<NotificationUnreadCountDto>(ct);
-        return body?.Count ?? 0;
+        var result = await notificationService.GetUnreadCountForCurrentUserAsync(ct);
+        return Unwrap(result, "Get notification unread count").Count;
     }
 
     public virtual async Task MarkNotificationReadAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/notifications/{id}/read", null, ct);
-        await EnsureSuccessAsync(response, "Mark notification read");
+        var result = await notificationService.MarkReadAsync(id, ct);
+        EnsureSuccess(result, "Mark notification read");
     }
 
     public virtual async Task<int> MarkAllNotificationsReadAsync(CancellationToken ct = default)
     {
-        var response = await _http.PostAsync("/api/v1/notifications/read-all", null, ct);
-        await EnsureSuccessAsync(response, "Mark all notifications read");
-        return await response.Content.ReadFromJsonAsync<int>(ct);
+        var result = await notificationService.MarkAllReadForCurrentUserAsync(ct);
+        return Unwrap(result, "Mark all notifications read");
     }
 
     public virtual async Task DeleteNotificationAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/notifications/{id}", ct);
-        await EnsureSuccessAsync(response, "Delete notification");
+        var result = await notificationService.DeleteAsync(id, ct);
+        EnsureSuccess(result, "Delete notification");
     }
 
     public virtual async Task<NotificationPreferencesDto> GetNotificationPreferencesAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/notifications/preferences", ct);
-        await EnsureSuccessAsync(response, "Get notification preferences");
-        return await response.Content.ReadFromJsonAsync<NotificationPreferencesDto>(ct)
-            ?? throw new ApiException("Failed to deserialize notification preferences", System.Net.HttpStatusCode.InternalServerError);
+        var result = await notificationPreferencesService.GetForCurrentUserAsync(ct);
+        return Unwrap(result, "Get notification preferences");
     }
 
     public virtual async Task<NotificationPreferencesDto> UpdateNotificationPreferencesAsync(
         UpdateNotificationPreferencesDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync("/api/v1/notifications/preferences", dto, ct);
-        await EnsureSuccessAsync(response, "Update notification preferences");
-        return await response.Content.ReadFromJsonAsync<NotificationPreferencesDto>(ct)
-            ?? throw new ApiException("Failed to deserialize notification preferences", System.Net.HttpStatusCode.InternalServerError);
+        Validate(dto, "Update notification preferences");
+        var result = await notificationPreferencesService.UpdateForCurrentUserAsync(dto, ct);
+        return Unwrap(result, "Update notification preferences");
     }
 
     #endregion
@@ -994,163 +762,153 @@ public class AssetHubApiClient
 
     public virtual async Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/migrations?skip={skip}&take={take}", ct);
-        await EnsureSuccessAsync(response, "Get migrations");
-        return await response.Content.ReadFromJsonAsync<MigrationListResponse>(ct)
-            ?? new() { Migrations = [], TotalCount = 0 };
+        var result = await migrationService.ListAsync(skip, take, ct);
+        return Unwrap(result, "Get migrations");
     }
 
     public virtual async Task<MigrationResponseDto> GetMigrationAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/migrations/{id}", ct);
-        await EnsureSuccessAsync(response, "Get migration");
-        return await response.Content.ReadFromJsonAsync<MigrationResponseDto>(ct)
-            ?? throw new ApiException("Failed to deserialize migration", System.Net.HttpStatusCode.InternalServerError);
+        var result = await migrationService.GetByIdAsync(id, ct);
+        return Unwrap(result, "Get migration");
     }
 
     public virtual async Task<MigrationResponseDto> CreateMigrationAsync(CreateMigrationDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/migrations", dto, ct);
-        await EnsureSuccessAsync(response, "Create migration");
-        return await response.Content.ReadFromJsonAsync<MigrationResponseDto>(ct)
-            ?? throw new ApiException("Failed to deserialize migration", System.Net.HttpStatusCode.InternalServerError);
+        Validate(dto, "Create migration");
+        var result = await migrationService.CreateAsync(dto, ct);
+        return Unwrap(result, "Create migration");
     }
 
     public virtual async Task UploadMigrationManifestAsync(Guid id, Stream csvStream, string fileName, CancellationToken ct = default)
     {
-        using var content = new MultipartFormDataContent();
-        var streamContent = new StreamContent(csvStream);
-        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
-        content.Add(streamContent, "file", fileName);
-
-        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/manifest", content, ct);
-        await EnsureSuccessAsync(response, "Upload migration manifest");
+        // fileName is part of the legacy multipart form; the service signature
+        // is just (id, stream, ct).
+        _ = fileName;
+        var result = await migrationService.UploadManifestAsync(id, csvStream, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Upload migration manifest");
     }
 
     public virtual async Task UploadMigrationFilesAsync(Guid id, IEnumerable<(string FileName, Stream Stream, string ContentType)> files, CancellationToken ct = default)
     {
-        using var content = new MultipartFormDataContent();
-        foreach (var (fileName, stream, contentType) in files)
-        {
-            var streamContent = new StreamContent(stream);
-            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-            content.Add(streamContent, "files", fileName);
-        }
-
-        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/files", content, ct);
-        await EnsureSuccessAsync(response, "Upload migration files");
+        var result = await migrationService.UploadStagingFilesAsync(id, files, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Upload migration files");
     }
 
     public virtual async Task StartMigrationAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/start", null, ct);
-        await EnsureSuccessAsync(response, "Start migration");
+        var result = await migrationService.StartAsync(id, ct);
+        EnsureSuccess(result, "Start migration");
     }
 
     public virtual async Task StartMigrationS3ScanAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/s3/scan", null, ct);
-        await EnsureSuccessAsync(response, "Start S3 scan");
+        var result = await migrationService.StartS3ScanAsync(id, ct);
+        EnsureSuccess(result, "Start S3 scan");
     }
 
     public virtual async Task CancelMigrationAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/cancel", null, ct);
-        await EnsureSuccessAsync(response, "Cancel migration");
+        var result = await migrationService.CancelAsync(id, ct);
+        EnsureSuccess(result, "Cancel migration");
     }
 
     public virtual async Task RetryFailedMigrationAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/migrations/{id}/retry", null, ct);
-        await EnsureSuccessAsync(response, "Retry failed migration items");
+        var result = await migrationService.RetryFailedAsync(id, ct);
+        EnsureSuccess(result, "Retry failed migration items");
     }
 
     public virtual async Task<MigrationProgressDto> GetMigrationProgressAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/migrations/{id}/progress", ct);
-        await EnsureSuccessAsync(response, "Get migration progress");
-        return await response.Content.ReadFromJsonAsync<MigrationProgressDto>(ct)
-            ?? throw new ApiException("Failed to deserialize migration progress", System.Net.HttpStatusCode.InternalServerError);
+        var result = await migrationService.GetProgressAsync(id, ct);
+        return Unwrap(result, "Get migration progress");
     }
 
     public virtual async Task<MigrationItemListResponse> GetMigrationItemsAsync(Guid id, string? statusFilter = null, int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var url = $"/api/v1/admin/migrations/{id}/items?skip={skip}&take={take}";
-        if (!string.IsNullOrEmpty(statusFilter))
-            url += $"&status={statusFilter}";
-
-        var response = await _http.GetAsync(url, ct);
-        await EnsureSuccessAsync(response, "Get migration items");
-        return await response.Content.ReadFromJsonAsync<MigrationItemListResponse>(ct)
-            ?? new() { Items = [], TotalCount = 0 };
+        var result = await migrationService.GetItemsAsync(id, statusFilter, skip, take, ct);
+        return Unwrap(result, "Get migration items");
     }
 
     public virtual async Task DeleteMigrationAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/migrations/{id}", ct);
-        await EnsureSuccessAsync(response, "Delete migration");
+        var result = await migrationService.DeleteAsync(id, ct);
+        EnsureSuccess(result, "Delete migration");
     }
 
+    /// <summary>
+    /// Generates the migration outcome CSV in-process. The legacy HTTP endpoint
+    /// produced the same shape (header + per-item rows); this mirrors it so
+    /// callers receive an identical stream.
+    /// </summary>
     public virtual async Task<Stream> DownloadMigrationOutcomeAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/migrations/{id}/outcome.csv", ct);
-        await EnsureSuccessAsync(response, "Download migration outcome");
-        return await response.Content.ReadAsStreamAsync(ct);
+        var result = await migrationService.GetItemsAsync(id, null, 0, 100_000, ct);
+        var items = Unwrap(result, "Download migration outcome").Items;
+
+        var csv = new StringBuilder();
+        csv.AppendLine("external_id,filename,status,target_asset_id,error_code,error_message");
+        foreach (var item in items)
+        {
+            csv.Append(EscapeCsvField(item.ExternalId ?? "")).Append(',');
+            csv.Append(EscapeCsvField(item.FileName)).Append(',');
+            csv.Append(EscapeCsvField(item.Status)).Append(',');
+            csv.Append(item.AssetId?.ToString() ?? "").Append(',');
+            csv.Append(EscapeCsvField(item.ErrorCode ?? "")).Append(',');
+            csv.Append(EscapeCsvField(item.ErrorMessage ?? ""));
+            csv.AppendLine();
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(csv.ToString());
+        return new MemoryStream(bytes, writable: false);
+    }
+
+    private static string EscapeCsvField(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        var needsQuoting = value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r');
+        if (!needsQuoting) return value;
+        return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 
     public virtual async Task UnstageMigrationItemAsync(Guid migrationId, Guid itemId, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/migrations/{migrationId}/items/{itemId}/unstage", ct);
-        await EnsureSuccessAsync(response, "Unstage migration item");
+        var result = await migrationService.UnstageMigrationItemAsync(migrationId, itemId, ct);
+        EnsureSuccess(result, "Unstage migration item");
     }
 
     public virtual async Task<int> BulkDeleteMigrationsAsync(string filter, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/migrations/bulk?filter={Uri.EscapeDataString(filter)}", ct);
-        await EnsureSuccessAsync(response, "Bulk delete migrations");
-        return await response.Content.ReadFromJsonAsync<int>(ct);
+        var result = await migrationService.BulkDeleteAsync(filter, ct);
+        return Unwrap(result, "Bulk delete migrations");
     }
 
     #endregion
 
     #region Asset Collections (Multi-Collection)
 
-    /// <summary>
-    /// Gets all collections an asset belongs to.
-    /// </summary>
     public virtual async Task<List<AssetCollectionDto>> GetAssetCollectionsAsync(Guid assetId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/collections", ct);
-        await EnsureSuccessAsync(response, "Get asset collections");
-        return await response.Content.ReadFromJsonAsync<List<AssetCollectionDto>>(ct) ?? new();
+        var result = await assetQueryService.GetAssetCollectionsAsync(assetId, ct);
+        return Unwrap(result, "Get asset collections").ToList();
     }
 
-    /// <summary>
-    /// Gets derivative assets created from a source asset via image editing.
-    /// </summary>
     public virtual async Task<List<AssetDerivativeDto>> GetAssetDerivativesAsync(Guid assetId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/derivatives", ct);
-        await EnsureSuccessAsync(response, "Get asset derivatives");
-        return await response.Content.ReadFromJsonAsync<List<AssetDerivativeDto>>(ct) ?? new();
+        var result = await assetQueryService.GetDerivativesAsync(assetId, ct);
+        return Unwrap(result, "Get asset derivatives");
     }
 
-    /// <summary>
-    /// Adds an asset to a collection.
-    /// </summary>
     public virtual async Task AddAssetToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/assets/{assetId}/collections/{collectionId}", null, ct);
-        await EnsureSuccessAsync(response, "Add asset to collection");
+        var result = await assetService.AddToCollectionAsync(assetId, collectionId, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Add asset to collection");
     }
 
-    /// <summary>
-    /// Removes an asset from a collection.
-    /// </summary>
     public virtual async Task RemoveAssetFromCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/assets/{assetId}/collections/{collectionId}", ct);
-        await EnsureSuccessAsync(response, "Remove asset from collection");
+        var result = await assetService.RemoveFromCollectionAsync(assetId, collectionId, ct);
+        EnsureSuccess(result, "Remove asset from collection");
     }
 
     #endregion
@@ -1159,48 +917,40 @@ public class AssetHubApiClient
 
     public virtual async Task<List<MetadataSchemaDto>> GetMetadataSchemasAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/metadata-schemas", ct);
-        await EnsureSuccessAsync(response, "Get metadata schemas");
-        return await response.Content.ReadFromJsonAsync<List<MetadataSchemaDto>>(ct) ?? new();
+        var result = await metadataSchemaQueryService.GetAllAsync(ct);
+        return Unwrap(result, "Get metadata schemas");
     }
 
     public virtual async Task<MetadataSchemaDto?> GetMetadataSchemaAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/metadata-schemas/{id}", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-        await EnsureSuccessAsync(response, "Get metadata schema");
-        return await response.Content.ReadFromJsonAsync<MetadataSchemaDto>(ct);
+        var result = await metadataSchemaQueryService.GetByIdAsync(id, ct);
+        return UnwrapOrNullOn(result, "Get metadata schema", 404);
     }
 
     public virtual async Task<List<MetadataSchemaDto>> GetApplicableMetadataSchemasAsync(string? assetType = null, Guid? collectionId = null, CancellationToken ct = default)
     {
-        var qs = new List<string>();
-        if (!string.IsNullOrEmpty(assetType)) qs.Add($"assetType={Uri.EscapeDataString(assetType)}");
-        if (collectionId.HasValue) qs.Add($"collectionId={collectionId}");
-        var url = "/api/v1/metadata-schemas/applicable" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
-        var response = await _http.GetAsync(url, ct);
-        await EnsureSuccessAsync(response, "Get applicable metadata schemas");
-        return await response.Content.ReadFromJsonAsync<List<MetadataSchemaDto>>(ct) ?? new();
+        var result = await metadataSchemaQueryService.GetApplicableAsync(assetType, collectionId, ct);
+        return Unwrap(result, "Get applicable metadata schemas");
     }
 
     public virtual async Task<MetadataSchemaDto> CreateMetadataSchemaAsync(CreateMetadataSchemaDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/metadata-schemas", dto, ct);
-        await EnsureSuccessAsync(response, "Create metadata schema");
-        return await ReadRequiredJsonAsync<MetadataSchemaDto>(response, "Create metadata schema");
+        Validate(dto, "Create metadata schema");
+        var result = await metadataSchemaService.CreateAsync(dto, ct);
+        return Unwrap(result, "Create metadata schema");
     }
 
     public virtual async Task<MetadataSchemaDto> UpdateMetadataSchemaAsync(Guid id, UpdateMetadataSchemaDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/metadata-schemas/{id}", dto, ct);
-        await EnsureSuccessAsync(response, "Update metadata schema");
-        return await ReadRequiredJsonAsync<MetadataSchemaDto>(response, "Update metadata schema");
+        Validate(dto, "Update metadata schema");
+        var result = await metadataSchemaService.UpdateAsync(id, dto, ct);
+        return Unwrap(result, "Update metadata schema");
     }
 
     public virtual async Task DeleteMetadataSchemaAsync(Guid id, bool force = false, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/metadata-schemas/{id}?force={force}", ct);
-        await EnsureSuccessAsync(response, "Delete metadata schema");
+        var result = await metadataSchemaService.DeleteAsync(id, force, ct);
+        EnsureSuccess(result, "Delete metadata schema");
     }
 
     #endregion
@@ -1209,44 +959,40 @@ public class AssetHubApiClient
 
     public virtual async Task<List<TaxonomySummaryDto>> GetTaxonomiesAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/taxonomies", ct);
-        await EnsureSuccessAsync(response, "Get taxonomies");
-        return await response.Content.ReadFromJsonAsync<List<TaxonomySummaryDto>>(ct) ?? new();
+        var result = await taxonomyQueryService.GetAllAsync(ct);
+        return Unwrap(result, "Get taxonomies");
     }
 
     public virtual async Task<TaxonomyDto?> GetTaxonomyAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/taxonomies/{id}", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-        await EnsureSuccessAsync(response, "Get taxonomy");
-        return await response.Content.ReadFromJsonAsync<TaxonomyDto>(ct);
+        var result = await taxonomyQueryService.GetByIdAsync(id, ct);
+        return UnwrapOrNullOn(result, "Get taxonomy", 404);
     }
 
     public virtual async Task<TaxonomyDto> CreateTaxonomyAsync(CreateTaxonomyDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/taxonomies", dto, ct);
-        await EnsureSuccessAsync(response, "Create taxonomy");
-        return await ReadRequiredJsonAsync<TaxonomyDto>(response, "Create taxonomy");
+        Validate(dto, "Create taxonomy");
+        var result = await taxonomyService.CreateAsync(dto, ct);
+        return Unwrap(result, "Create taxonomy");
     }
 
     public virtual async Task<TaxonomyDto> UpdateTaxonomyAsync(Guid id, UpdateTaxonomyDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/taxonomies/{id}", dto, ct);
-        await EnsureSuccessAsync(response, "Update taxonomy");
-        return await ReadRequiredJsonAsync<TaxonomyDto>(response, "Update taxonomy");
+        Validate(dto, "Update taxonomy");
+        var result = await taxonomyService.UpdateAsync(id, dto, ct);
+        return Unwrap(result, "Update taxonomy");
     }
 
     public virtual async Task<TaxonomyDto> ReplaceTaxonomyTermsAsync(Guid id, List<UpsertTaxonomyTermDto> terms, CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync($"/api/v1/admin/taxonomies/{id}/terms", terms, ct);
-        await EnsureSuccessAsync(response, "Replace taxonomy terms");
-        return await ReadRequiredJsonAsync<TaxonomyDto>(response, "Replace taxonomy terms");
+        var result = await taxonomyService.ReplaceTermsAsync(id, terms, ct);
+        return Unwrap(result, "Replace taxonomy terms");
     }
 
     public virtual async Task DeleteTaxonomyAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/taxonomies/{id}", ct);
-        await EnsureSuccessAsync(response, "Delete taxonomy");
+        var result = await taxonomyService.DeleteAsync(id, ct);
+        EnsureSuccess(result, "Delete taxonomy");
     }
 
     #endregion
@@ -1255,16 +1001,15 @@ public class AssetHubApiClient
 
     public virtual async Task<List<AssetMetadataValueDto>> GetAssetMetadataAsync(Guid assetId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/metadata", ct);
-        await EnsureSuccessAsync(response, "Get asset metadata");
-        return await response.Content.ReadFromJsonAsync<List<AssetMetadataValueDto>>(ct) ?? new();
+        var result = await assetMetadataService.GetByAssetIdAsync(assetId, ct);
+        return Unwrap(result, "Get asset metadata");
     }
 
     public virtual async Task<List<AssetMetadataValueDto>> SetAssetMetadataAsync(Guid assetId, SetAssetMetadataDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync($"/api/v1/assets/{assetId}/metadata", dto, ct);
-        await EnsureSuccessAsync(response, "Set asset metadata");
-        return await ReadRequiredJsonAsync<List<AssetMetadataValueDto>>(response, "Set asset metadata");
+        Validate(dto, "Set asset metadata");
+        var result = await assetMetadataService.SetAsync(assetId, dto, ct);
+        return Unwrap(result, "Set asset metadata");
     }
 
     #endregion
@@ -1273,9 +1018,9 @@ public class AssetHubApiClient
 
     public virtual async Task<AssetSearchResponse> SearchAssetsAsync(AssetSearchRequest request, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/assets/search", request, ct);
-        await EnsureSuccessAsync(response, "Search assets");
-        return await ReadRequiredJsonAsync<AssetSearchResponse>(response, "Search assets");
+        Validate(request, "Search assets");
+        var result = await assetSearchService.SearchAsync(request, ct);
+        return Unwrap(result, "Search assets");
     }
 
     #endregion
@@ -1284,37 +1029,34 @@ public class AssetHubApiClient
 
     public virtual async Task<List<SavedSearchDto>> GetSavedSearchesAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/saved-searches", ct);
-        await EnsureSuccessAsync(response, "Get saved searches");
-        return await response.Content.ReadFromJsonAsync<List<SavedSearchDto>>(ct) ?? new();
+        var result = await savedSearchService.GetMineAsync(ct);
+        return Unwrap(result, "Get saved searches");
     }
 
     public virtual async Task<SavedSearchDto?> GetSavedSearchAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/saved-searches/{id}", ct);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-        await EnsureSuccessAsync(response, "Get saved search");
-        return await response.Content.ReadFromJsonAsync<SavedSearchDto>(ct);
+        var result = await savedSearchService.GetByIdAsync(id, ct);
+        return UnwrapOrNullOn(result, "Get saved search", 404);
     }
 
     public virtual async Task<SavedSearchDto> CreateSavedSearchAsync(CreateSavedSearchDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/saved-searches", dto, ct);
-        await EnsureSuccessAsync(response, "Create saved search");
-        return await ReadRequiredJsonAsync<SavedSearchDto>(response, "Create saved search");
+        Validate(dto, "Create saved search");
+        var result = await savedSearchService.CreateAsync(dto, ct);
+        return Unwrap(result, "Create saved search");
     }
 
     public virtual async Task<SavedSearchDto> UpdateSavedSearchAsync(Guid id, UpdateSavedSearchDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/saved-searches/{id}", dto, ct);
-        await EnsureSuccessAsync(response, "Update saved search");
-        return await ReadRequiredJsonAsync<SavedSearchDto>(response, "Update saved search");
+        Validate(dto, "Update saved search");
+        var result = await savedSearchService.UpdateAsync(id, dto, ct);
+        return Unwrap(result, "Update saved search");
     }
 
     public virtual async Task DeleteSavedSearchAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/saved-searches/{id}", ct);
-        await EnsureSuccessAsync(response, "Delete saved search");
+        var result = await savedSearchService.DeleteAsync(id, ct);
+        EnsureSuccess(result, "Delete saved search");
     }
 
     #endregion
@@ -1323,28 +1065,26 @@ public class AssetHubApiClient
 
     public virtual async Task<TrashListResponse> GetTrashAsync(int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/trash?skip={skip}&take={take}", ct);
-        await EnsureSuccessAsync(response, "Get trash");
-        return await ReadRequiredJsonAsync<TrashListResponse>(response, "Get trash");
+        var result = await assetTrashService.GetAsync(skip, take, ct);
+        return Unwrap(result, "Get trash");
     }
 
     public virtual async Task RestoreFromTrashAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/trash/{id}/restore", content: null, ct);
-        await EnsureSuccessAsync(response, "Restore from trash");
+        var result = await assetTrashService.RestoreAsync(id, ct);
+        EnsureSuccess(result, "Restore from trash");
     }
 
     public virtual async Task PurgeFromTrashAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/trash/{id}", ct);
-        await EnsureSuccessAsync(response, "Purge from trash");
+        var result = await assetTrashService.PurgeAsync(id, ct);
+        EnsureSuccess(result, "Purge from trash");
     }
 
     public virtual async Task<EmptyTrashResponse> EmptyTrashAsync(CancellationToken ct = default)
     {
-        var response = await _http.PostAsync("/api/v1/admin/trash/empty", content: null, ct);
-        await EnsureSuccessAsync(response, "Empty trash");
-        return await ReadRequiredJsonAsync<EmptyTrashResponse>(response, "Empty trash");
+        var result = await assetTrashService.EmptyAsync(ct);
+        return Unwrap(result, "Empty trash");
     }
 
     #endregion
@@ -1353,22 +1093,20 @@ public class AssetHubApiClient
 
     public virtual async Task<List<AssetVersionDto>> GetAssetVersionsAsync(Guid assetId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/versions", ct);
-        await EnsureSuccessAsync(response, "Get asset versions");
-        return await response.Content.ReadFromJsonAsync<List<AssetVersionDto>>(ct) ?? new();
+        var result = await assetVersionService.GetForAssetAsync(assetId, ct);
+        return Unwrap(result, "Get asset versions");
     }
 
     public virtual async Task<AssetVersionDto> RestoreAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/assets/{assetId}/versions/{versionNumber}/restore", content: null, ct);
-        await EnsureSuccessAsync(response, "Restore asset version");
-        return await ReadRequiredJsonAsync<AssetVersionDto>(response, "Restore asset version");
+        var result = await assetVersionService.RestoreAsync(assetId, versionNumber, ct);
+        return Unwrap(result, "Restore asset version");
     }
 
     public virtual async Task PruneAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/assets/{assetId}/versions/{versionNumber}", ct);
-        await EnsureSuccessAsync(response, "Prune asset version");
+        var result = await assetVersionService.PruneAsync(assetId, versionNumber, ct);
+        EnsureSuccess(result, "Prune asset version");
     }
 
     #endregion
@@ -1377,31 +1115,34 @@ public class AssetHubApiClient
 
     public virtual async Task<List<AssetCommentResponseDto>> GetAssetCommentsAsync(Guid assetId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/comments", ct);
-        await EnsureSuccessAsync(response, "Get asset comments");
-        return await response.Content.ReadFromJsonAsync<List<AssetCommentResponseDto>>(ct) ?? new();
+        var result = await assetCommentService.ListForAssetAsync(assetId, ct);
+        return Unwrap(result, "Get asset comments");
     }
 
     public virtual async Task<AssetCommentResponseDto> CreateAssetCommentAsync(
         Guid assetId, CreateAssetCommentDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync($"/api/v1/assets/{assetId}/comments", dto, ct);
-        await EnsureSuccessAsync(response, "Create asset comment");
-        return await ReadRequiredJsonAsync<AssetCommentResponseDto>(response, "Create asset comment");
+        Validate(dto, "Create asset comment");
+        var result = await assetCommentService.CreateAsync(assetId, dto, ct);
+        return Unwrap(result, "Create asset comment");
     }
 
     public virtual async Task<AssetCommentResponseDto> UpdateAssetCommentAsync(
         Guid assetId, Guid commentId, UpdateAssetCommentDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/assets/{assetId}/comments/{commentId}", dto, ct);
-        await EnsureSuccessAsync(response, "Update asset comment");
-        return await ReadRequiredJsonAsync<AssetCommentResponseDto>(response, "Update asset comment");
+        // assetId kept for caller-side context; the service identifies the comment
+        // by its own primary key and re-checks the asset relationship internally.
+        _ = assetId;
+        Validate(dto, "Update asset comment");
+        var result = await assetCommentService.UpdateAsync(commentId, dto, ct);
+        return Unwrap(result, "Update asset comment");
     }
 
     public virtual async Task DeleteAssetCommentAsync(Guid assetId, Guid commentId, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/assets/{assetId}/comments/{commentId}", ct);
-        await EnsureSuccessAsync(response, "Delete asset comment");
+        _ = assetId;
+        var result = await assetCommentService.DeleteAsync(commentId, ct);
+        EnsureSuccess(result, "Delete asset comment");
     }
 
     #endregion
@@ -1410,39 +1151,40 @@ public class AssetHubApiClient
 
     public virtual async Task<AssetWorkflowResponseDto> GetAssetWorkflowAsync(Guid assetId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/assets/{assetId}/workflow", ct);
-        await EnsureSuccessAsync(response, "Get asset workflow");
-        return await ReadRequiredJsonAsync<AssetWorkflowResponseDto>(response, "Get asset workflow");
+        var result = await assetWorkflowService.GetAsync(assetId, ct);
+        return Unwrap(result, "Get asset workflow");
     }
 
-    public virtual Task<AssetWorkflowResponseDto> SubmitAssetForReviewAsync(Guid assetId, string? reason, CancellationToken ct = default)
-        => PostWorkflowAsync(assetId, "submit", new WorkflowActionDto { Reason = reason }, ct);
+    public virtual async Task<AssetWorkflowResponseDto> SubmitAssetForReviewAsync(Guid assetId, string? reason, CancellationToken ct = default)
+    {
+        var result = await assetWorkflowService.SubmitAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
+        return Unwrap(result, "submit asset workflow");
+    }
 
-    public virtual Task<AssetWorkflowResponseDto> ApproveAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
-        => PostWorkflowAsync(assetId, "approve", new WorkflowActionDto { Reason = reason }, ct);
+    public virtual async Task<AssetWorkflowResponseDto> ApproveAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
+    {
+        var result = await assetWorkflowService.ApproveAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
+        return Unwrap(result, "approve asset workflow");
+    }
 
     public virtual async Task<AssetWorkflowResponseDto> RejectAssetAsync(Guid assetId, string reason, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync(
-            $"/api/v1/assets/{assetId}/workflow/reject",
-            new WorkflowRejectDto { Reason = reason }, ct);
-        await EnsureSuccessAsync(response, "Reject asset");
-        return await ReadRequiredJsonAsync<AssetWorkflowResponseDto>(response, "Reject asset");
+        var dto = new WorkflowRejectDto { Reason = reason };
+        Validate(dto, "Reject asset");
+        var result = await assetWorkflowService.RejectAsync(assetId, dto, ct);
+        return Unwrap(result, "reject asset workflow");
     }
 
-    public virtual Task<AssetWorkflowResponseDto> PublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
-        => PostWorkflowAsync(assetId, "publish", new WorkflowActionDto { Reason = reason }, ct);
-
-    public virtual Task<AssetWorkflowResponseDto> UnpublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
-        => PostWorkflowAsync(assetId, "unpublish", new WorkflowActionDto { Reason = reason }, ct);
-
-    private async Task<AssetWorkflowResponseDto> PostWorkflowAsync(
-        Guid assetId, string action, WorkflowActionDto dto, CancellationToken ct)
+    public virtual async Task<AssetWorkflowResponseDto> PublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync(
-            $"/api/v1/assets/{assetId}/workflow/{action}", dto, ct);
-        await EnsureSuccessAsync(response, $"{action} asset workflow");
-        return await ReadRequiredJsonAsync<AssetWorkflowResponseDto>(response, $"{action} asset workflow");
+        var result = await assetWorkflowService.PublishAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
+        return Unwrap(result, "publish asset workflow");
+    }
+
+    public virtual async Task<AssetWorkflowResponseDto> UnpublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
+    {
+        var result = await assetWorkflowService.UnpublishAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
+        return Unwrap(result, "unpublish asset workflow");
     }
 
     #endregion
@@ -1451,51 +1193,47 @@ public class AssetHubApiClient
 
     public virtual async Task<List<WebhookResponseDto>> GetWebhooksAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/admin/webhooks", ct);
-        await EnsureSuccessAsync(response, "Get webhooks");
-        return await response.Content.ReadFromJsonAsync<List<WebhookResponseDto>>(ct) ?? new();
+        var result = await webhookService.ListAsync(ct);
+        return Unwrap(result, "Get webhooks");
     }
 
     public virtual async Task<CreatedWebhookDto> CreateWebhookAsync(CreateWebhookDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/webhooks", dto, ct);
-        await EnsureSuccessAsync(response, "Create webhook");
-        return await ReadRequiredJsonAsync<CreatedWebhookDto>(response, "Create webhook");
+        Validate(dto, "Create webhook");
+        var result = await webhookService.CreateAsync(dto, ct);
+        return Unwrap(result, "Create webhook");
     }
 
     public virtual async Task<WebhookResponseDto> UpdateWebhookAsync(Guid id, UpdateWebhookDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/webhooks/{id}", dto, ct);
-        await EnsureSuccessAsync(response, "Update webhook");
-        return await ReadRequiredJsonAsync<WebhookResponseDto>(response, "Update webhook");
+        Validate(dto, "Update webhook");
+        var result = await webhookService.UpdateAsync(id, dto, ct);
+        return Unwrap(result, "Update webhook");
     }
 
     public virtual async Task DeleteWebhookAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/webhooks/{id}", ct);
-        await EnsureSuccessAsync(response, "Delete webhook");
+        var result = await webhookService.DeleteAsync(id, ct);
+        EnsureSuccess(result, "Delete webhook");
     }
 
     public virtual async Task<CreatedWebhookDto> RotateWebhookSecretAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/webhooks/{id}/rotate-secret", content: null, ct);
-        await EnsureSuccessAsync(response, "Rotate webhook secret");
-        return await ReadRequiredJsonAsync<CreatedWebhookDto>(response, "Rotate webhook secret");
+        var result = await webhookService.RotateSecretAsync(id, ct);
+        return Unwrap(result, "Rotate webhook secret");
     }
 
     public virtual async Task<WebhookDeliveryResponseDto> SendWebhookTestAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/webhooks/{id}/test", content: null, ct);
-        await EnsureSuccessAsync(response, "Send webhook test");
-        return await ReadRequiredJsonAsync<WebhookDeliveryResponseDto>(response, "Send webhook test");
+        var result = await webhookService.SendTestAsync(id, ct);
+        return Unwrap(result, "Send webhook test");
     }
 
     public virtual async Task<List<WebhookDeliveryResponseDto>> GetWebhookDeliveriesAsync(
         Guid id, int take = 50, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/api/v1/admin/webhooks/{id}/deliveries?take={take}", ct);
-        await EnsureSuccessAsync(response, "Get webhook deliveries");
-        return await response.Content.ReadFromJsonAsync<List<WebhookDeliveryResponseDto>>(ct) ?? new();
+        var result = await webhookService.ListDeliveriesAsync(id, take, ct);
+        return Unwrap(result, "Get webhook deliveries");
     }
 
     #endregion
@@ -1504,48 +1242,41 @@ public class AssetHubApiClient
 
     public virtual async Task<List<BrandResponseDto>> GetBrandsAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/admin/brands", ct);
-        await EnsureSuccessAsync(response, "Get brands");
-        return await response.Content.ReadFromJsonAsync<List<BrandResponseDto>>(ct) ?? new();
+        var result = await brandService.ListAsync(ct);
+        return Unwrap(result, "Get brands");
     }
 
     public virtual async Task<BrandResponseDto> CreateBrandAsync(CreateBrandDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/brands", dto, ct);
-        await EnsureSuccessAsync(response, "Create brand");
-        return await ReadRequiredJsonAsync<BrandResponseDto>(response, "Create brand");
+        Validate(dto, "Create brand");
+        var result = await brandService.CreateAsync(dto, ct);
+        return Unwrap(result, "Create brand");
     }
 
     public virtual async Task<BrandResponseDto> UpdateBrandAsync(Guid id, UpdateBrandDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/v1/admin/brands/{id}", dto, ct);
-        await EnsureSuccessAsync(response, "Update brand");
-        return await ReadRequiredJsonAsync<BrandResponseDto>(response, "Update brand");
+        Validate(dto, "Update brand");
+        var result = await brandService.UpdateAsync(id, dto, ct);
+        return Unwrap(result, "Update brand");
     }
 
     public virtual async Task DeleteBrandAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/brands/{id}", ct);
-        await EnsureSuccessAsync(response, "Delete brand");
+        var result = await brandService.DeleteAsync(id, ct);
+        EnsureSuccess(result, "Delete brand");
     }
 
     public virtual async Task<BrandResponseDto> UploadBrandLogoAsync(
         Guid id, Stream content, string fileName, string contentType, CancellationToken ct = default)
     {
-        using var form = new MultipartFormDataContent();
-        var file = new StreamContent(content);
-        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-        form.Add(file, "file", fileName);
-
-        var response = await _http.PostAsync($"/api/v1/admin/brands/{id}/logo", form, ct);
-        await EnsureSuccessAsync(response, "Upload brand logo");
-        return await ReadRequiredJsonAsync<BrandResponseDto>(response, "Upload brand logo");
+        var result = await brandService.UploadLogoAsync(id, content, fileName, contentType, ct);
+        return Unwrap(result, "Upload brand logo");
     }
 
     public virtual async Task RemoveBrandLogoAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"/api/v1/admin/brands/{id}/logo", ct);
-        await EnsureSuccessAsync(response, "Remove brand logo");
+        var result = await brandService.RemoveLogoAsync(id, ct);
+        EnsureSuccess(new ServiceResult { Error = result.Error }, "Remove brand logo");
     }
 
     #endregion
@@ -1554,63 +1285,51 @@ public class AssetHubApiClient
 
     public virtual async Task<List<GuestInvitationResponseDto>> GetGuestInvitationsAsync(CancellationToken ct = default)
     {
-        var response = await _http.GetAsync("/api/v1/admin/guest-invitations", ct);
-        await EnsureSuccessAsync(response, "Get guest invitations");
-        return await response.Content.ReadFromJsonAsync<List<GuestInvitationResponseDto>>(ct) ?? new();
+        var result = await guestInvitationService.ListAsync(ct);
+        return Unwrap(result, "Get guest invitations");
     }
 
     public virtual async Task<CreatedGuestInvitationDto> CreateGuestInvitationAsync(
         CreateGuestInvitationDto dto, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/api/v1/admin/guest-invitations", dto, ct);
-        await EnsureSuccessAsync(response, "Create guest invitation");
-        return await ReadRequiredJsonAsync<CreatedGuestInvitationDto>(response, "Create guest invitation");
+        Validate(dto, "Create guest invitation");
+        var result = await guestInvitationService.CreateAsync(dto, BaseUrl(), ct);
+        return Unwrap(result, "Create guest invitation");
     }
 
     public virtual async Task RevokeGuestInvitationAsync(Guid id, CancellationToken ct = default)
     {
-        var response = await _http.PostAsync($"/api/v1/admin/guest-invitations/{id}/revoke", content: null, ct);
-        await EnsureSuccessAsync(response, "Revoke guest invitation");
+        var result = await guestInvitationService.RevokeAsync(id, ct);
+        EnsureSuccess(result, "Revoke guest invitation");
     }
 
-    /// <summary>
-    /// Anonymous redeem of a guest invitation magic-link token. Triggered
-    /// from the public <c>/guest-accept</c> landing page.
-    /// </summary>
     public virtual async Task<AcceptGuestInvitationResponseDto> AcceptGuestInvitationAsync(
         string token, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync(
-            "/api/v1/guest-invitations/accept", new { Token = token }, ct);
-        await EnsureSuccessAsync(response, "Accept guest invitation");
-        return await ReadRequiredJsonAsync<AcceptGuestInvitationResponseDto>(response, "Accept guest invitation");
+        var result = await guestInvitationService.AcceptAsync(token, ct);
+        return Unwrap(result, "Accept guest invitation");
     }
 
     #endregion
 }
 
 /// <summary>
-/// Exception thrown when an API call fails.
-/// Contains the HTTP status code and server error message for debugging.
+/// Exception thrown when a facade call fails. Carries the same shape callers
+/// expected from the legacy HTTP-based client (status code, error code, details)
+/// so error-handling code in pages does not need to change.
 /// </summary>
 public class ApiException : Exception
 {
-    /// <summary>
-    /// The HTTP status code returned by the server.
-    /// </summary>
-    public System.Net.HttpStatusCode StatusCode { get; }
+    /// <summary>The HTTP-equivalent status code (mapped from <see cref="ServiceError.StatusCode"/>).</summary>
+    public HttpStatusCode StatusCode { get; }
 
-    /// <summary>
-    /// The structured error code from the API (e.g. "DUPLICATE_ASSET", "NOT_FOUND").
-    /// </summary>
+    /// <summary>The structured error code (e.g. "DUPLICATE_ASSET", "NOT_FOUND", "PASSWORD_REQUIRED").</summary>
     public string? ErrorCode { get; }
 
-    /// <summary>
-    /// Additional structured details from the error response.
-    /// </summary>
+    /// <summary>Additional structured details (e.g. validation field errors).</summary>
     public Dictionary<string, string>? Details { get; }
 
-    public ApiException(string message, System.Net.HttpStatusCode statusCode, string? errorCode = null, Dictionary<string, string>? details = null) : base(message)
+    public ApiException(string message, HttpStatusCode statusCode, string? errorCode = null, Dictionary<string, string>? details = null) : base(message)
     {
         StatusCode = statusCode;
         ErrorCode = errorCode;

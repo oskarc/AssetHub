@@ -9,6 +9,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -24,6 +25,8 @@ public class CollectionServiceTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private string _dbName = null!;
+    private DbContextProvider _provider = null!;
     private CollectionService _service = null!;
     private CollectionRepository _collectionRepo = null!;
     private CollectionAclRepository _aclRepo = null!;
@@ -43,10 +46,12 @@ public class CollectionServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
-        _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
-        _shareRepo = new ShareRepository(_db, NullLogger<ShareRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_db, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        _dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(_dbName);
+        _collectionRepo = new CollectionRepository(_provider, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        _aclRepo = new CollectionAclRepository(_provider, NullLogger<CollectionAclRepository>.Instance);
+        _shareRepo = new ShareRepository(_provider, NullLogger<ShareRepository>.Instance);
+        _authService = new CollectionAuthorizationService(_provider, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         _deletionServiceMock = new Mock<IAssetDeletionService>();
         _zipBuildServiceMock = new Mock<IZipBuildService>();
         _auditMock = new Mock<IAuditService>();
@@ -63,7 +68,7 @@ public class CollectionServiceTests : IAsyncLifetime
         return new CollectionService(
             repos,
             _authService, _deletionServiceMock.Object, _zipBuildServiceMock.Object,
-            _auditMock.Object, new UnitOfWork(_db), minioSettings, currentUser);
+            _auditMock.Object, new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)), minioSettings, currentUser);
     }
 
     private CollectionQueryService CreateQueryService(string userId, bool isAdmin = false)

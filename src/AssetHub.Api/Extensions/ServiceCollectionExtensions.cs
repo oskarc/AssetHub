@@ -114,11 +114,16 @@ public static class ServiceCollectionExtensions
         // ── Antiforgery (P-12 / A-7) ────────────────────────────────────────
         // Custom cookie + header names so the X-CSRF-TOKEN convention is
         // explicit (default is __RequestVerificationToken which clashes with
-        // Razor Pages tooling). The cookie is __Host.-prefixed for the same
-        // host-binding guarantees as the auth cookie, with SameSite=Strict.
+        // Razor Pages tooling). In Production the cookie name uses the real
+        // RFC 6265bis "__Host-" prefix (hyphen, not dot) so browsers enforce
+        // the Secure flag, Path=/ and no Domain attribute. In Development the
+        // cookie is not Secure under HTTP, so the prefix is dropped — browsers
+        // reject "__Host-" cookies that are not Secure.
         services.AddAntiforgery(options =>
         {
-            options.Cookie.Name = "__Host.assethub.csrf";
+            options.Cookie.Name = environment.IsDevelopment()
+                ? "assethub.csrf"
+                : "__Host-assethub.csrf";
             options.Cookie.SameSite = SameSiteMode.Strict;
             // Blazor Server reads the token server-side via IAntiforgery —
             // browser JS never needs the cookie, so lock it down.
@@ -345,36 +350,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AssetHub.Ui.Services.LocalStorageService>();
         services.AddScoped<AssetHub.Ui.Services.ThemeService>();
         services.AddScoped<AssetHub.Ui.Services.LocalizedDisplayService>();
-        services.AddTransient<AssetHub.Ui.Services.CookieForwardingHandler>();
-        services.AddTransient<AssetHub.Ui.Services.AntiforgeryHeaderHandler>();
+
+        // AssetHubApiClient is an in-process facade over Application services
+        // (no HTTP loopback). Registered as scoped so it shares the request
+        // scope with CurrentUser, the DbContext, and the underlying services.
+        services.AddScoped<AssetHub.Ui.Services.AssetHubApiClient>();
 
         var connectionString = configuration.GetConnectionString("Postgres");
-
-        services.AddHttpClient<AssetHub.Ui.Services.AssetHubApiClient>((sp, client) =>
-        {
-            var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
-            var request = httpContextAccessor.HttpContext?.Request;
-            if (request != null)
-            {
-                client.BaseAddress = new Uri($"{request.Scheme}://{request.Host}");
-            }
-            else
-            {
-                var baseUrl = configuration["App:BaseUrl"];
-                if (string.IsNullOrWhiteSpace(baseUrl))
-                    throw new InvalidOperationException(
-                        "App:BaseUrl is required when HttpContext is not available. " +
-                        "Check appsettings for the current environment.");
-                client.BaseAddress = new Uri(baseUrl);
-            }
-        })
-        .ConfigurePrimaryHttpMessageHandler(() => CreateHttpHandler(environment))
-        .AddHttpMessageHandler<AssetHub.Ui.Services.CookieForwardingHandler>()
-        // Attach the antiforgery X-CSRF-TOKEN header to mutating requests so
-        // the server-side AntiforgeryUnlessBearerFilter accepts them. Pairs
-        // with the cookie forwarded above — the validator reads cookie+header
-        // and rejects mismatches (P-12 / A-7).
-        .AddHttpMessageHandler<AssetHub.Ui.Services.AntiforgeryHeaderHandler>();
 
         // ── Health checks ───────────────────────────────────────────────────
         var healthChecks = services.AddHealthChecks()

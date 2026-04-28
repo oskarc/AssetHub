@@ -13,13 +13,15 @@ namespace AssetHub.Infrastructure.Repositories;
 /// Caches GetCollectionIdsForAssetAsync (the primary hot path used in authorization checks).
 /// </summary>
 public sealed class AssetCollectionRepository(
-    AssetHubDbContext context,
+    DbContextProvider provider,
     HybridCache cache,
     ILogger<AssetCollectionRepository> logger) : IAssetCollectionRepository
 {
 
     public async Task<List<Collection>> GetCollectionsForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         return await context.AssetCollections
             .AsNoTracking()
             .Where(ac => ac.AssetId == assetId)
@@ -30,6 +32,8 @@ public sealed class AssetCollectionRepository(
 
     public async Task<Dictionary<Guid, List<Guid>>> GetCollectionIdsForAssetsAsync(IEnumerable<Guid> assetIds, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         var ids = assetIds.ToList();
         var mappings = await context.AssetCollections
             .Where(ac => ids.Contains(ac.AssetId))
@@ -45,6 +49,8 @@ public sealed class AssetCollectionRepository(
 
     public async Task<List<AssetCollection>> GetByAssetAsync(Guid assetId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         return await context.AssetCollections
             .Where(ac => ac.AssetId == assetId)
             .Include(ac => ac.Collection)
@@ -53,6 +59,8 @@ public sealed class AssetCollectionRepository(
 
     public async Task<List<AssetCollection>> GetByCollectionAsync(Guid collectionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         return await context.AssetCollections
             .AsNoTracking()
             .Where(ac => ac.CollectionId == collectionId)
@@ -62,6 +70,8 @@ public sealed class AssetCollectionRepository(
 
     public async Task<AssetCollection?> AddToCollectionAsync(Guid assetId, Guid collectionId, string userId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         // Check if asset exists
         var asset = await context.Assets.FindAsync(new object[] { assetId }, ct);
         if (asset is null)
@@ -101,6 +111,8 @@ public sealed class AssetCollectionRepository(
 
     public async Task<bool> RemoveFromCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         var assetCollection = await context.AssetCollections
             .FirstOrDefaultAsync(ac => ac.AssetId == assetId && ac.CollectionId == collectionId, ct);
 
@@ -120,6 +132,8 @@ public sealed class AssetCollectionRepository(
 
     public async Task<bool> BelongsToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         // Check if it's in the collections join table
         return await context.AssetCollections
             .AnyAsync(ac => ac.AssetId == assetId && ac.CollectionId == collectionId, ct);
@@ -127,6 +141,8 @@ public sealed class AssetCollectionRepository(
 
     public async Task UnlinkAllFromCollectionAsync(Guid collectionId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         var links = await context.AssetCollections
             .Where(ac => ac.CollectionId == collectionId)
             .ToListAsync(ct);
@@ -144,6 +160,8 @@ public sealed class AssetCollectionRepository(
 
     public async Task<List<Guid>> GetCollectionIdsForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var context = lease.Db;
         var cacheKey = CacheKeys.AssetCollectionIds(assetId);
         var tags = new[] { CacheKeys.Tags.AssetCollections(assetId) };
 

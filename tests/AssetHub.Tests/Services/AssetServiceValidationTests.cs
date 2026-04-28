@@ -8,6 +8,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -24,6 +25,8 @@ public class AssetServiceValidationTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private string _dbName = null!;
+    private DbContextProvider _provider = null!;
     private AssetRepository _assetRepo = null!;
     private AssetCollectionRepository _acRepo = null!;
     private CollectionRepository _colRepo = null!;
@@ -37,12 +40,14 @@ public class AssetServiceValidationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
+        _dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(_dbName);
 
         var cache = TestCacheHelper.CreateHybridCache();
-        _assetRepo = new AssetRepository(_db, cache, NullLogger<AssetRepository>.Instance);
-        _acRepo = new AssetCollectionRepository(_db, cache, NullLogger<AssetCollectionRepository>.Instance);
-        _colRepo = new CollectionRepository(_db, cache, NullLogger<CollectionRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_db, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        _assetRepo = new AssetRepository(_provider, cache, NullLogger<AssetRepository>.Instance);
+        _acRepo = new AssetCollectionRepository(_provider, cache, NullLogger<AssetCollectionRepository>.Instance);
+        _colRepo = new CollectionRepository(_provider, cache, NullLogger<CollectionRepository>.Instance);
+        _authService = new CollectionAuthorizationService(_provider, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         _auditMock = new Mock<IAuditService>();
     }
 
@@ -61,7 +66,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
             _authService,
             new Mock<IAssetDeletionService>().Object,
             _auditMock.Object,
-            new UnitOfWork(_db),
+            new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)),
             TestCacheHelper.CreateHybridCache(),
             new CurrentUser(userId, isSystemAdmin: false),
             minioSettings);

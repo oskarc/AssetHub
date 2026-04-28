@@ -11,18 +11,22 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Repositories;
 
 public sealed class AssetRepository(
-    AssetHubDbContext dbContext,
+    DbContextProvider provider,
     HybridCache cache,
     ILogger<AssetRepository> logger) : IAssetRepository
 {
     public async Task<Asset?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Assets
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
     public async Task<List<Asset>> GetByCollectionAsync(Guid collectionId, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         // Use explicit join for more predictable query plans on large datasets
         return await dbContext.AssetCollections
             .Where(ac => ac.CollectionId == collectionId)
@@ -40,6 +44,8 @@ public sealed class AssetRepository(
 
     public async Task<List<Asset>> GetByTypeAsync(string assetType, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         if (!Enum.TryParse<AssetType>(assetType, ignoreCase: true, out var type))
             return new List<Asset>();
         return await dbContext.Assets
@@ -53,6 +59,8 @@ public sealed class AssetRepository(
 
     public async Task<List<Asset>> GetByStatusAsync(string status, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         if (!Enum.TryParse<AssetStatus>(status, ignoreCase: true, out var statusEnum))
             return new List<Asset>();
         return await dbContext.Assets
@@ -66,6 +74,8 @@ public sealed class AssetRepository(
 
     public async Task<List<Asset>> GetByUserAsync(string userId, int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Assets
             .AsNoTracking()
             .Where(a => a.CreatedByUserId == userId)
@@ -77,6 +87,8 @@ public sealed class AssetRepository(
 
     public async Task<int> CountByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.AssetCollections
             .Where(ac => ac.CollectionId == collectionId)
             .CountAsync(cancellationToken);
@@ -84,6 +96,8 @@ public sealed class AssetRepository(
 
     public async Task<int> CountByStatusAsync(string status, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         if (!Enum.TryParse<AssetStatus>(status, ignoreCase: true, out var statusEnum))
             return 0;
         return await dbContext.Assets
@@ -92,6 +106,8 @@ public sealed class AssetRepository(
 
     public async Task<Asset?> GetByOriginalKeyAsync(string objectKey, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Assets
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.OriginalObjectKey == objectKey, cancellationToken);
@@ -99,6 +115,8 @@ public sealed class AssetRepository(
 
     public async Task CreateAsync(Asset asset, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         dbContext.Assets.Add(asset);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Created asset {AssetId} of type {AssetType}", asset.Id, asset.AssetType);
@@ -106,12 +124,19 @@ public sealed class AssetRepository(
 
     public async Task UpdateAsync(Asset asset, CancellationToken cancellationToken = default)
     {
-        dbContext.Assets.Update(asset);
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
+        // Only mark the root entity Modified — DbSet.Update walks navigations and
+        // would re-attach (potentially stale) AssetCollections / AssetVersions
+        // captured before the caller mutated them on another lease.
+        dbContext.Entry(asset).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var asset = await dbContext.Assets.FindAsync(new object[] { id }, cancellationToken);
         if (asset is not null)
         {
@@ -127,6 +152,8 @@ public sealed class AssetRepository(
 
     public async Task<List<Asset>> DeleteByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         // Use REPEATABLE READ isolation so that the read-decide-delete logic is
         // consistent: no other transaction can add an "exclusive" asset to a second
         // collection between our membership check and the DELETE.
@@ -195,6 +222,8 @@ public sealed class AssetRepository(
         int take = 50,
         CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         // Use explicit join for more predictable query plans on large datasets
         var queryable = dbContext.AssetCollections
             .Where(ac => ac.CollectionId == collectionId)
@@ -240,6 +269,8 @@ public sealed class AssetRepository(
         AssetSearchFilter filter,
         CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var queryable = filter.IncludeAllStatuses
             ? dbContext.Assets.Where(a => a.Status != AssetStatus.Uploading)
             : dbContext.Assets.Where(a => a.Status == AssetStatus.Ready);
@@ -306,6 +337,8 @@ public sealed class AssetRepository(
 
     public async Task<Dictionary<Guid, string>> GetTitlesByIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         if (ids.Count == 0)
             return [];
 
@@ -318,12 +351,16 @@ public sealed class AssetRepository(
 
     public async Task<int> CountDerivativesAsync(Guid sourceAssetId, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Assets
             .CountAsync(a => a.SourceAssetId == sourceAssetId, cancellationToken);
     }
 
     public async Task<List<Asset>> GetDerivativesAsync(Guid sourceAssetId, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Assets
             .AsNoTracking()
             .Where(a => a.SourceAssetId == sourceAssetId)
@@ -333,6 +370,8 @@ public sealed class AssetRepository(
 
     public async Task<Asset?> GetBySha256Async(string sha256, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Assets
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Sha256 == sha256, cancellationToken);
@@ -340,6 +379,8 @@ public sealed class AssetRepository(
 
     public async Task<Asset?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Assets
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
@@ -348,6 +389,8 @@ public sealed class AssetRepository(
     public async Task<(List<Asset> Assets, int Total)> GetTrashAsync(
         int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         var query = dbContext.Assets
             .IgnoreQueryFilters()
             .AsNoTracking()
@@ -365,6 +408,8 @@ public sealed class AssetRepository(
     public async Task<List<Asset>> GetTrashOlderThanAsync(
         DateTime cutoff, int batchSize = 100, CancellationToken cancellationToken = default)
     {
+        await using var lease = await provider.AcquireAsync(cancellationToken);
+        var dbContext = lease.Db;
         return await dbContext.Assets
             .IgnoreQueryFilters()
             .Where(a => a.DeletedAt != null && a.DeletedAt < cutoff)

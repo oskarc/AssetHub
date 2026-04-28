@@ -5,12 +5,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public sealed class OrphanedObjectRepository(AssetHubDbContext db) : IOrphanedObjectRepository
+public sealed class OrphanedObjectRepository(DbContextProvider provider) : IOrphanedObjectRepository
 {
     private const int MaxErrorLength = 1000;
 
     public async Task EnqueueAsync(OrphanedObject obj, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         if (obj.Id == Guid.Empty) obj.Id = Guid.NewGuid();
         if (obj.CreatedAt == default) obj.CreatedAt = DateTime.UtcNow;
         db.OrphanedObjects.Add(obj);
@@ -19,6 +21,8 @@ public sealed class OrphanedObjectRepository(AssetHubDbContext db) : IOrphanedOb
 
     public async Task EnqueueBatchAsync(IEnumerable<OrphanedObject> objs, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var now = DateTime.UtcNow;
         var toAdd = objs
             .Where(o => !string.IsNullOrEmpty(o.ObjectKey))
@@ -36,6 +40,8 @@ public sealed class OrphanedObjectRepository(AssetHubDbContext db) : IOrphanedOb
 
     public async Task<List<OrphanedObject>> GetNextBatchAsync(int take, int maxAttempts, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.OrphanedObjects
             .Where(o => o.AttemptCount < maxAttempts)
             .OrderBy(o => o.CreatedAt)
@@ -45,6 +51,8 @@ public sealed class OrphanedObjectRepository(AssetHubDbContext db) : IOrphanedOb
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         await db.OrphanedObjects
             .Where(o => o.Id == id)
             .ExecuteDeleteAsync(ct);
@@ -52,6 +60,8 @@ public sealed class OrphanedObjectRepository(AssetHubDbContext db) : IOrphanedOb
 
     public async Task RecordFailureAsync(Guid id, string error, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         var truncated = error.Length > MaxErrorLength ? error[..MaxErrorLength] : error;
         var now = DateTime.UtcNow;
         await db.OrphanedObjects

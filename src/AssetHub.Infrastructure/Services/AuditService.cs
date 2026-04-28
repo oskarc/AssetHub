@@ -13,14 +13,21 @@ namespace AssetHub.Infrastructure.Services;
 /// <see cref="IUnitOfWork.ExecuteAsync"/>, both rows commit atomically (A-4).
 /// </summary>
 /// <remarks>
-/// Outside a UnitOfWork the call still works — SaveChanges runs immediately
-/// and the audit lands as its own transaction. The cost of sharing the
+/// Inside a UnitOfWork the audit Add lands on the ambient context and commits
+/// alongside the business mutation. Outside a UoW the call still works — SaveChanges
+/// runs immediately and the audit lands as its own transaction. The cost of sharing the
 /// DbContext is that pending tracker entries on the same context will flush
 /// alongside the audit row; services should avoid <c>Add</c> / <c>Update</c>
 /// in a half-built state before calling <see cref="LogAsync"/>.
+/// <para>
+/// We intentionally do NOT swallow SaveChanges exceptions here. Inside a UoW,
+/// swallowing the failure would let the surrounding transaction commit the
+/// business mutation WITHOUT the audit row (A-4 violation). Outside a UoW,
+/// callers that want fire-and-forget audit must wrap the call themselves.
+/// </para>
 /// </remarks>
 public sealed class AuditService(
-    AssetHubDbContext dbContext,
+    DbContextProvider provider,
     IHttpContextAccessor httpContextAccessor,
     ILogger<AuditService> logger) : IAuditService
 {
@@ -32,32 +39,37 @@ public sealed class AuditService(
         Dictionary<string, object>? details = null,
         CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var dbContext = lease.Db;
+        var httpContext = httpContextAccessor.HttpContext;
+
+        var auditEvent = new AuditEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = eventType,
+            TargetType = targetType,
+            TargetId = targetId,
+            ActorUserId = actorUserId,
+            IP = httpContext?.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = httpContext?.Request.Headers.UserAgent.FirstOrDefault() is { } ua
+                ? ua[..Math.Min(ua.Length, 512)]
+                : null,
+            DetailsJson = details ?? new Dictionary<string, object>(),
+            CreatedAt = DateTime.UtcNow
+        };
+
         try
         {
-            var httpContext = httpContextAccessor.HttpContext;
-
-            var auditEvent = new AuditEvent
-            {
-                Id = Guid.NewGuid(),
-                EventType = eventType,
-                TargetType = targetType,
-                TargetId = targetId,
-                ActorUserId = actorUserId,
-                IP = httpContext?.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = httpContext?.Request.Headers.UserAgent.FirstOrDefault() is { } ua
-                    ? ua[..Math.Min(ua.Length, 512)]
-                    : null,
-                DetailsJson = details ?? new Dictionary<string, object>(),
-                CreatedAt = DateTime.UtcNow
-            };
-
             dbContext.AuditEvents.Add(auditEvent);
             await dbContext.SaveChangesAsync(ct);
         }
         catch (Exception ex)
         {
+            // Logged for ops visibility, then re-thrown so the surrounding
+            // UnitOfWork (if any) rolls back the business mutation atomically.
             logger.LogError(ex, "Failed to persist audit event {EventType} for {TargetType}/{TargetId}",
                 eventType, targetType, targetId);
+            throw;
         }
     }
 }

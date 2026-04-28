@@ -6,6 +6,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -29,8 +30,10 @@ public class AuditRetentionSweeperTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _auditRepo = new AuditEventRepository(_db);
-        _auditService = new AuditService(_db, new HttpContextAccessor(), NullLogger<AuditService>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        var provider = _fixture.CreateDbContextProvider(dbName);
+        _auditRepo = new AuditEventRepository(provider);
+        _auditService = new AuditService(provider, new HttpContextAccessor(), NullLogger<AuditService>.Instance);
     }
 
     public async Task DisposeAsync()

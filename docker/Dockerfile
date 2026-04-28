@@ -46,9 +46,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # This mitigates ImageTragick and similar vulnerabilities
 COPY docker/imagemagick-policy.xml /etc/ImageMagick-6/policy.xml
 
-# Custom CA certificates can be mounted at runtime via docker-compose volumes:
-#   - ./certs/custom-ca.crt:/usr/local/share/ca-certificates/custom-ca.crt:ro
-# Then run update-ca-certificates in an entrypoint script if needed.
+# Optional: install the local dev cert into the OS trust store at build time.
+# Used by the "production compose locally" workflow where Keycloak presents a
+# self-signed cert that the API container needs to validate during OIDC
+# discovery. Real production builds leave TRUST_LOCAL_DEV_CERT unset (default
+# 0); the system CA bundle is then the sole trust source.
+#
+# Selective: only certs/dev-cert.crt is in the build context (.dockerignore
+# allows that single file). Private keys are never present.
+ARG TRUST_LOCAL_DEV_CERT=0
+COPY certs/ /tmp/dev-certs/
+RUN if [ "$TRUST_LOCAL_DEV_CERT" = "1" ]; then \
+        if [ ! -f /tmp/dev-certs/dev-cert.crt ]; then \
+            echo "ERROR: TRUST_LOCAL_DEV_CERT=1 but certs/dev-cert.crt is missing from build context" >&2; \
+            exit 1; \
+        fi; \
+        cp /tmp/dev-certs/dev-cert.crt /usr/local/share/ca-certificates/assethub-dev.crt && \
+        update-ca-certificates; \
+    fi && \
+    rm -rf /tmp/dev-certs
 
 WORKDIR /app
 COPY --from=publish /app/publish .

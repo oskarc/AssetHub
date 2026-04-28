@@ -5,12 +5,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssetHub.Infrastructure.Repositories;
 
-public sealed class AssetWorkflowTransitionRepository(AssetHubDbContext db)
+public sealed class AssetWorkflowTransitionRepository(DbContextProvider provider)
     : IAssetWorkflowTransitionRepository
 {
     public async Task<List<AssetWorkflowTransition>> ListByAssetAsync(
         Guid assetId, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         return await db.AssetWorkflowTransitions
             .AsNoTracking()
             .Where(t => t.AssetId == assetId)
@@ -21,6 +23,8 @@ public sealed class AssetWorkflowTransitionRepository(AssetHubDbContext db)
     public async Task<AssetWorkflowTransition> CreateAsync(
         AssetWorkflowTransition entity, CancellationToken ct = default)
     {
+        await using var lease = await provider.AcquireAsync(ct);
+        var db = lease.Db;
         db.AssetWorkflowTransitions.Add(entity);
         await db.SaveChangesAsync(ct);
         return entity;

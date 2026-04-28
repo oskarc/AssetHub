@@ -5,6 +5,7 @@ using AssetHub.Infrastructure.Repositories;
 using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Fixtures;
 using AssetHub.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AssetHub.Tests.EdgeCases;
@@ -21,6 +22,7 @@ public class CollectionInheritanceWalkTests : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture;
     private AssetHubDbContext _db = null!;
+    private DbContextProvider _provider = null!;
     private CollectionRepository _collectionRepo = null!;
     private CollectionAclRepository _aclRepo = null!;
 
@@ -31,8 +33,10 @@ public class CollectionInheritanceWalkTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _db = await _fixture.CreateDbContextAsync();
-        _collectionRepo = new CollectionRepository(_db, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
-        _aclRepo = new CollectionAclRepository(_db, NullLogger<CollectionAclRepository>.Instance);
+        var dbName = _db.Database.GetDbConnection().Database!;
+        _provider = _fixture.CreateDbContextProvider(dbName);
+        _collectionRepo = new CollectionRepository(_provider, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
+        _aclRepo = new CollectionAclRepository(_provider, NullLogger<CollectionAclRepository>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -42,7 +46,7 @@ public class CollectionInheritanceWalkTests : IAsyncLifetime
     }
 
     private CollectionAuthorizationService CreateAuth() =>
-        new(_db, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        new(_provider, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
     private async Task<Collection> CreateCollectionAsync(string name, Guid? parentId = null, bool inherit = false)
     {
