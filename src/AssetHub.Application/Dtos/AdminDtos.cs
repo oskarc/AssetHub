@@ -42,6 +42,14 @@ public record CollectionAccessDto
     public required string Name { get; init; }
     public string? Description { get; init; }
     public List<CollectionAclResponseDto> Acls { get; init; } = [];
+
+    /// <summary>
+    /// The brand assigned to this collection (nullable). When null and no
+    /// other ancestor in the chain has one, the brand resolver falls back
+    /// to the global default brand. The admin UI uses this to drive a
+    /// per-collection brand selector on the Collection Access tab.
+    /// </summary>
+    public Guid? BrandId { get; init; }
 }
 
 /// <summary>

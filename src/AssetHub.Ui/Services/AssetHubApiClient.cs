@@ -1285,6 +1285,18 @@ public class AssetHubApiClient(
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Remove brand logo");
     }
 
+    public virtual async Task AssignBrandToCollectionAsync(Guid brandId, Guid collectionId, CancellationToken ct = default)
+    {
+        var result = await brandService.AssignToCollectionAsync(brandId, collectionId, ct);
+        EnsureSuccess(result, "Assign brand to collection");
+    }
+
+    public virtual async Task UnassignBrandFromCollectionAsync(Guid collectionId, CancellationToken ct = default)
+    {
+        var result = await brandService.UnassignFromCollectionAsync(collectionId, ct);
+        EnsureSuccess(result, "Unassign brand from collection");
+    }
+
     #endregion
 
     #region Guest invitations (T4-GUEST-01)

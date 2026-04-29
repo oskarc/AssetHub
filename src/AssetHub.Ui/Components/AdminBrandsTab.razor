@@ -77,6 +77,12 @@
                 </MudTd>
                 <MudTd>
                     <MudStack Row="true" Spacing="0">
+                        <MudTooltip Text="@Loc["Btn_Edit"]">
+                            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.Edit"
+                                           Color="Color.Primary"
+                                           OnClick="@(() => OnEditAsync(context))"
+                                           aria-label="@Loc["Btn_Edit"]" />
+                        </MudTooltip>
                         <MudTooltip Text="@Loc["Btn_UploadLogo"]">
                             <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.UploadFile"
                                            OnClick="@(() => OnUploadLogoAsync(context))"
@@ -132,6 +138,20 @@
     {
         var result = await DialogService.ShowAsync<CreateBrandDialog>(Loc["Dialog_Create_Title"]);
         var dialogResult = await result.Result;
+        if (dialogResult is null || dialogResult.Canceled) return;
+        await LoadAsync();
+    }
+
+    private async Task OnEditAsync(BrandResponseDto brand)
+    {
+        var parameters = new DialogParameters<EditBrandDialog>
+        {
+            { x => x.Brand, brand }
+        };
+        var dialog = await DialogService.ShowAsync<EditBrandDialog>(
+            Loc["Dialog_Edit_Title"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var dialogResult = await dialog.Result;
         if (dialogResult is null || dialogResult.Canceled) return;
         await LoadAsync();
     }

@@ -41,6 +41,36 @@ else
                         @AdminLoc["AccessFor"] <strong>@_selectedCollection.Name</strong>
                     </MudText>
 
+                    @* Brand assignment — null means inherit (use the default brand
+                       when one is configured). Server-side AssignToCollectionAsync
+                       upserts; UnassignFromCollectionAsync clears the FK. *@
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 mb-4">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Palette" Size="Size.Small" Color="Color.Default" />
+                            <MudText Typo="Typo.body2" Style="min-width: 80px;">
+                                @AdminLoc["Brand_Label"]
+                            </MudText>
+                            <MudSelect T="Guid?"
+                                       Value="_selectedCollection.BrandId"
+                                       ValueChanged="@OnBrandChangedAsync"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Dense="true"
+                                       Class="dialog-flex-fill"
+                                       Disabled="@(_brandsLoading || _changingBrand)">
+                                <MudSelectItem T="Guid?" Value="@((Guid?)null)">
+                                    @AdminLoc["Brand_None"]
+                                </MudSelectItem>
+                                @foreach (var b in _brands)
+                                {
+                                    <MudSelectItem T="Guid?" Value="@((Guid?)b.Id)">
+                                        @b.Name@(b.IsDefault ? $" ({AdminLoc["Brand_Default_Suffix"].Value})" : "")
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudStack>
+                    </MudPaper>
+
                     @* Add user form *@
                     <MudGrid Class="mb-4">
                         <MudItem xs="12" sm="5">
@@ -183,9 +213,65 @@ else
     private Guid? _editingAclId;
     private string _editingRole = "";
 
+    // Brand assignment state. The dropdown is per-collection (only meaningful
+    // for the right-pane selection); the brand list itself is org-wide and
+    // loaded once. _changingBrand prevents double-submission while the API
+    // round-trip is in flight.
+    private List<BrandResponseDto> _brands = new();
+    private bool _brandsLoading = true;
+    private bool _changingBrand;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadCollectionsAsync();
+        await LoadBrandsAsync();
+    }
+
+    private async Task LoadBrandsAsync()
+    {
+        try
+        {
+            _brandsLoading = true;
+            _brands = await Api.GetBrandsAsync();
+        }
+        catch (Exception ex)
+        {
+            // Brand failures shouldn't break the rest of the tab — the admin
+            // can still manage ACLs.
+            Feedback.HandleError(ex, "load brands");
+        }
+        finally
+        {
+            _brandsLoading = false;
+        }
+    }
+
+    private async Task OnBrandChangedAsync(Guid? newBrandId)
+    {
+        if (_selectedCollection is null || _changingBrand) return;
+        if (_selectedCollection.BrandId == newBrandId) return; // no-op
+
+        _changingBrand = true;
+        try
+        {
+            if (newBrandId is { } brandId)
+                await Api.AssignBrandToCollectionAsync(brandId, _selectedCollection.Id);
+            else
+                await Api.UnassignBrandFromCollectionAsync(_selectedCollection.Id);
+
+            Feedback.ShowSuccess(AdminLoc["Brand_Updated_Success"].Value);
+            await LoadCollectionsAsync();
+            _selectedCollection = CollectionTreeHelper.FindById(_collections, _selectedCollection.Id);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "assign brand to collection");
+        }
+        finally
+        {
+            _changingBrand = false;
+            StateHasChanged();
+        }
     }
 
     public async Task RefreshAsync()

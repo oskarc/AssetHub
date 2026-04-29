@@ -35,6 +35,7 @@
 
   <data name="Tab_Description" xml:space="preserve"><value>Anpassad branding för publika delningssidor. Tilldela en brand till en samling eller markera en som standard för att gälla globalt.</value></data>
   <data name="Btn_New" xml:space="preserve"><value>Ny brand</value></data>
+  <data name="Btn_Edit" xml:space="preserve"><value>Redigera</value></data>
   <data name="Btn_UploadLogo" xml:space="preserve"><value>Ladda upp logotyp</value></data>
   <data name="Btn_RemoveLogo" xml:space="preserve"><value>Ta bort logotyp</value></data>
   <data name="Btn_Delete" xml:space="preserve"><value>Ta bort</value></data>
@@ -49,11 +50,13 @@
   <data name="Header_Default" xml:space="preserve"><value>Standard</value></data>
 
   <data name="Dialog_Create_Title" xml:space="preserve"><value>Ny brand</value></data>
+  <data name="Dialog_Edit_Title" xml:space="preserve"><value>Redigera brand</value></data>
   <data name="Dialog_Field_Name" xml:space="preserve"><value>Namn</value></data>
   <data name="Dialog_Field_PrimaryColor" xml:space="preserve"><value>Primär färg (hex)</value></data>
   <data name="Dialog_Field_SecondaryColor" xml:space="preserve"><value>Sekundär färg (hex)</value></data>
   <data name="Dialog_Field_IsDefault" xml:space="preserve"><value>Använd som standard-brand</value></data>
   <data name="Dialog_Submit" xml:space="preserve"><value>Skapa</value></data>
+  <data name="Dialog_Save" xml:space="preserve"><value>Spara</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>Avbryt</value></data>
 
   <data name="Confirm_Delete_Title" xml:space="preserve"><value>Ta bort brand?</value></data>

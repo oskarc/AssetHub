@@ -164,6 +164,10 @@
   <data name="SelectACollection" xml:space="preserve"><value>Välj en samling</value></data>
   <data name="SelectACollectionDesc" xml:space="preserve"><value>Välj en samling från listan för att visa och hantera användares åtkomsträttigheter.</value></data>
   <data name="AccessFor" xml:space="preserve"><value>Åtkomst för:</value></data>
+  <data name="Brand_Label" xml:space="preserve"><value>Brand:</value></data>
+  <data name="Brand_None" xml:space="preserve"><value>— Ingen (använd standard) —</value></data>
+  <data name="Brand_Default_Suffix" xml:space="preserve"><value>standard</value></data>
+  <data name="Brand_Updated_Success" xml:space="preserve"><value>Brandtilldelning uppdaterad</value></data>
   <data name="NoUsersHaveAccess" xml:space="preserve"><value>Inga användare har åtkomst</value></data>
   <data name="NoUsersHaveAccessDesc" xml:space="preserve"><value>Ge åtkomst till användare med formuläret ovan. De kan visa eller hantera tillgångar beroende på sin roll.</value></data>
 

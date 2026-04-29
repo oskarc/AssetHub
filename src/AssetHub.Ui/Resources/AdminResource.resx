@@ -164,6 +164,10 @@
   <data name="SelectACollection" xml:space="preserve"><value>Select a collection</value></data>
   <data name="SelectACollectionDesc" xml:space="preserve"><value>Choose a collection from the list to view and manage user access permissions.</value></data>
   <data name="AccessFor" xml:space="preserve"><value>Access for:</value></data>
+  <data name="Brand_Label" xml:space="preserve"><value>Brand:</value></data>
+  <data name="Brand_None" xml:space="preserve"><value>— None (use default) —</value></data>
+  <data name="Brand_Default_Suffix" xml:space="preserve"><value>default</value></data>
+  <data name="Brand_Updated_Success" xml:space="preserve"><value>Brand assignment updated</value></data>
   <data name="NoUsersHaveAccess" xml:space="preserve"><value>No users have access</value></data>
   <data name="NoUsersHaveAccessDesc" xml:space="preserve"><value>Grant access to users using the form above. They will be able to view or manage assets based on their role.</value></data>
 

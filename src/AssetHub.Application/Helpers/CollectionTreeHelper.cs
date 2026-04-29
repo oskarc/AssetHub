@@ -22,6 +22,7 @@ public static class CollectionTreeHelper
             Id = collection.Id,
             Name = collection.Name,
             Description = collection.Description,
+            BrandId = collection.BrandId,
             Acls = collection.Acls.Select(a =>
             {
                 var principalName = a.PrincipalId;

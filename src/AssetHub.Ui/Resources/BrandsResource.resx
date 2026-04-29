@@ -35,6 +35,7 @@
 
   <data name="Tab_Description" xml:space="preserve"><value>Custom branding for public share pages. Assign a brand to a collection or mark one as default to apply globally.</value></data>
   <data name="Btn_New" xml:space="preserve"><value>New brand</value></data>
+  <data name="Btn_Edit" xml:space="preserve"><value>Edit</value></data>
   <data name="Btn_UploadLogo" xml:space="preserve"><value>Upload logo</value></data>
   <data name="Btn_RemoveLogo" xml:space="preserve"><value>Remove logo</value></data>
   <data name="Btn_Delete" xml:space="preserve"><value>Delete</value></data>
@@ -49,11 +50,13 @@
   <data name="Header_Default" xml:space="preserve"><value>Default</value></data>
 
   <data name="Dialog_Create_Title" xml:space="preserve"><value>New brand</value></data>
+  <data name="Dialog_Edit_Title" xml:space="preserve"><value>Edit brand</value></data>
   <data name="Dialog_Field_Name" xml:space="preserve"><value>Name</value></data>
   <data name="Dialog_Field_PrimaryColor" xml:space="preserve"><value>Primary colour (hex)</value></data>
   <data name="Dialog_Field_SecondaryColor" xml:space="preserve"><value>Secondary colour (hex)</value></data>
   <data name="Dialog_Field_IsDefault" xml:space="preserve"><value>Use as default brand</value></data>
   <data name="Dialog_Submit" xml:space="preserve"><value>Create</value></data>
+  <data name="Dialog_Save" xml:space="preserve"><value>Save</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>Cancel</value></data>
 
   <data name="Confirm_Delete_Title" xml:space="preserve"><value>Delete brand?</value></data>
