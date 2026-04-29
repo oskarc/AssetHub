@@ -184,6 +184,9 @@
                 new CreateAssetCommentDto { Body = body, ParentCommentId = parent },
                 _cts.Token);
             _comments.Add(created);
+            // Re-resolve names — the new author (and any new mention IDs)
+            // weren't in the lookup we built at load time.
+            await LoadUserNamesAsync();
             RebuildIndices();
             StateHasChanged();
         }
@@ -205,6 +208,9 @@
                 new UpdateAssetCommentDto { Body = args.body }, _cts.Token);
             var idx = _comments.FindIndex(c => c.Id == args.commentId);
             if (idx >= 0) _comments[idx] = updated;
+            // Edit can introduce new @mention IDs — refresh the lookup so
+            // the chips render with full names instead of truncated subs.
+            await LoadUserNamesAsync();
             RebuildIndices();
             StateHasChanged();
         }
