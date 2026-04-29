@@ -62,6 +62,7 @@ public class AssetHubApiClient(
     IWebhookService webhookService,
     IBrandService brandService,
     IGuestInvitationService guestInvitationService,
+    IUserLookupService userLookupService,
     IOptions<AppSettings> appSettings)
 {
     private readonly AppSettings _appSettings = appSettings.Value;
@@ -78,7 +79,7 @@ public class AssetHubApiClient(
         : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
                null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
                null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
-               null!, null!, null!, null!, null!, null!, Options.Create(new AppSettings()))
+               null!, null!, null!, null!, null!, null!, null!, Options.Create(new AppSettings()))
     {
     }
 
@@ -762,6 +763,19 @@ public class AssetHubApiClient(
         return Unwrap(result, "Update notification preferences");
     }
 
+    /// <summary>
+    /// Rotates the user's unsubscribe stamp. Every email-link unsubscribe URL
+    /// signed against the previous stamp stops validating immediately. Used
+    /// from the Account → Notifications page when a user suspects their
+    /// emails (and the unsubscribe URLs in them) have been forwarded or
+    /// screenshot-shared.
+    /// </summary>
+    public virtual async Task RotateUnsubscribeTokenAsync(CancellationToken ct = default)
+    {
+        var result = await notificationPreferencesService.RotateUnsubscribeTokenAsync(ct);
+        EnsureSuccess(result, "Rotate unsubscribe token");
+    }
+
     #endregion
 
     #region Migrations (Admin)
@@ -1149,6 +1163,35 @@ public class AssetHubApiClient(
         _ = assetId;
         var result = await assetCommentService.DeleteAsync(commentId, ct);
         EnsureSuccess(result, "Delete asset comment");
+    }
+
+    /// <summary>
+    /// Resolve a batch of user IDs to display names. Backed by the same
+    /// Keycloak-cached lookup the server uses for audit-event display.
+    /// Used by the comments panel + user-search autocomplete to avoid
+    /// rendering raw Keycloak subs.
+    /// </summary>
+    public virtual async Task<Dictionary<string, string>> GetUserNamesAsync(
+        IEnumerable<string> userIds, CancellationToken ct = default)
+    {
+        return await userLookupService.GetUserNamesAsync(userIds, ct);
+    }
+
+    /// <summary>
+    /// Search users by username/email prefix. Used by the comment editor's
+    /// @mention autocomplete dropdown. Cap is small by design — the editor
+    /// only wants enough hits to render a usable picker.
+    /// </summary>
+    public virtual async Task<List<UserSearchResultDto>> SearchUsersForMentionAsync(
+        string query, int take = 10, CancellationToken ct = default)
+    {
+        var rows = await userLookupService.SearchUsersAsync(query, take, ct);
+        return rows.Select(r => new UserSearchResultDto
+        {
+            Id = r.Id,
+            Username = r.Username,
+            Email = r.Email
+        }).ToList();
     }
 
     #endregion

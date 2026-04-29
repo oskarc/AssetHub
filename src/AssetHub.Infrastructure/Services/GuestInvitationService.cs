@@ -91,11 +91,17 @@ public sealed class GuestInvitationService(
 
         var magicLinkUrl = BuildMagicLinkUrl(baseUrl, token.Plaintext);
 
+        // Resolve the inviter's display name so the email reads "Alice has
+        // invited you…" instead of the bare "You've been invited…". Lookup
+        // failures are tolerated — the template falls back to the anonymous
+        // greeting when inviterName is null.
+        var inviterName = await ResolveInviterNameAsync(ct);
+
         try
         {
             await email.SendEmailAsync(entity.Email, new GuestInvitationEmailTemplate(
                 magicLinkUrl: magicLinkUrl,
-                inviterName: null, // resolve via IUserLookupService in a follow-up; v1 is anonymous "someone"
+                inviterName: inviterName,
                 expiresAt: entity.ExpiresAt,
                 collectionCount: entity.CollectionIds.Count), ct);
         }
@@ -312,6 +318,26 @@ public sealed class GuestInvitationService(
     {
         var trimmed = baseUrl.TrimEnd('/');
         return $"{trimmed}/guest-accept?token={Uri.EscapeDataString(token)}";
+    }
+
+    /// <summary>
+    /// Best-effort lookup of the current user's display name for the email
+    /// greeting. Returns null on lookup failure or when the user has no
+    /// resolvable name — the email template handles null by falling back
+    /// to the anonymous greeting.
+    /// </summary>
+    private async Task<string?> ResolveInviterNameAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(currentUser.UserId)) return null;
+        try
+        {
+            return await userLookup.GetUserNameAsync(currentUser.UserId, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "Inviter name lookup failed for {UserId}; email will use anonymous greeting", currentUser.UserId);
+            return null;
+        }
     }
 
     private static string GenerateRandomPassword()

@@ -77,6 +77,12 @@
   <data name="Prefs_Saved" xml:space="preserve"><value>Inställningar sparade.</value></data>
   <data name="Prefs_NoChanges" xml:space="preserve"><value>Inga ändringar att spara.</value></data>
 
+  <data name="Prefs_Btn_RotateUnsubscribe" xml:space="preserve"><value>Rotera avregistreringslänkar</value></data>
+  <data name="Prefs_Btn_RotateUnsubscribe_Tooltip" xml:space="preserve"><value>Ogiltigförklara alla utestående avregistreringslänkar i e-post. Använd detta om en aviseringse-post har vidarebefordrats eller delats via skärmdump.</value></data>
+  <data name="Prefs_RotateUnsubscribe_ConfirmTitle" xml:space="preserve"><value>Rotera avregistreringslänkar?</value></data>
+  <data name="Prefs_RotateUnsubscribe_ConfirmBody" xml:space="preserve"><value>Alla "Avregistrera"-länkar i befintliga e-postmeddelanden slutar fungera. Nya e-postmeddelanden efter denna punkt använder nya länkar. Detta kan bara ångras genom att klicka på en framtida länk från ett nytt e-postmeddelande.</value></data>
+  <data name="Prefs_RotateUnsubscribe_Success" xml:space="preserve"><value>Befintliga avregistreringslänkar har ogiltigförklarats.</value></data>
+
   <!-- Relative time -->
   <data name="Time_JustNow" xml:space="preserve"><value>just nu</value></data>
   <data name="Time_MinutesAgo" xml:space="preserve"><value>{0} min sedan</value></data>

@@ -2,6 +2,7 @@ using AssetHub.Application;
 using AssetHub.Application.Messages;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
+using AssetHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
@@ -15,6 +16,7 @@ namespace AssetHub.Infrastructure.Services;
 public sealed class MediaProcessingService(
     IAssetRepository assetRepository,
     IMessageBus messageBus,
+    IWebhookEventPublisher webhooks,
     ILogger<MediaProcessingService> logger) : IMediaProcessingService
 {
     public Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, CancellationToken cancellationToken = default)
@@ -46,12 +48,26 @@ public sealed class MediaProcessingService(
         else
         {
             logger.LogInformation("No processing required for asset {AssetId} of type {AssetType}", assetId, assetType);
-            // For documents and other types, mark as ready immediately
+            // For documents and other types, mark as ready immediately. The
+            // image / video paths emit asset.created in
+            // AssetProcessingCompletedHandler after the worker pipeline; this
+            // synchronous branch has to emit the equivalent event itself.
             var asset = await assetRepository.GetByIdAsync(assetId, cancellationToken);
             if (asset is not null)
             {
                 asset.MarkReady();
                 await assetRepository.UpdateAsync(asset, cancellationToken);
+
+                await webhooks.PublishAsync(WebhookEvents.AssetCreated, new
+                {
+                    assetId = asset.Id,
+                    title = asset.Title,
+                    assetType = asset.AssetType.ToDbString(),
+                    contentType = asset.ContentType,
+                    sizeBytes = asset.SizeBytes,
+                    createdAt = asset.CreatedAt,
+                    createdByUserId = asset.CreatedByUserId
+                }, cancellationToken);
             }
         }
 

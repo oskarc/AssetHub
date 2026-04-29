@@ -1,17 +1,51 @@
+@using AssetHub.Application.Dtos
 @using AssetHub.Ui.Resources
+@using AssetHub.Ui.Services
 @using MudBlazor
 
+@inject AssetHubApiClient Api
 @inject IStringLocalizer<CommentsResource> Loc
 
-<MudStack Spacing="1">
+@implements IAsyncDisposable
+
+@*
+    Comment editor with @mention autocomplete. The mention picker appears
+    when the user types '@' followed by at least one character; the prefix
+    is debounced (300ms) and fed to AssetHubApiClient.SearchUsersForMentionAsync.
+    Selecting a row replaces the partial mention token with the full
+    "@username " in the body. v1 limitation: replaces the LAST partial
+    mention in the body — works for typical "type at end" flows; editing
+    an earlier mention falls through to plain text.
+*@
+<div class="comment-editor" style="position: relative;">
     <MudTextField @bind-Value="_body"
+                  @bind-Value:after="OnBodyChanged"
                   Placeholder="@Placeholder"
                   Lines="AutoFocus ? 2 : 3"
                   Variant="Variant.Outlined"
                   Immediate="true"
                   MaxLength="4000"
                   aria-label="@Placeholder" />
-    <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+    @if (_suggestions.Count > 0)
+    {
+        <MudPaper Elevation="6" Class="mention-popover" Style="position: absolute; left: 0; right: 0; max-height: 200px; overflow-y: auto; z-index: 50;">
+            <MudList T="UserSearchResultDto" Dense="true" Class="py-0" aria-label="@Loc["Editor_Mention_Suggestions"]">
+                @foreach (var u in _suggestions)
+                {
+                    <MudListItem T="UserSearchResultDto" Value="u" OnClick="@(() => InsertMention(u))">
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body2">@@@u.Username</MudText>
+                            @if (!string.IsNullOrEmpty(u.Email))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@u.Email</MudText>
+                            }
+                        </MudStack>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    }
+    <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="mt-1">
         @if (ShowCancel)
         {
             <MudButton Variant="Variant.Text"
@@ -28,7 +62,7 @@
             @SubmitLabel
         </MudButton>
     </MudStack>
-</MudStack>
+</div>
 
 @code {
     [Parameter, EditorRequired] public string Placeholder { get; set; } = string.Empty;
@@ -42,11 +76,87 @@
     private string _body = string.Empty;
     private bool _submitting;
 
+    // Mention autocomplete state
+    private List<UserSearchResultDto> _suggestions = new();
+    private string? _activePrefix;
+    private CancellationTokenSource _searchCts = new();
+    private System.Timers.Timer? _debounceTimer;
+    private const int DebounceMs = 300;
+
+    // Match the LAST @<prefix> token in the body where prefix is allowed
+    // mention chars only (matches the server-side regex contract). The
+    // negative-lookahead-after ensures we don't match a fully-typed
+    // mention with a space already after it.
+    private static readonly System.Text.RegularExpressions.Regex MentionTokenRegex =
+        new(@"@([A-Za-z0-9._-]*)$",
+            System.Text.RegularExpressions.RegexOptions.Compiled,
+            TimeSpan.FromSeconds(1));
+
     protected override void OnParametersSet()
     {
-        // Hydrate once from InitialBody (edit-mode). Further keystrokes land in _body.
         if (!string.IsNullOrEmpty(InitialBody) && string.IsNullOrEmpty(_body))
             _body = InitialBody;
+    }
+
+    private void OnBodyChanged()
+    {
+        // Detect a mention being typed: last token in body that starts with @
+        // and contains only mention-safe chars. We look only at the trailing
+        // segment so an earlier @mention doesn't keep firing the popover.
+        var match = MentionTokenRegex.Match(_body);
+        if (!match.Success || match.Groups[1].Value.Length == 0)
+        {
+            _activePrefix = null;
+            _suggestions = new();
+            return;
+        }
+
+        var prefix = match.Groups[1].Value;
+        if (prefix == _activePrefix) return; // no change since last keystroke
+        _activePrefix = prefix;
+
+        // Restart the debounce window. We swap timer instances rather than
+        // reusing one to avoid races with the previous tick.
+        _debounceTimer?.Stop();
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Timers.Timer(DebounceMs) { AutoReset = false };
+        _debounceTimer.Elapsed += async (_, _) =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await SearchAsync(prefix);
+                StateHasChanged();
+            });
+        };
+        _debounceTimer.Start();
+    }
+
+    private async Task SearchAsync(string prefix)
+    {
+        // Cancel any in-flight search before issuing the new one.
+        await _searchCts.CancelAsync();
+        _searchCts.Dispose();
+        _searchCts = new CancellationTokenSource();
+
+        try
+        {
+            _suggestions = await Api.SearchUsersForMentionAsync(prefix, take: 8, _searchCts.Token);
+        }
+        catch
+        {
+            // Lookup failures shouldn't trash the editor — clear the popover.
+            _suggestions = new();
+        }
+    }
+
+    private void InsertMention(UserSearchResultDto user)
+    {
+        // Replace the trailing partial mention with "@username " (trailing
+        // space puts the cursor past the mention so the next keystroke
+        // starts a new word, not extending the mention).
+        _body = MentionTokenRegex.Replace(_body, $"@{user.Username} ");
+        _activePrefix = null;
+        _suggestions = new();
     }
 
     private async Task OnSubmitClicked()
@@ -57,6 +167,8 @@
         {
             await OnSubmit.InvokeAsync(_body.Trim());
             _body = string.Empty;
+            _suggestions = new();
+            _activePrefix = null;
         }
         finally
         {
@@ -67,6 +179,16 @@
     private async Task OnCancelClicked()
     {
         _body = InitialBody;
+        _suggestions = new();
+        _activePrefix = null;
         await OnCancel.InvokeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _debounceTimer?.Stop();
+        _debounceTimer?.Dispose();
+        await _searchCts.CancelAsync();
+        _searchCts.Dispose();
     }
 }

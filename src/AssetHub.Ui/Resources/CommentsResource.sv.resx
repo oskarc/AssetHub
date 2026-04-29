@@ -43,6 +43,7 @@
   <data name="Editor_Post" xml:space="preserve"><value>Publicera</value></data>
   <data name="Editor_Cancel" xml:space="preserve"><value>Avbryt</value></data>
   <data name="Editor_Save" xml:space="preserve"><value>Spara</value></data>
+  <data name="Editor_Mention_Suggestions" xml:space="preserve"><value>Omnämnandeförslag</value></data>
   <data name="Editor_Post_Failed" xml:space="preserve"><value>Kunde inte publicera kommentar.</value></data>
   <data name="Editor_Post_Forbidden" xml:space="preserve"><value>Du saknar behörighet att kommentera den här tillgången.</value></data>
 

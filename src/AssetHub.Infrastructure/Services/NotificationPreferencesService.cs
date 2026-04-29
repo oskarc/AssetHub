@@ -170,6 +170,31 @@ public sealed class NotificationPreferencesService(
         return new UnsubscribeResult(Applied: true, Category: payload.Category);
     }
 
+    public async Task<ServiceResult> RotateUnsubscribeTokenAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(currentUser.UserId))
+            return ServiceError.Forbidden("Authentication required.");
+
+        var prefs = await GetOrCreateAsync(currentUser.UserId, ct);
+        prefs.UnsubscribeTokenHash = GenerateUnsubscribeTokenHash();
+        prefs.UpdatedAt = DateTime.UtcNow;
+        await repo.UpdateAsync(prefs, ct);
+
+        await audit.LogAsync(
+            NotificationConstants.AuditEvents.UnsubscribeTokenRotated,
+            Constants.ScopeTypes.UserPreferences,
+            targetId: null,
+            actorUserId: currentUser.UserId,
+            details: null,
+            ct);
+
+        logger.LogInformation(
+            "Rotated unsubscribe token for user {UserId} — outstanding email links are now invalid",
+            currentUser.UserId);
+
+        return ServiceResult.Success;
+    }
+
     private async Task<NotificationPreferences> GetOrCreateAsync(string userId, CancellationToken ct)
     {
         var existing = await repo.GetByUserIdAsync(userId, ct);

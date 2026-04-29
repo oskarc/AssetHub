@@ -40,6 +40,9 @@ public static class NotificationEndpoints
             .AddEndpointFilter<ValidationFilter<UpdateNotificationPreferencesDto>>()
             .DisableAntiforgery()
             .WithName("UpdateNotificationPreferences");
+        prefsGroup.MapPost("rotate-unsubscribe-token", RotateUnsubscribeToken)
+            .DisableAntiforgery()
+            .WithName("RotateNotificationUnsubscribeToken");
 
         // Anonymous one-click unsubscribe from email links. The token is a
         // signed payload (userId, category, stamp) — the endpoint never
@@ -100,6 +103,13 @@ public static class NotificationEndpoints
         CancellationToken ct)
     {
         return (await svc.UpdateForCurrentUserAsync(dto, ct)).ToHttpResult();
+    }
+
+    private static async Task<IResult> RotateUnsubscribeToken(
+        [FromServices] INotificationPreferencesService svc,
+        CancellationToken ct)
+    {
+        return (await svc.RotateUnsubscribeTokenAsync(ct)).ToHttpResult();
     }
 
     private static async Task<IResult> Unsubscribe(

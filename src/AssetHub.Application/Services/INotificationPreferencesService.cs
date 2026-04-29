@@ -52,6 +52,17 @@ public interface INotificationPreferencesService
     /// handles the abuse surface.
     /// </summary>
     Task<ServiceResult<UnsubscribeResult>> UnsubscribeFromCategoryAsync(string token, CancellationToken ct);
+
+    /// <summary>
+    /// Regenerates the user's unsubscribe stamp
+    /// (<see cref="NotificationPreferences.UnsubscribeTokenHash"/>). Every
+    /// outstanding unsubscribe link signed against the previous stamp stops
+    /// validating immediately — that's the recovery path when an unsubscribe
+    /// link is leaked / forwarded / screenshotted. Subsequent emails embed
+    /// URLs signed against the new stamp. Audited as
+    /// <c>notification.unsubscribe_token_rotated</c>.
+    /// </summary>
+    Task<ServiceResult> RotateUnsubscribeTokenAsync(CancellationToken ct);
 }
 
 /// <summary>

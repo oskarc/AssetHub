@@ -353,6 +353,7 @@
   <!-- Notifications -->
   <data name="Event_notification.preferences_updated" xml:space="preserve"><value>Aviseringspreferenser uppdaterade</value></data>
   <data name="Event_notification.unsubscribed_via_email" xml:space="preserve"><value>Avregistrerad via e-post</value></data>
+  <data name="Event_notification.unsubscribe_token_rotated" xml:space="preserve"><value>Avregistreringstoken roterad</value></data>
 
   <!-- Saved searches (T1-SRCH-01) -->
   <data name="Event_saved_search.digest_sent" xml:space="preserve"><value>Sparad sökning sammandrag skickat</value></data>

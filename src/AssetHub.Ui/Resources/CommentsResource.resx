@@ -43,6 +43,7 @@
   <data name="Editor_Post" xml:space="preserve"><value>Post</value></data>
   <data name="Editor_Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="Editor_Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Editor_Mention_Suggestions" xml:space="preserve"><value>Mention suggestions</value></data>
   <data name="Editor_Post_Failed" xml:space="preserve"><value>Failed to post comment.</value></data>
   <data name="Editor_Post_Forbidden" xml:space="preserve"><value>You don't have permission to comment on this asset.</value></data>
 

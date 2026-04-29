@@ -95,6 +95,7 @@
                                       Replies="null"
                                       CurrentUserId="@CurrentUserId"
                                       IsAdmin="@IsAdmin"
+                                      UserNames="@UserNames"
                                       AllowReplies="false"
                                       OnEdit="OnEdit"
                                       OnDelete="OnDelete" />
@@ -110,6 +111,11 @@
     [Parameter] public string CurrentUserId { get; set; } = string.Empty;
     [Parameter] public bool IsAdmin { get; set; }
     [Parameter] public bool AllowReplies { get; set; } = true;
+    /// <summary>userId → display name lookup. When a userId isn't in the
+    /// dictionary the AuthorDisplay/AuthorInitials helpers fall back to
+    /// the truncated-sub behaviour so the panel still works if the lookup
+    /// failed or is in flight.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? UserNames { get; set; }
 
     // Tuple events avoid cascading N EventCallbacks per action.
     [Parameter] public EventCallback<(Guid parentId, string body)> OnReply { get; set; }
@@ -138,19 +144,28 @@
 
     private async Task OnDeleteClicked() => await OnDelete.InvokeAsync(Comment.Id);
 
-    private static string AuthorInitials(string userId)
+    private string AuthorInitials(string userId)
     {
-        if (string.IsNullOrEmpty(userId)) return "?";
-        return userId.Length >= 2
-            ? userId.Substring(0, 2).ToUpperInvariant()
-            : userId.ToUpperInvariant();
+        var name = AuthorDisplay(userId);
+        if (string.IsNullOrEmpty(name) || name == "?") return "?";
+        // First letters of the first two whitespace-separated tokens, or just
+        // the first two characters when there's only one token (handles
+        // "Alice Smith" → AS, "alice.smith" → AL).
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant();
+        return name.Length >= 2
+            ? name.Substring(0, 2).ToUpperInvariant()
+            : name.ToUpperInvariant();
     }
 
-    private static string AuthorDisplay(string userId)
+    private string AuthorDisplay(string userId)
     {
         if (string.IsNullOrEmpty(userId)) return "?";
-        // Truncate long Keycloak subs to a readable prefix — full directory
-        // lookup is a follow-up (see T3-COL-01 follow-ups in ROADMAP).
+        if (UserNames is not null && UserNames.TryGetValue(userId, out var name) && !string.IsNullOrWhiteSpace(name))
+            return name;
+        // Lookup miss (deleted user, lookup failure, or panel still loading) —
+        // fall back to truncated sub so the comment is still readable.
         return userId.Length > 12 ? userId[..8] + "…" : userId;
     }
 

@@ -77,6 +77,12 @@
   <data name="Prefs_Saved" xml:space="preserve"><value>Preferences saved.</value></data>
   <data name="Prefs_NoChanges" xml:space="preserve"><value>No changes to save.</value></data>
 
+  <data name="Prefs_Btn_RotateUnsubscribe" xml:space="preserve"><value>Rotate unsubscribe links</value></data>
+  <data name="Prefs_Btn_RotateUnsubscribe_Tooltip" xml:space="preserve"><value>Invalidate every outstanding email-link unsubscribe URL. Use this if a notification email was forwarded or screenshot-shared.</value></data>
+  <data name="Prefs_RotateUnsubscribe_ConfirmTitle" xml:space="preserve"><value>Rotate unsubscribe links?</value></data>
+  <data name="Prefs_RotateUnsubscribe_ConfirmBody" xml:space="preserve"><value>Every existing email's "Unsubscribe" link will stop working. New emails after this point use fresh links. This is reversible only by clicking a future link from a fresh email.</value></data>
+  <data name="Prefs_RotateUnsubscribe_Success" xml:space="preserve"><value>Existing unsubscribe links have been invalidated.</value></data>
+
   <!-- Relative time labels -->
   <data name="Time_JustNow" xml:space="preserve"><value>just now</value></data>
   <data name="Time_MinutesAgo" xml:space="preserve"><value>{0} min ago</value></data>

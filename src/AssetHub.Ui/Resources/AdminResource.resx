@@ -353,6 +353,7 @@
   <!-- Notifications -->
   <data name="Event_notification.preferences_updated" xml:space="preserve"><value>Notification Preferences Updated</value></data>
   <data name="Event_notification.unsubscribed_via_email" xml:space="preserve"><value>Unsubscribed via Email</value></data>
+  <data name="Event_notification.unsubscribe_token_rotated" xml:space="preserve"><value>Unsubscribe Token Rotated</value></data>
 
   <!-- Saved searches (T1-SRCH-01) -->
   <data name="Event_saved_search.digest_sent" xml:space="preserve"><value>Saved Search Digest Sent</value></data>

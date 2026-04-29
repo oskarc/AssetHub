@@ -5,6 +5,7 @@
 
 @inject AssetHubApiClient Api
 @inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
 @inject IStringLocalizer<NotificationsResource> NotifLoc
 @inject IStringLocalizer<CommonResource> CommonLoc
 
@@ -68,7 +69,24 @@
             </RowTemplate>
         </MudTable>
 
-        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-4">
+            @* Defensive rotation — invalidates every outstanding email
+               unsubscribe link. Useful when an unsubscribe link is leaked
+               (forwarded email, screenshot in chat). Doesn't affect in-app
+               or email cadence settings; just the signed token in the link. *@
+            <MudTooltip Text="@NotifLoc["Prefs_Btn_RotateUnsubscribe_Tooltip"]">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Warning"
+                           StartIcon="@Icons.Material.Outlined.LinkOff"
+                           Disabled="@_rotating"
+                           OnClick="RotateUnsubscribeTokenAsync">
+                    @if (_rotating)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    @NotifLoc["Prefs_Btn_RotateUnsubscribe"]
+                </MudButton>
+            </MudTooltip>
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Save"
@@ -87,6 +105,7 @@
 @code {
     private bool _loading = true;
     private bool _saving;
+    private bool _rotating;
     private NotificationPreferencesDto? _prefs;
 
     /// <summary>
@@ -149,6 +168,31 @@
         finally
         {
             _saving = false;
+        }
+    }
+
+    private async Task RotateUnsubscribeTokenAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            NotifLoc["Prefs_RotateUnsubscribe_ConfirmTitle"].Value,
+            NotifLoc["Prefs_RotateUnsubscribe_ConfirmBody"].Value,
+            yesText: NotifLoc["Prefs_Btn_RotateUnsubscribe"].Value,
+            cancelText: CommonLoc["Btn_Cancel"].Value);
+        if (confirmed != true) return;
+
+        _rotating = true;
+        try
+        {
+            await Api.RotateUnsubscribeTokenAsync();
+            Feedback.ShowSuccess(NotifLoc["Prefs_RotateUnsubscribe_Success"].Value);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "rotate unsubscribe token");
+        }
+        finally
+        {
+            _rotating = false;
         }
     }
 }

@@ -49,6 +49,7 @@
                                           Replies="@GetReplies(comment.Id)"
                                           CurrentUserId="@_currentUserId"
                                           IsAdmin="@_isAdmin"
+                                          UserNames="@_userNames"
                                           OnReply="OnReplyAsync"
                                           OnEdit="OnEditAsync"
                                           OnDelete="OnDeleteAsync" />
@@ -68,6 +69,9 @@
     private List<AssetCommentResponseDto> _comments = new();
     private List<AssetCommentResponseDto> _topLevel = new();
     private Dictionary<Guid, List<AssetCommentResponseDto>> _replyMap = new();
+    /// <summary>userId → display name lookup, populated alongside the comment list.
+    /// Used by AssetCommentItem so author/mention chips don't show truncated Keycloak subs.</summary>
+    private Dictionary<string, string> _userNames = new(StringComparer.Ordinal);
     private bool _loading = true;
     private bool _loadError;
     private string _currentUserId = string.Empty;
@@ -101,6 +105,7 @@
             _loading = true;
             _loadError = false;
             _comments = await Api.GetAssetCommentsAsync(AssetId, _cts.Token);
+            await LoadUserNamesAsync();
             RebuildIndices();
         }
         catch (OperationCanceledException)
@@ -115,6 +120,34 @@
         {
             _loading = false;
             StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Resolves every author + mentioned user id in <see cref="_comments"/> to
+    /// a display name in one batch. Tolerant of failure — a lookup outage
+    /// just means the panel falls back to truncated subs (the prior behaviour).
+    /// </summary>
+    private async Task LoadUserNamesAsync()
+    {
+        var ids = _comments
+            .Select(c => c.AuthorUserId)
+            .Concat(_comments.SelectMany(c => c.MentionedUserIds))
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (ids.Count == 0)
+        {
+            _userNames = new(StringComparer.Ordinal);
+            return;
+        }
+        try
+        {
+            _userNames = await Api.GetUserNamesAsync(ids, _cts.Token);
+        }
+        catch
+        {
+            _userNames = new(StringComparer.Ordinal);
         }
     }
 
