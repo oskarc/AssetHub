@@ -14,7 +14,7 @@ public sealed class WebhookService(
     IWebhookRepository repo,
     IWebhookDeliveryRepository deliveries,
     IWebhookSecretProtector protector,
-    IWebhookEventPublisher publisher,
+    Wolverine.IMessageBus messageBus,
     IAuditService audit,
     IUnitOfWork uow,
     CurrentUser currentUser,
@@ -220,25 +220,35 @@ public sealed class WebhookService(
             triggeredAt = DateTime.UtcNow
         };
 
-        // Test events bypass the subscription filter — we want to ping
-        // *this specific* webhook regardless of its EventTypes list.
+        // Test events deliberately bypass the publisher's subscription filter
+        // (it would skip every webhook because no webhook subscribes to
+        // "webhook.test" — that's a synthetic admin-side ping, not an event
+        // type a user adds to EventTypes). Persist the delivery row using the
+        // SAME envelope shape the publisher writes for real events, then
+        // enqueue DispatchWebhookCommand directly so the worker picks it up.
+        var deliveryId = Guid.NewGuid();
+        const string testEventType = "webhook.test";
+        var envelope = new
+        {
+            id = deliveryId,
+            type = testEventType,
+            createdAt = DateTime.UtcNow,
+            data = payload
+        };
         var delivery = new WebhookDelivery
         {
-            Id = Guid.NewGuid(),
+            Id = deliveryId,
             WebhookId = row.Id,
-            EventType = "webhook.test",
-            PayloadJson = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                id = (Guid?)null,
-                type = "webhook.test",
-                createdAt = DateTime.UtcNow,
-                data = payload
-            }),
+            EventType = testEventType,
+            PayloadJson = System.Text.Json.JsonSerializer.Serialize(envelope),
             Status = WebhookDeliveryStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
         await deliveries.CreateAsync(delivery, ct);
-        await publisher.PublishAsync("webhook.test", payload, ct);
+        await messageBus.PublishAsync(new Application.Messages.DispatchWebhookCommand
+        {
+            DeliveryId = deliveryId
+        });
 
         return ToDto(delivery);
     }

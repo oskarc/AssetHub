@@ -7,6 +7,7 @@ using AssetHub.Infrastructure.Services;
 using AssetHub.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Wolverine;
 
 namespace AssetHub.Tests.Services;
 
@@ -15,7 +16,7 @@ public class WebhookServiceTests
     private readonly Mock<IWebhookRepository> _repo = new();
     private readonly Mock<IWebhookDeliveryRepository> _deliveries = new();
     private readonly Mock<IWebhookSecretProtector> _protector = new();
-    private readonly Mock<IWebhookEventPublisher> _publisher = new();
+    private readonly Mock<IMessageBus> _messageBus = new();
     private readonly Mock<IAuditService> _audit = new();
 
     private const string AdminId = "admin-1";
@@ -27,7 +28,7 @@ public class WebhookServiceTests
     }
 
     private WebhookService Create(string userId = AdminId, bool isAdmin = true)
-        => new(_repo.Object, _deliveries.Object, _protector.Object, _publisher.Object,
+        => new(_repo.Object, _deliveries.Object, _protector.Object, _messageBus.Object,
                _audit.Object, new PassThroughUnitOfWork(),
                new CurrentUser(userId, isAdmin),
                NullLogger<WebhookService>.Instance);
@@ -158,7 +159,12 @@ public class WebhookServiceTests
         Assert.Equal("webhook.test", result.Value!.EventType);
         Assert.Equal("pending", result.Value.Status);
 
-        _publisher.Verify(p => p.PublishAsync("webhook.test", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+        // The fix: SendTest now enqueues DispatchWebhookCommand directly on the
+        // bus instead of going through the publisher (whose subscription filter
+        // would skip every webhook because none subscribe to "webhook.test").
+        _messageBus.Verify(b => b.PublishAsync(
+                It.IsAny<AssetHub.Application.Messages.DispatchWebhookCommand>(),
+                It.IsAny<DeliveryOptions>()),
             Times.Once);
     }
 
