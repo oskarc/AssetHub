@@ -43,6 +43,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Brand> Brands { get; set; } = null!;
     public DbSet<GuestInvitation> GuestInvitations { get; set; } = null!;
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
+    public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -76,6 +77,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         ConfigureBrand(modelBuilder);
         ConfigureWebhookDelivery(modelBuilder);
         ConfigureOrphanedObject(modelBuilder);
+        ConfigureOutboxMessage(modelBuilder);
     }
 
     // ── Per-entity configuration ────────────────────────────────────────
@@ -805,6 +807,25 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
 
             entity.Property(e => e.BucketName).HasMaxLength(100).IsRequired();
             entity.Property(e => e.ObjectKey).HasMaxLength(512).IsRequired();
+            entity.Property(e => e.LastError).HasMaxLength(1000);
+        });
+
+    private static void ConfigureOutboxMessage(ModelBuilder modelBuilder) =>
+        // Transactional outbox for Wolverine commands/events (D-2). Producers
+        // enqueue rows in the same transaction as their source business
+        // mutation; OutboxDrainService publishes them to Rabbit out-of-band.
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Drainer picks undispatched rows oldest-first within the attempt cap.
+            // DispatchedAt is in the index so the partial-style filter can be
+            // expressed via the leading column without a partial-index migration.
+            entity.HasIndex(e => new { e.DispatchedAt, e.AttemptCount, e.CreatedAt })
+                .HasDatabaseName("idx_outbox_pending");
+
+            entity.Property(e => e.MessageType).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.PayloadJson).HasColumnType("text").IsRequired();
             entity.Property(e => e.LastError).HasMaxLength(1000);
         });
 

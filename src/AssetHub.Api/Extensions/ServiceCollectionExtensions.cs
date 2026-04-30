@@ -205,6 +205,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IOutboxPublisher, OutboxPublisher>();
         services.AddScoped<IAuditQueryService, AuditQueryService>();
         services.AddScoped<IUserSyncService, UserSyncService>();
         // IZipBuildService registered in AddSharedInfrastructure for Worker access

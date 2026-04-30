@@ -83,6 +83,7 @@ static class Program
                 services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // Returns null HttpContext for Worker
                 services.AddScoped<IAuditService, AuditService>();
                 services.AddScoped<IUnitOfWork, UnitOfWork>();
+                services.AddScoped<IOutboxPublisher, OutboxPublisher>();
                 services.AddScoped<IAuditRetentionSweeper, AuditRetentionSweeper>();
 
                 // CurrentUser is HTTP-scoped in the API. In the Worker there is no
@@ -146,6 +147,7 @@ static class Program
                 services.AddHostedService<SavedSearchDigestBackgroundService>();
                 services.AddHostedService<GuestInvitationExpirySweepService>();
                 services.AddHostedService<OrphanedObjectsSweeperService>();
+                services.AddHostedService<OutboxDrainService>();
             })
             .Build();
 
