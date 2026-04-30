@@ -52,6 +52,7 @@ Follow `CLAUDE.md` at all times. Key reminders for implementers:
 - **Tier 3** adds collaboration + distribution depth.
 - **Tier 4** is the brand-portal competitive play.
 - **Tier 5** is polish and niche features.
+- **Tier 6** is operational HA — required for enterprise SLAs and regulated-industry sales.
 
 Each tier can be implemented roughly in parallel *within* itself, but cross-tier dependencies are noted per feature.
 
@@ -603,6 +604,125 @@ public string? WaveformPeaksPath { get; set; }  // MinIO key for the precomputed
 - Waveform peaks JSON is small (~10 KB for a typical track) but generating them per upload adds maybe 1–2 seconds of processing. Acceptable.
 - The peaks rendering is a `<canvas>` paint per detail-page view; on slow devices it can flash briefly. Render the audio player first, paint the waveform asynchronously.
 - ffmpeg's audio filter chain has version-to-version quirks — pin the worker image's ffmpeg version (already done in `Dockerfile.Worker`).
+
+---
+
+## Tier 6 — Operational HA
+
+Unlike the feature tiers above, Tier 6 is operational: the codebase is already feature-rich, but its current deployment posture assumes a single Worker pod and a single region. To support customers that need genuine high availability (geographically redundant, regional-failover-capable) we need both an in-codebase fix (multi-pod Worker without duplicate sweep work) and an infrastructure track (cross-region active-passive). They can ship independently.
+
+### T6-HA-01 — Multi-pod Worker via SKIP LOCKED
+
+**Intent.** Today the Worker tier is functionally HA-capable for Wolverine queue handlers (Rabbit splits the queue between competing consumers automatically), but the seven `BackgroundService` sweepers and the new [`OutboxDrainService`](../../src/AssetHub.Worker/BackgroundServices/OutboxDrainService.cs) all do plain `Where + OrderBy + Take` polling. Two Worker pods means both pods read the same rows, both attempt the side-effect, both run `ExecuteUpdate`. The DB writes are idempotent so the failure mode is wasted work rather than data corruption — but it blocks the "run two Worker pods for region-local HA" story because half your CPU is duplicate work.
+
+**User gain.**
+- Customers can run N Worker replicas in one region for fault tolerance without paying duplicate-work overhead. Pod failure becomes invisible — surviving pods keep the work moving.
+- Closes [D-8](../../Claude-Deferred-Decisions.md) in the same uniform pass.
+
+**Business gain.** Unblocks single-region HA — the prerequisite for the active-passive cross-region story in T6-HA-02 and a real ask for any regulated customer (financial, healthcare, public sector) who can't run a single point of failure.
+
+**Current state.**
+- Eight services to fix: `OutboxDrainService`, `OrphanedObjectsSweeperService`, `StaleUploadCleanupService`, `OrphanedSharesCleanupService`, `AuditRetentionService`, `TrashPurgeBackgroundService`, `SavedSearchDigestBackgroundService`, `GuestInvitationExpirySweepService`.
+- Each one has the same `await db.X.Where(...).OrderBy(...).Take(N).ToListAsync(ct)` pattern. There is no row-level lock, so concurrent pods see the same candidate set.
+- Wolverine handlers already tolerate duplicate invocations because the existing `OnException<Exception>().RetryWithCooldown(...)` policy re-runs them after transient failures.
+
+**Target state.**
+- Each polling sweep uses `SELECT … FOR UPDATE SKIP LOCKED` so concurrent pods steal disjoint subsets of the work queue.
+- Per-row claim semantics: a pod that reads N rows holds row-level locks until its surrounding transaction commits or the pod dies (in which case Postgres releases the locks and another pod picks them up).
+- A documented exception in `CLAUDE.md` allowing raw-SQL `FOR UPDATE SKIP LOCKED` in the sweepers — the rule's intent (avoid SQL-injection / missed-index foot-guns) doesn't fit this case, and EF Core has no LINQ-translatable expression for it.
+
+**Data model.** No schema changes — `FOR UPDATE SKIP LOCKED` is a query-time directive, not a table feature. Existing indexes (`idx_outbox_pending`, `idx_orphaned_object_attempts_created`, etc.) are sufficient.
+
+**API surface.** None.
+
+**Worker / background.**
+- Introduce a small helper `Infrastructure/Data/SkipLockedQueries.cs` exposing typed methods like `GetNextOutboxBatchAsync`, `GetNextOrphanedBatchAsync`, etc., each issuing the locking SELECT via `Database.SqlQueryRaw<T>`.
+- Each sweeper migrates its `GetNextBatchAsync` call to the helper. The per-row work itself stays unchanged.
+- Wrap the read + side-effect + delete-or-update in a single transaction so the row-level lock survives across the side-effect call. For services where the side-effect is external (MinIO, Rabbit, SMTP) this means a longer-lived transaction; cap the batch size to keep transactions short (existing `BatchSize = 100` is already conservative).
+
+**UI.** None.
+
+**Caching.** None.
+
+**Acceptance criteria.**
+- Running two Worker pods against the same Postgres + Rabbit produces no duplicate orphaned-object MinIO deletes, no duplicate outbox publishes, no duplicate retention purges, no duplicate digest emails (verified by integration test with two `IServiceScopeFactory` scopes pulling concurrently).
+- Pod failure mid-batch (simulated via `kill -9`) releases the row-level locks within the Postgres connection-timeout window; the surviving pod picks up the work on its next tick.
+- Throughput scales roughly linearly with pod count for the queue-bound sweepers (outbox drainer, orphaned-objects sweeper) — measured via batch-completion timestamps in the logs.
+- The new `SkipLockedQueries` helper has unit tests covering the empty-queue case and the all-rows-locked case (returns empty list, doesn't block).
+
+**Dependencies.** None — uses Postgres features already available.
+
+**Out of scope.**
+- Cross-region replication / failover (that's T6-HA-02).
+- Replacing background services with Wolverine's built-in scheduler (Path A in the D-2 design notes — heavier integration cost, not justified by single-region HA alone).
+- Quartz.NET migration — existing `BackgroundService` shape is sufficient.
+
+**Risks & trade-offs.**
+- Raw SQL is a documented anti-pattern in `CLAUDE.md` — the exception must be tightly scoped to the locking SELECT statements and reviewed alongside this PR. Any future temptation to use it for "easier" queries should bounce.
+- Longer-lived transactions for sweepers that call out to MinIO / SMTP / Rabbit increase the chance of holding a connection during a slow remote call. Mitigation: keep batch sizes small (10–100 rows), and cap each per-row external call with a short timeout via the existing Polly pipelines.
+- `FOR UPDATE SKIP LOCKED` on a heavily-written table with the wrong index can silently scan more rows than expected. Verify `EXPLAIN (ANALYZE, BUFFERS)` for each sweeper's locking query during code review.
+
+---
+
+### T6-HA-02 — Cross-region active-passive deployment
+
+**Intent.** A regional outage (cloud provider zone failure, ISP partition, fire) should not take AssetHub down. Today every component (Postgres, MinIO, Rabbit, Keycloak, API pods, Worker pods) runs in one region. Customers in regulated industries and customers paying enterprise SLAs (>= 99.95%) need a documented failover path with a tested runbook.
+
+**Note.** This is primarily an infrastructure / SRE initiative, **not** a code-level change. The codebase already supports it (DataProtection keyring is cert-wrapped for cross-host sharing, the API tier is stateless, idempotent handlers tolerate redelivery), but standing up the second region and the failover plumbing is a multi-week ops project.
+
+**User gain.** RTO ≤ 5 min, RPO ≤ 1 min for a regional outage. Failover is automated for the API + Worker tiers and runbook-driven (with practice drills) for the data tier.
+
+**Business gain.**
+- Unlocks 99.99% SLA contracts (≈ 52 min/yr unavailability budget). Customers in regulated sectors require this on paper before they sign.
+- Survives a real datacenter incident without losing customer data.
+
+**Realistic SLA framing.** True 100% uptime is not achievable — even hyperscaler object stores cap at 99.999% (≈ 5 min/yr) and even that costs orders of magnitude more SRE budget than a single product. The realistic targets:
+- **99.95%** (≈ 4 h/yr): single-region with N-replica Worker (T6-HA-01) + DR backups + manual failover. Achievable today after T6-HA-01.
+- **99.99%** (≈ 52 min/yr): cross-region active-passive with automated DNS failover. This is what T6-HA-02 targets.
+- **99.999%** (≈ 5 min/yr): active-active multi-region with conflict resolution. Different budget category — out of scope.
+
+**Current state.**
+- Single-region everything. Backups exist (assumption: Postgres `pg_dump` cron + MinIO bucket lifecycle) but DR runbook is undocumented.
+- DataProtection keyring is wrapped with a cert from a Docker secret — cross-region sharing is mechanically possible (mount the same cert on both regions) but untested.
+- `__Host-` cookie name change between Development and Production is already documented; cross-region failover does not require additional cookie work because the cookie is signed not server-stored.
+
+**Target state.** Two regions (`primary` + `standby`), with:
+
+- **Postgres**: physical replication (Patroni / Crunchy Postgres Operator on K8s, AWS Aurora Global, Azure Cosmos for PostgreSQL, or equivalent). Replication lag observable via Grafana.
+- **MinIO**: bucket replication (built-in async). Optional reverse-replication once failed-over for write-back.
+- **RabbitMQ**: federation or shovel between regions. Standby region runs idle Workers that consume only after failover to avoid double-processing during normal operation.
+- **Keycloak**: HA cluster mode with cross-region replication of session state, OR two independent Keycloak instances behind a regional DNS toggle (acceptable: users re-auth on failover).
+- **DataProtection keyring**: cert + key store mounted from a shared secret manager (HashiCorp Vault, AWS KMS, Azure Key Vault). Both regions decrypt the same cookies / share tokens.
+- **DNS / traffic routing**: Route 53 health checks, Cloudflare load balancer, or equivalent. Automated failover with a short health-check window (30 s).
+
+**API surface.** None — pure infrastructure.
+
+**Worker / background.** None at the code level. The standby region's Workers stay idle (consuming nothing) during normal operation; they pick up Rabbit consumers when DNS / queue federation flips.
+
+**UI.** A read-only banner ("Operating in failover mode") sourced from a config flag the operator flips during failover, surfaced in `MainLayout`. Localized via `CommonResource` (en + sv).
+
+**Acceptance criteria.**
+- Documented runbook in `docs/operations/dr-runbook.md` covering: planned failover (regular drill), unplanned failover (region down), failback after recovery, data-reconciliation after a write-during-split-brain incident.
+- Quarterly drill: failover, run smoke tests in standby, fail back. Drill outcomes captured in `docs/operations/dr-drills/YYYY-QN.md`.
+- Synthetic monitor: an external probe pinging the public hostname every minute, with alerting on >= 60 s downtime. Captures real RTO during a drill.
+- Postgres replication lag alerting fires below 10 s lag.
+- MinIO replication completion is observable via Prometheus metrics.
+
+**Dependencies.**
+- T6-HA-01 (multi-pod Worker is a prerequisite — without it, in-region HA is impossible and cross-region is meaningless).
+- Existing observability stack (OpenTelemetry already exists).
+
+**Out of scope.**
+- Active-active multi-region (different architecture — needs CRDT-like conflict resolution or partitioned tenancy).
+- Multi-tenant per-tenant region affinity (the codebase is single-tenant per install today).
+- Cross-region encryption-at-rest key management beyond what DataProtection already provides.
+- 100% uptime — see the realistic SLA framing above.
+
+**Risks & trade-offs.**
+- Cost: roughly 2× the infrastructure cost of single-region for the standby tier (Postgres replica, MinIO replica, idle Workers, idle Keycloak). Pricing tier this for customers who pay for the SLA.
+- Replication lag is a real consistency window. A failover during a 5 s lag spike loses up to 5 s of writes (RPO = lag). Document this clearly.
+- Split-brain risk during a network partition where both regions think they're primary. Mitigation: DNS-based failover with a single source of truth (one region wins the health-check race), plus a manual write-fence on the loser.
+- DataProtection cert rotation now needs to happen across two regions atomically. Add to the runbook.
 
 ---
 
