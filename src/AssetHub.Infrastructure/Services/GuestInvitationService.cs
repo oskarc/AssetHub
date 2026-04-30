@@ -157,22 +157,21 @@ public sealed class GuestInvitationService(
         // (admin might have already provisioned them). Otherwise create
         // a fresh one with a random password — guest signs in via the
         // execute-actions email flow instead of receiving a password.
-        var existingUserId = await userLookup.GetUserIdByUsernameAsync(invitation.Email, ct);
         string keycloakUserId;
-        var newKeycloakUser = existingUserId is null;
+        bool newKeycloakUser;
         try
         {
-            keycloakUserId = existingUserId
-                ?? await keycloak.CreateUserAsync(
-                    username: invitation.Email,
-                    email: invitation.Email,
-                    firstName: "Guest",
-                    lastName: invitation.Email,
-                    password: GenerateRandomPassword(),
-                    temporaryPassword: true,
-                    ct: ct);
-
+            (keycloakUserId, newKeycloakUser) = await ProvisionKeycloakUserAsync(invitation, ct);
             await keycloak.AssignRealmRoleAsync(keycloakUserId, GuestRealmRole, ct);
+        }
+        catch (KeycloakRaceLostException)
+        {
+            // Concurrent accept already minted the user but the lookup that
+            // would have recovered the id came up empty (Keycloak read-after-
+            // write lag, mid-replication blip, etc.). The sibling click
+            // already holds the accept-mark — surface the same 409 the
+            // expired/revoked path uses.
+            return ServiceError.Conflict("This invitation can no longer be redeemed.");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -319,6 +318,57 @@ public sealed class GuestInvitationService(
         var trimmed = baseUrl.TrimEnd('/');
         return $"{trimmed}/guest-accept?token={Uri.EscapeDataString(token)}";
     }
+
+    /// <summary>
+    /// Resolves the Keycloak user id for an accepting invitation, creating the
+    /// account if no Keycloak row exists yet. Closes the race where two
+    /// concurrent magic-link clicks both fail the pre-check and both call
+    /// <see cref="IKeycloakUserService.CreateUserAsync"/> — the loser receives
+    /// a 409 from Keycloak and recovers by re-resolving the username (which
+    /// the winner has now minted). Returns <c>(userId, isNewlyMinted)</c>; the
+    /// flag drives whether to send the first-time UPDATE_PASSWORD/VERIFY_EMAIL
+    /// action email so the loser doesn't re-send it.
+    /// </summary>
+    private async Task<(string UserId, bool IsNew)> ProvisionKeycloakUserAsync(
+        GuestInvitation invitation, CancellationToken ct)
+    {
+        var existingUserId = await userLookup.GetUserIdByUsernameAsync(invitation.Email, ct);
+        if (existingUserId is not null)
+            return (existingUserId, false);
+
+        try
+        {
+            var created = await keycloak.CreateUserAsync(
+                username: invitation.Email,
+                email: invitation.Email,
+                firstName: "Guest",
+                lastName: invitation.Email,
+                password: GenerateRandomPassword(),
+                temporaryPassword: true,
+                ct: ct);
+            return (created, true);
+        }
+        catch (KeycloakApiException ex) when (ex.StatusCode == (int)System.Net.HttpStatusCode.Conflict)
+        {
+            // Sibling magic-link click won the create — re-resolve so we
+            // converge on the same userId. TryMarkAcceptedAsync below will
+            // still pick a single accept-winner via the conditional UPDATE.
+            logger.LogInformation(
+                "Concurrent accept on invitation {InvitationId}: Keycloak reported user exists for {Email}, recovering via lookup",
+                invitation.Id, invitation.Email);
+            var recovered = await userLookup.GetUserIdByUsernameAsync(invitation.Email, ct);
+            if (recovered is null)
+                throw new KeycloakRaceLostException();
+            return (recovered, false);
+        }
+    }
+
+    /// <summary>
+    /// Sentinel for the narrow window where Keycloak returns 409 on create
+    /// but the follow-up lookup still doesn't see the row. Bubbles up to the
+    /// service-level handler so the caller sees a 409 instead of a 500.
+    /// </summary>
+    private sealed class KeycloakRaceLostException : Exception;
 
     /// <summary>
     /// Best-effort lookup of the current user's display name for the email

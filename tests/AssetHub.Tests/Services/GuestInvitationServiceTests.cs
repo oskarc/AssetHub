@@ -325,6 +325,92 @@ public class GuestInvitationServiceTests
     }
 
     [Fact]
+    public async Task Accept_ConcurrentMagicLinkClick_RecoversFromKeycloak409()
+    {
+        // Two clicks both saw existingUserId=null; the first won the create,
+        // the second's CreateUserAsync threw 409. The second click must
+        // recover by re-resolving the username and converging on the same id.
+        var id = Guid.NewGuid();
+        var collection = Guid.NewGuid();
+        var inv = new GuestInvitation
+        {
+            Id = id,
+            Email = Email,
+            TokenHash = $"hash-{id}",
+            CollectionIds = [collection],
+            CreatedAt = DateTime.UtcNow.AddDays(-1),
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedByUserId = AdminId
+        };
+        _repo.Setup(r => r.GetByTokenHashAsync(inv.TokenHash, It.IsAny<CancellationToken>())).ReturnsAsync(inv);
+        // After Keycloak's 409, the loser's TryMarkAcceptedAsync must lose too —
+        // the winner already stamped AcceptedAt. Returning false here is the
+        // realistic post-race state; the assert below confirms we surface 409.
+        _repo.Setup(r => r.TryMarkAcceptedAsync(id, "kc-winner", It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // First lookup (pre-create): null. Second lookup (recovery): the
+        // winner has now persisted, so we get the id back.
+        _userLookup.SetupSequence(u => u.GetUserIdByUsernameAsync(Email, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null)
+            .ReturnsAsync("kc-winner");
+
+        _keycloak.Setup(k => k.CreateUserAsync(
+                Email, Email, "Guest", Email,
+                It.IsAny<string>(), true, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new KeycloakApiException("conflict", (int)System.Net.HttpStatusCode.Conflict));
+
+        var svc = Create();
+        var result = await svc.AcceptAsync($"plain-{id}", CancellationToken.None);
+
+        // The atomic-mark loses; we surface the same 409 the expired path uses.
+        Assert.False(result.IsSuccess);
+        Assert.Equal(409, result.Error!.StatusCode);
+        // We DID recover the id (the role assignment proves it) — without the
+        // recovery we'd have returned 500 from the InvalidOperationException
+        // path the existing test covers.
+        _keycloak.Verify(k => k.AssignRealmRoleAsync("kc-winner",
+            RoleHierarchy.Roles.Viewer, It.IsAny<CancellationToken>()), Times.Once);
+        // The loser must NOT re-send the password-set email — the winner did.
+        _keycloak.Verify(k => k.SendExecuteActionsEmailAsync(
+            It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+            It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Accept_Keycloak409_LookupStillEmpty_Returns409()
+    {
+        // The narrow window where Keycloak says "already exists" but the
+        // follow-up lookup still doesn't see it (read-after-write blip).
+        // We surface 409 instead of 500 — the user can retry shortly.
+        var id = Guid.NewGuid();
+        var inv = new GuestInvitation
+        {
+            Id = id,
+            Email = Email,
+            TokenHash = $"hash-{id}",
+            CollectionIds = [Guid.NewGuid()],
+            CreatedAt = DateTime.UtcNow.AddDays(-1),
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedByUserId = AdminId
+        };
+        _repo.Setup(r => r.GetByTokenHashAsync(inv.TokenHash, It.IsAny<CancellationToken>())).ReturnsAsync(inv);
+        _userLookup.Setup(u => u.GetUserIdByUsernameAsync(Email, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        _keycloak.Setup(k => k.CreateUserAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new KeycloakApiException("conflict", (int)System.Net.HttpStatusCode.Conflict));
+
+        var svc = Create();
+        var result = await svc.AcceptAsync($"plain-{id}", CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(409, result.Error!.StatusCode);
+        Assert.Null(inv.AcceptedAt);
+    }
+
+    [Fact]
     public async Task Revoke_NonAdmin_Forbidden()
     {
         var svc = Create(isAdmin: false);
