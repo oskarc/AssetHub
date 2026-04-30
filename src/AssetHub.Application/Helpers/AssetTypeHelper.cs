@@ -17,9 +17,14 @@ public static class AssetTypeHelper
         ".mp4", ".avi", ".mov", ".wmv", ".mkv", ".webm", ".flv", ".m4v"
     };
 
+    private static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mp3", ".wav", ".flac", ".m4a", ".ogg", ".oga", ".opus", ".aac"
+    };
+
     /// <summary>
     /// Determines the asset type from the content type and file extension.
-    /// Anything that isn't recognised as image / video falls through to
+    /// Anything that isn't recognised as image / video / audio falls through to
     /// <see cref="AssetType.Document"/>, matching the original behaviour.
     /// </summary>
     public static AssetType DetermineAssetType(string? contentType, string? extension)
@@ -31,6 +36,8 @@ public static class AssetTypeHelper
                 return AssetType.Image;
             if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
                 return AssetType.Video;
+            if (contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+                return AssetType.Audio;
             if (contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
                 return AssetType.Document;
         }
@@ -38,6 +45,7 @@ public static class AssetTypeHelper
         if (extension is null) return AssetType.Document;
         if (ImageExtensions.Contains(extension)) return AssetType.Image;
         if (VideoExtensions.Contains(extension)) return AssetType.Video;
+        if (AudioExtensions.Contains(extension)) return AssetType.Audio;
         return AssetType.Document;
     }
 }

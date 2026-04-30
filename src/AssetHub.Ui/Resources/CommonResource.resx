@@ -91,6 +91,7 @@
 
   <!-- Common Labels -->
   <data name="Label_Type" xml:space="preserve"><value>Type</value></data>
+  <data name="Label_Duration" xml:space="preserve"><value>Duration</value></data>
   <data name="Label_Role" xml:space="preserve"><value>Role</value></data>
   <data name="Label_RoleAndAccess" xml:space="preserve"><value>Role &amp; Access</value></data>
   <data name="Label_Actions" xml:space="preserve"><value>Actions</value></data>
@@ -178,6 +179,7 @@
   <data name="Text_PreviewNotAvailable" xml:space="preserve"><value>Preview not available for this file type</value></data>
   <data name="Text_DocumentPreviewNotAvailable" xml:space="preserve"><value>Document preview not available</value></data>
   <data name="Text_BrowserNoVideo" xml:space="preserve"><value>Your browser does not support the video tag.</value></data>
+  <data name="Text_BrowserNoAudio" xml:space="preserve"><value>Your browser does not support the audio tag.</value></data>
   <data name="Text_NoMetadata" xml:space="preserve"><value>No metadata available.</value></data>
   <data name="Text_NoMetadataUploadHint" xml:space="preserve"><value>No metadata available. Upload a new image with EXIF data to see metadata here.</value></data>
   <data name="Text_NotAssignedToCollection" xml:space="preserve"><value>Not assigned to any collection</value></data>

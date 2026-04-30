@@ -182,6 +182,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.ThumbObjectKey).HasMaxLength(512);
             entity.Property(e => e.MediumObjectKey).HasMaxLength(512);
             entity.Property(e => e.PosterObjectKey).HasMaxLength(512);
+            entity.Property(e => e.WaveformPeaksPath).HasMaxLength(512);
 
             entity.Property(e => e.Tags)
                 .HasColumnType(TextArray)

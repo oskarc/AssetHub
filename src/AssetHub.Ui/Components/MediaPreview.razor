@@ -15,6 +15,13 @@ else if (AssetType == Constants.AssetTypeFilters.Video)
         @BrowserNoVideoText
     </video>
 }
+else if (AssetType == Constants.AssetTypeFilters.Audio)
+{
+    <audio controls class="media-preview-audio" aria-label="@Title">
+        <source src="@PreviewUrl" type="@ContentType">
+        @BrowserNoAudioText
+    </audio>
+}
 else if (AssetDisplayHelpers.IsPdfContentType(ContentType))
 {
     <iframe src="@PreviewUrl"
@@ -48,6 +55,7 @@ else
     [Parameter] public string? PosterUrl { get; set; }
     [Parameter] public string DownloadUrl { get; set; } = "";
     [Parameter] public string BrowserNoVideoText { get; set; } = "";
+    [Parameter] public string BrowserNoAudioText { get; set; } = "";
     [Parameter] public string PreviewNotAvailableText { get; set; } = "";
     [Parameter] public string DownloadToViewText { get; set; } = "";
 }

@@ -50,6 +50,15 @@ public sealed class MediaProcessingService(
                 OriginalObjectKey = originalObjectKey
             }, cancellationToken);
         }
+        else if (assetType == Constants.AssetTypeFilters.Audio)
+        {
+            logger.LogInformation("Enqueueing audio processing command for asset {AssetId}, correlation {CorrelationId}", assetId, correlationId);
+            await outbox.EnqueueAsync(new ProcessAudioCommand
+            {
+                AssetId = assetId,
+                OriginalObjectKey = originalObjectKey
+            }, cancellationToken);
+        }
         else
         {
             logger.LogInformation("No processing required for asset {AssetId} of type {AssetType}", assetId, assetType);

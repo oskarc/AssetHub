@@ -29,6 +29,7 @@ public sealed class AssetProcessingCompletedHandler(
         var firstReady = asset.Status != AssetStatus.Ready;
 
         asset.MarkReady(evt.ThumbObjectKey, evt.MediumObjectKey, evt.PosterObjectKey);
+        ApplyAudioFields(asset, evt);
 
         if (evt.MetadataJson is not null)
         {
@@ -67,5 +68,20 @@ public sealed class AssetProcessingCompletedHandler(
                 createdByUserId = asset.CreatedByUserId
             }, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Audio-only fields (T5-AUDIO-01) — null on image / video paths. The
+    /// completion event carries everything the worker probed; we mirror it
+    /// onto the row here rather than threading audio params through
+    /// <see cref="Asset.MarkReady"/> itself.
+    /// </summary>
+    private static void ApplyAudioFields(Asset asset, AssetProcessingCompletedEvent evt)
+    {
+        if (evt.DurationSeconds is not null) asset.DurationSeconds = evt.DurationSeconds;
+        if (evt.AudioBitrateKbps is not null) asset.AudioBitrateKbps = evt.AudioBitrateKbps;
+        if (evt.AudioSampleRateHz is not null) asset.AudioSampleRateHz = evt.AudioSampleRateHz;
+        if (evt.AudioChannels is not null) asset.AudioChannels = evt.AudioChannels;
+        if (evt.WaveformPeaksPath is not null) asset.WaveformPeaksPath = evt.WaveformPeaksPath;
     }
 }

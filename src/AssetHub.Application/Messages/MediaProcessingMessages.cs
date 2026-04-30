@@ -15,6 +15,12 @@ public record ProcessVideoCommand
     public string OriginalObjectKey { get; init; } = string.Empty;
 }
 
+public record ProcessAudioCommand
+{
+    public Guid AssetId { get; init; }
+    public string OriginalObjectKey { get; init; } = string.Empty;
+}
+
 public record BuildZipCommand
 {
     public Guid ZipDownloadId { get; init; }
@@ -37,6 +43,14 @@ public record AssetProcessingCompletedEvent
     public string? PosterObjectKey { get; init; }
     public Dictionary<string, object>? MetadataJson { get; init; }
     public string? Copyright { get; init; }
+
+    // Audio-only fields populated by ProcessAudioHandler. Image / video paths
+    // leave them null and the completion handler writes nothing for those.
+    public int? DurationSeconds { get; init; }
+    public int? AudioBitrateKbps { get; init; }
+    public int? AudioSampleRateHz { get; init; }
+    public int? AudioChannels { get; init; }
+    public string? WaveformPeaksPath { get; init; }
 }
 
 public record AssetProcessingFailedEvent

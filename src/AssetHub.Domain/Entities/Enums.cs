@@ -22,7 +22,8 @@ public enum AssetType
     Unknown = 0,
     Image,
     Video,
-    Document
+    Document,
+    Audio
 }
 
 /// <summary>
@@ -229,6 +230,7 @@ public static class DomainEnumExtensions
         AssetType.Image => "image",
         AssetType.Video => "video",
         AssetType.Document => "document",
+        AssetType.Audio => "audio",
         AssetType.Unknown => Unknown,
         _ => Unknown // Fallback for future values
     };
@@ -354,6 +356,7 @@ public static class DomainEnumExtensions
         "image" => AssetType.Image,
         "video" => AssetType.Video,
         "document" => AssetType.Document,
+        "audio" => AssetType.Audio,
         _ => AssetType.Unknown // Graceful fallback for unknown database values
     };
 

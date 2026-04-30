@@ -15,6 +15,7 @@
                           PosterUrl="@PosterUrl"
                           DownloadUrl="@DownloadUrl"
                           BrowserNoVideoText="@BrowserNoVideoText"
+                          BrowserNoAudioText="@BrowserNoAudioText"
                           PreviewNotAvailableText="@PreviewNotAvailableText"
                           DownloadToViewText="@DownloadToViewText" />
         </MudPaper>
@@ -166,6 +167,7 @@
     // Localisation strings passed in from the parent page so this component
     // stays free of injected localisers and works in both pages and tests.
     [Parameter] public string BrowserNoVideoText { get; set; } = "";
+    [Parameter] public string BrowserNoAudioText { get; set; } = "";
     [Parameter] public string PreviewNotAvailableText { get; set; } = "";
     [Parameter] public string DownloadToViewText { get; set; } = "";
     [Parameter] public string DescriptionLabel { get; set; } = "Description";

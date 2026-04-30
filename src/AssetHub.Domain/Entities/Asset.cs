@@ -20,6 +20,27 @@ public class Asset
     public string? MediumObjectKey { get; set; }
     public string? PosterObjectKey { get; set; }
 
+    /// <summary>
+    /// Duration of the asset in seconds (audio + video). Null for assets that
+    /// have not been probed yet or whose type doesn't carry duration.
+    /// </summary>
+    public int? DurationSeconds { get; set; }
+
+    /// <summary>Audio bitrate in kbps. Populated by the audio worker handler.</summary>
+    public int? AudioBitrateKbps { get; set; }
+
+    /// <summary>Audio sample rate in Hz. Populated by the audio worker handler.</summary>
+    public int? AudioSampleRateHz { get; set; }
+
+    /// <summary>Audio channel count. Populated by the audio worker handler.</summary>
+    public int? AudioChannels { get; set; }
+
+    /// <summary>
+    /// MinIO object key of the precomputed waveform peaks JSON for audio assets.
+    /// Generated once during initial processing; immutable for the asset's life.
+    /// </summary>
+    public string? WaveformPeaksPath { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime UpdatedAt { get; set; }
@@ -134,6 +155,7 @@ public class Asset
         {
             (AssetType.Image, var ct) => ct.StartsWith("image/"),
             (AssetType.Video, var ct) => ct.StartsWith("video/"),
+            (AssetType.Audio, var ct) => ct.StartsWith("audio/"),
             (AssetType.Document, var ct) => ct.StartsWith("application/pdf") || ct.StartsWith("application/vnd."),
             _ => false
         };

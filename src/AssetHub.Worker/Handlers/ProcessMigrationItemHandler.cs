@@ -339,6 +339,8 @@ public sealed class ProcessMigrationItemHandler(
             return AssetType.Image;
         if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
             return AssetType.Video;
+        if (contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+            return AssetType.Audio;
         return AssetType.Document;
     }
 

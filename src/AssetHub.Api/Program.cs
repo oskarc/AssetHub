@@ -60,6 +60,8 @@ try
             .ToRabbitQueue("process-image");
         opts.PublishMessage<ProcessVideoCommand>()
             .ToRabbitQueue("process-video");
+        opts.PublishMessage<ProcessAudioCommand>()
+            .ToRabbitQueue("process-audio");
         opts.PublishMessage<BuildZipCommand>()
             .ToRabbitQueue("build-zip");
         opts.PublishMessage<ApplyExportPresetsCommand>()

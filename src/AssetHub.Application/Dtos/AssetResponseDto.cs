@@ -45,4 +45,10 @@ public class AssetResponseDto
     /// Used for UI visibility of actions. Values: "viewer", "contributor", "manager", "admin"
     /// </summary>
     public string UserRole { get; set; } = "viewer";
+
+    /// <summary>
+    /// Duration in seconds for audio (and future video) assets. Null for asset
+    /// types that don't carry duration or that haven't been probed yet.
+    /// </summary>
+    public int? DurationSeconds { get; set; }
 }

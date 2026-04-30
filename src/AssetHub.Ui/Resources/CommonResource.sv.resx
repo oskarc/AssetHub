@@ -88,6 +88,7 @@
 
   <!-- Common Labels -->
   <data name="Label_Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="Label_Duration" xml:space="preserve"><value>Längd</value></data>
   <data name="Label_Role" xml:space="preserve"><value>Roll</value></data>
   <data name="Label_RoleAndAccess" xml:space="preserve"><value>Roll &amp; åtkomst</value></data>
   <data name="Label_Actions" xml:space="preserve"><value>Åtgärder</value></data>
@@ -175,6 +176,7 @@
   <data name="Text_PreviewNotAvailable" xml:space="preserve"><value>Förhandsgranskning ej tillgänglig för denna filtyp</value></data>
   <data name="Text_DocumentPreviewNotAvailable" xml:space="preserve"><value>Förhandsgranskning av dokument ej tillgänglig</value></data>
   <data name="Text_BrowserNoVideo" xml:space="preserve"><value>Din webbläsare stödjer inte videotaggen.</value></data>
+  <data name="Text_BrowserNoAudio" xml:space="preserve"><value>Din webbläsare stödjer inte ljudtaggen.</value></data>
   <data name="Text_NoMetadata" xml:space="preserve"><value>Ingen metadata tillgänglig.</value></data>
   <data name="Text_NoMetadataUploadHint" xml:space="preserve"><value>Ingen metadata tillgänglig. Ladda upp en ny bild med EXIF-data för att se metadata här.</value></data>
   <data name="Text_NotAssignedToCollection" xml:space="preserve"><value>Inte tilldelad någon samling</value></data>

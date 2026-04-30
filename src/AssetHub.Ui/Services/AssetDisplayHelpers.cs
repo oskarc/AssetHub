@@ -79,6 +79,7 @@ public static class AssetDisplayHelpers
             Constants.AssetTypeFilters.Image => MudBlazor.Color.Success,
             Constants.AssetTypeFilters.Video => MudBlazor.Color.Info,
             Constants.AssetTypeFilters.Document => MudBlazor.Color.Warning,
+            Constants.AssetTypeFilters.Audio => MudBlazor.Color.Secondary,
             _ => MudBlazor.Color.Default
         };
     }
@@ -106,6 +107,7 @@ public static class AssetDisplayHelpers
             Constants.AssetTypeFilters.Image => MudBlazor.Icons.Material.Filled.Image,
             Constants.AssetTypeFilters.Video => MudBlazor.Icons.Material.Filled.VideoFile,
             Constants.AssetTypeFilters.Document => MudBlazor.Icons.Material.Filled.Description,
+            Constants.AssetTypeFilters.Audio => MudBlazor.Icons.Material.Filled.AudioFile,
             _ => MudBlazor.Icons.Material.Filled.InsertDriveFile
         };
     }
@@ -123,6 +125,8 @@ public static class AssetDisplayHelpers
             return MudBlazor.Icons.Material.Filled.Image;
         if (contentType.StartsWith("video/"))
             return MudBlazor.Icons.Material.Filled.VideoFile;
+        if (contentType.StartsWith("audio/"))
+            return MudBlazor.Icons.Material.Filled.AudioFile;
         if (contentType.Contains("pdf"))
             return MudBlazor.Icons.Material.Filled.PictureAsPdf;
 
@@ -298,6 +302,20 @@ public static class AssetDisplayHelpers
     /// Delegates to FileHelpers for the actual formatting.
     /// </summary>
     public static string FormatFileSize(long bytes) => FileHelpers.FormatFileSize(bytes);
+
+    /// <summary>
+    /// Formats a duration in seconds as <c>m:ss</c> for clips under an hour and
+    /// <c>h:mm:ss</c> for longer ones. Audio assets and (later) videos use this
+    /// for the file-info row in the detail page.
+    /// </summary>
+    public static string FormatDuration(int seconds)
+    {
+        if (seconds < 0) seconds = 0;
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalHours >= 1
+            ? $"{(int)ts.TotalHours}:{ts.Minutes:D2}:{ts.Seconds:D2}"
+            : $"{ts.Minutes}:{ts.Seconds:D2}";
+    }
 
     /// <summary>
     /// Converts a camelCase or PascalCase metadata key into readable "Title Case".

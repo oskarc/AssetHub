@@ -199,6 +199,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ImageMetadataExtractor>();
         services.AddScoped<ImageProcessingService>();
         services.AddScoped<VideoProcessingService>();
+        services.AddScoped<AudioProcessingService>();
         services.AddScoped<MediaProcessingService>();
         services.AddScoped<IMediaProcessingService>(sp => sp.GetRequiredService<MediaProcessingService>());
         services.AddScoped<ZipBuildDataDependencies>();

@@ -45,6 +45,7 @@ static class Program
                 // Listen for commands from API
                 opts.ListenToRabbitQueue("process-image");
                 opts.ListenToRabbitQueue("process-video");
+                opts.ListenToRabbitQueue("process-audio");
                 opts.ListenToRabbitQueue("build-zip");
                 opts.ListenToRabbitQueue("apply-export-presets");
                 opts.ListenToRabbitQueue("start-migration");

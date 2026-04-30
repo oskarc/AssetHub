@@ -38,7 +38,8 @@ public static class AssetMapper
             EditDocument = includeEditDocument ? asset.EditDocument : null,
             DerivativeCount = derivativeCount,
             CurrentVersionNumber = asset.CurrentVersionNumber,
-            UserRole = userRole
+            UserRole = userRole,
+            DurationSeconds = asset.DurationSeconds
         };
     }
 }

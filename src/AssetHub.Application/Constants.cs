@@ -93,6 +93,7 @@ public static class Constants
         public const string TempZipDownloads = "zip-downloads";
         public const string Brands = "brands";
         public const string RenditionsOnDemand = "renditions/ondemand";
+        public const string Peaks = "peaks";
     }
 
     /// <summary>
@@ -178,6 +179,7 @@ public static class Constants
         public const string Pdf = "application/pdf";
         public const string Mp4 = "video/mp4";
         public const string Webm = "video/webm";
+        public const string Json = "application/json";
     }
 
     /// <summary>

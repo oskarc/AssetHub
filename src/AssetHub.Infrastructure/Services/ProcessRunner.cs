@@ -10,6 +10,21 @@ internal static class ProcessRunner
 {
     internal static async Task RunAsync(string toolName, ProcessStartInfo startInfo, TimeSpan timeout, ILogger logger, CancellationToken ct)
     {
+        _ = await RunInternalAsync(toolName, startInfo, timeout, logger, ct);
+    }
+
+    /// <summary>
+    /// Run an external tool and return its stdout as a string. ffprobe writes
+    /// JSON to stdout by default, so this is the natural shape for tools
+    /// whose output is text we need to parse rather than a file artifact.
+    /// </summary>
+    internal static async Task<string> RunAndCaptureStdoutAsync(string toolName, ProcessStartInfo startInfo, TimeSpan timeout, ILogger logger, CancellationToken ct)
+    {
+        return await RunInternalAsync(toolName, startInfo, timeout, logger, ct);
+    }
+
+    private static async Task<string> RunInternalAsync(string toolName, ProcessStartInfo startInfo, TimeSpan timeout, ILogger logger, CancellationToken ct)
+    {
         using var process = Process.Start(startInfo);
         if (process is null)
             throw new InvalidOperationException($"{toolName} process failed to start");
@@ -36,7 +51,7 @@ internal static class ProcessRunner
             throw;
         }
 
-        await stdoutTask;
+        var stdout = await stdoutTask;
         var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
@@ -44,6 +59,8 @@ internal static class ProcessRunner
             logger.LogWarning("{Tool} stderr: {StdErr}", toolName, stderr);
             throw new InvalidOperationException($"{toolName} error (exit code {process.ExitCode}): {stderr}");
         }
+
+        return stdout;
     }
 
     internal static ProcessStartInfo CreateStartInfo(string executable)

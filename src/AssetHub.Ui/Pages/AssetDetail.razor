@@ -64,6 +64,7 @@ else
                                   PosterUrl="@GetPosterUrl()"
                                   DownloadUrl="@GetDownloadUrl()"
                                   BrowserNoVideoText="@CommonLoc["Text_BrowserNoVideo"]"
+                                  BrowserNoAudioText="@CommonLoc["Text_BrowserNoAudio"]"
                                   PreviewNotAvailableText="@CommonLoc["Text_PreviewNotAvailable"]"
                                   DownloadToViewText="@CommonLoc["Btn_DownloadToView"]" />
                 </MudPaper>
@@ -183,6 +184,13 @@ else
                                             </MudTooltip>
                                         </td>
                                     </tr>
+                                    @if (_asset.DurationSeconds is int duration)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Duration"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2">@AssetDisplayHelpers.FormatDuration(duration)</MudText></td>
+                                        </tr>
+                                    }
                                     <tr>
                                         <td><MudText Typo="Typo.body2" Color="Color.Secondary">@CommonLoc["Label_Created"]</MudText></td>
                                         <td>
