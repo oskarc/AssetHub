@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 
 namespace AssetHub.Application.Helpers;
@@ -130,5 +131,63 @@ public static class OutboundUrlGuard
 
         // Unknown address family — fail closed.
         return true;
+    }
+
+    /// <summary>
+    /// Returns a <see cref="SocketsHttpHandler.ConnectCallback"/> that re-resolves
+    /// the target host and refuses to connect when any resolved address is in a
+    /// rejected range. Plug this into the primary HTTP handler for outbound
+    /// integrations so DNS rebinding between the registration-time guard and the
+    /// actual connect can't reach an internal IP.
+    /// </summary>
+    /// <remarks>
+    /// The handler resolves DNS itself and dials the validated <see cref="IPAddress"/>
+    /// directly. TLS SNI still uses the request URI's hostname because
+    /// <see cref="SocketsHttpHandler"/> wraps the returned <see cref="Stream"/>
+    /// with its own SslStream after this callback returns the unencrypted socket.
+    /// </remarks>
+    public static Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>> CreateGuardedConnectCallback()
+        => (context, ct) => ConnectGuardedAsync(context.DnsEndPoint.Host, context.DnsEndPoint.Port, ct);
+
+    /// <summary>
+    /// Resolves <paramref name="host"/>, refuses if any address falls in a
+    /// rejected range, otherwise opens a TCP socket to the first resolved
+    /// address. Exposed so unit tests can exercise the policy without
+    /// constructing a <see cref="SocketsHttpConnectionContext"/>.
+    /// </summary>
+    public static async ValueTask<Stream> ConnectGuardedAsync(string host, int port, CancellationToken ct)
+    {
+        IPAddress[] addresses;
+        try
+        {
+            addresses = await Dns.GetHostAddressesAsync(host, ct).ConfigureAwait(false);
+        }
+        catch (SocketException ex)
+        {
+            throw new IOException($"Outbound host '{host}' could not be resolved.", ex);
+        }
+
+        if (addresses.Length == 0)
+            throw new IOException($"Outbound host '{host}' did not resolve to any address.");
+
+        // Reject the entire connect if ANY resolved address is private. A
+        // rebinding flip that mixes a public and a private IP would otherwise
+        // let the dialer pick the public one this attempt and the private one
+        // next attempt — refusing wholesale closes that window.
+        if (addresses.Any(IsPrivateOrInternal))
+            throw new IOException($"Outbound host '{host}' resolved to a non-public address; refusing to connect.");
+
+        var target = addresses[0];
+        var socket = new Socket(target.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+        try
+        {
+            await socket.ConnectAsync(target, port, ct).ConfigureAwait(false);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
     }
 }

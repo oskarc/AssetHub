@@ -103,9 +103,17 @@ static class Program
                 // Outbound HTTP client used by DispatchWebhookHandler. Short
                 // timeout so a slow / hanging receiver can't hold a worker
                 // thread for minutes; Wolverine retries handle the rest.
+                // ConnectCallback re-resolves DNS at dial time and refuses any
+                // private/loopback IP — closes the rebinding window between
+                // OutboundUrlGuard's registration-time check and the actual
+                // socket connect (D-3).
                 services.AddHttpClient("webhook-dispatch", client =>
                 {
                     client.Timeout = TimeSpan.FromSeconds(10);
+                })
+                .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.SocketsHttpHandler
+                {
+                    ConnectCallback = AssetHub.Application.Helpers.OutboundUrlGuard.CreateGuardedConnectCallback()
                 });
 
                 // Bind settings the worker-side services need
