@@ -4,7 +4,6 @@ using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
-using Wolverine;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -13,9 +12,15 @@ namespace AssetHub.Infrastructure.Services;
 /// Delegates actual processing to consumers that invoke
 /// <see cref="ImageProcessingService"/> and <see cref="VideoProcessingService"/>.
 /// </summary>
+/// <remarks>
+/// Publishes go through <see cref="IOutboxPublisher"/> so a Rabbit blip
+/// between the upload commit and the broker enqueue can't strand the asset
+/// in <c>Pending</c> forever — the row joins the caller's transaction (when
+/// one is open) and the OutboxDrainService delivers to Rabbit out-of-band (D-2).
+/// </remarks>
 public sealed class MediaProcessingService(
     IAssetRepository assetRepository,
-    IMessageBus messageBus,
+    IOutboxPublisher outbox,
     IWebhookEventPublisher webhooks,
     ILogger<MediaProcessingService> logger) : IMediaProcessingService
 {
@@ -28,22 +33,22 @@ public sealed class MediaProcessingService(
 
         if (assetType == Constants.AssetTypeFilters.Image)
         {
-            logger.LogInformation("Publishing image processing command for asset {AssetId}, correlation {CorrelationId}", assetId, correlationId);
-            await messageBus.PublishAsync(new ProcessImageCommand
+            logger.LogInformation("Enqueueing image processing command for asset {AssetId}, correlation {CorrelationId}", assetId, correlationId);
+            await outbox.EnqueueAsync(new ProcessImageCommand
             {
                 AssetId = assetId,
                 OriginalObjectKey = originalObjectKey,
                 SkipMetadataExtraction = skipMetadata
-            });
+            }, cancellationToken);
         }
         else if (assetType == Constants.AssetTypeFilters.Video)
         {
-            logger.LogInformation("Publishing video processing command for asset {AssetId}, correlation {CorrelationId}", assetId, correlationId);
-            await messageBus.PublishAsync(new ProcessVideoCommand
+            logger.LogInformation("Enqueueing video processing command for asset {AssetId}, correlation {CorrelationId}", assetId, correlationId);
+            await outbox.EnqueueAsync(new ProcessVideoCommand
             {
                 AssetId = assetId,
                 OriginalObjectKey = originalObjectKey
-            });
+            }, cancellationToken);
         }
         else
         {
