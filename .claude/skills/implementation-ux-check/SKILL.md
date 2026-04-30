@@ -1,5 +1,5 @@
 ---
-name: ux-check
+name: implementation-ux-check
 description: Review staged or recently-changed Blazor UI against Nielsen's 10 heuristics and AssetHub house rules. Use when the user asks for a usability review, checks UI changes, or prepares a UI-focused PR.
 ---
 

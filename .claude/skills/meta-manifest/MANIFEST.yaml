@@ -1,0 +1,456 @@
+# MANIFEST.yaml
+# Instance data for the AssetHub project kit. Governed by SKILL.md in the same directory.
+# Updated only through the skill-builder process with developer approval.
+
+kit_identity:
+  kit_name: assethub
+  kit_type: project
+  category: blazor-web-app
+  version: 0.1
+  parent_kit: meta-base-building-kit
+  status: active
+  last_filled: 2026-05-01
+
+nodes:
+
+  # ─── Base building kit (inherited meta layer) ────────────────────────────
+
+  - id: base-contract
+    concern: Contract before execution — three-tier proposal, approval gate, standard evolution report
+    skill_file: meta-contract-before-execution/SKILL.md
+    layer: meta
+    phase: [pre-build, post-build]
+    status: mature
+    dependencies: []
+    open_gaps:
+      - Proposal format not yet templated for non-developer legibility
+      - No guidance on handling partial approvals
+
+  - id: base-skill-builder
+    concern: Abstraction loop — classifying learnings, updating skills, raising the standard
+    skill_file: meta-skill-builder/SKILL.md
+    layer: meta
+    phase: [post-build]
+    status: mature
+    dependencies: [base-contract]
+    open_gaps:
+      - No guidance on deprecating outdated nodes
+      - Conflict resolution between two nodes covering overlapping concerns not addressed
+
+  - id: base-manifest
+    concern: Kit topology — node registry, coverage map, gap tracking, self-organisation
+    skill_file: meta-manifest/SKILL.md
+    data_file: meta-manifest/MANIFEST.yaml
+    layer: meta
+    phase: [pre-build]
+    status: mature
+    dependencies: []
+    open_gaps:
+      - Library forking process not defined
+      - No versioning strategy for breaking changes to node schema
+
+  # ─── Project instructions (catch-all index for CLAUDE.md) ────────────────
+
+  - id: project-instructions
+    concern: AssetHub-specific guardrails — Clean Arch boundaries, C# conventions, domain entities, services, repositories, API endpoints, Blazor UI, caching, worker, security, configuration, testing, Docker, Sonar discipline, pre-commit grep sweep
+    skill_file: CLAUDE.md
+    layer: implementation
+    phase: [pre-build, during-build, post-build]
+    status: thin
+    dependencies: [base-contract, base-skill-builder, base-manifest]
+    open_gaps:
+      - Patterns transferable to other Blazor-Server / Clean-Arch / EF Core systems have not been abstracted into a `blazor-web-app` type-category kit (see gap-001)
+      - Mixes principles, patterns, and product details in one document — level-mixing per skill-builder Anti-patterns (see gap-002)
+
+  # ─── Pattern layer (stack-agnostic structural decisions) ─────────────────
+
+  - id: pattern-brainstorm
+    concern: Socratic interrogation of feature requests — surface real problem before code
+    skill_file: pattern-brainstorm/SKILL.md
+    layer: pattern
+    phase: [pre-build]
+    status: thin
+    dependencies: []
+    open_gaps:
+      - Concern boundary with /grill-me unclear (see gap-006)
+
+  - id: pattern-systematic-debug
+    concern: Stack-agnostic debugging workflow — reproduce, isolate, hypothesise, test, fix, verify
+    skill_file: pattern-systematic-debug/SKILL.md
+    layer: pattern
+    phase: [during-build]
+    status: mature
+    dependencies: []
+    open_gaps: []
+
+  - id: pattern-commit-scope
+    concern: Decision support for splitting a branch into multiple commits
+    skill_file: pattern-commit-scope/SKILL.md
+    layer: pattern
+    phase: [post-build]
+    status: mature
+    dependencies: []
+    open_gaps: []
+
+  - id: pattern-regression-baseline
+    concern: Separating new test regressions from pre-existing failures
+    skill_file: pattern-regression-baseline/SKILL.md
+    layer: pattern
+    phase: [post-build]
+    status: mature
+    dependencies: []
+    open_gaps: []
+
+  # ─── Implementation layer (post-build verification, stack-specific) ──────
+
+  - id: implementation-a11y-check
+    concern: Accessibility audit (WCAG 2.2 AA) of changed Blazor UI
+    skill_file: implementation-a11y-check/SKILL.md
+    layer: implementation
+    phase: [post-build]
+    status: mature
+    dependencies: [project-instructions]
+    open_gaps: []
+
+  - id: implementation-ux-check
+    concern: Usability review against Nielsen heuristics + AssetHub house rules
+    skill_file: implementation-ux-check/SKILL.md
+    layer: implementation
+    phase: [post-build]
+    status: mature
+    dependencies: [project-instructions]
+    open_gaps: []
+
+  - id: implementation-i18n-check
+    concern: Localisation key parity (en / sv) and hardcoded-string detection
+    skill_file: implementation-i18n-check/SKILL.md
+    layer: implementation
+    phase: [post-build]
+    status: mature
+    dependencies: [project-instructions]
+    open_gaps: []
+
+  - id: implementation-di-check
+    concern: DI registration consistency — Application interfaces vs Service / Infrastructure extensions
+    skill_file: implementation-di-check/SKILL.md
+    layer: implementation
+    phase: [post-build]
+    status: mature
+    dependencies: [project-instructions]
+    open_gaps: []
+
+  - id: implementation-migration-check
+    concern: EF Core migration safety audit before auto-migrate at startup
+    skill_file: implementation-migration-check/SKILL.md
+    layer: implementation
+    phase: [post-build]
+    status: mature
+    dependencies: [project-instructions]
+    open_gaps: []
+
+  - id: implementation-add-tests
+    concern: xUnit / bUnit test scaffolding for new or changed code
+    skill_file: implementation-add-tests/SKILL.md
+    layer: implementation
+    phase: [post-build]
+    status: mature
+    dependencies: [project-instructions]
+    open_gaps: []
+
+  - id: implementation-ui-verify
+    concern: E2E (Playwright) smoke-test mapping for changed Blazor UI
+    skill_file: implementation-ui-verify/SKILL.md
+    layer: implementation
+    phase: [post-build]
+    status: mature
+    dependencies: [project-instructions]
+    open_gaps: []
+
+  - id: implementation-commit-and-push
+    concern: Commit hygiene — review staged changes, run build / tests, compose why-focused commit message
+    skill_file: implementation-commit-and-push/SKILL.md
+    layer: implementation
+    phase: [post-build]
+    status: mature
+    dependencies: [project-instructions]
+    open_gaps: []
+
+coverage_map:
+  - concern: Contract & proposal
+    node_id: base-contract
+    layer: meta
+    phase: pre/post
+    status: mature
+
+  - concern: Skill evolution
+    node_id: base-skill-builder
+    layer: meta
+    phase: post
+    status: mature
+
+  - concern: Kit topology
+    node_id: base-manifest
+    layer: meta
+    phase: pre
+    status: mature
+
+  - concern: Pre-implementation interrogation
+    node_id: pattern-brainstorm
+    layer: pattern
+    phase: pre-build
+    status: thin
+
+  - concern: Debugging workflow
+    node_id: pattern-systematic-debug
+    layer: pattern
+    phase: during-build
+    status: mature
+
+  - concern: Component structure
+    node_id: project-instructions
+    layer: implementation
+    phase: pre/during
+    status: thin
+
+  - concern: Separation of concerns
+    node_id: project-instructions
+    layer: implementation
+    phase: during-build
+    status: thin
+
+  - concern: State management
+    node_id: project-instructions
+    layer: implementation
+    phase: during-build
+    status: thin
+
+  - concern: Error & edge case handling
+    node_id: project-instructions
+    layer: implementation
+    phase: during-build
+    status: thin
+
+  - concern: Authorisation & security
+    node_id: project-instructions
+    layer: implementation
+    phase: during-build
+    status: thin
+
+  - concern: Public API contract & SemVer
+    node_id: project-instructions
+    layer: implementation
+    phase: during-build
+    status: thin
+
+  - concern: Configuration & secrets discipline
+    node_id: project-instructions
+    layer: implementation
+    phase: pre/during
+    status: thin
+
+  - concern: Localisation parity
+    node_id: implementation-i18n-check
+    layer: implementation
+    phase: post-build
+    status: mature
+
+  - concern: Accessibility (WCAG 2.2 AA)
+    node_id: implementation-a11y-check
+    layer: implementation
+    phase: post-build
+    status: mature
+
+  - concern: UX heuristics
+    node_id: implementation-ux-check
+    layer: implementation
+    phase: post-build
+    status: mature
+
+  - concern: DI consistency
+    node_id: implementation-di-check
+    layer: implementation
+    phase: post-build
+    status: mature
+
+  - concern: Migration safety
+    node_id: implementation-migration-check
+    layer: implementation
+    phase: post-build
+    status: mature
+
+  - concern: Test scaffolding
+    node_id: implementation-add-tests
+    layer: implementation
+    phase: post-build
+    status: mature
+
+  - concern: Test regression isolation
+    node_id: pattern-regression-baseline
+    layer: pattern
+    phase: post-build
+    status: mature
+
+  - concern: E2E coverage mapping
+    node_id: implementation-ui-verify
+    layer: implementation
+    phase: post-build
+    status: mature
+
+  - concern: Commit hygiene
+    node_id: implementation-commit-and-push
+    layer: implementation
+    phase: post-build
+    status: mature
+
+  - concern: Commit splitting decision
+    node_id: pattern-commit-scope
+    layer: pattern
+    phase: post-build
+    status: mature
+
+  - concern: Information architecture
+    node_id: null
+    layer: principle
+    phase: pre-build
+    status: missing
+
+  - concern: Cognitive load & layout
+    node_id: implementation-ux-check
+    layer: principle
+    phase: pre-build
+    status: thin
+
+  - concern: Navigation & IA decisions
+    node_id: null
+    layer: pattern
+    phase: pre-build
+    status: missing
+
+  - concern: Design system & feel
+    node_id: project-instructions
+    layer: principle
+    phase: pre-build
+    status: thin
+
+  - concern: Verification & completion criteria
+    node_id: null
+    layer: pattern
+    phase: post-build
+    status: thin
+
+gap_queue:
+  - gap_id: gap-001
+    concern: No `blazor-web-app` type-category kit exists between base and AssetHub
+    surfaced_by: manual
+    surfaced_in: AssetHub initial fill on v0.4 (2026-05-01)
+    description: |
+      Patterns transferable across Blazor-Server / Clean-Arch / EF Core systems live at the project
+      layer (CLAUDE.md) instead of one tier up. Sealed-by-default services, ServiceResult over thrown
+      business exceptions, RequireAntiforgeryUnlessBearer on mutating cookie+bearer groups,
+      optimistic-UI rollback, Sonar suppression discipline, the pre-commit grep sweep — all would
+      apply unchanged to any system in this category. Each AssetHub fork has to re-discover them
+      until they are lifted into a type-category kit.
+    candidate_level: pattern
+    priority: high
+    status: open
+
+  - gap_id: gap-002
+    concern: skill-builder abstraction loop has never been formally run against CLAUDE.md
+    surfaced_by: manual
+    surfaced_in: AssetHub initial fill on v0.4 (2026-05-01)
+    description: |
+      ~38 KB of guardrails accumulated organically. Some are genuine product details (PAT scopes,
+      Wolverine queue names, MinIO bucket conventions); some are patterns; a handful are principles
+      ("manifest is read-only", "never silently abstract"). Level-mixing per skill-builder
+      Anti-patterns. Resolving gap-001 should consume this gap.
+    candidate_level: pattern
+    priority: high
+    status: open
+
+  - gap_id: gap-003
+    concern: Information architecture and navigation decisions are silent at every layer
+    surfaced_by: manual
+    surfaced_in: AssetHub initial fill on v0.4 (2026-05-01)
+    description: |
+      No node, skill, or CLAUDE.md section addresses how to decide page hierarchy, sidebar grouping,
+      breadcrumb strategy, or navigation patterns. /implementation-ux-check audits heuristics for what
+      already exists but not the design step that creates it.
+    candidate_level: principle
+    priority: medium
+    status: open
+
+  - gap_id: gap-004
+    concern: Design-system / visual-feel guidance is reduced to "MudBlazor 8 only"
+    surfaced_by: manual
+    surfaced_in: AssetHub initial fill on v0.4 (2026-05-01)
+    description: |
+      No tokens, no spacing scale, no colour usage rules, no typographic hierarchy.
+      /implementation-ux-check audits behaviour but not visual coherence. New components inherit
+      MudBlazor defaults plus ad-hoc decisions.
+    candidate_level: pattern
+    priority: medium
+    status: open
+
+  - gap_id: gap-005
+    concern: Verification node not formalised — coverage exists in aggregate but not as a single concern
+    surfaced_by: manual
+    surfaced_in: AssetHub initial fill on v0.4 (2026-05-01)
+    description: |
+      Eight implementation-* / pattern-* skills (a11y, ux, i18n, di, migration, add-tests,
+      regression-baseline, ui-verify) plus the pre-commit grep sweep cover verification. There is no
+      single node that says "before declaring a feature done, run these in this order" — the
+      workflow is implicit in CLAUDE.md and the available-skills list. Risk: a feature ships missing
+      a step simply because nobody looked at the full set.
+    candidate_level: pattern
+    priority: medium
+    status: open
+
+  - gap_id: gap-006
+    concern: Concern overlap between /pattern-brainstorm and /grill-me
+    surfaced_by: manual
+    surfaced_in: AssetHub initial fill on v0.4 (2026-05-01)
+    description: |
+      Two skills target the same phase / concern with different tones. skill-builder Step 0 says
+      "different concern → new skill"; if these are the same concern with different intensities they
+      should either merge or split with a clearly-bounded distinction (e.g. /pattern-brainstorm for
+      unclear problems, /grill-me when a plan exists and needs holes poked).
+    candidate_level: product detail
+    priority: low
+    status: open
+
+  - gap_id: gap-007
+    concern: /grill-me lives in user-space only — not committed to the repo
+    surfaced_by: manual
+    surfaced_in: AssetHub initial fill on v0.4 (2026-05-01)
+    description: |
+      Teammates and CI do not inherit it. If it carries judgment this project relies on, it should
+      live in `.claude/skills/pattern-grill-me/SKILL.md` like the others (and adopt the layer-prefix
+      convention). Same risk applies to any future user-space skill the project comes to depend on.
+    candidate_level: product detail
+    priority: low
+    status: open
+
+  # Add new gaps below as they surface:
+  #
+  # - gap_id: gap-NNN
+  #   concern: [area]
+  #   surfaced_by: [contract-before-execution | skill-builder | manual]
+  #   surfaced_in: [session or feature]
+  #   description: [what the agent had to improvise]
+  #   candidate_level: [principle | pattern | implementation | unknown]
+  #   priority: [high | medium | low]
+  #   status: [open | in-progress | resolved]
+  #   resolved_by: [skill or node that closed this, when resolved]
+
+library_entry: null
+# Filled at promotion time:
+#
+# library_entry:
+#   kit_name: [name]
+#   category: [assignment type]
+#   description: [one sentence]
+#   built_from: [parent kit or null]
+#   node_count: [number of mature nodes]
+#   known_limitations: [what this kit does not cover]
+#   recommended_for: [system types this handles well]
+#   not_recommended_for: [system types outside scope]

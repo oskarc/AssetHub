@@ -1,5 +1,5 @@
 ---
-name: di-check
+name: implementation-di-check
 description: Cross-check AssetHub's Application interfaces against their DI registrations in ServiceCollectionExtensions and InfrastructureServiceExtensions. Use after adding services, repositories, Wolverine handlers, or BackgroundServices, or when a runtime "Unable to resolve service" error is suspected.
 ---
 

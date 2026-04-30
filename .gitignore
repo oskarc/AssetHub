@@ -94,7 +94,10 @@ Thumbs.db
 certs/*
 !certs/.gitkeep
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 Claude-Processing.md
+Claude-Deferred-Decisions.md
+Claude-Overnight-Review-Report.md
 Copilot-Processing.md
 scripts/sonar-issues-by-file.txt
 scripts/sonar-raw.json

@@ -1,6 +1,6 @@
 ---
-name: commit-scope
-description: Evaluate whether the pending change should be one commit or several, and propose clean split boundaries if it should be split. Use before `commit-and-push` when a branch has grown, or when the user asks "should I split this?"
+name: pattern-commit-scope
+description: Evaluate whether the pending change should be one commit or several, and propose clean split boundaries if it should be split. Use before `/implementation-commit-and-push` when a branch has grown, or when the user asks "should I split this?"
 ---
 
 # AssetHub Commit Scope Advisor
@@ -82,7 +82,7 @@ One of:
 ```
 Verdict: GREEN
 Rationale: 12 files, 340 LOC, single topic (bug fix in AssetService.DeleteAsync).
-Action: proceed to commit-and-push.
+Action: proceed to /implementation-commit-and-push.
 ```
 
 ```
@@ -118,7 +118,7 @@ Proposed split (apply in order):
 Action: split before committing.
 ```
 
-Finish with one sentence suggesting the next skill to run (`add-tests`, `commit-and-push`, etc.) depending on verdict.
+Finish with one sentence suggesting the next skill to run (`/implementation-add-tests`, `/implementation-commit-and-push`, etc.) depending on verdict.
 
 ## Abort conditions
 

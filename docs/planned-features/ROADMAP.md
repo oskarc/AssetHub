@@ -42,7 +42,7 @@ Follow `CLAUDE.md` at all times. Key reminders for implementers:
 - Every new user-visible string is added to **both** `.resx` and `.sv.resx` of the most specific resource domain.
 - Wolverine commands / events live in `src/AssetHub.Application/Messages/`; handlers in `src/AssetHub.Worker/Handlers/`.
 - New migrations live under `src/AssetHub.Infrastructure/Migrations/` and must have a `Down()` method.
-- Before finishing a UI-facing feature, run through the `/a11y-check` and `/ux-check` skills.
+- Before finishing a UI-facing feature, run through the `/implementation-a11y-check` and `/implementation-ux-check` skills.
 
 ### How Tiers relate to each other
 

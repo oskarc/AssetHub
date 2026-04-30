@@ -1,5 +1,5 @@
 ---
-name: systematic-debug
+name: pattern-systematic-debug
 description: Generic, stack-agnostic debugging workflow — reproduce, isolate, hypothesize in writing, test cheaply, fix, verify. Use when the user reports a bug or unexpected behavior that isn't a one-line fix. Safeguard: stop and zoom out after 3 failed attempts.
 ---
 
@@ -11,7 +11,7 @@ Announce in chat whether you're running this skill or skipping it, and why.
 
 ## When to run
 - User reports: "it's broken", "X doesn't work", "unexpected behavior", a stack trace, a failing test that used to pass.
-- Skip for: one-line typos, obvious syntax errors, trivial null checks. When skipping, say so explicitly ("skipping /systematic-debug — this is a one-liner").
+- Skip for: one-line typos, obvious syntax errors, trivial null checks. When skipping, say so explicitly ("skipping /pattern-systematic-debug — this is a one-liner").
 
 ## Steps
 

@@ -1,5 +1,5 @@
 ---
-name: ui-verify
+name: implementation-ui-verify
 description: Smoke-test recently-changed Blazor UI against the existing Playwright E2E harness — map changed components to covering specs, flag gaps, generate spec/page-object stubs, and run targeted specs. Use after UI changes or before merging a UI-focused PR.
 ---
 

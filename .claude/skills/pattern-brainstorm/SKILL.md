@@ -1,5 +1,5 @@
 ---
-name: brainstorm
+name: pattern-brainstorm
 description: Socratic brainstorming — interrogate a feature request with targeted questions to surface the real problem, constraints, and alternatives before writing code. Use when the user asks to build/implement/add something non-trivial, or when the request feels like a solution masquerading as a problem.
 ---
 
@@ -13,7 +13,7 @@ Announce in chat whether you're running this skill or skipping it, and why.
 - User says "implement", "build", "add", "create", "let's do" — and the scope is more than a line or two.
 - The request describes a solution ("add a Redis cache for user sessions") without stating the problem ("sessions load slowly").
 - The request is vague ("improve the upload flow").
-- Skip for: trivial changes, clear bug fixes, tasks with an existing plan or ticket that already answers these questions. When skipping, say so explicitly ("skipping /brainstorm — the request is unambiguous").
+- Skip for: trivial changes, clear bug fixes, tasks with an existing plan or ticket that already answers these questions. When skipping, say so explicitly ("skipping /pattern-brainstorm — the request is unambiguous").
 
 ## The six questions
 

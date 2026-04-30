@@ -1,5 +1,5 @@
 ---
-name: i18n-check
+name: implementation-i18n-check
 description: Audit AssetHub localization resources for key parity between English and Swedish, flag hardcoded user-facing strings in Razor/C#, and verify key-naming conventions. Use when adding UI, adding resource keys, or preparing a UI-focused PR.
 ---
 

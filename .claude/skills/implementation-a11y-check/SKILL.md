@@ -1,5 +1,5 @@
 ---
-name: a11y-check
+name: implementation-a11y-check
 description: Audit staged or recently-changed Blazor UI files against WCAG 2.2 Level AA. Use when the user asks to check accessibility, reviews UI changes, or prepares a UI-focused PR.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: add-tests
+name: implementation-add-tests
 description: Scaffold xUnit / bUnit tests for new or changed AssetHub code following house conventions. Use when production code lacks tests, a feature was shipped test-less, or the user asks to add coverage for recent changes.
 ---
 

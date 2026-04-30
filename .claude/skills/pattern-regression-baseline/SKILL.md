@@ -1,5 +1,5 @@
 ---
-name: regression-baseline
+name: pattern-regression-baseline
 description: Separate new test regressions from pre-existing failures by recording a known-good test baseline and diffing against it on the next run. Use to record a baseline, check for new failures, or decide whether a failing test is "yours" or pre-existing.
 ---
 
@@ -75,10 +75,10 @@ Use after a regression is intentionally accepted (e.g., a test was removed), or 
 
 ## Invocation
 
-- `regression-baseline` — auto-mode (record if no baseline, check otherwise).
-- `regression-baseline record`
-- `regression-baseline check`
-- `regression-baseline update`
+- `/pattern-regression-baseline` — auto-mode (record if no baseline, check otherwise).
+- `/pattern-regression-baseline record`
+- `/pattern-regression-baseline check`
+- `/pattern-regression-baseline update`
 
 ## File format
 

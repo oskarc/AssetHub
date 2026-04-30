@@ -21,10 +21,10 @@ Identify all modified/staged files (`git diff --name-only HEAD` or `git diff --c
 - Other
 
 ## Phase 4: Accessibility audit (UI changes only)
-If any Blazor UI files changed, run through the a11y checklist from `.claude/skills/a11y-check/SKILL.md`. Report findings.
+If any Blazor UI files changed, run through the a11y checklist from `.claude/skills/implementation-a11y-check/SKILL.md`. Report findings.
 
 ## Phase 5: Usability review (UI changes only)
-If any Blazor UI files changed, run through the UX checklist from `.claude/skills/ux-check/SKILL.md`. Report findings.
+If any Blazor UI files changed, run through the UX checklist from `.claude/skills/implementation-ux-check/SKILL.md`. Report findings.
 
 ## Phase 6: Security review
 For all changed files, check:

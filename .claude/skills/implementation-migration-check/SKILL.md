@@ -1,5 +1,5 @@
 ---
-name: migration-check
+name: implementation-migration-check
 description: Audit an EF Core migration (Up, Down, snapshot) for safety before it auto-runs at startup. Use when a new migration was added, an entity config changed, or the user asks to verify a migration.
 ---
 

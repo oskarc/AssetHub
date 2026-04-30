@@ -1,5 +1,5 @@
 ---
-name: commit-and-push
+name: implementation-commit-and-push
 description: "Thoroughly review all staged/unstaged changes against AssetHub conventions, run build and tests (fixing failures), compose a why-focused commit message, and push. Use when the user asks to commit, push, or ship changes."
 ---
 

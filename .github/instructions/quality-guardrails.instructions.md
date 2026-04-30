@@ -4,7 +4,7 @@ description: "On-the-fly quality guardrails triggered by file type. Walk through
 ---
 # Quality Guardrails
 
-Quick checks by file type — walk through before reporting done. For deep audits, use the dedicated prompts: `/a11y-check`, `/ux-check`, `/security-review`, `/review`.
+Quick checks by file type — walk through before reporting done. For deep audits, use the dedicated prompts: `/implementation-a11y-check`, `/implementation-ux-check`, `/security-review`, `/review`.
 
 ## Blazor UI (`src/AssetHub.Ui/**/*.razor{,.cs,.css}`)
 

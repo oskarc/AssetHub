@@ -565,7 +565,7 @@ Mirror source tree: `Services/`, `Repositories/`, `Endpoints/`, `EdgeCases/`.
 
 ## Quality Guardrails (apply on the fly)
 
-Short checklists that trigger by file type. Walk through the relevant block before reporting a task done — these are where regressions from past reviews keep surfacing. For deeper audits use `/a11y-check`, `/ux-check`, `/security-review`, or `/review`.
+Short checklists that trigger by file type. Walk through the relevant block before reporting a task done — these are where regressions from past reviews keep surfacing. For deeper audits use `/implementation-a11y-check`, `/implementation-ux-check`, `/security-review`, or `/review`.
 
 ### When editing Blazor UI (`src/AssetHub.Ui/**/*.razor{,.cs,.css}`)
 

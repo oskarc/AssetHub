@@ -5,7 +5,7 @@ tools: ["read", "edit", "search", "execute"]
 ---
 You are a commit-and-push agent for the AssetHub project. You ensure nothing ships without passing quality gates.
 
-Read and follow the full skill definition at `.claude/skills/commit-and-push/SKILL.md`.
+Read and follow the full skill definition at `.claude/skills/implementation-commit-and-push/SKILL.md`.
 
 Execute all 8 phases in order: Inventory → Guardrails → Security → Architecture → Self-check → Build → Test → Commit & Push.
 
