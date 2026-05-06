@@ -219,10 +219,28 @@ public static class AssetEndpoints
 
     // ── Renditions ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Resolves a rendition for download — either a 302 redirect (un-watermarked,
+    /// CDN-fast) or a watermarked byte stream (T5-WMK-01). The dispatch happens in
+    /// <see cref="IAssetQueryService.ResolveRenditionDownloadAsync"/>; the endpoint
+    /// just unwraps the discriminated result.
+    /// </summary>
     private static Func<Guid, IAssetQueryService, CancellationToken, Task<IResult>> GetRendition(string size, bool forceDownload = false) =>
         async (Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct) =>
         {
-            var result = await svc.GetRenditionUrlAsync(id, size, forceDownload, ct);
-            return result.ToHttpResult(url => Results.Redirect(url));
+            var result = await svc.ResolveRenditionDownloadAsync(id, size, forceDownload, shareId: null, ct);
+            if (!result.IsSuccess)
+                return result.ToHttpResult();
+
+            var dl = result.Value!;
+            if (dl.PresignedUrl is not null)
+                return Results.Redirect(dl.PresignedUrl);
+
+            var stream = dl.Stream!;
+            return Results.Stream(
+                stream.Content,
+                stream.ContentType,
+                fileDownloadName: stream.ForceDownload ? stream.DownloadFileName : null,
+                enableRangeProcessing: false);
         };
 }

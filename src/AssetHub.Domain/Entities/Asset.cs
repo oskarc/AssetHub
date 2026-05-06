@@ -82,6 +82,29 @@ public class Asset
     public DateTime? WorkflowStateUpdatedAt { get; set; }
 
     /// <summary>
+    /// Forensic-watermarking override (T5-WMK-01). null = inherit from the asset's
+    /// collection (<see cref="Collection.WatermarkEnabled"/>); true = force on for
+    /// this asset even when the collection is off; false = opt this asset out even
+    /// when the collection is on. <see cref="Share.WatermarkOverride"/> wins over this.
+    /// </summary>
+    public bool? WatermarkOverride { get; set; }
+
+    /// <summary>
+    /// Opaque token embedded into this asset's stored renditions by the asset-fingerprint
+    /// background sweep (T5-WMK-01). Set when <see cref="AssetWatermarkAppliedAt"/> is non-null.
+    /// Survives crops / format conversions and proves "this is our asset" on a leaked file.
+    /// </summary>
+    public string? AssetWatermarkToken { get; set; }
+
+    /// <summary>
+    /// Stamp of the last asset-fingerprint embed (T5-WMK-01). When null while watermarking
+    /// is effectively on, the download path embeds BOTH layers on-the-fly (no functional
+    /// gap; the sweep is purely a perf optimisation). Reset to null on Replace / new
+    /// version so the next sweep re-embeds.
+    /// </summary>
+    public DateTime? AssetWatermarkAppliedAt { get; set; }
+
+    /// <summary>
     /// References the source asset this was derived from (via image editing / export presets).
     /// Null for original assets.
     /// </summary>

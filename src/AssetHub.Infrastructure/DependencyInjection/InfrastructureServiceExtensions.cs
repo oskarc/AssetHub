@@ -128,6 +128,13 @@ public static class InfrastructureServiceExtensions
         services.Configure<WorkflowSettings>(configuration.GetSection(WorkflowSettings.SectionName));
         services.Configure<RenditionSettings>(configuration.GetSection(RenditionSettings.SectionName));
 
+        // T5-WMK-01: HmacKeyBase64 is required, so validate at start to fail fast
+        // if an operator forgot to set it (would otherwise blow up at first download).
+        services.AddOptions<WatermarkSettings>()
+            .Bind(configuration.GetSection(WatermarkSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // ── Caching (Redis L2 + HybridCache L1/L2) ────────────────────────
         var redisConnectionString = configuration["Redis:ConnectionString"];
         if (!string.IsNullOrWhiteSpace(redisConnectionString))
@@ -182,6 +189,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IBrandRepository, BrandRepository>();
         services.AddScoped<IGuestInvitationRepository, GuestInvitationRepository>();
         services.AddScoped<IOrphanedObjectRepository, OrphanedObjectRepository>();
+        services.AddScoped<IWatermarkDownloadRepository, Repositories.WatermarkDownloadRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);
@@ -221,6 +229,21 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMigrationSourceConnector, CsvMigrationSourceConnector>();
         services.AddScoped<IMigrationSourceConnector, S3MigrationSourceConnector>();
         services.AddScoped<IMigrationSourceConnectorRegistry, MigrationSourceConnectorRegistry>();
+
+        // T5-WMK-01 — forensic watermarking. Embedder + extractor are stateless,
+        // safe as singletons; crypto service is singleton (HMAC key is read once
+        // at construction). Service + verifier are scoped because they consume
+        // scoped repos / unit-of-work.
+        services.AddSingleton<Application.Services.Watermarking.IRecipientCryptoService,
+            Services.Watermarking.RecipientCryptoService>();
+        services.AddSingleton<Application.Services.Watermarking.IWatermarkEmbedder,
+            Services.Watermarking.DctLsbWatermarkEmbedder>();
+        services.AddSingleton<Application.Services.Watermarking.IWatermarkExtractor,
+            Services.Watermarking.DctLsbWatermarkExtractor>();
+        services.AddScoped<Application.Services.Watermarking.IWatermarkService,
+            Services.Watermarking.WatermarkService>();
+        services.AddScoped<Application.Services.Watermarking.IWatermarkVerifier,
+            Services.Watermarking.WatermarkVerifier>();
 
         return services;
     }

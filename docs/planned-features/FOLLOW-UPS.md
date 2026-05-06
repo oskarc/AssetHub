@@ -526,3 +526,53 @@ impression but is out of scope for the access-mechanism story.
 **Acceptance**: a configured default brand shows its logo + colour
 treatment on the accept page; without one, the layout is unchanged.
 
+---
+
+### T5-WMK-01 — share preview path watermarking
+
+**Deferred from**: T5-WMK-01 Phase 2 ship.
+**Why deferred**: the share page renders inline previews via
+`<img src=...>` URLs returned by `IPublicShareAccessService.GetPreviewUrlAsync`,
+which today resolves to a presigned MinIO URL. Watermarking that path is real
+forensic value (right-click-save-image is a leak vector for share recipients)
+but it rewrites the inline-rendering URL contract — the watermarked stream
+needs a stream-through-API endpoint URL the browser can hit directly with
+the share token. The forced-download path was the higher-priority leak vector;
+preview is layered on top.
+**Sketch**:
+- Add `ResolvePreviewDownloadAsync` peer to the existing `GetDownloadUrlAsync`,
+  returning the same `RenditionDownloadResult` discriminated shape.
+- Endpoint `MapGet("{token}/preview", PreviewSharedAsset)` updated to handle
+  the stream case, same way `DownloadSharedAsset` does.
+- Inline `<img>` URLs from the share page point at the preview endpoint;
+  browser fetches → API resolves → either 302 to MinIO (un-watermarked) or
+  streams the watermarked PNG with appropriate `Cache-Control: no-store`.
+**Acceptance**: a watermark-flagged asset opened in the share page renders an
+inline preview that, when right-click-saved, carries a unique recipient-layer
+watermark resolving back to the share id + downloaded_at.
+
+---
+
+### T5-WMK-01 — async-202 fallback for very large originals
+
+**Deferred from**: T5-WMK-01 Phase 2 ship.
+**Why deferred**: roadmap called for an async-202 escape hatch above
+`WatermarkSettings.SyncSizeLimitMP = 50` mirroring T3-REND-01. Implementing
+it requires a transient-storage layer for in-progress watermarked bytes
+(MinIO temp object with TTL, or equivalent), plus a polling-status endpoint.
+v1 ships sync-only; >50 MP images watermark synchronously with a `Warning`
+log and may exceed the 1.5 s p95 target on the largest sources. Acceptable
+trade-off — most brand assets are well under 50 MP — but the escape hatch
+is the right long-term fix.
+**Sketch**:
+- Re-introduce `RecipientWatermarkCommand` in `WatermarkMessages.cs`
+  (currently a comment-only deferral pointer).
+- New `RecipientWatermarkHandler` writes the watermarked bytes to a
+  `renditions/ondemand/wm-{download_token}` MinIO object with TTL.
+- Endpoint detects `width * height > SyncSizeLimitMP * 1024 * 1024`,
+  returns 202 + `Retry-After: 5` + `Location: /api/v1/assets/{id}/download/{token}/status`.
+- Status endpoint returns 302 to a presigned URL of the staged object once
+  the handler completes, or 202 + Retry-After if still processing.
+**Acceptance**: a 200 MP source watermarks asynchronously without blocking
+the request; the client polls the status endpoint and receives the
+watermarked bytes via 302 once the handler finishes (typical: 5-15 s).

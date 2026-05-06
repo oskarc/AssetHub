@@ -77,12 +77,20 @@ public class ZipBuildServiceAuditTests : IAsyncLifetime
         dbFactoryMock.Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _fixture.CreateDbContextForExistingDb(_dbName));
 
+        // T5-WMK-01: default to "watermarking off" so existing audit assertions pass.
+        var watermarkServiceMock = new Mock<AssetHub.Application.Services.Watermarking.IWatermarkService>();
+        watermarkServiceMock
+            .Setup(s => s.IsWatermarkingEffectiveAsync(It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ServiceResult<bool>)false);
+
         return new ZipBuildService(
             new ZipBuildDataDependencies(dbFactoryMock.Object, _assetRepo, _colRepo),
             _minioMock.Object,
             _messageBusMock.Object,
             _auditMock.Object,
             minioSettings,
+            watermarkServiceMock.Object,
+            Mock.Of<IShareRepository>(),
             NullLogger<ZipBuildService>.Instance);
     }
 

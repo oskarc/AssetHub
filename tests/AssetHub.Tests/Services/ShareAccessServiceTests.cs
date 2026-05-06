@@ -69,6 +69,14 @@ public class ShareAccessServiceTests
 
     private PublicShareAccessService CreatePublicService()
     {
+        // Default to "watermarking off" so existing tests (which assert the un-watermarked
+        // 302 redirect path) still pass. Tests that exercise the watermark path can override
+        // by setting up their own mock.
+        var watermarkServiceMock = new Mock<AssetHub.Application.Services.Watermarking.IWatermarkService>();
+        watermarkServiceMock
+            .Setup(s => s.IsWatermarkingEffectiveAsync(It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ServiceResult<bool>)false);
+
         return new PublicShareAccessService(
             _shareRepoMock.Object,
             _assetRepoMock.Object,
@@ -81,6 +89,7 @@ public class ShareAccessServiceTests
             _dataProtectionMock.Object,
             _httpContextAccessorMock.Object,
             _brandResolverMock.Object,
+            watermarkServiceMock.Object,
             NullLogger<PublicShareAccessService>.Instance);
     }
 
@@ -327,7 +336,7 @@ public class ShareAccessServiceTests
         var result = await service.GetDownloadUrlAsync(token, null, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("https://minio/presigned-url", result.Value);
+        Assert.Equal("https://minio/presigned-url", result.Value!.PresignedUrl);
     }
 
     [Fact]
@@ -377,7 +386,7 @@ public class ShareAccessServiceTests
         var result = await service.GetDownloadUrlAsync(token, null, asset.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("https://minio/presigned-url", result.Value);
+        Assert.Equal("https://minio/presigned-url", result.Value!.PresignedUrl);
     }
 
     [Fact]

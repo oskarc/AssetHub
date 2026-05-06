@@ -74,7 +74,18 @@ public static class ShareEndpoints
     {
         var effectiveCredential = GetSharePassword(httpContext) ?? accessToken;
         var result = await svc.GetDownloadUrlAsync(token, effectiveCredential, assetId, ct);
-        return HandleShareResult(result, url => Results.Redirect(url));
+        // T5-WMK-01 — discriminated result: 302 redirect for un-watermarked,
+        // streamed bytes for watermarked.
+        return HandleShareResult(result, dl =>
+        {
+            if (dl.PresignedUrl is not null) return Results.Redirect(dl.PresignedUrl);
+            var stream = dl.Stream!;
+            return Results.Stream(
+                stream.Content,
+                stream.ContentType,
+                fileDownloadName: stream.ForceDownload ? stream.DownloadFileName : null,
+                enableRangeProcessing: false);
+        });
     }
 
     private static async Task<IResult> DownloadAllSharedAssets(

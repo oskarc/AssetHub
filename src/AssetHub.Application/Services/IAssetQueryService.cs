@@ -49,6 +49,16 @@ public interface IAssetQueryService
         Guid id, string size, bool forceDownload, CancellationToken ct);
 
     /// <summary>
+    /// Resolve a rendition for download — returns either a presigned URL (for un-watermarked
+    /// traffic; the endpoint 302-redirects) or a watermarked byte stream (for assets where
+    /// forensic watermarking is effectively on; the endpoint streams through). Internally
+    /// dispatches to <c>IWatermarkService</c> for the precedence check + on-the-fly embed.
+    /// (T5-WMK-01)
+    /// </summary>
+    Task<ServiceResult<Dtos.RenditionDownloadResult>> ResolveRenditionDownloadAsync(
+        Guid id, string size, bool forceDownload, Guid? shareId, CancellationToken ct);
+
+    /// <summary>
     /// Get derivative assets created from a source asset via image editing.
     /// </summary>
     Task<ServiceResult<List<AssetDerivativeDto>>> GetDerivativesAsync(

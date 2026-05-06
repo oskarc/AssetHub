@@ -31,6 +31,7 @@ public sealed class PublicShareAccessService(
     IDataProtectionProvider dataProtection,
     IHttpContextAccessor httpContextAccessor,
     IBrandResolver brandResolver,
+    AssetHub.Application.Services.Watermarking.IWatermarkService watermarkService,
     ILogger<PublicShareAccessService> logger) : IPublicShareAccessService
 {
     private readonly string _bucketName = minioSettings.Value.BucketName;
@@ -83,7 +84,7 @@ public sealed class PublicShareAccessService(
         return ServiceError.BadRequest("Invalid share scope type");
     }
 
-    public async Task<ServiceResult<string>> GetDownloadUrlAsync(
+    public async Task<ServiceResult<RenditionDownloadResult>> GetDownloadUrlAsync(
         string token, string? password, Guid? assetId, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
@@ -103,11 +104,60 @@ public sealed class PublicShareAccessService(
         var ext = Path.GetExtension(targetAsset.OriginalObjectKey);
         var downloadFileName = $"{targetAsset.Title}{ext}";
 
-        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(
-            _bucketName, targetAsset.OriginalObjectKey,
-            Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, downloadFileName, ct);
+        // T5-WMK-01 — same dispatch shape as IAssetQueryService.ResolveRenditionDownloadAsync
+        // but in the share context: precedence chain includes share.WatermarkOverride
+        // (which wins over asset/collection settings).
+        var effectiveResult = await watermarkService.IsWatermarkingEffectiveAsync(targetAsset.Id, share.Id, ct);
+        var watermarkOn = effectiveResult.IsSuccess && effectiveResult.Value;
 
-        return presignedUrl;
+        if (!watermarkOn)
+        {
+            var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(
+                _bucketName, targetAsset.OriginalObjectKey,
+                Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, downloadFileName, ct);
+            return new RenditionDownloadResult { PresignedUrl = presignedUrl };
+        }
+
+        // Watermarked path: stream through API. Anonymous share recipient — RecipientUserId
+        // is null; RecipientEmail is best-effort from the share invitation when available
+        // (T4-GUEST-01 surface), falling back to null for fully-anonymous shares.
+        Stream sourceStream;
+        try
+        {
+            sourceStream = await minioAdapter.DownloadAsync(_bucketName, targetAsset.OriginalObjectKey, ct);
+        }
+        catch (StorageException ex)
+        {
+            logger.LogError(ex, "Failed to download asset {AssetId} for watermarked share stream", targetAsset.Id);
+            return ServiceError.Server(ex.Message);
+        }
+
+        var watermarkContext = new AssetHub.Application.Services.Watermarking.WatermarkContext
+        {
+            AssetId = targetAsset.Id,
+            DownloadPath = "share",
+            ShareId = share.Id,
+            RecipientUserId = null,
+            RecipientEmail = null
+        };
+
+        var watermarkResult = await watermarkService.WatermarkForDownloadAsync(sourceStream, watermarkContext, ct);
+        if (!watermarkResult.IsSuccess)
+        {
+            await sourceStream.DisposeAsync();
+            return watermarkResult.Error!;
+        }
+
+        return new RenditionDownloadResult
+        {
+            Stream = new RenditionStreamPayload
+            {
+                Content = watermarkResult.Value!.Output,
+                ContentType = "image/png",
+                DownloadFileName = downloadFileName,
+                ForceDownload = true
+            }
+        };
     }
 
     public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> EnqueueDownloadAllAsync(

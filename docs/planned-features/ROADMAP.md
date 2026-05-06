@@ -521,7 +521,133 @@ Each ships as a separate repo; this roadmap only tracks the host-side enablement
 
 ### T5-WMK-01 — Watermarking on download
 
-**Intent.** Optional dynamic watermark for specific shares or collection-scoped downloads.
+**Intent.** Forensic attribution for leaked assets. When a watermarked image surfaces outside its intended audience, an admin can resolve it back to a single download record (recipient, share, asset, timestamp). Two complementary steganographic layers ensure attribution survives common evasion: the asset-fingerprint proves "this is our asset" even when the recipient layer is cropped out; the recipient-fingerprint identifies the leaker when intact. Audit data is rich enough that T5-ANL-01 can build exposure dashboards directly on the same rows without further schema work.
+
+**User gain.**
+- Admin flags a Collection for watermarking; new uploads inherit; per-asset and per-share overrides are available.
+- Each download — internal app user or external public-share recipient — receives a uniquely tokenised image; the same asset downloaded twice is two different files.
+- A leaked image can be uploaded to an admin "Verify watermark" tool that returns the attribution record (or "no match" if the file isn't ours / both layers are unrecoverable).
+- All watermark events feed the audit log with enough detail to drive download / exposure dashboards in T5-ANL-01.
+
+**Business gain.** Closes the "we have no idea who leaked this" gap that customers in regulated, brand-sensitive, or licensed-content workloads keep flagging. Forensic watermarking is a checkbox feature for premium DAM tier (Bynder, Brandfolder, Frontify all ship it). Without it, AssetHub competes a tier below for those workloads.
+
+**Architecture.** Two layers of steganographic watermark, both required on every download:
+1. **Asset-fingerprint layer** — embeds an opaque `(tenant, asset_id)` token into the asset's renditions (original, medium, thumb). Survives the recipient-layer overlay and survives many cropping / editing / format-conversion attacks. Re-embedded on replace and on new versions (T1-VER-01).
+2. **Recipient-fingerprint layer** — embeds a per-download token into the served bytes. Token is opaque; the mapping `{download_token → recipient, share_id, asset_id, downloaded_at}` lives in `WatermarkDownloads` with PII columns encrypted at rest via DataProtection (`IRecipientCryptoService`). The file payload carries no PII (GDPR), is HMAC-bound to the asset (forge resistance), and is opaque to the leaker (tamper resistance).
+
+**No-gap rule.** Every download of a watermark-flagged asset emits a fully two-layer file. The background sweep is **purely a performance optimization** — it pre-bakes the asset-fingerprint into stored MinIO renditions so on-the-fly download only has to embed the recipient layer. When `Asset.AssetWatermarkAppliedAt is null`, the download path embeds **both** layers on-the-fly (slower; falls back to async-202 above 50 MP). Functional correctness never depends on the sweep having run.
+
+Both layers are abstracted behind `IWatermarkEmbedder` / `IWatermarkExtractor` interfaces so the underlying algorithm (DCT-domain LSB modulation in v1) is swappable. Algorithm version is recorded per-download (`AlgorithmVersion`) so future rotations don't break old verifications.
+
+**Data model.**
+```csharp
+public class Collection
+{
+    // existing fields...
+    public bool WatermarkEnabled { get; set; }                 // collection-level toggle, default false
+}
+
+public class Asset
+{
+    // existing fields...
+    public bool? WatermarkOverride { get; set; }               // null = inherit collection; true/false = explicit
+    public string? AssetWatermarkToken { get; set; }           // opaque token embedded in renditions
+    public DateTime? AssetWatermarkAppliedAt { get; set; }     // last time the asset-fingerprint layer was embedded
+}
+
+public class Share
+{
+    // existing fields...
+    public bool? WatermarkOverride { get; set; }               // null = follow asset/collection; true/false = override
+}
+
+public class WatermarkDownload
+{
+    public Guid Id { get; set; }                               // == download_token embedded in the watermark
+    public Guid AssetId { get; set; }
+    public byte[]? EncryptedRecipientUserId { get; set; }      // DataProtection, purpose "Watermark.Recipient.v1"
+    public byte[]? EncryptedRecipientEmail { get; set; }       // DataProtection, same purpose
+    public byte[]? RecipientUserIdHash { get; set; }           // HMAC-SHA256, 32 bytes — indexable for analytics
+    public byte[]? RecipientEmailHash { get; set; }            // HMAC-SHA256, 32 bytes — indexable
+    public Guid? ShareId { get; set; }
+    public string DownloadPath { get; set; } = "";             // "raw" | "medium" | "thumb" | "zip" | "share"
+    public DateTime DownloadedAt { get; set; }
+    public string AlgorithmVersion { get; set; } = "v1";
+    public byte[] PayloadHmac { get; set; } = [];              // HMAC over the embedded token; key from Data Protection
+}
+
+// PII columns are encrypted via IRecipientCryptoService (Application interface) using
+// IDataProtectionProvider with purpose "Watermark.Recipient.v1". The Hash columns are
+// HMAC-SHA256(plaintext) using the same key family — indexable but irreversible.
+// Verify endpoint is the only code path that calls Decrypt.
+```
+
+**Migration.** Single migration `AddWatermarkSupport` — collection / asset / share columns plus the `WatermarkDownloads` table with `(AssetId, DownloadedAt)`, `(RecipientUserIdHash)`, `(RecipientEmailHash)`, and `(ShareId)` indexes. No data migration needed; everything is opt-in via `Collection.WatermarkEnabled`.
+
+**API surface.**
+- `POST /api/v1/admin/watermarks/verify` — admin-only, multipart form upload, returns `WatermarkVerificationResult { matched, assetId?, downloadToken?, recipient?, shareId?, downloadedAt?, confidence }`. The verifier decrypts `EncryptedRecipientUserId` / `EncryptedRecipientEmail` only at this endpoint via `IRecipientCryptoService`. The `watermark.verified` audit row records `(assetId, downloadToken)` only — never the resolved PII. `[PublicApi]` with `RequireScopeFilter("admin")`.
+- `PATCH /api/v1/collections/{id}/watermark` — `{ enabled: bool }`, manager-or-above.
+- `PATCH /api/v1/assets/{id}/watermark` — `{ override: bool? }` (null clears override), contributor-or-above.
+- `PATCH /api/v1/shares/{id}/watermark` — `{ override: bool? }`, share owner.
+- All download endpoints (`/api/v1/assets/{id}` raw, `/medium`, `/thumb`, `/zip`, public share `/s/{token}/{assetId}/download`) gain a watermark-resolver step that resolves the effective setting (Share → Asset → Collection precedence), persists a `WatermarkDownload` row, and streams the watermarked bytes.
+
+**Worker.** New Wolverine command `EmbedAssetFingerprintCommand` → `EmbedAssetFingerprintHandler`:
+1. Periodic background service `WatermarkAssetFingerprintBackgroundService` runs every 4-12 h (configurable via `WatermarkSettings.BackgroundSweepInterval`).
+2. Scans for assets where `(WatermarkOverride is true) OR (WatermarkOverride is null AND Collection.WatermarkEnabled)` AND (`AssetWatermarkAppliedAt is null OR < UpdatedAt`).
+3. For each, enqueues `EmbedAssetFingerprintCommand`. Handler downloads original from MinIO, embeds the asset-fingerprint layer into the original + medium + thumb renditions, replaces MinIO objects, sets `AssetWatermarkToken` + `AssetWatermarkAppliedAt`, audits `watermark.embedded`.
+4. Asset replace and new-version flows (T1-VER-01) reset `AssetWatermarkAppliedAt = null` so the next sweep re-applies.
+
+**Polly resilience.** New named pipeline `"watermark"` (retry 1, circuit breaker 60 s) wraps both layers. Recipient-layer failure falls back to streaming the asset-fingerprint-only bytes plus a `Warning` log — a misbehaving encoder must never block downloads.
+
+**Performance.** Recipient-layer embed on a 100 MP image will exceed T3-REND-01's 1.5 s p95. Reuse the same async-202 escape hatch: synchronous below `Watermarking:SyncSizeLimitMP = 50`, otherwise enqueue `RecipientWatermarkCommand`, return 202 + Retry-After + poll URL.
+
+**UI.**
+- New `WatermarkPanel.razor` slot in `ManageAccessDialog` for the collection-level toggle.
+- `AssetDetail` page gets a "Watermark: inherit / on / off" tri-state, gated by collection-setting visibility.
+- Share-create dialog gets a watermark override tri-state.
+- New page `/admin/watermarks/verify` — `MudFileUpload` + result card showing the resolved attribution, with confidence (high / medium / low / no match) per layer.
+- Localization: new `WatermarksResource.{resx,sv.resx}` — keys `Watermark_Toggle_Label`, `Watermark_Override_Inherit`, `Watermark_Override_On`, `Watermark_Override_Off`, `Watermark_Verify_Title`, `Watermark_Verify_Drop`, `Watermark_Verify_Match`, `Watermark_Verify_NoMatch`, `Watermark_Verify_Confidence_High` (etc.), plus `Watermark_Disclosure_Notice` for the share-create flow.
+
+**Caching.** Recipient-watermarked bytes are **never cached** — every download is unique. Asset-fingerprint-watermarked renditions are the canonical stored renditions (overwrite original / medium / thumb), so existing rendition caching keeps working unchanged. Verify-endpoint lookups cache `WatermarkDownload` rows via `HybridCache` (`CacheKeys.WatermarkDownload(token)`, 24 h TTL).
+
+**Auditing.** New events:
+- `watermark.embedded` (background, asset-fingerprint applied)
+- `watermark.applied_on_download` (per-download — high volume, retention 90 d via T5-AUDIT-01 per-event override)
+- `watermark.verified` (admin verify endpoint hit)
+- `watermark.collection_enabled` / `watermark.asset_overridden` / `watermark.share_overridden` (configuration changes)
+
+**Disclosure.** Every share page surfaces a notice on assets where watermarking is effectively on (trust-framed copy): _"These assets are individually tagged for each download. Thanks for keeping the brand kit secure."_ (English; Swedish equivalent in `WatermarksResource.sv.resx`.) Required at v1 for GDPR processing-disclosure compliance. No equivalent disclosure for internal-user downloads — covered by employment / acceptable-use policy.
+
+**Acceptance criteria.**
+- Admin enables watermarking on a collection; uploads a new image; within one background-sweep window the asset's stored renditions carry the asset-fingerprint layer.
+- **No-gap rule:** the same asset is downloaded *before* the sweep has run — the byte stream still carries both layers (asset-fingerprint embedded on-the-fly), a `WatermarkDownload` row is written, and `/verify` against this download successfully resolves both layers.
+- Internal user downloads the asset; the byte stream carries both layers; a `WatermarkDownload` row exists with `EncryptedRecipientUserId` / `RecipientUserIdHash` populated and `DownloadPath = "raw"`. The verify endpoint decrypts to `currentUser.UserId`.
+- Public share is created (no override) and a recipient downloads via the share link; the byte stream carries both layers; the row carries `RecipientEmail` + `ShareId` and the asset-fingerprint layer is identical to the internal-download case.
+- Admin re-uploads the leaked file to `/admin/watermarks/verify` → result identifies asset, recipient, share, timestamp, with confidence.
+- Same file with the bottom 20 % cropped → asset-fingerprint layer still resolves the asset; recipient layer reports "no match" with reason "recipient layer not recoverable".
+- Per-asset opt-out: setting `WatermarkOverride = false` on a watermark-flagged-collection asset stops both layers for that asset; `/verify` returns "no match" against new downloads.
+- Per-share override: a share with `WatermarkOverride = true` watermarks even when the collection is off (and `false` disables even when the collection is on).
+- Replace / new version (T1-VER-01) resets `AssetWatermarkAppliedAt`; the next sweep re-embeds.
+
+**Dependencies.**
+- T3-REND-01 — async-202 pattern reused for large-image fallback.
+- T5-AUDIT-01 — per-event retention overrides for the high-volume `watermark.applied_on_download` event.
+- Existing Data Protection (`IDataProtectionProvider`) for HMAC signing.
+- ImageSharp / Magick.NET — already in use for renditions.
+
+**Out of scope (deferred — tracked as follow-ups).**
+- Video / PDF / audio / 3D watermarking — different pipelines per format. Per-format follow-up.
+- Visible watermark layer (brand-stamp use case) — separate feature; this one is forensic-only.
+- Watermark-key rotation / mass re-embedding on key change — operational follow-up.
+- Anonymous / signed-URL embedding paths (parallel to T3-REND-01's anonymous-embed deferral).
+- Analytics dashboards (most-downloaded, exposure-by-share, exposure-over-time) — that's T5-ANL-01, which queries the rich `WatermarkDownload` rows shipped here.
+
+**Risks & trade-offs.**
+- Steganographic robustness vs. file-size impact — DCT-LSB is robust to JPEG re-encoding but sensitive to heavy filtering / re-quantisation. Acceptable for "find the leaker"; not adversarial-content-protection-grade. Per-layer confidence reported by the verify endpoint.
+- Recipient-layer encode adds latency to every download — sub-50 MP images stay under 1.5 s; larger ones go async-202. Below 5 MP: < 200 ms.
+- Re-embedding existing renditions on flag change rewrites MinIO objects — one-time cost per asset, audited.
+- Token-mapping table is privileged (resolves opaque tokens to recipient identity). Lives in `WatermarkDownloads` with admin-only read; never exposed by non-admin endpoints.
+- HMAC key is rotation-sensitive — Data Protection rotates by default but historical tokens must remain verifiable. `AlgorithmVersion` field is the long-term fix; v1 ships single-key.
 
 ---
 
@@ -776,7 +902,7 @@ AssetHub already has an `AuditEvent` pipeline via [IAuditService.LogAsync](../..
 | T4-BP-01 | `brand.created`, `brand.updated`, `brand.deleted` | `brand` | `scope` (`global`/`collection`), `changed_fields[]` |
 | T4-GUEST-01 | `guest.invited`, `guest.accepted`, `guest.access_revoked`, `guest.expired` | `user` | `invited_email`, `collection_ids[]`, `expires_at` |
 | T5-NEST-01 | `collection.reparented`, `collection.inheritance_enabled`, `collection.inheritance_disabled`, `collection.acl_copied_from_parent` | `collection` | `previous_parent_id`, `new_parent_id`, `parent_collection_id`, `principals_added` (copy only) |
-| T5-WMK-01 | `watermark.applied_on_download` | `asset` | `share_id`, `variant` — gated by config to avoid high-volume spam |
+| T5-WMK-01 | `watermark.embedded`, `watermark.applied_on_download`, `watermark.verified`, `watermark.collection_enabled`, `watermark.asset_overridden`, `watermark.share_overridden` | `asset`, `collection`, `share`, `watermark_download` | `asset_id`, `download_token`, `share_id`, `recipient_user_id` / `recipient_email`, `download_path`, `algorithm_version`, `confidence` (verify only). High-volume `watermark.applied_on_download` keeps 90 d via T5-AUDIT-01 per-event override. |
 | T5-ANL-01 | **No audit** — reports are reads over existing audit/telemetry; no new events. |
 | T5-AUDIT-01 | `audit.retention_purged` | `audit` | `purged_count`, `cutoff_date`, `event_type` (or `null` for mixed). **Meta-audit** — the retention worker is itself auditable. |
 | T5-AUDIO-01 | **No new audit events** — audio assets ride on the existing `asset.created` / `asset.updated` / `asset.deleted` pipeline. Probe failures are logged at `Warning`, not audited (high-volume telemetry-grade). |

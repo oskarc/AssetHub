@@ -44,6 +44,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<GuestInvitation> GuestInvitations { get; set; } = null!;
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
+    public DbSet<WatermarkDownload> WatermarkDownloads { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -78,6 +79,7 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         ConfigureWebhookDelivery(modelBuilder);
         ConfigureOrphanedObject(modelBuilder);
         ConfigureOutboxMessage(modelBuilder);
+        ConfigureWatermarkDownload(modelBuilder);
     }
 
     // ── Per-entity configuration ────────────────────────────────────────
@@ -183,6 +185,11 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.MediumObjectKey).HasMaxLength(512);
             entity.Property(e => e.PosterObjectKey).HasMaxLength(512);
             entity.Property(e => e.WaveformPeaksPath).HasMaxLength(512);
+
+            // T5-WMK-01 — opaque asset-fingerprint token. Set by background sweep;
+            // null until the sweep has run, in which case downloads embed both layers
+            // on-the-fly per the no-gap rule.
+            entity.Property(e => e.AssetWatermarkToken).HasMaxLength(64);
 
             entity.Property(e => e.Tags)
                 .HasColumnType(TextArray)
@@ -828,6 +835,36 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(e => e.MessageType).HasMaxLength(500).IsRequired();
             entity.Property(e => e.PayloadJson).HasColumnType("text").IsRequired();
             entity.Property(e => e.LastError).HasMaxLength(1000);
+        });
+
+    private static void ConfigureWatermarkDownload(ModelBuilder modelBuilder) =>
+        modelBuilder.Entity<WatermarkDownload>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.DownloadPath).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.AlgorithmVersion).HasMaxLength(16).IsRequired();
+
+            // Hot path: verify endpoint looks up by Id (PK, indexed for free).
+            // Asset analytics (T5-ANL-01) joins on AssetId + DownloadedAt.
+            entity.HasIndex(e => new { e.AssetId, e.DownloadedAt })
+                .HasDatabaseName("idx_watermark_download_asset_downloaded_at");
+
+            // Indexable HMAC hashes — let analytics queries find rows by recipient
+            // without ever decrypting the encrypted PII columns.
+            entity.HasIndex(e => e.RecipientUserIdHash)
+                .HasDatabaseName("idx_watermark_download_recipient_user_hash");
+            entity.HasIndex(e => e.RecipientEmailHash)
+                .HasDatabaseName("idx_watermark_download_recipient_email_hash");
+            entity.HasIndex(e => e.ShareId)
+                .HasDatabaseName("idx_watermark_download_share");
+
+            // Deliberately no FK to Asset / Share. Forensic rows are designed to
+            // outlive their referenced entity — the verify endpoint returns the
+            // historical AssetId / ShareId for hard-deleted targets so an admin
+            // can still resolve "this asset USED to be ours" attribution. EF
+            // doesn't auto-create FKs for scalar Guid columns without a navigation
+            // property, so leaving these uncommented keeps the relationship out.
         });
 
     // ── Shared converters / comparers ───────────────────────────────────

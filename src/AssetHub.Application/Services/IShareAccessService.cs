@@ -12,8 +12,13 @@ public interface IPublicShareAccessService
     Task<ServiceResult<ISharedContentDto>> GetSharedContentAsync(
         string token, string? password, int skip, int take, CancellationToken ct);
 
-    /// <summary>Get a presigned download URL for a shared asset.</summary>
-    Task<ServiceResult<string>> GetDownloadUrlAsync(
+    /// <summary>
+    /// Resolve a shared-asset download — returns either a presigned URL (un-watermarked,
+    /// 302 redirect) or a watermarked byte stream (T5-WMK-01). Mirrors
+    /// <c>IAssetQueryService.ResolveRenditionDownloadAsync</c> for the share path,
+    /// using the share's id in the watermark precedence chain.
+    /// </summary>
+    Task<ServiceResult<RenditionDownloadResult>> GetDownloadUrlAsync(
         string token, string? password, Guid? assetId, CancellationToken ct);
 
     /// <summary>Enqueue a ZIP build for all shared collection assets.</summary>

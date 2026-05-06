@@ -31,6 +31,15 @@ public class Share
     public DateTime? LastAccessedAt { get; set; }
     public int AccessCount { get; set; }
 
+    /// <summary>
+    /// Forensic-watermarking override for this share (T5-WMK-01). null = inherit
+    /// from <see cref="Asset.WatermarkOverride"/> / <see cref="Collection.WatermarkEnabled"/>;
+    /// true = force watermarking on for downloads through this share even when
+    /// the asset / collection is off; false = force off. Precedence wins over
+    /// asset and collection settings.
+    /// </summary>
+    public bool? WatermarkOverride { get; set; }
+
     // Navigation
     public Asset? Asset { get; set; }
     public Collection? Collection { get; set; }

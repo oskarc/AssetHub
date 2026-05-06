@@ -38,6 +38,16 @@ public class Collection
     /// </summary>
     public bool InheritParentAcl { get; set; }
 
+    /// <summary>
+    /// Forensic-watermarking toggle (T5-WMK-01). When true, every asset in
+    /// this collection participates in the two-layer watermark pipeline
+    /// (asset-fingerprint pre-baked into stored renditions; recipient-fingerprint
+    /// embedded per download). Per-asset overrides via <see cref="Asset.WatermarkOverride"/>;
+    /// per-share overrides via <see cref="Share.WatermarkOverride"/>; precedence
+    /// is Share → Asset → Collection. Default false — opt-in.
+    /// </summary>
+    public bool WatermarkEnabled { get; set; }
+
     // Navigation
     public ICollection<CollectionAcl> Acls { get; set; } = new List<CollectionAcl>();
 

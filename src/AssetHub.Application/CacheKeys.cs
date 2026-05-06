@@ -26,6 +26,7 @@ public static class CacheKeys
     private const string TaxonomiesAllKey = "taxonomies:all";
     private const string UserRealmRolesPrefix = "user:realmroles:";
     private const string NotificationUnreadCountPrefix = "notif:unread-count:";
+    private const string WatermarkDownloadPrefix = "watermark:dl:";
 
     // ── TTLs ──────────────────────────────────────────────────────────
 
@@ -82,6 +83,13 @@ public static class CacheKeys
     /// create/mark-read/delete keeps the badge fresh without hammering Postgres.
     /// </summary>
     public static readonly TimeSpan NotificationUnreadCountTtl = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// WatermarkDownload row lookups by token (T5-WMK-01). Long TTL because rows are
+    /// effectively immutable after creation — the verify endpoint reads them but never
+    /// mutates. Tag invalidation only fires on the rare admin-purge path.
+    /// </summary>
+    public static readonly TimeSpan WatermarkDownloadTtl = TimeSpan.FromHours(24);
 
     // ── Key Builders ──────────────────────────────────────────────────
 
@@ -141,6 +149,10 @@ public static class CacheKeys
     public static string NotificationUnreadCount(string userId)
         => $"{NotificationUnreadCountPrefix}{userId}";
 
+    /// <summary>Cache key for a single <c>WatermarkDownload</c> row (T5-WMK-01).</summary>
+    public static string WatermarkDownload(Guid downloadToken)
+        => $"{WatermarkDownloadPrefix}{downloadToken}";
+
     // ── Tag Definitions (for HybridCache tag-based invalidation) ─────
 
     /// <summary>
@@ -177,5 +189,8 @@ public static class CacheKeys
 
         /// <summary>Tag for a user's notification entries (used to invalidate the unread-count cache).</summary>
         public static string NotificationsForUser(string userId) => $"notifications:{userId}";
+
+        /// <summary>Tag for a single <c>WatermarkDownload</c> row (T5-WMK-01) — invalidated on rare admin-purge.</summary>
+        public static string WatermarkDownloadTag(Guid downloadToken) => $"watermark-dl:{downloadToken}";
     }
 }

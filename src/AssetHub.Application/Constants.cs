@@ -79,6 +79,13 @@ public static class Constants
         public const string NotificationUnsubscribeProtector = "NotificationUnsubscribeProtector";
         public const string WebhookSecretProtector = "WebhookSecretProtector";
         public const string GuestInvitationProtector = "GuestInvitationProtector";
+
+        /// <summary>
+        /// Protects watermark recipient PII at rest in <c>WatermarkDownloads</c> (T5-WMK-01).
+        /// Used by <c>IRecipientCryptoService</c> for both per-row encryption and the
+        /// keyed-HMAC index hashes. Decrypted only at the admin verify endpoint.
+        /// </summary>
+        public const string WatermarkRecipientProtector = "WatermarkRecipientProtector";
     }
 
     /// <summary>
