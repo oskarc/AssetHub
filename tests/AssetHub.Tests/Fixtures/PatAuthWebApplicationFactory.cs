@@ -65,7 +65,13 @@ public class PatAuthWebApplicationFactory : WebApplicationFactory<Program>, IAsy
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Postgres"] = _connectionString,
-                ["Keycloak:RequireHttpsMetadata"] = "false"
+                ["Keycloak:RequireHttpsMetadata"] = "false",
+                // T5-WMK-01: HmacKeyBase64 is required + ValidateOnStart, so tests must
+                // provide it or host.Start() throws. .NET 10's WebApplicationFactory calls
+                // host.Start() inside CreateHost — failures there surface as a generic
+                // ObjectDisposedException at Services access, not the original validation
+                // error. Use a deterministic dummy key (32 bytes base64) for tests.
+                ["Watermarking:HmacKeyBase64"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
             });
         });
 
@@ -74,21 +80,37 @@ public class PatAuthWebApplicationFactory : WebApplicationFactory<Program>, IAsy
             services.RemoveAll<DbContextOptions<AssetHubDbContext>>();
             services.RemoveAll<AssetHubDbContext>();
             services.RemoveAll<Npgsql.NpgsqlDataSource>();
+            // Don't remove IDbContextOptionsConfiguration — let AddSharedInfrastructure's
+            // config callback also run; both lambdas resolve NpgsqlDataSource via DI now.
 
-            var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(_connectionString);
-            dataSourceBuilder.EnableDynamicJson();
-            var dataSource = dataSourceBuilder.Build();
-            services.AddDbContext<AssetHubDbContext>(options => options
-                .UseNpgsql(dataSource)
-                .ConfigureWarnings(w => w.Ignore(
-                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning)));
+            // Re-register NpgsqlDataSource via factory so the singleton instance
+            // belongs to whichever IServiceProvider resolves it. Captured-instance
+            // singletons get disposed when an earlier-built provider tears down,
+            // which is exactly what breaks WebApplicationFactory<Program> on .NET 10
+            // (HostFactoryResolver builds Program once to capture, then DeferredHostBuilder
+            // rebuilds — same captured instance, second resolution sees it disposed).
+            var connectionString = _connectionString;
+            services.AddSingleton<Npgsql.NpgsqlDataSource>(_ =>
+            {
+                var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+                dataSourceBuilder.EnableDynamicJson();
+                return dataSourceBuilder.Build();
+            });
+
+            services.AddDbContext<AssetHubDbContext>((sp, options) =>
+            {
+                options.UseNpgsql(sp.GetRequiredService<Npgsql.NpgsqlDataSource>());
+                options.ConfigureWarnings(w => w.Ignore(
+                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
+            });
 
             services.RemoveAll<IDbContextFactory<AssetHubDbContext>>();
-            services.AddDbContextFactory<AssetHubDbContext>(options => options
-                .UseNpgsql(dataSource)
-                .ConfigureWarnings(w => w.Ignore(
-                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning)),
-                ServiceLifetime.Scoped);
+            services.AddDbContextFactory<AssetHubDbContext>((sp, options) =>
+            {
+                options.UseNpgsql(sp.GetRequiredService<Npgsql.NpgsqlDataSource>());
+                options.ConfigureWarnings(w => w.Ignore(
+                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
+            });
 
             services.DisableAllExternalWolverineTransports();
             services.RunWolverineInSoloMode();

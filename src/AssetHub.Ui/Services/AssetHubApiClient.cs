@@ -6,6 +6,7 @@ using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
+using AssetHub.Application.Services.Watermarking;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Ui.Services;
@@ -62,6 +63,8 @@ public class AssetHubApiClient(
     IWebhookService webhookService,
     IBrandService brandService,
     IGuestInvitationService guestInvitationService,
+    IWatermarkService watermarkService,
+    IWatermarkVerifier watermarkVerifier,
     IUserLookupService userLookupService,
     IOptions<AppSettings> appSettings)
 {
@@ -79,7 +82,8 @@ public class AssetHubApiClient(
         : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
                null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
                null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
-               null!, null!, null!, null!, null!, null!, null!, Options.Create(new AppSettings()))
+               null!, null!, null!, null!, null!, null!, null!, null!, null!,
+               Options.Create(new AppSettings()))
     {
     }
 
@@ -1369,6 +1373,38 @@ public class AssetHubApiClient(
     {
         var result = await guestInvitationService.AcceptAsync(token, ct);
         return Unwrap(result, "Accept guest invitation");
+    }
+
+    #endregion
+
+    #region Watermarks (T5-WMK-01)
+
+    public virtual async Task SetCollectionWatermarkAsync(
+        Guid collectionId, bool enabled, CancellationToken ct = default)
+    {
+        var result = await watermarkService.SetCollectionWatermarkAsync(collectionId, enabled, ct);
+        EnsureSuccess(result, "Toggle collection watermarking");
+    }
+
+    public virtual async Task SetAssetWatermarkOverrideAsync(
+        Guid assetId, bool? @override, CancellationToken ct = default)
+    {
+        var result = await watermarkService.SetAssetWatermarkOverrideAsync(assetId, @override, ct);
+        EnsureSuccess(result, "Set asset watermark override");
+    }
+
+    public virtual async Task SetShareWatermarkOverrideAsync(
+        Guid shareId, bool? @override, CancellationToken ct = default)
+    {
+        var result = await watermarkService.SetShareWatermarkOverrideAsync(shareId, @override, ct);
+        EnsureSuccess(result, "Set share watermark override");
+    }
+
+    public virtual async Task<WatermarkVerificationResultDto> VerifyWatermarkAsync(
+        Stream content, string contentType, long sizeBytes, CancellationToken ct = default)
+    {
+        var result = await watermarkVerifier.VerifyAsync(content, contentType, sizeBytes, ct);
+        return Unwrap(result, "Verify watermark");
     }
 
     #endregion

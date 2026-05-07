@@ -1,0 +1,102 @@
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<WatermarksResource> WmkLoc
+
+@* Collection-level forensic watermarking toggle (T5-WMK-01).
+   Used inside ManageAccessDialog. Manager+ on the collection.
+   OFF -> ON on a populated collection triggers an explicit confirm
+   dialog so admins understand the background-sweep cost. *@
+<MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+    <div class="dialog-section-title">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Color="Color.Primary" />
+            <span>@WmkLoc["Panel_Title"]</span>
+        </MudStack>
+    </div>
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @WmkLoc["Panel_Desc"]
+        </MudText>
+        <MudSwitch T="bool"
+                   Value="_enabled"
+                   ValueChanged="OnToggleAsync"
+                   Color="Color.Primary"
+                   Label="@WmkLoc["Toggle_Label"]"
+                   Disabled="_isToggling" />
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @(_enabled ? WmkLoc["Toggle_OnHelper"] : WmkLoc["Toggle_OffHelper"])
+        </MudText>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public Guid CollectionId { get; set; }
+    [Parameter, EditorRequired] public bool Enabled { get; set; }
+    [Parameter] public int AssetCount { get; set; }
+    [Parameter] public EventCallback<bool> EnabledChanged { get; set; }
+
+    private bool _enabled;
+    private bool _isToggling;
+
+    protected override void OnParametersSet()
+    {
+        _enabled = Enabled;
+    }
+
+    private async Task OnToggleAsync(bool requested)
+    {
+        if (_isToggling || requested == _enabled) return;
+
+        // Confirm both directions. OFF->ON is the more expensive transition
+        // (background sweep on populated collections); OFF is also confirmed
+        // because it changes the forensic posture of every future download.
+        var confirmed = requested
+            ? await ConfirmEnableAsync()
+            : await ConfirmDisableAsync();
+        if (!confirmed) return;
+
+        _isToggling = true;
+        StateHasChanged();
+
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SetCollectionWatermarkAsync(CollectionId, requested),
+            "toggle collection watermarking",
+            WmkLoc["Override_Saved"]);
+
+        if (success)
+        {
+            _enabled = requested;
+            await EnabledChanged.InvokeAsync(_enabled);
+        }
+
+        _isToggling = false;
+        StateHasChanged();
+    }
+
+    private async Task<bool> ConfirmEnableAsync()
+    {
+        var body = AssetCount > 0
+            ? string.Format(WmkLoc["Confirm_EnableHeavy"].Value, AssetCount)
+            : WmkLoc["Confirm_EnableEmpty"].Value;
+        return await DialogService.ShowConfirmAsync(
+            WmkLoc["Confirm_EnableTitle"],
+            body,
+            WmkLoc["Confirm_EnableBtn"],
+            Icons.Material.Filled.Security,
+            Color.Info,
+            Color.Primary);
+    }
+
+    private async Task<bool> ConfirmDisableAsync()
+    {
+        return await DialogService.ShowConfirmAsync(
+            WmkLoc["Confirm_DisableTitle"],
+            WmkLoc["Confirm_DisableBody"],
+            WmkLoc["Confirm_DisableBtn"],
+            Icons.Material.Filled.SecurityUpdateGood,
+            Color.Warning,
+            Color.Warning);
+    }
+}

@@ -9,7 +9,7 @@ These rules override generic Blazor guidance for the AssetHub project. See also 
 
 ## Project-Specific Rules
 
-- **C# 13** (.NET 9) — do not use C# 14 features.
+- **C# 13** (.NET 9) — 
 - **MudBlazor 8** is the component library — use MudBlazor components, not raw HTML or other libraries.
 - **DataAnnotations only** — do not use FluentValidation. DTOs use `[Required]`, `[StringLength]`, `[Range]`.
 - **`AssetHubApiClient`** for all HTTP calls — never use `HttpClient` directly.

@@ -25,5 +25,6 @@ public class WorkflowResource { }
 public class WebhooksResource { }
 public class BrandsResource { }
 public class GuestsResource { }
+public class WatermarksResource { }
 
 #pragma warning restore S2094

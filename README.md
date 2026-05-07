@@ -6,7 +6,7 @@
 
 Organise images, videos, and documents into collections. Control access with per-collection roles. Share via password-protected links. Get automatic thumbnails and previews — all on your own infrastructure.
 
-[![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](#tech-stack)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](#tech-stack)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](#quick-start)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](#modular-components)
@@ -115,6 +115,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Security**
 - ClamAV malware scanning on every upload
 - Personal Access Tokens — long-lived, scoped, revocable bearer tokens for scripts and integrations. Only the SHA-256 hash is stored; plaintext is shown once. A compromised PAT cannot mint further tokens
+- Forensic watermarking — opt-in per collection, asset, or share. Every download embeds two steganographic layers (asset fingerprint + per-recipient token) via DCT-domain LSB modulation. An admin verify page (`/admin/watermarks/verify`) resolves a leaked file back to recipient, share, asset, and timestamp. Recipient PII is encrypted at rest via Data Protection; the audit log records only opaque tokens
 - Container hardening with Docker secrets, network segmentation, and security headers
 - Full audit trail for every action
 
@@ -310,6 +311,7 @@ cd tests/E2E && npx playwright test
 - ~~In-browser image editor~~ ✓ — Fabric.js canvas editor with multi-layer support
 - ~~Export presets~~ ✓ — admin-managed format/dimension/quality presets
 - ~~Bulk migration toolkit~~ ✓ — import assets from external sources with progress tracking
+- ~~Forensic watermarking~~ ✓ — two-layer DCT-LSB attribution with admin verify page
 
 **Roadmap:**
 - S3/Dropbox/SharePoint migration connectors

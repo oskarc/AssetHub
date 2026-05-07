@@ -84,7 +84,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Postgres"] = _connectionString,
-                ["Keycloak:RequireHttpsMetadata"] = "true"
+                ["Keycloak:RequireHttpsMetadata"] = "true",
+                // T5-WMK-01: HmacKeyBase64 is required + ValidateOnStart.
+                ["Watermarking:HmacKeyBase64"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
             });
         });
 
@@ -94,23 +96,39 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll<DbContextOptions<AssetHubDbContext>>();
             services.RemoveAll<AssetHubDbContext>();
             services.RemoveAll<Npgsql.NpgsqlDataSource>();
+            // Don't remove IDbContextOptionsConfiguration — let AddSharedInfrastructure's
+            // config callback also run; both lambdas resolve NpgsqlDataSource via DI now.
+
+            // Re-register NpgsqlDataSource via factory so it belongs to whichever
+            // IServiceProvider resolves it. Captured-instance singletons get disposed
+            // when an earlier-built provider tears down — exactly what breaks
+            // WebApplicationFactory<Program> on .NET 10 (HostFactoryResolver builds
+            // Program once to capture, then DeferredHostBuilder rebuilds — the same
+            // captured instance, second resolution sees it disposed).
+            var connectionString = _connectionString;
+            services.AddSingleton<Npgsql.NpgsqlDataSource>(_ =>
+            {
+                var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+                dataSourceBuilder.EnableDynamicJson();
+                return dataSourceBuilder.Build();
+            });
 
             // Add test DbContext pointing at the Testcontainer PostgreSQL
-            var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(_connectionString);
-            dataSourceBuilder.EnableDynamicJson();
-            var dataSource = dataSourceBuilder.Build();
-            services.AddDbContext<AssetHubDbContext>(options => options
-                .UseNpgsql(dataSource)
-                .ConfigureWarnings(w => w.Ignore(
-                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning)));
+            services.AddDbContext<AssetHubDbContext>((sp, options) =>
+            {
+                options.UseNpgsql(sp.GetRequiredService<Npgsql.NpgsqlDataSource>());
+                options.ConfigureWarnings(w => w.Ignore(
+                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
+            });
 
             // Re-register DbContextFactory (removed when clearing DbContext registrations)
             services.RemoveAll<IDbContextFactory<AssetHubDbContext>>();
-            services.AddDbContextFactory<AssetHubDbContext>(options => options
-                .UseNpgsql(dataSource)
-                .ConfigureWarnings(w => w.Ignore(
-                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning)),
-                ServiceLifetime.Scoped);
+            services.AddDbContextFactory<AssetHubDbContext>((sp, options) =>
+            {
+                options.UseNpgsql(sp.GetRequiredService<Npgsql.NpgsqlDataSource>());
+                options.ConfigureWarnings(w => w.Ignore(
+                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
+            });
 
             // Disable external Wolverine transports to prevent real RabbitMQ connections in tests
             services.DisableAllExternalWolverineTransports();

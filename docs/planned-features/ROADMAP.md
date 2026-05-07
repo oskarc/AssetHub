@@ -521,6 +521,10 @@ Each ships as a separate repo; this roadmap only tracks the host-side enablement
 
 ### T5-WMK-01 — Watermarking on download
 
+> **Shipped 2026-05-07** across three phases. Two-layer DCT-LSB forensic watermarking (asset fingerprint pre-baked into stored renditions by a background sweep; per-recipient fingerprint embedded on every download). Mixed download flow — un-watermarked downloads keep the 302-redirect-to-MinIO-presigned path, watermarked downloads stream through the API. Admin verify endpoint at `POST /api/v1/admin/watermarks/verify` decrypts recipient PII for attribution. UI: `WatermarkPanel` (collection toggle), `AssetWatermarkOverridePanel` (tri-state), `ShareWatermarkOverrideField` (in `CreateShareDialog`), `/admin/watermarks/verify` page, share-page disclosure notice. See the **Shipped appendix** for the per-layer breakdown.
+
+<!-- intent block kept for historical continuity; implementation summary above; full breakdown in Shipped appendix -->
+
 **Intent.** Forensic attribution for leaked assets. When a watermarked image surfaces outside its intended audience, an admin can resolve it back to a single download record (recipient, share, asset, timestamp). Two complementary steganographic layers ensure attribution survives common evasion: the asset-fingerprint proves "this is our asset" even when the recipient layer is cropped out; the recipient-fingerprint identifies the leaker when intact. Audit data is rich enough that T5-ANL-01 can build exposure dashboards directly on the same rows without further schema work.
 
 **User gain.**
@@ -1434,5 +1438,55 @@ Total: 29 new tests, full suite at 1110 passing in `AssetHub.Tests` + 234 in `As
 - Recursive tree rendering with proper indentation in `CollectionTree`. Today the tree is still flat with a chain-link badge for inheriting collections; the `Depth` field on the DTO + a recursive walk over `ParentCollectionId` would visualise the hierarchy. Cheap follow-up.
 - Default-on inheritance for newly-created child collections. Admins opt in explicitly; revisit if customer demand suggests otherwise.
 - Restrictive inheritance (child ⊆ parent), cross-tenant nesting, sibling ordering, soft-deleted parents, per-asset effective-permissions cache — all explicitly out of scope per the design doc.
+
+### T5-WMK-01 — Watermarking on download
+
+**Shipped 2026-05-07** across three phases. Phases 1 + 2 (algorithm, services, API surface, all download paths) landed together on commit `619dce1`; Phase 3 (UI, tests, finalisation) follows in the present commit. Memory entry: `project_t5_wmk_01_progress.md`.
+
+**Delivered as specified.**
+- **Two-layer DCT-LSB watermarking.** `DctLsbWatermarkEmbedder` / `DctLsbWatermarkExtractor` modulate one mid-frequency DCT coefficient per 8x8 luminance block via sign-quantisation (Magick.NET-Q8-AnyCPU). Asset layer at coefficient `(4,3)`, recipient layer at `(3,4)` — non-interfering. Algorithm version `v1` stamped on every `WatermarkDownload` row so future rotations can decode legacy rows. Robustness target: JPEG re-encode at q≥75. Min image size 128×128px (256-bit payload ÷ 8x8 blocks).
+- **No-gap rule.** `WatermarkService.WatermarkForDownloadAsync` checks `Asset.AssetWatermarkAppliedAt`. If the background sweep hasn't yet baked the asset fingerprint into stored renditions, the on-the-fly download path embeds **both** layers; otherwise only the recipient layer. Either path produces a fully attributable file. Test coverage in `DctLsbWatermarkRoundTripTests` confirms both-layers-from-one-bytestream extraction.
+- **Per-recipient attribution** via `WatermarkDownload` table — no FK to Asset/Share so forensic rows outlive their target by design. Indexes on `RecipientUserIdHash` + `RecipientEmailHash` (HMAC-SHA256, indexable) for analytics; encrypted PII via DataProtection (`WatermarkRecipientProtector`). Decryption errors surface as null (key-rotation drift) so the verify endpoint shows "PII unavailable" instead of crashing.
+- **Mixed download flow.** `IAssetQueryService.ResolveRenditionDownloadAsync` and `IPublicShareAccessService.GetDownloadUrlAsync` return a discriminated `RenditionDownloadResult { PresignedUrl?, Stream? }`. Un-watermarked path: 302-redirect-to-MinIO-presigned (CDN-fast). Watermarked path: stream through API as `image/png` (lossless preserves the bits). All seven asset rendition endpoints (`/download`, `/preview`, `/thumb`, `/thumb/download`, `/medium`, `/medium/download`, `/poster`), the share `/download`, and the ZIP build path (`ZipBuildService.TryAddAssetEntryAsync`) dispatch through this shape.
+- **Inheritance precedence Share → Asset → Collection.** `IsWatermarkingEffectiveAsync` resolves once per download and once per share-page render. Multi-collection assets get the union of their collections' settings (any collection on → asset on, modulated by the asset / share override).
+- **API surface (`[PublicApi]`).** `POST /api/v1/admin/watermarks/verify` (admin scope), `PATCH /api/v1/collections/{id}/watermark` (`collections:write`), `PATCH /api/v1/assets/{id}/watermark` (`assets:write`), `PATCH /api/v1/shares/{id}/watermark` (`shares:write`).
+- **Audit events.** `watermark.embedded` (background sweep), `watermark.applied_on_download` (per-download, retention 90 d via `AuditRetentionSettings.PerEventOverrides`), `watermark.verified` (admin verify — records `(assetId, downloadToken)` only, never decrypted PII per G-12b), `watermark.collection_enabled` / `watermark.asset_overridden` / `watermark.share_overridden` (config changes).
+- **Background sweep.** `WatermarkAssetFingerprintBackgroundService` polls for assets where watermarking is effective and the fingerprint hasn't been embedded (or `AssetWatermarkAppliedAt < UpdatedAt`). Enqueues `EmbedAssetFingerprintCommand` per asset; handler downloads from MinIO, embeds the asset-fingerprint into original / medium / thumb, replaces the MinIO objects, audits `watermark.embedded`.
+- **Operator config.** `WatermarkSettings.HmacKeyBase64` is required and `ValidateOnStart()`. Operator generates with `openssl rand -base64 32` once per environment and sets via env var `Watermarking__HmacKeyBase64`.
+
+**UI surface (Phase 3).**
+- DTO extensions: `CollectionResponseDto.WatermarkEnabled`, `AssetResponseDto.{WatermarkOverride, AssetWatermarkAppliedAt, EffectiveWatermarkEnabled}`, `ShareResponseDto.WatermarkOverride`, `SharedAssetDto.WatermarkingEffective`, `SharedCollectionDto.WatermarkingEffective`. Mappers updated; `PublicShareAccessService.GetSharedContentAsync` precomputes `WatermarkingEffective` per asset for the disclosure notice.
+- `WatermarksResource.{cs,resx,sv.resx}` — 39 keys per language, parity verified.
+- `WatermarkPanel.razor` — collection-level toggle inside `ManageAccessDialog`, manager-or-above. OFF→ON on a populated collection routes through a confirm dialog with the asset count; OFF→ON on an empty collection routes through a lighter confirm; ON→OFF confirms because it changes the forensic posture for every future download.
+- `AssetWatermarkOverridePanel.razor` — tri-state (`inherit` / `on` / `off`) inside `AssetDetail`. Optimistic UI with rollback on failure (CLAUDE.md pattern). Effective-on badge with a status alert when the asset fingerprint hasn't yet been baked into stored renditions (no-gap rule visualisation).
+- `ShareWatermarkOverrideField.razor` — tri-state inside `CreateShareDialog`. Override applied via PATCH after the share is created.
+- `/admin/watermarks/verify` page — file upload (JPEG / PNG / TIFF, max 50 MB), pre-flight size + MIME check, results card showing per-layer confidence + asset / recipient / share / timestamp on a match.
+- Share-page disclosure notice — trust-framed copy ("These assets are individually tagged for each download. Thanks for keeping the brand kit secure."), only rendered when watermarking is effectively on.
+- `AssetHubApiClient` gains `SetCollectionWatermarkAsync`, `SetAssetWatermarkOverrideAsync`, `SetShareWatermarkOverrideAsync`, `VerifyWatermarkAsync`. `IWatermarkService` + `IWatermarkVerifier` are constructor-injected.
+- Admin tab in `Admin.razor` linking to the standalone verify page. EN/SV parity confirmed.
+
+**Tests.**
+- `tests/AssetHub.Tests/Services/RecipientCryptoServiceTests.cs` (10) — encrypt / decrypt round-trip, key-drift returns null (no throw), HMAC determinism + key-sensitivity, malformed-key validation in constructor.
+- `tests/AssetHub.Tests/Services/DctLsbWatermarkRoundTripTests.cs` (5) — asset-only round-trip, both-layers round-trip (the no-gap invariant), un-watermarked image extracts as no-match, image-too-small throws, invalid-Guid throws.
+- `tests/AssetHub.Ui.Tests/Components/WatermarkPanelTests.cs` (3) — title / description / toggle label render; OnHelper / OffHelper render conditionally on `Enabled`.
+- `tests/AssetHub.Ui.Tests/Components/AssetWatermarkOverridePanelTests.cs` (6) — effective-on / effective-off badge; pending-fingerprint alert visible iff `EffectiveOn && AssetWatermarkAppliedAt is null`; applied-fingerprint caption otherwise; read-only label when `CanEdit=false`; select renders when editable.
+- `tests/E2E/tests/specs/17-watermarks.spec.ts` — admin verify page loads under `RequireAdmin`; admin tab CTA navigates to the standalone route; collection watermark PATCH round-trips through GET.
+
+Total: 24 new tests in `AssetHub.Tests` + `AssetHub.Ui.Tests`, plus the E2E spec.
+
+**Deviations from the spec.**
+- **Async-202 fallback for >50 MP images is NOT shipped.** v1 is sync-only — covers the practical asset sizes. Spec-pending in `docs/planned-features/FOLLOW-UPS.md` (`T5-WMK-01 — async-202 for very large originals`). The `RecipientWatermarkCommand` Wolverine message was created in Phase 1 and dropped in Phase 2 with a FOLLOW-UPS pointer comment in `WatermarkMessages.cs`; restore it when async-202 lands.
+- **Share-preview path watermarking is NOT shipped.** Forced-download paths cover every download surface; the inline `<img src=...>` rendering on the share page stays un-watermarked even when the asset is watermark-flagged. Forensic value is real but the rewrite touches the inline-rendering URL contract; tracked as `T5-WMK-01 — share preview watermarking`.
+- **Polly `"watermark"` pipeline is NOT registered.** No path currently invokes a network operation that needs retrying inside the embed/extract loop — Magick.NET is local CPU. Add when async-202 lands or when an encoder gains a network dependency.
+
+**Scars worth remembering.**
+- `IWatermarkExtractor.WatermarkExtractionResult` was revised mid-flight to expose nested `AssetLayerExtraction` + `RecipientLayerExtraction` records each carrying `RawPayload` — the original flat shape didn't expose the embedded payload bytes the verifier needs for HMAC.
+- `WatermarkContext.AssetFingerprintAlreadyApplied` was removed; the service now determines this internally from `Asset.AssetWatermarkAppliedAt`.
+- `WatermarkDownload` deliberately has no FK to Asset / Share so forensic rows outlive their targets — verify endpoint can return historical `AssetId` after a hard delete.
+
+**Risks & trade-offs (carried forward from spec).**
+- DCT-LSB is robust to JPEG q≥75 but sensitive to heavy filtering / re-quantisation. Per-layer confidence reported by the verify endpoint reflects this honestly.
+- Recipient-layer encode adds latency to every download — sub-50 MP images stay sub-second; larger ones currently throw (async-202 fallback deferred above).
+- HMAC key is rotation-sensitive. Data Protection rotates by default; `AlgorithmVersion` field on every row is the long-term fix. v1 ships single-key.
 
 

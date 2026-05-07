@@ -74,6 +74,13 @@ public record CollectionResponseDto
 
     /// <summary>Whether this collection inherits its parent's ACL at runtime (T5-NEST-01).</summary>
     public bool InheritParentAcl { get; init; }
+
+    /// <summary>
+    /// Whether forensic watermarking is enabled at the collection level (T5-WMK-01).
+    /// Assets in this collection inherit this flag unless overridden per-asset
+    /// (<see cref="AssetResponseDto.WatermarkOverride"/>) or per-share.
+    /// </summary>
+    public bool WatermarkEnabled { get; init; }
 }
 
 /// <summary>

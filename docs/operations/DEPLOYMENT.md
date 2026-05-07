@@ -71,7 +71,7 @@ See [CREDENTIALS.md](../CREDENTIALS.md) for all default passwords, OAuth config,
 - **Docker Desktop** (Windows/Mac) or Docker Engine + Compose (Linux)
 - **Git** for cloning the repository
 - **OpenSSL** for certificate generation (included on Mac/Linux; Windows users can use Git Bash or WSL)
-- **.NET 9 SDK** (for local development outside Docker)
+- **.NET 10 SDK** (for local development outside Docker)
 - **Node.js** (for E2E tests)
 
 ### Production Network Requirements
@@ -613,7 +613,7 @@ All settings under the `OpenTelemetry` section in `appsettings.json`:
 
 ### Local Development (Outside Docker)
 
-Prerequisites: .NET 9 SDK, PostgreSQL 16, MinIO, Keycloak with the `media` realm.
+Prerequisites: .NET 10 SDK, PostgreSQL 16, MinIO, Keycloak with the `media` realm.
 
 ```bash
 dotnet restore

@@ -6,7 +6,7 @@ description: 'AssetHub Docker conventions. Applies to Dockerfiles and compose fi
 
 ## Reference files
 Before editing, read the existing Dockerfiles and compose files:
-- `docker/Dockerfile` — API multi-stage build (.NET 9)
+- `docker/Dockerfile` — API multi-stage build (.NET 10)
 - `docker/Dockerfile.Worker` — Worker multi-stage build
 - `docker/Dockerfile.ClamAV`, `docker/Dockerfile.RabbitMQ` — patched infra images
 - `docker/docker-compose.yml` — development stack
@@ -14,7 +14,7 @@ Before editing, read the existing Dockerfiles and compose files:
 
 ## AssetHub image rules
 - **Multi-stage builds** for all application images (build → runtime).
-- **Base images**: `mcr.microsoft.com/dotnet/aspnet:9.0-alpine` (runtime), `mcr.microsoft.com/dotnet/sdk:9.0-alpine` (build). Pin minor versions — no `:latest`.
+- **Base images**: `mcr.microsoft.com/dotnet/aspnet:10.0-alpine` (runtime), `mcr.microsoft.com/dotnet/sdk:10.0-alpine` (build). Pin minor versions — no `:latest`.
 - **Non-root `USER`** in all production images.
 - **`HEALTHCHECK`** instruction in every Dockerfile.
 - **No secrets in layers** — use runtime secrets (Docker Secrets, env vars with `__` → `:` mapping).

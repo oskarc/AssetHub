@@ -1,13 +1,13 @@
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 namespace AssetHub.Api.OpenApi;
 
 /// <summary>
 /// Replaces schemas generated from <see cref="Dictionary{TKey, TValue}"/> where the value
 /// type is <see cref="object"/> with an open-ended object schema (<c>additionalProperties: true</c>).
-/// The default .NET 9 schema generator throws <c>"The node must be of type 'JsonValue'"</c> when
+/// The default .NET schema generator throws <c>"The node must be of type 'JsonValue'"</c> when
 /// it encounters these dictionaries because it cannot synthesise a schema for the <c>object</c>
 /// value type. The affected fields (e.g. <c>MetadataJson</c>) hold arbitrary JSON anyway, so an
 /// open-ended object is the correct shape to document.
@@ -20,11 +20,10 @@ internal sealed class DictionaryOfObjectSchemaTransformer : IOpenApiSchemaTransf
         if (!IsDictionaryOfObject(type))
             return Task.CompletedTask;
 
-        schema.Type = "object";
-        schema.Properties = new Dictionary<string, OpenApiSchema>();
-        schema.AdditionalPropertiesAllowed = true;
+        schema.Type = JsonSchemaType.Object;
+        schema.Properties = new Dictionary<string, IOpenApiSchema>();
         schema.AdditionalProperties = new OpenApiSchema();
-        schema.Example = new OpenApiObject();
+        schema.Example = new JsonObject();
         return Task.CompletedTask;
     }
 

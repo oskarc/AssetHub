@@ -51,4 +51,28 @@ public class AssetResponseDto
     /// types that don't carry duration or that haven't been probed yet.
     /// </summary>
     public int? DurationSeconds { get; set; }
+
+    /// <summary>
+    /// Per-asset forensic watermark override (T5-WMK-01).
+    /// <c>null</c> = inherit from collection; <c>true</c>/<c>false</c> = explicit override.
+    /// </summary>
+    public bool? WatermarkOverride { get; set; }
+
+    /// <summary>
+    /// Last time the asset-fingerprint layer was embedded into the stored
+    /// renditions (T5-WMK-01). <c>null</c> means the background sweep hasn't
+    /// run yet; downloads in that window embed both layers on-the-fly per the
+    /// no-gap rule. Used by the UI to show the "asset fingerprint pending"
+    /// hint on the override panel.
+    /// </summary>
+    public DateTime? AssetWatermarkAppliedAt { get; set; }
+
+    /// <summary>
+    /// Resolved effective watermarking state for this asset, computed via
+    /// Share → Asset → Collection precedence on the server (T5-WMK-01).
+    /// True means downloads of this asset will be watermarked. Used by the
+    /// UI to render the "Effective: On / Off" badge alongside the
+    /// inherit-or-override tri-state control.
+    /// </summary>
+    public bool EffectiveWatermarkEnabled { get; set; }
 }

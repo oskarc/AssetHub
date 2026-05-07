@@ -1,0 +1,130 @@
+@inject AssetHubApiClient Api
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<WatermarksResource> WmkLoc
+
+@* Per-asset forensic watermark override (T5-WMK-01).
+   Tri-state: null = inherit from collection, true = always on, false = always off.
+   Visible to contributor+; non-editable callers see a read-only effective state. *@
+<MudStack Spacing="1">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <MudText Typo="Typo.subtitle2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Color="Color.Primary" />
+                <span>@WmkLoc["Override_Title"]</span>
+            </MudStack>
+        </MudText>
+        <MudChip T="string"
+                 Size="Size.Small"
+                 Color="@(EffectiveOn ? Color.Success : Color.Default)"
+                 Variant="Variant.Outlined"
+                 Icon="@(EffectiveOn ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)">
+            @(EffectiveOn ? WmkLoc["Override_EffectiveOn"] : WmkLoc["Override_EffectiveOff"])
+        </MudChip>
+    </MudStack>
+
+    @if (CanEdit)
+    {
+        <MudSelect T="string"
+                   Value="@_selected"
+                   ValueChanged="OnChangedAsync"
+                   Label="@WmkLoc["Override_Title"]"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Disabled="_isSaving"
+                   FullWidth="true">
+            <MudSelectItem T="string" Value="@OverrideInherit">@WmkLoc["Override_Inherit"]</MudSelectItem>
+            <MudSelectItem T="string" Value="@OverrideOn">@WmkLoc["Override_On"]</MudSelectItem>
+            <MudSelectItem T="string" Value="@OverrideOff">@WmkLoc["Override_Off"]</MudSelectItem>
+        </MudSelect>
+    }
+    else
+    {
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @CurrentLabel
+        </MudText>
+    }
+
+    @if (EffectiveOn && AssetWatermarkAppliedAt is null)
+    {
+        <div role="status" aria-live="polite">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+                @WmkLoc["Override_FingerprintPending"]
+            </MudAlert>
+        </div>
+    }
+    else if (EffectiveOn && AssetWatermarkAppliedAt is { } applied)
+    {
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @string.Format(WmkLoc["Override_FingerprintApplied"].Value, applied.ToLocalTime().ToString("g"))
+        </MudText>
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+    [Parameter] public bool? Override { get; set; }
+    [Parameter] public bool EffectiveOn { get; set; }
+    [Parameter] public DateTime? AssetWatermarkAppliedAt { get; set; }
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public EventCallback<bool?> OverrideChanged { get; set; }
+
+    private const string OverrideInherit = "inherit";
+    private const string OverrideOn = "on";
+    private const string OverrideOff = "off";
+
+    private string _selected = OverrideInherit;
+    private bool _isSaving;
+
+    protected override void OnParametersSet()
+    {
+        _selected = Override switch
+        {
+            true => OverrideOn,
+            false => OverrideOff,
+            _ => OverrideInherit
+        };
+    }
+
+    private string CurrentLabel => _selected switch
+    {
+        OverrideOn => WmkLoc["Override_On"],
+        OverrideOff => WmkLoc["Override_Off"],
+        _ => WmkLoc["Override_Inherit"]
+    };
+
+    private async Task OnChangedAsync(string value)
+    {
+        if (_isSaving || value == _selected) return;
+
+        var requested = value switch
+        {
+            OverrideOn => (bool?)true,
+            OverrideOff => (bool?)false,
+            _ => null
+        };
+
+        var prior = _selected;
+        _selected = value;
+        _isSaving = true;
+        StateHasChanged();
+
+        var success = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SetAssetWatermarkOverrideAsync(AssetId, requested),
+            "set asset watermark override",
+            WmkLoc["Override_Saved"]);
+
+        if (!success)
+        {
+            // Rollback to the previous selection on failure (optimistic-UI rule).
+            _selected = prior;
+        }
+        else
+        {
+            await OverrideChanged.InvokeAsync(requested);
+        }
+
+        _isSaving = false;
+        StateHasChanged();
+    }
+}

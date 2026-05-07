@@ -50,6 +50,12 @@ public class ShareResponseDto
     /// The plaintext password (only returned once at creation time).
     /// </summary>
     public string? Password { get; set; }
+
+    /// <summary>
+    /// Per-share forensic watermark override (T5-WMK-01). <c>null</c> = inherit
+    /// from asset / collection; <c>true</c>/<c>false</c> = explicit override.
+    /// </summary>
+    public bool? WatermarkOverride { get; set; }
 }
 
 /// <summary>
@@ -86,6 +92,13 @@ public class SharedAssetDto : ISharedContentDto
     /// fall back to the unbranded layout.
     /// </summary>
     public BrandResponseDto? Brand { get; set; }
+
+    /// <summary>
+    /// True when downloads of this asset through this share will be forensically
+    /// watermarked (T5-WMK-01). Resolved server-side via Share → Asset →
+    /// Collection precedence. Drives the share-page disclosure notice.
+    /// </summary>
+    public bool WatermarkingEffective { get; set; }
 }
 
 /// <summary>
@@ -107,6 +120,15 @@ public class SharedCollectionDto : ISharedContentDto
     /// fall back to the unbranded layout.
     /// </summary>
     public BrandResponseDto? Brand { get; set; }
+
+    /// <summary>
+    /// True when at least one asset in the collection has effective
+    /// watermarking on for this share (T5-WMK-01). Drives the share-page
+    /// disclosure notice for collection shares — asset-level
+    /// <see cref="SharedAssetDto.WatermarkingEffective"/> still drives
+    /// per-asset rendering decisions.
+    /// </summary>
+    public bool WatermarkingEffective { get; set; }
 }
 
 /// <summary>

@@ -33,6 +33,7 @@ public static class CollectionMapper
             AssetCount = assetCount,
             ParentCollectionId = collection.ParentCollectionId,
             InheritParentAcl = collection.InheritParentAcl,
+            WatermarkEnabled = collection.WatermarkEnabled,
         };
     }
 
@@ -72,6 +73,7 @@ public static class CollectionMapper
                 AssetCount = count,
                 ParentCollectionId = c.ParentCollectionId,
                 InheritParentAcl = c.InheritParentAcl,
+                WatermarkEnabled = c.WatermarkEnabled,
             });
         }
         return results;

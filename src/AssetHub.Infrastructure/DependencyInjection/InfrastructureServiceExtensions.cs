@@ -50,22 +50,32 @@ public static class InfrastructureServiceExtensions
             ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required");
 
         // ── Database ────────────────────────────────────────────────────────
-        var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
-        dataSourceBuilder.EnableDynamicJson();
-
-        // Enforce connection pool limits to prevent pool exhaustion under load.
-        // These can be overridden via the connection string itself.
-        var connStringBuilder = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
-        if (connStringBuilder.MaxPoolSize == 100) // 100 = Npgsql default, meaning no explicit override
+        // Register NpgsqlDataSource via factory rather than a pre-built instance.
+        // The pre-built pattern broke `WebApplicationFactory<Program>` integration
+        // tests on .NET 10: `Microsoft.AspNetCore.Mvc.Testing` runs Program.cs to
+        // capture the host builder, which calls `await app.RunAsync()`. Under the
+        // factory's `NoopHostLifetime`, RunAsync immediately stops and disposes
+        // the host — disposing every Singleton, including a captured
+        // NpgsqlDataSource. `DeferredHostBuilder` then replays the registrations
+        // into the test host using the SAME captured (now disposed) instance,
+        // producing `ObjectDisposedException` on first DI access. Building inside
+        // the factory means each host gets its own fresh data source.
+        services.AddSingleton<Npgsql.NpgsqlDataSource>(_ =>
         {
-            connStringBuilder.MaxPoolSize = 50;
-            connStringBuilder.Timeout = 15; // seconds to wait for a connection from the pool
-            dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 50;
-            dataSourceBuilder.ConnectionStringBuilder.Timeout = 15;
-        }
+            var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+            dataSourceBuilder.EnableDynamicJson();
 
-        var dataSource = dataSourceBuilder.Build();
-        services.AddSingleton(dataSource);
+            // Enforce connection pool limits to prevent pool exhaustion under load.
+            // These can be overridden via the connection string itself.
+            var connStringBuilder = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+            if (connStringBuilder.MaxPoolSize == 100) // 100 = Npgsql default, meaning no explicit override
+            {
+                dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 50;
+                dataSourceBuilder.ConnectionStringBuilder.Timeout = 15;
+            }
+
+            return dataSourceBuilder.Build();
+        });
 
         // optionsLifetime: Singleton is load-bearing here. Both AddDbContext (below)
         // and AddDbContextFactory (further down) share a single DbContextOptions<>
@@ -74,8 +84,9 @@ public static class InfrastructureServiceExtensions
         // throws "Cannot consume scoped service DbContextOptions<> from singleton
         // IDbContextFactory<>". The Scoped context registration consumes Singleton
         // options just fine; only the captive-dependency direction is forbidden.
-        services.AddDbContext<AssetHubDbContext>(options =>
+        services.AddDbContext<AssetHubDbContext>((sp, options) =>
         {
+            var dataSource = sp.GetRequiredService<Npgsql.NpgsqlDataSource>();
             options.UseNpgsql(dataSource);
             // Outside Development: throw on missing migrations so CI / prod
             // startup catches the drift instead of silently running with a
@@ -95,8 +106,9 @@ public static class InfrastructureServiceExtensions
         // factory as Scoped would create a captive-dependency / scope-validation
         // failure under Development's ValidateScopes=true, and silently "capture"
         // the first request's scope in Production.
-        services.AddDbContextFactory<AssetHubDbContext>(options =>
+        services.AddDbContextFactory<AssetHubDbContext>((sp, options) =>
         {
+            var dataSource = sp.GetRequiredService<Npgsql.NpgsqlDataSource>();
             options.UseNpgsql(dataSource);
             // Outside Development: throw on missing migrations so CI / prod
             // startup catches the drift instead of silently running with a

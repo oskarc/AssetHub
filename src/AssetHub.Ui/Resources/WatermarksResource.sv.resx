@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Panel_Title" xml:space="preserve"><value>Forensisk vattenmärkning</value></data>
+  <data name="Panel_Desc" xml:space="preserve"><value>När detta är aktiverat märks varje nedladdning av en tillgång i samlingen unikt, så att en läckt fil kan spåras tillbaka till en specifik mottagare.</value></data>
+  <data name="Toggle_Label" xml:space="preserve"><value>Vattenmärk denna samling</value></data>
+  <data name="Toggle_OnHelper" xml:space="preserve"><value>Nya uppladdningar vattenmärks i bakgrunden. Befintliga tillgångar märks nästa gång de laddas ned.</value></data>
+  <data name="Toggle_OffHelper" xml:space="preserve"><value>Nedladdningar levereras utan vattenmärkning. Övergripande inställningar per tillgång och delning gäller fortfarande.</value></data>
+
+  <data name="Confirm_EnableTitle" xml:space="preserve"><value>Aktivera vattenmärkning?</value></data>
+  <data name="Confirm_EnableHeavy" xml:space="preserve"><value>Den här samlingen innehåller {0} tillgångar. Vattenmärkningen körs i bakgrunden och kan ta tid att appliceras på alla befintliga renderingar. Nya nedladdningar vattenmärks omedelbart.</value></data>
+  <data name="Confirm_EnableEmpty" xml:space="preserve"><value>Samlingen är tom just nu. Nya uppladdningar kommer att vattenmärkas.</value></data>
+  <data name="Confirm_EnableBtn" xml:space="preserve"><value>Aktivera vattenmärkning</value></data>
+  <data name="Confirm_DisableTitle" xml:space="preserve"><value>Inaktivera vattenmärkning?</value></data>
+  <data name="Confirm_DisableBody" xml:space="preserve"><value>Nya nedladdningar kommer inte längre att vattenmärkas. Tidigare vattenmärkta nedladdningar förblir spårbara vid forensisk verifiering.</value></data>
+  <data name="Confirm_DisableBtn" xml:space="preserve"><value>Inaktivera</value></data>
+
+  <data name="Override_Title" xml:space="preserve"><value>Vattenmärkning</value></data>
+  <data name="Override_Inherit" xml:space="preserve"><value>Ärv från samling</value></data>
+  <data name="Override_On" xml:space="preserve"><value>Alltid på</value></data>
+  <data name="Override_Off" xml:space="preserve"><value>Alltid av</value></data>
+  <data name="Override_EffectiveOn" xml:space="preserve"><value>Effektivt: På</value></data>
+  <data name="Override_EffectiveOff" xml:space="preserve"><value>Effektivt: Av</value></data>
+  <data name="Override_FingerprintApplied" xml:space="preserve"><value>Tillgångens fingeravtryck applicerat {0}</value></data>
+  <data name="Override_FingerprintPending" xml:space="preserve"><value>Tillgångens fingeravtryck är ännu inte inbakat i de lagrade renderingarna — nedladdningar bäddar in båda lagren i farten tills nästa bakgrundskörning.</value></data>
+  <data name="Override_Saved" xml:space="preserve"><value>Inställning för vattenmärkning sparad.</value></data>
+
+  <data name="ShareOverride_Title" xml:space="preserve"><value>Forensisk vattenmärkning</value></data>
+  <data name="ShareOverride_Helper" xml:space="preserve"><value>Åsidosätt inställningen från tillgången/samlingen för nedladdningar via denna delning.</value></data>
+  <data name="ShareOverride_Inherit" xml:space="preserve"><value>Ärv (inställning från tillgång/samling)</value></data>
+  <data name="ShareOverride_On" xml:space="preserve"><value>Vattenmärk alltid</value></data>
+  <data name="ShareOverride_Off" xml:space="preserve"><value>Vattenmärk aldrig</value></data>
+
+  <data name="Disclosure_Notice" xml:space="preserve"><value>Tillgångarna märks individuellt för varje nedladdning. Tack för att du håller varumärkesmaterialet säkert.</value></data>
+
+  <data name="Verify_PageTitle" xml:space="preserve"><value>Verifiera vattenmärke</value></data>
+  <data name="Verify_PageDesc" xml:space="preserve"><value>Ladda upp en läckt eller misstänkt fil. Om filen bär ett återskapbart vattenmärke returnerar AssetHub den ursprungliga tillgången, mottagaren och tidpunkten för nedladdning.</value></data>
+  <data name="Verify_DropTitle" xml:space="preserve"><value>Släpp en fil här</value></data>
+  <data name="Verify_DropHint" xml:space="preserve"><value>eller klicka för att bläddra — JPEG/PNG/TIFF upp till 50 MB</value></data>
+  <data name="Verify_Btn" xml:space="preserve"><value>Verifiera</value></data>
+  <data name="Verify_Btn_Verifying" xml:space="preserve"><value>Verifierar…</value></data>
+  <data name="Verify_Btn_Reset" xml:space="preserve"><value>Verifiera en annan fil</value></data>
+  <data name="Verify_Result_Match" xml:space="preserve"><value>Träff hittad</value></data>
+  <data name="Verify_Result_NoMatch" xml:space="preserve"><value>Ingen träff</value></data>
+  <data name="Verify_Result_NoMatchDesc" xml:space="preserve"><value>Filen bar inget återskapbart vattenmärkeslager. Bilden kanske inte är vår, kan ha kodats om för aggressivt, eller så är båda lagren oåterskapbara.</value></data>
+  <data name="Verify_Result_AssetLayer" xml:space="preserve"><value>Tillgångslager</value></data>
+  <data name="Verify_Result_RecipientLayer" xml:space="preserve"><value>Mottagarlager</value></data>
+  <data name="Verify_Result_AssetId" xml:space="preserve"><value>Tillgångs-ID</value></data>
+  <data name="Verify_Result_OpenAsset" xml:space="preserve"><value>Öppna tillgång</value></data>
+  <data name="Verify_Result_DownloadToken" xml:space="preserve"><value>Nedladdningstoken</value></data>
+  <data name="Verify_Result_Recipient" xml:space="preserve"><value>Mottagare</value></data>
+  <data name="Verify_Result_RecipientUser" xml:space="preserve"><value>Användare: {0}</value></data>
+  <data name="Verify_Result_RecipientEmail" xml:space="preserve"><value>E-post: {0}</value></data>
+  <data name="Verify_Result_RecipientUnknown" xml:space="preserve"><value>(kunde inte dekrypteras — krypteringsnyckeln kan ha roterats)</value></data>
+  <data name="Verify_Result_Share" xml:space="preserve"><value>Delning</value></data>
+  <data name="Verify_Result_DownloadedAt" xml:space="preserve"><value>Nedladdad</value></data>
+  <data name="Verify_Result_Path" xml:space="preserve"><value>Nedladdningsväg</value></data>
+  <data name="Verify_Result_Reason" xml:space="preserve"><value>Orsak</value></data>
+
+  <data name="Confidence_High" xml:space="preserve"><value>Hög</value></data>
+  <data name="Confidence_Medium" xml:space="preserve"><value>Medel</value></data>
+  <data name="Confidence_Low" xml:space="preserve"><value>Låg</value></data>
+  <data name="Confidence_NoMatch" xml:space="preserve"><value>Ingen träff</value></data>
+
+  <data name="Error_TooLarge" xml:space="preserve"><value>Filen är för stor för att verifieras (max 50 MB).</value></data>
+  <data name="Error_UnsupportedFormat" xml:space="preserve"><value>Endast JPEG-, PNG- och TIFF-filer kan verifieras.</value></data>
+  <data name="Error_DecryptionFailed" xml:space="preserve"><value>En matchande post hittades men mottagardetaljerna kunde inte dekrypteras (krypteringsnyckeln kan ha roterats).</value></data>
+  <data name="Error_VerifyFailed" xml:space="preserve"><value>Verifieringen misslyckades. Försök igen.</value></data>
+
+  <data name="Aria_FileInput" xml:space="preserve"><value>Välj fil att verifiera</value></data>
+  <data name="Aria_Result" xml:space="preserve"><value>Verifieringsresultat</value></data>
+</root>

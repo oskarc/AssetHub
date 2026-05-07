@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Collection-level toggle (used by WatermarkPanel inside ManageAccessDialog) -->
+  <data name="Panel_Title" xml:space="preserve"><value>Forensic watermarking</value></data>
+  <data name="Panel_Desc" xml:space="preserve"><value>When on, every download of an asset in this collection is uniquely tagged so a leaked file can be traced back to a specific recipient.</value></data>
+  <data name="Toggle_Label" xml:space="preserve"><value>Watermark this collection</value></data>
+  <data name="Toggle_OnHelper" xml:space="preserve"><value>New uploads will be watermarked in the background. Existing assets are tagged the next time they are downloaded.</value></data>
+  <data name="Toggle_OffHelper" xml:space="preserve"><value>Downloads are served without watermarking. Per-asset and per-share overrides still apply.</value></data>
+
+  <!-- OFF -> ON confirmation modal -->
+  <data name="Confirm_EnableTitle" xml:space="preserve"><value>Enable watermarking?</value></data>
+  <data name="Confirm_EnableHeavy" xml:space="preserve"><value>This collection contains {0} assets. Watermarking will run in the background and may take time to apply to every existing rendition. New downloads are watermarked immediately.</value></data>
+  <data name="Confirm_EnableEmpty" xml:space="preserve"><value>This collection is currently empty. New uploads will be watermarked.</value></data>
+  <data name="Confirm_EnableBtn" xml:space="preserve"><value>Enable watermarking</value></data>
+  <data name="Confirm_DisableTitle" xml:space="preserve"><value>Disable watermarking?</value></data>
+  <data name="Confirm_DisableBody" xml:space="preserve"><value>New downloads will no longer be watermarked. Existing watermarked downloads remain attributable for forensic verification.</value></data>
+  <data name="Confirm_DisableBtn" xml:space="preserve"><value>Disable</value></data>
+
+  <!-- Asset-level override panel (used in AssetDetail) -->
+  <data name="Override_Title" xml:space="preserve"><value>Watermarking</value></data>
+  <data name="Override_Inherit" xml:space="preserve"><value>Inherit from collection</value></data>
+  <data name="Override_On" xml:space="preserve"><value>Always on</value></data>
+  <data name="Override_Off" xml:space="preserve"><value>Always off</value></data>
+  <data name="Override_EffectiveOn" xml:space="preserve"><value>Effective: On</value></data>
+  <data name="Override_EffectiveOff" xml:space="preserve"><value>Effective: Off</value></data>
+  <data name="Override_FingerprintApplied" xml:space="preserve"><value>Asset fingerprint applied {0}</value></data>
+  <data name="Override_FingerprintPending" xml:space="preserve"><value>Asset fingerprint not yet baked into stored renditions — downloads embed both layers on the fly until the next background sweep.</value></data>
+  <data name="Override_Saved" xml:space="preserve"><value>Watermark setting saved.</value></data>
+
+  <!-- Share-create override (tri-state in CreateShareDialog) -->
+  <data name="ShareOverride_Title" xml:space="preserve"><value>Forensic watermarking</value></data>
+  <data name="ShareOverride_Helper" xml:space="preserve"><value>Override the asset / collection setting for downloads through this share.</value></data>
+  <data name="ShareOverride_Inherit" xml:space="preserve"><value>Inherit (asset / collection setting)</value></data>
+  <data name="ShareOverride_On" xml:space="preserve"><value>Always watermark</value></data>
+  <data name="ShareOverride_Off" xml:space="preserve"><value>Never watermark</value></data>
+
+  <!-- Share-page disclosure notice -->
+  <data name="Disclosure_Notice" xml:space="preserve"><value>These assets are individually tagged for each download. Thanks for keeping the brand kit secure.</value></data>
+
+  <!-- Admin verify page -->
+  <data name="Verify_PageTitle" xml:space="preserve"><value>Verify watermark</value></data>
+  <data name="Verify_PageDesc" xml:space="preserve"><value>Upload a leaked or suspect file. If it carries a recoverable watermark, AssetHub will return the original asset, recipient, and download timestamp.</value></data>
+  <data name="Verify_DropTitle" xml:space="preserve"><value>Drop a file here</value></data>
+  <data name="Verify_DropHint" xml:space="preserve"><value>or click to browse — JPEG / PNG / TIFF up to 50 MB</value></data>
+  <data name="Verify_Btn" xml:space="preserve"><value>Verify</value></data>
+  <data name="Verify_Btn_Verifying" xml:space="preserve"><value>Verifying…</value></data>
+  <data name="Verify_Btn_Reset" xml:space="preserve"><value>Verify another file</value></data>
+  <data name="Verify_Result_Match" xml:space="preserve"><value>Match found</value></data>
+  <data name="Verify_Result_NoMatch" xml:space="preserve"><value>No match</value></data>
+  <data name="Verify_Result_NoMatchDesc" xml:space="preserve"><value>The file did not carry a recoverable watermark layer. The image may not be ours, may have been re-encoded too aggressively, or both layers may be unrecoverable.</value></data>
+  <data name="Verify_Result_AssetLayer" xml:space="preserve"><value>Asset layer</value></data>
+  <data name="Verify_Result_RecipientLayer" xml:space="preserve"><value>Recipient layer</value></data>
+  <data name="Verify_Result_AssetId" xml:space="preserve"><value>Asset ID</value></data>
+  <data name="Verify_Result_OpenAsset" xml:space="preserve"><value>Open asset</value></data>
+  <data name="Verify_Result_DownloadToken" xml:space="preserve"><value>Download token</value></data>
+  <data name="Verify_Result_Recipient" xml:space="preserve"><value>Recipient</value></data>
+  <data name="Verify_Result_RecipientUser" xml:space="preserve"><value>User: {0}</value></data>
+  <data name="Verify_Result_RecipientEmail" xml:space="preserve"><value>Email: {0}</value></data>
+  <data name="Verify_Result_RecipientUnknown" xml:space="preserve"><value>(unable to decrypt — encryption key may have been rotated)</value></data>
+  <data name="Verify_Result_Share" xml:space="preserve"><value>Share</value></data>
+  <data name="Verify_Result_DownloadedAt" xml:space="preserve"><value>Downloaded</value></data>
+  <data name="Verify_Result_Path" xml:space="preserve"><value>Download path</value></data>
+  <data name="Verify_Result_Reason" xml:space="preserve"><value>Reason</value></data>
+
+  <!-- Confidence labels -->
+  <data name="Confidence_High" xml:space="preserve"><value>High</value></data>
+  <data name="Confidence_Medium" xml:space="preserve"><value>Medium</value></data>
+  <data name="Confidence_Low" xml:space="preserve"><value>Low</value></data>
+  <data name="Confidence_NoMatch" xml:space="preserve"><value>No match</value></data>
+
+  <!-- Error messages -->
+  <data name="Error_TooLarge" xml:space="preserve"><value>File is too large to verify (limit 50 MB).</value></data>
+  <data name="Error_UnsupportedFormat" xml:space="preserve"><value>Only JPEG, PNG, and TIFF files can be verified.</value></data>
+  <data name="Error_DecryptionFailed" xml:space="preserve"><value>A matching record was found but the recipient details could not be decrypted (encryption key may have been rotated).</value></data>
+  <data name="Error_VerifyFailed" xml:space="preserve"><value>Verification failed. Please try again.</value></data>
+
+  <!-- A11y -->
+  <data name="Aria_FileInput" xml:space="preserve"><value>Choose file to verify</value></data>
+  <data name="Aria_Result" xml:space="preserve"><value>Verification result</value></data>
+</root>

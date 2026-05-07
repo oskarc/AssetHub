@@ -17,6 +17,7 @@
 @inject ILogger<Share> Logger
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<SharesResource> ShareLoc
+@inject IStringLocalizer<WatermarksResource> WmkLoc
 @inject ISnackbar Snackbar
 @inject LocalizedDisplayService Display
 
@@ -81,6 +82,16 @@
     }
     else if (_sharedAsset != null)
     {
+        @* T5-WMK-01 — disclosure notice. Only rendered when watermarking is
+           effectively on so unbranded shares stay quiet. Trust-framed copy. *@
+        @if (_sharedAsset.WatermarkingEffective)
+        {
+            <div role="status" aria-live="polite" class="mb-3">
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" NoIcon="false" Icon="@Icons.Material.Filled.Security">
+                    @WmkLoc["Disclosure_Notice"]
+                </MudAlert>
+            </div>
+        }
         <!-- Shared Asset View -->
         <AssetDetailPanel Asset="_sharedAsset"
                           PreviewUrl="@GetPreviewUrl()"
@@ -109,6 +120,14 @@
     }
     else if (_sharedCollection != null)
     {
+        @if (_sharedCollection.WatermarkingEffective)
+        {
+            <div role="status" aria-live="polite" class="mb-3">
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Icon="@Icons.Material.Filled.Security">
+                    @WmkLoc["Disclosure_Notice"]
+                </MudAlert>
+            </div>
+        }
         <SharedCollectionView Collection="_sharedCollection" Token="@Token" AccessToken="@_accessToken" />
     }
 </MudContainer>

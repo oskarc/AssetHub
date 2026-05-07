@@ -53,6 +53,9 @@ public sealed class PublicShareAccessService(
             var dto = BuildSharedAssetDto(asset, token, share.PermissionsJson);
             dto.Brand = await brandResolver.ResolveForShareAsync(
                 Constants.ScopeTypes.Asset, asset.Id, ct);
+            // T5-WMK-01 — surface effective watermark state so the share-page
+            // can render the disclosure notice for the asset.
+            dto.WatermarkingEffective = await ResolveWatermarkingEffectiveAsync(asset.Id, share.Id, ct);
             return dto;
         }
 
@@ -68,6 +71,18 @@ public sealed class PublicShareAccessService(
                 .Select(a => BuildSharedAssetDto(a, token, share.PermissionsJson, a.Id))
                 .ToList();
 
+            // T5-WMK-01 — populate per-asset effective state and a collection-wide
+            // flag (true iff any asset in the page is watermarked) for the
+            // share-page disclosure notice. The per-asset flag drives any future
+            // per-asset rendering decisions; the collection flag drives the notice.
+            var anyWatermarked = false;
+            foreach (var assetDto in assetDtos)
+            {
+                assetDto.WatermarkingEffective = await ResolveWatermarkingEffectiveAsync(
+                    assetDto.Id, share.Id, ct);
+                if (assetDto.WatermarkingEffective) anyWatermarked = true;
+            }
+
             return new SharedCollectionDto
             {
                 Id = collection.Id,
@@ -77,7 +92,8 @@ public sealed class PublicShareAccessService(
                 TotalAssets = totalAssets,
                 Permissions = share.PermissionsJson,
                 Brand = await brandResolver.ResolveForShareAsync(
-                    Constants.ScopeTypes.Collection, collection.Id, ct)
+                    Constants.ScopeTypes.Collection, collection.Id, ct),
+                WatermarkingEffective = anyWatermarked
             };
         }
 
@@ -319,6 +335,22 @@ public sealed class PublicShareAccessService(
         {
             return false;
         }
+    }
+
+    // Wrapper that swallows lookup errors — disclosure copy is informational only,
+    // and a transient watermark-config read failure must not block share access.
+    // Errors are logged at Debug because the caller is mid-page-render; the
+    // forensic audit trail lives on the actual download path.
+    private async Task<bool> ResolveWatermarkingEffectiveAsync(Guid assetId, Guid shareId, CancellationToken ct)
+    {
+        var result = await watermarkService.IsWatermarkingEffectiveAsync(assetId, shareId, ct);
+        if (!result.IsSuccess)
+        {
+            logger.LogDebug("Watermark effective-state lookup failed for asset {AssetId} share {ShareId}: {Error}",
+                assetId, shareId, result.Error?.Message);
+            return false;
+        }
+        return result.Value;
     }
 
     private static SharedAssetDto BuildSharedAssetDto(

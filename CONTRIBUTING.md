@@ -30,7 +30,7 @@ Thank you for your interest in contributing to AssetHub! This guide will help yo
 
 ### Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Docker & Docker Compose](https://docs.docker.com/get-docker/)
 - [Node.js](https://nodejs.org/) (for E2E tests)
 - Git

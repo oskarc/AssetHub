@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-AssetHub is a digital asset management system. It uses **C# 13 / .NET 9**, **Blazor Server**, **PostgreSQL**, **MinIO** (S3-compatible storage), **RabbitMQ** (via Wolverine), **Redis** (HybridCache L2), and **Keycloak** (OIDC auth). Do not use C# 14 features.
+AssetHub is a digital asset management system. It uses **C# 14 / .NET 10**, **Blazor Server**, **PostgreSQL**, **MinIO** (S3-compatible storage), **RabbitMQ** (via Wolverine), **Redis** (HybridCache L2), and **Keycloak** (OIDC auth). 
 
 ---
 

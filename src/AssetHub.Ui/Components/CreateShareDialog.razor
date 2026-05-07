@@ -99,6 +99,10 @@
                     </MudText>
                 }
             </MudPaper>
+
+            @* T5-WMK-01 — per-share override. Applied via PATCH after share creation. *@
+            <ShareWatermarkOverrideField Value="_watermarkOverride"
+                                         ValueChanged="@(v => _watermarkOverride = v)" />
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -146,6 +150,7 @@
     private string _emailError = "";
     private readonly List<string> _emails = new();
     private bool _isCreating = false;
+    private bool? _watermarkOverride;
 
     protected override void OnInitialized()
     {
@@ -216,6 +221,18 @@
         var (success, share) = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.CreateShareAsync(ScopeId, ScopeType, expiresAt, _password, emailList),
             "create share");
+
+        // T5-WMK-01 — apply per-share override after creation when the user picked
+        // a non-inherit value. Failure here doesn't undo the share — it surfaces
+        // via Feedback and the share keeps inheriting from asset/collection.
+        if (success && share is not null && _watermarkOverride is not null)
+        {
+            await Feedback.ExecuteWithFeedbackAsync(
+                () => Api.SetShareWatermarkOverrideAsync(share.Id, _watermarkOverride),
+                "apply watermark override to share");
+            share.WatermarkOverride = _watermarkOverride;
+        }
+
         _isCreating = false;
 
         if (success)

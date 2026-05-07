@@ -295,6 +295,16 @@ else
 
                         <WorkflowPanel AssetId="@AssetId" />
 
+                        @* T5-WMK-01 — visible to all viewers (read-only effective state),
+                           editable for contributor+. The control hides nothing — even
+                           viewers see whether downloads they trigger will be watermarked. *@
+                        <AssetWatermarkOverridePanel AssetId="@AssetId"
+                                                     Override="@_asset.WatermarkOverride"
+                                                     EffectiveOn="@_asset.EffectiveWatermarkEnabled"
+                                                     AssetWatermarkAppliedAt="@_asset.AssetWatermarkAppliedAt"
+                                                     CanEdit="@RolePermissions.CanEdit(_asset?.UserRole)"
+                                                     OverrideChanged="OnWatermarkOverrideChangedAsync" />
+
                         <AssetCommentsPanel AssetId="@AssetId" AssetTitle="@_asset.Title" />
 
                         <MudDivider />
@@ -479,6 +489,26 @@ else
         _cts.Dispose();
         _cts = new CancellationTokenSource();
         await LoadAssetAsync();
+    }
+
+    // T5-WMK-01 — local DTO update so the override panel and download buttons
+    // re-render with the new effective state without a round-trip. Effective
+    // state for null-override depends on the collection's flag, which we don't
+    // have on the asset DTO — fall back to refetch in that case.
+    private async Task OnWatermarkOverrideChangedAsync(bool? newOverride)
+    {
+        if (_asset is null) return;
+        _asset.WatermarkOverride = newOverride;
+        if (newOverride is bool explicitOverride)
+        {
+            _asset.EffectiveWatermarkEnabled = explicitOverride;
+            StateHasChanged();
+        }
+        else
+        {
+            // Inherit — refetch to resolve precedence on the server.
+            await LoadAssetAsync();
+        }
     }
 
     private async Task LoadAssetAsync()

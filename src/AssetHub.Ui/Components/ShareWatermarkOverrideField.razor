@@ -1,0 +1,59 @@
+@inject IStringLocalizer<WatermarksResource> WmkLoc
+
+@* Tri-state per-share watermark override (T5-WMK-01).
+   Used inside CreateShareDialog. The host applies the resulting bool? via
+   AssetHubApiClient.SetShareWatermarkOverrideAsync after the share is created. *@
+<MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
+    <div class="dialog-section-title">
+        <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" />
+        @WmkLoc["ShareOverride_Title"]
+    </div>
+    <MudStack Spacing="1">
+        <MudSelect T="string"
+                   Value="@_selected"
+                   ValueChanged="OnChangedAsync"
+                   Label="@WmkLoc["ShareOverride_Title"]"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense">
+            <MudSelectItem T="string" Value="@OverrideInherit">@WmkLoc["ShareOverride_Inherit"]</MudSelectItem>
+            <MudSelectItem T="string" Value="@OverrideOn">@WmkLoc["ShareOverride_On"]</MudSelectItem>
+            <MudSelectItem T="string" Value="@OverrideOff">@WmkLoc["ShareOverride_Off"]</MudSelectItem>
+        </MudSelect>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @WmkLoc["ShareOverride_Helper"]
+        </MudText>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public bool? Value { get; set; }
+    [Parameter] public EventCallback<bool?> ValueChanged { get; set; }
+
+    private const string OverrideInherit = "inherit";
+    private const string OverrideOn = "on";
+    private const string OverrideOff = "off";
+
+    private string _selected = OverrideInherit;
+
+    protected override void OnParametersSet()
+    {
+        _selected = Value switch
+        {
+            true => OverrideOn,
+            false => OverrideOff,
+            _ => OverrideInherit
+        };
+    }
+
+    private async Task OnChangedAsync(string value)
+    {
+        _selected = value;
+        var resolved = value switch
+        {
+            OverrideOn => (bool?)true,
+            OverrideOff => (bool?)false,
+            _ => null
+        };
+        await ValueChanged.InvokeAsync(resolved);
+    }
+}

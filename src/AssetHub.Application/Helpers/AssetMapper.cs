@@ -11,7 +11,22 @@ public static class AssetMapper
     /// <summary>
     /// Maps an Asset entity to an AssetResponseDto.
     /// </summary>
-    public static AssetResponseDto ToDto(Asset asset, string userRole = RoleHierarchy.Roles.Viewer, string? createdByUserName = null, int derivativeCount = 0, bool includeEditDocument = false)
+    /// <param name="effectiveWatermarkEnabled">
+    /// Resolved Share→Asset→Collection precedence flag (T5-WMK-01). Pass <c>null</c>
+    /// (default) when the caller doesn't have the resolution context handy — the
+    /// mapper falls back to the asset-level override interpreted as "true → on,
+    /// false → off, null → off (because we don't know the collection)". Callers
+    /// that need accuracy (asset detail / share-create dialogs) should compute the
+    /// effective flag via <c>IWatermarkService.IsWatermarkingEffectiveAsync</c>
+    /// and pass it explicitly.
+    /// </param>
+    public static AssetResponseDto ToDto(
+        Asset asset,
+        string userRole = RoleHierarchy.Roles.Viewer,
+        string? createdByUserName = null,
+        int derivativeCount = 0,
+        bool includeEditDocument = false,
+        bool? effectiveWatermarkEnabled = null)
     {
         return new AssetResponseDto
         {
@@ -39,7 +54,10 @@ public static class AssetMapper
             DerivativeCount = derivativeCount,
             CurrentVersionNumber = asset.CurrentVersionNumber,
             UserRole = userRole,
-            DurationSeconds = asset.DurationSeconds
+            DurationSeconds = asset.DurationSeconds,
+            WatermarkOverride = asset.WatermarkOverride,
+            AssetWatermarkAppliedAt = asset.AssetWatermarkAppliedAt,
+            EffectiveWatermarkEnabled = effectiveWatermarkEnabled ?? (asset.WatermarkOverride == true)
         };
     }
 }

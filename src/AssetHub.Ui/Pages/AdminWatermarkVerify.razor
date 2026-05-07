@@ -1,0 +1,276 @@
+@page "/admin/watermarks/verify"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<WatermarksResource> WmkLoc
+
+<PageTitle>@WmkLoc["Verify_PageTitle"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Security" />
+                <span>@WmkLoc["Verify_PageTitle"]</span>
+            </MudStack>
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            @WmkLoc["Verify_PageDesc"]
+        </MudText>
+
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudStack Spacing="3">
+                <MudFileUpload T="IBrowserFile" FilesChanged="OnFileChanged" Accept="image/jpeg,image/png,image/tiff">
+                    <ActivatorContent>
+                        <MudPaper Class="pa-6" Outlined="true" Style="border-style: dashed; cursor: pointer; text-align: center;">
+                            <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.UploadFile" Size="Size.Large" Color="Color.Primary" />
+                                <MudText Typo="Typo.subtitle1">@WmkLoc["Verify_DropTitle"]</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @WmkLoc["Verify_DropHint"]
+                                </MudText>
+                            </MudStack>
+                        </MudPaper>
+                    </ActivatorContent>
+                </MudFileUpload>
+                @if (_file is not null)
+                {
+                    <MudText Typo="Typo.caption">
+                        @_file.Name (@FormatBytes(_file.Size))
+                    </MudText>
+                }
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Search"
+                               OnClick="VerifyAsync"
+                               Disabled="@(_file is null || _isVerifying)">
+                        @if (_isVerifying)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            @WmkLoc["Verify_Btn_Verifying"]
+                        }
+                        else
+                        {
+                            @WmkLoc["Verify_Btn"]
+                        }
+                    </MudButton>
+                    @if (_result is not null || _file is not null)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   OnClick="Reset"
+                                   Disabled="@_isVerifying">
+                            @WmkLoc["Verify_Btn_Reset"]
+                        </MudButton>
+                    }
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        @if (_result is not null)
+        {
+            <div role="status" aria-live="polite" aria-label="@WmkLoc["Aria_Result"]">
+                @if (_result.Matched)
+                {
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudStack Spacing="3">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.GppGood" Color="Color.Success" Size="Size.Large" />
+                                <MudText Typo="Typo.h6">@WmkLoc["Verify_Result_Match"]</MudText>
+                            </MudStack>
+
+                            <MudSimpleTable Dense="true" Hover="false" Elevation="0">
+                                <tbody>
+                                    <tr>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_AssetLayer"]</MudText></td>
+                                        <td>@RenderConfidence(_result.AssetLayerConfidence)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_RecipientLayer"]</MudText></td>
+                                        <td>@RenderConfidence(_result.RecipientLayerConfidence)</td>
+                                    </tr>
+                                    @if (_result.AssetId is { } assetId)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_AssetId"]</MudText></td>
+                                            <td>
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                    <MudText Typo="Typo.body2" Style="font-family: monospace;">@assetId</MudText>
+                                                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                               StartIcon="@Icons.Material.Filled.OpenInNew"
+                                                               OnClick="@(() => Nav.NavigateTo($"/assets/{assetId}"))">
+                                                        @WmkLoc["Verify_Result_OpenAsset"]
+                                                    </MudButton>
+                                                </MudStack>
+                                            </td>
+                                        </tr>
+                                    }
+                                    @if (_result.DownloadToken is { } token)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_DownloadToken"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2" Style="font-family: monospace;">@token</MudText></td>
+                                        </tr>
+                                    }
+                                    @if (_result.RecipientUserId is { Length: > 0 } userId)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_Recipient"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2">@string.Format(WmkLoc["Verify_Result_RecipientUser"].Value, userId)</MudText></td>
+                                        </tr>
+                                    }
+                                    @if (_result.RecipientEmail is { Length: > 0 } email)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_Recipient"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2">@string.Format(WmkLoc["Verify_Result_RecipientEmail"].Value, email)</MudText></td>
+                                        </tr>
+                                    }
+                                    else if (_result.DownloadToken is not null && _result.RecipientUserId is null)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_Recipient"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Warning">@WmkLoc["Verify_Result_RecipientUnknown"]</MudText></td>
+                                        </tr>
+                                    }
+                                    @if (_result.ShareId is { } shareId)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_Share"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2" Style="font-family: monospace;">@shareId</MudText></td>
+                                        </tr>
+                                    }
+                                    @if (_result.DownloadedAt is { } downloadedAt)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_DownloadedAt"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2">@downloadedAt.ToLocalTime().ToString("F")</MudText></td>
+                                        </tr>
+                                    }
+                                    @if (!string.IsNullOrEmpty(_result.DownloadPath))
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_Path"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2">@_result.DownloadPath</MudText></td>
+                                        </tr>
+                                    }
+                                    @if (!string.IsNullOrEmpty(_result.Reason))
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_Result_Reason"]</MudText></td>
+                                            <td><MudText Typo="Typo.body2">@_result.Reason</MudText></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        </MudStack>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.GppMaybe" Color="Color.Warning" Size="Size.Large" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h6">@WmkLoc["Verify_Result_NoMatch"]</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @(string.IsNullOrEmpty(_result.Reason) ? WmkLoc["Verify_Result_NoMatchDesc"].Value : _result.Reason)
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                }
+            </div>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    private const long MaxBytes = 50L * 1024L * 1024L;
+
+    private IBrowserFile? _file;
+    private bool _isVerifying;
+    private WatermarkVerificationResultDto? _result;
+
+    private void OnFileChanged(IBrowserFile file)
+    {
+        _file = file;
+        _result = null;
+    }
+
+    private async Task VerifyAsync()
+    {
+        if (_file is null) return;
+
+        // Pre-flight on size before opening the stream — same pattern as the
+        // brand logo upload (S5693): no buffer is allocated for a doomed upload.
+        if (_file.Size > MaxBytes)
+        {
+            Feedback.ShowError(WmkLoc["Error_TooLarge"].Value);
+            return;
+        }
+
+        var contentType = _file.ContentType?.ToLowerInvariant() ?? string.Empty;
+        if (contentType is not ("image/jpeg" or "image/png" or "image/tiff"))
+        {
+            Feedback.ShowError(WmkLoc["Error_UnsupportedFormat"].Value);
+            return;
+        }
+
+        _isVerifying = true;
+        _result = null;
+        try
+        {
+            await using var stream = _file.OpenReadStream(MaxBytes);
+            _result = await Api.VerifyWatermarkAsync(stream, _file.ContentType ?? string.Empty, _file.Size);
+        }
+        catch (ApiException ex)
+        {
+            var msg = ex.ErrorCode switch
+            {
+                "WMK_TOO_LARGE" => WmkLoc["Error_TooLarge"].Value,
+                "WMK_UNSUPPORTED_FORMAT" => WmkLoc["Error_UnsupportedFormat"].Value,
+                "WMK_DECRYPTION_FAILED" => WmkLoc["Error_DecryptionFailed"].Value,
+                _ => WmkLoc["Error_VerifyFailed"].Value
+            };
+            Feedback.ShowError(msg);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "verify watermark");
+        }
+        finally
+        {
+            _isVerifying = false;
+        }
+    }
+
+    private void Reset()
+    {
+        _file = null;
+        _result = null;
+    }
+
+    private RenderFragment RenderConfidence(string confidence) => __builder =>
+    {
+        var (label, color) = confidence switch
+        {
+            "high" => (WmkLoc["Confidence_High"].Value, Color.Success),
+            "medium" => (WmkLoc["Confidence_Medium"].Value, Color.Info),
+            "low" => (WmkLoc["Confidence_Low"].Value, Color.Warning),
+            _ => (WmkLoc["Confidence_NoMatch"].Value, Color.Default)
+        };
+        <MudChip T="string" Size="Size.Small" Color="@color" Variant="Variant.Outlined">@label</MudChip>
+    };
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+}

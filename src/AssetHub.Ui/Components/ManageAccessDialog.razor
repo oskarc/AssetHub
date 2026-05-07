@@ -260,6 +260,18 @@
                 </MudSimpleTable>
             }
 
+            @* Forensic watermarking toggle (T5-WMK-01) — manager-or-above. Lives
+               inside the access dialog because watermarking is a permission-shaped
+               decision: it constrains how downloads behave for everyone with
+               access, including external recipients. *@
+            @if (RoleHierarchy.HasSufficientLevel(CurrentUserRole, RoleHierarchy.Roles.Manager))
+            {
+                <WatermarkPanel CollectionId="CollectionId"
+                                Enabled="_watermarkEnabled"
+                                AssetCount="_assetCount"
+                                EnabledChanged="OnWatermarkChanged" />
+            }
+
             @* Inherited access — shown when live inheritance is on and ancestor chain contributes entries.
                Read-only; to change these, manage them from the parent collection. *@
             @if (_inheritParentAcl && _inheritedAclEntries.Count > 0)
@@ -351,6 +363,10 @@
     private sealed record InheritedAclEntry(CollectionAclResponseDto Acl, string SourceName);
     private readonly List<InheritedAclEntry> _inheritedAclEntries = new();
 
+    // Watermarking (T5-WMK-01) — populated from the collection metadata fetch.
+    private bool _watermarkEnabled;
+    private int _assetCount;
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthStateTask is not null)
@@ -371,6 +387,8 @@
             if (collection is null) return;
             _parentId = collection.ParentCollectionId;
             _inheritParentAcl = collection.InheritParentAcl;
+            _watermarkEnabled = collection.WatermarkEnabled;
+            _assetCount = collection.AssetCount;
             if (_parentId is { } pid)
             {
                 var parent = await Api.GetCollectionAsync(pid);
@@ -381,6 +399,12 @@
         {
             Feedback.HandleError(ex, "load collection metadata");
         }
+    }
+
+    private void OnWatermarkChanged(bool enabled)
+    {
+        _watermarkEnabled = enabled;
+        StateHasChanged();
     }
 
     // Walks the ancestor chain following InheritParentAcl flags, collecting all

@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<WatermarksResource> WmkLoc
 
 <PageTitle>@AdminLoc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
@@ -55,6 +56,21 @@
         <MudTabPanel Text="@AdminLoc["Tab_Guests"]" Icon="@Icons.Material.Filled.PersonAddAlt">
             <AdminGuestsTab />
         </MudTabPanel>
+        <MudTabPanel Text="@WmkLoc["Verify_PageTitle"]" Icon="@Icons.Material.Filled.Security">
+            @* Watermark verify is a standalone admin page (T5-WMK-01) — file-upload UX
+               needs the page room. Tab content is just a CTA into the dedicated route. *@
+            <MudPaper Class="pa-6" Elevation="0">
+                <MudStack Spacing="3" AlignItems="AlignItems.Start">
+                    <MudText Typo="Typo.h6">@WmkLoc["Verify_PageTitle"]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@WmkLoc["Verify_PageDesc"]</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.OpenInNew"
+                               OnClick="@(() => Navigation.NavigateTo("/admin/watermarks/verify"))">
+                        @WmkLoc["Verify_PageTitle"]
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudTabPanel>
     </MudTabs>
 </MudContainer>
 
@@ -66,7 +82,7 @@
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("tab", out var tabValue)
-            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 11)
+            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 12)
             _activeTabIndex = tab;
     }
 

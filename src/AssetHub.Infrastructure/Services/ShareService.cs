@@ -129,7 +129,8 @@ public sealed class ShareService(
                 ExpiresAt = share.ExpiresAt,
                 PermissionsJson = share.PermissionsJson,
                 ShareUrl = shareUrl,
-                Password = passwordResult.PlainPassword!
+                Password = passwordResult.PlainPassword!,
+                WatermarkOverride = share.WatermarkOverride
             },
             EmailFailed = emailFailed
         };

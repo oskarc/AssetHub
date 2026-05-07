@@ -9,7 +9,7 @@ These rules override generic C# guidance for the AssetHub project.
 
 ## Project-Specific Rules
 
-- **C# 13** (.NET 9) — do not use C# 14 features.
+- **C# 13** (.NET 9) — 
 - **DataAnnotations only** for validation — do not use FluentValidation. DTOs use `[Required]`, `[StringLength]`, `[Range]`.
 - **`sealed`** on all service and repository implementations.
 - **Primary constructors** preferred for DI injection in services and repositories.
