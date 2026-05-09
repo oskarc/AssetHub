@@ -6,10 +6,10 @@ kit_identity:
   kit_name: assethub
   kit_type: project
   category: blazor-web-app
-  version: 0.1
+  version: 0.2
   parent_kit: meta-base-building-kit
   status: active
-  last_filled: 2026-05-01
+  last_filled: 2026-05-09
 
 nodes:
 
@@ -97,6 +97,26 @@ nodes:
     skill_file: pattern-regression-baseline/SKILL.md
     layer: pattern
     phase: [post-build]
+    status: mature
+    dependencies: []
+    open_gaps: []
+
+  - id: pattern-time-series-rollup
+    concern: Pre-aggregating time-bounded events into a rollup table that survives source-table retention
+    skill_file: pattern-time-series-rollup/SKILL.md
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: []
+    open_gaps:
+      - Single occurrence so far (T5-ANL-01) — pattern shape unverified across multiple features
+      - Multi-pod coordination via SKIP LOCKED is referenced as a future optimisation but not specified
+
+  - id: pattern-hash-keyed-pii-reveal
+    concern: Indexable hash + encrypted ciphertext + audited reveal — group over PII without leaking it into the audit log
+    skill_file: pattern-hash-keyed-pii-reveal/SKILL.md
+    layer: pattern
+    phase: [pre-build, during-build]
     status: mature
     dependencies: []
     open_gaps: []
@@ -306,6 +326,18 @@ coverage_map:
     node_id: pattern-commit-scope
     layer: pattern
     phase: post-build
+    status: mature
+
+  - concern: Time-bounded aggregate persistence
+    node_id: pattern-time-series-rollup
+    layer: pattern
+    phase: pre/during
+    status: thin
+
+  - concern: PII grouping with audited reveal
+    node_id: pattern-hash-keyed-pii-reveal
+    layer: pattern
+    phase: pre/during
     status: mature
 
   - concern: Information architecture
