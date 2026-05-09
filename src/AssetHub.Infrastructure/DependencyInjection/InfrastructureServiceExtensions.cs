@@ -202,6 +202,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IGuestInvitationRepository, GuestInvitationRepository>();
         services.AddScoped<IOrphanedObjectRepository, OrphanedObjectRepository>();
         services.AddScoped<IWatermarkDownloadRepository, Repositories.WatermarkDownloadRepository>();
+        services.AddScoped<IAnalyticsRollupRepository, Repositories.AnalyticsRollupRepository>();
+        services.AddScoped<IAnalyticsPdfJobRepository, Repositories.AnalyticsPdfJobRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────
         AddResiliencePipelines(services);
@@ -256,6 +258,14 @@ public static class InfrastructureServiceExtensions
             Services.Watermarking.WatermarkService>();
         services.AddScoped<Application.Services.Watermarking.IWatermarkVerifier,
             Services.Watermarking.WatermarkVerifier>();
+
+        // T5-ANL-01 — analytics rollup + read-side service + PDF export.
+        services.AddOptions<AnalyticsSettings>()
+            .Bind(configuration.GetSection(AnalyticsSettings.SectionName))
+            .ValidateDataAnnotations();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
+        services.AddScoped<IAnalyticsRollupService, AnalyticsRollupService>();
+        services.AddScoped<IAnalyticsPdfJobService, AnalyticsPdfJobService>();
 
         return services;
     }

@@ -17,6 +17,16 @@
     <PackageReference Include="WolverineFx.RabbitMQ" Version="5.27.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.*" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.*" />
+    <!--
+      T5-ANL-01: QuestPDF Community Edition. Free for organisations under
+      $1M USD annual revenue (or non-commercial use); paid Professional /
+      Enterprise tiers required above that threshold.
+      Operators above the revenue threshold MUST either purchase a license
+      from https://www.questpdf.com/license/ or replace the analytics PDF
+      renderer with a different engine before deploying T5-ANL-01.
+      See docs/operations/THIRD-PARTY-LICENSES.md for the full constraint.
+    -->
+    <PackageReference Include="QuestPDF" Version="2025.7.*" />
   </ItemGroup>
 
 </Project>

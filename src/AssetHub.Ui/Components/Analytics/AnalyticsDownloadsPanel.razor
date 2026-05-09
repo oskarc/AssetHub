@@ -1,0 +1,150 @@
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AnalyticsResource> Loc
+
+@* Top assets by download count + daily-volume trend (T5-ANL-01). *@
+<MudPaper Class="pa-4" Elevation="1">
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h6">@Loc["Downloads_Title"]</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Downloads_Desc"]</MudText>
+            </MudStack>
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       Href="@($"/api/v1/admin/analytics/downloads/export.csv?window={WindowDays}&take=20")"
+                       Target="_blank">
+                @Loc["Btn_ExportCsv"]
+            </MudButton>
+        </MudStack>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_assets.Count == 0 && _daily.Count == 0)
+        {
+            <EmptyState Title="@Loc["Empty_NoData"]"
+                        Description="@Loc["Empty_NoDataDesc"]"
+                        Icon="@Icons.Material.Filled.Insights" />
+        }
+        else
+        {
+            @* Daily-trend chart — line chart for trend, paired with a screen-reader
+               summary so the chart isn't the only data carrier (1.4.1). *@
+            @if (_chartSeries.Length > 0)
+            {
+                <div>
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">@Loc["Downloads_Trend"]</MudText>
+                    <MudChart ChartType="ChartType.Line"
+                              ChartSeries="@_chartSeriesData"
+                              XAxisLabels="@_chartLabels"
+                              Width="100%" Height="200px"
+                              role="img"
+                              aria-label="@_chartA11yLabel" />
+                </div>
+            }
+
+            @* Top assets table. *@
+            <MudTable T="AnalyticsAssetDownloadRowDto"
+                      Items="@_assets"
+                      Dense="true"
+                      Hover="true"
+                      Striped="true">
+                <HeaderContent>
+                    <MudTh>@Loc["Downloads_Header_Asset"]</MudTh>
+                    <MudTh>@Loc["Downloads_Header_Type"]</MudTh>
+                    <MudTh Style="text-align: right;">@Loc["Downloads_Header_Count"]</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        @if (context.IsDeleted)
+                        {
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.body2">@(context.Title ?? context.AssetId.ToString("D"))</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">
+                                    @Loc["Downloads_Deleted"]
+                                </MudChip>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudLink Href="@($"/assets/{context.AssetId}")">
+                                @(context.Title ?? context.AssetId.ToString("D"))
+                            </MudLink>
+                        }
+                    </MudTd>
+                    <MudTd>@(context.AssetType ?? "-")</MudTd>
+                    <MudTd Style="text-align: right;">@context.DownloadCount.ToString("N0")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public int WindowDays { get; set; }
+
+    private bool _loading = true;
+    private IReadOnlyList<AnalyticsAssetDownloadRowDto> _assets = [];
+    private IReadOnlyList<AnalyticsDailyPointDto> _daily = [];
+    private double[][] _chartSeries = [];
+    private List<ChartSeries> _chartSeriesData = new();
+    private string[] _chartLabels = [];
+    private string _chartA11yLabel = string.Empty;
+    private int _lastWindow;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_lastWindow == WindowDays && !_loading) return;
+        _lastWindow = WindowDays;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var assetsTask = Api.GetTopDownloadedAssetsAsync(WindowDays, take: 20);
+            var dailyTask = Api.GetDailyDownloadCountsAsync(WindowDays);
+            await Task.WhenAll(assetsTask, dailyTask);
+            _assets = assetsTask.Result;
+            _daily = dailyTask.Result;
+            BuildChart();
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load downloads analytics");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void BuildChart()
+    {
+        if (_daily.Count == 0)
+        {
+            _chartSeries = [];
+            _chartSeriesData = new();
+            _chartLabels = [];
+            _chartA11yLabel = string.Empty;
+            return;
+        }
+        var values = _daily.Select(d => (double)d.Count).ToArray();
+        _chartSeries = new[] { values };
+        _chartSeriesData = new List<ChartSeries>
+        {
+            new() { Name = Loc["Downloads_Header_Count"].Value, Data = values }
+        };
+        _chartLabels = _daily.Select(d => d.Date.ToString("MM-dd")).ToArray();
+        var total = (long)values.Sum();
+        _chartA11yLabel = $"{Loc["Downloads_Trend"].Value}: {total:N0} ({_daily.Count} days)";
+    }
+}

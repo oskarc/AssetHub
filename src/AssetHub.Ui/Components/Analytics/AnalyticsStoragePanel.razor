@@ -1,0 +1,139 @@
+@using AssetHub.Application.Helpers
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AnalyticsResource> Loc
+
+@* Storage usage by collection + by asset type (T5-ANL-01). The numbers come
+   from the storage rollup table, which captures bytes-by-bucket each night. *@
+<MudPaper Class="pa-4" Elevation="1">
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h6">@Loc["Storage_Title"]</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Storage_Desc"]</MudText>
+            </MudStack>
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       Href="/api/v1/admin/analytics/storage/export.csv?take=20"
+                       Target="_blank">
+                @Loc["Btn_ExportCsv"]
+            </MudButton>
+        </MudStack>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_byCollection.Count == 0 && _byType.Count == 0)
+        {
+            <EmptyState Title="@Loc["Empty_NoData"]"
+                        Description="@Loc["Empty_NoDataDesc"]"
+                        Icon="@Icons.Material.Filled.Storage" />
+        }
+        else
+        {
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">@Loc["Storage_ByCollection"]</MudText>
+                    <MudTable T="AnalyticsStorageByCollectionRowDto"
+                              Items="@_byCollection"
+                              Dense="true"
+                              Hover="true"
+                              Striped="true">
+                        <HeaderContent>
+                            <MudTh>@Loc["Storage_Header_Collection"]</MudTh>
+                            <MudTh Style="text-align: right;">@Loc["Storage_Header_Assets"]</MudTh>
+                            <MudTh Style="text-align: right;">@Loc["Storage_Header_Size"]</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudLink Href="@($"/collections?collection={context.CollectionId}")">
+                                    @(context.CollectionName ?? context.CollectionId.ToString("D"))
+                                </MudLink>
+                            </MudTd>
+                            <MudTd Style="text-align: right;">@context.AssetCount.ToString("N0")</MudTd>
+                            <MudTd Style="text-align: right;">@AssetDisplayHelpers.FormatFileSize(context.Bytes)</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">@Loc["Storage_ByType"]</MudText>
+                    @if (_typeChartData.Length > 0)
+                    {
+                        <MudChart ChartType="ChartType.Pie"
+                                  InputData="@_typeChartData"
+                                  InputLabels="@_typeChartLabels"
+                                  Width="200px"
+                                  Height="200px"
+                                  role="img"
+                                  aria-label="@_typeChartA11y" />
+                    }
+                    <MudSimpleTable Dense="true" Hover="false" Elevation="0" Class="mt-2">
+                        <thead>
+                            <tr>
+                                <th>@Loc["Storage_Header_Type"]</th>
+                                <th style="text-align: right;">@Loc["Storage_Header_Assets"]</th>
+                                <th style="text-align: right;">@Loc["Storage_Header_Size"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in _byType)
+                            {
+                                <tr>
+                                    <td>@row.AssetType</td>
+                                    <td style="text-align: right;">@row.AssetCount.ToString("N0")</td>
+                                    <td style="text-align: right;">@AssetDisplayHelpers.FormatFileSize(row.Bytes)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private bool _loading = true;
+    private IReadOnlyList<AnalyticsStorageByCollectionRowDto> _byCollection = [];
+    private IReadOnlyList<AnalyticsStorageByAssetTypeRowDto> _byType = [];
+    private double[] _typeChartData = [];
+    private string[] _typeChartLabels = [];
+    private string _typeChartA11y = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var byCollTask = Api.GetStorageByCollectionAsync(take: 20);
+            var byTypeTask = Api.GetStorageByAssetTypeAsync();
+            await Task.WhenAll(byCollTask, byTypeTask);
+            _byCollection = byCollTask.Result;
+            _byType = byTypeTask.Result;
+            _typeChartData = _byType.Select(r => (double)r.Bytes).ToArray();
+            _typeChartLabels = _byType.Select(r => r.AssetType).ToArray();
+            var totalBytes = _byType.Sum(r => r.Bytes);
+            _typeChartA11y = $"{Loc["Storage_ByType"].Value}: {AssetDisplayHelpers.FormatFileSize(totalBytes)} across {_byType.Count} types";
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load storage analytics");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+}

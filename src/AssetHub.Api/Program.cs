@@ -76,6 +76,8 @@ try
             .ToRabbitQueue("send-notification-email");
         opts.PublishMessage<DispatchWebhookCommand>()
             .ToRabbitQueue("dispatch-webhook");
+        opts.PublishMessage<BuildAnalyticsPdfCommand>()
+            .ToRabbitQueue("build-analytics-pdf");
 
         // Listen for events from Worker
         opts.ListenToRabbitQueue("asset-processing-completed");

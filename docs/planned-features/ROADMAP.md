@@ -657,7 +657,7 @@ public class WatermarkDownload
 
 ### T5-ANL-01 — Analytics (most-downloaded, stale assets, storage reports)
 
-**Intent.** Reporting dashboards; export to CSV / PDF.
+> **Shipped 2026-05-09.** Pre-aggregated rollup tables (`AnalyticsDailyRollups`, `AnalyticsStorageRollups`) populated nightly by `AnalyticsRollupBackgroundService`; admin dashboard at `/admin/analytics` with three panels (downloads, storage, forensic exposure) + per-panel CSV exports + async PDF export via QuestPDF; recipient hash → plaintext reveal endpoint reuses `IRecipientCryptoService` and audits the reveal under `analytics.exposure_revealed` (G-12b carries forward — never logs decrypted PII). See the **Shipped appendix** for the per-layer breakdown.
 
 ---
 
@@ -1488,5 +1488,47 @@ Total: 24 new tests in `AssetHub.Tests` + `AssetHub.Ui.Tests`, plus the E2E spec
 - DCT-LSB is robust to JPEG q≥75 but sensitive to heavy filtering / re-quantisation. Per-layer confidence reported by the verify endpoint reflects this honestly.
 - Recipient-layer encode adds latency to every download — sub-50 MP images stay sub-second; larger ones currently throw (async-202 fallback deferred above).
 - HMAC key is rotation-sensitive. Data Protection rotates by default; `AlgorithmVersion` field on every row is the long-term fix. v1 ships single-key.
+
+### T5-ANL-01 — Analytics (most-downloaded, stale assets, storage reports)
+
+**Shipped 2026-05-09.** Pre-aggregated rollup pattern + three-panel admin dashboard + async PDF export.
+
+**Delivered as specified.**
+- **Rollup schema.** Three new tables — `AnalyticsDailyRollups` (count metrics: downloads-by-asset, downloads-by-collection, exposure-by-recipient-hash), `AnalyticsStorageRollups` (byte-sum metrics: storage-by-collection, storage-by-asset-type), `AnalyticsPdfJobs` (PDF export job tracking). Composite PK on `(Date, Metric, EntityId)` makes the rollup upsert-idempotent on (Date, Metric, EntityId) tuples. Migration `20260508210000_AddAnalyticsRollups` written by hand because the locally-installed `dotnet ef` tool 10.0.7 had a binding mismatch with `Microsoft.EntityFrameworkCore.Abstractions` — the schema is small + additive-only, so manual authoring + a manually-edited model snapshot was lower-risk than fighting the tool.
+- **Background rollup.** `AnalyticsRollupBackgroundService` (Worker hosted service) — back-fills `Analytics:BackfillDays` (default 90) on first start, then ticks hourly to roll up "yesterday" if it's not in the table yet (self-heal for missed cron windows). The actual SQL group-bys live in `AnalyticsRollupService.RollupDayAsync` for testability — re-running for the same day is a delete-then-insert per slice, idempotent by construction.
+- **Read-side service.** `AnalyticsService` queries the rollup tables and hydrates entity IDs back to display names (asset titles, collection names) via direct DbContext joins. Soft-deleted assets are surfaced via `IgnoreQueryFilters()` + `IsDeleted` flag on the DTO so the dashboard can still answer "this leaked asset was downloaded N times before it was removed."
+- **Recipient reveal (G-12b carry-forward).** `RevealRecipientAsync` decrypts a recipient-hash row's encrypted PII via `IRecipientCryptoService` and audits the reveal under `analytics.exposure_revealed`. The audit row records `(recipient_hash, recipient_kind, decryption_failed)` only — never the decrypted plaintext. Test `AnalyticsServiceTests.RevealRecipientAsync_AuditRow_ContainsHashAndOutcome_NeverPlaintext` asserts the plaintext is *not* anywhere in the audit row.
+- **PDF export pipeline.** `POST /api/v1/admin/analytics/export-pdf?window=N` enqueues an `AnalyticsPdfJob` row + dispatches `BuildAnalyticsPdfCommand` via Wolverine; `BuildAnalyticsPdfHandler` in the worker renders via QuestPDF, uploads to MinIO at `analytics-pdfs/{jobId}.pdf`, marks the job `Ready` with the object key. UI polls `GET /api/v1/admin/analytics/export-pdf/{jobId}` every 3 s for up to 5 min and follows the presigned URL on success. `AnalyticsPdfCleanupService` sweeps expired objects + rows hourly (default 24 h retention).
+- **CSV exports.** Three per-panel CSV endpoints under `/api/v1/admin/analytics/{panel}/export.csv`. Header rows match the rollup column shape so the CSVs are reusable in spreadsheets / BI tools without reshuffling.
+- **API surface (`[PublicApi]`).** All endpoints under `/api/v1/admin/analytics` carry `RequireAuthorization("RequireAdmin")` + `RequireAntiforgeryUnlessBearer()` + `RequireScopeFilter("admin")`.
+- **UI.** `/admin/analytics` page with time-window toggle (7/30/90/365 days), three stacked panels (downloads / storage / exposure), each with a chart, sortable table, and a CSV export button. Top-right PDF export button drives the async pipeline. New tab in the Admin shell linking out (max-tab-index bumped to 13). EN/SV resource pair, parity verified.
+- **Audit events.** `analytics.rollup_completed` (one per successful rollup tick — supports retention auditing of "the rollup outlived the source events"), `analytics.exported` (per CSV / PDF download), `analytics.exposure_revealed` (per reveal click — hash + outcome only).
+- **Operator config.** New `AnalyticsSettings` (section `Analytics`): `Enabled`, `CronHour`/`CronMinute`, `BackfillDays`, `PdfRetentionHours`, `TopN`. `ValidateDataAnnotations` on bind.
+
+**QuestPDF licensing.** Renderer uses QuestPDF Community Edition — free for organisations under $1M USD revenue. Operators above the threshold need to either purchase a license, replace the renderer in `BuildAnalyticsPdfHandler`, or disable the PDF export. Documented in [`docs/operations/THIRD-PARTY-LICENSES.md`](../operations/THIRD-PARTY-LICENSES.md), referenced from the README, and called out in an inline comment on the QuestPDF `<PackageReference>` in `AssetHub.Worker.csproj`.
+
+**Tests.**
+- `tests/AssetHub.Tests/Services/AnalyticsRollupServiceTests.cs` — 4 integration tests against `PostgresFixture`: groups asset downloads correctly, idempotent on re-run, hash-groups exposure rows by recipient hash, captures storage snapshot per collection.
+- `tests/AssetHub.Tests/Services/AnalyticsServiceTests.cs` — 4 integration tests focused on the security-critical reveal path: audit row carries hash + outcome but never plaintext (the load-bearing G-12b assertion), key-rotation drift returns `DecryptionFailed = true` and still audits, unknown hash returns 404 *without* auditing (otherwise the audit log would be a probe-detection signal for hash fishing), invalid-base64 hash returns 400.
+- `tests/AssetHub.Ui.Tests/Components/AnalyticsExposurePanelTests.cs` (3) + `AnalyticsDownloadsPanelTests.cs` (3) — empty-state, populated-state, deleted-asset-not-clickable, hash-truncation-in-table.
+- `tests/E2E/tests/specs/18-analytics.spec.ts` — page loads under `RequireAdmin`, three panel JSON endpoints return arrays, CSV export returns `text/csv` with the documented header row, PDF queue endpoint returns 202 + job id with valid status enum.
+
+Total: 14 net-new tests (8 xUnit + 6 bUnit) + 1 Playwright spec; full suite at 1429 passing on .NET 10.
+
+**Deviations from the proposal.**
+- **`dotnet ef` tool mismatch.** The locally-installed `dotnet-ef 10.0.7` threw `MissingMethodException` on `AbstractionsStrings.ArgumentIsEmpty(System.Object)` — runtime resolves Abstractions 10.0.7 from EF Core but Npgsql.EFCore 10.0.1 references `>= 10.0.0`, and the design-time tool loads a 10.0.0 Abstractions assembly that doesn't have the new overload. Migration written by hand instead. The hand-written migration mirrors the entity config exactly; the model-snapshot patch is the same shape EF would have produced.
+- **Snapshot-not-Designer.** No `*.Designer.cs` file shipped for the migration — only the `Up`/`Down` migration class + the patched model snapshot. Future migrations may need this snapshot file as a baseline; if `dotnet ef migrations add <Next>` complains, regenerate the Designer file from the migration class.
+
+**Out of scope (deferred — tracked as follow-ups).**
+- Manager-scoped per-collection analytics. Today every endpoint is admin-only; manager scoping needs ACL filtering on every rollup-read query.
+- Custom date range beyond the four toggles. The rollup schema supports arbitrary ranges; only the UI is gated.
+- Real-time / sub-day granularity. The rollup is daily; if customers ask for hour-level we'd add a parallel hourly-rollup table.
+- Per-user activity reports (logins, last-active, share-link click-through). Different data sources; separate feature.
+- Alert / threshold triggers ("storage > 80%"). Adjacent to the notification pipeline; not part of v1.
+
+**Risks & trade-offs.**
+- Data freshness lag of up to 24 h. Acceptable for analytics; admins are told this on the page.
+- QuestPDF Community license requires per-deployment audit (revenue threshold). See [`docs/operations/THIRD-PARTY-LICENSES.md`](../operations/THIRD-PARTY-LICENSES.md).
+- Concurrent-rollup-vs-retention race is benign by design (rollup is upsert-idempotent on `(Date, Metric, EntityId)` so partial reads get superseded on next run). T6-HA-01 tightens this with `SELECT … FOR UPDATE SKIP LOCKED` if multi-pod Worker becomes a real concurrency issue.
 
 

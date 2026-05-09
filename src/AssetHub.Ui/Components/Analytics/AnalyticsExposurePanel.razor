@@ -1,0 +1,173 @@
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AnalyticsResource> Loc
+
+@* Top forensic-watermark recipients (T5-ANL-01). Recipients are hashed at rest;
+   reveal-on-click decrypts via IRecipientCryptoService and audits the reveal
+   under analytics.exposure_revealed (G-12b: never log decrypted PII). *@
+<MudPaper Class="pa-4" Elevation="1">
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h6">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Color="Color.Warning" />
+                        <span>@Loc["Exposure_Title"]</span>
+                    </MudStack>
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@Loc["Exposure_Desc"]</MudText>
+            </MudStack>
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       Href="@($"/api/v1/admin/analytics/exposure/export.csv?window={WindowDays}&take=20")"
+                       Target="_blank">
+                @Loc["Btn_ExportCsv"]
+            </MudButton>
+        </MudStack>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_rows.Count == 0)
+        {
+            <EmptyState Title="@Loc["Empty_NoData"]"
+                        Description="@Loc["Empty_NoDataDesc"]"
+                        Icon="@Icons.Material.Filled.GppMaybe" />
+        }
+        else
+        {
+            <MudTable T="AnalyticsExposureRowDto"
+                      Items="@_rows"
+                      Dense="true"
+                      Hover="true"
+                      Striped="true">
+                <HeaderContent>
+                    <MudTh>@Loc["Exposure_Header_Recipient"]</MudTh>
+                    <MudTh>@Loc["Exposure_Header_Kind"]</MudTh>
+                    <MudTh Style="text-align: right;">@Loc["Exposure_Header_Count"]</MudTh>
+                    <MudTh Style="text-align: right;">@Loc["Exposure_Header_Distinct"]</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        @if (_revealed.TryGetValue(context.RecipientHash, out var revealed))
+                        {
+                            <MudText Typo="Typo.body2">@revealed</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                                @ShortHash(context.RecipientHash)
+                            </MudText>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @(string.Equals(context.RecipientKind, "user", StringComparison.OrdinalIgnoreCase)
+                            ? Loc["Exposure_Kind_User"].Value
+                            : Loc["Exposure_Kind_Email"].Value)
+                    </MudTd>
+                    <MudTd Style="text-align: right;">@context.DownloadCount.ToString("N0")</MudTd>
+                    <MudTd Style="text-align: right;">@context.DistinctAssetCount.ToString("N0")</MudTd>
+                    <MudTd>
+                        @if (!_revealed.ContainsKey(context.RecipientHash))
+                        {
+                            <MudButton Variant="Variant.Text"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Visibility"
+                                       OnClick="@(() => RevealAsync(context))"
+                                       Disabled="@(_revealing.Contains(context.RecipientHash))">
+                                @if (_revealing.Contains(context.RecipientHash))
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                    @Loc["Exposure_Reveal_Pending"]
+                                }
+                                else
+                                {
+                                    @Loc["Btn_Reveal"]
+                                }
+                            </MudButton>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public int WindowDays { get; set; }
+
+    private bool _loading = true;
+    private IReadOnlyList<AnalyticsExposureRowDto> _rows = [];
+    private readonly Dictionary<string, string> _revealed = new();
+    private readonly HashSet<string> _revealing = new();
+    private int _lastWindow;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_lastWindow == WindowDays && !_loading) return;
+        _lastWindow = WindowDays;
+        // Window changed — clear stale reveals so the user re-confirms intent
+        // for the new window. The audit log records each reveal individually.
+        _revealed.Clear();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _rows = await Api.GetTopRecipientsAsync(WindowDays, take: 20);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "load exposure analytics");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RevealAsync(AnalyticsExposureRowDto row)
+    {
+        if (_revealing.Contains(row.RecipientHash)) return;
+        _revealing.Add(row.RecipientHash);
+        StateHasChanged();
+        try
+        {
+            var response = await Api.RevealRecipientAsync(new RevealRecipientRequestDto
+            {
+                RecipientHash = row.RecipientHash,
+                RecipientKind = row.RecipientKind
+            });
+            if (response.DecryptionFailed || (response.RecipientUserId is null && response.RecipientEmail is null))
+            {
+                _revealed[row.RecipientHash] = Loc["Exposure_Reveal_Unavailable"].Value;
+            }
+            else
+            {
+                _revealed[row.RecipientHash] = response.RecipientUserId ?? response.RecipientEmail ?? "?";
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "reveal recipient");
+            Feedback.ShowError(Loc["Exposure_Reveal_Failed"].Value);
+        }
+        finally
+        {
+            _revealing.Remove(row.RecipientHash);
+            StateHasChanged();
+        }
+    }
+
+    private static string ShortHash(string hash)
+        => hash.Length > 24 ? $"{hash[..24]}…" : hash;
+}

@@ -9,6 +9,7 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 @inject IStringLocalizer<WatermarksResource> WmkLoc
+@inject IStringLocalizer<AnalyticsResource> AnlLoc
 
 <PageTitle>@AdminLoc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
@@ -56,6 +57,20 @@
         <MudTabPanel Text="@AdminLoc["Tab_Guests"]" Icon="@Icons.Material.Filled.PersonAddAlt">
             <AdminGuestsTab />
         </MudTabPanel>
+        <MudTabPanel Text="@AnlLoc["PageTitle"]" Icon="@Icons.Material.Filled.QueryStats">
+            @* T5-ANL-01 — analytics is a standalone admin page (file-upload + chart room). *@
+            <MudPaper Class="pa-6" Elevation="0">
+                <MudStack Spacing="3" AlignItems="AlignItems.Start">
+                    <MudText Typo="Typo.h6">@AnlLoc["PageTitle"]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@AnlLoc["PageDesc"]</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.OpenInNew"
+                               OnClick="@(() => Navigation.NavigateTo("/admin/analytics"))">
+                        @AnlLoc["PageTitle"]
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudTabPanel>
         <MudTabPanel Text="@WmkLoc["Verify_PageTitle"]" Icon="@Icons.Material.Filled.Security">
             @* Watermark verify is a standalone admin page (T5-WMK-01) — file-upload UX
                needs the page room. Tab content is just a CTA into the dedicated route. *@
@@ -82,7 +97,7 @@
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("tab", out var tabValue)
-            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 12)
+            && int.TryParse(tabValue, out var tab) && tab >= 0 && tab <= 13)
             _activeTabIndex = tab;
     }
 

@@ -24,6 +24,119 @@ namespace AssetHub.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AssetHub.Domain.Entities.AnalyticsDailyRollup", b =>
+                {
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Metric")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long>("Count")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Date", "Metric", "EntityId")
+                        .HasName("pk_analytics_daily_rollups");
+
+                    b.HasIndex("Date", "Metric")
+                        .HasDatabaseName("idx_analytics_daily_date_metric");
+
+                    b.ToTable("AnalyticsDailyRollups");
+                });
+
+            modelBuilder.Entity("AssetHub.Domain.Entities.AnalyticsPdfJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ObjectKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("WindowDays")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("idx_analytics_pdf_jobs_expires_at");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_analytics_pdf_jobs_status");
+
+                    b.ToTable("AnalyticsPdfJobs");
+                });
+
+            modelBuilder.Entity("AssetHub.Domain.Entities.AnalyticsStorageRollup", b =>
+                {
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Metric")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int>("AssetCount")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Bytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Date", "Metric", "EntityId")
+                        .HasName("pk_analytics_storage_rollups");
+
+                    b.HasIndex("Date", "Metric")
+                        .HasDatabaseName("idx_analytics_storage_date_metric");
+
+                    b.ToTable("AnalyticsStorageRollups");
+                });
+
             modelBuilder.Entity("AssetHub.Domain.Entities.Asset", b =>
                 {
                     b.Property<Guid>("Id")

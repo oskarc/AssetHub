@@ -41,6 +41,7 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
         Services.AddSingleton<IStringLocalizer<SharesResource>>(new StubStringLocalizer<SharesResource>());
         Services.AddSingleton<IStringLocalizer<AdminResource>>(new StubStringLocalizer<AdminResource>());
         Services.AddSingleton<IStringLocalizer<WatermarksResource>>(new StubStringLocalizer<WatermarksResource>());
+        Services.AddSingleton<IStringLocalizer<AnalyticsResource>>(new StubStringLocalizer<AnalyticsResource>());
 
         // Register LocalizedDisplayService (used by dialogs/components that display localized labels)
         Services.AddSingleton<LocalizedDisplayService>();

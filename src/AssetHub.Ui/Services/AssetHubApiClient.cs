@@ -65,6 +65,8 @@ public class AssetHubApiClient(
     IGuestInvitationService guestInvitationService,
     IWatermarkService watermarkService,
     IWatermarkVerifier watermarkVerifier,
+    IAnalyticsService analyticsService,
+    IAnalyticsPdfJobService analyticsPdfJobService,
     IUserLookupService userLookupService,
     IOptions<AppSettings> appSettings)
 {
@@ -82,7 +84,8 @@ public class AssetHubApiClient(
         : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
                null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
                null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
-               null!, null!, null!, null!, null!, null!, null!, null!, null!,
+               null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
+               null!,
                Options.Create(new AppSettings()))
     {
     }
@@ -1405,6 +1408,67 @@ public class AssetHubApiClient(
     {
         var result = await watermarkVerifier.VerifyAsync(content, contentType, sizeBytes, ct);
         return Unwrap(result, "Verify watermark");
+    }
+
+    #endregion
+
+    #region Analytics (T5-ANL-01)
+
+    public virtual async Task<IReadOnlyList<AnalyticsAssetDownloadRowDto>> GetTopDownloadedAssetsAsync(
+        int windowDays, int take, CancellationToken ct = default)
+    {
+        var result = await analyticsService.GetTopDownloadedAssetsAsync(windowDays, take, ct);
+        return Unwrap(result, "Get top downloaded assets");
+    }
+
+    public virtual async Task<IReadOnlyList<AnalyticsDailyPointDto>> GetDailyDownloadCountsAsync(
+        int windowDays, CancellationToken ct = default)
+    {
+        var result = await analyticsService.GetDailyDownloadCountsAsync(windowDays, ct);
+        return Unwrap(result, "Get daily download counts");
+    }
+
+    public virtual async Task<IReadOnlyList<AnalyticsStorageByCollectionRowDto>> GetStorageByCollectionAsync(
+        int take, CancellationToken ct = default)
+    {
+        var result = await analyticsService.GetStorageByCollectionAsync(take, ct);
+        return Unwrap(result, "Get storage by collection");
+    }
+
+    public virtual async Task<IReadOnlyList<AnalyticsStorageByAssetTypeRowDto>> GetStorageByAssetTypeAsync(
+        CancellationToken ct = default)
+    {
+        var result = await analyticsService.GetStorageByAssetTypeAsync(ct);
+        return Unwrap(result, "Get storage by asset type");
+    }
+
+    public virtual async Task<IReadOnlyList<AnalyticsExposureRowDto>> GetTopRecipientsAsync(
+        int windowDays, int take, CancellationToken ct = default)
+    {
+        var result = await analyticsService.GetTopRecipientsAsync(windowDays, take, ct);
+        return Unwrap(result, "Get top recipients");
+    }
+
+    public virtual async Task<RevealRecipientResponseDto> RevealRecipientAsync(
+        RevealRecipientRequestDto request, CancellationToken ct = default)
+    {
+        Validate(request, "Reveal recipient");
+        var result = await analyticsService.RevealRecipientAsync(request, ct);
+        return Unwrap(result, "Reveal recipient");
+    }
+
+    public virtual async Task<AnalyticsPdfJobStatusDto> EnqueueAnalyticsPdfAsync(
+        int windowDays, CancellationToken ct = default)
+    {
+        var result = await analyticsPdfJobService.EnqueueAsync(windowDays, ct);
+        return Unwrap(result, "Enqueue analytics PDF");
+    }
+
+    public virtual async Task<AnalyticsPdfJobStatusDto> GetAnalyticsPdfStatusAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var result = await analyticsPdfJobService.GetStatusAsync(jobId, ct);
+        return Unwrap(result, "Get analytics PDF status");
     }
 
     #endregion

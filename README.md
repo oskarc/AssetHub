@@ -265,6 +265,8 @@ The deployment guide covers reverse proxy setup (Caddy/Nginx), TLS certificates,
 
 > **[DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)** — complete production deployment guide.
 
+> **[THIRD-PARTY-LICENSES.md](docs/operations/THIRD-PARTY-LICENSES.md)** — license constraints to audit before deploying. Currently QuestPDF (analytics PDF export) is Community-licensed and free for organisations under $1M USD revenue; deployers above that threshold must purchase a license, swap the renderer, or disable the PDF export feature.
+
 ---
 
 ## Testing

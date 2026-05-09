@@ -45,6 +45,9 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
     public DbSet<WatermarkDownload> WatermarkDownloads { get; set; } = null!;
+    public DbSet<AnalyticsDailyRollup> AnalyticsDailyRollups { get; set; } = null!;
+    public DbSet<AnalyticsStorageRollup> AnalyticsStorageRollups { get; set; } = null!;
+    public DbSet<AnalyticsPdfJob> AnalyticsPdfJobs { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -80,6 +83,9 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         ConfigureOrphanedObject(modelBuilder);
         ConfigureOutboxMessage(modelBuilder);
         ConfigureWatermarkDownload(modelBuilder);
+        ConfigureAnalyticsDailyRollup(modelBuilder);
+        ConfigureAnalyticsStorageRollup(modelBuilder);
+        ConfigureAnalyticsPdfJob(modelBuilder);
     }
 
     // ── Per-entity configuration ────────────────────────────────────────
@@ -871,6 +877,62 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     // The same JSONB Dictionary<string,object> shape and text[] List<string>
     // shape repeat across many entities; sharing the converter + comparer
     // instances avoids dozens of duplicated ValueComparer constructions.
+
+    private static void ConfigureAnalyticsDailyRollup(ModelBuilder modelBuilder) =>
+        modelBuilder.Entity<AnalyticsDailyRollup>(entity =>
+        {
+            // Composite PK: each (date, metric, entity) tuple has at most one row.
+            // Upserts target this PK so the rollup is idempotent on re-run.
+            entity.ToTable("AnalyticsDailyRollups");
+            entity.HasKey(e => new { e.Date, e.Metric, e.EntityId })
+                .HasName("pk_analytics_daily_rollups");
+
+            entity.Property(e => e.Metric)
+                .HasConversion(v => v.ToDbString(), v => v.ToAnalyticsCountMetric())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.EntityId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Count).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+
+            // Date+Metric is the dashboard's hot-path query shape.
+            entity.HasIndex(e => new { e.Date, e.Metric })
+                .HasDatabaseName("idx_analytics_daily_date_metric");
+        });
+
+    private static void ConfigureAnalyticsStorageRollup(ModelBuilder modelBuilder) =>
+        modelBuilder.Entity<AnalyticsStorageRollup>(entity =>
+        {
+            entity.ToTable("AnalyticsStorageRollups");
+            entity.HasKey(e => new { e.Date, e.Metric, e.EntityId })
+                .HasName("pk_analytics_storage_rollups");
+
+            entity.Property(e => e.Metric)
+                .HasConversion(v => v.ToDbString(), v => v.ToAnalyticsStorageMetric())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.EntityId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Bytes).IsRequired();
+            entity.Property(e => e.AssetCount).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+
+            entity.HasIndex(e => new { e.Date, e.Metric })
+                .HasDatabaseName("idx_analytics_storage_date_metric");
+        });
+
+    private static void ConfigureAnalyticsPdfJob(ModelBuilder modelBuilder) =>
+        modelBuilder.Entity<AnalyticsPdfJob>(entity =>
+        {
+            entity.ToTable("AnalyticsPdfJobs");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Status).HasDatabaseName("idx_analytics_pdf_jobs_status");
+            entity.HasIndex(e => e.ExpiresAt).HasDatabaseName("idx_analytics_pdf_jobs_expires_at");
+
+            entity.Property(e => e.Status)
+                .HasConversion(v => v.ToDbString(), v => v.ToAnalyticsPdfJobStatus())
+                .HasMaxLength(50).IsRequired();
+            entity.Property(e => e.RequestedByUserId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.ObjectKey).HasMaxLength(512);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
+        });
 
     private static readonly ValueComparer<List<string>> StringListComparer = new(
         (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,

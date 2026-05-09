@@ -53,6 +53,7 @@ static class Program
                 opts.ListenToRabbitQueue("s3-migration-scan");
                 opts.ListenToRabbitQueue("send-notification-email");
                 opts.ListenToRabbitQueue("dispatch-webhook");
+                opts.ListenToRabbitQueue("build-analytics-pdf");
 
                 // Route events back to API
                 opts.PublishMessage<AssetProcessingCompletedEvent>()
@@ -150,6 +151,13 @@ static class Program
                 services.AddHostedService<OrphanedObjectsSweeperService>();
                 services.AddHostedService<OutboxDrainService>();
                 services.AddHostedService<WatermarkAssetFingerprintBackgroundService>();
+
+                // T5-ANL-01 — analytics rollup + PDF export cleanup.
+                services.AddOptions<AnalyticsSettings>()
+                    .Bind(hostContext.Configuration.GetSection(AnalyticsSettings.SectionName))
+                    .ValidateDataAnnotations();
+                services.AddHostedService<AnalyticsRollupBackgroundService>();
+                services.AddHostedService<AnalyticsPdfCleanupService>();
             })
             .Build();
 

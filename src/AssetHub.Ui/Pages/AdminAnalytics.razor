@@ -1,0 +1,127 @@
+@page "/admin/analytics"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
+@implements IAsyncDisposable
+
+@inject AssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IJSRuntime JS
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AnalyticsResource> Loc
+
+<PageTitle>@Loc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.QueryStats" />
+                        <span>@Loc["PageTitle"]</span>
+                    </MudStack>
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    @Loc["PageDesc"]
+                </MudText>
+            </MudStack>
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       OnClick="ExportPdfAsync"
+                       Disabled="_pdfBusy">
+                @if (_pdfBusy)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @Loc["Btn_ExportPdf"]
+            </MudButton>
+        </MudStack>
+
+        <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+            <MudToggleGroup T="int"
+                            SelectionMode="SelectionMode.SingleSelection"
+                            @bind-Value="_windowDays"
+                            Color="Color.Primary"
+                            Size="Size.Small">
+                <MudToggleItem Value="@(7)">@Loc["Window_7d"]</MudToggleItem>
+                <MudToggleItem Value="@(30)">@Loc["Window_30d"]</MudToggleItem>
+                <MudToggleItem Value="@(90)">@Loc["Window_90d"]</MudToggleItem>
+                <MudToggleItem Value="@(365)">@Loc["Window_365d"]</MudToggleItem>
+            </MudToggleGroup>
+        </MudPaper>
+
+        <AnalyticsDownloadsPanel WindowDays="_windowDays" />
+        <AnalyticsStoragePanel />
+        <AnalyticsExposurePanel WindowDays="_windowDays" />
+    </MudStack>
+</MudContainer>
+
+@code {
+    private int _windowDays = 90;
+    private bool _pdfBusy;
+    private CancellationTokenSource? _pollCts;
+
+    private async Task ExportPdfAsync()
+    {
+        _pdfBusy = true;
+        StateHasChanged();
+        try
+        {
+            var job = await Api.EnqueueAnalyticsPdfAsync(_windowDays);
+            Feedback.ShowInfo(Loc["Pdf_Generating"].Value);
+            await PollUntilReadyAsync(job.JobId);
+        }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "enqueue analytics PDF");
+        }
+        finally
+        {
+            _pdfBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PollUntilReadyAsync(Guid jobId)
+    {
+        // Replace any in-flight poll if the user hits Export again.
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        var token = _pollCts.Token;
+
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3), token);
+                var status = await Api.GetAnalyticsPdfStatusAsync(jobId, token);
+                if (string.Equals(status.Status, "ready", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrEmpty(status.DownloadUrl))
+                {
+                    Feedback.ShowSuccess(Loc["Pdf_Ready"].Value);
+                    Nav.NavigateTo(status.DownloadUrl, forceLoad: true);
+                    return;
+                }
+                if (string.Equals(status.Status, "failed", StringComparison.OrdinalIgnoreCase))
+                {
+                    Feedback.ShowError(status.ErrorMessage ?? Loc["Pdf_Failed"].Value);
+                    return;
+                }
+            }
+        }
+        catch (TaskCanceledException) { /* user navigated away or timed out */ }
+        catch (Exception ex)
+        {
+            Feedback.HandleError(ex, "poll analytics PDF");
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = null;
+        return ValueTask.CompletedTask;
+    }
+}

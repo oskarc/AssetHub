@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="PageTitle" xml:space="preserve"><value>Analys</value></data>
+  <data name="PageDesc" xml:space="preserve"><value>Användning, lagring och forensisk exponering för tillgångsbiblioteket. Datan aggregeras varje natt och kan ligga upp till ett dygn efter det levande systemet.</value></data>
+
+  <data name="Window_7d" xml:space="preserve"><value>7 dagar</value></data>
+  <data name="Window_30d" xml:space="preserve"><value>30 dagar</value></data>
+  <data name="Window_90d" xml:space="preserve"><value>90 dagar</value></data>
+  <data name="Window_365d" xml:space="preserve"><value>365 dagar</value></data>
+
+  <data name="Btn_ExportCsv" xml:space="preserve"><value>Exportera CSV</value></data>
+  <data name="Btn_ExportPdf" xml:space="preserve"><value>Exportera PDF</value></data>
+  <data name="Btn_Reveal" xml:space="preserve"><value>Visa</value></data>
+
+  <data name="Pdf_Generating" xml:space="preserve"><value>Genererar PDF…</value></data>
+  <data name="Pdf_Ready" xml:space="preserve"><value>PDF klar — öppnar i ny flik.</value></data>
+  <data name="Pdf_Failed" xml:space="preserve"><value>PDF-generering misslyckades.</value></data>
+
+  <data name="Empty_NoData" xml:space="preserve"><value>Ingen data ännu</value></data>
+  <data name="Empty_NoDataDesc" xml:space="preserve"><value>Data dyker upp här efter nästa nattliga aggregering klockan 02:00 UTC.</value></data>
+
+  <data name="Downloads_Title" xml:space="preserve"><value>Nedladdningar</value></data>
+  <data name="Downloads_Desc" xml:space="preserve"><value>Topptillgångar efter antal nedladdningar plus en daglig trend.</value></data>
+  <data name="Downloads_Header_Asset" xml:space="preserve"><value>Tillgång</value></data>
+  <data name="Downloads_Header_Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="Downloads_Header_Count" xml:space="preserve"><value>Nedladdningar</value></data>
+  <data name="Downloads_Deleted" xml:space="preserve"><value>(borttagen)</value></data>
+  <data name="Downloads_Trend" xml:space="preserve"><value>Daglig trend</value></data>
+
+  <data name="Storage_Title" xml:space="preserve"><value>Lagring</value></data>
+  <data name="Storage_Desc" xml:space="preserve"><value>Bytes per samling och per tillgångstyp, ögonblicksbild från den senaste aggregeringen.</value></data>
+  <data name="Storage_ByCollection" xml:space="preserve"><value>Per samling</value></data>
+  <data name="Storage_ByType" xml:space="preserve"><value>Per tillgångstyp</value></data>
+  <data name="Storage_Header_Collection" xml:space="preserve"><value>Samling</value></data>
+  <data name="Storage_Header_Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="Storage_Header_Assets" xml:space="preserve"><value>Tillgångar</value></data>
+  <data name="Storage_Header_Size" xml:space="preserve"><value>Storlek</value></data>
+
+  <data name="Exposure_Title" xml:space="preserve"><value>Forensisk exponering</value></data>
+  <data name="Exposure_Desc" xml:space="preserve"><value>Toppmottagare efter antal vattenstämplade nedladdningar. Mottagare visas som ogenomskinliga hashar; klicka Visa för att dekryptera — varje visning loggas i revisionsspåret.</value></data>
+  <data name="Exposure_Header_Recipient" xml:space="preserve"><value>Mottagar-hash</value></data>
+  <data name="Exposure_Header_Kind" xml:space="preserve"><value>Typ</value></data>
+  <data name="Exposure_Header_Count" xml:space="preserve"><value>Nedladdningar</value></data>
+  <data name="Exposure_Header_Distinct" xml:space="preserve"><value>Distinkta tillgångar</value></data>
+  <data name="Exposure_Reveal_Pending" xml:space="preserve"><value>Visar…</value></data>
+  <data name="Exposure_Reveal_Failed" xml:space="preserve"><value>Visning misslyckades.</value></data>
+  <data name="Exposure_Reveal_Unavailable" xml:space="preserve"><value>(otillgänglig — krypteringsnyckeln kan ha roterats)</value></data>
+  <data name="Exposure_Kind_User" xml:space="preserve"><value>Användare</value></data>
+  <data name="Exposure_Kind_Email" xml:space="preserve"><value>E-post</value></data>
+</root>
