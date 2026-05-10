@@ -95,6 +95,8 @@ certs/*
 !certs/.gitkeep
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+.claude/test-baseline.json
+.claude/test-results/
 Claude-Processing.md
 Claude-Deferred-Decisions.md
 Claude-Overnight-Review-Report.md
