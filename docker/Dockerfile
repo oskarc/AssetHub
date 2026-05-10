@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0-bookworm-slim AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 WORKDIR /src
 
 # Copy Directory.Build.props first (affects restore/build behavior)
@@ -25,15 +25,15 @@ FROM build AS publish
 RUN dotnet publish "src/AssetHub.Api/AssetHub.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-bookworm-slim AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS final
 
 # Install ImageMagick for image processing (thumbnails, resizing)
 # Install ffmpeg for video processing (poster frames)
 # Install curl for Docker health checks
 # Install ca-certificates for SSL trust
 #
-# Patch known HIGH CVEs in Debian base packages until the upstream image is rebuilt:
-# - CVE-2026-28390: OpenSSL NULL-ptr DoS in CMS (fixed in 3.0.19-1~deb12u2)
+# Pull latest libssl3 / openssl patches on every build so we don't ship a
+# stale image when the upstream base hasn't been rebuilt yet.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     ffmpeg \
