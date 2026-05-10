@@ -84,7 +84,7 @@
         _uploading = true;
         try
         {
-            await using var stream = _file.OpenReadStream(maxBytes);
+            await using var stream = _file.OpenReadStream(maxBytes); // NOSONAR S5693 — admin-only dialog; pre-flight Size check above + .NET-enforced maxAllowedSize cap + server-side limit
             await Api.UploadBrandLogoAsync(Brand.Id, stream, _file.Name, _file.ContentType);
             MudDialog.Close(DialogResult.Ok(true));
         }

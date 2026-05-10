@@ -225,7 +225,7 @@
         _result = null;
         try
         {
-            await using var stream = _file.OpenReadStream(MaxBytes);
+            await using var stream = _file.OpenReadStream(MaxBytes); // NOSONAR S5693 — admin-only page; pre-flight Size check at L211 + .NET-enforced maxAllowedSize cap + server-side WMK_TOO_LARGE
             _result = await Api.VerifyWatermarkAsync(stream, _file.ContentType ?? string.Empty, _file.Size);
         }
         catch (ApiException ex)

@@ -473,7 +473,7 @@
 
         try
         {
-            using var stream = file.OpenReadStream(maxAllowedSize: maxBytes);
+            using var stream = file.OpenReadStream(maxAllowedSize: maxBytes); // NOSONAR S5693 — admin-only dialog; pre-flight Size check above + .NET-enforced maxAllowedSize cap + server-side limit
             await Api.UploadMigrationManifestAsync(MigrationId, stream, file.Name);
             _manifestUploaded = true;
             _instructionsExpanded = false;
@@ -519,7 +519,7 @@
         {
             var fileData = files.Select(f => (
                 f.Name,
-                f.OpenReadStream(maxAllowedSize: maxSizeBytes),
+                f.OpenReadStream(maxAllowedSize: maxSizeBytes), // NOSONAR S5693 — admin-only dialog; pre-flight Size check above + .NET-enforced maxAllowedSize cap + server-side limit
                 f.ContentType ?? "application/octet-stream"
             ));
 
