@@ -36,8 +36,8 @@ Layers:
 | **Domain** | Entities, enums — no base classes, no value objects, no domain events | Nothing |
 | **Application** | Service interfaces, repository interfaces, DTOs, `ServiceResult<T>`, configuration, messages | Domain |
 | **Infrastructure** | EF Core repos, service implementations, external adapters, Polly resilience | Application + Domain |
-| **Api** | Composition root — DI, endpoint mapping, auth config, hosts Blazor Server | All |
-| **Worker** | Composition root — Wolverine handlers, `IHostedService` background jobs | All |
+| **Api** | Composition root — DI, endpoint mapping, auth config, hosts Blazor Server. Also hosts UI-adjacent background work (see § Worker — Hosting split) | All |
+| **Worker** | Composition root — media/processing Wolverine handlers, scheduled `IHostedService` background jobs | All |
 | **Ui** | Blazor Server (Razor Class Library) | Application only — never reference Infrastructure or Api |
 
 ### Patterns NOT used in this project
@@ -151,7 +151,7 @@ Primary constructors with `AssetHubDbContext`, `HybridCache`, `ILogger<T>`. Use 
 - `.ToDictionary(a => a.Id)` to avoid N+1.
 
 ### DbContext configuration
-- All entity config inline in `OnModelCreating()` — no separate configuration classes.
+- Entity config lives in per-entity `IEntityTypeConfiguration<T>` classes under `Data/Configurations/`, applied from `OnModelCreating()` via `modelBuilder.ApplyConfiguration(...)` — `BrandConfiguration` is the exemplar. Legacy inline blocks in `OnModelCreating()` are migrated entity-by-entity as they're touched; **never add a new inline block**. A config split must produce a byte-identical model (EF's `PendingModelChangesWarning` throws outside Development if it doesn't).
 - JSONB columns: include column type, JSON serialization converter, and a **ValueComparer** (critical for change tracking).
 - Enums stored as strings via `ToDbString()` / `ToExampleStatus()` extension methods.
 - Index naming: `idx_{entity}_{fields}` with `_unique` suffix for unique.
@@ -293,6 +293,8 @@ Filter behaviour: cookie / JWT principals pass through unchanged (no `pat_scope`
 
 Razor Class Library that depends **only** on Application. Never reference Infrastructure or Api.
 
+Design tokens, color palettes, typography scale, elevation, and information-architecture conventions live in **[docs/STYLEGUIDE.md](docs/STYLEGUIDE.md)** — consult it before styling any new surface. Never hard-code hex values or font sizes; use MudBlazor CSS variables and `Typo.*`.
+
 ### Component library
 **MudBlazor 8** exclusively — no raw HTML form elements when a MudBlazor equivalent exists. No other component libraries.
 
@@ -301,8 +303,12 @@ Razor Class Library that depends **only** on Application. Never reference Infras
 - `@implements IAsyncDisposable` when using event subscriptions or timers.
 - Common injections: `AssetHubApiClient`, `NavigationManager`, `IUserFeedbackService`, `IDialogService`, `IStringLocalizer<T>`.
 
-### API communication
-Use `AssetHubApiClient` for all HTTP calls — never `HttpClient` directly. Handle `ServiceResult<T>` errors via `IUserFeedbackService`.
+### Backend access (`AssetHubApiClient`)
+`AssetHubApiClient` is an **in-process facade** over the Application service interfaces — there is no HTTP between the UI and the backend (the original HttpClient loopback was removed). It gives Razor pages one stable surface and one error contract:
+
+- Methods return DTOs directly and **throw `ApiException`** (carrying the `ServiceResult` status code, error code, and details) on failure. The facade performs the `ServiceResult` → exception translation; pages never see `ServiceResult` itself.
+- Always go through the facade — never inject Application services directly into components, and never construct an `HttpClient`.
+- The facade is registered in the Api composition root (`ServiceCollectionExtensions`); DTO inputs are re-validated against DataAnnotations inside the facade (mirroring `ValidationFilter<T>` on the REST endpoints).
 
 ### Dialogs
 - Named `*Dialog.razor`.
@@ -316,54 +322,62 @@ No third-party libraries. Use scoped services, `CascadingAuthenticationState`, a
 **HybridCache** (L1 in-memory + L2 Redis) — not `IMemoryCache` or localStorage/sessionStorage.
 
 ### Error handling
-Use `ErrorBoundary` for UI errors.
+`IUserFeedbackService.ExecuteWithFeedbackAsync(...)` is the **default idiom** for every user-initiated backend call — it runs the operation, shows the localized error (or optional success) snackbar, and reports success/failure back to the page:
 
-### Optimistic UI
+```razor
+var (ok, collection) = await Feedback.ExecuteWithFeedbackAsync(
+    () => Api.GetCollectionAsync(id), "load collection");
+if (!ok) return;
+```
 
-Prefer optimistic UI updates for user-initiated mutations (delete, rename, add to collection, toggle, reorder). The goal is to make the UI feel instant — update local state first, then confirm with the server.
+Hand-written `try / catch (ApiException ex)` is allowed **only** when the page reacts differently to a specific failure (e.g. 404 → navigate away, 409 → offer reload) — handle the special case, delegate the rest to `Feedback.HandleApiError`. Catching bare `Exception` around a facade call is drift: the wrapper already handles unknown failures.
 
-**Pattern:**
+`ErrorBoundary` remains the last-resort net for render-time errors — it is not a substitute for the wrapper.
+
+### Optimistic vs. confirmed updates
+
+Two sanctioned modes for user-initiated mutations. Pick by whether the user's flow was already interrupted:
+
+**Optimistic** (update local state first, roll back on failure) — for instant-feel actions where **no dialog interrupted the flow**: toggles (active/favorite), renames and single-field edits, removing an item from a list, add/remove from collection, reordering.
+
 ```razor
 @code {
-    private async Task DeleteItemAsync(Guid id)
+    private async Task RemoveFromCollectionAsync(Guid assetId)
     {
-        // 1. Optimistically update local state
-        var removedItem = _items.First(i => i.Id == id);
-        _items.Remove(removedItem);
+        // 1. Keep a reference, then optimistically update local state
+        var removed = _items.First(i => i.Id == assetId);
+        _items.Remove(removed);
         StateHasChanged();
 
-        // 2. Call the API
-        var result = await Api.DeleteAsync(id);
+        // 2. Call the facade through the wrapper (it shows the error snackbar)
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RemoveAssetFromCollectionAsync(assetId, _collectionId),
+            "remove from collection",
+            successMessage: CollectionsLoc["RemovedSuccess"].Value);
 
-        // 3. On failure: roll back and notify
-        if (!result.IsSuccess)
+        // 3. On failure: roll back
+        if (!ok)
         {
-            _items.Add(removedItem);
+            _items.Add(removed);
             StateHasChanged();
-            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
         }
     }
 }
 ```
 
-**When to use optimistic UI:**
-- Deleting items from lists (assets, collections, ACLs)
-- Toggling boolean state (active/inactive, favorite)
-- Adding/removing items from collections
-- Renaming or updating single fields
-- Reordering items
+**Confirmed (await-first)** — for flows that already pass through a `ConfirmDialog` (destructive deletes, bulk operations): the dialog has already broken the "instant" illusion, so optimism buys nothing. Await the call via `ExecuteWithFeedbackAsync`, then update local state on success. This is the sanctioned shape for confirm-gated deletes — do not retrofit them to optimistic.
 
-**When NOT to use optimistic UI:**
+**Never optimistic, regardless of mode:**
 - File uploads (progress is real, can't fake it)
 - Complex multi-step operations (creation wizards, bulk operations)
 - Operations where failure is common (validation-heavy forms)
 - Navigation after mutation (just await and navigate)
 
 **Rules:**
-- Always roll back local state on `ServiceResult` failure and show an error via `IUserFeedbackService`.
 - Keep a reference to the removed/changed item before mutating so rollback is trivial.
+- Always roll back local state on failure; the wrapper surfaces the error — the page only restores state.
 - Don't optimistically update data that other components depend on (e.g., counts in the sidebar) — let those refresh naturally or refresh after confirmation.
-- Success feedback (snackbar) can fire immediately with the optimistic update — the user sees instant confirmation.
+- Optimistic success feedback may fire immediately with the local update — the user sees instant confirmation.
 
 ### Layouts
 - `MainLayout.razor` — authenticated app shell with nav menu.
@@ -464,6 +478,14 @@ AssetHub auto-migrates on startup (`Database.MigrateAsync()`). Migrations must b
 ## Worker (`AssetHub.Worker`)
 
 Uses `Host.CreateDefaultBuilder()` with `.UseWolverine()` (no HTTP pipeline).
+
+### Hosting split (Api vs Worker)
+Background work is hosted by **both** composition roots — placement follows ownership of the data the work touches:
+
+- **Worker** owns media/processing pipelines and scheduled sweeps: `process-image` / `process-video` / `process-audio` / `build-zip` / migration handlers, plus all retention/cleanup `BackgroundService`s (trash purge, audit retention, orphan sweeps, digests).
+- **Api** hosts UI-adjacent consumers: `AssetProcessingCompletedHandler` / `AssetProcessingFailedHandler` (asset row state transition + webhook fan-out on completion) and the `UserSyncBackgroundService` / `ZipCleanupBackgroundService` jobs that serve interactive flows.
+
+New background work defaults to the Worker; put it in Api only when it completes an interactive request/response loop the Api owns. Either way the handler/service rules below apply unchanged.
 
 ### Message handlers
 Wolverine auto-discovers public `HandleAsync()` methods in `Handlers/`:
@@ -603,7 +625,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - `MainLayout` and `ShareLayout` both include a skip-to-main-content link.
 
 **Usability (Nielsen + house rules):**
-- List mutations follow **Optimistic UI** (CLAUDE.md § Blazor): update local state first, roll back + `IUserFeedbackService.ShowError` on failure. Don't forget edit/rename.
+- List mutations follow **Optimistic vs. confirmed updates** (CLAUDE.md § Blazor): optimistic with rollback for instant-feel actions (no dialog in the flow); await-first for confirm-gated destructive flows. All errors surface through `ExecuteWithFeedbackAsync` — no bare `catch (Exception)` around facade calls.
 - Destructive mutations go through `ConfirmDialog`. Bulk permanent delete gets a second confirm with an explicit count.
 - Long-running actions (upload, save, zip build, media processing) surface progress — never a frozen button.
 - Edit dialogs with non-trivial input track dirty state and warn before discarding (`OnLocationChanging` on full pages, dialog guard on dialogs).
