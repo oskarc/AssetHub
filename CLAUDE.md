@@ -239,7 +239,7 @@ When you can't use `ServiceResult` because the validation fires before the servi
 
 A curated subset of endpoints forms the stable public REST contract consumed by external integrations, CI scripts, and migration tools. The rest (admin UX, UI-only helpers) remains functional but undocumented.
 
-- Mark public endpoints with `.MarkAsPublicApi()` (in `AssetHub.Api.OpenApi`). Only marked endpoints appear in the generated OpenAPI document at `/swagger/v1/swagger.json`.
+- Mark public endpoints with the composed helpers **`.MarkAsPublicRead(scope)`** / **`.MarkAsPublicMutation(scope)`** (in `AssetHub.Api.OpenApi`) — they bundle the scope filter, antiforgery handling, and OpenAPI inclusion so no leg can be forgotten. Chain `ValidationFilter<T>` *before* the helper. Raw `.MarkAsPublicApi()` remains only for groups and the documented PAT self-service exception. Only marked endpoints appear in the generated OpenAPI document at `/swagger/v1/swagger.json`.
 - Every public-API endpoint **must** also carry a `RequireScopeFilter` with the appropriate `assets:read`/`assets:write`/`collections:read`/`collections:write`/`search:read` scope — never ship a `[PublicApi]` endpoint without one (see PAT section below).
   - **One documented exception**: PAT self-service endpoints (`/api/v1/me/personal-access-tokens/*`) skip `RequireScopeFilter` because they're guarded by a `pat_id` claim check that *strictly forbids* PAT principals from reaching them at all. No scope (including `admin`) is enough. If you add a new "PAT-can-never-do-this" surface, follow the same pattern: `pat_id` guard inside the handler, no `RequireScopeFilter`, comment in the route mapping pointing back at this rule.
 - Changes to `[PublicApi]` endpoints are breaking changes under SemVer. Renames, removals, and type changes need a version bump or a deprecation path.
@@ -656,7 +656,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - Input DTOs apply `ValidationFilter<T>`.
 - Return via `.ToHttpResult(...)` — never manually inspect `IsSuccess`.
 - **Error shape is `ApiError`, not anonymous types.** When you can't route through `ServiceResult` (typically `IFormFile` parameter validation), return `Results.BadRequest(ApiError.BadRequest("…"))`. Never `Results.BadRequest(new { error = "…" })` — the anonymous shape doesn't match the OpenAPI schema and breaks SDK consumers.
-- Every `.MarkAsPublicApi()` line on a chain must also include an `.AddEndpointFilter(scope)` (where `scope` is a pre-built `RequireScopeFilter` for the group). The only documented exception is the `pat_id`-guarded PAT self-service surface.
+- Public endpoints use `.MarkAsPublicRead(scope)` / `.MarkAsPublicMutation(scope)` — never hand-assemble the scope + antiforgery + `MarkAsPublicApi` chain on individual endpoints. A raw `.MarkAsPublicApi()` on a single endpoint is a review flag; the only documented exceptions are group-level marking and the `pat_id`-guarded PAT self-service surface.
 
 ### When editing services / repositories (`src/AssetHub.Infrastructure/**`)
 
