@@ -74,6 +74,10 @@ public static class AssetEnumExtensions
         _ => AssetType.Unknown // Graceful fallback for unknown database values
     };
 
-    public static bool IsValidAssetType(string value) => value is "image" or "video" or "document";
+    /// <summary>
+    /// True when <paramref name="value"/> is a user-selectable asset type string.
+    /// Deliberately excludes "unknown" (db fallback, never user input).
+    /// </summary>
+    public static bool IsValidAssetType(string value) => value is "image" or "video" or "document" or "audio";
 }
 #pragma warning restore S4136

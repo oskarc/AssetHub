@@ -133,7 +133,8 @@ public class MetadataSchemaServiceTests
         var svc = CreateService();
         var dto = ValidGlobalDto();
         dto.Scope = "asset_type";
-        dto.AssetType = "audio";
+        // "audio" became a valid asset type in T5-AUDIO-01 — use a value that can never be valid.
+        dto.AssetType = "font";
 
         _schemaRepo.Setup(r => r.ExistsByNameAsync(It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);

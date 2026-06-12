@@ -63,7 +63,8 @@ public class MetadataSchemaQueryServiceTests
     {
         var svc = CreateService();
 
-        var result = await svc.GetApplicableAsync("audio", collectionId: null, CancellationToken.None);
+        // "audio" became a valid asset type in T5-AUDIO-01 — use a value that can never be valid.
+        var result = await svc.GetApplicableAsync("font", collectionId: null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.Error!.StatusCode);
