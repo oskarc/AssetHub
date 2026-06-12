@@ -27,7 +27,7 @@ public sealed class MetadataSchemaQueryService(
         AssetType? parsedType = null;
         if (!string.IsNullOrEmpty(assetType))
         {
-            if (!DomainEnumExtensions.IsValidAssetType(assetType))
+            if (!AssetEnumExtensions.IsValidAssetType(assetType))
                 return ServiceError.BadRequest($"Unknown asset type: {assetType}");
             parsedType = assetType.ToAssetType();
         }

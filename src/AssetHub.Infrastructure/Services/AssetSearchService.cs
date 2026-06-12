@@ -102,7 +102,7 @@ public sealed class AssetSearchService(
     {
         if (excludeDimension == "asset_type" || request.AssetTypes is not { Count: > 0 }) return q;
         var types = request.AssetTypes
-            .Where(DomainEnumExtensions.IsValidAssetType)
+            .Where(AssetEnumExtensions.IsValidAssetType)
             .Select(t => t.ToAssetType()).ToList();
         return types.Count == 0 ? q : q.Where(a => types.Contains(a.AssetType));
     }

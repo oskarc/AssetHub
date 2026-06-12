@@ -23,10 +23,10 @@ public sealed class ExportPresetService(
         if (!currentUser.IsSystemAdmin)
             return ServiceError.Forbidden("Only administrators can manage export presets");
 
-        if (!DomainEnumExtensions.IsValidExportPresetFitMode(dto.FitMode))
+        if (!ExportPresetEnumExtensions.IsValidExportPresetFitMode(dto.FitMode))
             return ServiceError.BadRequest($"Invalid fit mode: {dto.FitMode}");
 
-        if (!DomainEnumExtensions.IsValidExportPresetFormat(dto.Format))
+        if (!ExportPresetEnumExtensions.IsValidExportPresetFormat(dto.Format))
             return ServiceError.BadRequest($"Invalid format: {dto.Format}");
 
         if (await repo.ExistsByNameAsync(dto.Name, ct: ct))
@@ -116,10 +116,10 @@ public sealed class ExportPresetService(
     private async Task<ServiceError?> ValidateUpdateAsync(
         Guid id, UpdateExportPresetDto dto, CancellationToken ct)
     {
-        if (dto.FitMode is not null && !DomainEnumExtensions.IsValidExportPresetFitMode(dto.FitMode))
+        if (dto.FitMode is not null && !ExportPresetEnumExtensions.IsValidExportPresetFitMode(dto.FitMode))
             return ServiceError.BadRequest($"Invalid fit mode: {dto.FitMode}");
 
-        if (dto.Format is not null && !DomainEnumExtensions.IsValidExportPresetFormat(dto.Format))
+        if (dto.Format is not null && !ExportPresetEnumExtensions.IsValidExportPresetFormat(dto.Format))
             return ServiceError.BadRequest($"Invalid format: {dto.Format}");
 
         if (dto.Name is not null && await repo.ExistsByNameAsync(dto.Name, excludeId: id, ct: ct))

@@ -19,7 +19,7 @@ public sealed class MetadataSchemaService(
         if (!currentUser.IsSystemAdmin)
             return ServiceError.Forbidden("Only administrators can manage metadata schemas");
 
-        if (!DomainEnumExtensions.IsValidMetadataSchemaScope(dto.Scope))
+        if (!MetadataEnumExtensions.IsValidMetadataSchemaScope(dto.Scope))
             return ServiceError.BadRequest($"Unknown schema scope: {dto.Scope}");
 
         var scope = dto.Scope.ToMetadataSchemaScope();
@@ -40,7 +40,7 @@ public sealed class MetadataSchemaService(
         AssetType? assetType = null;
         if (!string.IsNullOrEmpty(dto.AssetType))
         {
-            if (!DomainEnumExtensions.IsValidAssetType(dto.AssetType))
+            if (!AssetEnumExtensions.IsValidAssetType(dto.AssetType))
                 return ServiceError.BadRequest($"Unknown asset type: {dto.AssetType}");
             assetType = dto.AssetType.ToAssetType();
         }
@@ -178,7 +178,7 @@ public sealed class MetadataSchemaService(
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (key, type, taxonomyId) in fields)
         {
-            if (!DomainEnumExtensions.IsValidMetadataFieldType(type))
+            if (!MetadataEnumExtensions.IsValidMetadataFieldType(type))
                 return ServiceError.BadRequest($"Unknown field type: {type}");
 
             if (!keys.Add(key))

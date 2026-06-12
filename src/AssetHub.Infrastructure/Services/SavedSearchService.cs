@@ -39,7 +39,7 @@ public sealed class SavedSearchService(
         if (!currentUser.IsAuthenticated)
             return ServiceError.Forbidden();
 
-        if (!DomainEnumExtensions.IsValidSavedSearchNotifyCadence(dto.Notify))
+        if (!SavedSearchEnumExtensions.IsValidSavedSearchNotifyCadence(dto.Notify))
             return ServiceError.BadRequest($"Unknown notify cadence: {dto.Notify}");
 
         if (await repo.ExistsByNameAsync(currentUser.UserId, dto.Name, ct: ct))
@@ -78,7 +78,7 @@ public sealed class SavedSearchService(
 
         if (dto.Notify is not null)
         {
-            if (!DomainEnumExtensions.IsValidSavedSearchNotifyCadence(dto.Notify))
+            if (!SavedSearchEnumExtensions.IsValidSavedSearchNotifyCadence(dto.Notify))
                 return ServiceError.BadRequest($"Unknown notify cadence: {dto.Notify}");
             saved.Notify = dto.Notify.ToSavedSearchNotifyCadence();
         }
