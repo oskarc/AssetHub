@@ -116,6 +116,7 @@ MANIFEST.yaml is part of the standard. It must stay in sync with the actual skil
 - An existing skill is updated significantly → update node status and open_gaps
 - A gap surfaces in a Standard Evolution Report → add to gap_queue
 - A gap is resolved by a new skill → update gap_queue status, add node to registry
+- A standards document is created anywhere in the repo (styleguide, conventions doc, architecture decision record) → register it as a node with a loader pointer from an always-loaded file. **An artifact outside the manifest does not govern** — it goes stale invisibly while the coverage map reports its concern as missing.
 
 **When to update SKILL.md:**
 - Governance rules change

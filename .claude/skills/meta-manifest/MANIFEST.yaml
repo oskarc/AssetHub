@@ -113,6 +113,18 @@ nodes:
   # Created here, will be extracted into the blazor-web-app library kit at meta-extract time.
   # Carry inherited: false until first extraction.
 
+  - id: principle-encode-over-document
+    concern: When a documented rule regresses twice, encode it as a type/helper/tool-checked structure instead of strengthening the documentation
+    skill_file: principle-encode-over-document/SKILL.md
+    tier: type-category
+    layer: principle
+    phase: [pre-build, during-build]
+    status: thin
+    inherited: false
+    dependencies: []
+    open_gaps:
+      - Single origin occurrence (2026-06-12 whole-app review) — escalation ladder unverified across further cases
+
   - id: pattern-brainstorm
     concern: Socratic interrogation of feature requests — surface real problem before code
     skill_file: pattern-brainstorm/SKILL.md
@@ -298,7 +310,19 @@ nodes:
     open_gaps:
       - Type-category-shaped guidance not yet decomposed into pattern/implementation skills under the blazor-web-app category
       - Level-mixed — principles, patterns, and product details combined in one file (skill-builder anti-pattern)
-    note: Auto-loaded by Claude Code natively. The [layer]-[name]/SKILL.md naming convention does not apply. Decomposing this node into smaller principle/pattern/implementation skills is the largest standing skill-builder programme for this project.
+    note: Auto-loaded by Claude Code natively. The [layer]-[name]/SKILL.md naming convention does not apply. Decomposing this node into smaller principle/pattern/implementation skills is the largest standing skill-builder programme for this project. Truth-passed 2026-06-12 (post-loopback architecture corrections — facade contract, error idiom, hybrid optimistic rule, Api/Worker hosting split, per-entity DbContext config).
+
+  - id: project-styleguide
+    concern: Design system — tokens, palettes, typography scale, elevation, component patterns, IA conventions
+    skill_file: docs/STYLEGUIDE.md
+    tier: project
+    layer: implementation
+    phase: [pre-build, during-build]
+    status: mature
+    inherited: false
+    dependencies: [project-instructions]
+    open_gaps: []
+    note: Lives at repo docs/STYLEGUIDE.md, loaded via the CLAUDE.md § Blazor UI pointer (wired 2026-06-12). Not a SKILL.md loader file.
 
 coverage_map:
 
@@ -353,6 +377,13 @@ coverage_map:
     status: mature
 
   # ─── Type-category coverage (blazor-web-app) ─────────────────────────────
+
+  # Principle layer
+  - concern: Encoding twice-regressed rules as types/helpers over documentation
+    node_id: principle-encode-over-document
+    layer: principle
+    phase: [pre-build, during-build]
+    status: thin
 
   # Pattern layer
   - concern: Pre-implementation interrogation
@@ -492,18 +523,18 @@ coverage_map:
     status: thin
 
   - concern: Design system & feel
-    node_id: project-instructions
-    layer: principle
-    phase: pre-build
-    status: thin
+    node_id: project-styleguide
+    layer: implementation
+    phase: [pre-build, during-build]
+    status: mature
 
   # ─── Missing concerns (see gap_queue) ────────────────────────────────────
 
   - concern: Information architecture
-    node_id: null
-    layer: principle
+    node_id: project-styleguide
+    layer: implementation
     phase: pre-build
-    status: missing
+    status: thin
 
   - concern: Navigation & IA decisions
     node_id: null
@@ -561,6 +592,9 @@ gap_queue:
       No node, skill, or CLAUDE.md section addresses how to decide page hierarchy, sidebar grouping,
       breadcrumb strategy, or navigation patterns. implementation-ux-check audits heuristics for what
       already exists but not the design step that creates it.
+      2026-06-12: docs/STYLEGUIDE.md (now registered as project-styleguide) documents existing IA
+      conventions — remaining scope is decision guidance for NEW page hierarchies plus the admin-area
+      IA review (AdminResource at 507 keys signals a tab monolith).
     candidate_level: principle
     priority: medium
     status: open
@@ -573,9 +607,13 @@ gap_queue:
       No tokens, no spacing scale, no colour usage rules, no typographic hierarchy.
       implementation-ux-check audits behaviour but not visual coherence. New components inherit
       MudBlazor defaults plus ad-hoc decisions.
+      2026-06-12: the knowledge existed all along in docs/STYLEGUIDE.md (31KB — tokens, palettes,
+      typography scale, IA conventions); the actual gap was registration. Now a manifest node
+      (project-styleguide) with a loader pointer from CLAUDE.md § Blazor UI.
     candidate_level: pattern
     priority: medium
-    status: open
+    status: resolved
+    resolved_by: project-styleguide (registered 2026-06-12)
 
   - gap_id: gap-005
     concern: Verification node not formalised — coverage exists in aggregate but not as a single concern
@@ -604,9 +642,12 @@ gap_queue:
       VERIFICATION NEEDED: /grill-me no longer appears in the current available-skills list — its
       location may have changed (retired, merged into brainstorm, or still user-space only). Verify
       current state before acting on this gap.
+      2026-06-12: verified — /grill-me is absent from the available-skills list; retired. No overlap
+      remains to resolve.
     candidate_level: product detail
     priority: low
-    status: open
+    status: resolved
+    resolved_by: verification 2026-06-12 (/grill-me retired; pattern-brainstorm is the sole pre-build interrogation skill)
 
   - gap_id: gap-007
     concern: /grill-me lives in user-space only — not committed to the repo
@@ -618,9 +659,11 @@ gap_queue:
       convention). Same risk applies to any future user-space skill the project comes to depend on.
       VERIFICATION NEEDED: see gap-006. If /grill-me has been retired, this gap can be marked
       resolved.
+      2026-06-12: verified retired (see gap-006).
     candidate_level: product detail
     priority: low
-    status: open
+    status: resolved
+    resolved_by: verification 2026-06-12 (/grill-me retired)
 
   # Add new gaps below as they surface:
   #

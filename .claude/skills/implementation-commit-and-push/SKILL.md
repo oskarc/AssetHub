@@ -105,6 +105,7 @@ If the changes include **new user-facing features, architecture changes, or capa
    - **Quick-start / configuration** — update if new settings, env vars, or setup steps were added.
 2. **`tests/E2E/README.md`** — Update if new E2E test pages, helpers, or config were added.
 3. **`CONTRIBUTING.md`** — Update if conventions, build steps, or project structure changed.
+4. **`CLAUDE.md` + registered standards docs** (e.g. `docs/STYLEGUIDE.md`) — if the diff changes architecture (how layers communicate, what a core component is, hosting/topology, an error contract), search these for sentences the change invalidates. **An architecture change is not complete until the standard's affected prose is corrected in the same commit** — a standard describing a dead architecture teaches drift, and its stale examples stop compiling while authors fill the vacuum with divergent idioms.
 
 **Rules:**
 - Only update sections that are directly affected — do not rewrite unrelated content.

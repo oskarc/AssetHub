@@ -56,6 +56,7 @@ For each public method:
 - **Validation** — one test per DataAnnotation group that can fail (length, range, regex). For free-form `ServiceError.BadRequest` checks (e.g., schema-scoped validation in `AssetMetadataService`), cover each branch.
 - **Conflict** — if the method does a uniqueness or duplicate check, exercise it.
 - **State transitions** — for `Asset` methods (`MarkReady`, `MarkFailed`), cover valid → valid and invalid → no-op.
+- **String-enum triples** — for every enum with a `ToDbString` / `To<Enum>` / `IsValid<X>` family, one exhaustiveness test asserts the three agree: every enum value round-trips (`ToDbString` → parser → same value), and every `ToDbString` output passes the validator (minus deliberate exclusions like an `Unknown` db-fallback, which the test names explicitly). These triples drift apart when a feature adds an enum value and updates only two of the three — the missed validator fails *silently* (filters drop, valid inputs rejected), and the miss gets enshrined when tests use the new value as their "invalid" example.
 
 Skip: trivial DTO getters, `ToString()` overrides, pure pass-through wrappers.
 
