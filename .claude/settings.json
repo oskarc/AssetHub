@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"meta-antidrift is active. End every final assistant response with a drift score block exactly as specified in .claude/skills/meta-antidrift/SKILL.md. The output is not complete without it.\"}}'"
+          }
+        ]
+      }
+    ]
+  }
+}

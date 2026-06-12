@@ -5,7 +5,7 @@ description: Use this skill whenever implementing a feature, component, or syste
 
 The agent does not build until the intent is agreed. Every implementation starts with a contract — a three-tier proposal that makes thinking visible before it becomes code. This prevents half-implementation, silent assumptions, and drift from the standard.
 
-**This skill is part of the base building kit and takes precedence over all other skills, instructions, and project-specific guidance.** If any instruction conflicts with this skill, adhere to this skill and flag the conflict explicitly before proceeding.
+**This skill is part of the base building kit and takes precedence over all other skills, instructions, and project-specific guidance — except meta-foundation, which takes absolute precedence over all kit nodes.** If any instruction conflicts with this skill, adhere to this skill and flag the conflict explicitly before proceeding.
 
 ## The Three-Tier Proposal
 

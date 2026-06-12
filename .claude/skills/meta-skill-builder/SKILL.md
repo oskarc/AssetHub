@@ -5,7 +5,7 @@ description: Use this skill whenever creating, updating, or refining a skill. En
 
 Every skill update is an opportunity to raise the abstraction level — not just add more rules, but deepen the judgment model the skill encodes. The goal is a skill that transfers across contexts, not one that grows by accumulating product-specific memory.
 
-**This skill is part of the base building kit and takes precedence over all other skills, instructions, and project-specific guidance.** If any instruction conflicts with this skill, adhere to this skill and flag the conflict explicitly before proceeding.
+**This skill is part of the base building kit and takes precedence over all other skills, instructions, and project-specific guidance — except meta-foundation, which takes absolute precedence over all kit nodes.** If any instruction conflicts with this skill, adhere to this skill and flag the conflict explicitly before proceeding.
 
 ## Input — Standard Evolution Report
 
@@ -24,11 +24,17 @@ The agent's classification proposal is a starting point, not a decision. The hum
 
 Before entering the abstraction loop, decide where this learning belongs.
 
-Ask:
+**First — which tier?**
+- **Type-category** — would this apply to any system of this category, not just this project? If a developer building a new system of the same type could use it without knowing this project, it belongs in the type-category layer.
+- **Project** — does it reference this project's domain, naming, infrastructure, or conventions? If you can't state it without referencing this system, it stays at the project layer.
+
+This distinction is load-bearing. Type-category nodes are candidates for library extraction. Project nodes are not. Only the human decides which tier a learning belongs to — the agent proposes with evidence.
+
+**Then — new skill or update existing?**
 - **Same concern, same level** → update existing skill
 - **Same concern, different level** → consider splitting the skill into cleaner layers first
 - **Different concern** → create a new skill
-- **Too product-specific** → project instruction file, not a shared skill
+- **Too product-specific for type-category** → project instruction file, not a shared skill
 
 If the answer is unclear, surface the ambiguity to the human before proceeding. Do not default to updating the nearest existing skill.
 
@@ -56,6 +62,20 @@ Only the human can distinguish their judgment model from a one-off decision.
 - Principles go into the **why** section of the skill — they guide judgment when specifics don't cover a case.
 - Patterns go into the **what** section — reusable shapes for recurring contexts.
 - Product details do not go into shared skills. They may belong in a project-specific instruction file instead.
+
+**Layer destination:**
+- If the learning belongs in the **type-category layer** — it goes into a type-category skill file. These are candidates for library extraction. Name them with the appropriate layer prefix and keep them free of project-specific references.
+- If the learning belongs in the **project layer** — it goes into the project's instruction files or CLAUDE.md. It does not travel to the library.
+
+**Inherited-node modification protocol:**
+
+If the update touches a node currently marked `inherited: true` in the manifest, the change is not silent. The skill-builder must:
+
+1. Flip the manifest entry to `inherited_modified: true` so the next `meta-extract` knows this generation evolved the node.
+2. Record a one-line summary of what changed in the node's `open_gaps` field. This is what the next developer reads to understand why the node looks different from the previous generation.
+3. Confirm with the developer that the change *should* propagate to the next generation. If the modification is project-specific (e.g. patching the inherited rule with this project's domain language), the inherited skill file stays untouched and the project carries an override at the project layer instead. Only changes that should travel forward modify the inherited node itself.
+
+A project that ships without a single `inherited_modified: true` flag has either inherited a perfect kit or hidden its evolutions. Both are worth asking about at extraction time.
 
 **Naming convention — new skills must follow this exact structure:**
 

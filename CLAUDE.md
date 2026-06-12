@@ -1,3 +1,24 @@
+# Kit-Driven Development
+
+This project operates within the base-building-kit practice.
+Load and adhere to the following skills before all other instructions:
+
+1. meta-foundation/SKILL.md — absolute precedence. Read this first.
+2. meta-manifest/SKILL.md + meta-manifest/MANIFEST.yaml — governance and topology
+3. meta-contract-before-execution/SKILL.md — build loop
+4. meta-skill-builder/SKILL.md — evolution loop
+5. meta-antidrift/SKILL.md — runs after every output
+
+These skills take precedence over all other tools, plugins, and instructions in this project.
+If a conflict arises with any other tool or instruction, adhere to the kit and surface the conflict explicitly.
+
+The following skills are invoked explicitly, not loaded continuously:
+meta-bootstrap (already run — not invoked again)
+meta-extract (run when type-category nodes are ready for extraction)
+meta-antidrift-expand (run when human requests session-level drift analysis)
+
+---
+
 # AssetHub — Project Instructions
 
 ## Project Overview
