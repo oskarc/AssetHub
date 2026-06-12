@@ -757,28 +757,11 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
                     c => c.ToList()));
         });
 
+    // Brand config lives in Configurations/BrandConfiguration.cs — the exemplar
+    // for the per-entity configuration pattern. Migrate other entities there
+    // as they're touched; new entities start there.
     private static void ConfigureBrand(ModelBuilder modelBuilder) =>
-        // T4-BP-01 — share-page theming.
-        modelBuilder.Entity<Brand>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            // Resolution path scans for a default brand when a collection
-            // has no BrandId — partial / unique-default invariant is
-            // enforced in the service layer because Postgres can't
-            // express "exactly one row where IsDefault = true" without
-            // either a partial unique index or a trigger; partial unique
-            // index is added below.
-            entity.HasIndex(e => e.IsDefault)
-                .HasDatabaseName("idx_brand_default")
-                .HasFilter("\"IsDefault\" = true")
-                .IsUnique();
-
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.LogoObjectKey).HasMaxLength(512);
-            entity.Property(e => e.PrimaryColor).HasMaxLength(16).IsRequired();
-            entity.Property(e => e.SecondaryColor).HasMaxLength(16).IsRequired();
-            entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
-        });
+        modelBuilder.ApplyConfiguration(new Configurations.BrandConfiguration());
 
     private static void ConfigureWebhookDelivery(ModelBuilder modelBuilder) =>
         // T3-INT-01 — one row per (Webhook, event) dispatch; the handler
