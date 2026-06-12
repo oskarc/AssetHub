@@ -52,7 +52,7 @@ public sealed class LocalStorageService : IAsyncDisposable
     public async Task<bool> GetBoolAsync(string key, bool defaultValue = false)
     {
         var stored = await GetAsync(key);
-        return stored != null ? stored == "true" : defaultValue;
+        return stored is not null ? stored == "true" : defaultValue;
     }
 
     /// <summary>
@@ -87,7 +87,7 @@ public sealed class LocalStorageService : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_jsModule != null)
+        if (_jsModule is not null)
         {
             await _jsModule.DisposeAsync();
         }

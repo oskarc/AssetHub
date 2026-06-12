@@ -220,7 +220,7 @@ public static class ServiceCollectionExtensions
             var hca = sp.GetRequiredService<IHttpContextAccessor>();
             var user = hca.HttpContext?.User;
             var userId = user?.GetUserId();
-            if (userId != null)
+            if (userId is not null)
                 return new CurrentUser(userId, user!.IsGlobalAdmin());
             
             // Log when returning anonymous user (background jobs, missing auth, etc.)

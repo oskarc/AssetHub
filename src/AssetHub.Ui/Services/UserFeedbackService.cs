@@ -10,7 +10,7 @@ namespace AssetHub.Ui.Services;
 /// Implementation of <see cref="IUserFeedbackService"/> using MudBlazor's Snackbar.
 /// Provides consistent user-facing feedback with proper error message sanitization.
 /// </summary>
-public class UserFeedbackService : IUserFeedbackService
+public sealed class UserFeedbackService : IUserFeedbackService
 {
     private readonly ISnackbar _snackbar;
     private readonly ILogger<UserFeedbackService> _logger;
@@ -117,7 +117,7 @@ public class UserFeedbackService : IUserFeedbackService
             {
                 await operation();
 
-                if (successMessage != null)
+                if (successMessage is not null)
                 {
                     ShowSuccess(successMessage);
                 }
@@ -154,7 +154,7 @@ public class UserFeedbackService : IUserFeedbackService
             {
                 var result = await operation();
 
-                if (successMessage != null)
+                if (successMessage is not null)
                 {
                     ShowSuccess(successMessage);
                 }

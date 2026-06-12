@@ -30,7 +30,7 @@ public sealed class ThemeService
     public void InitializeFromCookies(IHttpContextAccessor httpContextAccessor)
     {
         var cookies = httpContextAccessor.HttpContext?.Request.Cookies;
-        if (cookies != null && cookies.TryGetValue(DarkModeKey, out var dm))
+        if (cookies is not null && cookies.TryGetValue(DarkModeKey, out var dm))
         {
             _isDarkMode = !string.Equals(dm, "false", StringComparison.OrdinalIgnoreCase);
         }
@@ -47,7 +47,7 @@ public sealed class ThemeService
         _initialized = true;
 
         var stored = await _localStorage.GetAsync(DarkModeKey);
-        if (stored != null)
+        if (stored is not null)
         {
             var newValue = stored == "true";
             if (newValue != _isDarkMode)

@@ -17,7 +17,7 @@ public interface IClipboardService
 /// <summary>
 /// Implementation of <see cref="IClipboardService"/> using browser clipboard API.
 /// </summary>
-public class ClipboardService : IClipboardService
+public sealed class ClipboardService : IClipboardService
 {
     private const string ClipboardWriteMethod = "navigator.clipboard.writeText";
     private readonly IJSRuntime _js;

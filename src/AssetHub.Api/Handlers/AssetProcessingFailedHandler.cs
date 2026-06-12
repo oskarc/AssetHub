@@ -16,7 +16,7 @@ public sealed class AssetProcessingFailedHandler(
         logger.LogWarning("Processing failed for asset {AssetId}: {Error}", evt.AssetId, evt.ErrorMessage);
 
         var asset = await assetRepository.GetByIdAsync(evt.AssetId, cancellationToken);
-        if (asset != null)
+        if (asset is not null)
         {
             var typeLabel = string.IsNullOrEmpty(evt.AssetType) ? "Asset" : $"{char.ToUpper(evt.AssetType[0])}{evt.AssetType[1..]}";
             asset.MarkFailed($"{typeLabel} processing failed. Please try uploading again or contact an administrator.");

@@ -1479,7 +1479,7 @@ public class AssetHubApiClient(
 /// expected from the legacy HTTP-based client (status code, error code, details)
 /// so error-handling code in pages does not need to change.
 /// </summary>
-public class ApiException : Exception
+public sealed class ApiException : Exception
 {
     /// <summary>The HTTP-equivalent status code (mapped from <see cref="ServiceError.StatusCode"/>).</summary>
     public HttpStatusCode StatusCode { get; }

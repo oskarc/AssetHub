@@ -36,11 +36,15 @@ public static class ShareEndpoints
         group.MapGet("{token}/preview", PreviewSharedAsset).WithName("PreviewSharedAsset")
             .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous);
 
-        // Protected endpoints
-        var authGroup = group.RequireAuthorization();
-        authGroup.MapPost("", CreateShare).AddEndpointFilter<ValidationFilter<CreateShareDto>>().DisableAntiforgery().WithName("CreateShare");
-        authGroup.MapDelete("{id:guid}", RevokeShare).DisableAntiforgery().WithName("RevokeShare");
-        authGroup.MapPut("{id:guid}/password", UpdateSharePassword).AddEndpointFilter<ValidationFilter<UpdateSharePasswordDto>>().DisableAntiforgery().WithName("UpdateSharePassword");
+        // Protected endpoints. NOTE: RequireAuthorization() here applies to the
+        // WHOLE group (it mutates the same builder — this is not a sub-group);
+        // the public endpoints above stay anonymous only because each carries
+        // .AllowAnonymous(), which overrides. Any endpoint added to this group
+        // is therefore authenticated by default.
+        group.RequireAuthorization();
+        group.MapPost("", CreateShare).AddEndpointFilter<ValidationFilter<CreateShareDto>>().DisableAntiforgery().WithName("CreateShare");
+        group.MapDelete("{id:guid}", RevokeShare).DisableAntiforgery().WithName("RevokeShare");
+        group.MapPut("{id:guid}/password", UpdateSharePassword).AddEndpointFilter<ValidationFilter<UpdateSharePasswordDto>>().DisableAntiforgery().WithName("UpdateSharePassword");
     }
 
     // ── Public endpoints ─────────────────────────────────────────────────────
@@ -158,7 +162,7 @@ public static class ShareEndpoints
     private static IResult HandleShareResult<T>(ServiceResult<T> result, Func<T, IResult>? onSuccess = null)
     {
         if (result.IsSuccess)
-            return onSuccess != null ? onSuccess(result.Value!) : Results.Ok(result.Value);
+            return onSuccess is not null ? onSuccess(result.Value!) : Results.Ok(result.Value);
 
         return result.Error!.Code switch
         {

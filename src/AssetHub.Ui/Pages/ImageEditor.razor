@@ -202,7 +202,7 @@ else
 
             Logger.LogDebug("Asset {AssetId} passed all validation checks for editing", Id);
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { /* load aborted — user navigated away or component disposed */ }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to load asset {AssetId} for image editor", Id);

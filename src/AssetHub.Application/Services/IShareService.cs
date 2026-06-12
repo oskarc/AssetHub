@@ -48,7 +48,7 @@ public class ShareCreationResult
     public ShareResponseDto? Response { get; set; }
     public bool EmailFailed { get; set; }
     public string? ErrorMessage { get; set; }
-    public bool IsError => ErrorMessage != null;
+    public bool IsError => ErrorMessage is not null;
 
     public static ShareCreationResult Error(string message) => new() { ErrorMessage = message };
 }
