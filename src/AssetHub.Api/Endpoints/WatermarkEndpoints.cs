@@ -51,9 +51,7 @@ public static class WatermarkEndpoints
                     stream, file.ContentType ?? string.Empty, file.Length, ct);
                 return result.ToHttpResult();
             })
-            .DisableAntiforgery()
-            .AddEndpointFilter(adminScope)
-            .MarkAsPublicApi()
+            .MarkAsPublicMutation(adminScope)
             .WithSummary("Verify a leaked watermarked image and return attribution.");
     }
 
@@ -72,9 +70,7 @@ public static class WatermarkEndpoints
             [FromServices] IWatermarkService svc,
             CancellationToken ct) =>
             (await svc.SetCollectionWatermarkAsync(id, dto.Enabled, ct)).ToHttpResult())
-            .DisableAntiforgery()
-            .AddEndpointFilter(write)
-            .MarkAsPublicApi()
+            .MarkAsPublicMutation(write)
             .WithSummary("Toggle forensic watermarking on a collection.");
     }
 
@@ -93,9 +89,7 @@ public static class WatermarkEndpoints
             [FromServices] IWatermarkService svc,
             CancellationToken ct) =>
             (await svc.SetAssetWatermarkOverrideAsync(id, dto.Override, ct)).ToHttpResult())
-            .DisableAntiforgery()
-            .AddEndpointFilter(write)
-            .MarkAsPublicApi()
+            .MarkAsPublicMutation(write)
             .WithSummary("Override or clear forensic watermarking for a single asset.");
     }
 
@@ -114,9 +108,7 @@ public static class WatermarkEndpoints
             [FromServices] IWatermarkService svc,
             CancellationToken ct) =>
             (await svc.SetShareWatermarkOverrideAsync(id, dto.Override, ct)).ToHttpResult())
-            .DisableAntiforgery()
-            .AddEndpointFilter(write)
-            .MarkAsPublicApi()
+            .MarkAsPublicMutation(write)
             .WithSummary("Override or clear forensic watermarking for a single share.");
     }
 }

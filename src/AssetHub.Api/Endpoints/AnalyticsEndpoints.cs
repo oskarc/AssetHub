@@ -43,8 +43,7 @@ public static class AnalyticsEndpoints
                 [FromServices] IAnalyticsService svc,
                 CancellationToken ct) =>
             (await svc.GetTopDownloadedAssetsAsync(window ?? 90, take ?? 20, ct)).ToHttpResult())
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("Top downloaded assets in the time window.");
 
         group.MapGet("/downloads/daily", async (
@@ -52,8 +51,7 @@ public static class AnalyticsEndpoints
                 [FromServices] IAnalyticsService svc,
                 CancellationToken ct) =>
             (await svc.GetDailyDownloadCountsAsync(window ?? 90, ct)).ToHttpResult())
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("Daily total download counts for the trend chart.");
 
         group.MapGet("/storage/by-collection", async (
@@ -61,16 +59,14 @@ public static class AnalyticsEndpoints
                 [FromServices] IAnalyticsService svc,
                 CancellationToken ct) =>
             (await svc.GetStorageByCollectionAsync(take ?? 20, ct)).ToHttpResult())
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("Storage usage broken down by collection.");
 
         group.MapGet("/storage/by-asset-type", async (
                 [FromServices] IAnalyticsService svc,
                 CancellationToken ct) =>
             (await svc.GetStorageByAssetTypeAsync(ct)).ToHttpResult())
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("Storage usage broken down by asset type.");
 
         group.MapGet("/exposure", async (
@@ -79,8 +75,7 @@ public static class AnalyticsEndpoints
                 [FromServices] IAnalyticsService svc,
                 CancellationToken ct) =>
             (await svc.GetTopRecipientsAsync(window ?? 90, take ?? 20, ct)).ToHttpResult())
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("Top forensic-watermark recipients (hash-grouped). Reveal via /exposure/reveal.");
     }
 
@@ -113,8 +108,7 @@ public static class AnalyticsEndpoints
                     });
                 return CsvResult(csv, $"analytics-downloads-{DateTime.UtcNow:yyyyMMdd}.csv");
             })
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("CSV export of the top-downloads panel.");
 
         group.MapGet("/storage/export.csv", async (
@@ -149,8 +143,7 @@ public static class AnalyticsEndpoints
                 }
                 return CsvResult(sb.ToString(), $"analytics-storage-{DateTime.UtcNow:yyyyMMdd}.csv");
             })
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("CSV export of the storage panel (both sections).");
 
         group.MapGet("/exposure/export.csv", async (
@@ -174,8 +167,7 @@ public static class AnalyticsEndpoints
                     });
                 return CsvResult(csv, $"analytics-exposure-{DateTime.UtcNow:yyyyMMdd}.csv");
             })
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("CSV export of the exposure panel (hash-grouped, no PII).");
     }
 
@@ -194,9 +186,7 @@ public static class AnalyticsEndpoints
                 .ToHttpResult(value => Results.Accepted(
                     uri: $"/api/v1/admin/analytics/export-pdf/{value.JobId}",
                     value: value)))
-            .DisableAntiforgery()
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicMutation(scope)
             .WithSummary("Queue a PDF export of the dashboard. Returns 202 + job id.");
 
         group.MapGet("/export-pdf/{jobId:guid}", async (
@@ -204,8 +194,7 @@ public static class AnalyticsEndpoints
                 [FromServices] IAnalyticsPdfJobService jobService,
                 CancellationToken ct) =>
             (await jobService.GetStatusAsync(jobId, ct)).ToHttpResult())
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicRead(scope)
             .WithSummary("Poll PDF export status. Returns presigned download URL when ready.");
     }
 
@@ -221,10 +210,8 @@ public static class AnalyticsEndpoints
                 [FromServices] IAnalyticsService svc,
                 CancellationToken ct) =>
             (await svc.RevealRecipientAsync(request, ct)).ToHttpResult())
-            .DisableAntiforgery()
             .AddEndpointFilter(new ValidationFilter<RevealRecipientRequestDto>())
-            .AddEndpointFilter(scope)
-            .MarkAsPublicApi()
+            .MarkAsPublicMutation(scope)
             .WithSummary("Decrypt a recipient hash to plaintext. Audited (no PII in the audit row).");
     }
 
