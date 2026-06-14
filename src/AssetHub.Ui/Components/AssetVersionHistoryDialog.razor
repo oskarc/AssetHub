@@ -142,16 +142,13 @@
             AssetLoc["Versions_Btn_Restore"].Value);
         if (!confirmed) return;
 
-        try
+        var (ok, _) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RestoreAssetVersionAsync(AssetId, v.VersionNumber), "restore version",
+            successMessage: string.Format(AssetLoc["Versions_Restored"].Value, v.VersionNumber));
+        if (ok)
         {
-            await Api.RestoreAssetVersionAsync(AssetId, v.VersionNumber);
-            Feedback.ShowSuccess(string.Format(AssetLoc["Versions_Restored"].Value, v.VersionNumber));
             _restored = true;
             await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "restore version");
         }
     }
 
@@ -170,17 +167,14 @@
         _versions!.Remove(v);
         StateHasChanged();
 
-        try
-        {
-            await Api.PruneAssetVersionAsync(AssetId, v.VersionNumber);
-            Feedback.ShowSuccess(string.Format(AssetLoc["Versions_Pruned"].Value, v.VersionNumber));
-        }
-        catch
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.PruneAssetVersionAsync(AssetId, v.VersionNumber), "prune version",
+            successMessage: string.Format(AssetLoc["Versions_Pruned"].Value, v.VersionNumber));
+        if (!ok)
         {
             _versions!.Add(removed);
             _versions = _versions.OrderByDescending(x => x.VersionNumber).ToList();
             StateHasChanged();
-            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
         }
     }
 

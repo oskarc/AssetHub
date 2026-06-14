@@ -117,20 +117,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            _context = await Api.GetAssetDeletionContextAsync(AssetId);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load deletion context");
-            // On error, fall back to simple delete
-            _context = new AssetDeletionContextDto { CollectionCount = 1, CanDeletePermanently = true };
-        }
-        finally
-        {
-            _loading = false;
-        }
+        var (ok, context) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetAssetDeletionContextAsync(AssetId), "load deletion context");
+        // On error, fall back to simple delete
+        _context = ok && context is not null
+            ? context
+            : new AssetDeletionContextDto { CollectionCount = 1, CanDeletePermanently = true };
+        _loading = false;
     }
 
     private void Cancel() => MudDialog.Cancel();

@@ -84,15 +84,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            _collections = await Api.GetCollectionsAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
-            _collections = new List<CollectionResponseDto>();
-        }
+        var (ok, collections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionsAsync(), "load collections");
+        _collections = ok && collections is not null ? collections : new List<CollectionResponseDto>();
     }
 
     private static IEnumerable<string> ValidateEmail(string value)
@@ -106,25 +100,17 @@
     private async Task SubmitAsync()
     {
         _submitting = true;
-        try
+        var dto = new CreateGuestInvitationDto
         {
-            var dto = new CreateGuestInvitationDto
-            {
-                Email = _email.Trim(),
-                CollectionIds = _selectedCollectionIds.ToList(),
-                ExpiresInDays = _expiresInDays
-            };
-            var created = await Api.CreateGuestInvitationAsync(dto);
+            Email = _email.Trim(),
+            CollectionIds = _selectedCollectionIds.ToList(),
+            ExpiresInDays = _expiresInDays
+        };
+        var (ok, created) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.CreateGuestInvitationAsync(dto), "create guest invitation");
+        if (ok && created is not null)
             MudDialog.Close(DialogResult.Ok(created));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "create guest invitation");
-        }
-        finally
-        {
-            _submitting = false;
-        }
+        _submitting = false;
     }
 
     private void Cancel() => MudDialog.Cancel();

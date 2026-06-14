@@ -196,15 +196,9 @@
         _unreadCount = 0;
         StateHasChanged();
 
-        try
-        {
-            await Api.MarkAllNotificationsReadAsync();
-            Feedback.ShowSuccess(NotifLoc["Bell_MarkAllRead"].Value);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "mark notifications read");
-        }
+        await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.MarkAllNotificationsReadAsync(), "mark notifications read",
+            successMessage: NotifLoc["Bell_MarkAllRead"].Value);
     }
 
     private void GoToAllNotifications() => Nav.NavigateTo("/notifications");

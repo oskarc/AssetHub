@@ -77,26 +77,18 @@
     {
         if (string.IsNullOrWhiteSpace(_name)) return;
         _submitting = true;
-        try
+        var dto = new CreateBrandDto
         {
-            var dto = new CreateBrandDto
-            {
-                Name = _name.Trim(),
-                PrimaryColor = _primary,
-                SecondaryColor = _secondary,
-                IsDefault = _isDefault
-            };
-            var created = await Api.CreateBrandAsync(dto);
+            Name = _name.Trim(),
+            PrimaryColor = _primary,
+            SecondaryColor = _secondary,
+            IsDefault = _isDefault
+        };
+        var (ok, created) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.CreateBrandAsync(dto), "create brand");
+        if (ok && created is not null)
             MudDialog.Close(DialogResult.Ok(created));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "create brand");
-        }
-        finally
-        {
-            _submitting = false;
-        }
+        _submitting = false;
     }
 
     private void Cancel() => MudDialog.Cancel();

@@ -278,29 +278,23 @@
 
     private async Task LoadUserCollections()
     {
-        try
+        var (ok, users) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetUsersAsync(), "load user collections");
+        if (ok && users is not null)
         {
-            var users = await Api.GetUsersAsync();
             var user = users.FirstOrDefault(u => u.UserId == UserId);
             _userCollections = user?.Collections.ToList() ?? new List<UserCollectionAccessDto>();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load user collections");
         }
     }
 
     private async Task LoadAllCollections()
     {
-        try
+        var (ok, hierarchicalCollections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionAccessAsync(), "load collections");
+        if (ok && hierarchicalCollections is not null)
         {
-            var hierarchicalCollections = await Api.GetCollectionAccessAsync();
             // Flatten the hierarchy to make all collections available
             _allCollections = CollectionTreeHelper.FlattenAll(hierarchicalCollections).ToList();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
         }
     }
 

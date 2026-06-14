@@ -103,13 +103,13 @@
         _isProcessing = true;
         StateHasChanged();
 
-        try
+        var ids = SelectedAssets.Select(a => a.Id).ToList();
+        Guid? fromCollectionId = _permanentDelete ? null : CollectionId;
+
+        var (ok, result) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.BulkDeleteAssetsAsync(ids, fromCollectionId), "bulk delete assets");
+        if (ok && result is not null)
         {
-            var ids = SelectedAssets.Select(a => a.Id).ToList();
-            Guid? fromCollectionId = _permanentDelete ? null : CollectionId;
-
-            var result = await Api.BulkDeleteAssetsAsync(ids, fromCollectionId);
-
             if (result.Failed > 0)
                 Feedback.ShowWarning(string.Format(AssetLoc["BulkAssetDeletePartial"], result.Deleted, result.Failed));
             else
@@ -117,15 +117,9 @@
 
             MudDialog.Close(DialogResult.Ok(true));
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "bulk delete assets");
-        }
-        finally
-        {
-            _isProcessing = false;
-            StateHasChanged();
-        }
+
+        _isProcessing = false;
+        StateHasChanged();
     }
 
     private void Close() => MudDialog.Cancel();

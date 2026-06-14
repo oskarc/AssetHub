@@ -101,28 +101,20 @@
     {
         if (string.IsNullOrWhiteSpace(_name)) return;
         _submitting = true;
-        try
+        var dto = new UpdateBrandDto
         {
-            var dto = new UpdateBrandDto
-            {
-                // Only send fields that actually changed — keeps the audit
-                // event's "changed_fields" list honest.
-                Name = !string.Equals(_name.Trim(), _origName, StringComparison.Ordinal) ? _name.Trim() : null,
-                PrimaryColor = !string.Equals(_primary, _origPrimary, StringComparison.OrdinalIgnoreCase) ? _primary : null,
-                SecondaryColor = !string.Equals(_secondary, _origSecondary, StringComparison.OrdinalIgnoreCase) ? _secondary : null,
-                IsDefault = _isDefault != _origIsDefault ? _isDefault : null
-            };
-            var updated = await Api.UpdateBrandAsync(Brand.Id, dto);
+            // Only send fields that actually changed — keeps the audit
+            // event's "changed_fields" list honest.
+            Name = !string.Equals(_name.Trim(), _origName, StringComparison.Ordinal) ? _name.Trim() : null,
+            PrimaryColor = !string.Equals(_primary, _origPrimary, StringComparison.OrdinalIgnoreCase) ? _primary : null,
+            SecondaryColor = !string.Equals(_secondary, _origSecondary, StringComparison.OrdinalIgnoreCase) ? _secondary : null,
+            IsDefault = _isDefault != _origIsDefault ? _isDefault : null
+        };
+        var (ok, updated) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.UpdateBrandAsync(Brand.Id, dto), "update brand");
+        if (ok && updated is not null)
             MudDialog.Close(DialogResult.Ok(updated));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "update brand");
-        }
-        finally
-        {
-            _submitting = false;
-        }
+        _submitting = false;
     }
 
     private void Cancel() => MudDialog.Cancel();

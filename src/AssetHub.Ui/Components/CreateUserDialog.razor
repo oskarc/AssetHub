@@ -193,14 +193,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        var (ok, collections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionAccessAsync(), "load collections");
+        if (ok && collections is not null)
         {
-            _collections = await Api.GetCollectionAccessAsync();
+            _collections = collections;
             _flatCollections = CollectionTreeHelper.Flatten(_collections);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
         }
     }
 

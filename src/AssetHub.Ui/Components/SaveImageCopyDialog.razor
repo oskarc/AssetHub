@@ -102,9 +102,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        var (ok, allCollections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionsAsync(), "load collections");
+        if (ok && allCollections is not null)
         {
-            var allCollections = await Api.GetCollectionsAsync();
             _collections = allCollections
                 .Where(c => RolePermissions.CanEdit(c.UserRole))
                 .OrderBy(c => c.Name, new NaturalSortComparer())
@@ -116,14 +117,7 @@
                 _selectedCollectionId = null;
             }
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
-        }
-        finally
-        {
-            _isLoadingCollections = false;
-        }
+        _isLoadingCollections = false;
     }
 
     private bool IsValid =>

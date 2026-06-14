@@ -120,19 +120,12 @@
     private async Task LoadAsync()
     {
         _loading = true;
-        try
-        {
-            _rows = await Api.GetTopRecipientsAsync(WindowDays, take: 20);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load exposure analytics");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
+        var (ok, rows) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetTopRecipientsAsync(WindowDays, take: 20), "load exposure analytics");
+        if (ok && rows is not null)
+            _rows = rows;
+        _loading = false;
+        StateHasChanged();
     }
 
     private async Task RevealAsync(AnalyticsExposureRowDto row)
@@ -140,13 +133,15 @@
         if (_revealing.Contains(row.RecipientHash)) return;
         _revealing.Add(row.RecipientHash);
         StateHasChanged();
-        try
-        {
-            var response = await Api.RevealRecipientAsync(new RevealRecipientRequestDto
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RevealRecipientAsync(new RevealRecipientRequestDto
             {
                 RecipientHash = row.RecipientHash,
                 RecipientKind = row.RecipientKind
-            });
+            }),
+            "reveal recipient");
+        if (ok && response is not null)
+        {
             if (response.DecryptionFailed || (response.RecipientUserId is null && response.RecipientEmail is null))
             {
                 _revealed[row.RecipientHash] = Loc["Exposure_Reveal_Unavailable"].Value;
@@ -156,16 +151,8 @@
                 _revealed[row.RecipientHash] = response.RecipientUserId ?? response.RecipientEmail ?? "?";
             }
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "reveal recipient");
-            Feedback.ShowError(Loc["Exposure_Reveal_Failed"].Value);
-        }
-        finally
-        {
-            _revealing.Remove(row.RecipientHash);
-            StateHasChanged();
-        }
+        _revealing.Remove(row.RecipientHash);
+        StateHasChanged();
     }
 
     private static string ShortHash(string hash)

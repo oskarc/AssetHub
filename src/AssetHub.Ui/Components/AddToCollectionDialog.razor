@@ -96,25 +96,18 @@
 
     private async Task LoadAvailableCollectionsAsync()
     {
-        try
+        _isLoading = true;
+        var (ok, allCollections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionsAsync(), "load collections");
+        if (ok && allCollections is not null)
         {
-            _isLoading = true;
-            var allCollections = await Api.GetCollectionsAsync();
-            
             // Filter out collections the asset already belongs to
             _availableCollections = allCollections
                 .Where(c => !ExistingCollectionIds.Contains(c.Id))
                 .OrderBy(c => c.Name, new NaturalSortComparer())
                 .ToList();
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        _isLoading = false;
     }
 
     private async Task AddToCollectionAsync()

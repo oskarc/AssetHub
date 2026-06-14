@@ -162,14 +162,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            _collections = await Api.GetCollectionsAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
-        }
+        var (ok, collections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionsAsync(), "load collections");
+        if (ok && collections is not null)
+            _collections = collections;
     }
 
     private async Task Submit()

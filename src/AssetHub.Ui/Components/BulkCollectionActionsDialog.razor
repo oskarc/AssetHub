@@ -145,14 +145,10 @@
 
     private async Task LoadUsersAsync()
     {
-        try
-        {
-            _allUsers = await Api.GetKeycloakUsersAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load users");
-        }
+        var (ok, users) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetKeycloakUsersAsync(), "load users");
+        if (ok && users is not null)
+            _allUsers = users;
     }
 
     private Task<IEnumerable<KeycloakUserDto>> SearchUsersAsync(string? value, CancellationToken ct)
@@ -187,27 +183,21 @@
         _isProcessing = true;
         StateHasChanged();
 
-        try
+        var deleteIds = SelectedCollections.Select(c => c.Id).ToList();
+        var (deleteOk, deleteResult) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.BulkDeleteCollectionsAsync(deleteIds, _deleteAssets), "bulk delete collections");
+        if (deleteOk && deleteResult is not null)
         {
-            var ids = SelectedCollections.Select(c => c.Id).ToList();
-            var result = await Api.BulkDeleteCollectionsAsync(ids, _deleteAssets);
-
-            if (result.Failed > 0)
-                Feedback.ShowWarning(string.Format(CollLoc["BulkDeletePartial"], result.Deleted, result.Failed));
+            if (deleteResult.Failed > 0)
+                Feedback.ShowWarning(string.Format(CollLoc["BulkDeletePartial"], deleteResult.Deleted, deleteResult.Failed));
             else
-                Feedback.ShowSuccess(string.Format(CollLoc["BulkDeleteSuccess"], result.Deleted));
+                Feedback.ShowSuccess(string.Format(CollLoc["BulkDeleteSuccess"], deleteResult.Deleted));
 
             MudDialog.Close(DialogResult.Ok(true));
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "bulk delete collections");
-        }
-        finally
-        {
-            _isProcessing = false;
-            StateHasChanged();
-        }
+
+        _isProcessing = false;
+        StateHasChanged();
     }
 
     private async Task BulkAddAccessAsync()
@@ -217,27 +207,21 @@
         _isProcessing = true;
         StateHasChanged();
 
-        try
+        var accessIds = SelectedCollections.Select(c => c.Id).ToList();
+        var (accessOk, accessResult) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.BulkSetCollectionAccessAsync(accessIds, _selectedUser.Id, _selectedRole), "bulk set collection access");
+        if (accessOk && accessResult is not null)
         {
-            var ids = SelectedCollections.Select(c => c.Id).ToList();
-            var result = await Api.BulkSetCollectionAccessAsync(ids, _selectedUser.Id, _selectedRole);
-
-            if (result.Failed > 0)
-                Feedback.ShowWarning(string.Format(CollLoc["BulkAccessPartial"], result.Updated, result.Failed));
+            if (accessResult.Failed > 0)
+                Feedback.ShowWarning(string.Format(CollLoc["BulkAccessPartial"], accessResult.Updated, accessResult.Failed));
             else
-                Feedback.ShowSuccess(string.Format(CollLoc["BulkAccessSuccess"], _selectedUser.Username, result.Updated));
+                Feedback.ShowSuccess(string.Format(CollLoc["BulkAccessSuccess"], _selectedUser.Username, accessResult.Updated));
 
             MudDialog.Close(DialogResult.Ok(true));
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "bulk set collection access");
-        }
-        finally
-        {
-            _isProcessing = false;
-            StateHasChanged();
-        }
+
+        _isProcessing = false;
+        StateHasChanged();
     }
 
     private void Close() => MudDialog.Cancel();

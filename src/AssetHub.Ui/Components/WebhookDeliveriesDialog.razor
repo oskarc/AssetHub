@@ -93,20 +93,13 @@
 
     private async Task LoadAsync()
     {
-        try
-        {
-            _loading = true;
-            _items = await Api.GetWebhookDeliveriesAsync(Webhook.Id);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load deliveries");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
+        _loading = true;
+        var (ok, items) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetWebhookDeliveriesAsync(Webhook.Id), "load deliveries");
+        if (ok && items is not null)
+            _items = items;
+        _loading = false;
+        StateHasChanged();
     }
 
     private static Color StatusColor(string status) => status switch

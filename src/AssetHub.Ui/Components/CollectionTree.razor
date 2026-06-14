@@ -59,19 +59,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            var all = await Api.GetCollectionsAsync();
+        var (ok, all) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionsAsync(), "load collections");
+        if (ok && all is not null)
             _treeItems = BuildTreeItems(all);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
-        }
-        finally
-        {
-            _loading = false;
-        }
+        _loading = false;
     }
 
     private static List<CollectionTreeItem> BuildTreeItems(List<CollectionResponseDto> all)

@@ -399,35 +399,30 @@
 
     private async Task LoadMigrationAsync()
     {
-        try
+        _loading = true;
+        var (ok, migration) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetMigrationAsync(MigrationId), "load migration details");
+        if (ok && migration is not null)
         {
-            _loading = true;
-            _migration = await Api.GetMigrationAsync(MigrationId);
+            _migration = migration;
             await LoadItemsAsync(reset: true);
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load migration details");
-        }
-        finally
-        {
-            _loading = false;
-        }
+        _loading = false;
     }
 
     private async Task LoadItemsAsync(bool reset = false)
     {
         if (_migration is null || _migration.ItemsTotal == 0) return;
 
-        try
+        _loadingItems = true;
+        StateHasChanged();
+
+        var skip = reset ? 0 : (_items?.Count ?? 0);
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetMigrationItemsAsync(MigrationId, _itemStatusFilter, skip, ItemsPageSize),
+            "load migration items");
+        if (ok && response is not null)
         {
-            _loadingItems = true;
-            StateHasChanged();
-
-            var skip = reset ? 0 : (_items?.Count ?? 0);
-            var response = await Api.GetMigrationItemsAsync(
-                MigrationId, _itemStatusFilter, skip, ItemsPageSize);
-
             if (reset || _items is null)
                 _items = response.Items;
             else
@@ -436,15 +431,9 @@
             _itemsTotal = response.TotalCount;
             _itemsHasMore = _items.Count < _itemsTotal;
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load migration items");
-        }
-        finally
-        {
-            _loadingItems = false;
-            StateHasChanged();
-        }
+
+        _loadingItems = false;
+        StateHasChanged();
     }
 
     private async Task LoadMoreItemsAsync() => await LoadItemsAsync(reset: false);
@@ -606,18 +595,15 @@
         _migration.ItemsStaged = Math.Max(0, _migration.ItemsStaged - 1);
         StateHasChanged();
 
-        try
-        {
-            await Api.UnstageMigrationItemAsync(MigrationId, item.Id);
-            Feedback.ShowSuccess(AdminLoc["Migration_FileUnstaged"].Value);
-        }
-        catch (Exception ex)
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.UnstageMigrationItemAsync(MigrationId, item.Id), "unstage file",
+            successMessage: AdminLoc["Migration_FileUnstaged"].Value);
+        if (!ok)
         {
             // Rollback
             item.IsFileStaged = true;
             _migration.ItemsStaged++;
             StateHasChanged();
-            Feedback.HandleError(ex, "unstage file");
         }
     }
 

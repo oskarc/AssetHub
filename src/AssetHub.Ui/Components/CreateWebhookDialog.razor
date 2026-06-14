@@ -103,26 +103,18 @@
     private async Task SubmitAsync()
     {
         _submitting = true;
-        try
+        var dto = new CreateWebhookDto
         {
-            var dto = new CreateWebhookDto
-            {
-                Name = _name.Trim(),
-                Url = _url.Trim(),
-                EventTypes = _selectedEvents.ToList(),
-                IsActive = _isActive
-            };
-            var created = await Api.CreateWebhookAsync(dto);
+            Name = _name.Trim(),
+            Url = _url.Trim(),
+            EventTypes = _selectedEvents.ToList(),
+            IsActive = _isActive
+        };
+        var (ok, created) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.CreateWebhookAsync(dto), "create webhook");
+        if (ok && created is not null)
             MudDialog.Close(DialogResult.Ok(created));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "create webhook");
-        }
-        finally
-        {
-            _submitting = false;
-        }
+        _submitting = false;
     }
 
     private void Cancel() => MudDialog.Cancel();

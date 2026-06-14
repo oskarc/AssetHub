@@ -120,55 +120,46 @@
     private async Task LoadAsync()
     {
         _loading = true;
-        try
+        var (ok, prefs) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetNotificationPreferencesAsync(), "load notification preferences");
+        if (ok && prefs is not null)
         {
-            _prefs = await Api.GetNotificationPreferencesAsync();
+            _prefs = prefs;
             _orderedCategories = NotificationConstants.Categories.All
                 .Where(c => _prefs.Categories.ContainsKey(c))
                 .ToList();
         }
-        catch (Exception ex)
+        else
         {
-            Feedback.HandleError(ex, "load notification preferences");
             _prefs = null;
         }
-        finally
-        {
-            _loading = false;
-        }
+        _loading = false;
     }
 
     private async Task SaveAsync()
     {
         if (_prefs is null) return;
         _saving = true;
-        try
+        var dto = new UpdateNotificationPreferencesDto
         {
-            var dto = new UpdateNotificationPreferencesDto
-            {
-                // Send only the categories we rendered — avoid leaking future
-                // category keys we don't know about yet.
-                Categories = _orderedCategories.ToDictionary(
-                    c => c,
-                    c => new NotificationCategoryPrefsDto
-                    {
-                        InApp = _prefs.Categories[c].InApp,
-                        Email = _prefs.Categories[c].Email,
-                        EmailCadence = _prefs.Categories[c].EmailCadence
-                    })
-            };
+            // Send only the categories we rendered — avoid leaking future
+            // category keys we don't know about yet.
+            Categories = _orderedCategories.ToDictionary(
+                c => c,
+                c => new NotificationCategoryPrefsDto
+                {
+                    InApp = _prefs.Categories[c].InApp,
+                    Email = _prefs.Categories[c].Email,
+                    EmailCadence = _prefs.Categories[c].EmailCadence
+                })
+        };
 
-            _prefs = await Api.UpdateNotificationPreferencesAsync(dto);
-            Feedback.ShowSuccess(NotifLoc["Prefs_Saved"].Value);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "save notification preferences");
-        }
-        finally
-        {
-            _saving = false;
-        }
+        var (ok, updated) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.UpdateNotificationPreferencesAsync(dto), "save notification preferences",
+            successMessage: NotifLoc["Prefs_Saved"].Value);
+        if (ok && updated is not null)
+            _prefs = updated;
+        _saving = false;
     }
 
     private async Task RotateUnsubscribeTokenAsync()
@@ -181,18 +172,9 @@
         if (confirmed != true) return;
 
         _rotating = true;
-        try
-        {
-            await Api.RotateUnsubscribeTokenAsync();
-            Feedback.ShowSuccess(NotifLoc["Prefs_RotateUnsubscribe_Success"].Value);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "rotate unsubscribe token");
-        }
-        finally
-        {
-            _rotating = false;
-        }
+        await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RotateUnsubscribeTokenAsync(), "rotate unsubscribe token",
+            successMessage: NotifLoc["Prefs_RotateUnsubscribe_Success"].Value);
+        _rotating = false;
     }
 }

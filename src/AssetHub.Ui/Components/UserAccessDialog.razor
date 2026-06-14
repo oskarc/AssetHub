@@ -124,29 +124,23 @@
         _isRevoking = true;
         StateHasChanged();
 
-        try
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RemoveCollectionAclAsync(collection.CollectionId, User.UserId, "user"), "revoke access",
+            successMessage: string.Format(CommonLoc["Success_RevokedAccessTo"].Value, collection.CollectionName));
+        if (ok)
         {
-            await Api.RemoveCollectionAclAsync(collection.CollectionId, User.UserId, "user");
-            Feedback.ShowSuccess(string.Format(CommonLoc["Success_RevokedAccessTo"].Value, collection.CollectionName));
-            
             // Remove from local list
             User.Collections.Remove(collection);
-            
+
             // If no more collections, close the dialog
             if (User.Collections.Count == 0)
             {
                 MudDialog.Close(DialogResult.Ok(true));
             }
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "revoke access");
-        }
-        finally
-        {
-            _isRevoking = false;
-            StateHasChanged();
-        }
+
+        _isRevoking = false;
+        StateHasChanged();
     }
 
 }

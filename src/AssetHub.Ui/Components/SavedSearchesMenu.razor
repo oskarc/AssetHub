@@ -92,16 +92,13 @@
         _saved.Remove(s);
         StateHasChanged();
 
-        try
-        {
-            await Api.DeleteSavedSearchAsync(s.Id);
-            Feedback.ShowSuccess(AssetLoc["SavedSearch_Deleted"].Value);
-        }
-        catch
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteSavedSearchAsync(s.Id), "delete saved search",
+            successMessage: AssetLoc["SavedSearch_Deleted"].Value);
+        if (!ok)
         {
             _saved.Add(removed);
             StateHasChanged();
-            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
         }
     }
 }

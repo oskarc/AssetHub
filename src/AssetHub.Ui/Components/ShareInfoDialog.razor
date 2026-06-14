@@ -145,9 +145,10 @@
         // Initialize local display password from parameter
         _displayPassword = SharePassword;
 
-        try
+        var (tokenOk, token) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetShareTokenAsync(Share.Id), "retrieve share details");
+        if (tokenOk)
         {
-            var token = await Api.GetShareTokenAsync(Share.Id);
             if (!string.IsNullOrEmpty(token))
             {
                 ShareUrl = $"{Navigation.BaseUri.TrimEnd('/')}/{Constants.Routes.Share}/{Uri.EscapeDataString(token)}";
@@ -156,21 +157,15 @@
             // Also fetch the password if the share has one
             if (Share.HasPassword && string.IsNullOrEmpty(_displayPassword))
             {
-                var password = await Api.GetSharePasswordAsync(Share.Id);
+                var (_, password) = await Feedback.ExecuteWithFeedbackAsync(
+                    () => Api.GetSharePasswordAsync(Share.Id), "retrieve share details");
                 if (!string.IsNullOrEmpty(password))
                 {
                     _displayPassword = password;
                 }
             }
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "retrieve share details");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        _isLoading = false;
     }
 
     private void Cancel() => MudDialog.Cancel();

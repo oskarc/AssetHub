@@ -94,20 +94,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        var (ok, presets) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetExportPresetsAsync(), "load export presets");
+        if (ok && presets is not null)
         {
-            _presets = await Api.GetExportPresetsAsync();
+            _presets = presets;
         }
-        catch (Exception)
+        else
         {
             _presets = new();
             _loadError = true;
-            Feedback.ShowError(CommonLoc["Error_UnexpectedError"].Value);
         }
-        finally
-        {
-            _isLoading = false;
-        }
+        _isLoading = false;
     }
 
     private void Cancel() => MudDialog.Cancel();

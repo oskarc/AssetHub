@@ -133,27 +133,22 @@ else
     {
         if (!CollectionId.HasValue) return;
 
-        try
-        {
-            _isLoading = true;
-            var response = await Api.GetAssetsAsync(
+        _isLoading = true;
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetAssetsAsync(
                 CollectionId.Value,
                 SearchQuery,
                 FilterType,
                 SortBy,
                 _skip,
-                _take);
+                _take),
+            "load assets");
+        if (ok && response is not null)
+        {
             _assets.AddRange(response.Items);
             _total = response.Total;
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load assets");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        _isLoading = false;
     }
 
     private async Task LoadMoreAsync()
@@ -268,17 +263,14 @@ else
 
     private async Task UndoSoftDeleteAsync(AssetResponseDto deletedAsset)
     {
-        try
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RestoreFromTrashAsync(deletedAsset.Id), "restore asset");
+        if (ok)
         {
-            await Api.RestoreFromTrashAsync(deletedAsset.Id);
             _assets.Insert(0, deletedAsset);
             _total++;
             await OnAssetsChanged.InvokeAsync();
             StateHasChanged();
-        }
-        catch
-        {
-            Feedback.ShowError(CommonLoc["Error_RestoreFailed"].Value);
         }
     }
 

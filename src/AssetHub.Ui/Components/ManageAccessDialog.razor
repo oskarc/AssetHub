@@ -492,9 +492,10 @@
         _isCopyingAcl = true;
         StateHasChanged();
 
-        try
+        var (ok, added) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.CopyCollectionAclFromParentAsync(CollectionId), "copy parent ACL");
+        if (ok)
         {
-            var added = await Api.CopyCollectionAclFromParentAsync(CollectionId);
             if (added > 0)
             {
                 Feedback.ShowSuccess(string.Format(CollLoc["Parent_CopyAcl_Success"], added));
@@ -505,15 +506,9 @@
                 Feedback.ShowInfo(CollLoc["Parent_CopyAcl_NoneToAdd"]);
             }
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "copy parent ACL");
-        }
-        finally
-        {
-            _isCopyingAcl = false;
-            StateHasChanged();
-        }
+
+        _isCopyingAcl = false;
+        StateHasChanged();
     }
 
     private async Task OpenParentPermissionsAsync()
@@ -538,18 +533,11 @@
     private async Task LoadAclsAsync()
     {
         _isLoading = true;
-        try
-        {
-            _aclEntries = await Api.GetCollectionAclsAsync(CollectionId);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load access list");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        var (ok, acls) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionAclsAsync(CollectionId), "load access list");
+        if (ok && acls is not null)
+            _aclEntries = acls;
+        _isLoading = false;
     }
 
     private async Task<IEnumerable<UserSearchResultDto>> SearchUsersAsync(string? value, CancellationToken ct)

@@ -111,16 +111,14 @@
 
         if (_isAdmin)
         {
-            try
+            var (ok, available) = await Feedback.ExecuteWithFeedbackAsync(
+                () => Api.GetCollectionsAsync(), "load collections for reparent");
+            if (ok && available is not null)
             {
-                _availableCollections = await Api.GetCollectionsAsync();
+                _availableCollections = available;
                 _selectedParent = CurrentParentId.HasValue
                     ? _availableCollections.FirstOrDefault(c => c.Id == CurrentParentId.Value)
                     : null;
-            }
-            catch (Exception ex)
-            {
-                Feedback.HandleError(ex, "load collections for reparent");
             }
         }
     }
