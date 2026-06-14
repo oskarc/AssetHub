@@ -10,7 +10,7 @@ namespace AssetHub.Ui.Tests.Helpers;
 /// </summary>
 public abstract class BunitTestBase : BunitContext, IAsyncLifetime
 {
-    protected Mock<AssetHubApiClient> MockApi { get; }
+    protected Mock<IAssetHubApiClient> MockApi { get; }
     protected Mock<IUserFeedbackService> MockFeedback { get; }
     protected Mock<IDialogService> MockDialogService { get; }
 
@@ -19,7 +19,7 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
         // Create mocks. AssetHubApiClient was an HTTP-backed class; it's now an
         // in-process facade with ~36 service deps. We mock it via the protected
         // parameterless constructor exposed for Castle DynamicProxy.
-        MockApi = new Mock<AssetHubApiClient>(MockBehavior.Loose);
+        MockApi = new Mock<IAssetHubApiClient>(MockBehavior.Loose);
         MockFeedback = new Mock<IUserFeedbackService>();
         MockDialogService = new Mock<IDialogService>();
 

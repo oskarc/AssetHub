@@ -2,7 +2,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
 @implements IAsyncDisposable
 
-@inject AssetHubApiClient Api
+@inject IAssetHubApiClient Api
 @inject NavigationManager Nav
 @inject IUserFeedbackService Feedback
 @inject IJSRuntime JS

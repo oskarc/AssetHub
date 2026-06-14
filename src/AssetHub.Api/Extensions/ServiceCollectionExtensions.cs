@@ -355,7 +355,7 @@ public static class ServiceCollectionExtensions
         // AssetHubApiClient is an in-process facade over Application services
         // (no HTTP loopback). Registered as scoped so it shares the request
         // scope with CurrentUser, the DbContext, and the underlying services.
-        services.AddScoped<AssetHub.Ui.Services.AssetHubApiClient>();
+        services.AddScoped<AssetHub.Ui.Services.IAssetHubApiClient, AssetHub.Ui.Services.AssetHubApiClient>();
 
         var connectionString = configuration.GetConnectionString("Postgres");
 

@@ -26,7 +26,7 @@ namespace AssetHub.Ui.Services;
     Justification = "Composition root for the UI's API surface — every domain service it routes to is one constructor parameter.")]
 [SuppressMessage("Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
     Justification = "Single facade for the UI — every domain service it routes to counts as a coupled type.")]
-public class AssetHubApiClient(
+public sealed class AssetHubApiClient(
     IDashboardService dashboardService,
     ICollectionQueryService collectionQueryService,
     ICollectionService collectionService,
@@ -68,27 +68,9 @@ public class AssetHubApiClient(
     IAnalyticsService analyticsService,
     IAnalyticsPdfJobService analyticsPdfJobService,
     IUserLookupService userLookupService,
-    IOptions<AppSettings> appSettings)
+    IOptions<AppSettings> appSettings) : IAssetHubApiClient
 {
     private readonly AppSettings _appSettings = appSettings.Value;
-
-    /// <summary>
-    /// Test-only constructor. Castle DynamicProxy (used by Moq) needs a parameterless
-    /// constructor to subclass this type for mocking. Production code MUST use the
-    /// primary constructor — this one leaves every backing service null and any
-    /// non-mocked virtual call would NRE. <see cref="EditorBrowsableAttribute"/> hides
-    /// it from IntelliSense to discourage accidental use.
-    /// </summary>
-    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
-    protected AssetHubApiClient()
-        : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
-               null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
-               null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
-               null!, null!, null!, null!, null!, null!, null!, null!, null!, null!,
-               null!,
-               Options.Create(new AppSettings()))
-    {
-    }
 
     #region Helpers
 
@@ -151,7 +133,7 @@ public class AssetHubApiClient(
 
     #region Dashboard
 
-    public virtual async Task<DashboardDto?> GetDashboardAsync(CancellationToken ct = default)
+    public async Task<DashboardDto?> GetDashboardAsync(CancellationToken ct = default)
     {
         var result = await dashboardService.GetDashboardAsync(ct);
         return Unwrap(result, "Get dashboard");
@@ -161,81 +143,81 @@ public class AssetHubApiClient(
 
     #region Collections
 
-    public virtual async Task<List<CollectionResponseDto>> GetCollectionsAsync(CancellationToken ct = default)
+    public async Task<List<CollectionResponseDto>> GetCollectionsAsync(CancellationToken ct = default)
     {
         var result = await collectionQueryService.GetRootCollectionsAsync(ct);
         return Unwrap(result, "Get collections");
     }
 
-    public virtual async Task<CollectionResponseDto?> GetCollectionAsync(Guid id, CancellationToken ct = default)
+    public async Task<CollectionResponseDto?> GetCollectionAsync(Guid id, CancellationToken ct = default)
     {
         var result = await collectionQueryService.GetByIdAsync(id, ct);
         return UnwrapOrNullOn(result, "Get collection", 404);
     }
 
-    public virtual async Task<CollectionResponseDto> CreateCollectionAsync(CreateCollectionDto dto, CancellationToken ct = default)
+    public async Task<CollectionResponseDto> CreateCollectionAsync(CreateCollectionDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create collection");
         var result = await collectionService.CreateAsync(dto, ct);
         return Unwrap(result, "Create collection");
     }
 
-    public virtual async Task UpdateCollectionAsync(Guid id, UpdateCollectionDto dto, CancellationToken ct = default)
+    public async Task UpdateCollectionAsync(Guid id, UpdateCollectionDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update collection");
         var result = await collectionService.UpdateAsync(id, dto, ct);
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Update collection");
     }
 
-    public virtual async Task DeleteCollectionAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteCollectionAsync(Guid id, CancellationToken ct = default)
     {
         var result = await collectionService.DeleteAsync(id, ct);
         EnsureSuccess(result, "Delete collection");
     }
 
-    public virtual async Task<CollectionDeletionContextDto?> GetCollectionDeletionContextAsync(Guid id, CancellationToken ct = default)
+    public async Task<CollectionDeletionContextDto?> GetCollectionDeletionContextAsync(Guid id, CancellationToken ct = default)
     {
         var result = await collectionQueryService.GetDeletionContextAsync(id, ct);
         return UnwrapOrNullOn(result, "Get collection deletion context", 403, 404);
     }
 
-    public virtual async Task SetCollectionParentAsync(Guid collectionId, Guid? parentId, CancellationToken ct = default)
+    public async Task SetCollectionParentAsync(Guid collectionId, Guid? parentId, CancellationToken ct = default)
     {
         var result = await collectionService.SetParentAsync(collectionId, parentId, ct);
         EnsureSuccess(result, "Set collection parent");
     }
 
-    public virtual async Task SetCollectionInheritParentAclAsync(Guid collectionId, bool inherit, CancellationToken ct = default)
+    public async Task SetCollectionInheritParentAclAsync(Guid collectionId, bool inherit, CancellationToken ct = default)
     {
         var result = await collectionService.SetInheritParentAclAsync(collectionId, inherit, ct);
         EnsureSuccess(result, "Set collection inherit-acl");
     }
 
-    public virtual async Task<int> CopyCollectionAclFromParentAsync(Guid collectionId, CancellationToken ct = default)
+    public async Task<int> CopyCollectionAclFromParentAsync(Guid collectionId, CancellationToken ct = default)
     {
         var result = await collectionService.CopyParentAclAsync(collectionId, ct);
         return Unwrap(result, "Copy collection ACL from parent");
     }
 
-    public virtual async Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default)
+    public async Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default)
     {
         var result = await collectionAclService.GetAclsAsync(collectionId, ct);
         return Unwrap(result, "Get collection ACLs").ToList();
     }
 
-    public virtual async Task SetCollectionAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default)
+    public async Task SetCollectionAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default)
     {
         var result = await collectionAclService.SetAccessAsync(collectionId, principalType, principalId, role, ct);
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Set collection access");
     }
 
-    public virtual async Task RevokeCollectionAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
+    public async Task RevokeCollectionAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default)
     {
         var result = await collectionAclService.RevokeAccessAsync(collectionId, principalType, principalId, ct);
         EnsureSuccess(result, "Revoke collection access");
     }
 
-    public virtual async Task<List<UserSearchResultDto>> SearchUsersForAclAsync(Guid collectionId, string? query = null, CancellationToken ct = default)
+    public async Task<List<UserSearchResultDto>> SearchUsersForAclAsync(Guid collectionId, string? query = null, CancellationToken ct = default)
     {
         var result = await collectionAclService.SearchUsersForAclAsync(collectionId, query, ct);
         return Unwrap(result, "Search users for ACL");
@@ -245,7 +227,7 @@ public class AssetHubApiClient(
 
     #region Assets
 
-    public virtual async Task<AssetListResponse> GetAssetsAsync(
+    public async Task<AssetListResponse> GetAssetsAsync(
         Guid collectionId,
         string? query = null,
         string? type = null,
@@ -258,20 +240,20 @@ public class AssetHubApiClient(
         return Unwrap(result, "Get assets");
     }
 
-    public virtual async Task<AssetResponseDto?> GetAssetAsync(Guid id, CancellationToken ct = default)
+    public async Task<AssetResponseDto?> GetAssetAsync(Guid id, CancellationToken ct = default)
     {
         var result = await assetQueryService.GetAssetAsync(id, ct);
         return UnwrapOrNullOn(result, "Get asset", 404);
     }
 
-    public virtual async Task<AssetResponseDto> UpdateAssetAsync(Guid id, UpdateAssetDto dto, CancellationToken ct = default)
+    public async Task<AssetResponseDto> UpdateAssetAsync(Guid id, UpdateAssetDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update asset");
         var result = await assetService.UpdateAsync(id, dto, ct);
         return Unwrap(result, "Update asset");
     }
 
-    public virtual async Task<AssetUploadResult> UploadAssetAsync(
+    public async Task<AssetUploadResult> UploadAssetAsync(
         Guid collectionId,
         string title,
         Stream fileStream,
@@ -291,7 +273,7 @@ public class AssetHubApiClient(
         return Unwrap(result, "Upload asset");
     }
 
-    public virtual async Task<InitUploadResponse> InitUploadAsync(
+    public async Task<InitUploadResponse> InitUploadAsync(
         Guid? collectionId,
         string fileName,
         string contentType,
@@ -312,13 +294,13 @@ public class AssetHubApiClient(
         return Unwrap(result, "Init upload");
     }
 
-    public virtual async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, bool force = false, CancellationToken ct = default)
+    public async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, bool force = false, CancellationToken ct = default)
     {
         var result = await assetUploadService.ConfirmUploadAsync(assetId, skipDuplicateCheck: force, ct);
         return Unwrap(result, "Confirm upload");
     }
 
-    public virtual async Task<InitUploadResponse> SaveImageCopyAsync(
+    public async Task<InitUploadResponse> SaveImageCopyAsync(
         Guid sourceAssetId, string contentType, long fileSize, string? title = null, Guid? collectionId = null, CancellationToken ct = default)
     {
         var request = new SaveImageCopyRequest
@@ -333,7 +315,7 @@ public class AssetHubApiClient(
         return Unwrap(result, "Save image copy");
     }
 
-    public virtual async Task<InitUploadResponse> ReplaceImageFileAsync(
+    public async Task<InitUploadResponse> ReplaceImageFileAsync(
         Guid assetId, string contentType, long fileSize, CancellationToken ct = default)
     {
         var request = new ReplaceImageFileRequest
@@ -346,16 +328,7 @@ public class AssetHubApiClient(
         return Unwrap(result, "Replace image file");
     }
 
-    /// <summary>
-    /// Optional parameters for <see cref="ApplyEditAsync"/>.
-    /// </summary>
-    public record ImageEditOptions(
-        string? Title = null,
-        string? EditDocument = null,
-        Guid? DestinationCollectionId = null,
-        Guid[]? PresetIds = null);
-
-    public virtual async Task<ImageEditResultDto> ApplyEditAsync(
+    public async Task<ImageEditResultDto> ApplyEditAsync(
         Guid assetId, Stream renderedPng, string fileName, ImageEditSaveMode saveMode,
         ImageEditOptions? options = null, CancellationToken ct = default)
     {
@@ -378,13 +351,13 @@ public class AssetHubApiClient(
         return Unwrap(result, "Apply image edit");
     }
 
-    public virtual async Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, CancellationToken ct = default)
+    public async Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, CancellationToken ct = default)
     {
         var result = await assetService.DeleteAsync(id, fromCollectionId, ct);
         EnsureSuccess(result, "Delete asset");
     }
 
-    public virtual async Task<BulkDeleteAssetsResponse> BulkDeleteAssetsAsync(
+    public async Task<BulkDeleteAssetsResponse> BulkDeleteAssetsAsync(
         List<Guid> assetIds, Guid? fromCollectionId = null, CancellationToken ct = default)
     {
         var request = new BulkDeleteAssetsRequest { AssetIds = assetIds, FromCollectionId = fromCollectionId };
@@ -393,7 +366,7 @@ public class AssetHubApiClient(
         return Unwrap(result, "Bulk delete assets");
     }
 
-    public virtual async Task<AssetDeletionContextDto> GetAssetDeletionContextAsync(Guid id, CancellationToken ct = default)
+    public async Task<AssetDeletionContextDto> GetAssetDeletionContextAsync(Guid id, CancellationToken ct = default)
     {
         var result = await assetQueryService.GetDeletionContextAsync(id, ct);
         return Unwrap(result, "Get asset deletion context");
@@ -403,7 +376,7 @@ public class AssetHubApiClient(
 
     #region Shares
 
-    public virtual async Task<ShareResponseDto> CreateShareAsync(
+    public async Task<ShareResponseDto> CreateShareAsync(
         Guid scopeId,
         string scopeType,
         DateTime? expiresAt = null,
@@ -424,7 +397,7 @@ public class AssetHubApiClient(
         return Unwrap(result, "Create share");
     }
 
-    public virtual async Task UpdateSharePasswordAsync(Guid shareId, string newPassword, CancellationToken ct = default)
+    public async Task UpdateSharePasswordAsync(Guid shareId, string newPassword, CancellationToken ct = default)
     {
         var dto = new UpdateSharePasswordDto { Password = newPassword };
         Validate(dto, "Update share password");
@@ -432,21 +405,21 @@ public class AssetHubApiClient(
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Update share password");
     }
 
-    public virtual async Task<string> GetShareTokenAsync(Guid shareId, CancellationToken ct = default)
+    public async Task<string> GetShareTokenAsync(Guid shareId, CancellationToken ct = default)
     {
         var result = await shareAdminService.GetShareTokenAsync(shareId, ct);
         if (!result.IsSuccess && result.Error!.StatusCode == 404) return string.Empty;
         return Unwrap(result, "Get share token").Token ?? string.Empty;
     }
 
-    public virtual async Task<string?> GetSharePasswordAsync(Guid shareId, CancellationToken ct = default)
+    public async Task<string?> GetSharePasswordAsync(Guid shareId, CancellationToken ct = default)
     {
         var result = await shareAdminService.GetSharePasswordAsync(shareId, ct);
         if (!result.IsSuccess && result.Error!.StatusCode == 404) return null;
         return Unwrap(result, "Get share password").Password;
     }
 
-    public virtual async Task RevokeShareAsync(Guid id, CancellationToken ct = default)
+    public async Task RevokeShareAsync(Guid id, CancellationToken ct = default)
     {
         var result = await authShareAccessService.RevokeShareAsync(id, ct);
         EnsureSuccess(result, "Revoke share");
@@ -457,7 +430,7 @@ public class AssetHubApiClient(
     /// <see cref="ApiException"/> on failure (callers should inspect <c>ErrorCode</c>
     /// for "PASSWORD_REQUIRED", <see cref="Constants.ShareErrorCodes.Revoked"/>, etc.).
     /// </summary>
-    public virtual async Task<ISharedContentDto> GetSharedContentAsync(
+    public async Task<ISharedContentDto> GetSharedContentAsync(
         string token, string? password = null, int skip = 0, int take = 50, CancellationToken ct = default)
     {
         var result = await publicShareAccessService.GetSharedContentAsync(token, password, skip, take, ct);
@@ -468,7 +441,7 @@ public class AssetHubApiClient(
     /// Requests a short-lived access token for a password-protected share. Returns
     /// null on any error (preserves the legacy nullable-on-error contract).
     /// </summary>
-    public virtual async Task<ShareAccessTokenResponse?> GetShareAccessTokenAsync(
+    public async Task<ShareAccessTokenResponse?> GetShareAccessTokenAsync(
         string token, string password, CancellationToken ct = default)
     {
         var result = await publicShareAccessService.CreateAccessTokenAsync(token, password, ct);
@@ -479,7 +452,7 @@ public class AssetHubApiClient(
 
     #region Presigned URLs
 
-    public virtual Task<string> GetPresignedDownloadUrlAsync(Guid assetId, string objectKey, CancellationToken ct = default)
+    public Task<string> GetPresignedDownloadUrlAsync(Guid assetId, string objectKey, CancellationToken ct = default)
     {
         // Browsers hit the rendition endpoint by URL; the service issues the
         // presigned 302 redirect at request time. Nothing to do here.
@@ -490,37 +463,37 @@ public class AssetHubApiClient(
 
     #region Admin
 
-    public virtual async Task<AdminSharesResponse> GetAllSharesAsync(int skip = 0, int take = 50, CancellationToken ct = default)
+    public async Task<AdminSharesResponse> GetAllSharesAsync(int skip = 0, int take = 50, CancellationToken ct = default)
     {
         var result = await shareAdminService.GetAllSharesAsync(skip, take, ct);
         return Unwrap(result, "Get all shares");
     }
 
-    public virtual async Task RevokeShareAdminAsync(Guid id, CancellationToken ct = default)
+    public async Task RevokeShareAdminAsync(Guid id, CancellationToken ct = default)
     {
         var result = await shareAdminService.AdminRevokeShareAsync(id, ct);
         EnsureSuccess(result, "Revoke share");
     }
 
-    public virtual async Task DeleteShareAdminAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteShareAdminAsync(Guid id, CancellationToken ct = default)
     {
         var result = await shareAdminService.DeleteShareAsync(id, ct);
         EnsureSuccess(result, "Delete share");
     }
 
-    public virtual async Task<int> BulkDeleteSharesByStatusAsync(string status, CancellationToken ct = default)
+    public async Task<int> BulkDeleteSharesByStatusAsync(string status, CancellationToken ct = default)
     {
         var result = await shareAdminService.BulkDeleteSharesByStatusAsync(status, ct);
         return Unwrap(result, $"Bulk delete {status} shares");
     }
 
-    public virtual async Task<List<CollectionAccessDto>> GetCollectionAccessAsync(CancellationToken ct = default)
+    public async Task<List<CollectionAccessDto>> GetCollectionAccessAsync(CancellationToken ct = default)
     {
         var result = await adminCollectionAclService.GetCollectionAccessTreeAsync(ct);
         return Unwrap(result, "Get collection access");
     }
 
-    public virtual async Task AddCollectionAclAsync(
+    public async Task AddCollectionAclAsync(
         Guid collectionId,
         string principalType,
         string principalId,
@@ -538,7 +511,7 @@ public class AssetHubApiClient(
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Add collection access");
     }
 
-    public virtual async Task UpdateCollectionAclAsync(
+    public async Task UpdateCollectionAclAsync(
         Guid collectionId,
         string principalType,
         string principalId,
@@ -557,19 +530,19 @@ public class AssetHubApiClient(
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Update collection access");
     }
 
-    public virtual async Task RemoveCollectionAclAsync(Guid collectionId, string principalId, string principalType, CancellationToken ct = default)
+    public async Task RemoveCollectionAclAsync(Guid collectionId, string principalId, string principalType, CancellationToken ct = default)
     {
         var result = await adminCollectionAclService.AdminRevokeAccessAsync(collectionId, principalType, principalId, ct);
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Remove collection access");
     }
 
-    public virtual async Task<BulkDeleteCollectionsResponse> BulkDeleteCollectionsAsync(List<Guid> collectionIds, bool deleteAssets = true, CancellationToken ct = default)
+    public async Task<BulkDeleteCollectionsResponse> BulkDeleteCollectionsAsync(List<Guid> collectionIds, bool deleteAssets = true, CancellationToken ct = default)
     {
         var result = await collectionAdminService.BulkDeleteAsync(collectionIds, deleteAssets, ct);
         return Unwrap(result, "Bulk delete collections");
     }
 
-    public virtual async Task<BulkSetCollectionAccessResponse> BulkSetCollectionAccessAsync(
+    public async Task<BulkSetCollectionAccessResponse> BulkSetCollectionAccessAsync(
         List<Guid> collectionIds, string principalId, string role, CancellationToken ct = default)
     {
         var request = new BulkSetCollectionAccessRequest
@@ -584,19 +557,19 @@ public class AssetHubApiClient(
         return Unwrap(result, "Bulk set collection access");
     }
 
-    public virtual async Task<List<UserAccessSummaryDto>> GetUsersAsync(CancellationToken ct = default)
+    public async Task<List<UserAccessSummaryDto>> GetUsersAsync(CancellationToken ct = default)
     {
         var result = await userAdminQueryService.GetUsersAsync(ct);
         return Unwrap(result, "Get users");
     }
 
-    public virtual async Task<List<KeycloakUserDto>> GetKeycloakUsersAsync(CancellationToken ct = default)
+    public async Task<List<KeycloakUserDto>> GetKeycloakUsersAsync(CancellationToken ct = default)
     {
         var result = await userAdminQueryService.GetKeycloakUsersAsync(ct);
         return Unwrap(result, "Get Keycloak users");
     }
 
-    public virtual async Task<PaginatedKeycloakUsersResponse> GetKeycloakUsersPaginatedAsync(
+    public async Task<PaginatedKeycloakUsersResponse> GetKeycloakUsersPaginatedAsync(
         string? search = null, string? category = null,
         string? sortBy = null, bool sortDesc = false,
         int skip = 0, int take = 50, CancellationToken ct = default)
@@ -606,44 +579,44 @@ public class AssetHubApiClient(
         return Unwrap(result, "Get Keycloak users (paginated)");
     }
 
-    public virtual async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken ct = default)
+    public async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken ct = default)
     {
         Validate(request, "Create user");
         var result = await userAdminService.CreateUserAsync(request, BaseUrl(), ct);
         return Unwrap(result, "Create user");
     }
 
-    public virtual async Task SendPasswordResetEmailAsync(string userId, CancellationToken ct = default)
+    public async Task SendPasswordResetEmailAsync(string userId, CancellationToken ct = default)
     {
         var result = await userAdminService.SendPasswordResetEmailAsync(userId, ct);
         EnsureSuccess(result, "Send password reset email");
     }
 
-    public virtual async Task<DeleteUserResponse> DeleteUserAsync(string userId, CancellationToken ct = default)
+    public async Task<DeleteUserResponse> DeleteUserAsync(string userId, CancellationToken ct = default)
     {
         var result = await userAdminService.DeleteUserAsync(userId, ct);
         return Unwrap(result, "Delete user");
     }
 
-    public virtual async Task SetUserAdminAsync(string userId, bool isAdmin, CancellationToken ct = default)
+    public async Task SetUserAdminAsync(string userId, bool isAdmin, CancellationToken ct = default)
     {
         var result = await userAdminService.SetAdminAsync(userId, isAdmin, ct);
         EnsureSuccess(result, isAdmin ? "Promote user to admin" : "Demote user from admin");
     }
 
-    public virtual async Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default)
+    public async Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default)
     {
         var result = await userAdminService.SyncDeletedUsersAsync(dryRun, ct);
         return Unwrap(result, "Sync deleted users");
     }
 
-    public virtual async Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default)
+    public async Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default)
     {
         var result = await auditQueryService.GetRecentAuditEventsAsync(take, ct);
         return Unwrap(result, "Get audit events");
     }
 
-    public virtual async Task<AuditQueryResponse> GetAuditEventsPaginatedAsync(
+    public async Task<AuditQueryResponse> GetAuditEventsPaginatedAsync(
         int pageSize = 50,
         DateTime? cursor = null,
         string? eventType = null,
@@ -664,33 +637,33 @@ public class AssetHubApiClient(
         return Unwrap(result, "Get audit events paginated");
     }
 
-    public virtual async Task<List<ExportPresetDto>> GetExportPresetsAsync(CancellationToken ct = default)
+    public async Task<List<ExportPresetDto>> GetExportPresetsAsync(CancellationToken ct = default)
     {
         var result = await exportPresetQueryService.GetAllAsync(ct);
         return Unwrap(result, "Get export presets");
     }
 
-    public virtual async Task<ExportPresetDto?> GetExportPresetAsync(Guid id, CancellationToken ct = default)
+    public async Task<ExportPresetDto?> GetExportPresetAsync(Guid id, CancellationToken ct = default)
     {
         var result = await exportPresetQueryService.GetByIdAsync(id, ct);
         return UnwrapOrNullOn(result, "Get export preset", 404);
     }
 
-    public virtual async Task<ExportPresetDto> CreateExportPresetAsync(CreateExportPresetDto dto, CancellationToken ct = default)
+    public async Task<ExportPresetDto> CreateExportPresetAsync(CreateExportPresetDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create export preset");
         var result = await exportPresetService.CreateAsync(dto, ct);
         return Unwrap(result, "Create export preset");
     }
 
-    public virtual async Task UpdateExportPresetAsync(Guid id, UpdateExportPresetDto dto, CancellationToken ct = default)
+    public async Task UpdateExportPresetAsync(Guid id, UpdateExportPresetDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update export preset");
         var result = await exportPresetService.UpdateAsync(id, dto, ct);
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Update export preset");
     }
 
-    public virtual async Task DeleteExportPresetAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteExportPresetAsync(Guid id, CancellationToken ct = default)
     {
         var result = await exportPresetService.DeleteAsync(id, ct);
         EnsureSuccess(result, "Delete export preset");
@@ -700,13 +673,13 @@ public class AssetHubApiClient(
 
     #region Personal Access Tokens
 
-    public virtual async Task<List<PersonalAccessTokenDto>> GetMyPersonalAccessTokensAsync(CancellationToken ct = default)
+    public async Task<List<PersonalAccessTokenDto>> GetMyPersonalAccessTokensAsync(CancellationToken ct = default)
     {
         var result = await personalAccessTokenService.ListMineAsync(ct);
         return Unwrap(result, "List personal access tokens");
     }
 
-    public virtual async Task<CreatedPersonalAccessTokenDto> CreatePersonalAccessTokenAsync(
+    public async Task<CreatedPersonalAccessTokenDto> CreatePersonalAccessTokenAsync(
         CreatePersonalAccessTokenRequest request,
         CancellationToken ct = default)
     {
@@ -715,7 +688,7 @@ public class AssetHubApiClient(
         return Unwrap(result, "Create personal access token");
     }
 
-    public virtual async Task RevokePersonalAccessTokenAsync(Guid id, CancellationToken ct = default)
+    public async Task RevokePersonalAccessTokenAsync(Guid id, CancellationToken ct = default)
     {
         var result = await personalAccessTokenService.RevokeAsync(id, ct);
         EnsureSuccess(result, "Revoke personal access token");
@@ -725,44 +698,44 @@ public class AssetHubApiClient(
 
     #region Notifications
 
-    public virtual async Task<NotificationListResponse> GetNotificationsAsync(
+    public async Task<NotificationListResponse> GetNotificationsAsync(
         bool unreadOnly = false, int skip = 0, int take = 50, CancellationToken ct = default)
     {
         var result = await notificationService.ListForCurrentUserAsync(unreadOnly, skip, take, ct);
         return Unwrap(result, "Get notifications");
     }
 
-    public virtual async Task<int> GetNotificationUnreadCountAsync(CancellationToken ct = default)
+    public async Task<int> GetNotificationUnreadCountAsync(CancellationToken ct = default)
     {
         var result = await notificationService.GetUnreadCountForCurrentUserAsync(ct);
         return Unwrap(result, "Get notification unread count").Count;
     }
 
-    public virtual async Task MarkNotificationReadAsync(Guid id, CancellationToken ct = default)
+    public async Task MarkNotificationReadAsync(Guid id, CancellationToken ct = default)
     {
         var result = await notificationService.MarkReadAsync(id, ct);
         EnsureSuccess(result, "Mark notification read");
     }
 
-    public virtual async Task<int> MarkAllNotificationsReadAsync(CancellationToken ct = default)
+    public async Task<int> MarkAllNotificationsReadAsync(CancellationToken ct = default)
     {
         var result = await notificationService.MarkAllReadForCurrentUserAsync(ct);
         return Unwrap(result, "Mark all notifications read");
     }
 
-    public virtual async Task DeleteNotificationAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteNotificationAsync(Guid id, CancellationToken ct = default)
     {
         var result = await notificationService.DeleteAsync(id, ct);
         EnsureSuccess(result, "Delete notification");
     }
 
-    public virtual async Task<NotificationPreferencesDto> GetNotificationPreferencesAsync(CancellationToken ct = default)
+    public async Task<NotificationPreferencesDto> GetNotificationPreferencesAsync(CancellationToken ct = default)
     {
         var result = await notificationPreferencesService.GetForCurrentUserAsync(ct);
         return Unwrap(result, "Get notification preferences");
     }
 
-    public virtual async Task<NotificationPreferencesDto> UpdateNotificationPreferencesAsync(
+    public async Task<NotificationPreferencesDto> UpdateNotificationPreferencesAsync(
         UpdateNotificationPreferencesDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update notification preferences");
@@ -777,7 +750,7 @@ public class AssetHubApiClient(
     /// emails (and the unsubscribe URLs in them) have been forwarded or
     /// screenshot-shared.
     /// </summary>
-    public virtual async Task RotateUnsubscribeTokenAsync(CancellationToken ct = default)
+    public async Task RotateUnsubscribeTokenAsync(CancellationToken ct = default)
     {
         var result = await notificationPreferencesService.RotateUnsubscribeTokenAsync(ct);
         EnsureSuccess(result, "Rotate unsubscribe token");
@@ -787,26 +760,26 @@ public class AssetHubApiClient(
 
     #region Migrations (Admin)
 
-    public virtual async Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default)
+    public async Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default)
     {
         var result = await migrationService.ListAsync(skip, take, ct);
         return Unwrap(result, "Get migrations");
     }
 
-    public virtual async Task<MigrationResponseDto> GetMigrationAsync(Guid id, CancellationToken ct = default)
+    public async Task<MigrationResponseDto> GetMigrationAsync(Guid id, CancellationToken ct = default)
     {
         var result = await migrationService.GetByIdAsync(id, ct);
         return Unwrap(result, "Get migration");
     }
 
-    public virtual async Task<MigrationResponseDto> CreateMigrationAsync(CreateMigrationDto dto, CancellationToken ct = default)
+    public async Task<MigrationResponseDto> CreateMigrationAsync(CreateMigrationDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create migration");
         var result = await migrationService.CreateAsync(dto, ct);
         return Unwrap(result, "Create migration");
     }
 
-    public virtual async Task UploadMigrationManifestAsync(Guid id, Stream csvStream, string fileName, CancellationToken ct = default)
+    public async Task UploadMigrationManifestAsync(Guid id, Stream csvStream, string fileName, CancellationToken ct = default)
     {
         // fileName is part of the legacy multipart form; the service signature
         // is just (id, stream, ct).
@@ -815,49 +788,49 @@ public class AssetHubApiClient(
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Upload migration manifest");
     }
 
-    public virtual async Task UploadMigrationFilesAsync(Guid id, IEnumerable<(string FileName, Stream Stream, string ContentType)> files, CancellationToken ct = default)
+    public async Task UploadMigrationFilesAsync(Guid id, IEnumerable<(string FileName, Stream Stream, string ContentType)> files, CancellationToken ct = default)
     {
         var result = await migrationService.UploadStagingFilesAsync(id, files, ct);
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Upload migration files");
     }
 
-    public virtual async Task StartMigrationAsync(Guid id, CancellationToken ct = default)
+    public async Task StartMigrationAsync(Guid id, CancellationToken ct = default)
     {
         var result = await migrationService.StartAsync(id, ct);
         EnsureSuccess(result, "Start migration");
     }
 
-    public virtual async Task StartMigrationS3ScanAsync(Guid id, CancellationToken ct = default)
+    public async Task StartMigrationS3ScanAsync(Guid id, CancellationToken ct = default)
     {
         var result = await migrationService.StartS3ScanAsync(id, ct);
         EnsureSuccess(result, "Start S3 scan");
     }
 
-    public virtual async Task CancelMigrationAsync(Guid id, CancellationToken ct = default)
+    public async Task CancelMigrationAsync(Guid id, CancellationToken ct = default)
     {
         var result = await migrationService.CancelAsync(id, ct);
         EnsureSuccess(result, "Cancel migration");
     }
 
-    public virtual async Task RetryFailedMigrationAsync(Guid id, CancellationToken ct = default)
+    public async Task RetryFailedMigrationAsync(Guid id, CancellationToken ct = default)
     {
         var result = await migrationService.RetryFailedAsync(id, ct);
         EnsureSuccess(result, "Retry failed migration items");
     }
 
-    public virtual async Task<MigrationProgressDto> GetMigrationProgressAsync(Guid id, CancellationToken ct = default)
+    public async Task<MigrationProgressDto> GetMigrationProgressAsync(Guid id, CancellationToken ct = default)
     {
         var result = await migrationService.GetProgressAsync(id, ct);
         return Unwrap(result, "Get migration progress");
     }
 
-    public virtual async Task<MigrationItemListResponse> GetMigrationItemsAsync(Guid id, string? statusFilter = null, int skip = 0, int take = 50, CancellationToken ct = default)
+    public async Task<MigrationItemListResponse> GetMigrationItemsAsync(Guid id, string? statusFilter = null, int skip = 0, int take = 50, CancellationToken ct = default)
     {
         var result = await migrationService.GetItemsAsync(id, statusFilter, skip, take, ct);
         return Unwrap(result, "Get migration items");
     }
 
-    public virtual async Task DeleteMigrationAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteMigrationAsync(Guid id, CancellationToken ct = default)
     {
         var result = await migrationService.DeleteAsync(id, ct);
         EnsureSuccess(result, "Delete migration");
@@ -868,7 +841,7 @@ public class AssetHubApiClient(
     /// produced the same shape (header + per-item rows); this mirrors it so
     /// callers receive an identical stream.
     /// </summary>
-    public virtual async Task<Stream> DownloadMigrationOutcomeAsync(Guid id, CancellationToken ct = default)
+    public async Task<Stream> DownloadMigrationOutcomeAsync(Guid id, CancellationToken ct = default)
     {
         var result = await migrationService.GetItemsAsync(id, null, 0, 100_000, ct);
         var items = Unwrap(result, "Download migration outcome").Items;
@@ -898,13 +871,13 @@ public class AssetHubApiClient(
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 
-    public virtual async Task UnstageMigrationItemAsync(Guid migrationId, Guid itemId, CancellationToken ct = default)
+    public async Task UnstageMigrationItemAsync(Guid migrationId, Guid itemId, CancellationToken ct = default)
     {
         var result = await migrationService.UnstageMigrationItemAsync(migrationId, itemId, ct);
         EnsureSuccess(result, "Unstage migration item");
     }
 
-    public virtual async Task<int> BulkDeleteMigrationsAsync(string filter, CancellationToken ct = default)
+    public async Task<int> BulkDeleteMigrationsAsync(string filter, CancellationToken ct = default)
     {
         var result = await migrationService.BulkDeleteAsync(filter, ct);
         return Unwrap(result, "Bulk delete migrations");
@@ -914,25 +887,25 @@ public class AssetHubApiClient(
 
     #region Asset Collections (Multi-Collection)
 
-    public virtual async Task<List<AssetCollectionDto>> GetAssetCollectionsAsync(Guid assetId, CancellationToken ct = default)
+    public async Task<List<AssetCollectionDto>> GetAssetCollectionsAsync(Guid assetId, CancellationToken ct = default)
     {
         var result = await assetQueryService.GetAssetCollectionsAsync(assetId, ct);
         return Unwrap(result, "Get asset collections").ToList();
     }
 
-    public virtual async Task<List<AssetDerivativeDto>> GetAssetDerivativesAsync(Guid assetId, CancellationToken ct = default)
+    public async Task<List<AssetDerivativeDto>> GetAssetDerivativesAsync(Guid assetId, CancellationToken ct = default)
     {
         var result = await assetQueryService.GetDerivativesAsync(assetId, ct);
         return Unwrap(result, "Get asset derivatives");
     }
 
-    public virtual async Task AddAssetToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
+    public async Task AddAssetToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
         var result = await assetService.AddToCollectionAsync(assetId, collectionId, ct);
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Add asset to collection");
     }
 
-    public virtual async Task RemoveAssetFromCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
+    public async Task RemoveAssetFromCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
         var result = await assetService.RemoveFromCollectionAsync(assetId, collectionId, ct);
         EnsureSuccess(result, "Remove asset from collection");
@@ -942,39 +915,39 @@ public class AssetHubApiClient(
 
     #region Metadata Schemas
 
-    public virtual async Task<List<MetadataSchemaDto>> GetMetadataSchemasAsync(CancellationToken ct = default)
+    public async Task<List<MetadataSchemaDto>> GetMetadataSchemasAsync(CancellationToken ct = default)
     {
         var result = await metadataSchemaQueryService.GetAllAsync(ct);
         return Unwrap(result, "Get metadata schemas");
     }
 
-    public virtual async Task<MetadataSchemaDto?> GetMetadataSchemaAsync(Guid id, CancellationToken ct = default)
+    public async Task<MetadataSchemaDto?> GetMetadataSchemaAsync(Guid id, CancellationToken ct = default)
     {
         var result = await metadataSchemaQueryService.GetByIdAsync(id, ct);
         return UnwrapOrNullOn(result, "Get metadata schema", 404);
     }
 
-    public virtual async Task<List<MetadataSchemaDto>> GetApplicableMetadataSchemasAsync(string? assetType = null, Guid? collectionId = null, CancellationToken ct = default)
+    public async Task<List<MetadataSchemaDto>> GetApplicableMetadataSchemasAsync(string? assetType = null, Guid? collectionId = null, CancellationToken ct = default)
     {
         var result = await metadataSchemaQueryService.GetApplicableAsync(assetType, collectionId, ct);
         return Unwrap(result, "Get applicable metadata schemas");
     }
 
-    public virtual async Task<MetadataSchemaDto> CreateMetadataSchemaAsync(CreateMetadataSchemaDto dto, CancellationToken ct = default)
+    public async Task<MetadataSchemaDto> CreateMetadataSchemaAsync(CreateMetadataSchemaDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create metadata schema");
         var result = await metadataSchemaService.CreateAsync(dto, ct);
         return Unwrap(result, "Create metadata schema");
     }
 
-    public virtual async Task<MetadataSchemaDto> UpdateMetadataSchemaAsync(Guid id, UpdateMetadataSchemaDto dto, CancellationToken ct = default)
+    public async Task<MetadataSchemaDto> UpdateMetadataSchemaAsync(Guid id, UpdateMetadataSchemaDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update metadata schema");
         var result = await metadataSchemaService.UpdateAsync(id, dto, ct);
         return Unwrap(result, "Update metadata schema");
     }
 
-    public virtual async Task DeleteMetadataSchemaAsync(Guid id, bool force = false, CancellationToken ct = default)
+    public async Task DeleteMetadataSchemaAsync(Guid id, bool force = false, CancellationToken ct = default)
     {
         var result = await metadataSchemaService.DeleteAsync(id, force, ct);
         EnsureSuccess(result, "Delete metadata schema");
@@ -984,39 +957,39 @@ public class AssetHubApiClient(
 
     #region Taxonomies
 
-    public virtual async Task<List<TaxonomySummaryDto>> GetTaxonomiesAsync(CancellationToken ct = default)
+    public async Task<List<TaxonomySummaryDto>> GetTaxonomiesAsync(CancellationToken ct = default)
     {
         var result = await taxonomyQueryService.GetAllAsync(ct);
         return Unwrap(result, "Get taxonomies");
     }
 
-    public virtual async Task<TaxonomyDto?> GetTaxonomyAsync(Guid id, CancellationToken ct = default)
+    public async Task<TaxonomyDto?> GetTaxonomyAsync(Guid id, CancellationToken ct = default)
     {
         var result = await taxonomyQueryService.GetByIdAsync(id, ct);
         return UnwrapOrNullOn(result, "Get taxonomy", 404);
     }
 
-    public virtual async Task<TaxonomyDto> CreateTaxonomyAsync(CreateTaxonomyDto dto, CancellationToken ct = default)
+    public async Task<TaxonomyDto> CreateTaxonomyAsync(CreateTaxonomyDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create taxonomy");
         var result = await taxonomyService.CreateAsync(dto, ct);
         return Unwrap(result, "Create taxonomy");
     }
 
-    public virtual async Task<TaxonomyDto> UpdateTaxonomyAsync(Guid id, UpdateTaxonomyDto dto, CancellationToken ct = default)
+    public async Task<TaxonomyDto> UpdateTaxonomyAsync(Guid id, UpdateTaxonomyDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update taxonomy");
         var result = await taxonomyService.UpdateAsync(id, dto, ct);
         return Unwrap(result, "Update taxonomy");
     }
 
-    public virtual async Task<TaxonomyDto> ReplaceTaxonomyTermsAsync(Guid id, List<UpsertTaxonomyTermDto> terms, CancellationToken ct = default)
+    public async Task<TaxonomyDto> ReplaceTaxonomyTermsAsync(Guid id, List<UpsertTaxonomyTermDto> terms, CancellationToken ct = default)
     {
         var result = await taxonomyService.ReplaceTermsAsync(id, terms, ct);
         return Unwrap(result, "Replace taxonomy terms");
     }
 
-    public virtual async Task DeleteTaxonomyAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteTaxonomyAsync(Guid id, CancellationToken ct = default)
     {
         var result = await taxonomyService.DeleteAsync(id, ct);
         EnsureSuccess(result, "Delete taxonomy");
@@ -1026,13 +999,13 @@ public class AssetHubApiClient(
 
     #region Asset Metadata
 
-    public virtual async Task<List<AssetMetadataValueDto>> GetAssetMetadataAsync(Guid assetId, CancellationToken ct = default)
+    public async Task<List<AssetMetadataValueDto>> GetAssetMetadataAsync(Guid assetId, CancellationToken ct = default)
     {
         var result = await assetMetadataService.GetByAssetIdAsync(assetId, ct);
         return Unwrap(result, "Get asset metadata");
     }
 
-    public virtual async Task<List<AssetMetadataValueDto>> SetAssetMetadataAsync(Guid assetId, SetAssetMetadataDto dto, CancellationToken ct = default)
+    public async Task<List<AssetMetadataValueDto>> SetAssetMetadataAsync(Guid assetId, SetAssetMetadataDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Set asset metadata");
         var result = await assetMetadataService.SetAsync(assetId, dto, ct);
@@ -1043,7 +1016,7 @@ public class AssetHubApiClient(
 
     #region Asset Search
 
-    public virtual async Task<AssetSearchResponse> SearchAssetsAsync(AssetSearchRequest request, CancellationToken ct = default)
+    public async Task<AssetSearchResponse> SearchAssetsAsync(AssetSearchRequest request, CancellationToken ct = default)
     {
         Validate(request, "Search assets");
         var result = await assetSearchService.SearchAsync(request, ct);
@@ -1054,33 +1027,33 @@ public class AssetHubApiClient(
 
     #region Saved Searches
 
-    public virtual async Task<List<SavedSearchDto>> GetSavedSearchesAsync(CancellationToken ct = default)
+    public async Task<List<SavedSearchDto>> GetSavedSearchesAsync(CancellationToken ct = default)
     {
         var result = await savedSearchService.GetMineAsync(ct);
         return Unwrap(result, "Get saved searches");
     }
 
-    public virtual async Task<SavedSearchDto?> GetSavedSearchAsync(Guid id, CancellationToken ct = default)
+    public async Task<SavedSearchDto?> GetSavedSearchAsync(Guid id, CancellationToken ct = default)
     {
         var result = await savedSearchService.GetByIdAsync(id, ct);
         return UnwrapOrNullOn(result, "Get saved search", 404);
     }
 
-    public virtual async Task<SavedSearchDto> CreateSavedSearchAsync(CreateSavedSearchDto dto, CancellationToken ct = default)
+    public async Task<SavedSearchDto> CreateSavedSearchAsync(CreateSavedSearchDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create saved search");
         var result = await savedSearchService.CreateAsync(dto, ct);
         return Unwrap(result, "Create saved search");
     }
 
-    public virtual async Task<SavedSearchDto> UpdateSavedSearchAsync(Guid id, UpdateSavedSearchDto dto, CancellationToken ct = default)
+    public async Task<SavedSearchDto> UpdateSavedSearchAsync(Guid id, UpdateSavedSearchDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update saved search");
         var result = await savedSearchService.UpdateAsync(id, dto, ct);
         return Unwrap(result, "Update saved search");
     }
 
-    public virtual async Task DeleteSavedSearchAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteSavedSearchAsync(Guid id, CancellationToken ct = default)
     {
         var result = await savedSearchService.DeleteAsync(id, ct);
         EnsureSuccess(result, "Delete saved search");
@@ -1090,25 +1063,25 @@ public class AssetHubApiClient(
 
     #region Admin Trash
 
-    public virtual async Task<TrashListResponse> GetTrashAsync(int skip = 0, int take = 50, CancellationToken ct = default)
+    public async Task<TrashListResponse> GetTrashAsync(int skip = 0, int take = 50, CancellationToken ct = default)
     {
         var result = await assetTrashService.GetAsync(skip, take, ct);
         return Unwrap(result, "Get trash");
     }
 
-    public virtual async Task RestoreFromTrashAsync(Guid id, CancellationToken ct = default)
+    public async Task RestoreFromTrashAsync(Guid id, CancellationToken ct = default)
     {
         var result = await assetTrashService.RestoreAsync(id, ct);
         EnsureSuccess(result, "Restore from trash");
     }
 
-    public virtual async Task PurgeFromTrashAsync(Guid id, CancellationToken ct = default)
+    public async Task PurgeFromTrashAsync(Guid id, CancellationToken ct = default)
     {
         var result = await assetTrashService.PurgeAsync(id, ct);
         EnsureSuccess(result, "Purge from trash");
     }
 
-    public virtual async Task<EmptyTrashResponse> EmptyTrashAsync(CancellationToken ct = default)
+    public async Task<EmptyTrashResponse> EmptyTrashAsync(CancellationToken ct = default)
     {
         var result = await assetTrashService.EmptyAsync(ct);
         return Unwrap(result, "Empty trash");
@@ -1118,19 +1091,19 @@ public class AssetHubApiClient(
 
     #region Asset Versions
 
-    public virtual async Task<List<AssetVersionDto>> GetAssetVersionsAsync(Guid assetId, CancellationToken ct = default)
+    public async Task<List<AssetVersionDto>> GetAssetVersionsAsync(Guid assetId, CancellationToken ct = default)
     {
         var result = await assetVersionService.GetForAssetAsync(assetId, ct);
         return Unwrap(result, "Get asset versions");
     }
 
-    public virtual async Task<AssetVersionDto> RestoreAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
+    public async Task<AssetVersionDto> RestoreAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
     {
         var result = await assetVersionService.RestoreAsync(assetId, versionNumber, ct);
         return Unwrap(result, "Restore asset version");
     }
 
-    public virtual async Task PruneAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
+    public async Task PruneAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default)
     {
         var result = await assetVersionService.PruneAsync(assetId, versionNumber, ct);
         EnsureSuccess(result, "Prune asset version");
@@ -1140,13 +1113,13 @@ public class AssetHubApiClient(
 
     #region Asset Comments
 
-    public virtual async Task<List<AssetCommentResponseDto>> GetAssetCommentsAsync(Guid assetId, CancellationToken ct = default)
+    public async Task<List<AssetCommentResponseDto>> GetAssetCommentsAsync(Guid assetId, CancellationToken ct = default)
     {
         var result = await assetCommentService.ListForAssetAsync(assetId, ct);
         return Unwrap(result, "Get asset comments");
     }
 
-    public virtual async Task<AssetCommentResponseDto> CreateAssetCommentAsync(
+    public async Task<AssetCommentResponseDto> CreateAssetCommentAsync(
         Guid assetId, CreateAssetCommentDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create asset comment");
@@ -1154,7 +1127,7 @@ public class AssetHubApiClient(
         return Unwrap(result, "Create asset comment");
     }
 
-    public virtual async Task<AssetCommentResponseDto> UpdateAssetCommentAsync(
+    public async Task<AssetCommentResponseDto> UpdateAssetCommentAsync(
         Guid assetId, Guid commentId, UpdateAssetCommentDto dto, CancellationToken ct = default)
     {
         // assetId kept for caller-side context; the service identifies the comment
@@ -1165,7 +1138,7 @@ public class AssetHubApiClient(
         return Unwrap(result, "Update asset comment");
     }
 
-    public virtual async Task DeleteAssetCommentAsync(Guid assetId, Guid commentId, CancellationToken ct = default)
+    public async Task DeleteAssetCommentAsync(Guid assetId, Guid commentId, CancellationToken ct = default)
     {
         _ = assetId;
         var result = await assetCommentService.DeleteAsync(commentId, ct);
@@ -1178,7 +1151,7 @@ public class AssetHubApiClient(
     /// Used by the comments panel + user-search autocomplete to avoid
     /// rendering raw Keycloak subs.
     /// </summary>
-    public virtual async Task<Dictionary<string, string>> GetUserNamesAsync(
+    public async Task<Dictionary<string, string>> GetUserNamesAsync(
         IEnumerable<string> userIds, CancellationToken ct = default)
     {
         return await userLookupService.GetUserNamesAsync(userIds, ct);
@@ -1189,7 +1162,7 @@ public class AssetHubApiClient(
     /// @mention autocomplete dropdown. Cap is small by design — the editor
     /// only wants enough hits to render a usable picker.
     /// </summary>
-    public virtual async Task<List<UserSearchResultDto>> SearchUsersForMentionAsync(
+    public async Task<List<UserSearchResultDto>> SearchUsersForMentionAsync(
         string query, int take = 10, CancellationToken ct = default)
     {
         var rows = await userLookupService.SearchUsersAsync(query, take, ct);
@@ -1205,25 +1178,25 @@ public class AssetHubApiClient(
 
     #region Asset Workflow (T3-WF-01)
 
-    public virtual async Task<AssetWorkflowResponseDto> GetAssetWorkflowAsync(Guid assetId, CancellationToken ct = default)
+    public async Task<AssetWorkflowResponseDto> GetAssetWorkflowAsync(Guid assetId, CancellationToken ct = default)
     {
         var result = await assetWorkflowService.GetAsync(assetId, ct);
         return Unwrap(result, "Get asset workflow");
     }
 
-    public virtual async Task<AssetWorkflowResponseDto> SubmitAssetForReviewAsync(Guid assetId, string? reason, CancellationToken ct = default)
+    public async Task<AssetWorkflowResponseDto> SubmitAssetForReviewAsync(Guid assetId, string? reason, CancellationToken ct = default)
     {
         var result = await assetWorkflowService.SubmitAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
         return Unwrap(result, "submit asset workflow");
     }
 
-    public virtual async Task<AssetWorkflowResponseDto> ApproveAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
+    public async Task<AssetWorkflowResponseDto> ApproveAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
     {
         var result = await assetWorkflowService.ApproveAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
         return Unwrap(result, "approve asset workflow");
     }
 
-    public virtual async Task<AssetWorkflowResponseDto> RejectAssetAsync(Guid assetId, string reason, CancellationToken ct = default)
+    public async Task<AssetWorkflowResponseDto> RejectAssetAsync(Guid assetId, string reason, CancellationToken ct = default)
     {
         var dto = new WorkflowRejectDto { Reason = reason };
         Validate(dto, "Reject asset");
@@ -1231,13 +1204,13 @@ public class AssetHubApiClient(
         return Unwrap(result, "reject asset workflow");
     }
 
-    public virtual async Task<AssetWorkflowResponseDto> PublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
+    public async Task<AssetWorkflowResponseDto> PublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
     {
         var result = await assetWorkflowService.PublishAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
         return Unwrap(result, "publish asset workflow");
     }
 
-    public virtual async Task<AssetWorkflowResponseDto> UnpublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
+    public async Task<AssetWorkflowResponseDto> UnpublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default)
     {
         var result = await assetWorkflowService.UnpublishAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
         return Unwrap(result, "unpublish asset workflow");
@@ -1247,45 +1220,45 @@ public class AssetHubApiClient(
 
     #region Webhooks (T3-INT-01)
 
-    public virtual async Task<List<WebhookResponseDto>> GetWebhooksAsync(CancellationToken ct = default)
+    public async Task<List<WebhookResponseDto>> GetWebhooksAsync(CancellationToken ct = default)
     {
         var result = await webhookService.ListAsync(ct);
         return Unwrap(result, "Get webhooks");
     }
 
-    public virtual async Task<CreatedWebhookDto> CreateWebhookAsync(CreateWebhookDto dto, CancellationToken ct = default)
+    public async Task<CreatedWebhookDto> CreateWebhookAsync(CreateWebhookDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create webhook");
         var result = await webhookService.CreateAsync(dto, ct);
         return Unwrap(result, "Create webhook");
     }
 
-    public virtual async Task<WebhookResponseDto> UpdateWebhookAsync(Guid id, UpdateWebhookDto dto, CancellationToken ct = default)
+    public async Task<WebhookResponseDto> UpdateWebhookAsync(Guid id, UpdateWebhookDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update webhook");
         var result = await webhookService.UpdateAsync(id, dto, ct);
         return Unwrap(result, "Update webhook");
     }
 
-    public virtual async Task DeleteWebhookAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteWebhookAsync(Guid id, CancellationToken ct = default)
     {
         var result = await webhookService.DeleteAsync(id, ct);
         EnsureSuccess(result, "Delete webhook");
     }
 
-    public virtual async Task<CreatedWebhookDto> RotateWebhookSecretAsync(Guid id, CancellationToken ct = default)
+    public async Task<CreatedWebhookDto> RotateWebhookSecretAsync(Guid id, CancellationToken ct = default)
     {
         var result = await webhookService.RotateSecretAsync(id, ct);
         return Unwrap(result, "Rotate webhook secret");
     }
 
-    public virtual async Task<WebhookDeliveryResponseDto> SendWebhookTestAsync(Guid id, CancellationToken ct = default)
+    public async Task<WebhookDeliveryResponseDto> SendWebhookTestAsync(Guid id, CancellationToken ct = default)
     {
         var result = await webhookService.SendTestAsync(id, ct);
         return Unwrap(result, "Send webhook test");
     }
 
-    public virtual async Task<List<WebhookDeliveryResponseDto>> GetWebhookDeliveriesAsync(
+    public async Task<List<WebhookDeliveryResponseDto>> GetWebhookDeliveriesAsync(
         Guid id, int take = 50, CancellationToken ct = default)
     {
         var result = await webhookService.ListDeliveriesAsync(id, take, ct);
@@ -1296,52 +1269,52 @@ public class AssetHubApiClient(
 
     #region Brands (T4-BP-01)
 
-    public virtual async Task<List<BrandResponseDto>> GetBrandsAsync(CancellationToken ct = default)
+    public async Task<List<BrandResponseDto>> GetBrandsAsync(CancellationToken ct = default)
     {
         var result = await brandService.ListAsync(ct);
         return Unwrap(result, "Get brands");
     }
 
-    public virtual async Task<BrandResponseDto> CreateBrandAsync(CreateBrandDto dto, CancellationToken ct = default)
+    public async Task<BrandResponseDto> CreateBrandAsync(CreateBrandDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create brand");
         var result = await brandService.CreateAsync(dto, ct);
         return Unwrap(result, "Create brand");
     }
 
-    public virtual async Task<BrandResponseDto> UpdateBrandAsync(Guid id, UpdateBrandDto dto, CancellationToken ct = default)
+    public async Task<BrandResponseDto> UpdateBrandAsync(Guid id, UpdateBrandDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Update brand");
         var result = await brandService.UpdateAsync(id, dto, ct);
         return Unwrap(result, "Update brand");
     }
 
-    public virtual async Task DeleteBrandAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteBrandAsync(Guid id, CancellationToken ct = default)
     {
         var result = await brandService.DeleteAsync(id, ct);
         EnsureSuccess(result, "Delete brand");
     }
 
-    public virtual async Task<BrandResponseDto> UploadBrandLogoAsync(
+    public async Task<BrandResponseDto> UploadBrandLogoAsync(
         Guid id, Stream content, string fileName, string contentType, CancellationToken ct = default)
     {
         var result = await brandService.UploadLogoAsync(id, content, fileName, contentType, ct);
         return Unwrap(result, "Upload brand logo");
     }
 
-    public virtual async Task RemoveBrandLogoAsync(Guid id, CancellationToken ct = default)
+    public async Task RemoveBrandLogoAsync(Guid id, CancellationToken ct = default)
     {
         var result = await brandService.RemoveLogoAsync(id, ct);
         EnsureSuccess(new ServiceResult { Error = result.Error }, "Remove brand logo");
     }
 
-    public virtual async Task AssignBrandToCollectionAsync(Guid brandId, Guid collectionId, CancellationToken ct = default)
+    public async Task AssignBrandToCollectionAsync(Guid brandId, Guid collectionId, CancellationToken ct = default)
     {
         var result = await brandService.AssignToCollectionAsync(brandId, collectionId, ct);
         EnsureSuccess(result, "Assign brand to collection");
     }
 
-    public virtual async Task UnassignBrandFromCollectionAsync(Guid collectionId, CancellationToken ct = default)
+    public async Task UnassignBrandFromCollectionAsync(Guid collectionId, CancellationToken ct = default)
     {
         var result = await brandService.UnassignFromCollectionAsync(collectionId, ct);
         EnsureSuccess(result, "Unassign brand from collection");
@@ -1351,13 +1324,13 @@ public class AssetHubApiClient(
 
     #region Guest invitations (T4-GUEST-01)
 
-    public virtual async Task<List<GuestInvitationResponseDto>> GetGuestInvitationsAsync(CancellationToken ct = default)
+    public async Task<List<GuestInvitationResponseDto>> GetGuestInvitationsAsync(CancellationToken ct = default)
     {
         var result = await guestInvitationService.ListAsync(ct);
         return Unwrap(result, "Get guest invitations");
     }
 
-    public virtual async Task<CreatedGuestInvitationDto> CreateGuestInvitationAsync(
+    public async Task<CreatedGuestInvitationDto> CreateGuestInvitationAsync(
         CreateGuestInvitationDto dto, CancellationToken ct = default)
     {
         Validate(dto, "Create guest invitation");
@@ -1365,13 +1338,13 @@ public class AssetHubApiClient(
         return Unwrap(result, "Create guest invitation");
     }
 
-    public virtual async Task RevokeGuestInvitationAsync(Guid id, CancellationToken ct = default)
+    public async Task RevokeGuestInvitationAsync(Guid id, CancellationToken ct = default)
     {
         var result = await guestInvitationService.RevokeAsync(id, ct);
         EnsureSuccess(result, "Revoke guest invitation");
     }
 
-    public virtual async Task<AcceptGuestInvitationResponseDto> AcceptGuestInvitationAsync(
+    public async Task<AcceptGuestInvitationResponseDto> AcceptGuestInvitationAsync(
         string token, CancellationToken ct = default)
     {
         var result = await guestInvitationService.AcceptAsync(token, ct);
@@ -1382,28 +1355,28 @@ public class AssetHubApiClient(
 
     #region Watermarks (T5-WMK-01)
 
-    public virtual async Task SetCollectionWatermarkAsync(
+    public async Task SetCollectionWatermarkAsync(
         Guid collectionId, bool enabled, CancellationToken ct = default)
     {
         var result = await watermarkService.SetCollectionWatermarkAsync(collectionId, enabled, ct);
         EnsureSuccess(result, "Toggle collection watermarking");
     }
 
-    public virtual async Task SetAssetWatermarkOverrideAsync(
+    public async Task SetAssetWatermarkOverrideAsync(
         Guid assetId, bool? @override, CancellationToken ct = default)
     {
         var result = await watermarkService.SetAssetWatermarkOverrideAsync(assetId, @override, ct);
         EnsureSuccess(result, "Set asset watermark override");
     }
 
-    public virtual async Task SetShareWatermarkOverrideAsync(
+    public async Task SetShareWatermarkOverrideAsync(
         Guid shareId, bool? @override, CancellationToken ct = default)
     {
         var result = await watermarkService.SetShareWatermarkOverrideAsync(shareId, @override, ct);
         EnsureSuccess(result, "Set share watermark override");
     }
 
-    public virtual async Task<WatermarkVerificationResultDto> VerifyWatermarkAsync(
+    public async Task<WatermarkVerificationResultDto> VerifyWatermarkAsync(
         Stream content, string contentType, long sizeBytes, CancellationToken ct = default)
     {
         var result = await watermarkVerifier.VerifyAsync(content, contentType, sizeBytes, ct);
@@ -1414,42 +1387,42 @@ public class AssetHubApiClient(
 
     #region Analytics (T5-ANL-01)
 
-    public virtual async Task<IReadOnlyList<AnalyticsAssetDownloadRowDto>> GetTopDownloadedAssetsAsync(
+    public async Task<IReadOnlyList<AnalyticsAssetDownloadRowDto>> GetTopDownloadedAssetsAsync(
         int windowDays, int take, CancellationToken ct = default)
     {
         var result = await analyticsService.GetTopDownloadedAssetsAsync(windowDays, take, ct);
         return Unwrap(result, "Get top downloaded assets");
     }
 
-    public virtual async Task<IReadOnlyList<AnalyticsDailyPointDto>> GetDailyDownloadCountsAsync(
+    public async Task<IReadOnlyList<AnalyticsDailyPointDto>> GetDailyDownloadCountsAsync(
         int windowDays, CancellationToken ct = default)
     {
         var result = await analyticsService.GetDailyDownloadCountsAsync(windowDays, ct);
         return Unwrap(result, "Get daily download counts");
     }
 
-    public virtual async Task<IReadOnlyList<AnalyticsStorageByCollectionRowDto>> GetStorageByCollectionAsync(
+    public async Task<IReadOnlyList<AnalyticsStorageByCollectionRowDto>> GetStorageByCollectionAsync(
         int take, CancellationToken ct = default)
     {
         var result = await analyticsService.GetStorageByCollectionAsync(take, ct);
         return Unwrap(result, "Get storage by collection");
     }
 
-    public virtual async Task<IReadOnlyList<AnalyticsStorageByAssetTypeRowDto>> GetStorageByAssetTypeAsync(
+    public async Task<IReadOnlyList<AnalyticsStorageByAssetTypeRowDto>> GetStorageByAssetTypeAsync(
         CancellationToken ct = default)
     {
         var result = await analyticsService.GetStorageByAssetTypeAsync(ct);
         return Unwrap(result, "Get storage by asset type");
     }
 
-    public virtual async Task<IReadOnlyList<AnalyticsExposureRowDto>> GetTopRecipientsAsync(
+    public async Task<IReadOnlyList<AnalyticsExposureRowDto>> GetTopRecipientsAsync(
         int windowDays, int take, CancellationToken ct = default)
     {
         var result = await analyticsService.GetTopRecipientsAsync(windowDays, take, ct);
         return Unwrap(result, "Get top recipients");
     }
 
-    public virtual async Task<RevealRecipientResponseDto> RevealRecipientAsync(
+    public async Task<RevealRecipientResponseDto> RevealRecipientAsync(
         RevealRecipientRequestDto request, CancellationToken ct = default)
     {
         Validate(request, "Reveal recipient");
@@ -1457,14 +1430,14 @@ public class AssetHubApiClient(
         return Unwrap(result, "Reveal recipient");
     }
 
-    public virtual async Task<AnalyticsPdfJobStatusDto> EnqueueAnalyticsPdfAsync(
+    public async Task<AnalyticsPdfJobStatusDto> EnqueueAnalyticsPdfAsync(
         int windowDays, CancellationToken ct = default)
     {
         var result = await analyticsPdfJobService.EnqueueAsync(windowDays, ct);
         return Unwrap(result, "Enqueue analytics PDF");
     }
 
-    public virtual async Task<AnalyticsPdfJobStatusDto> GetAnalyticsPdfStatusAsync(
+    public async Task<AnalyticsPdfJobStatusDto> GetAnalyticsPdfStatusAsync(
         Guid jobId, CancellationToken ct = default)
     {
         var result = await analyticsPdfJobService.GetStatusAsync(jobId, ct);
