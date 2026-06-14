@@ -12,7 +12,6 @@ public static class UrlSafetyHelper
     private static readonly string[] AllowedPrefixes =
     [
         "/collections",
-        "/assets",
         "/all-assets",
         "/admin",
         "/share",

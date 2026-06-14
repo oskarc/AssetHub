@@ -1,5 +1,4 @@
 @page "/collections"
-@page "/assets"
 @attribute [Authorize]
 @implements IAsyncDisposable
 
@@ -510,9 +509,9 @@
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         // Check if we navigated away and back to this page
-        var wasOnAssets = _lastKnownUri?.Contains("/collections") == true || _lastKnownUri?.Contains("/assets") == true;
-        var isOnAssets = e.Location.Contains("/collections") || e.Location.Contains("/assets");
-        var leftAndReturned = !wasOnAssets && isOnAssets;
+        var wasOnCollections = _lastKnownUri?.Contains("/collections") == true;
+        var isOnCollections = e.Location.Contains("/collections");
+        var leftAndReturned = !wasOnCollections && isOnCollections;
 
         _lastKnownUri = e.Location;
 
@@ -531,7 +530,7 @@
 
     private bool _isDownloading;
     private string _downloadStatusText = "";
-    private DotNetObjectReference<Assets>? _dotNetRef;
+    private DotNetObjectReference<Collections>? _dotNetRef;
     private IJSObjectReference? _jsModule;
 
     private async Task DownloadAllAsync()
