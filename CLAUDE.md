@@ -76,12 +76,7 @@ Domain has **zero project references** — only entities, enums, and extension m
 Only `Asset` has state transition methods (`MarkReady`, `MarkFailed`, etc.) — never set `Status` directly from services. Other entities have status set directly by services.
 
 ### Enums
-Stored as strings via extension methods defined alongside the enum:
-```csharp
-public static string ToDbString(this ExampleStatus s) => s switch { ... };
-public static ExampleStatus ToExampleStatus(this string s) => s switch { ... };
-```
-Never use `int` or `ToString()` for database storage.
+Stored as explicit strings per the **`pattern-enum-string-persistence`** standard — paired `ToDbString()` / `ToExampleStatus()` extension methods defined alongside the enum; never `int` or `ToString()` for storage. Split per concern (one `*Enums.cs` file per domain area), with the converter pair next to each enum.
 
 ---
 
@@ -366,35 +361,21 @@ Pattern: **`Area_Context_Element`** in PascalCase with underscores (`Assets_Uplo
 
 ## Caching
 
-Uses **HybridCache** (L1 in-memory + L2 Redis). All cache config centralized in `Application/CacheKeys.cs`.
+Follows the **`pattern-hybrid-cache`** standard — the central key/TTL/tag registry, get-or-create with a short L1 under a longer L2, tag-based invalidation after every write, and the must-not-cache list (auth roles/ACLs → request-scoped instead; secrets; values with their own freshness contract). AssetHub specifics:
 
-### Adding a new cache key
-1. Private prefix constant in `CacheKeys`.
-2. `public static readonly TimeSpan` TTL field.
-3. `public static string` builder method.
-4. Tag in `CacheKeys.Tags` if group invalidation is needed.
+- Tech: **HybridCache** (L1 in-memory + L2 Redis); all config centralized in `Application/CacheKeys.cs` (the registry — prefix const, `TimeSpan` TTL, builder method, optional `CacheKeys.Tags` entry per concern).
+- Project-specific must-not-cache: presigned URLs are already minted with an expiry in `MinIOAdapter` — don't re-cache them.
 
-### Usage
 ```csharp
 var data = await _cache.GetOrCreateAsync(
     CacheKeys.Example(id),
     async ct => await _repo.GetByIdAsync(id, ct),
-    new HybridCacheEntryOptions
-    {
-        Expiration = CacheKeys.ExampleTtl,
-        LocalCacheExpiration = TimeSpan.FromSeconds(30)
-    },
+    new HybridCacheEntryOptions { Expiration = CacheKeys.ExampleTtl, LocalCacheExpiration = TimeSpan.FromSeconds(30) },
     tags: [CacheKeys.Tags.Example(id)],
     cancellationToken: ct);
+// invalidate after create/update/delete:
+await _cache.RemoveByTagAsync(CacheKeys.Tags.Example(id), ct);
 ```
-
-### Invalidation
-Prefer tag-based: `await _cache.RemoveByTagAsync(CacheKeys.Tags.Example(id), ct)`. Always invalidate after create/update/delete.
-
-### Must NOT cache
-- Authorization roles/ACL lookups (use request-scoped dictionaries).
-- Security tokens or passwords.
-- Presigned URLs (already cached in `MinIOAdapter`).
 
 ---
 
@@ -438,6 +419,8 @@ Background work is hosted by **both** composition roots — placement follows ow
 
 New background work defaults to the Worker; put it in Api only when it completes an interactive request/response loop the Api owns. Either way the handler/service rules below apply unchanged.
 
+The handler/background-service conventions (placement by data ownership, per-item resilience in batch loops, scope-per-iteration, cancellation + level-based logging) are the **`implementation-worker-background`** standard. AssetHub specifics:
+
 ### Message handlers
 Wolverine auto-discovers public `HandleAsync()` methods in `Handlers/`:
 ```csharp
@@ -455,20 +438,7 @@ public sealed class ProcessImageHandler(
 - Commands/events defined in `Application/Messages/`.
 - Queues: `process-image`, `process-video`, `build-zip`. Auto-provisioned.
 - Auto-retry with exponential backoff (1s -> 2s -> 5s -> 10s -> 30s).
-
-### Background services
-`BackgroundService` with `PeriodicTimer`. Use `IServiceScopeFactory` — never inject scoped services directly. Create scope per iteration.
-
-### Error handling
-- Per-item try/catch in batch loops (one failure doesn't stop the batch).
-- `ct.ThrowIfCancellationRequested()` in long-running loops.
-- Catch `OperationCanceledException` at top level.
-
-### Logging
-- `Information`: start, completion summary.
-- `Debug`: per-batch progress, "nothing to do".
-- `Warning`: per-item failures, cancellation.
-- Always include counts.
+- Background services use `BackgroundService` + `PeriodicTimer` with `IServiceScopeFactory` (scope per iteration).
 
 ---
 
