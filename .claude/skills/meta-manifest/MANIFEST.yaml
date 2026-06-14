@@ -224,6 +224,67 @@ nodes:
     open_gaps:
       - Extracted from CLAUDE.md 2026-06-15; hosting-split principle unverified outside a 2-host topology
 
+  # CLAUDE.md decomposition batch 4 (final), extracted 2026-06-15.
+  - id: implementation-ef-config-migration
+    concern: ORM per-entity config + migration safety — byte-identical-model discipline, reversible/idempotent migrations, startup drift guard
+    skill_file: implementation-ef-config-migration/SKILL.md
+    tier: type-category
+    layer: implementation
+    phase: [during-build, post-build]
+    status: thin
+    inherited: false
+    dependencies: [implementation-migration-check]
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-15; standard/audit split with implementation-migration-check worth confirming in use
+
+  - id: implementation-config-secrets
+    concern: Strongly-typed settings + validate-on-start for critical infra; no-hardcoded-secrets with environment-aware sourcing
+    skill_file: implementation-config-secrets/SKILL.md
+    tier: type-category
+    layer: implementation
+    phase: [pre-build, during-build]
+    status: thin
+    inherited: false
+    dependencies: [implementation-csharp-conventions]
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-15; single implementation so far
+
+  - id: implementation-test-conventions
+    concern: Test structure — naming, real-dependency fixtures vs mocked externals, shared factories, lifecycle, source-mirrored tree
+    skill_file: implementation-test-conventions/SKILL.md
+    tier: type-category
+    layer: implementation
+    phase: during-build
+    status: thin
+    inherited: false
+    dependencies: [implementation-add-tests]
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-15; overlaps add-tests (scaffolding) — boundary is structure-vs-coverage
+
+  - id: implementation-docker
+    concern: Container image + compose conventions — multi-stage, minimal pinned non-root base, healthcheck, runtime-only secrets, resource limits
+    skill_file: implementation-docker/SKILL.md
+    tier: type-category
+    layer: implementation
+    phase: during-build
+    status: thin
+    inherited: false
+    dependencies: []
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-15; fully generic — no project deviations recorded
+
+  - id: implementation-sonar-discipline
+    concern: When a static-analysis suppression is legitimate vs hiding a problem — four conditions, smallest scope, always justified
+    skill_file: implementation-sonar-discipline/SKILL.md
+    tier: type-category
+    layer: implementation
+    phase: [during-build, post-build]
+    status: thin
+    inherited: false
+    dependencies: []
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-15; project-specific suppression cluster catalog stays in CLAUDE.md
+
   - id: principle-encode-over-document
     concern: When a documented rule regresses twice, encode it as a type/helper/tool-checked structure instead of strengthening the documentation
     skill_file: principle-encode-over-document/SKILL.md
@@ -588,6 +649,36 @@ coverage_map:
     phase: during-build
     status: thin
 
+  - concern: EF model config & migration safety (standard)
+    node_id: implementation-ef-config-migration
+    layer: implementation
+    phase: [during-build, post-build]
+    status: thin
+
+  - concern: Configuration & secrets discipline
+    node_id: implementation-config-secrets
+    layer: implementation
+    phase: [pre-build, during-build]
+    status: thin
+
+  - concern: Test structure conventions
+    node_id: implementation-test-conventions
+    layer: implementation
+    phase: during-build
+    status: thin
+
+  - concern: Container & compose conventions
+    node_id: implementation-docker
+    layer: implementation
+    phase: during-build
+    status: thin
+
+  - concern: Static-analysis suppression discipline
+    node_id: implementation-sonar-discipline
+    layer: implementation
+    phase: [during-build, post-build]
+    status: thin
+
   - concern: Accessibility (WCAG 2.2 AA)
     node_id: implementation-a11y-check
     layer: implementation
@@ -732,9 +823,11 @@ gap_queue:
       extraction will produce it. Tied to gap-002 (CLAUDE.md decomposition) because
       transferable patterns currently live at the project layer (CLAUDE.md) instead of as
       their own pattern/implementation skills under the type-category tier.
-      2026-06-14/15: decomposition in progress (gap-002). 9 of ~14 extracted across 3 batches;
-      CLAUDE.md sections slimmed to project-note + pointer. Extraction-readiness pending the
-      remaining ~5 skills.
+      2026-06-14/15: decomposition COMPLETE (gap-002 resolved). 14 type-category skills extracted
+      across 4 batches; CLAUDE.md slimmed to project-note + pointer throughout. The remaining step
+      for gap-001 is the actual library extraction — running meta-extract to produce
+      .claude/library/blazor-web-app/ from these now-extractable type-category nodes. That is a
+      developer-invoked action, not yet run.
     candidate_level: pattern
     priority: high
     status: in-progress
@@ -751,11 +844,13 @@ gap_queue:
       2026-06-14: abstraction loop now running (P6). Approved decomposition map: ~14 type-category
       skills. Batch 1: clean-architecture-dotnet, service-result, csharp-conventions. Batch 2:
       public-api-contract, pat-scope-enforcement, blazor-ui-standard. Batch 3:
-      enum-string-persistence, hybrid-cache, worker-background. Remaining ~5 (ef-config-migration,
-      config-secrets, test-conventions, docker, sonar-discipline).
+      enum-string-persistence, hybrid-cache, worker-background. Batch 4: ef-config-migration,
+      config-secrets, test-conventions, docker, sonar-discipline. All 14 extracted; the abstraction
+      loop has been run against the whole of CLAUDE.md. gap-002 resolved.
     candidate_level: pattern
     priority: high
-    status: in-progress
+    status: resolved
+    resolved_by: P6 CLAUDE.md decomposition (4 batches, 2026-06-14/15) — 14 type-category skills
 
   - gap_id: gap-003
     concern: Information architecture and navigation decisions are silent at every layer

@@ -381,29 +381,14 @@ await _cache.RemoveByTagAsync(CacheKeys.Tags.Example(id), ct);
 
 ## Database Migrations
 
-### Generating
+Migration safety (reversible `Down`, no drop-and-remove in one migration, idempotent raw SQL, the startup drift-guard) is the **`implementation-ef-config-migration`** standard; audit a new migration with `implementation-migration-check`. AssetHub specifics:
+
 ```powershell
 dotnet ef migrations add <PascalCaseName> --project src/AssetHub.Infrastructure --startup-project src/AssetHub.Api
 ```
-
-### Safety rules
-Never in the same migration: drop + remove referencing code, rename without data migration, change type without conversion SQL.
-
-Always include:
-- `Down()` method that reverses the `Up()`.
-- Index names: `idx_{entity}_{fields}` (+ `_unique` for unique).
-
-### JSONB columns
-Set column type explicitly in migration (`type: "jsonb"`). Corresponding `OnModelCreating` must include `ValueComparer`.
-
-### pg_trgm indexes
-Create via raw SQL: `CREATE INDEX IF NOT EXISTS idx_asset_title_trgm ON "Assets" USING gin ("Title" gin_trgm_ops);`.
-
-### Auto-migration
-AssetHub auto-migrates on startup (`Database.MigrateAsync()`). Migrations must be idempotent (`IF NOT EXISTS` in raw SQL). Both Api and Worker run migrations — first to acquire lock applies.
-
-### Pending model changes
-`AddSharedInfrastructure` configures EF's `PendingModelChangesWarning` to **throw outside Development** and **log inside Development**. That means CI / staging / production refuse to start if the EF model has drifted from the latest migration — a forgotten `dotnet ef migrations add` fails fast instead of silently shipping a mismatched schema. Don't downgrade this to `Log` globally to "fix" a startup error; generate the missing migration instead.
+- Index names: `idx_{entity}_{fields}` (+ `_unique` for unique). JSONB columns: explicit `type: "jsonb"` + matching `ValueComparer` (see § DbContext configuration / `ModelConventions`).
+- `pg_trgm`: raw idempotent SQL, e.g. `CREATE INDEX IF NOT EXISTS idx_asset_title_trgm ON "Assets" USING gin ("Title" gin_trgm_ops);`.
+- Auto-migrates on startup (`Database.MigrateAsync()`); both Api and Worker run them, first to acquire the lock applies. The `PendingModelChangesWarning` guard (`AddSharedInfrastructure`) throws outside Development — don't downgrade it to quiet a startup error; generate the missing migration.
 
 ---
 
@@ -444,24 +429,19 @@ public sealed class ProcessImageHandler(
 
 ## Configuration & Secrets
 
-### Settings classes
-Live in `Application/Configuration/` with `const string SectionName`:
-```csharp
-public class ExampleSettings
-{
-    public const string SectionName = "Example";
-    [Required] public string Host { get; set; } = string.Empty;
-    public int Port { get; set; } = 5672;
-}
-```
+Strongly-typed settings + validate-on-start for critical infra + the no-hardcoded-secrets discipline are the **`implementation-config-secrets`** standard. AssetHub specifics:
 
-### Registration
-Critical infra settings use `.ValidateOnStart()` (Keycloak, MinIO, PostgreSQL, RabbitMQ, Redis). Optional features don't (Email, ImageProcessing).
-
-### Secrets
-- Never hardcode secrets.
-- Environment variables override via `__` -> `:` mapping.
-- Production uses Docker file-based secrets, not env vars.
+- Settings classes live in `Application/Configuration/` with a `const string SectionName` and DataAnnotations:
+  ```csharp
+  public class ExampleSettings
+  {
+      public const string SectionName = "Example";
+      [Required] public string Host { get; set; } = string.Empty;
+      public int Port { get; set; } = 5672;
+  }
+  ```
+- Validate-on-start: Keycloak, MinIO, PostgreSQL, RabbitMQ, Redis. Optional (no validate-on-start): Email, ImageProcessing.
+- Env override via `__` → `:`; production uses Docker file-based secrets, not env vars.
 
 ### Existing settings
 
@@ -480,7 +460,7 @@ Critical infra settings use `.ValidateOnStart()` (Keycloak, MinIO, PostgreSQL, R
 
 ## Testing
 
-### Frameworks
+Naming (`Method_Condition_Result`), real-dependency fixtures vs mocked externals, shared factories, lifecycle, and source-mirrored structure are the **`implementation-test-conventions`** standard (scaffold with `implementation-add-tests`, smoke E2E with `implementation-ui-verify`). AssetHub's concrete pieces:
 
 | Project | Stack |
 |---------|-------|
@@ -488,42 +468,15 @@ Critical infra settings use `.ValidateOnStart()` (Keycloak, MinIO, PostgreSQL, R
 | `AssetHub.Ui.Tests` | xUnit + bUnit (MudBlazor) |
 | `E2E` | Playwright (TypeScript) with Page Object pattern |
 
-### Naming
-`MethodName_Condition_ExpectedResult` — e.g., `UpdateAsync_EmptyTitle_ReturnsBadRequest`.
-
-### Fixtures
-- **`PostgresFixture`** — real database tests. `[Collection("Database")]`. Call `fixture.CreateDbContextAsync()` per test class.
-- **`CustomWebApplicationFactory`** — endpoint/HTTP tests. Real Postgres, mocked externals. `[Collection("Api")]`.
-- **`TestAuthHandler`** — fake auth: `TestClaimsProvider.Default()`, `.Admin()`, `.WithUser(id, name, role)`.
-
-### Test data
-Use `TestData` factory methods (`CreateAsset()`, `CreateCollection()`, etc.) with optional parameter overrides.
-
-### Lifecycle
-`IAsyncLifetime`: seed in `InitializeAsync`, delete in `DisposeAsync`.
-
-### Structure
-Mirror source tree: `Services/`, `Repositories/`, `Endpoints/`, `EdgeCases/`.
-
-### E2E
-- Page Objects in `tests/E2E/tests/pages/*.ts`.
-- Helpers in `tests/E2E/tests/helpers/`.
-- Config in `tests/E2E/tests/config/env.ts`.
-- Specs numbered: `01-auth.spec.ts`, `02-navigation.spec.ts`, etc.
+- Fixtures: **`PostgresFixture`** (`[Collection("Database")]`, real DB), **`CustomWebApplicationFactory`** (`[Collection("Api")]`, real Postgres + mocked externals), **`TestAuthHandler`** (`TestClaimsProvider.Default()` / `.Admin()` / `.WithUser(...)`).
+- Data via `TestData` factories (`CreateAsset()`, …); `IAsyncLifetime` seed/cleanup; tests mirror the source tree (`Services/`, `Repositories/`, `Endpoints/`, `EdgeCases/`).
+- E2E: page objects in `tests/E2E/tests/pages/*.ts`, helpers + config under `tests/E2E/tests/`, numbered specs (`01-auth.spec.ts`, …).
 
 ---
 
 ## Docker & Containerization
 
-- Multi-stage builds for all images (build stage + runtime stage).
-- Minimal base images (`alpine`, `slim`). Pin versions — no `latest` in production.
-- Non-root `USER` in all production images.
-- `.dockerignore` to exclude `.git`, `node_modules`, build artifacts, IDE files, test files.
-- `HEALTHCHECK` instruction in Dockerfiles.
-- No secrets in image layers — use runtime secrets (Docker Secrets, env vars).
-- Combine `RUN` commands and clean up temp files in the same layer.
-- Resource limits (`cpu_limits`, `memory_limits`) in compose files.
-- Logs to `STDOUT`/`STDERR`.
+Follows the **`implementation-docker`** standard — multi-stage builds, minimal pinned non-root base images, `.dockerignore` hygiene, `HEALTHCHECK`, runtime-only secrets, combined `RUN` + same-layer cleanup, compose resource limits, stdout/stderr logging. No AssetHub-specific deviations.
 
 ---
 
@@ -618,18 +571,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 
 ### Sonar suppression discipline
 
-Suppressing a Sonar rule is a documented decision, not a way to silence noise. Every existing suppression in the repo (39 of them at the time of writing) has a `Justification = "..."` arg or an inline comment after `// NOSONAR`. New suppressions must do the same — drive-by `// NOSONAR` with no reason will be reverted.
-
-**When suppression is the right answer.** All four conditions must hold:
-
-1. The rule's *behaviour* is satisfied even though the *syntax* isn't (e.g. `exit 1` terminates a bash function but Sonar wants a `return`; a Razor field IS read but the C# analyser can't see Razor markup; a record-struct `Open()` API has no async variant in .NET 9).
-2. The fix would introduce worse code (unreachable statements, parameter-holders that just relocate the count, dead `if` branches).
-3. The suppression is the **smallest scope possible** — line-level `// NOSONAR` over file-level `#pragma`, attribute on the offending member over project-level `<NoWarn>`.
-4. The reason is recorded inline, in the form of a `Justification = "..."` or a one-line comment.
-
-**When suppression is wrong.** If the rule is firing because the *behaviour* is incorrect — a real unread field that nobody uses, a real empty catch that swallows a real exception, a real cognitive-complexity hit that means the method is too long — the answer is to fix the code, not to suppress.
-
-**Existing suppression clusters and their reasoning** (so future-you doesn't relitigate them):
+The discipline — the four conditions for a legitimate suppression, smallest-scope, always-justified, and fix-the-code-when-the-behaviour-is-wrong — is the **`implementation-sonar-discipline`** standard. AssetHub's existing suppression clusters and their standing reasoning (so future-you doesn't relitigate them — a *new* cluster that matches none of these is a design smell, push back before suppressing):
 
 - **`S107` (too many params) on services / Wolverine handlers.** ~20 services. Composition-root shape; bundling into a holder relocates the count without solving anything. Always include the constant `Justification = "Composition root for X: ..."`.
 - **`S1200` (class coupled to too many others) on endpoint mappers / `AssetHubApiClient` / DI extensions.** Wiring is the point. Same pattern.
