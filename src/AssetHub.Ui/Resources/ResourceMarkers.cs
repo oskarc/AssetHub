@@ -27,6 +27,7 @@ public class BrandsResource { }
 public class GuestsResource { }
 public class WatermarksResource { }
 public class AnalyticsResource { }
+public class AuditAdminResource { }
 public class TaxonomiesAdminResource { }
 public class TrashAdminResource { }
 public class ExportPresetsAdminResource { }

@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="AuditAction_Create" xml:space="preserve"><value>Create</value></data>
+  <data name="AuditAction_Update" xml:space="preserve"><value>Update</value></data>
+  <data name="AuditAction_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="AuditAction_AccessGranted" xml:space="preserve"><value>Access Granted</value></data>
+  <data name="Event_asset.created" xml:space="preserve"><value>Asset Created</value></data>
+  <data name="Event_asset.updated" xml:space="preserve"><value>Asset Updated</value></data>
+  <data name="Event_asset.deleted" xml:space="preserve"><value>Asset Deleted</value></data>
+  <data name="Event_asset.added_to_collection" xml:space="preserve"><value>Asset Added to Collection</value></data>
+  <data name="Event_asset.removed_from_collection" xml:space="preserve"><value>Asset Removed from Collection</value></data>
+  <data name="Event_asset.removed_from_collections" xml:space="preserve"><value>Asset Removed from Collections</value></data>
+  <data name="Event_asset.upload_initiated" xml:space="preserve"><value>Upload Started</value></data>
+  <data name="Event_asset.upload_confirmed" xml:space="preserve"><value>Upload Completed</value></data>
+  <data name="Event_asset.malware_detected" xml:space="preserve"><value>Malware Detected</value></data>
+  <data name="Event_asset.downloaded" xml:space="preserve"><value>Asset Downloaded</value></data>
+  <data name="Event_asset.processing_failed" xml:space="preserve"><value>Processing Failed</value></data>
+  <data name="Event_asset.image_saved_as_copy" xml:space="preserve"><value>Image Saved as Copy</value></data>
+  <data name="Event_asset.image_replaced" xml:space="preserve"><value>Image Replaced</value></data>
+  <data name="Event_collection.created" xml:space="preserve"><value>Collection Created</value></data>
+  <data name="Event_collection.updated" xml:space="preserve"><value>Collection Updated</value></data>
+  <data name="Event_collection.deleted" xml:space="preserve"><value>Collection Deleted</value></data>
+  <data name="Event_collection.download_requested" xml:space="preserve"><value>Collection Download Requested</value></data>
+  <data name="Event_collection.downloaded" xml:space="preserve"><value>Collection Downloaded</value></data>
+  <data name="Event_collection.access_set" xml:space="preserve"><value>Collection Access Granted</value></data>
+  <data name="Event_share.created" xml:space="preserve"><value>Share Link Created</value></data>
+  <data name="Event_share.revoked" xml:space="preserve"><value>Share Link Revoked</value></data>
+  <data name="Event_share.password_updated" xml:space="preserve"><value>Share Password Changed</value></data>
+  <data name="Event_share.password_failed" xml:space="preserve"><value>Share Password Failed</value></data>
+  <data name="Event_acl.set" xml:space="preserve"><value>Access Granted</value></data>
+  <data name="Event_acl.revoked" xml:space="preserve"><value>Access Revoked</value></data>
+  <data name="Event_user.access_granted" xml:space="preserve"><value>User Access Granted</value></data>
+  <data name="Event_user.cleanup" xml:space="preserve"><value>User Data Cleaned Up</value></data>
+  <data name="Event_user.sync.cleanup" xml:space="preserve"><value>User Sync Cleanup</value></data>
+  <data name="Event_user.password_reset_email" xml:space="preserve"><value>Password Reset Email Sent</value></data>
+  <data name="Event_user.created" xml:space="preserve"><value>User Created</value></data>
+  <data name="Event_user.create_failed" xml:space="preserve"><value>User Creation Failed</value></data>
+  <data name="Event_user.deleted" xml:space="preserve"><value>User Deleted</value></data>
+  <data name="Event_user.sync.completed" xml:space="preserve"><value>User Sync Completed</value></data>
+  <data name="Event_shares.bulk_deleted" xml:space="preserve"><value>Shares Bulk Deleted</value></data>
+  <data name="Event_share.deleted" xml:space="preserve"><value>Share Deleted</value></data>
+  <data name="AuditAction_Download" xml:space="preserve"><value>Download</value></data>
+  <data name="AuditAction_Security" xml:space="preserve"><value>Security</value></data>
+  <data name="AuditAction_Edit" xml:space="preserve"><value>Edit</value></data>
+  <data name="Event_user.promoted_to_admin" xml:space="preserve"><value>Promoted to Admin</value></data>
+  <data name="Event_user.demoted_from_admin" xml:space="preserve"><value>Demoted from Admin</value></data>
+  <data name="Event_exportpreset.created" xml:space="preserve"><value>Export Preset Created</value></data>
+  <data name="Event_exportpreset.updated" xml:space="preserve"><value>Export Preset Updated</value></data>
+  <data name="Event_exportpreset.deleted" xml:space="preserve"><value>Export Preset Deleted</value></data>
+  <data name="Event_asset.edited" xml:space="preserve"><value>Image Edited</value></data>
+  <data name="Event_asset.replaced_via_edit" xml:space="preserve"><value>Image Replaced via Edit</value></data>
+  <data name="Event_asset.copy_created_via_edit" xml:space="preserve"><value>Image Copy Created via Edit</value></data>
+  <data name="Event_asset.exported_with_preset" xml:space="preserve"><value>Image Exported with Preset</value></data>
+  <data name="Event_asset.purged" xml:space="preserve"><value>Asset Purged</value></data>
+  <data name="Event_asset.restored" xml:space="preserve"><value>Asset Restored</value></data>
+  <data name="Event_asset.trash_emptied" xml:space="preserve"><value>Trash Emptied</value></data>
+  <data name="Event_asset.duplicate_blocked" xml:space="preserve"><value>Duplicate Blocked</value></data>
+  <data name="Event_asset.duplicate_override" xml:space="preserve"><value>Duplicate Override</value></data>
+  <data name="Event_asset.version_restored" xml:space="preserve"><value>Version Restored</value></data>
+  <data name="Event_asset.version_pruned" xml:space="preserve"><value>Version Pruned</value></data>
+  <data name="Event_asset.workflow_submitted" xml:space="preserve"><value>Submitted for Review</value></data>
+  <data name="Event_asset.workflow_approved" xml:space="preserve"><value>Approved</value></data>
+  <data name="Event_asset.workflow_rejected" xml:space="preserve"><value>Rejected</value></data>
+  <data name="Event_asset.workflow_published" xml:space="preserve"><value>Published</value></data>
+  <data name="Event_asset.workflow_unpublished" xml:space="preserve"><value>Unpublished</value></data>
+  <data name="Event_audit.retention_purged" xml:space="preserve"><value>Audit Retention Purge</value></data>
+  <data name="Event_pat.created" xml:space="preserve"><value>Personal Access Token Created</value></data>
+  <data name="Event_pat.revoked" xml:space="preserve"><value>Personal Access Token Revoked</value></data>
+  <data name="Event_collection.reparented" xml:space="preserve"><value>Collection Reparented</value></data>
+  <data name="Event_collection.inheritance_enabled" xml:space="preserve"><value>ACL Inheritance Enabled</value></data>
+  <data name="Event_collection.inheritance_disabled" xml:space="preserve"><value>ACL Inheritance Disabled</value></data>
+  <data name="Event_collection.acl_copied_from_parent" xml:space="preserve"><value>ACL Copied from Parent</value></data>
+  <data name="Event_comment.created" xml:space="preserve"><value>Comment Posted</value></data>
+  <data name="Event_comment.updated" xml:space="preserve"><value>Comment Edited</value></data>
+  <data name="Event_comment.deleted" xml:space="preserve"><value>Comment Deleted</value></data>
+  <data name="Event_comment.mention_delivered" xml:space="preserve"><value>Mention Delivered</value></data>
+  <data name="Event_webhook.created" xml:space="preserve"><value>Webhook Created</value></data>
+  <data name="Event_webhook.updated" xml:space="preserve"><value>Webhook Updated</value></data>
+  <data name="Event_webhook.deleted" xml:space="preserve"><value>Webhook Deleted</value></data>
+  <data name="Event_webhook.secret_rotated" xml:space="preserve"><value>Webhook Secret Rotated</value></data>
+  <data name="Event_webhook.delivery_failed_permanently" xml:space="preserve"><value>Webhook Delivery Failed</value></data>
+  <data name="Event_webhook.test" xml:space="preserve"><value>Webhook Test</value></data>
+  <data name="Event_brand.created" xml:space="preserve"><value>Brand Created</value></data>
+  <data name="Event_brand.updated" xml:space="preserve"><value>Brand Updated</value></data>
+  <data name="Event_brand.deleted" xml:space="preserve"><value>Brand Deleted</value></data>
+  <data name="Event_guest.invited" xml:space="preserve"><value>Guest Invited</value></data>
+  <data name="Event_guest.accepted" xml:space="preserve"><value>Guest Accepted Invitation</value></data>
+  <data name="Event_guest.access_revoked" xml:space="preserve"><value>Guest Access Revoked</value></data>
+  <data name="Event_guest.expired" xml:space="preserve"><value>Guest Invitation Expired</value></data>
+  <data name="Event_notification.preferences_updated" xml:space="preserve"><value>Notification Preferences Updated</value></data>
+  <data name="Event_notification.unsubscribed_via_email" xml:space="preserve"><value>Unsubscribed via Email</value></data>
+  <data name="Event_notification.unsubscribe_token_rotated" xml:space="preserve"><value>Unsubscribe Token Rotated</value></data>
+  <data name="Event_saved_search.digest_sent" xml:space="preserve"><value>Saved Search Digest Sent</value></data>
+  <data name="Event_migration.completed" xml:space="preserve"><value>Migration Completed</value></data>
+  <data name="Event_migration.item_failed" xml:space="preserve"><value>Migration Item Failed</value></data>
+  <data name="Event_migration.item_skipped_duplicate" xml:space="preserve"><value>Migration Item Skipped (Duplicate)</value></data>
+  <data name="Event_migration.s3_scan_started" xml:space="preserve"><value>S3 Scan Started</value></data>
+  <data name="Event_migration.s3_scan_completed" xml:space="preserve"><value>S3 Scan Completed</value></data>
+  <data name="Event_migration.created" xml:space="preserve"><value>Migration Created</value></data>
+  <data name="Event_migration.started" xml:space="preserve"><value>Migration Started</value></data>
+  <data name="Event_migration.cancelled" xml:space="preserve"><value>Migration Cancelled</value></data>
+  <data name="Event_migration.deleted" xml:space="preserve"><value>Migration Deleted</value></data>
+  <data name="Event_migration.retried" xml:space="preserve"><value>Migration Retried</value></data>
+  <data name="Event_migration.bulk_deleted" xml:space="preserve"><value>Migrations Bulk Deleted</value></data>
+</root>

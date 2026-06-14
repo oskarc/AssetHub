@@ -39,10 +39,6 @@
 
   <!-- Audit Log -->
   <data name="AllAuditEvents" xml:space="preserve"><value>Alla granskningshändelser</value></data>
-  <data name="AuditAction_Create" xml:space="preserve"><value>Skapande</value></data>
-  <data name="AuditAction_Update" xml:space="preserve"><value>Uppdatering</value></data>
-  <data name="AuditAction_Delete" xml:space="preserve"><value>Radering</value></data>
-  <data name="AuditAction_AccessGranted" xml:space="preserve"><value>Åtkomst beviljad</value></data>
   <data name="NoAuditEventsYet" xml:space="preserve"><value>Inga granskningshändelser ännu</value></data>
   <data name="NoAuditEventsDesc" xml:space="preserve"><value>När användare utför åtgärder registreras granskningshändelser här.</value></data>
   <data name="SearchAuditPlaceholder" xml:space="preserve"><value>Sök granskningshändelser...</value></data>
@@ -54,41 +50,6 @@
   <data name="Header_Details" xml:space="preserve"><value>Detaljer</value></data>
 
   <!-- Audit Event Types -->
-  <data name="Event_asset.created" xml:space="preserve"><value>Tillgång skapad</value></data>
-  <data name="Event_asset.updated" xml:space="preserve"><value>Tillgång uppdaterad</value></data>
-  <data name="Event_asset.deleted" xml:space="preserve"><value>Tillgång raderad</value></data>
-  <data name="Event_asset.added_to_collection" xml:space="preserve"><value>Tillgång tillagd i samling</value></data>
-  <data name="Event_asset.removed_from_collection" xml:space="preserve"><value>Tillgång borttagen från samling</value></data>
-  <data name="Event_asset.removed_from_collections" xml:space="preserve"><value>Tillgång borttagen från samlingar</value></data>
-  <data name="Event_asset.upload_initiated" xml:space="preserve"><value>Uppladdning startad</value></data>
-  <data name="Event_asset.upload_confirmed" xml:space="preserve"><value>Uppladdning slutförd</value></data>
-  <data name="Event_asset.malware_detected" xml:space="preserve"><value>Skadlig kod upptäckt</value></data>
-  <data name="Event_asset.downloaded" xml:space="preserve"><value>Tillgång nedladdad</value></data>
-  <data name="Event_asset.processing_failed" xml:space="preserve"><value>Bearbetning misslyckades</value></data>
-  <data name="Event_asset.image_saved_as_copy" xml:space="preserve"><value>Bild sparad som kopia</value></data>
-  <data name="Event_asset.image_replaced" xml:space="preserve"><value>Bild ersatt</value></data>
-  <data name="Event_collection.created" xml:space="preserve"><value>Samling skapad</value></data>
-  <data name="Event_collection.updated" xml:space="preserve"><value>Samling uppdaterad</value></data>
-  <data name="Event_collection.deleted" xml:space="preserve"><value>Samling raderad</value></data>
-  <data name="Event_collection.download_requested" xml:space="preserve"><value>Samlingsnedladdning begärd</value></data>
-  <data name="Event_collection.downloaded" xml:space="preserve"><value>Samling nedladdad</value></data>
-  <data name="Event_collection.access_set" xml:space="preserve"><value>Samlingsåtkomst beviljad</value></data>
-  <data name="Event_share.created" xml:space="preserve"><value>Dellänk skapad</value></data>
-  <data name="Event_share.revoked" xml:space="preserve"><value>Dellänk återkallad</value></data>
-  <data name="Event_share.password_updated" xml:space="preserve"><value>Delningslösenord ändrat</value></data>
-  <data name="Event_share.password_failed" xml:space="preserve"><value>Delningslösenord misslyckades</value></data>
-  <data name="Event_acl.set" xml:space="preserve"><value>Åtkomst beviljad</value></data>
-  <data name="Event_acl.revoked" xml:space="preserve"><value>Åtkomst återkallad</value></data>
-  <data name="Event_user.access_granted" xml:space="preserve"><value>Användaråtkomst beviljad</value></data>
-  <data name="Event_user.cleanup" xml:space="preserve"><value>Användardata rensad</value></data>
-  <data name="Event_user.sync.cleanup" xml:space="preserve"><value>Användarsynk rensning</value></data>
-  <data name="Event_user.password_reset_email" xml:space="preserve"><value>Lösenordsåterställning skickad</value></data>
-  <data name="Event_user.created" xml:space="preserve"><value>Användare skapad</value></data>
-  <data name="Event_user.create_failed" xml:space="preserve"><value>Användarskapande misslyckades</value></data>
-  <data name="Event_user.deleted" xml:space="preserve"><value>Användare raderad</value></data>
-  <data name="Event_user.sync.completed" xml:space="preserve"><value>Användarsynk slutförd</value></data>
-  <data name="Event_shares.bulk_deleted" xml:space="preserve"><value>Delningar massborttagna</value></data>
-  <data name="Event_share.deleted" xml:space="preserve"><value>Delning raderad</value></data>
 
   <!-- Audit Detail Keys -->
   <data name="Detail_title" xml:space="preserve"><value>Titel</value></data>
@@ -127,9 +88,6 @@
   <data name="Detail_sharesRevoked" xml:space="preserve"><value>Delningar återkallade</value></data>
 
   <!-- Audit Action Categories -->
-  <data name="AuditAction_Download" xml:space="preserve"><value>Nedladdning</value></data>
-  <data name="AuditAction_Security" xml:space="preserve"><value>Säkerhet</value></data>
-  <data name="AuditAction_Edit" xml:space="preserve"><value>Redigering</value></data>
 
   <!-- Share Management -->
   <data name="AllSharedLinks" xml:space="preserve"><value>Alla delade länkar</value></data>
@@ -235,8 +193,6 @@
   <data name="ConfirmDemoteFromAdmin" xml:space="preserve"><value>Ta bort systemadministratörsrollen från "{0}"? Användaren behåller endast den per-samlingsåtkomst som beviljats explicit.</value></data>
   <data name="PromotedToAdminSuccess" xml:space="preserve"><value>"{0}" är nu systemadministratör</value></data>
   <data name="DemotedFromAdminSuccess" xml:space="preserve"><value>"{0}" är inte längre systemadministratör</value></data>
-  <data name="Event_user.promoted_to_admin" xml:space="preserve"><value>Befordrad till administratör</value></data>
-  <data name="Event_user.demoted_from_admin" xml:space="preserve"><value>Nedgraderad från administratör</value></data>
 
   <!-- User Sync -->
   <data name="Btn_SyncUsers" xml:space="preserve"><value>Synka användare</value></data>
@@ -264,87 +220,29 @@
   <data name="Tab_ExportPresets" xml:space="preserve"><value>Exportmallar</value></data>
 
   <!-- Audit Events: Export Presets & Image Editing -->
-  <data name="Event_exportpreset.created" xml:space="preserve"><value>Exportmall skapad</value></data>
-  <data name="Event_exportpreset.updated" xml:space="preserve"><value>Exportmall uppdaterad</value></data>
-  <data name="Event_exportpreset.deleted" xml:space="preserve"><value>Exportmall raderad</value></data>
-  <data name="Event_asset.edited" xml:space="preserve"><value>Bild redigerad</value></data>
-  <data name="Event_asset.replaced_via_edit" xml:space="preserve"><value>Bild ersatt via redigering</value></data>
-  <data name="Event_asset.copy_created_via_edit" xml:space="preserve"><value>Bildkopia skapad via redigering</value></data>
-  <data name="Event_asset.exported_with_preset" xml:space="preserve"><value>Bild exporterad med mall</value></data>
 
   <!-- Lifecycle / trash / versioning / workflow / dup / audit / PAT -->
-  <data name="Event_asset.purged" xml:space="preserve"><value>Tillgång rensad</value></data>
-  <data name="Event_asset.restored" xml:space="preserve"><value>Tillgång återställd</value></data>
-  <data name="Event_asset.trash_emptied" xml:space="preserve"><value>Papperskorg tömd</value></data>
-  <data name="Event_asset.duplicate_blocked" xml:space="preserve"><value>Dubblett blockerad</value></data>
-  <data name="Event_asset.duplicate_override" xml:space="preserve"><value>Dubblett tillåten</value></data>
-  <data name="Event_asset.version_restored" xml:space="preserve"><value>Version återställd</value></data>
-  <data name="Event_asset.version_pruned" xml:space="preserve"><value>Version rensad</value></data>
-  <data name="Event_asset.workflow_submitted" xml:space="preserve"><value>Inskickad för granskning</value></data>
-  <data name="Event_asset.workflow_approved" xml:space="preserve"><value>Godkänd</value></data>
-  <data name="Event_asset.workflow_rejected" xml:space="preserve"><value>Avvisad</value></data>
-  <data name="Event_asset.workflow_published" xml:space="preserve"><value>Publicerad</value></data>
-  <data name="Event_asset.workflow_unpublished" xml:space="preserve"><value>Avpublicerad</value></data>
-  <data name="Event_audit.retention_purged" xml:space="preserve"><value>Granskningslogg rensad</value></data>
-  <data name="Event_pat.created" xml:space="preserve"><value>Personlig åtkomsttoken skapad</value></data>
-  <data name="Event_pat.revoked" xml:space="preserve"><value>Personlig åtkomsttoken återkallad</value></data>
 
   <!-- Nested collections (T5-NEST-01) -->
-  <data name="Event_collection.reparented" xml:space="preserve"><value>Samling flyttad till ny förälder</value></data>
-  <data name="Event_collection.inheritance_enabled" xml:space="preserve"><value>ACL-arv aktiverat</value></data>
-  <data name="Event_collection.inheritance_disabled" xml:space="preserve"><value>ACL-arv inaktiverat</value></data>
-  <data name="Event_collection.acl_copied_from_parent" xml:space="preserve"><value>ACL kopierad från förälder</value></data>
 
   <!-- Comments / mentions (T3-COL-01) -->
-  <data name="Event_comment.created" xml:space="preserve"><value>Kommentar publicerad</value></data>
-  <data name="Event_comment.updated" xml:space="preserve"><value>Kommentar redigerad</value></data>
-  <data name="Event_comment.deleted" xml:space="preserve"><value>Kommentar borttagen</value></data>
-  <data name="Event_comment.mention_delivered" xml:space="preserve"><value>Omnämnande levererat</value></data>
 
   <!-- Webhooks (T3-INT-01) -->
-  <data name="Event_webhook.created" xml:space="preserve"><value>Webhook skapad</value></data>
-  <data name="Event_webhook.updated" xml:space="preserve"><value>Webhook uppdaterad</value></data>
-  <data name="Event_webhook.deleted" xml:space="preserve"><value>Webhook borttagen</value></data>
-  <data name="Event_webhook.secret_rotated" xml:space="preserve"><value>Webhook-hemlighet roterad</value></data>
-  <data name="Event_webhook.delivery_failed_permanently" xml:space="preserve"><value>Webhook-leverans misslyckades</value></data>
-  <data name="Event_webhook.test" xml:space="preserve"><value>Webhook-test</value></data>
 
   <!-- Brands (T4-BP-01) -->
-  <data name="Event_brand.created" xml:space="preserve"><value>Varumärke skapat</value></data>
-  <data name="Event_brand.updated" xml:space="preserve"><value>Varumärke uppdaterat</value></data>
-  <data name="Event_brand.deleted" xml:space="preserve"><value>Varumärke borttaget</value></data>
 
   <!-- Guests (T4-GUEST-01) -->
-  <data name="Event_guest.invited" xml:space="preserve"><value>Gäst inbjuden</value></data>
-  <data name="Event_guest.accepted" xml:space="preserve"><value>Gäst accepterade inbjudan</value></data>
-  <data name="Event_guest.access_revoked" xml:space="preserve"><value>Gäståtkomst återkallad</value></data>
-  <data name="Event_guest.expired" xml:space="preserve"><value>Gästinbjudan utgången</value></data>
 
   <!-- Notifications -->
-  <data name="Event_notification.preferences_updated" xml:space="preserve"><value>Aviseringspreferenser uppdaterade</value></data>
-  <data name="Event_notification.unsubscribed_via_email" xml:space="preserve"><value>Avregistrerad via e-post</value></data>
-  <data name="Event_notification.unsubscribe_token_rotated" xml:space="preserve"><value>Avregistreringstoken roterad</value></data>
 
   <!-- Saved searches (T1-SRCH-01) -->
-  <data name="Event_saved_search.digest_sent" xml:space="preserve"><value>Sparad sökning sammandrag skickat</value></data>
 
   <!-- Migrations -->
-  <data name="Event_migration.completed" xml:space="preserve"><value>Migration slutförd</value></data>
-  <data name="Event_migration.item_failed" xml:space="preserve"><value>Migrationsobjekt misslyckades</value></data>
-  <data name="Event_migration.item_skipped_duplicate" xml:space="preserve"><value>Migrationsobjekt hoppat över (dubblett)</value></data>
-  <data name="Event_migration.s3_scan_started" xml:space="preserve"><value>S3-skanning startad</value></data>
-  <data name="Event_migration.s3_scan_completed" xml:space="preserve"><value>S3-skanning slutförd</value></data>
 
   <!-- Migrations -->
   <data name="Tab_Migrations" xml:space="preserve"><value>Massimport</value></data>
 
   <!-- Audit Events: Migrations -->
-  <data name="Event_migration.created" xml:space="preserve"><value>Migrering skapad</value></data>
-  <data name="Event_migration.started" xml:space="preserve"><value>Migrering startad</value></data>
-  <data name="Event_migration.cancelled" xml:space="preserve"><value>Migrering avbruten</value></data>
-  <data name="Event_migration.deleted" xml:space="preserve"><value>Migrering raderad</value></data>
-  <data name="Event_migration.retried" xml:space="preserve"><value>Migrering omförsökt</value></data>
-  <data name="Event_migration.bulk_deleted" xml:space="preserve"><value>Migreringar massraderade</value></data>
 
   <!-- Metadata Schemas -->
   <data name="Tab_MetadataSchemas" xml:space="preserve"><value>Metadatascheman</value></data>
