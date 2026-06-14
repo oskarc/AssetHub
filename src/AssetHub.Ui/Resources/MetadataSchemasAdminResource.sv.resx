@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="MetadataSchemas_Desc" xml:space="preserve"><value>Hantera metadatascheman som definierar anpassade fält för tillgångar.</value></data>
+  <data name="MetadataSchemas_NoSchemasYet" xml:space="preserve"><value>Inga metadatascheman ännu</value></data>
+  <data name="MetadataSchemas_NoSchemasDesc" xml:space="preserve"><value>Skapa metadatascheman för att definiera strukturerade anpassade fält för dina tillgångar.</value></data>
+  <data name="MetadataSchemas_CreateSchema" xml:space="preserve"><value>Skapa schema</value></data>
+  <data name="MetadataSchemas_EditSchema" xml:space="preserve"><value>Redigera schema</value></data>
+  <data name="MetadataSchemas_DeleteSchema" xml:space="preserve"><value>Ta bort schema</value></data>
+  <data name="MetadataSchemas_DeleteConfirmTitle" xml:space="preserve"><value>Ta bort metadataschema</value></data>
+  <data name="MetadataSchemas_DeleteConfirmText" xml:space="preserve"><value>Är du säker på att du vill ta bort schemat "{0}"? Åtgärden kan inte ångras.</value></data>
+  <data name="MetadataSchemas_ForceDeleteTitle" xml:space="preserve"><value>Schemat har befintliga värden</value></data>
+  <data name="MetadataSchemas_ForceDeleteText" xml:space="preserve"><value>Det här schemat har metadatavärden lagrade för tillgångar. Vill du ta bort schemat och alla tillhörande värden?</value></data>
+  <data name="MetadataSchemas_Header_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="MetadataSchemas_Header_Scope" xml:space="preserve"><value>Räckvidd</value></data>
+  <data name="MetadataSchemas_Header_Fields" xml:space="preserve"><value>Fält</value></data>
+  <data name="MetadataSchemas_Header_Created" xml:space="preserve"><value>Skapad</value></data>
+  <data name="MetadataSchemas_Label_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="MetadataSchemas_Label_Description" xml:space="preserve"><value>Beskrivning</value></data>
+  <data name="MetadataSchemas_Label_Scope" xml:space="preserve"><value>Räckvidd</value></data>
+  <data name="MetadataSchemas_Label_AssetType" xml:space="preserve"><value>Tillgångstyp</value></data>
+  <data name="MetadataSchemas_Label_Fields" xml:space="preserve"><value>Fält</value></data>
+  <data name="MetadataSchemas_Scope_Global" xml:space="preserve"><value>Global (alla tillgångar)</value></data>
+  <data name="MetadataSchemas_Scope_AssetType" xml:space="preserve"><value>Tillgångstypspecifik</value></data>
+  <data name="MetadataSchemas_AddField" xml:space="preserve"><value>Lägg till fält</value></data>
+  <data name="MetadataSchemas_RemoveField" xml:space="preserve"><value>Ta bort fält</value></data>
+  <data name="MetadataSchemas_NoFieldsYet" xml:space="preserve"><value>Inga fält ännu. Lägg till fält för att definiera schemastrukturen.</value></data>
+  <data name="MetadataSchemas_Field_Label" xml:space="preserve"><value>Fält</value></data>
+  <data name="MetadataSchemas_Field_Key" xml:space="preserve"><value>Nyckel (snake_case)</value></data>
+  <data name="MetadataSchemas_Field_Label_En" xml:space="preserve"><value>Etikett (engelska)</value></data>
+  <data name="MetadataSchemas_Field_Label_Sv" xml:space="preserve"><value>Etikett (svenska)</value></data>
+  <data name="MetadataSchemas_Field_Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="MetadataSchemas_Field_Required" xml:space="preserve"><value>Obligatorisk</value></data>
+  <data name="MetadataSchemas_Field_Searchable" xml:space="preserve"><value>Sökbar</value></data>
+  <data name="MetadataSchemas_Field_Facetable" xml:space="preserve"><value>Fasetterbar</value></data>
+  <data name="MetadataSchemas_Field_Type_Text" xml:space="preserve"><value>Text</value></data>
+  <data name="MetadataSchemas_Field_Type_LongText" xml:space="preserve"><value>Lång text</value></data>
+  <data name="MetadataSchemas_Field_Type_Number" xml:space="preserve"><value>Heltal</value></data>
+  <data name="MetadataSchemas_Field_Type_Decimal" xml:space="preserve"><value>Decimaltal</value></data>
+  <data name="MetadataSchemas_Field_Type_Boolean" xml:space="preserve"><value>Ja/Nej</value></data>
+  <data name="MetadataSchemas_Field_Type_Date" xml:space="preserve"><value>Datum</value></data>
+  <data name="MetadataSchemas_Field_Type_DateTime" xml:space="preserve"><value>Datum och tid</value></data>
+  <data name="MetadataSchemas_Field_Type_Select" xml:space="preserve"><value>Val (ett)</value></data>
+  <data name="MetadataSchemas_Field_Type_MultiSelect" xml:space="preserve"><value>Val (flera)</value></data>
+  <data name="MetadataSchemas_Field_Type_Taxonomy" xml:space="preserve"><value>Taxonomi</value></data>
+  <data name="MetadataSchemas_Field_Type_Url" xml:space="preserve"><value>URL</value></data>
+  <data name="MetadataSchemas_Scope_Collection" xml:space="preserve"><value>Samlingsspecifik</value></data>
+  <data name="MetadataSchemas_Label_Collection" xml:space="preserve"><value>Samling</value></data>
+  <data name="MetadataSchemas_Field_MaxLength" xml:space="preserve"><value>Maxlängd</value></data>
+  <data name="MetadataSchemas_Field_PatternRegex" xml:space="preserve"><value>Mönster (regex)</value></data>
+  <data name="MetadataSchemas_Field_NumericMin" xml:space="preserve"><value>Minvärde</value></data>
+  <data name="MetadataSchemas_Field_NumericMax" xml:space="preserve"><value>Maxvärde</value></data>
+  <data name="MetadataSchemas_Field_SelectOptions" xml:space="preserve"><value>Alternativ (ett per rad)</value></data>
+  <data name="MetadataSchemas_Field_Taxonomy" xml:space="preserve"><value>Taxonomi</value></data>
+  <data name="MetadataSchemas_Validation_KeyPattern" xml:space="preserve"><value>Nyckeln måste vara i snake_case (små bokstäver, siffror och understreck, börja med bokstav).</value></data>
+  <data name="MetadataSchemas_Validation_TaxonomyRequired" xml:space="preserve"><value>Välj en taxonomi för detta fält.</value></data>
+  <data name="MetadataSchemas_Validation_SelectOptionsRequired" xml:space="preserve"><value>Lägg till minst ett alternativ för denna fälttyp.</value></data>
+  <data name="MetadataSchemas_UnsavedChangesTitle" xml:space="preserve"><value>Kasta ändringar?</value></data>
+  <data name="MetadataSchemas_UnsavedChangesText" xml:space="preserve"><value>Du har osparade ändringar i detta schema. Stäng ändå?</value></data>
+</root>

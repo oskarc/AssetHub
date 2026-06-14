@@ -8,6 +8,7 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<TrashAdminResource> TrashLoc
 
 @if (_loading && _items == null)
 {
@@ -15,8 +16,8 @@
 }
 else if (_items == null || _items.Count == 0)
 {
-    <EmptyState Title="@AdminLoc["Trash_Empty_Title"]"
-                Description="@AdminLoc["Trash_Empty_Desc"]"
+    <EmptyState Title="@TrashLoc["Trash_Empty_Title"]"
+                Description="@TrashLoc["Trash_Empty_Desc"]"
                 Icon="@Icons.Material.Filled.Delete" />
 }
 else
@@ -24,53 +25,53 @@ else
     <MudStack Spacing="3">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @AdminLoc["Trash_Desc"]
+                @TrashLoc["Trash_Desc"]
             </MudText>
             <MudButton Variant="Variant.Outlined" Color="Color.Error"
                        StartIcon="@Icons.Material.Filled.DeleteForever"
                        OnClick="EmptyAsync">
-                @AdminLoc["Trash_Btn_Empty"]
+                @TrashLoc["Trash_Btn_Empty"]
             </MudButton>
         </MudStack>
 
         <MudTable Items="@_items" Hover="true" Dense="true" Striped="true" Loading="@_loading"
                   FixedHeader="true">
             <HeaderContent>
-                <MudTh>@AdminLoc["Trash_Header_Title"]</MudTh>
-                <MudTh>@AdminLoc["Trash_Header_Type"]</MudTh>
-                <MudTh>@AdminLoc["Trash_Header_DeletedAt"]</MudTh>
-                <MudTh>@AdminLoc["Trash_Header_DeletedBy"]</MudTh>
-                <MudTh>@AdminLoc["Trash_Header_Expires"]</MudTh>
+                <MudTh>@TrashLoc["Trash_Header_Title"]</MudTh>
+                <MudTh>@TrashLoc["Trash_Header_Type"]</MudTh>
+                <MudTh>@TrashLoc["Trash_Header_DeletedAt"]</MudTh>
+                <MudTh>@TrashLoc["Trash_Header_DeletedBy"]</MudTh>
+                <MudTh>@TrashLoc["Trash_Header_Expires"]</MudTh>
                 <MudTh Style="width: 200px;"></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="@AdminLoc["Trash_Header_Title"]">
+                <MudTd DataLabel="@TrashLoc["Trash_Header_Title"]">
                     <MudText Typo="Typo.body2" Class="font-semibold">@context.Title</MudText>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["Trash_Header_Type"]">
+                <MudTd DataLabel="@TrashLoc["Trash_Header_Type"]">
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.AssetType</MudChip>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["Trash_Header_DeletedAt"]">
+                <MudTd DataLabel="@TrashLoc["Trash_Header_DeletedAt"]">
                     <MudTooltip Text="@context.DeletedAt.ToLocalTime().ToString("F")">
                         <MudText Typo="Typo.body2">@context.DeletedAt.ToLocalTime().ToString("d")</MudText>
                     </MudTooltip>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["Trash_Header_DeletedBy"]">
+                <MudTd DataLabel="@TrashLoc["Trash_Header_DeletedBy"]">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">@(context.DeletedByUserId ?? "—")</MudText>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["Trash_Header_Expires"]">
+                <MudTd DataLabel="@TrashLoc["Trash_Header_Expires"]">
                     <MudText Typo="Typo.body2" Color="@ExpiresColor(context.ExpiresAt)">@FormatExpires(context.ExpiresAt)</MudText>
                 </MudTd>
                 <MudTd>
                     <MudStack Row="true" Spacing="1">
-                        <MudTooltip Text="@AdminLoc["Trash_Btn_Restore"]">
+                        <MudTooltip Text="@TrashLoc["Trash_Btn_Restore"]">
                             <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small" Color="Color.Primary"
-                                           aria-label="@AdminLoc["Trash_Btn_Restore"]"
+                                           aria-label="@TrashLoc["Trash_Btn_Restore"]"
                                            OnClick="@(() => RestoreAsync(context))" />
                         </MudTooltip>
-                        <MudTooltip Text="@AdminLoc["Trash_Btn_Purge"]">
+                        <MudTooltip Text="@TrashLoc["Trash_Btn_Purge"]">
                             <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Size="Size.Small" Color="Color.Error"
-                                           aria-label="@AdminLoc["Trash_Btn_Purge"]"
+                                           aria-label="@TrashLoc["Trash_Btn_Purge"]"
                                            OnClick="@(() => PurgeAsync(context))" />
                         </MudTooltip>
                     </MudStack>
@@ -104,7 +105,7 @@ else
 
         var ok = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.RestoreFromTrashAsync(item.Id), "restore from trash",
-            successMessage: string.Format(AdminLoc["Trash_Restored"].Value, item.Title));
+            successMessage: string.Format(TrashLoc["Trash_Restored"].Value, item.Title));
         if (!ok)
         {
             _items!.Add(removed);
@@ -115,9 +116,9 @@ else
     private async Task PurgeAsync(TrashedAssetDto item)
     {
         var confirmed = await DialogService.ShowConfirmAsync(
-            AdminLoc["Trash_Confirm_Purge_Title"].Value,
-            string.Format(AdminLoc["Trash_Confirm_Purge_Text"].Value, item.Title),
-            AdminLoc["Trash_Btn_Purge"].Value,
+            TrashLoc["Trash_Confirm_Purge_Title"].Value,
+            string.Format(TrashLoc["Trash_Confirm_Purge_Text"].Value, item.Title),
+            TrashLoc["Trash_Btn_Purge"].Value,
             iconColor: Color.Error,
             confirmColor: Color.Error);
         if (!confirmed) return;
@@ -128,7 +129,7 @@ else
 
         var ok = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.PurgeFromTrashAsync(item.Id), "purge from trash",
-            successMessage: string.Format(AdminLoc["Trash_Purged"].Value, item.Title));
+            successMessage: string.Format(TrashLoc["Trash_Purged"].Value, item.Title));
         if (!ok)
         {
             _items!.Add(removed);
@@ -141,9 +142,9 @@ else
         if (_items is null || _items.Count == 0) return;
 
         var confirmed = await DialogService.ShowConfirmAsync(
-            AdminLoc["Trash_Confirm_Empty_Title"].Value,
-            string.Format(AdminLoc["Trash_Confirm_Empty_Text"].Value, _items.Count),
-            AdminLoc["Trash_Btn_Empty"].Value,
+            TrashLoc["Trash_Confirm_Empty_Title"].Value,
+            string.Format(TrashLoc["Trash_Confirm_Empty_Text"].Value, _items.Count),
+            TrashLoc["Trash_Btn_Empty"].Value,
             iconColor: Color.Error,
             confirmColor: Color.Error);
         if (!confirmed) return;
@@ -152,7 +153,7 @@ else
             () => Api.EmptyTrashAsync(), "empty trash");
         if (ok && response is not null)
         {
-            Feedback.ShowSuccess(string.Format(AdminLoc["Trash_Emptied"].Value, response.Purged, response.Failed));
+            Feedback.ShowSuccess(string.Format(TrashLoc["Trash_Emptied"].Value, response.Purged, response.Failed));
             await LoadAsync();
         }
     }
@@ -169,9 +170,9 @@ else
     private string FormatExpires(DateTime expiresAt)
     {
         var delta = expiresAt - DateTime.UtcNow;
-        if (delta.TotalHours < 0) return AdminLoc["Trash_ExpiresRelative_Overdue"].Value;
-        if (delta.TotalHours < 24) return AdminLoc["Trash_ExpiresRelative_Today"].Value;
-        if (delta.TotalHours < 48) return AdminLoc["Trash_ExpiresRelative_Tomorrow"].Value;
-        return string.Format(AdminLoc["Trash_ExpiresRelative_InDays"].Value, (int)Math.Ceiling(delta.TotalDays));
+        if (delta.TotalHours < 0) return TrashLoc["Trash_ExpiresRelative_Overdue"].Value;
+        if (delta.TotalHours < 24) return TrashLoc["Trash_ExpiresRelative_Today"].Value;
+        if (delta.TotalHours < 48) return TrashLoc["Trash_ExpiresRelative_Tomorrow"].Value;
+        return string.Format(TrashLoc["Trash_ExpiresRelative_InDays"].Value, (int)Math.Ceiling(delta.TotalDays));
     }
 }

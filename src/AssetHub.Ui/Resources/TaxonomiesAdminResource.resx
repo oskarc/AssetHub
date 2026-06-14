@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="Taxonomies_Desc" xml:space="preserve"><value>Manage controlled vocabularies and classification hierarchies for metadata fields.</value></data>
+  <data name="Taxonomies_NoTaxonomiesYet" xml:space="preserve"><value>No taxonomies yet</value></data>
+  <data name="Taxonomies_NoTaxonomiesDesc" xml:space="preserve"><value>Create taxonomies to provide structured term lists for metadata fields.</value></data>
+  <data name="Taxonomies_CreateTaxonomy" xml:space="preserve"><value>Create Taxonomy</value></data>
+  <data name="Taxonomies_EditTaxonomy" xml:space="preserve"><value>Edit Taxonomy</value></data>
+  <data name="Taxonomies_DeleteTaxonomy" xml:space="preserve"><value>Delete Taxonomy</value></data>
+  <data name="Taxonomies_DeleteConfirmTitle" xml:space="preserve"><value>Delete Taxonomy</value></data>
+  <data name="Taxonomies_DeleteConfirmText" xml:space="preserve"><value>Are you sure you want to delete the taxonomy "{0}"? This action cannot be undone.</value></data>
+  <data name="Taxonomies_Header_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Taxonomies_Header_Terms" xml:space="preserve"><value>Terms</value></data>
+  <data name="Taxonomies_Label_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Taxonomies_Label_Description" xml:space="preserve"><value>Description</value></data>
+  <data name="Taxonomies_Label_Terms" xml:space="preserve"><value>Terms</value></data>
+  <data name="Taxonomies_AddTerm" xml:space="preserve"><value>Add Term</value></data>
+  <data name="Taxonomies_RemoveTerm" xml:space="preserve"><value>Remove Term</value></data>
+  <data name="Taxonomies_NoTermsYet" xml:space="preserve"><value>No terms yet. Add terms to define the vocabulary.</value></data>
+  <data name="Taxonomies_Term_Label" xml:space="preserve"><value>Term</value></data>
+  <data name="Taxonomies_Term_Label_En" xml:space="preserve"><value>Label (English)</value></data>
+  <data name="Taxonomies_Term_Label_Sv" xml:space="preserve"><value>Label (Swedish)</value></data>
+  <data name="Taxonomies_Term_Parent" xml:space="preserve"><value>Parent term</value></data>
+  <data name="Taxonomies_Term_ParentNone" xml:space="preserve"><value>(none — root term)</value></data>
+  <data name="Taxonomies_Term_Slug" xml:space="preserve"><value>Slug (optional)</value></data>
+  <data name="Taxonomies_UnsavedChangesTitle" xml:space="preserve"><value>Discard changes?</value></data>
+  <data name="Taxonomies_UnsavedChangesText" xml:space="preserve"><value>You have unsaved changes to this taxonomy. Close anyway?</value></data>
+</root>

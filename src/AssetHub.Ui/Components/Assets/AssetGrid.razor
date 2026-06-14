@@ -9,6 +9,7 @@
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<TrashAdminResource> TrashLoc
 
 @if (_isLoading)
 {
@@ -255,8 +256,8 @@ else
 
         var deletedAsset = asset;
         Feedback.ShowActionableInfo(
-            string.Format(AdminLoc["Trash_DeleteSnackbar"].Value, deletedAsset.Title),
-            AdminLoc["Trash_DeleteSnackbar_Undo"].Value,
+            string.Format(TrashLoc["Trash_DeleteSnackbar"].Value, deletedAsset.Title),
+            TrashLoc["Trash_DeleteSnackbar_Undo"].Value,
             () => UndoSoftDeleteAsync(deletedAsset));
         return true;
     }

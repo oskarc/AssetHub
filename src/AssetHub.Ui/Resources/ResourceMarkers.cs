@@ -27,6 +27,10 @@ public class BrandsResource { }
 public class GuestsResource { }
 public class WatermarksResource { }
 public class AnalyticsResource { }
+public class TaxonomiesAdminResource { }
+public class TrashAdminResource { }
+public class ExportPresetsAdminResource { }
+public class MetadataSchemasAdminResource { }
 public class MigrationsResource { }
 
 #pragma warning restore S2094

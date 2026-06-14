@@ -9,13 +9,14 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<MetadataSchemasAdminResource> MetaLoc
 
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.Schema" Color="Color.Primary" />
             <MudText Typo="Typo.h6" id="schema-dialog-title">
-                @(_isEdit ? AdminLoc["MetadataSchemas_EditSchema"] : AdminLoc["MetadataSchemas_CreateSchema"])
+                @(_isEdit ? MetaLoc["MetadataSchemas_EditSchema"] : MetaLoc["MetadataSchemas_CreateSchema"])
             </MudText>
         </MudStack>
     </TitleContent>
@@ -23,30 +24,30 @@
         <MudForm @ref="_form" @bind-IsValid="_formIsValid">
             <MudStack Spacing="3" Class="dialog-min-width">
 
-                <MudTextField @bind-Value="_name" Label="@AdminLoc["MetadataSchemas_Label_Name"]" Required="true"
-                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Label_Name"].Value)"
+                <MudTextField @bind-Value="_name" Label="@MetaLoc["MetadataSchemas_Label_Name"]" Required="true"
+                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MetaLoc["MetadataSchemas_Label_Name"].Value)"
                               Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
                               Counter="255" MaxLength="255" />
 
-                <MudTextField @bind-Value="_description" Label="@AdminLoc["MetadataSchemas_Label_Description"]"
+                <MudTextField @bind-Value="_description" Label="@MetaLoc["MetadataSchemas_Label_Description"]"
                               Variant="Variant.Outlined" Lines="2" MaxLength="1000" />
 
                 @if (!_isEdit)
                 {
                     <MudSelect T="string" Value="_scope" ValueChanged="OnScopeChanged"
-                               Label="@AdminLoc["MetadataSchemas_Label_Scope"]"
+                               Label="@MetaLoc["MetadataSchemas_Label_Scope"]"
                                Variant="Variant.Outlined" Required="true"
-                               RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Label_Scope"].Value)">
-                        <MudSelectItem T="string" Value="@("global")">@AdminLoc["MetadataSchemas_Scope_Global"]</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("asset_type")">@AdminLoc["MetadataSchemas_Scope_AssetType"]</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("collection")">@AdminLoc["MetadataSchemas_Scope_Collection"]</MudSelectItem>
+                               RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MetaLoc["MetadataSchemas_Label_Scope"].Value)">
+                        <MudSelectItem T="string" Value="@("global")">@MetaLoc["MetadataSchemas_Scope_Global"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("asset_type")">@MetaLoc["MetadataSchemas_Scope_AssetType"]</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("collection")">@MetaLoc["MetadataSchemas_Scope_Collection"]</MudSelectItem>
                     </MudSelect>
 
                     @if (_scope == "asset_type")
                     {
-                        <MudSelect T="string" @bind-Value="_assetType" Label="@AdminLoc["MetadataSchemas_Label_AssetType"]"
+                        <MudSelect T="string" @bind-Value="_assetType" Label="@MetaLoc["MetadataSchemas_Label_AssetType"]"
                                    Variant="Variant.Outlined" Required="true"
-                                   RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Label_AssetType"].Value)">
+                                   RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MetaLoc["MetadataSchemas_Label_AssetType"].Value)">
                             <MudSelectItem T="string" Value="@("image")">@CommonLoc["AssetType_Image"]</MudSelectItem>
                             <MudSelectItem T="string" Value="@("video")">@CommonLoc["AssetType_Video"]</MudSelectItem>
                             <MudSelectItem T="string" Value="@("document")">@CommonLoc["AssetType_Document"]</MudSelectItem>
@@ -54,9 +55,9 @@
                     }
                     else if (_scope == "collection")
                     {
-                        <MudSelect T="Guid?" @bind-Value="_collectionId" Label="@AdminLoc["MetadataSchemas_Label_Collection"]"
+                        <MudSelect T="Guid?" @bind-Value="_collectionId" Label="@MetaLoc["MetadataSchemas_Label_Collection"]"
                                    Variant="Variant.Outlined" Required="true"
-                                   RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Label_Collection"].Value)">
+                                   RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MetaLoc["MetadataSchemas_Label_Collection"].Value)">
                             @foreach (var c in _collections)
                             {
                                 <MudSelectItem T="Guid?" Value="@c.Id">@c.Name</MudSelectItem>
@@ -68,16 +69,16 @@
                 <MudDivider />
 
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.subtitle1">@AdminLoc["MetadataSchemas_Label_Fields"]</MudText>
+                    <MudText Typo="Typo.subtitle1">@MetaLoc["MetadataSchemas_Label_Fields"]</MudText>
                     <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
                                OnClick="AddField">
-                        @AdminLoc["MetadataSchemas_AddField"]
+                        @MetaLoc["MetadataSchemas_AddField"]
                     </MudButton>
                 </MudStack>
 
                 @if (!_fields.Any())
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">@AdminLoc["MetadataSchemas_NoFieldsYet"]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@MetaLoc["MetadataSchemas_NoFieldsYet"]</MudText>
                 }
 
                 @foreach (var (field, index) in _fields.Select((f, i) => (f, i)))
@@ -85,83 +86,83 @@
                     <MudPaper Elevation="1" Class="pa-3">
                         <MudStack Spacing="2">
                             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                <MudText Typo="Typo.subtitle2">@AdminLoc["MetadataSchemas_Field_Label"] @(index + 1)</MudText>
+                                <MudText Typo="Typo.subtitle2">@MetaLoc["MetadataSchemas_Field_Label"] @(index + 1)</MudText>
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                               aria-label="@AdminLoc["MetadataSchemas_RemoveField"]"
+                                               aria-label="@MetaLoc["MetadataSchemas_RemoveField"]"
                                                OnClick="@(() => RemoveField(field))" />
                             </MudStack>
                             <MudGrid>
                                 <MudItem xs="6">
-                                    <MudTextField @bind-Value="field.Key" Label="@AdminLoc["MetadataSchemas_Field_Key"]" Required="true"
-                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Field_Key"].Value)"
+                                    <MudTextField @bind-Value="field.Key" Label="@MetaLoc["MetadataSchemas_Field_Key"]" Required="true"
+                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MetaLoc["MetadataSchemas_Field_Key"].Value)"
                                                   Validation="@((string v) => ValidateKey(v))"
                                                   Variant="Variant.Outlined" Immediate="true" MaxLength="100" />
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudTextField @bind-Value="field.Label" Label="@AdminLoc["MetadataSchemas_Field_Label_En"]" Required="true"
-                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Field_Label_En"].Value)"
+                                    <MudTextField @bind-Value="field.Label" Label="@MetaLoc["MetadataSchemas_Field_Label_En"]" Required="true"
+                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MetaLoc["MetadataSchemas_Field_Label_En"].Value)"
                                                   Variant="Variant.Outlined" Immediate="true" MaxLength="255" />
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudTextField @bind-Value="field.LabelSv" Label="@AdminLoc["MetadataSchemas_Field_Label_Sv"]"
+                                    <MudTextField @bind-Value="field.LabelSv" Label="@MetaLoc["MetadataSchemas_Field_Label_Sv"]"
                                                   Variant="Variant.Outlined" MaxLength="255" />
                                 </MudItem>
                                 <MudItem xs="6">
                                     <MudSelect T="string" Value="field.Type" ValueChanged="@(v => OnFieldTypeChanged(field, v))"
-                                               Label="@AdminLoc["MetadataSchemas_Field_Type"]"
+                                               Label="@MetaLoc["MetadataSchemas_Field_Type"]"
                                                Variant="Variant.Outlined" Required="true"
-                                               RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["MetadataSchemas_Field_Type"].Value)">
-                                        <MudSelectItem T="string" Value="@("text")">@AdminLoc["MetadataSchemas_Field_Type_Text"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("long_text")">@AdminLoc["MetadataSchemas_Field_Type_LongText"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("number")">@AdminLoc["MetadataSchemas_Field_Type_Number"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("decimal")">@AdminLoc["MetadataSchemas_Field_Type_Decimal"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("boolean")">@AdminLoc["MetadataSchemas_Field_Type_Boolean"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("date")">@AdminLoc["MetadataSchemas_Field_Type_Date"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("date_time")">@AdminLoc["MetadataSchemas_Field_Type_DateTime"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("select")">@AdminLoc["MetadataSchemas_Field_Type_Select"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("multi_select")">@AdminLoc["MetadataSchemas_Field_Type_MultiSelect"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("taxonomy")">@AdminLoc["MetadataSchemas_Field_Type_Taxonomy"]</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("url")">@AdminLoc["MetadataSchemas_Field_Type_Url"]</MudSelectItem>
+                                               RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MetaLoc["MetadataSchemas_Field_Type"].Value)">
+                                        <MudSelectItem T="string" Value="@("text")">@MetaLoc["MetadataSchemas_Field_Type_Text"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("long_text")">@MetaLoc["MetadataSchemas_Field_Type_LongText"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("number")">@MetaLoc["MetadataSchemas_Field_Type_Number"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("decimal")">@MetaLoc["MetadataSchemas_Field_Type_Decimal"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("boolean")">@MetaLoc["MetadataSchemas_Field_Type_Boolean"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("date")">@MetaLoc["MetadataSchemas_Field_Type_Date"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("date_time")">@MetaLoc["MetadataSchemas_Field_Type_DateTime"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("select")">@MetaLoc["MetadataSchemas_Field_Type_Select"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("multi_select")">@MetaLoc["MetadataSchemas_Field_Type_MultiSelect"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("taxonomy")">@MetaLoc["MetadataSchemas_Field_Type_Taxonomy"]</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("url")">@MetaLoc["MetadataSchemas_Field_Type_Url"]</MudSelectItem>
                                     </MudSelect>
                                 </MudItem>
 
                                 @if (field.Type is "text" or "long_text")
                                 {
                                     <MudItem xs="6">
-                                        <MudNumericField @bind-Value="field.MaxLength" Label="@AdminLoc["MetadataSchemas_Field_MaxLength"]"
+                                        <MudNumericField @bind-Value="field.MaxLength" Label="@MetaLoc["MetadataSchemas_Field_MaxLength"]"
                                                          Variant="Variant.Outlined" Min="1" Max="10000" />
                                     </MudItem>
                                     <MudItem xs="6">
-                                        <MudTextField @bind-Value="field.PatternRegex" Label="@AdminLoc["MetadataSchemas_Field_PatternRegex"]"
+                                        <MudTextField @bind-Value="field.PatternRegex" Label="@MetaLoc["MetadataSchemas_Field_PatternRegex"]"
                                                       Variant="Variant.Outlined" MaxLength="500" />
                                     </MudItem>
                                 }
                                 else if (field.Type is "number" or "decimal")
                                 {
                                     <MudItem xs="6">
-                                        <MudNumericField T="decimal?" @bind-Value="field.NumericMin" Label="@AdminLoc["MetadataSchemas_Field_NumericMin"]"
+                                        <MudNumericField T="decimal?" @bind-Value="field.NumericMin" Label="@MetaLoc["MetadataSchemas_Field_NumericMin"]"
                                                          Variant="Variant.Outlined" />
                                     </MudItem>
                                     <MudItem xs="6">
-                                        <MudNumericField T="decimal?" @bind-Value="field.NumericMax" Label="@AdminLoc["MetadataSchemas_Field_NumericMax"]"
+                                        <MudNumericField T="decimal?" @bind-Value="field.NumericMax" Label="@MetaLoc["MetadataSchemas_Field_NumericMax"]"
                                                          Variant="Variant.Outlined" />
                                     </MudItem>
                                 }
                                 else if (field.Type is "select" or "multi_select")
                                 {
                                     <MudItem xs="12">
-                                        <MudTextField @bind-Value="field.SelectOptionsRaw" Label="@AdminLoc["MetadataSchemas_Field_SelectOptions"]"
+                                        <MudTextField @bind-Value="field.SelectOptionsRaw" Label="@MetaLoc["MetadataSchemas_Field_SelectOptions"]"
                                                       Variant="Variant.Outlined" Lines="4"
                                                       Validation="@((string v) => ValidateSelectOptions(field, v))"
-                                                      HelperText="@AdminLoc["MetadataSchemas_Field_SelectOptions"].Value" />
+                                                      HelperText="@MetaLoc["MetadataSchemas_Field_SelectOptions"].Value" />
                                     </MudItem>
                                 }
                                 else if (field.Type == "taxonomy")
                                 {
                                     <MudItem xs="12">
-                                        <MudSelect T="Guid?" @bind-Value="field.TaxonomyId" Label="@AdminLoc["MetadataSchemas_Field_Taxonomy"]"
+                                        <MudSelect T="Guid?" @bind-Value="field.TaxonomyId" Label="@MetaLoc["MetadataSchemas_Field_Taxonomy"]"
                                                    Variant="Variant.Outlined" Required="true"
-                                                   RequiredError="@AdminLoc["MetadataSchemas_Validation_TaxonomyRequired"].Value">
+                                                   RequiredError="@MetaLoc["MetadataSchemas_Validation_TaxonomyRequired"].Value">
                                             @foreach (var t in _taxonomies)
                                             {
                                                 <MudSelectItem T="Guid?" Value="@t.Id">@t.Name</MudSelectItem>
@@ -171,13 +172,13 @@
                                 }
 
                                 <MudItem xs="4">
-                                    <MudCheckBox @bind-Value="field.Required" Label="@AdminLoc["MetadataSchemas_Field_Required"]" />
+                                    <MudCheckBox @bind-Value="field.Required" Label="@MetaLoc["MetadataSchemas_Field_Required"]" />
                                 </MudItem>
                                 <MudItem xs="4">
-                                    <MudCheckBox @bind-Value="field.Searchable" Label="@AdminLoc["MetadataSchemas_Field_Searchable"]" />
+                                    <MudCheckBox @bind-Value="field.Searchable" Label="@MetaLoc["MetadataSchemas_Field_Searchable"]" />
                                 </MudItem>
                                 <MudItem xs="4">
-                                    <MudCheckBox @bind-Value="field.Facetable" Label="@AdminLoc["MetadataSchemas_Field_Facetable"]" />
+                                    <MudCheckBox @bind-Value="field.Facetable" Label="@MetaLoc["MetadataSchemas_Field_Facetable"]" />
                                 </MudItem>
                             </MudGrid>
                         </MudStack>
@@ -275,14 +276,14 @@
     private string? ValidateKey(string value)
     {
         if (string.IsNullOrEmpty(value)) return null;
-        return KeyPattern.IsMatch(value) ? null : AdminLoc["MetadataSchemas_Validation_KeyPattern"].Value;
+        return KeyPattern.IsMatch(value) ? null : MetaLoc["MetadataSchemas_Validation_KeyPattern"].Value;
     }
 
     private string? ValidateSelectOptions(FieldModel field, string value)
     {
         if (field.Type is not ("select" or "multi_select")) return null;
         var parts = SplitOptions(value);
-        return parts.Count == 0 ? AdminLoc["MetadataSchemas_Validation_SelectOptionsRequired"].Value : null;
+        return parts.Count == 0 ? MetaLoc["MetadataSchemas_Validation_SelectOptionsRequired"].Value : null;
     }
 
     private static List<string> SplitOptions(string? raw) =>
@@ -389,8 +390,8 @@
         }
 
         var confirmed = await DialogService.ShowConfirmAsync(
-            AdminLoc["MetadataSchemas_UnsavedChangesTitle"].Value,
-            AdminLoc["MetadataSchemas_UnsavedChangesText"].Value,
+            MetaLoc["MetadataSchemas_UnsavedChangesTitle"].Value,
+            MetaLoc["MetadataSchemas_UnsavedChangesText"].Value,
             CommonLoc["Btn_Discard"].Value,
             iconColor: Color.Warning);
         if (confirmed) MudDialog.Cancel();

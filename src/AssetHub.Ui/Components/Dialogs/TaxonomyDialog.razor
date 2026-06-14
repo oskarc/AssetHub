@@ -8,13 +8,14 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<TaxonomiesAdminResource> TaxLoc
 
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.AccountTree" Color="Color.Primary" />
             <MudText Typo="Typo.h6" id="taxonomy-dialog-title">
-                @(_isEdit ? AdminLoc["Taxonomies_EditTaxonomy"] : AdminLoc["Taxonomies_CreateTaxonomy"])
+                @(_isEdit ? TaxLoc["Taxonomies_EditTaxonomy"] : TaxLoc["Taxonomies_CreateTaxonomy"])
             </MudText>
         </MudStack>
     </TitleContent>
@@ -22,27 +23,27 @@
         <MudForm @ref="_form" @bind-IsValid="_formIsValid">
             <MudStack Spacing="3" Class="dialog-min-width">
 
-                <MudTextField @bind-Value="_name" Label="@AdminLoc["Taxonomies_Label_Name"]" Required="true"
-                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Taxonomies_Label_Name"].Value)"
+                <MudTextField @bind-Value="_name" Label="@TaxLoc["Taxonomies_Label_Name"]" Required="true"
+                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, TaxLoc["Taxonomies_Label_Name"].Value)"
                               Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
                               Counter="255" MaxLength="255" />
 
-                <MudTextField @bind-Value="_description" Label="@AdminLoc["Taxonomies_Label_Description"]"
+                <MudTextField @bind-Value="_description" Label="@TaxLoc["Taxonomies_Label_Description"]"
                               Variant="Variant.Outlined" Lines="2" MaxLength="1000" />
 
                 <MudDivider />
 
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.subtitle1">@AdminLoc["Taxonomies_Label_Terms"]</MudText>
+                    <MudText Typo="Typo.subtitle1">@TaxLoc["Taxonomies_Label_Terms"]</MudText>
                     <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
                                OnClick="AddTerm">
-                        @AdminLoc["Taxonomies_AddTerm"]
+                        @TaxLoc["Taxonomies_AddTerm"]
                     </MudButton>
                 </MudStack>
 
                 @if (!_terms.Any())
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">@AdminLoc["Taxonomies_NoTermsYet"]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@TaxLoc["Taxonomies_NoTermsYet"]</MudText>
                 }
 
                 @foreach (var (term, index) in _terms.Select((t, i) => (t, i)))
@@ -50,29 +51,29 @@
                     <MudPaper Elevation="1" Class="pa-3">
                         <MudStack Spacing="2">
                             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                <MudText Typo="Typo.subtitle2">@AdminLoc["Taxonomies_Term_Label"] @(index + 1)</MudText>
+                                <MudText Typo="Typo.subtitle2">@TaxLoc["Taxonomies_Term_Label"] @(index + 1)</MudText>
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                               aria-label="@AdminLoc["Taxonomies_RemoveTerm"]"
+                                               aria-label="@TaxLoc["Taxonomies_RemoveTerm"]"
                                                OnClick="@(() => RemoveTerm(term))" />
                             </MudStack>
                             <MudGrid>
                                 <MudItem xs="6">
-                                    <MudTextField @bind-Value="term.Label" Label="@AdminLoc["Taxonomies_Term_Label_En"]" Required="true"
-                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Taxonomies_Term_Label_En"].Value)"
+                                    <MudTextField @bind-Value="term.Label" Label="@TaxLoc["Taxonomies_Term_Label_En"]" Required="true"
+                                                  RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, TaxLoc["Taxonomies_Term_Label_En"].Value)"
                                                   Variant="Variant.Outlined" Immediate="true" MaxLength="255" />
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudTextField @bind-Value="term.LabelSv" Label="@AdminLoc["Taxonomies_Term_Label_Sv"]"
+                                    <MudTextField @bind-Value="term.LabelSv" Label="@TaxLoc["Taxonomies_Term_Label_Sv"]"
                                                   Variant="Variant.Outlined" MaxLength="255" />
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudTextField @bind-Value="term.Slug" Label="@AdminLoc["Taxonomies_Term_Slug"]"
+                                    <MudTextField @bind-Value="term.Slug" Label="@TaxLoc["Taxonomies_Term_Slug"]"
                                                   Variant="Variant.Outlined" MaxLength="255" />
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudSelect T="Guid?" @bind-Value="term.ParentLocalId" Label="@AdminLoc["Taxonomies_Term_Parent"]"
+                                    <MudSelect T="Guid?" @bind-Value="term.ParentLocalId" Label="@TaxLoc["Taxonomies_Term_Parent"]"
                                                Variant="Variant.Outlined">
-                                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">@AdminLoc["Taxonomies_Term_ParentNone"]</MudSelectItem>
+                                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">@TaxLoc["Taxonomies_Term_ParentNone"]</MudSelectItem>
                                         @foreach (var candidate in ParentCandidatesFor(term))
                                         {
                                             <MudSelectItem T="Guid?" Value="@candidate.LocalId">@IndentLabel(candidate)</MudSelectItem>
@@ -281,8 +282,8 @@
         }
 
         var confirmed = await DialogService.ShowConfirmAsync(
-            AdminLoc["Taxonomies_UnsavedChangesTitle"].Value,
-            AdminLoc["Taxonomies_UnsavedChangesText"].Value,
+            TaxLoc["Taxonomies_UnsavedChangesTitle"].Value,
+            TaxLoc["Taxonomies_UnsavedChangesText"].Value,
             CommonLoc["Btn_Discard"].Value,
             iconColor: Color.Warning);
         if (confirmed) MudDialog.Cancel();

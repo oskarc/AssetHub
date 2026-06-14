@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="ExportPresets_Title" xml:space="preserve"><value>Exportmallar</value></data>
+  <data name="ExportPresets_Desc" xml:space="preserve"><value>Hantera exportmallar som definierar hur bildderivat genereras (dimensioner, format, kvalitet).</value></data>
+  <data name="ExportPresets_NoPresetsYet" xml:space="preserve"><value>Inga exportmallar ännu</value></data>
+  <data name="ExportPresets_NoPresetsDesc" xml:space="preserve"><value>Skapa exportmallar för att definiera utdataformat för bildderivat. Användare kan välja mallar när de sparar redigerade bilder.</value></data>
+  <data name="ExportPresets_CreatePreset" xml:space="preserve"><value>Skapa mall</value></data>
+  <data name="ExportPresets_EditPreset" xml:space="preserve"><value>Redigera mall</value></data>
+  <data name="ExportPresets_DeletePreset" xml:space="preserve"><value>Ta bort mall</value></data>
+  <data name="ExportPresets_ConfirmDelete" xml:space="preserve"><value>Är du säker på att du vill ta bort exportmallen "{0}"? Denna åtgärd kan inte ångras.</value></data>
+  <data name="ExportPresets_DeletedSuccess" xml:space="preserve"><value>Exportmallen "{0}" har tagits bort</value></data>
+  <data name="ExportPresets_CreatedSuccess" xml:space="preserve"><value>Exportmallen "{0}" har skapats</value></data>
+  <data name="ExportPresets_UpdatedSuccess" xml:space="preserve"><value>Exportmallen "{0}" har uppdaterats</value></data>
+  <data name="ExportPresets_Header_Name" xml:space="preserve"><value>Namn</value></data>
+  <data name="ExportPresets_Header_Dimensions" xml:space="preserve"><value>Dimensioner</value></data>
+  <data name="ExportPresets_Header_FitMode" xml:space="preserve"><value>Passningsläge</value></data>
+  <data name="ExportPresets_Header_Format" xml:space="preserve"><value>Format</value></data>
+  <data name="ExportPresets_Header_Quality" xml:space="preserve"><value>Kvalitet</value></data>
+  <data name="ExportPresets_Header_Created" xml:space="preserve"><value>Skapad</value></data>
+  <data name="ExportPresets_Label_Name" xml:space="preserve"><value>Mallnamn</value></data>
+  <data name="ExportPresets_Label_Width" xml:space="preserve"><value>Bredd (px)</value></data>
+  <data name="ExportPresets_Label_Height" xml:space="preserve"><value>Höjd (px)</value></data>
+  <data name="ExportPresets_Label_FitMode" xml:space="preserve"><value>Passningsläge</value></data>
+  <data name="ExportPresets_Label_Format" xml:space="preserve"><value>Utdataformat</value></data>
+  <data name="ExportPresets_Label_Quality" xml:space="preserve"><value>Kvalitet</value></data>
+  <data name="ExportPresets_DimensionsAny" xml:space="preserve"><value>Valfri</value></data>
+  <data name="ExportPresets_FitMode_Contain" xml:space="preserve"><value>Inneslut</value></data>
+  <data name="ExportPresets_FitMode_Cover" xml:space="preserve"><value>Täck</value></data>
+  <data name="ExportPresets_FitMode_Stretch" xml:space="preserve"><value>Sträck</value></data>
+  <data name="ExportPresets_FitMode_Width" xml:space="preserve"><value>Anpassa till bredd</value></data>
+  <data name="ExportPresets_FitMode_Height" xml:space="preserve"><value>Anpassa till höjd</value></data>
+  <data name="ExportPresets_WidthOrHeightRequired" xml:space="preserve"><value>Minst en dimension (bredd eller höjd) måste anges.</value></data>
+</root>

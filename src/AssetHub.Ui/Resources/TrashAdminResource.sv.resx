@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="Trash_Desc" xml:space="preserve"><value>Mjukraderade tillgångar. Återställ innan de löper ut eller rensa permanent för att frigöra lagring.</value></data>
+  <data name="Trash_Empty_Title" xml:space="preserve"><value>Papperskorgen är tom</value></data>
+  <data name="Trash_Empty_Desc" xml:space="preserve"><value>Raderade tillgångar visas här under den konfigurerade kvarhållningsperioden innan de tas bort permanent.</value></data>
+  <data name="Trash_Header_Title" xml:space="preserve"><value>Titel</value></data>
+  <data name="Trash_Header_Type" xml:space="preserve"><value>Typ</value></data>
+  <data name="Trash_Header_DeletedAt" xml:space="preserve"><value>Raderad</value></data>
+  <data name="Trash_Header_DeletedBy" xml:space="preserve"><value>Av</value></data>
+  <data name="Trash_Header_Expires" xml:space="preserve"><value>Löper ut</value></data>
+  <data name="Trash_Btn_Restore" xml:space="preserve"><value>Återställ</value></data>
+  <data name="Trash_Btn_Purge" xml:space="preserve"><value>Ta bort permanent</value></data>
+  <data name="Trash_Btn_Empty" xml:space="preserve"><value>Töm papperskorgen</value></data>
+  <data name="Trash_Confirm_Purge_Title" xml:space="preserve"><value>Ta bort permanent?</value></data>
+  <data name="Trash_Confirm_Purge_Text" xml:space="preserve"><value>Ta bort '{0}' permanent? Åtgärden kan inte ångras.</value></data>
+  <data name="Trash_Confirm_Empty_Title" xml:space="preserve"><value>Töm papperskorgen?</value></data>
+  <data name="Trash_Confirm_Empty_Text" xml:space="preserve"><value>Ta bort alla {0} objekt i papperskorgen permanent? Åtgärden kan inte ångras.</value></data>
+  <data name="Trash_Restored" xml:space="preserve"><value>Återställde '{0}'</value></data>
+  <data name="Trash_Purged" xml:space="preserve"><value>Raderade '{0}' permanent</value></data>
+  <data name="Trash_Emptied" xml:space="preserve"><value>Papperskorgen tömd — {0} raderade, {1} misslyckades</value></data>
+  <data name="Trash_ExpiresRelative_Today" xml:space="preserve"><value>idag</value></data>
+  <data name="Trash_ExpiresRelative_Tomorrow" xml:space="preserve"><value>imorgon</value></data>
+  <data name="Trash_ExpiresRelative_InDays" xml:space="preserve"><value>om {0} dagar</value></data>
+  <data name="Trash_ExpiresRelative_Overdue" xml:space="preserve"><value>försenad</value></data>
+  <data name="Trash_DeleteSnackbar" xml:space="preserve"><value>Flyttade '{0}' till papperskorgen</value></data>
+  <data name="Trash_DeleteSnackbar_Undo" xml:space="preserve"><value>Ångra</value></data>
+</root>

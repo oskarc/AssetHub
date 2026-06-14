@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="ExportPresets_Title" xml:space="preserve"><value>Export Presets</value></data>
+  <data name="ExportPresets_Desc" xml:space="preserve"><value>Manage export presets that define how image derivatives are generated (dimensions, format, quality).</value></data>
+  <data name="ExportPresets_NoPresetsYet" xml:space="preserve"><value>No export presets yet</value></data>
+  <data name="ExportPresets_NoPresetsDesc" xml:space="preserve"><value>Create export presets to define output formats for image derivatives. Users can select presets when saving edited images.</value></data>
+  <data name="ExportPresets_CreatePreset" xml:space="preserve"><value>Create Preset</value></data>
+  <data name="ExportPresets_EditPreset" xml:space="preserve"><value>Edit Preset</value></data>
+  <data name="ExportPresets_DeletePreset" xml:space="preserve"><value>Delete Preset</value></data>
+  <data name="ExportPresets_ConfirmDelete" xml:space="preserve"><value>Are you sure you want to delete the export preset "{0}"? This action cannot be undone.</value></data>
+  <data name="ExportPresets_DeletedSuccess" xml:space="preserve"><value>Export preset "{0}" deleted</value></data>
+  <data name="ExportPresets_CreatedSuccess" xml:space="preserve"><value>Export preset "{0}" created</value></data>
+  <data name="ExportPresets_UpdatedSuccess" xml:space="preserve"><value>Export preset "{0}" updated</value></data>
+  <data name="ExportPresets_Header_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="ExportPresets_Header_Dimensions" xml:space="preserve"><value>Dimensions</value></data>
+  <data name="ExportPresets_Header_FitMode" xml:space="preserve"><value>Fit Mode</value></data>
+  <data name="ExportPresets_Header_Format" xml:space="preserve"><value>Format</value></data>
+  <data name="ExportPresets_Header_Quality" xml:space="preserve"><value>Quality</value></data>
+  <data name="ExportPresets_Header_Created" xml:space="preserve"><value>Created</value></data>
+  <data name="ExportPresets_Label_Name" xml:space="preserve"><value>Preset Name</value></data>
+  <data name="ExportPresets_Label_Width" xml:space="preserve"><value>Width (px)</value></data>
+  <data name="ExportPresets_Label_Height" xml:space="preserve"><value>Height (px)</value></data>
+  <data name="ExportPresets_Label_FitMode" xml:space="preserve"><value>Fit Mode</value></data>
+  <data name="ExportPresets_Label_Format" xml:space="preserve"><value>Output Format</value></data>
+  <data name="ExportPresets_Label_Quality" xml:space="preserve"><value>Quality</value></data>
+  <data name="ExportPresets_DimensionsAny" xml:space="preserve"><value>Any</value></data>
+  <data name="ExportPresets_FitMode_Contain" xml:space="preserve"><value>Contain</value></data>
+  <data name="ExportPresets_FitMode_Cover" xml:space="preserve"><value>Cover</value></data>
+  <data name="ExportPresets_FitMode_Stretch" xml:space="preserve"><value>Stretch</value></data>
+  <data name="ExportPresets_FitMode_Width" xml:space="preserve"><value>Fit to Width</value></data>
+  <data name="ExportPresets_FitMode_Height" xml:space="preserve"><value>Fit to Height</value></data>
+  <data name="ExportPresets_WidthOrHeightRequired" xml:space="preserve"><value>At least one dimension (width or height) must be specified.</value></data>
+</root>

@@ -8,6 +8,7 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<ExportPresetsAdminResource> PresetLoc
 
 @if (_loading && _presets == null)
 {
@@ -15,10 +16,10 @@
 }
 else if (_presets == null || !_presets.Any())
 {
-    <EmptyState Title="@AdminLoc["ExportPresets_NoPresetsYet"]"
-                Description="@AdminLoc["ExportPresets_NoPresetsDesc"]"
+    <EmptyState Title="@PresetLoc["ExportPresets_NoPresetsYet"]"
+                Description="@PresetLoc["ExportPresets_NoPresetsDesc"]"
                 Icon="@Icons.Material.Filled.Tune"
-                ActionText="@AdminLoc["ExportPresets_CreatePreset"]"
+                ActionText="@PresetLoc["ExportPresets_CreatePreset"]"
                 ActionIcon="@Icons.Material.Filled.Add"
                 OnAction="OpenCreateDialog" />
 }
@@ -27,42 +28,42 @@ else
     <MudStack Spacing="3">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @AdminLoc["ExportPresets_Desc"]
+                @PresetLoc["ExportPresets_Desc"]
             </MudText>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
                        OnClick="OpenCreateDialog">
-                @AdminLoc["ExportPresets_CreatePreset"]
+                @PresetLoc["ExportPresets_CreatePreset"]
             </MudButton>
         </MudStack>
 
         <MudTable Items="@_presets" Hover="true" Dense="true" Striped="true" Loading="@_loading"
                   FixedHeader="true">
             <HeaderContent>
-                <MudTh>@AdminLoc["ExportPresets_Header_Name"]</MudTh>
-                <MudTh>@AdminLoc["ExportPresets_Header_Dimensions"]</MudTh>
-                <MudTh>@AdminLoc["ExportPresets_Header_FitMode"]</MudTh>
-                <MudTh>@AdminLoc["ExportPresets_Header_Format"]</MudTh>
-                <MudTh>@AdminLoc["ExportPresets_Header_Quality"]</MudTh>
-                <MudTh>@AdminLoc["ExportPresets_Header_Created"]</MudTh>
+                <MudTh>@PresetLoc["ExportPresets_Header_Name"]</MudTh>
+                <MudTh>@PresetLoc["ExportPresets_Header_Dimensions"]</MudTh>
+                <MudTh>@PresetLoc["ExportPresets_Header_FitMode"]</MudTh>
+                <MudTh>@PresetLoc["ExportPresets_Header_Format"]</MudTh>
+                <MudTh>@PresetLoc["ExportPresets_Header_Quality"]</MudTh>
+                <MudTh>@PresetLoc["ExportPresets_Header_Created"]</MudTh>
                 <MudTh Style="width: 120px;"></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="@AdminLoc["ExportPresets_Header_Name"]">
+                <MudTd DataLabel="@PresetLoc["ExportPresets_Header_Name"]">
                     <MudText Typo="Typo.body2" Class="font-semibold">@context.Name</MudText>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["ExportPresets_Header_Dimensions"]">
+                <MudTd DataLabel="@PresetLoc["ExportPresets_Header_Dimensions"]">
                     @FormatDimensions(context)
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["ExportPresets_Header_FitMode"]">
+                <MudTd DataLabel="@PresetLoc["ExportPresets_Header_FitMode"]">
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@GetLocalizedFitMode(context.FitMode)</MudChip>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["ExportPresets_Header_Format"]">
+                <MudTd DataLabel="@PresetLoc["ExportPresets_Header_Format"]">
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">@context.Format.ToUpperInvariant()</MudChip>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["ExportPresets_Header_Quality"]">
+                <MudTd DataLabel="@PresetLoc["ExportPresets_Header_Quality"]">
                     @context.Quality%
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["ExportPresets_Header_Created"]">
+                <MudTd DataLabel="@PresetLoc["ExportPresets_Header_Created"]">
                     <MudTooltip Text="@context.CreatedAt.ToLocalTime().ToString("F")">
                         <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("d")</MudText>
                     </MudTooltip>
@@ -70,10 +71,10 @@ else
                 <MudTd>
                     <MudStack Row="true" Spacing="1">
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
-                                       aria-label="@AdminLoc["ExportPresets_EditPreset"]"
+                                       aria-label="@PresetLoc["ExportPresets_EditPreset"]"
                                        OnClick="@(() => OpenEditDialog(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                       aria-label="@AdminLoc["ExportPresets_DeletePreset"]"
+                                       aria-label="@PresetLoc["ExportPresets_DeletePreset"]"
                                        OnClick="@(() => DeletePresetAsync(context))" />
                     </MudStack>
                 </MudTd>
@@ -111,7 +112,7 @@ else
         };
 
         var dialog = await DialogService.ShowAsync<ExportPresetDialog>(
-            AdminLoc["ExportPresets_CreatePreset"], options);
+            PresetLoc["ExportPresets_CreatePreset"], options);
         var result = await dialog.Result;
 
         if (result is { Canceled: false })
@@ -135,7 +136,7 @@ else
         };
 
         var dialog = await DialogService.ShowAsync<ExportPresetDialog>(
-            AdminLoc["ExportPresets_EditPreset"], parameters, options);
+            PresetLoc["ExportPresets_EditPreset"], parameters, options);
         var result = await dialog.Result;
 
         if (result is { Canceled: false })
@@ -147,8 +148,8 @@ else
     private async Task DeletePresetAsync(ExportPresetDto preset)
     {
         var confirmed = await DialogService.ShowConfirmAsync(
-            AdminLoc["ExportPresets_DeletePreset"],
-            string.Format(AdminLoc["ExportPresets_ConfirmDelete"], preset.Name),
+            PresetLoc["ExportPresets_DeletePreset"],
+            string.Format(PresetLoc["ExportPresets_ConfirmDelete"], preset.Name),
             CommonLoc["Btn_Delete"],
             Icons.Material.Filled.Delete,
             Color.Error,
@@ -164,7 +165,7 @@ else
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.DeleteExportPresetAsync(preset.Id),
             "delete export preset",
-            string.Format(AdminLoc["ExportPresets_DeletedSuccess"], preset.Name));
+            string.Format(PresetLoc["ExportPresets_DeletedSuccess"], preset.Name));
 
         if (!success)
         {
@@ -176,18 +177,18 @@ else
 
     private string FormatDimensions(ExportPresetDto preset)
     {
-        var w = preset.Width?.ToString() ?? AdminLoc["ExportPresets_DimensionsAny"].Value;
-        var h = preset.Height?.ToString() ?? AdminLoc["ExportPresets_DimensionsAny"].Value;
+        var w = preset.Width?.ToString() ?? PresetLoc["ExportPresets_DimensionsAny"].Value;
+        var h = preset.Height?.ToString() ?? PresetLoc["ExportPresets_DimensionsAny"].Value;
         return $"{w} × {h}";
     }
 
     private string GetLocalizedFitMode(string fitMode) => fitMode switch
     {
-        "contain" => AdminLoc["ExportPresets_FitMode_Contain"].Value,
-        "cover" => AdminLoc["ExportPresets_FitMode_Cover"].Value,
-        "stretch" => AdminLoc["ExportPresets_FitMode_Stretch"].Value,
-        "width" => AdminLoc["ExportPresets_FitMode_Width"].Value,
-        "height" => AdminLoc["ExportPresets_FitMode_Height"].Value,
+        "contain" => PresetLoc["ExportPresets_FitMode_Contain"].Value,
+        "cover" => PresetLoc["ExportPresets_FitMode_Cover"].Value,
+        "stretch" => PresetLoc["ExportPresets_FitMode_Stretch"].Value,
+        "width" => PresetLoc["ExportPresets_FitMode_Width"].Value,
+        "height" => PresetLoc["ExportPresets_FitMode_Height"].Value,
         _ => fitMode
     };
 }
