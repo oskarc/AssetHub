@@ -7,32 +7,33 @@
 @inject IDialogService DialogService
 @inject NavigationManager Nav
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<MigrationsResource> MigrationLoc
 @inject IStringLocalizer<CommonResource> CommonLoc
 
 <MudStack Spacing="4">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-        <MudText Typo="Typo.h6">@AdminLoc["Migration_Title"]</MudText>
+        <MudText Typo="Typo.h6">@MigrationLoc["Migration_Title"]</MudText>
         <MudStack Row="true" Spacing="2">
             @if (_migrations is not null && _migrations.Count > 0)
             {
-                <MudMenu Label="@AdminLoc["Migration_BulkDelete"].Value"
+                <MudMenu Label="@MigrationLoc["Migration_BulkDelete"].Value"
                          StartIcon="@Icons.Material.Filled.DeleteSweep"
                          Variant="Variant.Outlined"
                          Color="Color.Error"
                          Size="Size.Small"
-                         aria-label="@AdminLoc["Migration_BulkDelete"].Value">
+                         aria-label="@MigrationLoc["Migration_BulkDelete"].Value">
                     <MudMenuItem OnClick="@(() => BulkDeleteAsync("completed"))"
                                  Icon="@Icons.Material.Filled.CheckCircle">
-                        @AdminLoc["Migration_BulkDelete_Completed"]
+                        @MigrationLoc["Migration_BulkDelete_Completed"]
                     </MudMenuItem>
                     <MudMenuItem OnClick="@(() => BulkDeleteAsync("draft"))"
                                  Icon="@Icons.Material.Filled.Drafts">
-                        @AdminLoc["Migration_BulkDelete_Draft"]
+                        @MigrationLoc["Migration_BulkDelete_Draft"]
                     </MudMenuItem>
                     <MudDivider />
                     <MudMenuItem OnClick="@(() => BulkDeleteAsync("all"))"
                                  Icon="@Icons.Material.Filled.DeleteForever">
-                        @AdminLoc["Migration_BulkDelete_All"]
+                        @MigrationLoc["Migration_BulkDelete_All"]
                     </MudMenuItem>
                 </MudMenu>
             }
@@ -40,8 +41,8 @@
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Add"
                        OnClick="OpenCreateDialog"
-                       aria-label="@AdminLoc["Migration_CreateNew"]">
-                @AdminLoc["Migration_CreateNew"]
+                       aria-label="@MigrationLoc["Migration_CreateNew"]">
+                @MigrationLoc["Migration_CreateNew"]
             </MudButton>
         </MudStack>
     </MudStack>
@@ -53,26 +54,26 @@
     else if (_migrations is null || _migrations.Count == 0)
     {
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-            <MudText>@AdminLoc["Migration_Empty"]</MudText>
+            <MudText>@MigrationLoc["Migration_Empty"]</MudText>
         </MudAlert>
     }
     else
     {
         <MudTable Items="@_migrations" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
             <HeaderContent>
-                <MudTh>@AdminLoc["Migration_ColName"]</MudTh>
-                <MudTh>@AdminLoc["Migration_ColStatus"]</MudTh>
-                <MudTh>@AdminLoc["Migration_ColProgress"]</MudTh>
-                <MudTh>@AdminLoc["Migration_ColCreated"]</MudTh>
+                <MudTh>@MigrationLoc["Migration_ColName"]</MudTh>
+                <MudTh>@MigrationLoc["Migration_ColStatus"]</MudTh>
+                <MudTh>@MigrationLoc["Migration_ColProgress"]</MudTh>
+                <MudTh>@MigrationLoc["Migration_ColCreated"]</MudTh>
                 <MudTh Style="width: 180px;">@CommonLoc["Label_Actions"]</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="@AdminLoc["Migration_ColName"]">
+                <MudTd DataLabel="@MigrationLoc["Migration_ColName"]">
                     <MudLink OnClick="@(() => OpenDetailDialog(context))" Underline="Underline.Hover">
                         @context.Name
                     </MudLink>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["Migration_ColStatus"]">
+                <MudTd DataLabel="@MigrationLoc["Migration_ColStatus"]">
                     <MudChip T="string"
                              Color="@GetStatusColor(context.Status)"
                              Size="Size.Small"
@@ -80,7 +81,7 @@
                         @GetStatusLabel(context.Status)
                     </MudChip>
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["Migration_ColProgress"]">
+                <MudTd DataLabel="@MigrationLoc["Migration_ColProgress"]">
                     @if (context.ItemsTotal > 0)
                     {
                         var pct = context.ItemsTotal > 0
@@ -88,7 +89,7 @@
                             : 0;
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudProgressLinear Value="@pct" Color="Color.Primary" Size="Size.Small" Style="min-width: 80px;" />
-                            <MudText Typo="Typo.caption">@pct% (@context.ItemsStaged/@context.ItemsTotal @AdminLoc["Migration_Staged"].Value)</MudText>
+                            <MudText Typo="Typo.caption">@pct% (@context.ItemsStaged/@context.ItemsTotal @MigrationLoc["Migration_Staged"].Value)</MudText>
                         </MudStack>
                     }
                     else
@@ -96,29 +97,29 @@
                         <MudText Typo="Typo.caption" Color="Color.Default">—</MudText>
                     }
                 </MudTd>
-                <MudTd DataLabel="@AdminLoc["Migration_ColCreated"]">
+                <MudTd DataLabel="@MigrationLoc["Migration_ColCreated"]">
                     <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("g")</MudText>
                 </MudTd>
                 <MudTd>
                     <MudStack Row="true" Spacing="1">
                         @if (context.Status is "draft" && context.SourceType == "s3")
                         {
-                            <MudTooltip Text="@AdminLoc["Migration_StartS3Scan_Tooltip"]">
+                            <MudTooltip Text="@MigrationLoc["Migration_StartS3Scan_Tooltip"]">
                                 <MudIconButton Icon="@Icons.Material.Filled.TravelExplore"
                                                Color="Color.Info"
                                                Size="Size.Small"
-                                               aria-label="@AdminLoc["Migration_StartS3Scan"]"
+                                               aria-label="@MigrationLoc["Migration_StartS3Scan"]"
                                                OnClick="@(() => StartS3ScanAsync(context))" />
                             </MudTooltip>
                         }
                         @if (context.Status is "draft" or "partially_completed")
                         {
-                            <MudTooltip Text="@string.Format(AdminLoc["Migration_StartTooltip"].Value, context.ItemsStaged, context.ItemsTotal)">
+                            <MudTooltip Text="@string.Format(MigrationLoc["Migration_StartTooltip"].Value, context.ItemsStaged, context.ItemsTotal)">
                                 <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
                                                Color="Color.Success"
                                                Size="Size.Small"
                                                Disabled="@(!CanStart(context))"
-                                               aria-label="@AdminLoc["Migration_Start"]"
+                                               aria-label="@MigrationLoc["Migration_Start"]"
                                                OnClick="@(() => StartMigrationAsync(context))" />
                             </MudTooltip>
                         }
@@ -127,7 +128,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Cancel"
                                            Color="Color.Warning"
                                            Size="Size.Small"
-                                           aria-label="@AdminLoc["Migration_Cancel"]"
+                                           aria-label="@MigrationLoc["Migration_Cancel"]"
                                            OnClick="@(() => CancelMigrationAsync(context))" />
                         }
                         @if (context.Status is "completed_with_errors")
@@ -135,7 +136,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Replay"
                                            Color="Color.Info"
                                            Size="Size.Small"
-                                           aria-label="@AdminLoc["Migration_Retry"]"
+                                           aria-label="@MigrationLoc["Migration_Retry"]"
                                            OnClick="@(() => RetryMigrationAsync(context))" />
                         }
                         @if (context.Status is "completed" or "partially_completed" or "completed_with_errors" or "failed")
@@ -143,7 +144,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Download"
                                            Color="Color.Default"
                                            Size="Size.Small"
-                                           aria-label="@AdminLoc["Migration_DownloadOutcome"]"
+                                           aria-label="@MigrationLoc["Migration_DownloadOutcome"]"
                                            OnClick="@(() => DownloadOutcomeAsync(context))" />
                         }
                         @if (context.Status is "draft" or "completed" or "partially_completed" or "completed_with_errors" or "failed" or "cancelled")
@@ -151,7 +152,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                            Color="Color.Error"
                                            Size="Size.Small"
-                                           aria-label="@AdminLoc["Migration_Delete"]"
+                                           aria-label="@MigrationLoc["Migration_Delete"]"
                                            OnClick="@(() => DeleteMigrationAsync(context))" />
                         }
                     </MudStack>
@@ -248,7 +249,7 @@
     private async Task OpenCreateDialog()
     {
         var dialog = await DialogService.ShowAsync<CreateMigrationDialog>(
-            AdminLoc["Migration_CreateNew"].Value,
+            MigrationLoc["Migration_CreateNew"].Value,
             new DialogParameters(),
             new DialogOptions
             {
@@ -297,7 +298,7 @@
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.StartMigrationS3ScanAsync(migration.Id),
             "start S3 scan",
-            AdminLoc["Migration_S3ScanQueued"].Value);
+            MigrationLoc["Migration_S3ScanQueued"].Value);
 
         if (success)
         {
@@ -309,9 +310,9 @@
     private async Task StartMigrationAsync(MigrationResponseDto migration)
     {
         var confirmed = await DialogService.ShowMessageBox(
-            AdminLoc["Migration_ConfirmStartTitle"].Value,
-            AdminLoc["Migration_ConfirmStartMessage"].Value,
-            yesText: AdminLoc["Migration_Start"].Value,
+            MigrationLoc["Migration_ConfirmStartTitle"].Value,
+            MigrationLoc["Migration_ConfirmStartMessage"].Value,
+            yesText: MigrationLoc["Migration_Start"].Value,
             cancelText: CommonLoc["Btn_Cancel"].Value);
 
         if (confirmed != true) return;
@@ -319,7 +320,7 @@
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.StartMigrationAsync(migration.Id),
             "start migration",
-            AdminLoc["Migration_StartedSuccess"].Value);
+            MigrationLoc["Migration_StartedSuccess"].Value);
 
         if (success)
         {
@@ -331,9 +332,9 @@
     private async Task CancelMigrationAsync(MigrationResponseDto migration)
     {
         var confirmed = await DialogService.ShowMessageBox(
-            AdminLoc["Migration_ConfirmCancelTitle"].Value,
-            AdminLoc["Migration_ConfirmCancelMessage"].Value,
-            yesText: AdminLoc["Migration_Cancel"].Value,
+            MigrationLoc["Migration_ConfirmCancelTitle"].Value,
+            MigrationLoc["Migration_ConfirmCancelMessage"].Value,
+            yesText: MigrationLoc["Migration_Cancel"].Value,
             cancelText: CommonLoc["Btn_Cancel"].Value);
 
         if (confirmed != true) return;
@@ -341,7 +342,7 @@
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.CancelMigrationAsync(migration.Id),
             "cancel migration",
-            AdminLoc["Migration_CancelledSuccess"].Value);
+            MigrationLoc["Migration_CancelledSuccess"].Value);
 
         if (success)
             await LoadAsync(reset: true);
@@ -352,7 +353,7 @@
         var success = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.RetryFailedMigrationAsync(migration.Id),
             "retry migration",
-            AdminLoc["Migration_RetryStartedSuccess"].Value);
+            MigrationLoc["Migration_RetryStartedSuccess"].Value);
 
         if (success)
         {
@@ -364,8 +365,8 @@
     private async Task DeleteMigrationAsync(MigrationResponseDto migration)
     {
         var confirmed = await DialogService.ShowMessageBox(
-            AdminLoc["Migration_ConfirmDeleteTitle"].Value,
-            AdminLoc["Migration_ConfirmDeleteMessage"].Value,
+            MigrationLoc["Migration_ConfirmDeleteTitle"].Value,
+            MigrationLoc["Migration_ConfirmDeleteMessage"].Value,
             yesText: CommonLoc["Btn_Delete"].Value,
             cancelText: CommonLoc["Btn_Cancel"].Value);
 
@@ -392,15 +393,15 @@
     {
         var filterLabel = filter switch
         {
-            "completed" => AdminLoc["Migration_BulkDelete_Completed"].Value,
-            "draft" => AdminLoc["Migration_BulkDelete_Draft"].Value,
-            "all" => AdminLoc["Migration_BulkDelete_All"].Value,
+            "completed" => MigrationLoc["Migration_BulkDelete_Completed"].Value,
+            "draft" => MigrationLoc["Migration_BulkDelete_Draft"].Value,
+            "all" => MigrationLoc["Migration_BulkDelete_All"].Value,
             _ => filter
         };
 
         var confirmed = await DialogService.ShowMessageBox(
-            AdminLoc["Migration_ConfirmBulkDeleteTitle"].Value,
-            string.Format(AdminLoc["Migration_ConfirmBulkDeleteMessage"].Value, filterLabel),
+            MigrationLoc["Migration_ConfirmBulkDeleteTitle"].Value,
+            string.Format(MigrationLoc["Migration_ConfirmBulkDeleteMessage"].Value, filterLabel),
             yesText: CommonLoc["Btn_Delete"].Value,
             cancelText: CommonLoc["Btn_Cancel"].Value);
 
@@ -410,7 +411,7 @@
             () => Api.BulkDeleteMigrationsAsync(filter), "bulk delete migrations");
         if (ok)
         {
-            Feedback.ShowSuccess(string.Format(AdminLoc["Migration_BulkDeleteSuccess"].Value, count));
+            Feedback.ShowSuccess(string.Format(MigrationLoc["Migration_BulkDeleteSuccess"].Value, count));
             await LoadAsync(reset: true);
         }
     }
@@ -435,14 +436,14 @@
 
     private string GetStatusLabel(string status) => status switch
     {
-        "draft" => AdminLoc["Migration_Status_Draft"].Value,
-        "validating" => AdminLoc["Migration_Status_Validating"].Value,
-        "running" => AdminLoc["Migration_Status_Running"].Value,
-        "completed" => AdminLoc["Migration_Status_Completed"].Value,
-        "partially_completed" => AdminLoc["Migration_Status_PartiallyCompleted"].Value,
-        "completed_with_errors" => AdminLoc["Migration_Status_CompletedWithErrors"].Value,
-        "failed" => AdminLoc["Migration_Status_Failed"].Value,
-        "cancelled" => AdminLoc["Migration_Status_Cancelled"].Value,
+        "draft" => MigrationLoc["Migration_Status_Draft"].Value,
+        "validating" => MigrationLoc["Migration_Status_Validating"].Value,
+        "running" => MigrationLoc["Migration_Status_Running"].Value,
+        "completed" => MigrationLoc["Migration_Status_Completed"].Value,
+        "partially_completed" => MigrationLoc["Migration_Status_PartiallyCompleted"].Value,
+        "completed_with_errors" => MigrationLoc["Migration_Status_CompletedWithErrors"].Value,
+        "failed" => MigrationLoc["Migration_Status_Failed"].Value,
+        "cancelled" => MigrationLoc["Migration_Status_Cancelled"].Value,
         _ => status
     };
 

@@ -7,34 +7,35 @@
 @inject IUserFeedbackService Feedback
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<MigrationsResource> MigrationLoc
 
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" />
-            <MudText Typo="Typo.h6" id="create-migration-dialog-title">@AdminLoc["Migration_CreateNew"]</MudText>
+            <MudText Typo="Typo.h6" id="create-migration-dialog-title">@MigrationLoc["Migration_CreateNew"]</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
         <MudForm @ref="_form" @bind-IsValid="_formIsValid">
             <MudStack Spacing="3" Class="dialog-min-width">
-                <MudTextField @bind-Value="_name" Label="@AdminLoc["Migration_Label_Name"]" Required="true"
-                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_Label_Name"].Value)"
+                <MudTextField @bind-Value="_name" Label="@MigrationLoc["Migration_Label_Name"]" Required="true"
+                              RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MigrationLoc["Migration_Label_Name"].Value)"
                               Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
                               Counter="255" MaxLength="255"
-                              HelperText="@AdminLoc["Migration_Label_NameHelper"]" />
+                              HelperText="@MigrationLoc["Migration_Label_NameHelper"]" />
 
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.body1">@AdminLoc["Migration_SourceType_Label"]</MudText>
+                    <MudText Typo="Typo.body1">@MigrationLoc["Migration_SourceType_Label"]</MudText>
                     <MudToggleGroup T="string" @bind-Value="_sourceType" Color="Color.Primary"
                                     SelectionMode="SelectionMode.SingleSelection">
-                        <MudToggleItem T="string" Value="@("csv_upload")" Text="@AdminLoc["Migration_SourceType_Csv"]" />
-                        <MudToggleItem T="string" Value="@("s3")" Text="@AdminLoc["Migration_SourceType_S3"]" />
+                        <MudToggleItem T="string" Value="@("csv_upload")" Text="@MigrationLoc["Migration_SourceType_Csv"]" />
+                        <MudToggleItem T="string" Value="@("s3")" Text="@MigrationLoc["Migration_SourceType_S3"]" />
                     </MudToggleGroup>
                     <MudText Typo="Typo.caption" Color="Color.Default">
                         @(_sourceType == "s3"
-                            ? AdminLoc["Migration_SourceType_S3_Helper"].Value
-                            : AdminLoc["Migration_SourceType_Csv_Helper"].Value)
+                            ? MigrationLoc["Migration_SourceType_S3_Helper"].Value
+                            : MigrationLoc["Migration_SourceType_Csv_Helper"].Value)
                     </MudText>
                 </MudStack>
 
@@ -42,51 +43,51 @@
                 {
                     <MudPaper Elevation="0" Outlined="true" Class="pa-3">
                         <MudStack Spacing="2">
-                            <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_S3_SectionTitle"]</MudText>
-                            <MudTextField @bind-Value="_s3Endpoint" Label="@AdminLoc["Migration_S3_Endpoint"]"
-                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_S3_Endpoint"].Value)"
+                            <MudText Typo="Typo.subtitle2">@MigrationLoc["Migration_S3_SectionTitle"]</MudText>
+                            <MudTextField @bind-Value="_s3Endpoint" Label="@MigrationLoc["Migration_S3_Endpoint"]"
+                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MigrationLoc["Migration_S3_Endpoint"].Value)"
                                           Variant="Variant.Outlined" Immediate="true" MaxLength="500"
-                                          HelperText="@AdminLoc["Migration_S3_Endpoint_Helper"]" />
-                            <MudTextField @bind-Value="_s3Bucket" Label="@AdminLoc["Migration_S3_Bucket"]"
-                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_S3_Bucket"].Value)"
+                                          HelperText="@MigrationLoc["Migration_S3_Endpoint_Helper"]" />
+                            <MudTextField @bind-Value="_s3Bucket" Label="@MigrationLoc["Migration_S3_Bucket"]"
+                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MigrationLoc["Migration_S3_Bucket"].Value)"
                                           Variant="Variant.Outlined" Immediate="true" MaxLength="255"
-                                          HelperText="@AdminLoc["Migration_S3_Bucket_Helper"]" />
-                            <MudTextField @bind-Value="_s3Prefix" Label="@AdminLoc["Migration_S3_Prefix"]"
+                                          HelperText="@MigrationLoc["Migration_S3_Bucket_Helper"]" />
+                            <MudTextField @bind-Value="_s3Prefix" Label="@MigrationLoc["Migration_S3_Prefix"]"
                                           Variant="Variant.Outlined" Immediate="true" MaxLength="1024"
-                                          HelperText="@AdminLoc["Migration_S3_Prefix_Helper"]" />
-                            <MudTextField @bind-Value="_s3Region" Label="@AdminLoc["Migration_S3_Region"]"
+                                          HelperText="@MigrationLoc["Migration_S3_Prefix_Helper"]" />
+                            <MudTextField @bind-Value="_s3Region" Label="@MigrationLoc["Migration_S3_Region"]"
                                           Variant="Variant.Outlined" Immediate="true" MaxLength="64"
-                                          HelperText="@AdminLoc["Migration_S3_Region_Helper"]" />
-                            <MudTextField @bind-Value="_s3AccessKey" Label="@AdminLoc["Migration_S3_AccessKey"]"
-                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_S3_AccessKey"].Value)"
+                                          HelperText="@MigrationLoc["Migration_S3_Region_Helper"]" />
+                            <MudTextField @bind-Value="_s3AccessKey" Label="@MigrationLoc["Migration_S3_AccessKey"]"
+                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MigrationLoc["Migration_S3_AccessKey"].Value)"
                                           Variant="Variant.Outlined" Immediate="true" MaxLength="255"
-                                          HelperText="@AdminLoc["Migration_S3_AccessKey_Helper"]" />
-                            <MudTextField @bind-Value="_s3SecretKey" Label="@AdminLoc["Migration_S3_SecretKey"]"
-                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, AdminLoc["Migration_S3_SecretKey"].Value)"
+                                          HelperText="@MigrationLoc["Migration_S3_AccessKey_Helper"]" />
+                            <MudTextField @bind-Value="_s3SecretKey" Label="@MigrationLoc["Migration_S3_SecretKey"]"
+                                          Required="true" RequiredError="@string.Format(CommonLoc["Validation_Required"].Value, MigrationLoc["Migration_S3_SecretKey"].Value)"
                                           Variant="Variant.Outlined" Immediate="true" MaxLength="1024"
                                           InputType="InputType.Password"
-                                          HelperText="@AdminLoc["Migration_S3_SecretKey_Helper"]" />
+                                          HelperText="@MigrationLoc["Migration_S3_SecretKey_Helper"]" />
                         </MudStack>
                     </MudPaper>
                 }
 
                 <MudStack Spacing="1">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                        <MudText Typo="Typo.body1">@AdminLoc["Migration_Label_DefaultCollection"]</MudText>
+                        <MudText Typo="Typo.body1">@MigrationLoc["Migration_Label_DefaultCollection"]</MudText>
                         <MudToggleGroup T="string" @bind-Value="_collectionMode" Color="Color.Primary"
                                         Size="Size.Small" SelectionMode="SelectionMode.SingleSelection">
-                            <MudToggleItem T="string" Value="@("existing")" Text="@AdminLoc["Migration_CollectionMode_Existing"]" />
-                            <MudToggleItem T="string" Value="@("new")" Text="@AdminLoc["Migration_CollectionMode_New"]" />
+                            <MudToggleItem T="string" Value="@("existing")" Text="@MigrationLoc["Migration_CollectionMode_Existing"]" />
+                            <MudToggleItem T="string" Value="@("new")" Text="@MigrationLoc["Migration_CollectionMode_New"]" />
                         </MudToggleGroup>
                     </MudStack>
 
                     @if (_collectionMode == "existing")
                     {
                         <MudSelect T="Guid?" @bind-Value="_defaultCollectionId"
-                                   Label="@AdminLoc["Migration_Label_DefaultCollection"]"
+                                   Label="@MigrationLoc["Migration_Label_DefaultCollection"]"
                                    Variant="Variant.Outlined"
                                    Clearable="true"
-                                   HelperText="@AdminLoc["Migration_Label_DefaultCollectionHelper"]">
+                                   HelperText="@MigrationLoc["Migration_Label_DefaultCollectionHelper"]">
                             @if (_collections is not null)
                             {
                                 @foreach (var c in _collections)
@@ -99,18 +100,18 @@
                     else
                     {
                         <MudTextField @bind-Value="_newCollectionName"
-                                      Label="@AdminLoc["Migration_Label_NewCollectionName"]"
+                                      Label="@MigrationLoc["Migration_Label_NewCollectionName"]"
                                       Variant="Variant.Outlined"
                                       Immediate="true"
                                       Counter="255" MaxLength="255"
-                                      HelperText="@AdminLoc["Migration_Label_NewCollectionNameHelper"]" />
+                                      HelperText="@MigrationLoc["Migration_Label_NewCollectionNameHelper"]" />
                     }
                 </MudStack>
 
                 <MudSwitch T="bool" @bind-Value="_dryRun" Color="Color.Primary"
-                           Label="@AdminLoc["Migration_Label_DryRun"]" />
+                           Label="@MigrationLoc["Migration_Label_DryRun"]" />
                 <MudText Typo="Typo.caption" Color="Color.Default">
-                    @AdminLoc["Migration_Label_DryRunHelper"]
+                    @MigrationLoc["Migration_Label_DryRunHelper"]
                 </MudText>
 
                 @if (!string.IsNullOrEmpty(_errorMessage))
@@ -129,7 +130,7 @@
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
             }
-            @AdminLoc["Migration_CreateNew"]
+            @MigrationLoc["Migration_CreateNew"]
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -208,7 +209,7 @@
             };
 
             var created = await Api.CreateMigrationAsync(dto);
-            Feedback.ShowSuccess(string.Format(AdminLoc["Migration_CreatedSuccess"].Value, created.Name));
+            Feedback.ShowSuccess(string.Format(MigrationLoc["Migration_CreatedSuccess"].Value, created.Name));
             MudDialog.Close(DialogResult.Ok(created));
         }
         catch (ApiException ex)

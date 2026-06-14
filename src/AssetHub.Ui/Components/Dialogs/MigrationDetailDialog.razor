@@ -9,12 +9,13 @@
 @inject IUserFeedbackService Feedback
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<MigrationsResource> MigrationLoc
 
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="dialog-title">
             <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">@(_migration?.Name ?? AdminLoc["Migration_Detail"].Value)</MudText>
+            <MudText Typo="Typo.h6">@(_migration?.Name ?? MigrationLoc["Migration_Detail"].Value)</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
@@ -24,7 +25,7 @@
         }
         else if (_migration is null)
         {
-            <MudAlert Severity="Severity.Error">@AdminLoc["Migration_NotFound"]</MudAlert>
+            <MudAlert Severity="Severity.Error">@MigrationLoc["Migration_NotFound"]</MudAlert>
         }
         else
         {
@@ -32,7 +33,7 @@
                 @* Status & Summary *@
                 <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
                     <MudStack Spacing="0">
-                        <MudText Typo="Typo.caption">@AdminLoc["Migration_ColStatus"]</MudText>
+                        <MudText Typo="Typo.caption">@MigrationLoc["Migration_ColStatus"]</MudText>
                         <MudChip T="string" Color="@GetStatusColor(_migration.Status)" Size="Size.Small" Variant="Variant.Filled">
                             @GetStatusLabel(_migration.Status)
                         </MudChip>
@@ -40,7 +41,7 @@
                     @if (_migration.DryRun)
                     {
                         <MudStack Spacing="0">
-                            <MudText Typo="Typo.caption">@AdminLoc["Migration_Label_DryRun"]</MudText>
+                            <MudText Typo="Typo.caption">@MigrationLoc["Migration_Label_DryRun"]</MudText>
                             <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Science">
                                 @CommonLoc["Yes"]
                             </MudChip>
@@ -52,7 +53,7 @@
                 @if (_migration.ItemsTotal > 0)
                 {
                     <MudStack Spacing="1">
-                        <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_ColProgress"]</MudText>
+                        <MudText Typo="Typo.subtitle2">@MigrationLoc["Migration_ColProgress"]</MudText>
                         @{
                             var processed = _migration.ItemsSucceeded + _migration.ItemsFailed + _migration.ItemsSkipped;
                             var pct = (int)(processed * 100.0 / _migration.ItemsTotal);
@@ -62,7 +63,7 @@
                         </MudProgressLinear>
                         <MudGrid>
                             <MudItem xs="3">
-                                <MudText Typo="Typo.caption">@AdminLoc["Migration_Total"]: @_migration.ItemsTotal</MudText>
+                                <MudText Typo="Typo.caption">@MigrationLoc["Migration_Total"]: @_migration.ItemsTotal</MudText>
                             </MudItem>
                             <MudItem xs="3">
                                 <MudText Typo="Typo.caption" Color="Color.Success">
@@ -88,7 +89,7 @@
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                             <MudIcon Icon="@Icons.Material.Filled.CloudDone" Size="Size.Small" Color="Color.Info" />
                             <MudText Typo="Typo.caption">
-                                @string.Format(AdminLoc["Migration_FilesStaged"].Value, _migration.ItemsStaged, _migration.ItemsTotal)
+                                @string.Format(MigrationLoc["Migration_FilesStaged"].Value, _migration.ItemsStaged, _migration.ItemsTotal)
                             </MudText>
                         </MudStack>
                     </MudStack>
@@ -99,30 +100,30 @@
                 {
                     <MudDivider />
                     <MudStack Spacing="2">
-                        <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_UploadManifest"]</MudText>
+                        <MudText Typo="Typo.subtitle2">@MigrationLoc["Migration_UploadManifest"]</MudText>
 
                         <MudExpansionPanels Elevation="0">
                             <MudExpansionPanel @bind-Expanded="_instructionsExpanded"
-                                               Text="@AdminLoc["Migration_Instructions_Title"].Value">
+                                               Text="@MigrationLoc["Migration_Instructions_Title"].Value">
                                 <MudStack Spacing="2" Class="pa-2">
-                                    <MudText Typo="Typo.body2">@AdminLoc["Migration_ManifestHelp_Intro"]</MudText>
-                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@AdminLoc["Migration_ManifestHelp_RequiredHeader"]</MudText>
+                                    <MudText Typo="Typo.body2">@MigrationLoc["Migration_ManifestHelp_Intro"]</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@MigrationLoc["Migration_ManifestHelp_RequiredHeader"]</MudText>
                                     <MudText Typo="Typo.body2">
-                                        <code>filename</code> — @AdminLoc["Migration_ManifestHelp_Filename"]
+                                        <code>filename</code> — @MigrationLoc["Migration_ManifestHelp_Filename"]
                                     </MudText>
-                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@AdminLoc["Migration_ManifestHelp_OptionalHeader"]</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@MigrationLoc["Migration_ManifestHelp_OptionalHeader"]</MudText>
                                     <MudText Typo="Typo.body2">
-                                        <code>external_id</code> — @AdminLoc["Migration_ManifestHelp_ExternalId"]<br />
-                                        <code>title</code> — @AdminLoc["Migration_ManifestHelp_TitleCol"]<br />
-                                        <code>description</code> — @AdminLoc["Migration_ManifestHelp_Description"]<br />
-                                        <code>copyright</code> — @AdminLoc["Migration_ManifestHelp_Copyright"]<br />
-                                        <code>tags</code> — @AdminLoc["Migration_ManifestHelp_Tags"]<br />
-                                        <code>collection_names</code> — @AdminLoc["Migration_ManifestHelp_Collections"]<br />
-                                        <code>sha256</code> — @AdminLoc["Migration_ManifestHelp_Sha256"]<br />
-                                        <code>metadata.*</code> — @AdminLoc["Migration_ManifestHelp_Metadata"]
+                                        <code>external_id</code> — @MigrationLoc["Migration_ManifestHelp_ExternalId"]<br />
+                                        <code>title</code> — @MigrationLoc["Migration_ManifestHelp_TitleCol"]<br />
+                                        <code>description</code> — @MigrationLoc["Migration_ManifestHelp_Description"]<br />
+                                        <code>copyright</code> — @MigrationLoc["Migration_ManifestHelp_Copyright"]<br />
+                                        <code>tags</code> — @MigrationLoc["Migration_ManifestHelp_Tags"]<br />
+                                        <code>collection_names</code> — @MigrationLoc["Migration_ManifestHelp_Collections"]<br />
+                                        <code>sha256</code> — @MigrationLoc["Migration_ManifestHelp_Sha256"]<br />
+                                        <code>metadata.*</code> — @MigrationLoc["Migration_ManifestHelp_Metadata"]
                                     </MudText>
-                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@AdminLoc["Migration_ManifestHelp_ExampleHeader"]</MudText>
-                                    <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.75rem; white-space: pre-wrap;">@AdminLoc["Migration_ManifestHelp_Example"]</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 600;">@MigrationLoc["Migration_ManifestHelp_ExampleHeader"]</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.75rem; white-space: pre-wrap;">@MigrationLoc["Migration_ManifestHelp_Example"]</MudText>
                                 </MudStack>
                             </MudExpansionPanel>
                         </MudExpansionPanels>
@@ -140,7 +141,7 @@
                                     {
                                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                                     }
-                                    @AdminLoc["Migration_SelectCsvFile"]
+                                    @MigrationLoc["Migration_SelectCsvFile"]
                                 </MudButton>
                             </ActivatorContent>
                         </MudFileUpload>
@@ -148,7 +149,7 @@
                         @if (_manifestUploaded)
                         {
                             <MudAlert Severity="Severity.Success" Dense="true">
-                                @AdminLoc["Migration_ManifestUploaded"]
+                                @MigrationLoc["Migration_ManifestUploaded"]
                             </MudAlert>
                         }
                     </MudStack>
@@ -159,8 +160,8 @@
                 {
                     <MudDivider />
                     <MudStack Spacing="2">
-                        <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_UploadFiles"]</MudText>
-                        <MudText Typo="Typo.caption">@AdminLoc["Migration_UploadFilesHelper"]</MudText>
+                        <MudText Typo="Typo.subtitle2">@MigrationLoc["Migration_UploadFiles"]</MudText>
+                        <MudText Typo="Typo.caption">@MigrationLoc["Migration_UploadFilesHelper"]</MudText>
 
                         <MudFileUpload T="IReadOnlyList<IBrowserFile>"
                                        FilesChanged="OnFilesSelected"
@@ -176,7 +177,7 @@
                                     {
                                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                                     }
-                                    @AdminLoc["Migration_SelectFiles"]
+                                    @MigrationLoc["Migration_SelectFiles"]
                                 </MudButton>
                             </ActivatorContent>
                         </MudFileUpload>
@@ -184,14 +185,14 @@
                         @if (_totalFilesUploaded > 0)
                         {
                             <MudAlert Severity="Severity.Success" Dense="true">
-                                @string.Format(AdminLoc["Migration_FilesUploaded"].Value, _totalFilesUploaded)
+                                @string.Format(MigrationLoc["Migration_FilesUploaded"].Value, _totalFilesUploaded)
                             </MudAlert>
                         }
 
                         @if (_totalFilesUploaded > 0 && _totalFilesUploaded != _migration.ItemsTotal)
                         {
                             <MudAlert Severity="Severity.Warning" Dense="true" Icon="@Icons.Material.Filled.Warning">
-                                @string.Format(AdminLoc["Migration_FilesCountMismatch"].Value, _totalFilesUploaded, _migration.ItemsTotal)
+                                @string.Format(MigrationLoc["Migration_FilesCountMismatch"].Value, _totalFilesUploaded, _migration.ItemsTotal)
                             </MudAlert>
                         }
                     </MudStack>
@@ -203,16 +204,16 @@
                     <MudDivider />
                     <MudStack Spacing="2">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                            <MudText Typo="Typo.subtitle2">@AdminLoc["Migration_Items"]</MudText>
+                            <MudText Typo="Typo.subtitle2">@MigrationLoc["Migration_Items"]</MudText>
                             <MudSelect T="string" Value="_itemStatusFilter" ValueChanged="OnFilterChanged" Variant="Variant.Outlined"
                                        Dense="true" Style="max-width: 200px;"
-                                       Label="@AdminLoc["Migration_FilterByStatus"]"
+                                       Label="@MigrationLoc["Migration_FilterByStatus"]"
                                        Clearable="true">
-                                <MudSelectItem T="string" Value="@("pending")">@AdminLoc["Migration_ItemStatus_Pending"]</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("processing")">@AdminLoc["Migration_ItemStatus_Processing"]</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("succeeded")">@AdminLoc["Migration_ItemStatus_Succeeded"]</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("failed")">@AdminLoc["Migration_ItemStatus_Failed"]</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("skipped")">@AdminLoc["Migration_ItemStatus_Skipped"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("pending")">@MigrationLoc["Migration_ItemStatus_Pending"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("processing")">@MigrationLoc["Migration_ItemStatus_Processing"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("succeeded")">@MigrationLoc["Migration_ItemStatus_Succeeded"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("failed")">@MigrationLoc["Migration_ItemStatus_Failed"]</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("skipped")">@MigrationLoc["Migration_ItemStatus_Skipped"]</MudSelectItem>
                             </MudSelect>
                         </MudStack>
 
@@ -226,10 +227,10 @@
                                       Style="max-height: 400px; overflow-y: auto;">
                                 <HeaderContent>
                                     <MudTh>#</MudTh>
-                                    <MudTh>@AdminLoc["Migration_ItemCol_FileName"]</MudTh>
-                                    <MudTh>@AdminLoc["Migration_ItemCol_Staged"]</MudTh>
-                                    <MudTh>@AdminLoc["Migration_ColStatus"]</MudTh>
-                                    <MudTh>@AdminLoc["Migration_ItemCol_Error"]</MudTh>
+                                    <MudTh>@MigrationLoc["Migration_ItemCol_FileName"]</MudTh>
+                                    <MudTh>@MigrationLoc["Migration_ItemCol_Staged"]</MudTh>
+                                    <MudTh>@MigrationLoc["Migration_ColStatus"]</MudTh>
+                                    <MudTh>@MigrationLoc["Migration_ItemCol_Error"]</MudTh>
                                     @if (CanModifyStaging)
                                     {
                                         <MudTh Style="width: 60px;"></MudTh>
@@ -244,12 +245,12 @@
                                         @if (context.IsFileStaged)
                                         {
                                             <MudIcon Icon="@Icons.Material.Filled.CloudDone" Size="Size.Small" Color="Color.Success"
-                                                     aria-label="@AdminLoc["Migration_FileStaged_Yes"].Value" />
+                                                     aria-label="@MigrationLoc["Migration_FileStaged_Yes"].Value" />
                                         }
                                         else
                                         {
                                             <MudIcon Icon="@Icons.Material.Filled.CloudOff" Size="Size.Small" Color="Color.Default"
-                                                     aria-label="@AdminLoc["Migration_FileStaged_No"].Value" />
+                                                     aria-label="@MigrationLoc["Migration_FileStaged_No"].Value" />
                                         }
                                     </MudTd>
                                     <MudTd>
@@ -272,11 +273,11 @@
                                         <MudTd>
                                             @if (context.IsFileStaged && context.Status is "pending")
                                             {
-                                                <MudTooltip Text="@AdminLoc["Migration_UnstageFile"].Value">
+                                                <MudTooltip Text="@MigrationLoc["Migration_UnstageFile"].Value">
                                                     <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
                                                                    Color="Color.Warning"
                                                                    Size="Size.Small"
-                                                                   aria-label="@AdminLoc["Migration_UnstageFile"].Value"
+                                                                   aria-label="@MigrationLoc["Migration_UnstageFile"].Value"
                                                                    OnClick="@(() => UnstageItemAsync(context))" />
                                                 </MudTooltip>
                                             }
@@ -294,7 +295,7 @@
                         }
                         else
                         {
-                            <MudText Typo="Typo.caption">@AdminLoc["Migration_NoItems"]</MudText>
+                            <MudText Typo="Typo.caption">@MigrationLoc["Migration_NoItems"]</MudText>
                         }
                     </MudStack>
                 }
@@ -470,7 +471,7 @@
             // Reload migration to get updated item counts
             await LoadMigrationAsync();
 
-            Feedback.ShowSuccess(AdminLoc["Migration_ManifestUploaded"].Value);
+            Feedback.ShowSuccess(MigrationLoc["Migration_ManifestUploaded"].Value);
         }
         catch (Exception ex)
         {
@@ -518,7 +519,7 @@
             // Reload to refresh staged counts and item list
             await LoadMigrationAsync();
 
-            Feedback.ShowSuccess(string.Format(AdminLoc["Migration_FilesUploaded"].Value, _totalFilesUploaded));
+            Feedback.ShowSuccess(string.Format(MigrationLoc["Migration_FilesUploaded"].Value, _totalFilesUploaded));
         }
         catch (Exception ex)
         {
@@ -552,14 +553,14 @@
 
     private string GetStatusLabel(string status) => status switch
     {
-        "draft" => AdminLoc["Migration_Status_Draft"].Value,
-        "validating" => AdminLoc["Migration_Status_Validating"].Value,
-        "running" => AdminLoc["Migration_Status_Running"].Value,
-        "completed" => AdminLoc["Migration_Status_Completed"].Value,
-        "partially_completed" => AdminLoc["Migration_Status_PartiallyCompleted"].Value,
-        "completed_with_errors" => AdminLoc["Migration_Status_CompletedWithErrors"].Value,
-        "failed" => AdminLoc["Migration_Status_Failed"].Value,
-        "cancelled" => AdminLoc["Migration_Status_Cancelled"].Value,
+        "draft" => MigrationLoc["Migration_Status_Draft"].Value,
+        "validating" => MigrationLoc["Migration_Status_Validating"].Value,
+        "running" => MigrationLoc["Migration_Status_Running"].Value,
+        "completed" => MigrationLoc["Migration_Status_Completed"].Value,
+        "partially_completed" => MigrationLoc["Migration_Status_PartiallyCompleted"].Value,
+        "completed_with_errors" => MigrationLoc["Migration_Status_CompletedWithErrors"].Value,
+        "failed" => MigrationLoc["Migration_Status_Failed"].Value,
+        "cancelled" => MigrationLoc["Migration_Status_Cancelled"].Value,
         _ => status
     };
 
@@ -575,11 +576,11 @@
 
     private string GetItemStatusLabel(string status) => status switch
     {
-        "pending" => AdminLoc["Migration_ItemStatus_Pending"].Value,
-        "processing" => AdminLoc["Migration_ItemStatus_Processing"].Value,
-        "succeeded" => AdminLoc["Migration_ItemStatus_Succeeded"].Value,
-        "failed" => AdminLoc["Migration_ItemStatus_Failed"].Value,
-        "skipped" => AdminLoc["Migration_ItemStatus_Skipped"].Value,
+        "pending" => MigrationLoc["Migration_ItemStatus_Pending"].Value,
+        "processing" => MigrationLoc["Migration_ItemStatus_Processing"].Value,
+        "succeeded" => MigrationLoc["Migration_ItemStatus_Succeeded"].Value,
+        "failed" => MigrationLoc["Migration_ItemStatus_Failed"].Value,
+        "skipped" => MigrationLoc["Migration_ItemStatus_Skipped"].Value,
         _ => status
     };
 
@@ -597,7 +598,7 @@
 
         var ok = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.UnstageMigrationItemAsync(MigrationId, item.Id), "unstage file",
-            successMessage: AdminLoc["Migration_FileUnstaged"].Value);
+            successMessage: MigrationLoc["Migration_FileUnstaged"].Value);
         if (!ok)
         {
             // Rollback

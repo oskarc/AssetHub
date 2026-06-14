@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <!-- Admin Page -->
+  <data name="Migration_Title" xml:space="preserve"><value>Massimportmigrationer</value></data>
+  <data name="Migration_CreateNew" xml:space="preserve"><value>Ny migrering</value></data>
+  <data name="Migration_Empty" xml:space="preserve"><value>Inga migrationer ännu. Skapa en för att massimportera resurser.</value></data>
+  <data name="Migration_Detail" xml:space="preserve"><value>Migreringsdetaljer</value></data>
+  <data name="Migration_NotFound" xml:space="preserve"><value>Migrering hittades inte.</value></data>
+  <data name="Migration_ColName" xml:space="preserve"><value>Namn</value></data>
+  <data name="Migration_ColStatus" xml:space="preserve"><value>Status</value></data>
+  <data name="Migration_ColProgress" xml:space="preserve"><value>Förlopp</value></data>
+  <data name="Migration_ColCreated" xml:space="preserve"><value>Skapad</value></data>
+  <data name="Migration_Start" xml:space="preserve"><value>Starta</value></data>
+  <data name="Migration_Cancel" xml:space="preserve"><value>Avbryt</value></data>
+  <data name="Migration_Retry" xml:space="preserve"><value>Försök igen</value></data>
+  <data name="Migration_Delete" xml:space="preserve"><value>Radera</value></data>
+  <data name="Migration_DownloadOutcome" xml:space="preserve"><value>Ladda ner resultat-CSV</value></data>
+  <data name="Migration_Label_Name" xml:space="preserve"><value>Migreringsnamn</value></data>
+  <data name="Migration_Label_NameHelper" xml:space="preserve"><value>Ett beskrivande namn för denna importomgång.</value></data>
+  <data name="Migration_Label_DefaultCollection" xml:space="preserve"><value>Standardsamling</value></data>
+  <data name="Migration_Label_DefaultCollectionHelper" xml:space="preserve"><value>Alla importerade resurser läggs till i denna samling. Resurser kan även tilldelas ytterligare samlingar per rad via CSV-kolumnen collection_names.</value></data>
+  <data name="Migration_CollectionMode_Existing" xml:space="preserve"><value>Befintlig</value></data>
+  <data name="Migration_CollectionMode_New" xml:space="preserve"><value>Skapa ny</value></data>
+  <data name="Migration_Label_NewCollectionName" xml:space="preserve"><value>Nytt samlingsnamn</value></data>
+  <data name="Migration_Label_NewCollectionNameHelper" xml:space="preserve"><value>En ny samling skapas med detta namn. Om en samling med detta namn redan finns återanvänds den.</value></data>
+  <data name="Migration_Label_DryRun" xml:space="preserve"><value>Testkörning</value></data>
+  <data name="Migration_Label_DryRunHelper" xml:space="preserve"><value>Vid aktivering valideras data utan att resurser skapas.</value></data>
+  <data name="Migration_CreatedSuccess" xml:space="preserve"><value>Migrering "{0}" skapad.</value></data>
+  <data name="Migration_ConfirmStartTitle" xml:space="preserve"><value>Starta migrering</value></data>
+  <data name="Migration_ConfirmStartMessage" xml:space="preserve"><value>Är du säker på att du vill starta bearbetningen av denna migrering? Detta påbörjar import av alla poster.</value></data>
+  <data name="Migration_StartedSuccess" xml:space="preserve"><value>Migrering startad.</value></data>
+  <data name="Migration_ConfirmCancelTitle" xml:space="preserve"><value>Avbryt migrering</value></data>
+  <data name="Migration_ConfirmCancelMessage" xml:space="preserve"><value>Är du säker på att du vill avbryta denna migrering? Redan bearbetade poster behålls.</value></data>
+  <data name="Migration_CancelledSuccess" xml:space="preserve"><value>Migrering avbruten.</value></data>
+  <data name="Migration_RetryStartedSuccess" xml:space="preserve"><value>Omförsök startat för misslyckade poster.</value></data>
+  <data name="Migration_ConfirmDeleteTitle" xml:space="preserve"><value>Radera migrering</value></data>
+  <data name="Migration_ConfirmDeleteMessage" xml:space="preserve"><value>Är du säker på att du vill permanent radera denna migrering? Detta kan inte ångras.</value></data>
+  <data name="Migration_BulkDelete" xml:space="preserve"><value>Massradering</value></data>
+  <data name="Migration_BulkDelete_Completed" xml:space="preserve"><value>Slutförda migreringar</value></data>
+  <data name="Migration_BulkDelete_Draft" xml:space="preserve"><value>Utkast-migreringar</value></data>
+  <data name="Migration_BulkDelete_All" xml:space="preserve"><value>Alla migreringar</value></data>
+  <data name="Migration_ConfirmBulkDeleteTitle" xml:space="preserve"><value>Massradera migreringar</value></data>
+  <data name="Migration_ConfirmBulkDeleteMessage" xml:space="preserve"><value>Är du säker på att du vill permanent radera alla {0}? Pågående migreringar påverkas inte.</value></data>
+  <data name="Migration_BulkDeleteSuccess" xml:space="preserve"><value>{0} migrering(ar) raderade.</value></data>
+  <data name="Migration_OutcomeDownloaded" xml:space="preserve"><value>Resultat-CSV nedladdad.</value></data>
+  <data name="Migration_UploadManifest" xml:space="preserve"><value>CSV-manifest</value></data>
+  <data name="Migration_SelectCsvFile" xml:space="preserve"><value>Välj CSV-fil</value></data>
+  <data name="Migration_ManifestUploaded" xml:space="preserve"><value>Manifest uppladdat och poster skapade.</value></data>  <data name="Migration_ManifestHelp_Intro" xml:space="preserve"><value>Skapa en UTF-8-kodad CSV-fil. Första raden måste innehålla kolumnrubriker. Varje efterföljande rad representerar en resurs att importera.</value></data>
+  <data name="Migration_ManifestHelp_RequiredHeader" xml:space="preserve"><value>Obligatorisk kolumn:</value></data>
+  <data name="Migration_ManifestHelp_Filename" xml:space="preserve"><value>Filnamn på resursen (måste matcha den uppladdade filen exakt).</value></data>
+  <data name="Migration_ManifestHelp_OptionalHeader" xml:space="preserve"><value>Valfria kolumner:</value></data>
+  <data name="Migration_ManifestHelp_ExternalId" xml:space="preserve"><value>Unik identifierare från källsystemet. Använder filnamn som standard om det utelämnas.</value></data>
+  <data name="Migration_ManifestHelp_TitleCol" xml:space="preserve"><value>Visningsnamn för resursen. Använder filnamn utan filändelse som standard.</value></data>
+  <data name="Migration_ManifestHelp_Description" xml:space="preserve"><value>Fritextbeskrivning av resursen.</value></data>
+  <data name="Migration_ManifestHelp_Copyright" xml:space="preserve"><value>Upphovsrätts- eller licensinformation.</value></data>
+  <data name="Migration_ManifestHelp_Tags" xml:space="preserve"><value>Semikolonseparerade taggar, t.ex. "natur;landskap;sommar".</value></data>
+  <data name="Migration_ManifestHelp_Collections" xml:space="preserve"><value>Semikolonseparerade samlingsnamn att tilldela resursen till, utöver den standardsamling som valts ovan. Samlingar matchas på namn och skapas om de inte finns.</value></data>
+  <data name="Migration_ManifestHelp_Sha256" xml:space="preserve"><value>Förberäknad SHA-256-hash för dubblettdetektering.</value></data>
+  <data name="Migration_ManifestHelp_Metadata" xml:space="preserve"><value>Anpassad metadata. Använd "metadata."-prefix, t.ex. "metadata.fotograf" blir ett metadatafält med namnet "fotograf".</value></data>
+  <data name="Migration_ManifestHelp_ExampleHeader" xml:space="preserve"><value>Exempel:</value></data>
+  <data name="Migration_ManifestHelp_Example" xml:space="preserve"><value>filename,title,tags,collection_names
+photo1.jpg,Sunset Beach,"natur;solnedgång",Landskap
+logo.png,Företagslogotyp,varumärke,"Varumärkesresurser;Marknadsföring"</value></data>  <data name="Migration_UploadFiles" xml:space="preserve"><value>Ladda upp resursfiler</value></data>
+  <data name="Migration_UploadFilesHelper" xml:space="preserve"><value>Ladda upp de faktiska resursfilerna som refereras i manifestet. Filnamnen måste matcha kolumnen "filename".</value></data>
+  <data name="Migration_SelectFiles" xml:space="preserve"><value>Välj filer</value></data>
+  <data name="Migration_FilesUploaded" xml:space="preserve"><value>{0} fil(er) uppladdade till mellanlagring.</value></data>
+  <data name="Migration_Items" xml:space="preserve"><value>Poster</value></data>
+  <data name="Migration_NoItems" xml:space="preserve"><value>Inga poster matchar det aktuella filtret.</value></data>
+  <data name="Migration_FilterByStatus" xml:space="preserve"><value>Filtrera på status</value></data>
+  <data name="Migration_Total" xml:space="preserve"><value>Totalt</value></data>
+  <data name="Migration_ItemCol_FileName" xml:space="preserve"><value>Filnamn</value></data>
+  <data name="Migration_ItemCol_Staged" xml:space="preserve"><value>Förberedd</value></data>
+  <data name="Migration_ItemCol_Error" xml:space="preserve"><value>Fel</value></data>
+  <data name="Migration_FilesStaged" xml:space="preserve"><value>{0} av {1} filer förberedda</value></data>
+  <data name="Migration_FileStaged_Yes" xml:space="preserve"><value>Fil uppladdad</value></data>
+  <data name="Migration_FileStaged_No" xml:space="preserve"><value>Fil ej uppladdad</value></data>
+  <data name="Migration_UnstageFile" xml:space="preserve"><value>Ta bort förberedd fil</value></data>
+  <data name="Migration_FileUnstaged" xml:space="preserve"><value>Fil borttagen från förberedelse</value></data>
+  <data name="Migration_StartTooltip" xml:space="preserve"><value>Starta migrering ({0} av {1} filer redo)</value></data>
+  <data name="Migration_Staged" xml:space="preserve"><value>förberedda</value></data>
+  <data name="Migration_SourceType_Label" xml:space="preserve"><value>Källtyp</value></data>
+  <data name="Migration_SourceType_Csv" xml:space="preserve"><value>CSV-uppladdning</value></data>
+  <data name="Migration_SourceType_S3" xml:space="preserve"><value>S3-bucket</value></data>
+  <data name="Migration_SourceType_Csv_Helper" xml:space="preserve"><value>Ladda upp ett CSV-manifest och filerna. Bäst för engångsimporter eller bibliotek på en laptop.</value></data>
+  <data name="Migration_SourceType_S3_Helper" xml:space="preserve"><value>Hämta objekt direkt från en S3-kompatibel bucket. Ingen lokal uppladdning krävs; inloggningsuppgifter krypteras i lagring.</value></data>
+  <data name="Migration_S3_SectionTitle" xml:space="preserve"><value>S3-anslutning</value></data>
+  <data name="Migration_S3_Endpoint" xml:space="preserve"><value>Endpoint-URL</value></data>
+  <data name="Migration_S3_Endpoint_Helper" xml:space="preserve"><value>Fullständig URL inklusive schema, t.ex. https://s3.eu-west-1.amazonaws.com eller http://minio.local:9000.</value></data>
+  <data name="Migration_S3_Bucket" xml:space="preserve"><value>Bucket-namn</value></data>
+  <data name="Migration_S3_Bucket_Helper" xml:space="preserve"><value>Källbucketen som innehåller tillgångarna att migrera.</value></data>
+  <data name="Migration_S3_Prefix" xml:space="preserve"><value>Prefix (valfritt)</value></data>
+  <data name="Migration_S3_Prefix_Helper" xml:space="preserve"><value>Begränsa sökningen till objekt vars nyckel börjar med detta prefix, t.ex. "images/".</value></data>
+  <data name="Migration_S3_Region" xml:space="preserve"><value>Region (valfritt)</value></data>
+  <data name="Migration_S3_Region_Helper" xml:space="preserve"><value>AWS-region, t.ex. eu-west-1. Krävs inte för MinIO eller icke-AWS-endpoints.</value></data>
+  <data name="Migration_S3_AccessKey" xml:space="preserve"><value>Åtkomstnyckel</value></data>
+  <data name="Migration_S3_AccessKey_Helper" xml:space="preserve"><value>Identifierare för nyckelparet. Börjar vanligtvis med "AKIA" på AWS.</value></data>
+  <data name="Migration_S3_SecretKey" xml:space="preserve"><value>Hemlig nyckel</value></data>
+  <data name="Migration_S3_SecretKey_Helper" xml:space="preserve"><value>Krypteras före lagring. Visas en gång, aldrig i klartext igen.</value></data>
+  <data name="Migration_StartS3Scan" xml:space="preserve"><value>Skanna S3-bucket</value></data>
+  <data name="Migration_StartS3Scan_Tooltip" xml:space="preserve"><value>Lista objekt i den konfigurerade S3-bucketen och skapa ett migreringsobjekt per objekt.</value></data>
+  <data name="Migration_S3ScanQueued" xml:space="preserve"><value>S3-skanning köad. Objekt dyker upp när skanningen är klar.</value></data>
+  <data name="Migration_Status_Draft" xml:space="preserve"><value>Utkast</value></data>
+  <data name="Migration_Status_Validating" xml:space="preserve"><value>Validerar</value></data>
+  <data name="Migration_Status_Running" xml:space="preserve"><value>Körs</value></data>
+  <data name="Migration_Status_Completed" xml:space="preserve"><value>Slutförd</value></data>
+  <data name="Migration_Status_PartiallyCompleted" xml:space="preserve"><value>Delvis slutförd</value></data>
+  <data name="Migration_Status_CompletedWithErrors" xml:space="preserve"><value>Slutförd med fel</value></data>
+  <data name="Migration_Status_Failed" xml:space="preserve"><value>Misslyckad</value></data>
+  <data name="Migration_Status_Cancelled" xml:space="preserve"><value>Avbruten</value></data>
+  <data name="Migration_ItemStatus_Pending" xml:space="preserve"><value>Väntande</value></data>
+  <data name="Migration_ItemStatus_Processing" xml:space="preserve"><value>Bearbetar</value></data>
+  <data name="Migration_ItemStatus_Succeeded" xml:space="preserve"><value>Lyckad</value></data>
+  <data name="Migration_ItemStatus_Failed" xml:space="preserve"><value>Misslyckad</value></data>
+  <data name="Migration_ItemStatus_Skipped" xml:space="preserve"><value>Hoppades över</value></data>
+  <data name="Migration_Instructions_Title" xml:space="preserve"><value>CSV-formatinstruktioner</value></data>
+  <data name="Migration_FilesCountMismatch" xml:space="preserve"><value>Du har laddat upp {0} fil(er) men manifestet innehåller {1} post(er). Se till att alla filer som refereras i manifestet är uppladdade innan du startar.</value></data>
+</root>
