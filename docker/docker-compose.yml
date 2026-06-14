@@ -227,6 +227,11 @@ services:
       # in sync with the api service above.
       App__BaseUrl: "https://assethub.local:7252"
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
+      # Worker resolves recipient emails via UserLookupService (Keycloak's user_entity table)
+      # when sending notification emails — must point at the keycloak DB, same as the api service.
+      # Missing this caused SendNotificationEmailHandler to fail with 42P01 "relation user_entity
+      # does not exist" (it had silently fallen back to the AssetHub Postgres DB).
+      ConnectionStrings__KeycloakDb: "Server=postgres;Port=5432;Database=keycloak;User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
       MinIO__SecretKey: "${MINIO_SECRET_KEY}"

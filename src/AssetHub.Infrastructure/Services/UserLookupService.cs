@@ -18,9 +18,15 @@ public sealed class UserLookupService(
     HybridCache cache,
     ILogger<UserLookupService> logger) : IUserLookupService
 {
-    private readonly string _connectionString = configuration.GetConnectionString("KeycloakDb") 
-        ?? configuration.GetConnectionString("Postgres") 
-        ?? throw new InvalidOperationException("KeycloakDb or Postgres connection string is required");
+    // Must be Keycloak's database — every query here targets its user_entity table.
+    // Do NOT fall back to the AssetHub Postgres connection: it points at a different
+    // database with no user_entity table, which turns a missing-config mistake into a
+    // confusing runtime "42P01 relation \"user_entity\" does not exist" the first time a
+    // notification email (or user lookup) fires. Fail loud with an actionable message instead.
+    private readonly string _connectionString = configuration.GetConnectionString("KeycloakDb")
+        ?? throw new InvalidOperationException(
+            "ConnectionStrings:KeycloakDb is required — UserLookupService queries Keycloak's "
+            + "user_entity table. Configure it for every host that resolves users (Api and Worker).");
 
     public async Task<Dictionary<string, string>> GetUserNamesAsync(IEnumerable<string> userIds, CancellationToken ct = default)
     {
