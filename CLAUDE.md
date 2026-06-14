@@ -151,7 +151,7 @@ Primary constructors with `AssetHubDbContext`, `HybridCache`, `ILogger<T>`. Use 
 - `.ToDictionary(a => a.Id)` to avoid N+1.
 
 ### DbContext configuration
-- Entity config lives in per-entity `IEntityTypeConfiguration<T>` classes under `Data/Configurations/`, applied from `OnModelCreating()` via `modelBuilder.ApplyConfiguration(...)` — `BrandConfiguration` is the exemplar. Legacy inline blocks in `OnModelCreating()` are migrated entity-by-entity as they're touched; **never add a new inline block**. A config split must produce a byte-identical model (EF's `PendingModelChangesWarning` throws outside Development if it doesn't).
+- Entity config lives in per-entity `IEntityTypeConfiguration<T>` classes under `Data/Configurations/`, applied from `OnModelCreating()` via `modelBuilder.ApplyConfiguration(...)` — every entity now follows this (`BrandConfiguration` is the exemplar); shared JSONB conventions + value comparers live in `Configurations/ModelConventions`. **Never add a new inline block in `OnModelCreating()`** — add a new `*Configuration` class and an `ApplyConfiguration` call. A config change must keep the model byte-identical to the migration history unless it ships with a migration (EF's `PendingModelChangesWarning` throws outside Development; verify with `dotnet ef migrations has-pending-model-changes`).
 - JSONB columns: include column type, JSON serialization converter, and a **ValueComparer** (critical for change tracking).
 - Enums stored as strings via `ToDbString()` / `ToExampleStatus()` extension methods.
 - Index naming: `idx_{entity}_{fields}` with `_unique` suffix for unique.
