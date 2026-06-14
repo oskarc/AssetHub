@@ -89,20 +89,10 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        try
-        {
-            var response = await Api.GetTrashAsync();
-            _items = response.Items;
-        }
-        catch
-        {
-            Feedback.ShowError(CommonLoc["Error_LoadFailed"].Value);
-            _items = new();
-        }
-        finally
-        {
-            _loading = false;
-        }
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetTrashAsync(), "load trash");
+        _items = ok && response is not null ? response.Items : new();
+        _loading = false;
     }
 
     private async Task RestoreAsync(TrashedAssetDto item)
@@ -112,16 +102,13 @@ else
         _items!.Remove(item);
         StateHasChanged();
 
-        try
-        {
-            await Api.RestoreFromTrashAsync(item.Id);
-            Feedback.ShowSuccess(string.Format(AdminLoc["Trash_Restored"].Value, item.Title));
-        }
-        catch
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RestoreFromTrashAsync(item.Id), "restore from trash",
+            successMessage: string.Format(AdminLoc["Trash_Restored"].Value, item.Title));
+        if (!ok)
         {
             _items!.Add(removed);
             StateHasChanged();
-            Feedback.ShowError(CommonLoc["Error_RestoreFailed"].Value);
         }
     }
 
@@ -139,16 +126,13 @@ else
         _items!.Remove(item);
         StateHasChanged();
 
-        try
-        {
-            await Api.PurgeFromTrashAsync(item.Id);
-            Feedback.ShowSuccess(string.Format(AdminLoc["Trash_Purged"].Value, item.Title));
-        }
-        catch
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.PurgeFromTrashAsync(item.Id), "purge from trash",
+            successMessage: string.Format(AdminLoc["Trash_Purged"].Value, item.Title));
+        if (!ok)
         {
             _items!.Add(removed);
             StateHasChanged();
-            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
         }
     }
 
@@ -164,15 +148,12 @@ else
             confirmColor: Color.Error);
         if (!confirmed) return;
 
-        try
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.EmptyTrashAsync(), "empty trash");
+        if (ok && response is not null)
         {
-            var response = await Api.EmptyTrashAsync();
             Feedback.ShowSuccess(string.Format(AdminLoc["Trash_Emptied"].Value, response.Purged, response.Failed));
             await LoadAsync();
-        }
-        catch
-        {
-            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
         }
     }
 

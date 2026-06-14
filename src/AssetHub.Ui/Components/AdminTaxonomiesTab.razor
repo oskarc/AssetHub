@@ -76,19 +76,10 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        try
-        {
-            _taxonomies = await Api.GetTaxonomiesAsync();
-        }
-        catch
-        {
-            Feedback.ShowError(CommonLoc["Error_LoadFailed"].Value);
-            _taxonomies = [];
-        }
-        finally
-        {
-            _loading = false;
-        }
+        var (ok, taxonomies) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetTaxonomiesAsync(), "load taxonomies");
+        _taxonomies = ok && taxonomies is not null ? taxonomies : [];
+        _loading = false;
     }
 
     private async Task OpenCreateDialog()
@@ -102,9 +93,9 @@ else
 
     private async Task OpenEditDialog(TaxonomySummaryDto taxonomy)
     {
-        TaxonomyDto? full = null;
-        try { full = await Api.GetTaxonomyAsync(taxonomy.Id); }
-        catch { Feedback.ShowError(CommonLoc["Error_LoadFailed"].Value); return; }
+        var (ok, full) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetTaxonomyAsync(taxonomy.Id), "load taxonomy");
+        if (!ok) return;
         if (full is null) { await LoadAsync(); return; }
 
         var parameters = new DialogParameters<TaxonomyDialog>
@@ -133,16 +124,13 @@ else
         _taxonomies!.Remove(taxonomy);
         StateHasChanged();
 
-        try
-        {
-            await Api.DeleteTaxonomyAsync(taxonomy.Id);
-        }
-        catch
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteTaxonomyAsync(taxonomy.Id), "delete taxonomy");
+        if (!ok)
         {
             // Rollback
             _taxonomies!.Add(taxonomy);
             StateHasChanged();
-            Feedback.ShowError(CommonLoc["Error_DeleteFailed"].Value);
         }
     }
 }

@@ -100,20 +100,13 @@
 
     private async Task LoadAsync()
     {
-        try
-        {
-            _loading = true;
-            _invitations = await Api.GetGuestInvitationsAsync(_cts.Token);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load guest invitations");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
+        _loading = true;
+        var (ok, invitations) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetGuestInvitationsAsync(_cts.Token), "load guest invitations");
+        if (ok && invitations is not null)
+            _invitations = invitations;
+        _loading = false;
+        StateHasChanged();
     }
 
     private async Task OnInviteAsync()
@@ -139,15 +132,10 @@
             yesText: Loc["Btn_Revoke"], cancelText: Loc["Dialog_Cancel"]);
         if (confirmed != true) return;
 
-        try
-        {
-            await Api.RevokeGuestInvitationAsync(invitation.Id, _cts.Token);
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RevokeGuestInvitationAsync(invitation.Id, _cts.Token), "revoke guest invitation");
+        if (ok)
             await LoadAsync();
-        }
-        catch (Exception)
-        {
-            Feedback.ShowError(Loc["Action_Failed"].Value);
-        }
     }
 
     private static Color StatusColor(string status) => status switch

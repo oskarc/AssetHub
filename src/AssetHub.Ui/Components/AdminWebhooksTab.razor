@@ -125,21 +125,13 @@
 
     private async Task LoadAsync()
     {
-        try
-        {
-            _loading = true;
-            _webhooks = await Api.GetWebhooksAsync(_cts.Token);
-        }
-        catch (OperationCanceledException) { /* tab disposing */ }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load webhooks");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
+        _loading = true;
+        var (ok, webhooks) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetWebhooksAsync(_cts.Token), "load webhooks");
+        if (ok && webhooks is not null)
+            _webhooks = webhooks;
+        _loading = false;
+        StateHasChanged();
     }
 
     private async Task OnCreateAsync()
@@ -157,15 +149,10 @@
 
     private async Task OnTestAsync(WebhookResponseDto webhook)
     {
-        try
-        {
-            await Api.SendWebhookTestAsync(webhook.Id, _cts.Token);
+        var (ok, _) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SendWebhookTestAsync(webhook.Id, _cts.Token), "send webhook test");
+        if (ok)
             Feedback.ShowInfo(Loc["Test_SentDesc"].Value);
-        }
-        catch (Exception)
-        {
-            Feedback.ShowError(Loc["Action_Failed"].Value);
-        }
     }
 
     private async Task OnRotateAsync(WebhookResponseDto webhook)
@@ -175,15 +162,10 @@
             yesText: Loc["Btn_RotateSecret"], cancelText: Loc["Dialog_Cancel"]);
         if (confirmed != true) return;
 
-        try
-        {
-            var rotated = await Api.RotateWebhookSecretAsync(webhook.Id, _cts.Token);
+        var (ok, rotated) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RotateWebhookSecretAsync(webhook.Id, _cts.Token), "rotate webhook secret");
+        if (ok && rotated is not null)
             await ShowSecretAsync(rotated.PlaintextSecret);
-        }
-        catch (Exception)
-        {
-            Feedback.ShowError(Loc["Action_Failed"].Value);
-        }
     }
 
     private async Task OnViewDeliveriesAsync(WebhookResponseDto webhook)
@@ -206,15 +188,12 @@
         var removed = webhook;
         _webhooks?.Remove(removed);
         StateHasChanged();
-        try
-        {
-            await Api.DeleteWebhookAsync(webhook.Id, _cts.Token);
-        }
-        catch (Exception)
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteWebhookAsync(webhook.Id, _cts.Token), "delete webhook");
+        if (!ok)
         {
             _webhooks?.Add(removed);
             StateHasChanged();
-            Feedback.ShowError(Loc["Action_Failed"].Value);
         }
     }
 

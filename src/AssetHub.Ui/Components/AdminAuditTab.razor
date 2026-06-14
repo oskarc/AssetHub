@@ -207,21 +207,20 @@ else
 
     private async Task LoadAsync(bool reset = false)
     {
-        try
+        _auditLoading = true;
+
+        if (reset)
         {
-            _auditLoading = true;
+            _auditEvents = null;
+            _nextCursor = null;
+        }
 
-            if (reset)
-            {
-                _auditEvents = null;
-                _nextCursor = null;
-            }
-
-            var response = await Api.GetAuditEventsPaginatedAsync(
-                pageSize: 50,
-                cursor: _nextCursor);
-
-            if (reset || _auditEvents == null)
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetAuditEventsPaginatedAsync(pageSize: 50, cursor: _nextCursor),
+            "load audit events");
+        if (ok && response is not null)
+        {
+            if (reset || _auditEvents is null)
             {
                 _auditEvents = response.Items;
             }
@@ -234,14 +233,8 @@ else
             _hasMore = response.HasMore;
             _totalCount = response.TotalCount;
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load audit events");
-        }
-        finally
-        {
-            _auditLoading = false;
-        }
+
+        _auditLoading = false;
     }
 
     private async Task LoadMoreAsync()

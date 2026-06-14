@@ -196,32 +196,27 @@ else
 
     private async Task LoadAsync(bool reset = false)
     {
-        try
+        _sharesLoading = true;
+
+        if (reset)
+            _shares = null;
+
+        var skip = _shares?.Count ?? 0;
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetAllSharesAsync(skip: skip, take: PageSize), "load shares");
+        if (ok && response is not null)
         {
-            _sharesLoading = true;
-
-            if (reset)
-                _shares = null;
-
-            var skip = _shares?.Count ?? 0;
-            var response = await Api.GetAllSharesAsync(skip: skip, take: PageSize);
             _totalCount = response.Total;
 
-            if (reset || _shares == null)
+            if (reset || _shares is null)
                 _shares = response.Items;
             else
                 _shares.AddRange(response.Items);
 
             _hasMore = _shares.Count < _totalCount;
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load shares");
-        }
-        finally
-        {
-            _sharesLoading = false;
-        }
+
+        _sharesLoading = false;
     }
 
     private async Task LoadMoreAsync()

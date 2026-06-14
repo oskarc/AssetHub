@@ -94,19 +94,10 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        try
-        {
-            _schemas = await Api.GetMetadataSchemasAsync();
-        }
-        catch
-        {
-            Feedback.ShowError(CommonLoc["Error_LoadFailed"].Value);
-            _schemas = [];
-        }
-        finally
-        {
-            _loading = false;
-        }
+        var (ok, schemas) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetMetadataSchemasAsync(), "load metadata schemas");
+        _schemas = ok && schemas is not null ? schemas : [];
+        _loading = false;
     }
 
     private async Task OpenCreateDialog()

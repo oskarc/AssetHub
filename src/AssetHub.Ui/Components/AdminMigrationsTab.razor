@@ -222,14 +222,14 @@
 
     private async Task LoadAsync(bool reset = false)
     {
-        try
+        _loading = true;
+        StateHasChanged();
+
+        var skip = reset ? 0 : (_migrations?.Count ?? 0);
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetMigrationsAsync(skip: skip, take: PageSize), "load migrations");
+        if (ok && response is not null)
         {
-            _loading = true;
-            StateHasChanged();
-
-            var skip = reset ? 0 : (_migrations?.Count ?? 0);
-            var response = await Api.GetMigrationsAsync(skip: skip, take: PageSize);
-
             if (reset || _migrations is null)
                 _migrations = response.Migrations;
             else
@@ -238,15 +238,9 @@
             _total = response.TotalCount;
             _hasMore = _migrations.Count < _total;
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load migrations");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
+
+        _loading = false;
+        StateHasChanged();
     }
 
     private async Task LoadMoreAsync() => await LoadAsync(reset: false);
@@ -412,15 +406,12 @@
 
         if (confirmed != true) return;
 
-        try
+        var (ok, count) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.BulkDeleteMigrationsAsync(filter), "bulk delete migrations");
+        if (ok)
         {
-            var count = await Api.BulkDeleteMigrationsAsync(filter);
             Feedback.ShowSuccess(string.Format(AdminLoc["Migration_BulkDeleteSuccess"].Value, count));
             await LoadAsync(reset: true);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "bulk delete migrations");
         }
     }
 

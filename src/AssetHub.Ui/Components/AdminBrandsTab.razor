@@ -118,20 +118,13 @@
 
     private async Task LoadAsync()
     {
-        try
-        {
-            _loading = true;
-            _brands = await Api.GetBrandsAsync(_cts.Token);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load brands");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
+        _loading = true;
+        var (ok, brands) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetBrandsAsync(_cts.Token), "load brands");
+        if (ok && brands is not null)
+            _brands = brands;
+        _loading = false;
+        StateHasChanged();
     }
 
     private async Task OnCreateAsync()
@@ -166,15 +159,12 @@
         var removed = brand;
         _brands?.Remove(removed);
         StateHasChanged();
-        try
-        {
-            await Api.DeleteBrandAsync(brand.Id, _cts.Token);
-        }
-        catch (Exception)
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteBrandAsync(brand.Id, _cts.Token), "delete brand");
+        if (!ok)
         {
             _brands?.Add(removed);
             StateHasChanged();
-            Feedback.ShowError(Loc["Action_Failed"].Value);
         }
     }
 
@@ -191,15 +181,10 @@
 
     private async Task OnRemoveLogoAsync(BrandResponseDto brand)
     {
-        try
-        {
-            await Api.RemoveBrandLogoAsync(brand.Id, _cts.Token);
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RemoveBrandLogoAsync(brand.Id, _cts.Token), "remove brand logo");
+        if (ok)
             await LoadAsync();
-        }
-        catch (Exception)
-        {
-            Feedback.ShowError(Loc["Action_Failed"].Value);
-        }
     }
 
     public async ValueTask DisposeAsync()

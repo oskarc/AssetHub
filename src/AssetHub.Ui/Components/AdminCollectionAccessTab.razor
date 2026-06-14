@@ -229,21 +229,12 @@ else
 
     private async Task LoadBrandsAsync()
     {
-        try
-        {
-            _brandsLoading = true;
-            _brands = await Api.GetBrandsAsync();
-        }
-        catch (Exception ex)
-        {
-            // Brand failures shouldn't break the rest of the tab — the admin
-            // can still manage ACLs.
-            Feedback.HandleError(ex, "load brands");
-        }
-        finally
-        {
-            _brandsLoading = false;
-        }
+        _brandsLoading = true;
+        var (ok, brands) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetBrandsAsync(), "load brands");
+        if (ok && brands is not null)
+            _brands = brands;
+        _brandsLoading = false;
     }
 
     private async Task OnBrandChangedAsync(Guid? newBrandId)
@@ -252,26 +243,20 @@ else
         if (_selectedCollection.BrandId == newBrandId) return; // no-op
 
         _changingBrand = true;
-        try
+        var collectionId = _selectedCollection.Id;
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => newBrandId is { } brandId
+                ? Api.AssignBrandToCollectionAsync(brandId, collectionId)
+                : Api.UnassignBrandFromCollectionAsync(collectionId),
+            "assign brand to collection",
+            successMessage: AdminLoc["Brand_Updated_Success"].Value);
+        if (ok)
         {
-            if (newBrandId is { } brandId)
-                await Api.AssignBrandToCollectionAsync(brandId, _selectedCollection.Id);
-            else
-                await Api.UnassignBrandFromCollectionAsync(_selectedCollection.Id);
-
-            Feedback.ShowSuccess(AdminLoc["Brand_Updated_Success"].Value);
             await LoadCollectionsAsync();
-            _selectedCollection = CollectionTreeHelper.FindById(_collections, _selectedCollection.Id);
+            _selectedCollection = CollectionTreeHelper.FindById(_collections, collectionId);
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "assign brand to collection");
-        }
-        finally
-        {
-            _changingBrand = false;
-            StateHasChanged();
-        }
+        _changingBrand = false;
+        StateHasChanged();
     }
 
     public async Task RefreshAsync()
@@ -282,23 +267,17 @@ else
 
     private async Task LoadCollectionsAsync()
     {
-        try
+        _collectionsLoading = true;
+        var selectedId = _selectedCollection?.Id;
+        var (ok, collections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionAccessAsync(), "load collections");
+        if (ok && collections is not null)
         {
-            _collectionsLoading = true;
-            var selectedId = _selectedCollection?.Id;
-            _collections = await Api.GetCollectionAccessAsync();
-
+            _collections = collections;
             if (selectedId.HasValue)
                 _selectedCollection = CollectionTreeHelper.FindById(_collections, selectedId.Value);
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
-        }
-        finally
-        {
-            _collectionsLoading = false;
-        }
+        _collectionsLoading = false;
     }
 
     private RenderFragment RenderCollectionItem(CollectionAccessDto collection) => __builder =>

@@ -23,16 +23,15 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
         MockFeedback = new Mock<IUserFeedbackService>();
         MockDialogService = new Mock<IDialogService>();
 
-        // Setup ExecuteWithFeedbackAsync to invoke the provided action (pass-through)
-        // so tests can verify inner API calls and error handling.
-        SetupFeedbackPassThrough();
-
         // Register MudBlazor services
         Services.AddMudServices();
 
-        // Register mocked services
+        // Register mocked services. The feedback service is wrapped in a pass-through
+        // that genuinely runs ExecuteWithFeedbackAsync (for any T) and delegates the
+        // verifiable Show*/Handle* calls to MockFeedback — so tests can both observe
+        // the inner API call and verify error handling, without per-type Moq setup.
         Services.AddSingleton(MockApi.Object);
-        Services.AddSingleton(MockFeedback.Object);
+        Services.AddSingleton<IUserFeedbackService>(new PassThroughFeedbackService(MockFeedback.Object));
 
         // Register stub IStringLocalizer<T> for all resource types — returns the key as the value
         Services.AddSingleton<IStringLocalizer<CommonResource>>(new StubStringLocalizer<CommonResource>());
@@ -130,41 +129,48 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
     }
 
     /// <summary>
-    /// Sets up ExecuteWithFeedbackAsync (void and common generic overloads) to invoke
-    /// the provided action and delegate error handling to HandleError, matching real behavior.
+    /// Pass-through <see cref="IUserFeedbackService"/> for component tests. Delegates the
+    /// observable Show*/Handle* calls to the supplied <see cref="MockFeedback"/> (so the
+    /// existing Verify helpers keep working) while implementing the wrapper overloads
+    /// concretely — generic over any <c>T</c>, mirroring the real service's semantics
+    /// (success snackbar, benign cancellation, ApiException vs. generic error routing).
     /// </summary>
-    private void SetupFeedbackPassThrough()
+    private sealed class PassThroughFeedbackService(IUserFeedbackService inner) : IUserFeedbackService
     {
-        MockFeedback
-            .Setup(f => f.ExecuteWithFeedbackAsync(
-                It.IsAny<Func<Task>>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>()))
-            .Returns(async (Func<Task> action, string name, string? msg) =>
-            {
-                try { await action(); return true; }
-                catch (OperationCanceledException) { return false; }
-                catch (Exception ex) { MockFeedback.Object.HandleError(ex, name); return false; }
-            });
+        public void ShowSuccess(string message) => inner.ShowSuccess(message);
+        public void ShowActionableInfo(string message, string actionLabel, Func<Task> onAction, int durationMs = 10000)
+            => inner.ShowActionableInfo(message, actionLabel, onAction, durationMs);
+        public void ShowInfo(string message) => inner.ShowInfo(message);
+        public void ShowWarning(string message) => inner.ShowWarning(message);
+        public void ShowError(string message) => inner.ShowError(message);
+        public void HandleError(Exception ex, string operationName) => inner.HandleError(ex, operationName);
+        public void HandleApiError(ApiException ex, string operationName) => inner.HandleApiError(ex, operationName);
 
-        SetupGenericFeedback<CollectionResponseDto>();
-        SetupGenericFeedback<AssetResponseDto>();
-        SetupGenericFeedback<ShareResponseDto>();
-    }
-
-    private void SetupGenericFeedback<T>() where T : class
-    {
-        MockFeedback
-            .Setup(f => f.ExecuteWithFeedbackAsync(
-                It.IsAny<Func<Task<T>>>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>()))
-            .Returns(async (Func<Task<T>> action, string name, string? msg) =>
+        public async Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null)
+        {
+            try
             {
-                try { var result = await action(); return (true, (T?)result); }
-                catch (OperationCanceledException) { return (false, default(T)); }
-                catch (Exception ex) { MockFeedback.Object.HandleError(ex, name); return (false, default(T)); }
-            });
+                await operation();
+                if (successMessage is not null) inner.ShowSuccess(successMessage);
+                return true;
+            }
+            catch (OperationCanceledException) { return false; }
+            catch (ApiException ex) { inner.HandleApiError(ex, operationName); return false; }
+            catch (Exception ex) { inner.HandleError(ex, operationName); return false; }
+        }
+
+        public async Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null)
+        {
+            try
+            {
+                var result = await operation();
+                if (successMessage is not null) inner.ShowSuccess(successMessage);
+                return (true, result);
+            }
+            catch (OperationCanceledException) { return (false, default); }
+            catch (ApiException ex) { inner.HandleApiError(ex, operationName); return (false, default); }
+            catch (Exception ex) { inner.HandleError(ex, operationName); return (false, default); }
+        }
     }
 }
 

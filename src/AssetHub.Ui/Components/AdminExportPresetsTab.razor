@@ -94,19 +94,11 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-
-        try
-        {
-            _presets = await Api.GetExportPresetsAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load export presets");
-        }
-        finally
-        {
-            _loading = false;
-        }
+        var (ok, presets) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetExportPresetsAsync(), "load export presets");
+        if (ok && presets is not null)
+            _presets = presets;
+        _loading = false;
     }
 
     private async Task OpenCreateDialog()

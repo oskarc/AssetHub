@@ -228,31 +228,27 @@
 
     private async Task<TableData<KeycloakUserDto>> LoadServerData(TableState state, CancellationToken ct)
     {
-        try
-        {
-            var sortBy = state.SortLabel;
-            var sortDesc = state.SortDirection == SortDirection.Descending;
-            var skip = state.Page * state.PageSize;
+        var sortBy = state.SortLabel;
+        var sortDesc = state.SortDirection == SortDirection.Descending;
+        var skip = state.Page * state.PageSize;
 
-            var response = await Api.GetKeycloakUsersPaginatedAsync(
-                _userSearchString, _activeCategory, sortBy, sortDesc, skip, state.PageSize, ct);
-
-            _totalAll = response.TotalAll;
-            _withAccessCount = response.WithAccessCount;
-            _adminCount = response.AdminCount;
-            _noAccessCount = response.NoAccessCount;
-
-            return new TableData<KeycloakUserDto>
-            {
-                TotalItems = response.TotalFiltered,
-                Items = response.Users
-            };
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load Keycloak users");
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetKeycloakUsersPaginatedAsync(
+                _userSearchString, _activeCategory, sortBy, sortDesc, skip, state.PageSize, ct),
+            "load Keycloak users");
+        if (!ok || response is null)
             return new TableData<KeycloakUserDto> { TotalItems = 0, Items = [] };
-        }
+
+        _totalAll = response.TotalAll;
+        _withAccessCount = response.WithAccessCount;
+        _adminCount = response.AdminCount;
+        _noAccessCount = response.NoAccessCount;
+
+        return new TableData<KeycloakUserDto>
+        {
+            TotalItems = response.TotalFiltered,
+            Items = response.Users
+        };
     }
 
     private async Task OnSearchChanged()
@@ -367,47 +363,47 @@
 
     private async Task SyncDeletedUsers()
     {
-        try
+        _isSyncing = true;
+        StateHasChanged();
+
+        // Multi-step: dry-run preview → confirm → commit. Each facade call goes
+        // through the wrapper; the loading flag is reset on every exit path below.
+        var (previewOk, preview) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SyncDeletedUsersAsync(dryRun: true), "sync users");
+        if (previewOk && preview is not null)
         {
-            _isSyncing = true;
-            StateHasChanged();
-
-            var preview = await Api.SyncDeletedUsersAsync(dryRun: true);
-
             if (preview.DeletedUsers == 0)
             {
                 Snackbar.Add(AdminLoc["SyncNoGhostUsers"], Severity.Success);
-                return;
             }
+            else
+            {
+                var message = string.Format(AdminLoc["SyncConfirm"], preview.DeletedUsers, preview.AclsRemoved, preview.SharesRevoked);
 
-            var message = string.Format(AdminLoc["SyncConfirm"], preview.DeletedUsers, preview.AclsRemoved, preview.SharesRevoked);
+                var confirmed = await DialogService.ShowConfirmAsync(
+                    AdminLoc["Btn_SyncUsers"],
+                    message,
+                    CommonLoc["Btn_Confirm"],
+                    Icons.Material.Filled.Sync,
+                    Color.Warning,
+                    Color.Primary);
 
-            var confirmed = await DialogService.ShowConfirmAsync(
-                AdminLoc["Btn_SyncUsers"],
-                message,
-                CommonLoc["Btn_Confirm"],
-                Icons.Material.Filled.Sync,
-                Color.Warning,
-                Color.Primary);
+                if (confirmed)
+                {
+                    var (commitOk, result) = await Feedback.ExecuteWithFeedbackAsync(
+                        () => Api.SyncDeletedUsersAsync(dryRun: false), "sync users");
+                    if (commitOk && result is not null)
+                    {
+                        Snackbar.Add(string.Format(AdminLoc["SyncCompleted"], result.DeletedUsers, result.AclsRemoved, result.SharesRevoked), Severity.Success);
 
-            if (!confirmed)
-                return;
-
-            var result = await Api.SyncDeletedUsersAsync(dryRun: false);
-
-            Snackbar.Add(string.Format(AdminLoc["SyncCompleted"], result.DeletedUsers, result.AclsRemoved, result.SharesRevoked), Severity.Success);
-
-            if (_table != null) await _table.ReloadServerData();
-            await OnChanged.InvokeAsync();
+                        if (_table is not null) await _table.ReloadServerData();
+                        await OnChanged.InvokeAsync();
+                    }
+                }
+            }
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "sync users");
-        }
-        finally
-        {
-            _isSyncing = false;
-            StateHasChanged();
-        }
+
+        _isSyncing = false;
+        StateHasChanged();
     }
 }
