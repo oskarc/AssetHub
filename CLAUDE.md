@@ -143,13 +143,15 @@ AssetHub specifics:
 
 ## API Endpoints (`AssetHub.Api`)
 
+The curated-public-surface design — composed `MarkAsPublic*` helpers, scope-filter-on-every-public-endpoint, the dual CSRF gate, consistent error shape, SemVer — is the **`pattern-public-api-contract`** standard. AssetHub's concrete wiring:
+
 - One static class per domain: `AssetEndpoints`, `CollectionEndpoints`, etc.
 - Extension method: `Map*Endpoints(this WebApplication app)`.
 - All endpoints registered in `WebApplicationExtensions.MapAssetHubEndpoints()`.
 
 ### Route groups
 
-Every `MapGroup` that hosts at least one POST / PATCH / PUT / DELETE endpoint **must** chain `.RequireAntiforgeryUnlessBearer()`. The filter no-ops on Bearer (JWT/PAT) and anonymous traffic, so it's safe to apply on groups that mix authenticated mutations with public reads. Per-endpoint `.DisableAntiforgery()` then turns off the default ASP.NET antiforgery for the API surface — the filter is the only CSRF gate left, and skipping it on a mutating group means cookie-authed clients (Blazor UI XSS payloads) can hit those endpoints without a token. P-12 / A-7 was specifically about closing this; don't reopen it.
+The dual CSRF gate is the `pattern-public-api-contract` standard; AssetHub's concrete pieces: every `MapGroup` with a POST/PATCH/PUT/DELETE chains **`.RequireAntiforgeryUnlessBearer()`** (validates `X-CSRF-TOKEN` for cookie principals, no-ops for Bearer/anonymous), and each mutating endpoint chains `.DisableAntiforgery()` (turns off the built-in pipeline so Bearer clients aren't rejected). **Both are required together** — this is the P-12 / A-7 fix; don't reopen it.
 
 ```csharp
 var group = app.MapGroup("/api/v1/examples")
@@ -170,9 +172,6 @@ Apply `ValidationFilter<T>` per-endpoint. DTOs use DataAnnotations. Returns `400
 
 ### Authorization
 Policies: `RequireViewer`, `RequireContributor`, `RequireManager`, `RequireAdmin`. Prefer group-level. Collection RBAC: inject `ICollectionAuthorizationService`.
-
-### Anti-forgery
-`.DisableAntiforgery()` on all API POST/PATCH/DELETE endpoints — that turns off ASP.NET's built-in antiforgery validation. The actual CSRF gate is `.RequireAntiforgeryUnlessBearer()` on the route group (see "Route groups" above): it validates the `X-CSRF-TOKEN` header for cookie principals and skips Bearer / anonymous. **Both must be present** on a mutating group: `DisableAntiforgery` for clean Bearer flow, `RequireAntiforgeryUnlessBearer` for cookie CSRF defense.
 
 ### Error response format
 
@@ -214,6 +213,8 @@ Per-collection permissions via `CollectionAcl`. Check through `CollectionAuthori
 
 ### Personal Access Tokens (PATs) & scope enforcement
 
+The token model — hash-only persistence, per-endpoint scope enforcement, and the privilege-escalation guard — is the **`pattern-pat-scope-enforcement`** standard. AssetHub's concrete instantiation:
+
 External callers authenticate using either an OIDC JWT **or** a Personal Access Token. The "Smart" authentication scheme selector routes `Authorization: Bearer pat_*` headers to the PAT handler and everything else to JWT / Cookie.
 
 **Token lifecycle.** Users mint PATs on the `/account` page. Plaintext format is `pat_` + 32-char base64url (24 bytes of CSPRNG entropy); only the SHA-256 hash is persisted. Plaintext is returned once in `CreatedPersonalAccessTokenDto.PlaintextToken` and never logged or re-rendered. Idempotent revoke, optional expiry, and `pat.created` / `pat.revoked` audit events.
@@ -238,6 +239,8 @@ Filter behaviour: cookie / JWT principals pass through unchanged (no `pat_scope`
 ---
 
 ## Blazor UI (`AssetHub.Ui`)
+
+The UI standard — facade-only backend access, the `ExecuteWithFeedbackAsync` default error idiom, and the optimistic-vs-confirmed mutation decision — is **`implementation-blazor-ui-standard`**. The concrete AssetHub shape (MudBlazor 8, `AssetHubApiClient`/`ApiException`, `IUserFeedbackService`, the layouts) follows below.
 
 Razor Class Library that depends **only** on Application. Never reference Infrastructure or Api.
 

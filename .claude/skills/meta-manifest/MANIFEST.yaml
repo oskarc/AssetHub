@@ -150,6 +150,43 @@ nodes:
     open_gaps:
       - Extracted from CLAUDE.md 2026-06-14; arguably broader than blazor-web-app (any C# project) — tier boundary worth revisiting at extraction
 
+  # CLAUDE.md decomposition batch 2, extracted 2026-06-14.
+  - id: pattern-public-api-contract
+    concern: Curated/versioned public HTTP surface — composed security helpers, scope-per-endpoint, dual CSRF gate, consistent error shape, SemVer
+    skill_file: pattern-public-api-contract/SKILL.md
+    tier: type-category
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    inherited: false
+    dependencies: [pattern-service-result, principle-encode-over-document]
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-14; self-service-exception coupling with pattern-pat-scope-enforcement unverified outside AssetHub
+
+  - id: pattern-pat-scope-enforcement
+    concern: Long-lived API tokens as a second auth path — hash-only persistence, per-endpoint scope claims, privilege-escalation guard
+    skill_file: pattern-pat-scope-enforcement/SKILL.md
+    tier: type-category
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    inherited: false
+    dependencies: [pattern-public-api-contract]
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-14; single implementation so far
+
+  - id: implementation-blazor-ui-standard
+    concern: Component-UI standard — facade-only backend access, default feedback-wrapper error idiom, optimistic-vs-confirmed mutation decision
+    skill_file: implementation-blazor-ui-standard/SKILL.md
+    tier: type-category
+    layer: implementation
+    phase: during-build
+    status: thin
+    inherited: false
+    dependencies: [pattern-service-result]
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-14; overlaps implementation-ux-check (behaviour) — boundary worth sharpening
+
   - id: principle-encode-over-document
     concern: When a documented rule regresses twice, encode it as a type/helper/tool-checked structure instead of strengthening the documentation
     skill_file: principle-encode-over-document/SKILL.md
@@ -435,6 +472,18 @@ coverage_map:
     phase: [pre-build, during-build]
     status: thin
 
+  - concern: Public API contract & SemVer
+    node_id: pattern-public-api-contract
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+
+  - concern: API token auth & scope enforcement
+    node_id: pattern-pat-scope-enforcement
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+
   - concern: Pre-implementation interrogation
     node_id: pattern-brainstorm
     layer: pattern
@@ -474,6 +523,12 @@ coverage_map:
   # Implementation layer
   - concern: C# coding conventions
     node_id: implementation-csharp-conventions
+    layer: implementation
+    phase: during-build
+    status: thin
+
+  - concern: Component-UI standard (facade, error idiom, optimistic vs confirmed)
+    node_id: implementation-blazor-ui-standard
     layer: implementation
     phase: during-build
     status: thin
@@ -622,10 +677,9 @@ gap_queue:
       extraction will produce it. Tied to gap-002 (CLAUDE.md decomposition) because
       transferable patterns currently live at the project layer (CLAUDE.md) instead of as
       their own pattern/implementation skills under the type-category tier.
-      2026-06-14: decomposition started (gap-002). batch 1 of ~14 extracted
-      (principle-clean-architecture-dotnet, pattern-service-result,
-      implementation-csharp-conventions); CLAUDE.md sections slimmed to project-note + pointer.
-      Extraction-readiness still pending the remaining ~11 skills.
+      2026-06-14: decomposition in progress (gap-002). 6 of ~14 extracted across 2 batches;
+      CLAUDE.md sections slimmed to project-note + pointer. Extraction-readiness pending the
+      remaining ~8 skills.
     candidate_level: pattern
     priority: high
     status: in-progress
@@ -640,8 +694,10 @@ gap_queue:
       ("manifest is read-only", "never silently abstract"). Level-mixing per skill-builder
       Anti-patterns. Resolving gap-001 should consume this gap.
       2026-06-14: abstraction loop now running (P6). Approved decomposition map: ~14 type-category
-      skills. Batch 1 done (clean-architecture-dotnet [principle], service-result [pattern],
-      csharp-conventions [implementation]). Remaining batches iterate with the developer per skill.
+      skills. Batch 1: clean-architecture-dotnet, service-result, csharp-conventions. Batch 2:
+      public-api-contract, pat-scope-enforcement, blazor-ui-standard. Remaining ~8 iterate with
+      the developer per skill (enum-string-persistence, ef-config-migration, hybrid-cache,
+      worker-background, config-secrets, test-conventions, docker, sonar-discipline).
     candidate_level: pattern
     priority: high
     status: in-progress
