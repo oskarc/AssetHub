@@ -40,47 +40,18 @@ Layers:
 | **Worker** | Composition root — media/processing Wolverine handlers, scheduled `IHostedService` background jobs | All |
 | **Ui** | Blazor Server (Razor Class Library) | Application only — never reference Infrastructure or Api |
 
-### Patterns NOT used in this project
+The dependency direction, the deliberately-omitted patterns, and how SOLID applies to this shape are the **`principle-clean-architecture-dotnet`** standard. AssetHub's concrete instantiation of it:
 
-Do not generate code using these patterns:
-- Domain events (use Wolverine messages instead)
-- Value objects (use primitives or simple classes)
-- Specifications pattern (use LINQ in repositories)
-- Rich domain models (entities are simple; only `Asset` has state methods)
-- Aggregate root pattern (entities are standalone)
-- Event sourcing (use standard EF Core persistence)
-- FluentValidation (use DataAnnotations only)
-- Third-party state management (no Fluxor, BlazorState, Blazored.LocalStorage)
-- ASP.NET Identity / Microsoft Entra ID (use Keycloak OIDC)
-
-OpenAPI / Swagger **is** used, but only for the curated public integration surface — see the "Public API contract" section below.
-
-### SOLID principles apply
-
-- Single Responsibility — services split by concern (commands, queries, uploads).
-- Dependency Inversion — interfaces in Application, implementations in Infrastructure.
-- Interface Segregation — separate query and command service interfaces.
+- **Messaging** is Wolverine (the standard's "explicit message contracts" — no domain events).
+- **OIDC** is Keycloak (the standard's "one external identity provider").
+- **Only `Asset`** has state-transition methods (the standard's "few entities with a genuine lifecycle"); every other entity is standalone data.
+- OpenAPI/Swagger is used **only** for the curated public surface — see "Public API contract" below.
 
 ---
 
 ## C# Conventions
 
-- **Nullable reference types** enabled globally — use `is null` / `is not null`, never `== null` / `!= null` in plain C#. (EF Core LINQ predicates inside `.Where(...)` / `.Count(...)` are the lone exception: `s.RevokedAt == null` translates to SQL; `is null` may not. Use `==`/`!=` only inside expression trees that hit the database.)
-- **`sealed` on every service, repository, adapter, and background-service implementation. No exceptions.** Concrete classes that aren't designed for inheritance must say so. If you find yourself adding a `public class Foo : IFoo`, change it to `public sealed class` in the same edit. **Same for private nested classes / records inside Razor `@code` blocks** — `private sealed class FormModel`, `private sealed record JsResult(...)`. Sonar's S3260 catches the rest, but writing it sealed first is cheaper than fixing it later.
-- **`private readonly` for fields that aren't reassigned.** Especially `CancellationTokenSource _cts = new()`, `List<X> _items = new()`, dialog `_form` refs, table refs — anything initialized at field declaration and only mutated through methods (Add / Cancel / Dispose) is `readonly`. Sonar's S2933 fires hard on these.
-- **`private static` for methods that don't touch `this`.** Pure helpers in Razor / services should be static — Sonar's S2325 catches them otherwise.
-- **No empty catch blocks.** A `catch (JSDisconnectedException) { }` or `catch { }` is S108 + a code smell. Either fill it with a one-line comment explaining why the exception is benign (`/* circuit gone — JS module unreachable */`), or delete the catch and let the exception bubble. Empty-with-just-a-comment is fine; empty-with-nothing is not.
-- **No nested ternaries.** S3358 catches `a ? b : c ? d : e`. Hoist branches into local variables or use an `if / else if / else` chain. Object-initializer bodies are common offenders — extract the branch above the `new { ... }` block.
-- **No floating-point `==`.** S1244. Use `Math.Abs(a - b) < epsilon`, or define an `IsApprox` helper and reuse it.
-- **No hardcoded credentials, including "well-known" defaults.** S2068. `?? "guest"` for RabbitMQ Username/Password is the exact regression we just fixed — use `?? string.Empty` and let `ValidateOnStart()` fail loudly. Same shape applies to `?? "admin"` / `?? "postgres"` / any literal that maps to a default credential. UI mask placeholders (`"********"` etc.) are not credentials but require a `[SuppressMessage("...", "S2068", Justification = "...")]` to silence the rule.
-- **Primary constructors** preferred for DI injection in services and repositories.
-- **DataAnnotations only** for DTO validation — `[Required]`, `[StringLength]`, `[Range]`.
-- **File-scoped namespaces**, pattern matching, `nameof`.
-- **Async/await** for I/O-bound operations.
-- **Structured logging** with named arguments: `logger.LogInformation("Processed {AssetId}", id)`.
-- **PascalCase** for types/methods/public members, **camelCase** for locals/fields.
-- **`I`** prefix for interfaces.
-- Apply `.editorconfig` formatting rules from the repository root.
+Follow the **`implementation-csharp-conventions`** standard — null-checking style (`is null`, with the EF-expression-tree exception), `sealed`/`readonly`/`static` defaults, the banned constructs (empty catch, nested ternary, FP equality, hardcoded-credential defaults), and the idiomatic surface (primary ctors, DataAnnotations, file-scoped namespaces, structured logging). No AssetHub-specific deviations.
 
 ---
 
@@ -132,11 +103,7 @@ Split large domains: commands (`AssetService`), queries (`AssetQueryService`), s
 Wrap external calls in named pipelines: `"minio"` (retry 3x, circuit breaker 30s), `"clamav"` (retry 2x, circuit breaker 60s), `"smtp"` (retry 2x).
 
 ### Return values
-Always return `ServiceResult<T>` — never throw for business errors:
-```csharp
-if (asset is null) return ServiceError.NotFound("Asset not found");
-return new AssetDto(asset);
-```
+Always return `ServiceResult<T>` — never throw for business errors. This is the **`pattern-service-result`** standard (factory set, `.ToHttpResult()` at the boundary, infra-exception wrapping); see the Error Handling section below.
 
 ### Logging levels
 - `Information` — successful operations and summaries.
@@ -166,30 +133,11 @@ In `DependencyInjection/InfrastructureServiceExtensions.cs`:
 
 ## Error Handling
 
-### ServiceResult — the only way services report errors
+Services report business outcomes with `ServiceResult` / `ServiceResult<T>` per the **`pattern-service-result`** standard — the `ServiceError` factory set (`NotFound` / `Forbidden` / `BadRequest` / `Conflict` / `Validation` / `Server` → HTTP status + stable code), endpoints calling `.ToHttpResult()` once (never inspecting `IsSuccess`), and infra exceptions wrapped as `ServiceError.Server()`.
 
-Services **never throw** for business errors. All methods return `ServiceResult` or `ServiceResult<T>`.
-
-| Factory | HTTP | Code | When |
-|---------|------|------|------|
-| `ServiceError.NotFound(msg)` | 404 | `NOT_FOUND` | Entity not found |
-| `ServiceError.Forbidden(msg)` | 403 | `FORBIDDEN` | User lacks permission |
-| `ServiceError.BadRequest(msg)` | 400 | `BAD_REQUEST` | Invalid input |
-| `ServiceError.Conflict(msg)` | 409 | `CONFLICT` | Duplicate or state conflict |
-| `ServiceError.Validation(msg, details)` | 400 | `VALIDATION_ERROR` | Field-level errors |
-| `ServiceError.Server(msg)` | 500 | `SERVER_ERROR` | Unexpected failure |
-
-### Endpoint layer
-Endpoints call `.ToHttpResult()` — never manually inspect `IsSuccess` or map errors:
-```csharp
-return (await svc.GetByIdAsync(id, ct)).ToHttpResult();
-// Custom success: 201 Created
-return (await svc.CreateAsync(dto, ct))
-    .ToHttpResult(value => Results.Created($"/api/v1/items/{value.Id}", value));
-```
-
-### Exceptions (infrastructure only)
-Unhandled exceptions caught by global middleware -> `500 + ApiError`. When catching infra exceptions in a service, wrap in `ServiceError.Server()`.
+AssetHub specifics:
+- Unhandled exceptions are caught by global middleware → `500 + ApiError` (the shared error shape; see "Error response format" under API Endpoints).
+- The Blazor UI consumes services through a facade that translates `ServiceResult` failures into `ApiException` at its boundary (see Blazor UI § Backend access) — the services themselves still return results.
 
 ---
 

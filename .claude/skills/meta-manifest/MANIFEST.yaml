@@ -113,6 +113,43 @@ nodes:
   # Created here, will be extracted into the blazor-web-app library kit at meta-extract time.
   # Carry inherited: false until first extraction.
 
+  # CLAUDE.md decomposition (gap-001/002) — batch 1 of ~14, extracted 2026-06-14.
+  - id: principle-clean-architecture-dotnet
+    concern: Layered .NET architecture — Domain/Application/Infrastructure + thin composition-root hosts; dependency direction, deliberately-omitted patterns, SOLID application
+    skill_file: principle-clean-architecture-dotnet/SKILL.md
+    tier: type-category
+    layer: principle
+    phase: pre-build
+    status: thin
+    inherited: false
+    dependencies: []
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-14; not yet exercised as a standalone skill across a fresh feature
+
+  - id: pattern-service-result
+    concern: Services report business outcomes as ServiceResult values (not exceptions); single boundary translation to HTTP via .ToHttpResult()
+    skill_file: pattern-service-result/SKILL.md
+    tier: type-category
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    inherited: false
+    dependencies: []
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-14; in-process-facade exception-translation variant noted but unverified elsewhere
+
+  - id: implementation-csharp-conventions
+    concern: Mechanical C# conventions — null style, sealing, readonly/static, banned constructs, idiomatic surface; many map to Sonar rules
+    skill_file: implementation-csharp-conventions/SKILL.md
+    tier: type-category
+    layer: implementation
+    phase: during-build
+    status: thin
+    inherited: false
+    dependencies: []
+    open_gaps:
+      - Extracted from CLAUDE.md 2026-06-14; arguably broader than blazor-web-app (any C# project) — tier boundary worth revisiting at extraction
+
   - id: principle-encode-over-document
     concern: When a documented rule regresses twice, encode it as a type/helper/tool-checked structure instead of strengthening the documentation
     skill_file: principle-encode-over-document/SKILL.md
@@ -379,6 +416,12 @@ coverage_map:
   # ─── Type-category coverage (blazor-web-app) ─────────────────────────────
 
   # Principle layer
+  - concern: Layered .NET architecture & dependency direction
+    node_id: principle-clean-architecture-dotnet
+    layer: principle
+    phase: pre-build
+    status: thin
+
   - concern: Encoding twice-regressed rules as types/helpers over documentation
     node_id: principle-encode-over-document
     layer: principle
@@ -386,6 +429,12 @@ coverage_map:
     status: thin
 
   # Pattern layer
+  - concern: Service-layer error reporting (ServiceResult)
+    node_id: pattern-service-result
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+
   - concern: Pre-implementation interrogation
     node_id: pattern-brainstorm
     layer: pattern
@@ -423,6 +472,12 @@ coverage_map:
     status: mature
 
   # Implementation layer
+  - concern: C# coding conventions
+    node_id: implementation-csharp-conventions
+    layer: implementation
+    phase: during-build
+    status: thin
+
   - concern: Accessibility (WCAG 2.2 AA)
     node_id: implementation-a11y-check
     layer: implementation
@@ -567,9 +622,13 @@ gap_queue:
       extraction will produce it. Tied to gap-002 (CLAUDE.md decomposition) because
       transferable patterns currently live at the project layer (CLAUDE.md) instead of as
       their own pattern/implementation skills under the type-category tier.
+      2026-06-14: decomposition started (gap-002). batch 1 of ~14 extracted
+      (principle-clean-architecture-dotnet, pattern-service-result,
+      implementation-csharp-conventions); CLAUDE.md sections slimmed to project-note + pointer.
+      Extraction-readiness still pending the remaining ~11 skills.
     candidate_level: pattern
     priority: high
-    status: open
+    status: in-progress
 
   - gap_id: gap-002
     concern: skill-builder abstraction loop has never been formally run against CLAUDE.md
@@ -580,9 +639,12 @@ gap_queue:
       Wolverine queue names, MinIO bucket conventions); some are patterns; a handful are principles
       ("manifest is read-only", "never silently abstract"). Level-mixing per skill-builder
       Anti-patterns. Resolving gap-001 should consume this gap.
+      2026-06-14: abstraction loop now running (P6). Approved decomposition map: ~14 type-category
+      skills. Batch 1 done (clean-architecture-dotnet [principle], service-result [pattern],
+      csharp-conventions [implementation]). Remaining batches iterate with the developer per skill.
     candidate_level: pattern
     priority: high
-    status: open
+    status: in-progress
 
   - gap_id: gap-003
     concern: Information architecture and navigation decisions are silent at every layer
