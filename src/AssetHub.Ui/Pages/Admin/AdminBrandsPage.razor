@@ -1,0 +1,10 @@
+@page "/admin/brands"
+@layout AssetHub.Ui.Layout.AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
+@using AssetHub.Ui.Resources
+@inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@AdminLoc["Tab_Brands"] - @CommonLoc["AppName"]</PageTitle>
+
+<AdminBrandsTab />

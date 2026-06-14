@@ -1,0 +1,10 @@
+@page "/admin/webhooks"
+@layout AssetHub.Ui.Layout.AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
+@using AssetHub.Ui.Resources
+@inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@AdminLoc["Tab_Webhooks"] - @CommonLoc["AppName"]</PageTitle>
+
+<AdminWebhooksTab />

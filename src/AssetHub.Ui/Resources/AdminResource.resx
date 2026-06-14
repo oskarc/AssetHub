@@ -612,4 +612,13 @@ logo.png,Company Logo,branding,"Brand Assets;Marketing"</value></data>
   <data name="Trash_ExpiresRelative_Overdue" xml:space="preserve"><value>overdue</value></data>
   <data name="Trash_DeleteSnackbar" xml:space="preserve"><value>Moved '{0}' to Trash</value></data>
   <data name="Trash_DeleteSnackbar_Undo" xml:space="preserve"><value>Undo</value></data>
+  <data name="Group_Access" xml:space="preserve"><value>Access</value></data>
+  <data name="Group_Content" xml:space="preserve"><value>Content</value></data>
+  <data name="Group_Operations" xml:space="preserve"><value>Operations</value></data>
+  <data name="Group_Insights" xml:space="preserve"><value>Insights</value></data>
+  <data name="Group_Access_Desc" xml:space="preserve"><value>Users, collection permissions, guests, and share links.</value></data>
+  <data name="Group_Content_Desc" xml:space="preserve"><value>Metadata schemas, taxonomies, export presets, and brands.</value></data>
+  <data name="Group_Operations_Desc" xml:space="preserve"><value>Migrations, trash, audit log, and webhooks.</value></data>
+  <data name="Group_Insights_Desc" xml:space="preserve"><value>Analytics dashboards and watermark verification.</value></data>
+  <data name="Overview_Intro" xml:space="preserve"><value>Manage users, content, operations, and insights. Pick an area from the menu or a card below.</value></data>
 </root>

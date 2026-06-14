@@ -459,4 +459,5 @@
   <data name="Aria_StatusLive" xml:space="preserve"><value>Status message</value></data>
   <data name="Aria_TogglePasswordVisibility" xml:space="preserve"><value>Toggle password visibility</value></data>
   <data name="Aria_ProcessingInProgress" xml:space="preserve"><value>Processing in progress</value></data>
+  <data name="Btn_Open" xml:space="preserve"><value>Open</value></data>
 </root>

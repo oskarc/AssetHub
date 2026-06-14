@@ -456,4 +456,5 @@
   <data name="Aria_StatusLive" xml:space="preserve"><value>Statusmeddelande</value></data>
   <data name="Aria_TogglePasswordVisibility" xml:space="preserve"><value>Växla lösenordssynlighet</value></data>
   <data name="Aria_ProcessingInProgress" xml:space="preserve"><value>Bearbetning pågår</value></data>
+  <data name="Btn_Open" xml:space="preserve"><value>Öppna</value></data>
 </root>

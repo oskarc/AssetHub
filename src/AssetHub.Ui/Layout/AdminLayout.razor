@@ -1,0 +1,45 @@
+@inherits LayoutComponentBase
+@layout MainLayout
+@using AssetHub.Ui.Resources
+@inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<AnalyticsResource> AnlLoc
+@inject IStringLocalizer<WatermarksResource> WmkLoc
+
+@* Admin console shell: a grouped secondary nav (Access / Content / Operations /
+   Insights) beside the active admin page. Each admin function is its own route
+   (/admin/...), so it deep-links, breadcrumbs and back-buttons work, and the
+   secondary nav highlights the active area. Replaces the former 14-tab monolith. *@
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Start" Class="admin-shell">
+        <MudPaper Elevation="0" Outlined="true" Class="admin-subnav pa-2" Style="min-width: 250px;">
+            <MudNavMenu>
+                <MudNavGroup Title="@AdminLoc["Group_Access"]" Icon="@Icons.Material.Filled.People" Expanded="true">
+                    <MudNavLink Href="admin/users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ManageAccounts">@AdminLoc["Tab_UserManagement"]</MudNavLink>
+                    <MudNavLink Href="admin/collection-access" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FolderShared">@AdminLoc["Tab_CollectionAccess"]</MudNavLink>
+                    <MudNavLink Href="admin/guests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonAddAlt">@AdminLoc["Tab_Guests"]</MudNavLink>
+                    <MudNavLink Href="admin/shares" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Share">@AdminLoc["Tab_ShareManagement"]</MudNavLink>
+                </MudNavGroup>
+                <MudNavGroup Title="@AdminLoc["Group_Content"]" Icon="@Icons.Material.Filled.Category" Expanded="true">
+                    <MudNavLink Href="admin/metadata-schemas" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Schema">@AdminLoc["Tab_MetadataSchemas"]</MudNavLink>
+                    <MudNavLink Href="admin/taxonomies" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountTree">@AdminLoc["Tab_Taxonomies"]</MudNavLink>
+                    <MudNavLink Href="admin/export-presets" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Tune">@AdminLoc["Tab_ExportPresets"]</MudNavLink>
+                    <MudNavLink Href="admin/brands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Palette">@AdminLoc["Tab_Brands"]</MudNavLink>
+                </MudNavGroup>
+                <MudNavGroup Title="@AdminLoc["Group_Operations"]" Icon="@Icons.Material.Filled.Build" Expanded="true">
+                    <MudNavLink Href="admin/migrations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CloudUpload">@AdminLoc["Tab_Migrations"]</MudNavLink>
+                    <MudNavLink Href="admin/trash" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Delete">@AdminLoc["Tab_Trash"]</MudNavLink>
+                    <MudNavLink Href="admin/audit" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.History">@AdminLoc["Tab_AuditLog"]</MudNavLink>
+                    <MudNavLink Href="admin/webhooks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Webhook">@AdminLoc["Tab_Webhooks"]</MudNavLink>
+                </MudNavGroup>
+                <MudNavGroup Title="@AdminLoc["Group_Insights"]" Icon="@Icons.Material.Filled.Insights" Expanded="true">
+                    <MudNavLink Href="admin/analytics" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueryStats">@AnlLoc["PageTitle"]</MudNavLink>
+                    <MudNavLink Href="admin/watermarks/verify" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Security">@WmkLoc["Verify_PageTitle"]</MudNavLink>
+                </MudNavGroup>
+            </MudNavMenu>
+        </MudPaper>
+
+        <div class="admin-content flex-grow-1" style="min-width: 0;">
+            @Body
+        </div>
+    </MudStack>
+</MudContainer>

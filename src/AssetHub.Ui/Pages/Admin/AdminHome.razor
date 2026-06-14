@@ -1,0 +1,45 @@
+@page "/admin"
+@layout AssetHub.Ui.Layout.AdminLayout
+@using Microsoft.AspNetCore.Authorization
+@using AssetHub.Ui.Resources
+@attribute [Authorize(Policy = "RequireAdmin")]
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+
+<PageTitle>@AdminLoc["PageTitle"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">
+    <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mr-2" />
+    @AdminLoc["PageTitle"]
+</MudText>
+<MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-6">@AdminLoc["Overview_Intro"]</MudText>
+
+<MudGrid Spacing="3">
+    @foreach (var area in _areas)
+    {
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Outlined="true" Class="pa-4 admin-area-card" Style="height: 100%;">
+                <MudStack Spacing="2" AlignItems="AlignItems.Start">
+                    <MudIcon Icon="@area.Icon" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h6">@AdminLoc[area.TitleKey]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@AdminLoc[area.DescKey]</MudText>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary"
+                               EndIcon="@Icons.Material.Filled.ArrowForward"
+                               Href="@area.Href">@CommonLoc["Btn_Open"]</MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    private sealed record AdminArea(string Icon, string TitleKey, string DescKey, string Href);
+
+    private readonly AdminArea[] _areas =
+    [
+        new(Icons.Material.Filled.People, "Group_Access", "Group_Access_Desc", "admin/users"),
+        new(Icons.Material.Filled.Category, "Group_Content", "Group_Content_Desc", "admin/metadata-schemas"),
+        new(Icons.Material.Filled.Build, "Group_Operations", "Group_Operations_Desc", "admin/migrations"),
+        new(Icons.Material.Filled.Insights, "Group_Insights", "Group_Insights_Desc", "admin/analytics"),
+    ];
+}
