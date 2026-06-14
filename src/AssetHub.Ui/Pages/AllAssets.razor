@@ -402,44 +402,26 @@
 
     private async Task LoadCollectionsAsync()
     {
-        try
-        {
-            _collections = await Api.GetCollectionsAsync(_cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Disposed — ignore
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
-        }
+        var (ok, collections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionsAsync(_cts.Token), "load collections");
+        if (ok && collections is not null)
+            _collections = collections;
     }
 
     private async Task LoadAssetsAsync()
     {
-        try
+        _isLoading = true;
+        StateHasChanged();
+
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SearchAssetsAsync(BuildSearchRequest(_skip), _cts.Token), "load assets");
+        if (ok && response is not null)
         {
-            _isLoading = true;
-            StateHasChanged();
-
-            var response = await Api.SearchAssetsAsync(BuildSearchRequest(_skip), _cts.Token);
-
             _assets.AddRange(response.Items);
             _total = response.TotalCount;
         }
-        catch (OperationCanceledException)
-        {
-            // Disposed — ignore
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load assets");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+
+        _isLoading = false;
     }
 
     private async Task LoadMoreAsync()
@@ -447,25 +429,15 @@
         _isLoadingMore = true;
         _skip = _assets.Count;
 
-        try
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SearchAssetsAsync(BuildSearchRequest(_skip), _cts.Token), "load more assets");
+        if (ok && response is not null)
         {
-            var response = await Api.SearchAssetsAsync(BuildSearchRequest(_skip), _cts.Token);
-
             _assets.AddRange(response.Items);
             _total = response.TotalCount;
         }
-        catch (OperationCanceledException)
-        {
-            // Disposed — ignore
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load more assets");
-        }
-        finally
-        {
-            _isLoadingMore = false;
-        }
+
+        _isLoadingMore = false;
     }
 
     private async Task RefreshAsync()

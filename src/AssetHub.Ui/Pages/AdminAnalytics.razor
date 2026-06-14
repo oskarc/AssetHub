@@ -65,21 +65,17 @@
     {
         _pdfBusy = true;
         StateHasChanged();
-        try
+
+        var (ok, job) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.EnqueueAnalyticsPdfAsync(_windowDays), "enqueue analytics PDF");
+        if (ok && job is not null)
         {
-            var job = await Api.EnqueueAnalyticsPdfAsync(_windowDays);
             Feedback.ShowInfo(Loc["Pdf_Generating"].Value);
             await PollUntilReadyAsync(job.JobId);
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "enqueue analytics PDF");
-        }
-        finally
-        {
-            _pdfBusy = false;
-            StateHasChanged();
-        }
+
+        _pdfBusy = false;
+        StateHasChanged();
     }
 
     private async Task PollUntilReadyAsync(Guid jobId)

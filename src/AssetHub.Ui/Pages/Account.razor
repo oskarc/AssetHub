@@ -142,18 +142,11 @@
     private async Task LoadAsync()
     {
         _loading = true;
-        try
-        {
-            _tokens = await Api.GetMyPersonalAccessTokensAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load access tokens");
-        }
-        finally
-        {
-            _loading = false;
-        }
+        var (ok, tokens) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetMyPersonalAccessTokensAsync(), "load access tokens");
+        if (ok && tokens is not null)
+            _tokens = tokens;
+        _loading = false;
     }
 
     private async Task OpenCreateDialog()
@@ -194,19 +187,19 @@
         _tokens.Remove(token);
         StateHasChanged();
 
-        try
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RevokePersonalAccessTokenAsync(token.Id), "revoke access token",
+            successMessage: string.Format(AccountLoc["Pat_Revoked_Success"].Value, token.Name));
+        if (ok)
         {
-            await Api.RevokePersonalAccessTokenAsync(token.Id);
-            Feedback.ShowSuccess(string.Format(AccountLoc["Pat_Revoked_Success"].Value, token.Name));
             // Refresh so status badge shows "Revoked" rather than disappearing entirely
             await LoadAsync();
         }
-        catch (Exception ex)
+        else
         {
             // Roll back optimistic removal
             _tokens.Insert(Math.Min(index, _tokens.Count), token);
             StateHasChanged();
-            Feedback.HandleError(ex, "revoke access token");
         }
     }
 

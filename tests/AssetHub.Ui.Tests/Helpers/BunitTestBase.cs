@@ -139,11 +139,11 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
             .Setup(f => f.ExecuteWithFeedbackAsync(
                 It.IsAny<Func<Task>>(),
                 It.IsAny<string>(),
-                It.IsAny<string?>(),
-                It.IsAny<int>()))
-            .Returns(async (Func<Task> action, string name, string? msg, int retries) =>
+                It.IsAny<string?>()))
+            .Returns(async (Func<Task> action, string name, string? msg) =>
             {
                 try { await action(); return true; }
+                catch (OperationCanceledException) { return false; }
                 catch (Exception ex) { MockFeedback.Object.HandleError(ex, name); return false; }
             });
 
@@ -158,11 +158,11 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
             .Setup(f => f.ExecuteWithFeedbackAsync(
                 It.IsAny<Func<Task<T>>>(),
                 It.IsAny<string>(),
-                It.IsAny<string?>(),
-                It.IsAny<int>()))
-            .Returns(async (Func<Task<T>> action, string name, string? msg, int retries) =>
+                It.IsAny<string?>()))
+            .Returns(async (Func<Task<T>> action, string name, string? msg) =>
             {
                 try { var result = await action(); return (true, (T?)result); }
+                catch (OperationCanceledException) { return (false, default(T)); }
                 catch (Exception ex) { MockFeedback.Object.HandleError(ex, name); return (false, default(T)); }
             });
     }

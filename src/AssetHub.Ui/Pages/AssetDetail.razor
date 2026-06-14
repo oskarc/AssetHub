@@ -513,26 +513,23 @@ else
 
     private async Task LoadAssetAsync()
     {
-        try
+        _isLoading = true;
+        var (ok, asset) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetAssetAsync(AssetId, _cts.Token), "load asset");
+        if (ok)
         {
-            _isLoading = true;
-            _asset = await Api.GetAssetAsync(AssetId, _cts.Token);
-            await LoadAssetCollectionsAsync();
-            await LoadDerivativesAsync();
+            _asset = asset;
+            if (asset is not null)
+            {
+                await LoadAssetCollectionsAsync();
+                await LoadDerivativesAsync();
+            }
         }
-        catch (OperationCanceledException)
+        else
         {
-            // Navigation to different asset or disposal — ignore
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load asset");
             _asset = null;
         }
-        finally
-        {
-            _isLoading = false;
-        }
+        _isLoading = false;
 
         if (_asset?.Status == Constants.AssetStatus.Processing)
         {
@@ -582,19 +579,9 @@ else
 
     private async Task LoadAssetCollectionsAsync()
     {
-        try
-        {
-            _assetCollections = await Api.GetAssetCollectionsAsync(AssetId, _cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Cancelled — ignore
-        }
-        catch (Exception ex)
-        {
-            _assetCollections = new();
-            Feedback.HandleError(ex, "load collections");
-        }
+        var (ok, cols) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetAssetCollectionsAsync(AssetId, _cts.Token), "load collections");
+        _assetCollections = ok && cols is not null ? cols : new();
     }
 
     private async Task LoadDerivativesAsync()
@@ -653,16 +640,13 @@ else
 
         if (!confirmed) return;
 
-        try
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RemoveAssetFromCollectionAsync(AssetId, collection.Id), "remove from collection",
+            successMessage: string.Format(CommonLoc["Success_RemovedFromCollection"].Value, collection.Name));
+        if (ok)
         {
-            await Api.RemoveAssetFromCollectionAsync(AssetId, collection.Id);
             _assetCollections.RemoveAll(c => c.Id == collection.Id);
             StateHasChanged();
-            Feedback.ShowSuccess(string.Format(CommonLoc["Success_RemovedFromCollection"].Value, collection.Name));
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "remove from collection");
         }
     }
 

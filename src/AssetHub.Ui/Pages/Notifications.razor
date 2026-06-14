@@ -137,23 +137,18 @@
         _loading = true;
         StateHasChanged();
 
-        try
+        var skip = reset ? 0 : _items.Count;
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetNotificationsAsync(_unreadOnly, skip, PageSize), "load notifications");
+        if (ok && response is not null)
         {
-            var skip = reset ? 0 : _items.Count;
-            var response = await Api.GetNotificationsAsync(_unreadOnly, skip, PageSize);
             if (reset) _items = response.Items;
             else _items.AddRange(response.Items);
             _totalCount = response.TotalCount;
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load notifications");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
+
+        _loading = false;
+        StateHasChanged();
     }
 
     private Task LoadMoreAsync() => LoadAsync(reset: false);
@@ -179,16 +174,13 @@
         _totalCount = Math.Max(0, _totalCount - 1);
         StateHasChanged();
 
-        try
-        {
-            await Api.DeleteNotificationAsync(n.Id);
-        }
-        catch (Exception ex)
+        var ok = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.DeleteNotificationAsync(n.Id), "delete notification");
+        if (!ok)
         {
             _items.Insert(Math.Min(index, _items.Count), n);
             _totalCount++;
             StateHasChanged();
-            Feedback.HandleError(ex, "delete notification");
         }
     }
 
@@ -198,17 +190,11 @@
             n.ReadAt ??= DateTime.UtcNow;
         StateHasChanged();
 
-        try
-        {
-            await Api.MarkAllNotificationsReadAsync();
-            Feedback.ShowSuccess(NotifLoc["Bell_MarkAllRead"].Value);
-            if (_unreadOnly)
-                await LoadAsync(reset: true);
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "mark notifications read");
-        }
+        var (ok, _) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.MarkAllNotificationsReadAsync(), "mark notifications read",
+            successMessage: NotifLoc["Bell_MarkAllRead"].Value);
+        if (ok && _unreadOnly)
+            await LoadAsync(reset: true);
     }
 
     private static string IconFor(string category) => category switch

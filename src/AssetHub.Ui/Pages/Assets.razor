@@ -312,19 +312,12 @@
 
     private async Task LoadAllCollections()
     {
-        try
-        {
-            _allCollectionsLoading = true;
-            _allCollections = await Api.GetCollectionsAsync();
-        }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load collections");
-        }
-        finally
-        {
-            _allCollectionsLoading = false;
-        }
+        _allCollectionsLoading = true;
+        var (ok, collections) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetCollectionsAsync(), "load collections");
+        if (ok && collections is not null)
+            _allCollections = collections;
+        _allCollectionsLoading = false;
     }
 
     private async Task OnCollectionSelected(Guid? collectionId)
@@ -333,14 +326,12 @@
 
         if (collectionId.HasValue)
         {
-            try
+            var (ok, collection) = await Feedback.ExecuteWithFeedbackAsync(
+                () => Api.GetCollectionAsync(collectionId.Value), "load collection");
+            if (ok && collection is not null)
             {
-                _selectedCollection = await Api.GetCollectionAsync(collectionId.Value);
+                _selectedCollection = collection;
                 UpdateBreadcrumbs();
-            }
-            catch (Exception ex)
-            {
-                Feedback.HandleError(ex, "load collection");
             }
         }
         else
@@ -454,10 +445,12 @@
 
         if (confirmed)
         {
-            try
+            // Confirm-gated destructive flow → await-first (CLAUDE.md § Optimistic vs. confirmed).
+            var ok = await Feedback.ExecuteWithFeedbackAsync(
+                () => Api.DeleteCollectionAsync(collection.Id), "delete collection",
+                successMessage: CollectionLoc["DeletedSuccess"].Value);
+            if (ok)
             {
-                await Api.DeleteCollectionAsync(collection.Id);
-
                 // If we deleted the currently selected collection, go back to grid
                 if (_selectedCollectionId == collection.Id)
                 {
@@ -467,11 +460,6 @@
                 _allCollections?.RemoveAll(c => c.Id == collection.Id);
                 StateHasChanged();
                 _ = LoadAllCollections(); // Background refresh for consistency
-                Feedback.ShowSuccess(CollectionLoc["DeletedSuccess"].Value);
-            }
-            catch (Exception ex)
-            {
-                Feedback.HandleError(ex, "delete collection");
             }
         }
     }

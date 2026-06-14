@@ -109,100 +109,61 @@ public sealed class UserFeedbackService : IUserFeedbackService
         ShowError(userMessage);
     }
 
-    public async Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null, int maxRetries = 0)
+    public async Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null)
     {
-        for (var attempt = 0; attempt <= maxRetries; attempt++)
+        try
         {
-            try
+            await operation();
+            if (successMessage is not null)
             {
-                await operation();
-
-                if (successMessage is not null)
-                {
-                    ShowSuccess(successMessage);
-                }
-
-                return true;
+                ShowSuccess(successMessage);
             }
-            catch (Exception ex) when (attempt < maxRetries && IsTransient(ex))
-            {
-                _logger.LogWarning(ex, "Transient error during '{OperationName}', retrying ({Attempt}/{MaxRetries})",
-                    operationName, attempt + 1, maxRetries);
-                ShowWarning(string.Format(_loc["Feedback_Retrying"], attempt + 1, maxRetries));
-                await Task.Delay(1000 * (attempt + 1));
-            }
-            catch (ApiException ex)
-            {
-                HandleApiError(ex, operationName);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                HandleError(ex, operationName);
-                return false;
-            }
+            return true;
         }
-
-        return false;
+        catch (OperationCanceledException)
+        {
+            // Component disposed or navigation — not a user-facing error. (TaskCanceledException derives from this.)
+            return false;
+        }
+        catch (ApiException ex)
+        {
+            HandleApiError(ex, operationName);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            HandleError(ex, operationName);
+            return false;
+        }
     }
 
-    public async Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null, int maxRetries = 0)
+    public async Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null)
     {
-        for (var attempt = 0; attempt <= maxRetries; attempt++)
+        try
         {
-            try
+            var result = await operation();
+            if (successMessage is not null)
             {
-                var result = await operation();
-
-                if (successMessage is not null)
-                {
-                    ShowSuccess(successMessage);
-                }
-
-                return (true, result);
+                ShowSuccess(successMessage);
             }
-            catch (Exception ex) when (attempt < maxRetries && IsTransient(ex))
-            {
-                _logger.LogWarning(ex, "Transient error during '{OperationName}', retrying ({Attempt}/{MaxRetries})",
-                    operationName, attempt + 1, maxRetries);
-                ShowWarning(string.Format(_loc["Feedback_Retrying"], attempt + 1, maxRetries));
-                await Task.Delay(1000 * (attempt + 1));
-            }
-            catch (ApiException ex)
-            {
-                HandleApiError(ex, operationName);
-                return (false, default);
-            }
-            catch (Exception ex)
-            {
-                HandleError(ex, operationName);
-                return (false, default);
-            }
+            return (true, result);
         }
-
-        return (false, default);
+        catch (OperationCanceledException)
+        {
+            // Component disposed or navigation — not a user-facing error. (TaskCanceledException derives from this.)
+            return (false, default);
+        }
+        catch (ApiException ex)
+        {
+            HandleApiError(ex, operationName);
+            return (false, default);
+        }
+        catch (Exception ex)
+        {
+            HandleError(ex, operationName);
+            return (false, default);
+        }
     }
-
-    private static bool IsTransient(Exception ex) => ex switch
-    {
-        HttpRequestException => true,
-        TaskCanceledException => true,
-        IOException => true,
-        ApiException apiEx => IsTransientHttpStatus(apiEx.StatusCode),
-        _ => false
-    };
-
-    private static readonly HashSet<System.Net.HttpStatusCode> TransientHttpStatuses = new()
-    {
-        System.Net.HttpStatusCode.InternalServerError,
-        System.Net.HttpStatusCode.BadGateway,
-        System.Net.HttpStatusCode.ServiceUnavailable,
-        System.Net.HttpStatusCode.GatewayTimeout,
-        System.Net.HttpStatusCode.RequestTimeout
-    };
-
-    private static bool IsTransientHttpStatus(System.Net.HttpStatusCode status)
-        => TransientHttpStatuses.Contains(status);
 
     /// <summary>
     /// Converts exceptions to user-friendly messages.
@@ -213,7 +174,6 @@ public sealed class UserFeedbackService : IUserFeedbackService
         return ex switch
         {
             ApiException apiEx => GetApiErrorMessage(apiEx, operationName),
-            HttpRequestException httpEx => GetHttpErrorMessage(httpEx, operationName),
             TaskCanceledException => _loc["Feedback_RequestTimedOut"],
             OperationCanceledException => _loc["Feedback_OperationCancelled"],
             UnauthorizedAccessException => _loc["Feedback_NoPermission"],
@@ -250,25 +210,5 @@ public sealed class UserFeedbackService : IUserFeedbackService
         return ApiErrorResourceKeys.TryGetValue(ex.StatusCode, out var key)
             ? _loc[key]
             : string.Format(_loc["Feedback_GenericApiError"], operationName);
-    }
-
-    /// <summary>
-    /// Converts HTTP request exceptions to user-friendly messages.
-    /// </summary>
-    private string GetHttpErrorMessage(HttpRequestException ex, string operationName)
-    {
-        if (ex.Message.Contains("No connection could be made", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("Connection refused", StringComparison.OrdinalIgnoreCase))
-        {
-            return _loc["Feedback_ConnectionFailed"];
-        }
-
-        if (ex.Message.Contains("SSL", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("certificate", StringComparison.OrdinalIgnoreCase))
-        {
-            return _loc["Feedback_SecureConnectionFailed"];
-        }
-
-        return string.Format(_loc["Feedback_NetworkError"], operationName);
     }
 }

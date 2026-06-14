@@ -53,23 +53,25 @@ public interface IUserFeedbackService
     void HandleApiError(ApiException ex, string operationName);
 
     /// <summary>
-    /// Wraps an async operation with automatic success/error feedback.
+    /// Wraps an async operation with automatic success/error feedback — the default idiom for
+    /// every user-initiated facade call. Shows the localized error snackbar on failure (or the
+    /// optional success snackbar), and treats <see cref="OperationCanceledException"/> as benign
+    /// (component disposed / navigation) — no snackbar.
     /// </summary>
     /// <param name="operation">The async operation to execute.</param>
     /// <param name="operationName">Friendly name for the operation (e.g., "Delete asset").</param>
     /// <param name="successMessage">Optional custom success message. If null, no success message is shown.</param>
-    /// <param name="maxRetries">Maximum number of automatic retries for transient failures (default: 0).</param>
-    /// <returns>True if the operation succeeded, false if it failed.</returns>
-    Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null, int maxRetries = 0);
+    /// <returns>True if the operation succeeded, false if it failed or was cancelled.</returns>
+    Task<bool> ExecuteWithFeedbackAsync(Func<Task> operation, string operationName, string? successMessage = null);
 
     /// <summary>
     /// Wraps an async operation that returns a result with automatic success/error feedback.
+    /// Same semantics as the non-generic overload, including benign cancellation handling.
     /// </summary>
     /// <typeparam name="T">The type of the result.</typeparam>
     /// <param name="operation">The async operation to execute.</param>
     /// <param name="operationName">Friendly name for the operation.</param>
     /// <param name="successMessage">Optional custom success message. If null, no success message is shown.</param>
-    /// <param name="maxRetries">Maximum number of automatic retries for transient failures (default: 0).</param>
-    /// <returns>The result if successful, or default(T) if failed.</returns>
-    Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null, int maxRetries = 0);
+    /// <returns>The result if successful, or default(T) if failed or cancelled.</returns>
+    Task<(bool Success, T? Result)> ExecuteWithFeedbackAsync<T>(Func<Task<T>> operation, string operationName, string? successMessage = null);
 }

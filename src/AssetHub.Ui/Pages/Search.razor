@@ -176,58 +176,49 @@
     private async Task RunSearchAsync()
     {
         _loading = true;
-        try
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SearchAssetsAsync(_request), "search assets");
+        if (ok && response is not null)
         {
-            var response = await Api.SearchAssetsAsync(_request);
             _items = response.Items;
             _total = response.TotalCount;
             _facets = response.Facets;
         }
-        catch (Exception ex)
+        else
         {
-            Feedback.HandleError(ex, "search assets");
             _items = new();
             _total = 0;
             _facets = new();
         }
-        finally
-        {
-            _loading = false;
-        }
+        _loading = false;
     }
 
     private async Task LoadMoreAsync()
     {
         _loadingMore = true;
-        try
+        var paged = new AssetSearchRequest
         {
-            var paged = new AssetSearchRequest
-            {
-                Text = _request.Text,
-                AssetTypes = _request.AssetTypes,
-                Statuses = _request.Statuses,
-                CollectionIds = _request.CollectionIds,
-                Tags = _request.Tags,
-                MetadataFilters = _request.MetadataFilters,
-                CreatedAfter = _request.CreatedAfter,
-                CreatedBefore = _request.CreatedBefore,
-                Sort = _request.Sort,
-                Skip = _items.Count,
-                Take = _request.Take,
-                Facets = null   // don't re-aggregate facets on pagination
-            };
-            var response = await Api.SearchAssetsAsync(paged);
+            Text = _request.Text,
+            AssetTypes = _request.AssetTypes,
+            Statuses = _request.Statuses,
+            CollectionIds = _request.CollectionIds,
+            Tags = _request.Tags,
+            MetadataFilters = _request.MetadataFilters,
+            CreatedAfter = _request.CreatedAfter,
+            CreatedBefore = _request.CreatedBefore,
+            Sort = _request.Sort,
+            Skip = _items.Count,
+            Take = _request.Take,
+            Facets = null   // don't re-aggregate facets on pagination
+        };
+        var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.SearchAssetsAsync(paged), "load more results");
+        if (ok && response is not null)
+        {
             _items.AddRange(response.Items);
             _total = response.TotalCount;
         }
-        catch (Exception ex)
-        {
-            Feedback.HandleError(ex, "load more results");
-        }
-        finally
-        {
-            _loadingMore = false;
-        }
+        _loadingMore = false;
     }
 
     private async Task OpenSaveDialog()
