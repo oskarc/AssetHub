@@ -127,6 +127,48 @@ dotnet build --configuration Release
 
 ---
 
+## Phase 6b: Vulnerability scans (mirror the CI security gates)
+
+CI fails on dependency and container vulnerabilities. Run the same gates locally **before pushing** so a red pipeline is caught here, not on the remote. `.github/workflows/ci.yml` is the source of truth — keep these commands in sync with it.
+
+### Dependency scan (applications) — run every time
+The `security-audit` job runs on every push:
+```powershell
+dotnet list package --vulnerable --include-transitive
+```
+- **Fails the gate** if the output contains `has the following vulnerable packages`.
+- Fix by upgrading the offending package (or a transitive pin) to a non-vulnerable version. A transitive vuln with no direct reference is pinned via a top-level `<PackageReference>` at the fixed version.
+
+### Container scan (containers) — run before a `main` push, or when images/deps changed
+The `docker-build` and `infra-image-scan` jobs run **on push to `main` only**, and Trivy fails the build on fixable `CRITICAL`/`HIGH` findings. Because building three multi-stage images is slow, run this when it can matter: pushing to `main`, or any change to a `Dockerfile*`, a base-image tag, or a `*.csproj`/dependency.
+
+Build the three images CI builds, then scan each with **the exact CI flags**:
+```bash
+docker build -t assethub-api:scan       -f docker/Dockerfile          .
+docker build -t assethub-worker:scan    -f docker/Dockerfile.Worker   .
+docker build -t assethub-rabbitmq:scan  -f docker/Dockerfile.RabbitMQ docker/
+```
+Trivy is **not** installed locally by default. Prefer a local `trivy` binary if present; otherwise run the pinned Trivy container against a saved image tar (portable on Windows — no docker-socket mount needed):
+```bash
+# CI uses trivy v0.69.3 with: --severity CRITICAL,HIGH --ignore-unfixed --vuln-type os,library --exit-code 1
+for img in assethub-api:scan assethub-worker:scan assethub-rabbitmq:scan; do
+  docker save "$img" -o "trivy-${img%%:*}.tar"
+  docker run --rm -v "$PWD:/work" aquasecurity/trivy:0.69.3 image \
+    --input "/work/trivy-${img%%:*}.tar" \
+    --severity CRITICAL,HIGH --ignore-unfixed --pkg-types os,library --exit-code 1 \
+    || echo "::TRIVY FAIL:: $img"
+  rm -f "trivy-${img%%:*}.tar"
+done
+```
+(If a local `trivy` is on PATH: `trivy image --severity CRITICAL,HIGH --ignore-unfixed --pkg-types os,library --exit-code 1 <img>`. `--pkg-types` is the current flag; older Trivy uses the `--vuln-type` alias the CI action passes.)
+
+**Triage — match CI exactly:**
+- Only **fixable** `CRITICAL`/`HIGH` block (CI sets `ignore-unfixed: true`); unfixed advisories are reported but do not fail.
+- A base-image CVE is fixed by bumping the pinned base-image digest/tag in the Dockerfile to a patched release; a library CVE, by upgrading the package.
+- If Docker isn't running, or this is a non-`main` branch with no image/dependency changes, the container scan may be **skipped** — note it in the summary; never report it as passed when it didn't run.
+
+---
+
 ## Phase 7: SonarCloud analysis
 
 Static analysis of every changed file against the project's SonarCloud rules
@@ -280,6 +322,7 @@ Stop the entire flow and report to the user if:
 - Build fails after 3 fix attempts on the same error.
 - SonarCloud BLOCKER/CRITICAL findings after 3 fix attempts on the same rule.
 - Tests fail after 3 fix attempts on the same test.
+- A vulnerable dependency or fixable `CRITICAL`/`HIGH` container CVE (Phase 6b) can't be resolved by a safe upgrade / base-image bump — surface it; don't push a change CI will reject.
 - A security finding cannot be resolved without architectural changes.
 - Merge conflicts arise during push that require manual resolution.
 
@@ -292,4 +335,5 @@ After successful push, report:
 - Commit hash and message.
 - Count of files changed, insertions, deletions (`git diff --stat HEAD~1`).
 - SonarCloud finding counts per severity, or the fallback status used (`clean via SonarLint`, `SKIPPED`, etc.) with reason.
+- Vulnerability-scan result (Phase 6b): dependency scan pass/fail; container scan pass/fail **or SKIPPED with reason** (Docker down, non-`main` branch with no image/dependency change). Never report a scan that didn't run as passed.
 - Any warnings or notes from the review phases.

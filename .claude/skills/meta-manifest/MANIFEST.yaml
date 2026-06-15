@@ -447,7 +447,7 @@ nodes:
     open_gaps: []
 
   - id: implementation-commit-and-push
-    concern: Commit hygiene — review staged changes, run build / tests, compose why-focused commit message
+    concern: Commit hygiene — review staged changes, run build / tests, vuln-scan, compose why-focused commit message
     skill_file: implementation-commit-and-push/SKILL.md
     tier: type-category
     layer: implementation
@@ -457,6 +457,7 @@ nodes:
     dependencies: [project-instructions]
     open_gaps:
       - Mixed type-category and project-specific content — decomposition candidate (carried from old gap-001/002)
+      - 2026-06-15 added Phase 6b (mirror-CI vuln gates — dotnet vulnerable-package + Trivy on the 3 images). The principle (mirror CI security gates locally before push) is type-category; the concrete image/Dockerfile/flag specifics are project — reinforces the decomposition candidate.
 
   # ─── Project nodes (discovered through use) ───────────────────────────────
   # Naming convention: [layer]-[name]/SKILL.md
