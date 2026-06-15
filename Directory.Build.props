@@ -13,6 +13,22 @@
     <FileVersion>0.1.0.0</FileVersion>
   </PropertyGroup>
 
+  <!--
+    Fail the build on vulnerable NuGet packages so a CI-failing advisory is
+    caught at `dotnet build` time, not after a push. NuGet audit covers direct
+    + transitive deps (NuGetAuditMode=all, matching CI's include-transitive scan)
+    and reports everything down to low. The gate itself is the warning/error
+    promotion: HIGH (NU1903) and CRITICAL (NU1904) break the build; moderate
+    (NU1902) and low (NU1901) stay visible-but-non-blocking. Severity->code map:
+    NU1901 low / NU1902 moderate / NU1903 high / NU1904 critical.
+  -->
+  <PropertyGroup>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+  </PropertyGroup>
+
   <!-- Override vulnerable transitive dependencies -->
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

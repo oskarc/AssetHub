@@ -122,6 +122,11 @@ dotnet build --configuration Release
 ```
 
 - Must pass with **zero warnings** (CI enforces this).
+- **HIGH/CRITICAL NuGet advisories fail the build here** — `Directory.Build.props`
+  promotes `NU1903` (high) and `NU1904` (critical) to errors via `WarningsAsErrors`,
+  so a vulnerable package breaks `dotnet build` before Phase 6b's scan even runs.
+  Fix by upgrading the package (see Phase 6b). Moderate/low advisories stay warnings
+  and are caught by the Phase 6b dependency scan, which CI fails on at any severity.
 - If build fails, diagnose the errors, fix them, and re-run until clean.
 - After fixing, return to Phase 2 for any newly modified files.
 
