@@ -33,14 +33,13 @@ public abstract class BunitTestBase : BunitContext, IAsyncLifetime
         Services.AddSingleton(MockApi.Object);
         Services.AddSingleton<IUserFeedbackService>(new PassThroughFeedbackService(MockFeedback.Object));
 
-        // Register stub IStringLocalizer<T> for all resource types — returns the key as the value
-        Services.AddSingleton<IStringLocalizer<CommonResource>>(new StubStringLocalizer<CommonResource>());
-        Services.AddSingleton<IStringLocalizer<AssetsResource>>(new StubStringLocalizer<AssetsResource>());
-        Services.AddSingleton<IStringLocalizer<CollectionsResource>>(new StubStringLocalizer<CollectionsResource>());
-        Services.AddSingleton<IStringLocalizer<SharesResource>>(new StubStringLocalizer<SharesResource>());
-        Services.AddSingleton<IStringLocalizer<AdminResource>>(new StubStringLocalizer<AdminResource>());
-        Services.AddSingleton<IStringLocalizer<WatermarksResource>>(new StubStringLocalizer<WatermarksResource>());
-        Services.AddSingleton<IStringLocalizer<AnalyticsResource>>(new StubStringLocalizer<AnalyticsResource>());
+        // Register a stub IStringLocalizer<T> for EVERY resource type via an open
+        // generic — returns the key as the value. An open generic (vs. one line per
+        // resource marker) means adding or splitting a resource never requires a
+        // matching edit here; previously the per-type list silently went stale when
+        // AdminResource was split into per-area resources, breaking every component
+        // that injected one of the new markers.
+        Services.AddSingleton(typeof(IStringLocalizer<>), typeof(StubStringLocalizer<>));
 
         // Register LocalizedDisplayService (used by dialogs/components that display localized labels)
         Services.AddSingleton<LocalizedDisplayService>();
