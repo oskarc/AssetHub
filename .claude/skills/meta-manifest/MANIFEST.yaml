@@ -183,9 +183,23 @@ nodes:
     phase: during-build
     status: thin
     inherited: false
-    dependencies: [pattern-service-result]
+    dependencies: [pattern-service-result, pattern-cohesive-type-split]
     open_gaps:
       - Extracted from CLAUDE.md 2026-06-14; overlaps implementation-ux-check (behaviour) — boundary worth sharpening
+      - 2026-06-17 added "source-tree mirrors one feature taxonomy" pattern (elevation candidate ④ from the UI maintainability pass — dialog/facade-partial folder split); partially informs gap-003
+
+  # Elevation candidate ① from the 2026-06-17 UI maintainability pass — facade god-file split.
+  - id: pattern-cohesive-type-split
+    concern: Split a large-but-cohesive type (facade / composition root / aggregator) by relocating along existing seams into partial files, preserving the single external surface — vs decomposing tangled responsibility into separate types
+    skill_file: pattern-cohesive-type-split/SKILL.md
+    tier: type-category
+    layer: pattern
+    phase: during-build
+    status: thin
+    inherited: false
+    dependencies: []
+    open_gaps:
+      - Created 2026-06-17 from the AssetHubApiClient 1477-line split (cohesion-not-tangle, partial-by-region). Resolves the long-open "no file-size/complexity budget" structural gap (C8); the concrete budget threshold remains a project choice
 
   # CLAUDE.md decomposition batch 3, extracted 2026-06-15.
   - id: pattern-enum-string-persistence
@@ -644,6 +658,12 @@ coverage_map:
     phase: during-build
     status: thin
 
+  - concern: Splitting a large-but-cohesive type along seams (file-size budget)
+    node_id: pattern-cohesive-type-split
+    layer: pattern
+    phase: during-build
+    status: thin
+
   - concern: Worker handlers & background services
     node_id: implementation-worker-background
     layer: implementation
@@ -864,6 +884,9 @@ gap_queue:
       2026-06-12: docs/STYLEGUIDE.md (now registered as project-styleguide) documents existing IA
       conventions — remaining scope is decision guidance for NEW page hierarchies plus the admin-area
       IA review (AdminResource at 507 keys signals a tab monolith).
+      2026-06-17: partially addressed — implementation-blazor-ui-standard now carries the
+      "source-tree mirrors one feature taxonomy" pattern (from the dialog/facade-partial folder split).
+      Remaining: decision guidance for NEW page hierarchies + the admin-area tab-monolith review.
     candidate_level: principle
     priority: medium
     status: open

@@ -32,6 +32,10 @@ Two defaults carry most of the weight: **errors flow through one wrapper**, and 
 - **Never optimistic, regardless of mode:** file uploads (real progress), multi-step wizards/bulk ops, validation-heavy forms (failure is common), and any mutation followed by navigation (just await and go).
 - Don't optimistically update state other components derive from (e.g. a sidebar count) — let those refresh after confirmation.
 
+**Source-tree organization mirrors one feature taxonomy.**
+- Sibling concern-folders — components, dialogs, and any per-domain split of the facade (see `pattern-cohesive-type-split`) — use the *same* feature names. A developer learns the layer's map once and finds anything by feature, instead of re-learning a different grouping per folder.
+- A flat "junk drawer" folder (every dialog in one directory, every component in one directory) is the signal to split. Split it into the feature buckets the rest of the layer *already* uses — never a fresh taxonomy invented for that one folder. When namespaces follow folders, the move's cost is a few import lines (in the project's import file *and* in test projects that bind the types); keep that one taxonomy and the cost stays mechanical.
+
 **Component & page conventions.**
 - One component library, used exclusively; no raw platform form controls where a library equivalent exists; no hard-coded visual values (consult the design-system reference).
 - Authn attribute on every page except deliberately-public ones; async-dispose when holding subscriptions/timers/cancellation sources.

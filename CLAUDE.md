@@ -255,9 +255,10 @@ Design tokens, color palettes, typography scale, elevation, and information-arch
 - Methods return DTOs directly and **throw `ApiException`** (carrying the `ServiceResult` status code, error code, and details) on failure. The facade performs the `ServiceResult` → exception translation; pages never see `ServiceResult` itself.
 - Always go through the facade — never inject Application services directly into components, and never construct an `HttpClient`.
 - The facade is registered in the Api composition root (`ServiceCollectionExtensions`); DTO inputs are re-validated against DataAnnotations inside the facade (mirroring `ValidationFilter<T>` on the REST endpoints).
+- The facade is one type but **many files**: `AssetHubApiClient.cs` holds the constructor + shared result-unwrapping helpers, and each domain lives in an `AssetHubApiClient.<Domain>.cs` partial (Assets, Collections, Shares, Admin, …). It stays a single surface/registration — this is the **`pattern-cohesive-type-split`** standard (cohesion, not tangle → split the file, not the design). `IAssetHubApiClient` remains one file.
 
 ### Dialogs
-- Named `*Dialog.razor`.
+- Named `*Dialog.razor`, grouped into per-feature subfolders under `Components/Dialogs/` (Assets, Collections, Sharing, Users, Migrations, Metadata, Webhooks, Brands, Guests, Shared) — the same feature taxonomy as the facade partials and the other `Components/` folders (the `implementation-blazor-ui-standard` "one feature taxonomy" pattern). Namespaces follow the folders; `_Imports.razor` and the UI test `GlobalUsings.cs` carry the sub-namespaces.
 - `MudDialog` with `[CascadingParameter] IMudDialogInstance`.
 - Return via `MudDialog.Close(DialogResult.Ok(value))`.
 
