@@ -326,9 +326,12 @@ Two sanctioned modes for user-initiated mutations. Pick by whether the user's fl
 - Don't optimistically update data that other components depend on (e.g., counts in the sidebar) — let those refresh naturally or refresh after confirmation.
 - Optimistic success feedback may fire immediately with the local update — the user sees instant confirmation.
 
-### Layouts
+### Layouts & information architecture
+Navigation-structure decisions follow the **`principle-information-architecture`** standard (shell-per-audience, routable-over-tabbed sub-views, cap-then-group nav, wayfinding-on-depth). AssetHub's instantiation:
 - `MainLayout.razor` — authenticated app shell with nav menu.
+- `AdminLayout.razor` — admin console shell; its 13 routable `/admin/*` sub-pages are grouped into four intent groups — **Access / Content / Operations / Insights** (the cap-then-group pattern; never re-collapse them into a single tabbed admin page).
 - `ShareLayout.razor` — separate layout for public share pages (no nav).
+- **Known gap (gap-008):** nested routes have no breadcrumb/contextual-back layer yet — principle E is aspirational here until that follow-up ships.
 
 ---
 

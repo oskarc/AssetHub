@@ -201,6 +201,19 @@ nodes:
     open_gaps:
       - Created 2026-06-17 from the AssetHubApiClient 1477-line split (cohesion-not-tangle, partial-by-region). Resolves the long-open "no file-size/complexity budget" structural gap (C8); the concrete budget threshold remains a project choice
 
+  # Created 2026-06-18 to close gap-003 (IA silent at every layer).
+  - id: principle-information-architecture
+    concern: How to decide navigational structure — shell-per-audience, routable-vs-tabbed sub-views, cap-then-group nav, wayfinding-on-depth. The design step that creates IA, upstream of the UX heuristic audit
+    skill_file: principle-information-architecture/SKILL.md
+    tier: type-category
+    layer: principle
+    phase: [pre-build, during-build]
+    status: thin
+    inherited: false
+    dependencies: [implementation-blazor-ui-standard]
+    open_gaps:
+      - Created 2026-06-18 to close gap-003. Encodes principles A (shell-per-audience), B (routable-over-tabbed), C (cap-then-group), E (wayfinding-on-depth). D (one feature taxonomy) deliberately deferred to implementation-blazor-ui-standard rather than duplicated. Grounded in the admin tab-monolith → 13 routable /admin/* routes in 4 intent-groups. Aspirational principle E carries a real follow-up — see gap-008
+
   # CLAUDE.md decomposition batch 3, extracted 2026-06-15.
   - id: pattern-enum-string-persistence
     concern: Persist enums as explicit strings via paired to/from extension methods alongside the enum — never int or member name
@@ -664,6 +677,12 @@ coverage_map:
     phase: during-build
     status: thin
 
+  - concern: Information architecture & navigation decisions
+    node_id: principle-information-architecture
+    layer: principle
+    phase: [pre-build, during-build]
+    status: thin
+
   - concern: Worker handlers & background services
     node_id: implementation-worker-background
     layer: implementation
@@ -814,10 +833,10 @@ coverage_map:
     status: thin
 
   - concern: Navigation & IA decisions
-    node_id: null
-    layer: pattern
-    phase: pre-build
-    status: missing
+    node_id: principle-information-architecture
+    layer: principle
+    phase: [pre-build, during-build]
+    status: thin
 
   - concern: Cognitive load & layout
     node_id: implementation-ux-check
@@ -887,9 +906,17 @@ gap_queue:
       2026-06-17: partially addressed — implementation-blazor-ui-standard now carries the
       "source-tree mirrors one feature taxonomy" pattern (from the dialog/facade-partial folder split).
       Remaining: decision guidance for NEW page hierarchies + the admin-area tab-monolith review.
+      2026-06-18: RESOLVED. (1) Admin tab-monolith review: found already resolved by the P5/P7
+      restructure — the monolith is now 13 routable /admin/* sub-pages under AdminLayout in 4 intent
+      groups (Access/Content/Operations/Insights). (2) Decision guidance: new node
+      principle-information-architecture encodes shell-per-audience (A), routable-over-tabbed (B),
+      cap-then-group nav (C), wayfinding-on-depth (E); taxonomy consistency (D) deferred to
+      implementation-blazor-ui-standard. The one live IA deficiency found (no breadcrumb layer despite
+      nested routes) is carried as the implementation follow-up gap-008.
     candidate_level: principle
     priority: medium
-    status: open
+    status: resolved
+    resolved_by: principle-information-architecture
 
   - gap_id: gap-004
     concern: Design-system / visual-feel guidance is reduced to "MudBlazor 8 only"
@@ -956,6 +983,21 @@ gap_queue:
     priority: low
     status: resolved
     resolved_by: verification 2026-06-12 (/grill-me retired)
+
+  - gap_id: gap-008
+    concern: No wayfinding (breadcrumbs / contextual back) on nested routes
+    surfaced_by: skill-builder
+    surfaced_in: gap-003 lay-of-the-land, 2026-06-18
+    description: |
+      principle-information-architecture principle E says depth in the route hierarchy needs a
+      wayfinding affordance. The app violates it: ~1 breadcrumb usage across the whole UI despite
+      nested routes (/admin/<section>, /assets/{id}/edit, /admin/watermarks/verify). This is the
+      implementation follow-up to E — add a breadcrumb/contextual-back layer to routes deeper than
+      their section root. Bounded UI work; wants its own contract (component + per-page trail data
+      + localization of crumb labels). Not started.
+    candidate_level: product detail
+    priority: medium
+    status: open
 
   # Add new gaps below as they surface:
   #
