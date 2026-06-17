@@ -1,7 +1,8 @@
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Ui.Components;
-using AssetHub.Ui.Components.Dialogs;
+using AssetHub.Ui.Components.Dialogs.Shared;
+using AssetHub.Ui.Components.Dialogs.Sharing;
 using MudBlazor;
 
 namespace AssetHub.Ui.Services;
