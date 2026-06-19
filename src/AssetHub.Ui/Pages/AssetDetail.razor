@@ -46,8 +46,9 @@ else if (_asset == null)
 else
 {
     <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+        <MudBreadcrumbs Items="BuildAssetBreadcrumbs()" Class="px-0 pb-2" />
         <!-- Back Button -->
-        <MudButton Variant="Variant.Text" 
+        <MudButton Variant="Variant.Text"
                    StartIcon="@Icons.Material.Filled.ArrowBack"
                    OnClick="@NavigateBackToAssets"
                    Class="mb-3">
@@ -511,6 +512,14 @@ else
             await LoadAssetAsync();
         }
     }
+
+    // Wayfinding trail (principle-information-architecture, E): Collections > {asset}.
+    // Only rendered in the loaded branch, so _asset is non-null here.
+    private List<BreadcrumbItem> BuildAssetBreadcrumbs() =>
+    [
+        new(CommonLoc["Nav_Collections"].Value, "/collections"),
+        new(_asset!.Title, href: null, disabled: true)
+    ];
 
     private async Task LoadAssetAsync()
     {

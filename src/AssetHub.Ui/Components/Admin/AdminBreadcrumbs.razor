@@ -1,0 +1,68 @@
+@namespace AssetHub.Ui.Components.Admin
+@using Microsoft.AspNetCore.Components.Routing
+@using AssetHub.Ui.Resources
+@implements IDisposable
+@inject NavigationManager Nav
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<AdminResource> AdminLoc
+@inject IStringLocalizer<AnalyticsResource> AnlLoc
+@inject IStringLocalizer<WatermarksResource> WmkLoc
+
+@* Wayfinding for the nested /admin/* routes (principle-information-architecture, E).
+   Auto-derived once here in the admin shell — no per-page code. The root /admin
+   page renders nothing (it is the section root: a single-item trail is suppressed). *@
+@if (_items.Count > 1)
+{
+    <MudBreadcrumbs Items="_items" Class="px-0 pb-2" />
+}
+
+@code {
+    private List<BreadcrumbItem> _items = new();
+
+    protected override void OnInitialized()
+    {
+        Build();
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        Build();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Build()
+    {
+        var path = Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/');
+        var items = new List<BreadcrumbItem> { new(CommonLoc["Nav_Admin"].Value, "/admin") };
+
+        var leaf = ResolveSectionLabel(path);
+        if (leaf is not null)
+            items.Add(new BreadcrumbItem(leaf, href: null, disabled: true));
+
+        _items = items;
+    }
+
+    // Section labels reuse the exact strings the admin nav uses (one feature taxonomy),
+    // so a renamed section updates the nav and the crumb from one resource key.
+    private string? ResolveSectionLabel(string path) => path switch
+    {
+        "admin/users" => AdminLoc["Tab_UserManagement"].Value,
+        "admin/collection-access" => AdminLoc["Tab_CollectionAccess"].Value,
+        "admin/guests" => AdminLoc["Tab_Guests"].Value,
+        "admin/shares" => AdminLoc["Tab_ShareManagement"].Value,
+        "admin/metadata-schemas" => AdminLoc["Tab_MetadataSchemas"].Value,
+        "admin/taxonomies" => AdminLoc["Tab_Taxonomies"].Value,
+        "admin/export-presets" => AdminLoc["Tab_ExportPresets"].Value,
+        "admin/brands" => AdminLoc["Tab_Brands"].Value,
+        "admin/migrations" => AdminLoc["Tab_Migrations"].Value,
+        "admin/trash" => AdminLoc["Tab_Trash"].Value,
+        "admin/audit" => AdminLoc["Tab_AuditLog"].Value,
+        "admin/webhooks" => AdminLoc["Tab_Webhooks"].Value,
+        "admin/analytics" => AnlLoc["PageTitle"].Value,
+        "admin/watermarks/verify" => WmkLoc["Verify_PageTitle"].Value,
+        _ => null // /admin root or unknown — render just "Admin" (suppressed by the count guard)
+    };
+
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+}

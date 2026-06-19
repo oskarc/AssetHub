@@ -42,6 +42,7 @@ else if (!string.IsNullOrEmpty(_errorMessage))
 else
 {
     <div class="editor-page">
+        <MudBreadcrumbs Items="BuildEditBreadcrumbs()" Class="px-3 pt-2 pb-0" />
         <MudOverlay Visible="_isSaving" Absolute="true" ZIndex="99999" Class="saving-overlay">
             <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="saving-overlay-content">
                 <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
@@ -150,6 +151,15 @@ else
 
         await LoadAssetAsync();
     }
+
+    // Wayfinding trail (principle-information-architecture, E): Collections > {asset} > Edit.
+    // Only rendered in the loaded branch, so _asset is non-null here.
+    private List<BreadcrumbItem> BuildEditBreadcrumbs() =>
+    [
+        new(CommonLoc["Nav_Collections"].Value, "/collections"),
+        new(_asset!.Title, $"/assets/{Id}"),
+        new(CommonLoc["Btn_Edit"].Value, href: null, disabled: true)
+    ];
 
     private async Task LoadAssetAsync()
     {
