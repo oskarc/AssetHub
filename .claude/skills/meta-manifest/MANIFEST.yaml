@@ -213,6 +213,7 @@ nodes:
     dependencies: [implementation-blazor-ui-standard]
     open_gaps:
       - Created 2026-06-18 to close gap-003. Encodes principles A (shell-per-audience), B (routable-over-tabbed), C (cap-then-group), E (wayfinding-on-depth). D (one feature taxonomy) deliberately deferred to implementation-blazor-ui-standard rather than duplicated. Grounded in the admin tab-monolith → 13 routable /admin/* routes in 4 intent-groups. Aspirational principle E carries a real follow-up — see gap-008
+      - 2026-06-18 added the "derive-then-override" pattern under principle E (auto-derive the trail from route+nav structure in the shell; per-page only for dynamic leaves) — accepted from the gap-008 Standard Evolution Report. E is no longer aspirational here: gap-008 shipped (9962460)
 
   # CLAUDE.md decomposition batch 3, extracted 2026-06-15.
   - id: pattern-enum-string-persistence
@@ -995,9 +996,15 @@ gap_queue:
       implementation follow-up to E — add a breadcrumb/contextual-back layer to routes deeper than
       their section root. Bounded UI work; wants its own contract (component + per-page trail data
       + localization of crumb labels). Not started.
+      2026-06-18: RESOLVED (commit 9962460). AdminBreadcrumbs auto-derives all 14 /admin/* trails
+      in AdminLayout (zero per-page code, labels reused from nav keys — no new resx); the 2 asset
+      routes use per-page trails for their dynamic leaf. Public share + section roots excluded.
+      The implementation surfaced the "derive-then-override" pattern, accepted and added to
+      principle-information-architecture.
     candidate_level: product detail
     priority: medium
-    status: open
+    status: resolved
+    resolved_by: AdminBreadcrumbs + per-page asset trails (9962460)
 
   # Add new gaps below as they surface:
   #

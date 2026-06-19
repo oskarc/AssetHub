@@ -29,6 +29,7 @@ Every level of route nesting a user can reach needs an affordance answering "whe
 - **Tabs→routes threshold** — convert when *deep-linkable* OR *independently permissioned* OR *past the glance cap*. Any one is enough.
 - **Cap-then-group** — flat list up to ~7; beyond, intent-named groups. Reuse the feature names the rest of the layer already uses (routes, source tree) rather than inventing a nav-only taxonomy — naming consistency across routes/nav/source-tree is the UI standard's "one feature taxonomy" pattern; defer to it, don't restate it.
 - **Breadcrumb-on-depth** — any route deeper than its section root carries a breadcrumb or a contextual back to the section root.
+- **Derive-then-override (how to build the trail)** — derive the trail from *structure* wherever the structure carries the label: the route plus the navigation names already say "Admin › Users", so build that trail once in the section's shell and every page below inherits it with no per-page code, in a consistent place, staying in sync with the nav from a single source. Fall back to a per-page trail *only* for the one segment whose label is runtime data — an entity's title known only to that page. Auto-derivation is the default; per-page is the scoped exception for dynamic leaves, not the norm.
 
 ## Boundaries
 
