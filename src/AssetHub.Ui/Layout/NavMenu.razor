@@ -1,6 +1,7 @@
 
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IStringLocalizer<CommonResource> CommonLoc
+@inject IStringLocalizer<ReviewResource> ReviewLoc
 
 <MudNavMenu>
     <AuthorizeView>
@@ -8,7 +9,13 @@
             <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@CommonLoc["Nav_Home"]</MudNavLink>
             <MudNavLink Href="collections" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PhotoLibrary">@CommonLoc["Nav_Collections"]</MudNavLink>
             <MudNavLink Href="search" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Search">@CommonLoc["Nav_Search"]</MudNavLink>
-            
+
+            <AuthorizeView Policy="RequireManager" Context="reviewContext">
+                <Authorized>
+                    <MudNavLink Href="review" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FactCheck">@ReviewLoc["Nav_Review"]</MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+
             <AuthorizeView Policy="RequireAdmin" Context="adminContext">
                 <Authorized>
                     <MudDivider Class="my-2" />

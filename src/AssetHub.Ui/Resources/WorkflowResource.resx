@@ -54,6 +54,8 @@
   <data name="Dialog_Reason_Required_Label" xml:space="preserve"><value>Reason (required)</value></data>
   <data name="Dialog_Confirm" xml:space="preserve"><value>Confirm</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Reject_Dialog_Helper" xml:space="preserve"><value>The author will see this reason.</value></data>
+  <data name="Reject_Reason_Required" xml:space="preserve"><value>A reason is required to reject.</value></data>
 
   <data name="Action_Failed" xml:space="preserve"><value>Workflow action failed.</value></data>
   <data name="Action_Failed_MissingMetadata" xml:space="preserve"><value>Can't submit — required metadata is missing. Fill in the required fields on this asset and try again.</value></data>

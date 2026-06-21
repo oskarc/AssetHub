@@ -22,6 +22,7 @@ public class AccountResource { }
 public class NotificationsResource { }
 public class CommentsResource { }
 public class WorkflowResource { }
+public class ReviewResource { }
 public class WebhooksResource { }
 public class BrandsResource { }
 public class GuestsResource { }

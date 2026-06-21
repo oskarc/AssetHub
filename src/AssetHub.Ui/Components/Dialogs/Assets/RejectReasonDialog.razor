@@ -1,0 +1,53 @@
+@using AssetHub.Ui.Resources
+@inject IStringLocalizer<WorkflowResource> Loc
+
+@* Collects the required rejection reason. Shared by the asset-detail WorkflowPanel
+   and the Reviews queue — replaces the former "(provided via API)" placeholder so a
+   real reason reaches the author and the audit trail (T-REVIEW). *@
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" id="reject-reason-title">
+            <MudIcon Icon="@Icons.Material.Outlined.Cancel" Color="Color.Error" />
+            <MudText Typo="Typo.h6">@Loc["Action_reject"]</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_reason"
+                      @bind-Value:after="StateHasChanged"
+                      Label="@Loc["Dialog_Reason_Required_Label"]"
+                      HelperText="@Loc["Reject_Dialog_Helper"]"
+                      Lines="3"
+                      Counter="1000"
+                      MaxLength="1000"
+                      Immediate="true"
+                      Required="true"
+                      RequiredError="@Loc["Reject_Reason_Required"]"
+                      Variant="Variant.Outlined"
+                      aria-labelledby="reject-reason-title"
+                      Class="dialog-min-width" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@Loc["Dialog_Cancel"]</MudButton>
+        <MudButton Color="Color.Error"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Outlined.Cancel"
+                   OnClick="Submit"
+                   Disabled="@string.IsNullOrWhiteSpace(_reason)">
+            @Loc["Action_reject"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private string _reason = string.Empty;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_reason)) return;
+        MudDialog.Close(DialogResult.Ok(_reason.Trim()));
+    }
+}

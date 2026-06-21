@@ -77,7 +77,7 @@
                                     <strong>@LocalizeState(t.ToState)</strong>
                                 </MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @t.ActorUserId · @t.CreatedAt.ToLocalTime().ToString("g")
+                                    @ActorName(t.ActorUserId) · @t.CreatedAt.ToLocalTime().ToString("g")
                                 </MudText>
                                 @if (!string.IsNullOrWhiteSpace(t.Reason))
                                 {
@@ -98,10 +98,15 @@
     [Parameter, EditorRequired] public Guid AssetId { get; set; }
 
     private AssetWorkflowResponseDto? _workflow;
+    private Dictionary<string, string> _names = new();
     private bool _loading = true;
     private bool _loadError;
     private bool _working;
     private CancellationTokenSource _cts = new();
+
+    // Resolve the transition actor's id to a display name; fall back to the raw id.
+    private string ActorName(string userId) =>
+        _names.TryGetValue(userId, out var name) ? name : userId;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -118,6 +123,12 @@
             _loading = true;
             _loadError = false;
             _workflow = await Api.GetAssetWorkflowAsync(AssetId, _cts.Token);
+
+            var actorIds = _workflow.History.Select(h => h.ActorUserId)
+                .Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+            _names = actorIds.Count == 0
+                ? new Dictionary<string, string>()
+                : await Api.GetUserNamesAsync(actorIds, _cts.Token);
         }
         catch (OperationCanceledException) { /* component disposing — caller owns cleanup */ }
         catch
@@ -135,23 +146,19 @@
     {
         if (_working) return;
 
-        bool needsReason = action == "reject";
         string? reason = null;
 
-        if (needsReason)
+        if (action == "reject")
         {
-            var result = await DialogService.ShowMessageBox(
-                LocalizeAction(action),
-                (MarkupString)$"<p>{Loc["Dialog_Reason_Required_Label"]}</p>",
-                yesText: Loc["Dialog_Confirm"],
-                cancelText: Loc["Dialog_Cancel"]);
+            // Collect the required, real reason — it reaches the author and the audit trail.
+            var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+            var dialog = await DialogService.ShowAsync<RejectReasonDialog>(Loc["Action_reject"], options);
+            var result = await dialog.Result;
+            if (result is null || result.Canceled || result.Data is not string enteredReason
+                || string.IsNullOrWhiteSpace(enteredReason))
+                return;
 
-            if (result != true) return;
-
-            // MudBlazor MessageBox doesn't support inline inputs; for v1 we
-            // simply send empty / a placeholder. An inline dialog upgrade is
-            // tracked as a FOLLOW-UP.
-            reason = "(provided via API)";
+            reason = enteredReason;
         }
 
         _working = true;

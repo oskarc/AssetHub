@@ -1,0 +1,175 @@
+@page "/review/history"
+@layout ReviewLayout
+@attribute [Authorize(Policy = "RequireManager")]
+@implements IAsyncDisposable
+
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Components
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject IAssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IStringLocalizer<ReviewResource> ReviewLoc
+@inject IStringLocalizer<WorkflowResource> WorkflowLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@ReviewLoc["Tab_Decisions"] · @ReviewLoc["Page_Title"] - @CommonLoc["AppName"]</PageTitle>
+
+<MudPaper Class="pa-3 mb-4" Elevation="0" Outlined="true">
+    <MudSelect T="string" Value="_decision" ValueChanged="OnDecisionChanged"
+               Label="@ReviewLoc["Filter_Decision"]" Variant="Variant.Outlined" Margin="Margin.Dense" Class="max-w-200">
+        <MudSelectItem Value="@((string?)null)">@ReviewLoc["Filter_Decision_All"]</MudSelectItem>
+        <MudSelectItem Value="@("approved")">@WorkflowLoc["State_approved"]</MudSelectItem>
+        <MudSelectItem Value="@("rejected")">@WorkflowLoc["State_rejected"]</MudSelectItem>
+        <MudSelectItem Value="@("published")">@WorkflowLoc["State_published"]</MudSelectItem>
+    </MudSelect>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudStack AlignItems="AlignItems.Center" Class="py-8">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    </MudStack>
+}
+else if (_items.Count == 0)
+{
+    <EmptyState Title="@ReviewLoc["Decisions_Empty_Title"]"
+                Description="@ReviewLoc["Decisions_Empty_Desc"]"
+                Icon="@Icons.Material.Filled.History" />
+}
+else
+{
+    <MudTable Items="_items" Hover="true" Dense="true" Striped="true" Elevation="1" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>@ReviewLoc["Col_When"]</MudTh>
+            <MudTh>@ReviewLoc["Col_Asset"]</MudTh>
+            <MudTh>@ReviewLoc["Col_Decision"]</MudTh>
+            <MudTh>@ReviewLoc["Col_Reviewer"]</MudTh>
+            <MudTh>@ReviewLoc["Col_Reason"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="@ReviewLoc["Col_When"]">
+                <MudTooltip Text="@context.DecidedAt.ToLocalTime().ToString("F")">
+                    <MudText Typo="Typo.body2">@context.DecidedAt.ToLocalTime().ToString("g")</MudText>
+                </MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="@ReviewLoc["Col_Asset"]">
+                <MudLink Typo="Typo.body2" OnClick="@(() => OpenAsset(context.AssetId))" Underline="Underline.Hover">
+                    @context.AssetTitle
+                </MudLink>
+            </MudTd>
+            <MudTd DataLabel="@ReviewLoc["Col_Decision"]">
+                <MudChip T="string" Size="Size.Small" Color="@ColorFor(context.Decision)"
+                         Icon="@IconFor(context.Decision)" Variant="Variant.Outlined">
+                    @LocalizeDecision(context.Decision)
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="@ReviewLoc["Col_Reviewer"]">
+                <MudText Typo="Typo.body2">@context.ReviewerName</MudText>
+            </MudTd>
+            <MudTd DataLabel="@ReviewLoc["Col_Reason"]">
+                @if (!string.IsNullOrWhiteSpace(context.Reason))
+                {
+                    <MudText Typo="Typo.body2" Style="font-style: italic;">@context.Reason</MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">—</MudText>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Spacing="3" Class="mt-4">
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@string.Format(ReviewLoc["Showing"], _items.Count, _total)</MudText>
+        @if (_items.Count < _total)
+        {
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="LoadMoreAsync" Disabled="_loadingMore">
+                @CommonLoc["Btn_LoadMore"]
+            </MudButton>
+        }
+    </MudStack>
+}
+
+@code {
+    private List<ReviewDecisionDto> _items = new();
+    private int _total;
+    private bool _loading = true;
+    private bool _loadingMore;
+    private string? _decision;
+    private const int _take = 50;
+
+    private readonly CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private ReviewDecisionsRequest BuildRequest(int skip) => new()
+    {
+        Decisions = string.IsNullOrWhiteSpace(_decision) ? null : new List<string> { _decision },
+        Skip = skip,
+        Take = _take
+    };
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var (ok, resp) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetReviewDecisionsAsync(BuildRequest(0), _cts.Token), "load review decisions");
+        if (ok && resp is not null)
+        {
+            _items = resp.Items;
+            _total = resp.TotalCount;
+        }
+        _loading = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        var (ok, resp) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetReviewDecisionsAsync(BuildRequest(_items.Count), _cts.Token), "load more decisions");
+        if (ok && resp is not null)
+        {
+            _items.AddRange(resp.Items);
+            _total = resp.TotalCount;
+        }
+        _loadingMore = false;
+    }
+
+    private async Task OnDecisionChanged(string? value)
+    {
+        _decision = value;
+        await LoadAsync();
+    }
+
+    private void OpenAsset(Guid assetId) =>
+        Nav.NavigateTo($"/assets/{assetId}?returnUrl=/review/history");
+
+    private string LocalizeDecision(string decision) => WorkflowLoc[$"State_{decision}"];
+
+    private static Color ColorFor(string decision) => decision switch
+    {
+        "approved" => Color.Info,
+        "rejected" => Color.Error,
+        "published" => Color.Success,
+        _ => Color.Default
+    };
+
+    private static string IconFor(string decision) => decision switch
+    {
+        "approved" => Icons.Material.Outlined.CheckCircle,
+        "rejected" => Icons.Material.Outlined.Cancel,
+        "published" => Icons.Material.Outlined.Public,
+        _ => Icons.Material.Outlined.HelpOutline
+    };
+
+    public ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

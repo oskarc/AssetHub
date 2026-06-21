@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Nav_Review" xml:space="preserve"><value>Review</value></data>
+  <data name="Page_Title" xml:space="preserve"><value>Review</value></data>
+  <data name="Page_Subtitle" xml:space="preserve"><value>Assets awaiting review and the record of recent decisions.</value></data>
+
+  <data name="Tab_Pending" xml:space="preserve"><value>Pending</value></data>
+  <data name="Tab_Decisions" xml:space="preserve"><value>Decisions</value></data>
+
+  <data name="Pending_Empty_Title" xml:space="preserve"><value>Nothing awaiting review</value></data>
+  <data name="Pending_Empty_Desc" xml:space="preserve"><value>When contributors submit assets for review, they appear here.</value></data>
+
+  <data name="Col_Asset" xml:space="preserve"><value>Asset</value></data>
+  <data name="Col_Area" xml:space="preserve"><value>Area / Manager</value></data>
+  <data name="Col_Submitted" xml:space="preserve"><value>Submitted</value></data>
+  <data name="Col_Actions" xml:space="preserve"><value>Actions</value></data>
+
+  <data name="Manager_None" xml:space="preserve"><value>No manager assigned</value></data>
+  <data name="Submitted_By" xml:space="preserve"><value>by {0}</value></data>
+
+  <data name="Banner_Unassigned" xml:space="preserve"><value>{0} item(s) are in areas with no manager assigned.</value></data>
+  <data name="Banner_Unassigned_Action" xml:space="preserve"><value>Manage access</value></data>
+
+  <data name="Filter_UnassignedOnly" xml:space="preserve"><value>Unassigned only</value></data>
+  <data name="Showing" xml:space="preserve"><value>Showing {0} of {1}</value></data>
+
+  <data name="Approved_Success" xml:space="preserve"><value>Asset approved.</value></data>
+  <data name="Rejected_Success" xml:space="preserve"><value>Asset rejected.</value></data>
+
+  <data name="Decisions_Empty_Title" xml:space="preserve"><value>No decisions yet</value></data>
+  <data name="Decisions_Empty_Desc" xml:space="preserve"><value>Approved, rejected, and published assets are recorded here.</value></data>
+
+  <data name="Col_When" xml:space="preserve"><value>When</value></data>
+  <data name="Col_Decision" xml:space="preserve"><value>Decision</value></data>
+  <data name="Col_Reviewer" xml:space="preserve"><value>Reviewer</value></data>
+  <data name="Col_Reason" xml:space="preserve"><value>Reason</value></data>
+
+  <data name="Filter_Decision" xml:space="preserve"><value>Decision</value></data>
+  <data name="Filter_Decision_All" xml:space="preserve"><value>All decisions</value></data>
+</root>

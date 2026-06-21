@@ -1,0 +1,259 @@
+@page "/review"
+@layout ReviewLayout
+@attribute [Authorize(Policy = "RequireManager")]
+@implements IAsyncDisposable
+
+@using AssetHub.Application
+@using AssetHub.Application.Dtos
+@using AssetHub.Ui.Components
+@using AssetHub.Ui.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject IAssetHubApiClient Api
+@inject NavigationManager Nav
+@inject IUserFeedbackService Feedback
+@inject IDialogService DialogService
+@inject IStringLocalizer<ReviewResource> ReviewLoc
+@inject IStringLocalizer<WorkflowResource> WorkflowLoc
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@ReviewLoc["Tab_Pending"] · @ReviewLoc["Page_Title"] - @CommonLoc["AppName"]</PageTitle>
+
+@* Unassigned banner — only ever non-zero for admins (manager-scoped items always have a manager). *@
+@if (_unassignedCount > 0)
+{
+    <div role="status" aria-live="polite">
+        <MudAlert Severity="Severity.Warning" Class="mb-4" Icon="@Icons.Material.Filled.Warning">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Spacing="2" Style="width:100%;">
+                <MudText Typo="Typo.body2">@string.Format(ReviewLoc["Banner_Unassigned"], _unassignedCount)</MudText>
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Inherit"
+                           StartIcon="@Icons.Material.Filled.FolderShared"
+                           OnClick="@(() => Nav.NavigateTo("/admin/collection-access"))">
+                    @ReviewLoc["Banner_Unassigned_Action"]
+                </MudButton>
+            </MudStack>
+        </MudAlert>
+    </div>
+}
+
+<MudPaper Class="pa-3 mb-4" Elevation="0" Outlined="true">
+    <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudSelect T="string" Value="_assetType" ValueChanged="OnTypeChanged"
+                   Label="@CommonLoc["Label_Type"]" Variant="Variant.Outlined" Margin="Margin.Dense" Class="max-w-200">
+            <MudSelectItem Value="@((string?)null)">@CommonLoc["Filter_AllTypes"]</MudSelectItem>
+            <MudSelectItem Value="@(Constants.AssetTypeFilters.Image)">@CommonLoc["Filter_Images"]</MudSelectItem>
+            <MudSelectItem Value="@(Constants.AssetTypeFilters.Video)">@CommonLoc["Filter_Videos"]</MudSelectItem>
+            <MudSelectItem Value="@(Constants.AssetTypeFilters.Document)">@CommonLoc["Filter_Documents"]</MudSelectItem>
+        </MudSelect>
+        <MudSwitch T="bool" Value="_unassignedOnly" ValueChanged="OnUnassignedOnlyChanged"
+                   Color="Color.Warning" Label="@ReviewLoc["Filter_UnassignedOnly"]" />
+    </MudStack>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudStack AlignItems="AlignItems.Center" Class="py-8">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    </MudStack>
+}
+else if (_items.Count == 0)
+{
+    <EmptyState Title="@ReviewLoc["Pending_Empty_Title"]"
+                Description="@ReviewLoc["Pending_Empty_Desc"]"
+                Icon="@Icons.Material.Filled.FactCheck" />
+}
+else
+{
+    <MudTable Items="_items" Hover="true" Dense="true" Striped="true" Elevation="1" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>@ReviewLoc["Col_Asset"]</MudTh>
+            <MudTh>@ReviewLoc["Col_Area"]</MudTh>
+            <MudTh>@ReviewLoc["Col_Submitted"]</MudTh>
+            <MudTh Class="col-text-right">@ReviewLoc["Col_Actions"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="@ReviewLoc["Col_Asset"]">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="clickable" @onclick="@(() => OpenAsset(context.AssetId))">
+                    <MudAvatar Rounded="true" Size="Size.Medium">
+                        <MudImage Src="@AssetDisplayHelpers.GetThumbnailUrl(context.AssetId, context.ThumbObjectKey, context.AssetType, context.PosterObjectKey)"
+                                  Alt="@($"{context.Title} ({context.AssetType})")"
+                                  ObjectFit="ObjectFit.Cover" Width="40" Height="40" />
+                    </MudAvatar>
+                    <MudText Typo="Typo.body2">@context.Title</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="@ReviewLoc["Col_Area"]">
+                <MudStack Spacing="0">
+                    @foreach (var area in context.Areas)
+                    {
+                        <MudText Typo="Typo.body2">@area.Name</MudText>
+                    }
+                    @if (context.IsUnassigned)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" />
+                            <MudText Typo="Typo.caption" Color="Color.Warning">@ReviewLoc["Manager_None"]</MudText>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@string.Join(", ", context.Managers)</MudText>
+                    }
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="@ReviewLoc["Col_Submitted"]">
+                <MudStack Spacing="0">
+                    <MudTooltip Text="@context.InReviewSince.ToLocalTime().ToString("F")">
+                        <MudText Typo="Typo.body2">@context.InReviewSince.ToLocalTime().ToString("g")</MudText>
+                    </MudTooltip>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@string.Format(ReviewLoc["Submitted_By"], context.SubmittedBy)</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="@ReviewLoc["Col_Actions"]" Class="col-text-right">
+                @if (context.CanAct)
+                {
+                    <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                        <MudButton Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Outlined.CheckCircle"
+                                   OnClick="@(() => ApproveAsync(context))">
+                            @WorkflowLoc["Action_approve"]
+                        </MudButton>
+                        <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Outlined.Cancel"
+                                   OnClick="@(() => RejectAsync(context))">
+                            @WorkflowLoc["Action_reject"]
+                        </MudButton>
+                    </MudStack>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Spacing="3" Class="mt-4">
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@string.Format(ReviewLoc["Showing"], _items.Count, _total)</MudText>
+        @if (_items.Count < _total)
+        {
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="LoadMoreAsync" Disabled="_loadingMore">
+                @CommonLoc["Btn_LoadMore"]
+            </MudButton>
+        }
+    </MudStack>
+}
+
+@code {
+    private List<ReviewQueueItemDto> _items = new();
+    private int _total;
+    private int _unassignedCount;
+    private bool _loading = true;
+    private bool _loadingMore;
+
+    private string? _assetType;
+    private bool _unassignedOnly;
+    private const int _take = 50;
+
+    private readonly CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private ReviewQueueRequest BuildRequest(int skip) => new()
+    {
+        AssetType = string.IsNullOrWhiteSpace(_assetType) ? null : _assetType,
+        UnassignedOnly = _unassignedOnly,
+        Skip = skip,
+        Take = _take
+    };
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var (ok, resp) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetReviewQueueAsync(BuildRequest(0), _cts.Token), "load review queue");
+        if (ok && resp is not null)
+        {
+            _items = resp.Items;
+            _total = resp.TotalCount;
+            _unassignedCount = resp.UnassignedCount;
+        }
+        _loading = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        var (ok, resp) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.GetReviewQueueAsync(BuildRequest(_items.Count), _cts.Token), "load more review items");
+        if (ok && resp is not null)
+        {
+            _items.AddRange(resp.Items);
+            _total = resp.TotalCount;
+            _unassignedCount = resp.UnassignedCount;
+        }
+        _loadingMore = false;
+    }
+
+    private async Task OnTypeChanged(string? value)
+    {
+        _assetType = value;
+        await LoadAsync();
+    }
+
+    private async Task OnUnassignedOnlyChanged(bool value)
+    {
+        _unassignedOnly = value;
+        await LoadAsync();
+    }
+
+    private void OpenAsset(Guid assetId) =>
+        Nav.NavigateTo($"/assets/{assetId}?returnUrl=/review");
+
+    // Approve: no dialog interrupts the flow → optimistic remove, roll back on failure.
+    private async Task ApproveAsync(ReviewQueueItemDto item)
+    {
+        var index = _items.IndexOf(item);
+        _items.Remove(item);
+        StateHasChanged();
+
+        var (ok, _) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.ApproveAssetAsync(item.AssetId, null, _cts.Token), "approve asset",
+            successMessage: ReviewLoc["Approved_Success"].Value);
+
+        if (ok)
+        {
+            _total = Math.Max(0, _total - 1);
+        }
+        else
+        {
+            _items.Insert(Math.Min(index, _items.Count), item);
+        }
+        StateHasChanged();
+    }
+
+    // Reject: a dialog already interrupts the flow → await-first, then update on success.
+    private async Task RejectAsync(ReviewQueueItemDto item)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<RejectReasonDialog>(WorkflowLoc["Action_reject"], options);
+        var result = await dialog.Result;
+        if (result is null || result.Canceled || result.Data is not string reason || string.IsNullOrWhiteSpace(reason))
+            return;
+
+        var (ok, _) = await Feedback.ExecuteWithFeedbackAsync(
+            () => Api.RejectAssetAsync(item.AssetId, reason, _cts.Token), "reject asset",
+            successMessage: ReviewLoc["Rejected_Success"].Value);
+
+        if (ok)
+        {
+            _items.Remove(item);
+            _total = Math.Max(0, _total - 1);
+            StateHasChanged();
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

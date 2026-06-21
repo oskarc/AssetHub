@@ -154,6 +154,8 @@ public interface IAssetHubApiClient
     Task<AssetWorkflowResponseDto> RejectAssetAsync(Guid assetId, string reason, CancellationToken ct = default);
     Task<AssetWorkflowResponseDto> PublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default);
     Task<AssetWorkflowResponseDto> UnpublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default);
+    Task<ReviewQueueResponse> GetReviewQueueAsync(ReviewQueueRequest request, CancellationToken ct = default);
+    Task<ReviewDecisionsResponse> GetReviewDecisionsAsync(ReviewDecisionsRequest request, CancellationToken ct = default);
     Task<List<WebhookResponseDto>> GetWebhooksAsync(CancellationToken ct = default);
     Task<CreatedWebhookDto> CreateWebhookAsync(CreateWebhookDto dto, CancellationToken ct = default);
     Task<WebhookResponseDto> UpdateWebhookAsync(Guid id, UpdateWebhookDto dto, CancellationToken ct = default);

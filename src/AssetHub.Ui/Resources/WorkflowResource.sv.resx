@@ -54,6 +54,8 @@
   <data name="Dialog_Reason_Required_Label" xml:space="preserve"><value>Motivering (obligatorisk)</value></data>
   <data name="Dialog_Confirm" xml:space="preserve"><value>Bekräfta</value></data>
   <data name="Dialog_Cancel" xml:space="preserve"><value>Avbryt</value></data>
+  <data name="Reject_Dialog_Helper" xml:space="preserve"><value>Författaren ser denna motivering.</value></data>
+  <data name="Reject_Reason_Required" xml:space="preserve"><value>En motivering krävs för att avvisa.</value></data>
 
   <data name="Action_Failed" xml:space="preserve"><value>Åtgärd misslyckades.</value></data>
   <data name="Action_Failed_MissingMetadata" xml:space="preserve"><value>Kan inte skicka in — obligatorisk metadata saknas. Fyll i de obligatoriska fälten och försök igen.</value></data>

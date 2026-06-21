@@ -266,6 +266,9 @@ public static class ServiceCollectionExtensions
         // Asset workflow (T3-WF-01)
         services.AddScoped<IAssetWorkflowService, AssetWorkflowService>();
 
+        // Review queue + decisions (T-REVIEW) — query side of the workflow
+        services.AddScoped<IAssetReviewQueryService, AssetReviewQueryService>();
+
         // Webhooks (T3-INT-01)
         services.AddScoped<IWebhookService, WebhookService>();
 

@@ -1,0 +1,68 @@
+@inherits LayoutComponentBase
+@layout MainLayout
+@using Microsoft.AspNetCore.Components.Routing
+@using AssetHub.Ui.Resources
+@implements IDisposable
+@inject NavigationManager Nav
+@inject IStringLocalizer<ReviewResource> Loc
+
+@* Review section shell (T-REVIEW). Routable sub-views /review + /review/history with
+   a derived breadcrumb (principle-information-architecture B/E). The trail is built once
+   here from the route, so the pages below carry no per-page wayfinding code. *@
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    @if (_breadcrumbs.Count > 1)
+    {
+        <MudBreadcrumbs Items="_breadcrumbs" Class="px-0 pb-2" />
+    }
+
+    <MudText Typo="Typo.h4" Class="mb-1">@Loc["Page_Title"]</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@Loc["Page_Subtitle"]</MudText>
+
+    <MudStack Row="true" Spacing="2" Class="mb-4">
+        <MudButton Variant="@(_onDecisions ? Variant.Text : Variant.Filled)"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.HourglassTop"
+                   Href="/review">
+            @Loc["Tab_Pending"]
+        </MudButton>
+        <MudButton Variant="@(_onDecisions ? Variant.Filled : Variant.Text)"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.History"
+                   Href="/review/history">
+            @Loc["Tab_Decisions"]
+        </MudButton>
+    </MudStack>
+
+    @Body
+</MudContainer>
+
+@code {
+    private List<BreadcrumbItem> _breadcrumbs = new();
+    private bool _onDecisions;
+
+    protected override void OnInitialized()
+    {
+        Build();
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        Build();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Build()
+    {
+        var path = Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/');
+        _onDecisions = path.Equals("review/history", StringComparison.OrdinalIgnoreCase);
+
+        var items = new List<BreadcrumbItem> { new(Loc["Nav_Review"].Value, "/review") };
+        if (_onDecisions)
+            items.Add(new BreadcrumbItem(Loc["Tab_Decisions"].Value, href: null, disabled: true));
+
+        _breadcrumbs = items;
+    }
+
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+}

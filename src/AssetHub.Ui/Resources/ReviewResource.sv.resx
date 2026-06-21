@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+
+  <data name="Nav_Review" xml:space="preserve"><value>Granskning</value></data>
+  <data name="Page_Title" xml:space="preserve"><value>Granskning</value></data>
+  <data name="Page_Subtitle" xml:space="preserve"><value>Tillgångar som väntar på granskning och loggen över senaste beslut.</value></data>
+
+  <data name="Tab_Pending" xml:space="preserve"><value>Väntande</value></data>
+  <data name="Tab_Decisions" xml:space="preserve"><value>Beslut</value></data>
+
+  <data name="Pending_Empty_Title" xml:space="preserve"><value>Inget väntar på granskning</value></data>
+  <data name="Pending_Empty_Desc" xml:space="preserve"><value>När bidragsgivare skickar in tillgångar för granskning visas de här.</value></data>
+
+  <data name="Col_Asset" xml:space="preserve"><value>Tillgång</value></data>
+  <data name="Col_Area" xml:space="preserve"><value>Område / Ansvarig</value></data>
+  <data name="Col_Submitted" xml:space="preserve"><value>Inskickad</value></data>
+  <data name="Col_Actions" xml:space="preserve"><value>Åtgärder</value></data>
+
+  <data name="Manager_None" xml:space="preserve"><value>Ingen ansvarig tilldelad</value></data>
+  <data name="Submitted_By" xml:space="preserve"><value>av {0}</value></data>
+
+  <data name="Banner_Unassigned" xml:space="preserve"><value>{0} objekt finns i områden utan tilldelad ansvarig.</value></data>
+  <data name="Banner_Unassigned_Action" xml:space="preserve"><value>Hantera åtkomst</value></data>
+
+  <data name="Filter_UnassignedOnly" xml:space="preserve"><value>Endast utan ansvarig</value></data>
+  <data name="Showing" xml:space="preserve"><value>Visar {0} av {1}</value></data>
+
+  <data name="Approved_Success" xml:space="preserve"><value>Tillgången godkändes.</value></data>
+  <data name="Rejected_Success" xml:space="preserve"><value>Tillgången avvisades.</value></data>
+
+  <data name="Decisions_Empty_Title" xml:space="preserve"><value>Inga beslut ännu</value></data>
+  <data name="Decisions_Empty_Desc" xml:space="preserve"><value>Godkända, avvisade och publicerade tillgångar registreras här.</value></data>
+
+  <data name="Col_When" xml:space="preserve"><value>När</value></data>
+  <data name="Col_Decision" xml:space="preserve"><value>Beslut</value></data>
+  <data name="Col_Reviewer" xml:space="preserve"><value>Granskare</value></data>
+  <data name="Col_Reason" xml:space="preserve"><value>Motivering</value></data>
+
+  <data name="Filter_Decision" xml:space="preserve"><value>Beslut</value></data>
+  <data name="Filter_Decision_All" xml:space="preserve"><value>Alla beslut</value></data>
+</root>

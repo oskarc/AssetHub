@@ -100,6 +100,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Asset comments with single-level threading, optimistic UI delete + rollback, and author-only edit / author-or-admin delete semantics
 - Server-side `@username` parsing turns every mention into a notification — the recipient sees it in their bell and gets an email through the notification pipeline, all within the same pass
 - Optional publishing workflow — `Draft → In Review → Approved → Published` state machine with required-metadata gating on "submit for review", author-bound submits, and Manager+ approve/publish. Configurable share-policy gate blocks external sharing of unapproved assets when enabled
+- Dedicated Review section for Manager+ — a scoped pending-review queue (managers see their areas; admins see everything, with manager-less areas flagged as unassigned) and a decisions history, with inline approve and a required-reason reject dialog that reaches the author and the audit trail
 
 **Integrations**
 - Outbound webhooks — admins subscribe HTTPS endpoints to event types (comment created, workflow state changed, share created, asset restored, more). AssetHub POSTs a signed JSON envelope (`X-AssetHub-Signature: sha256=…` HMAC) and retries transient failures via the message queue. Plaintext signing secrets are shown once at create and rotation, encrypted at rest via Data Protection
