@@ -1,6 +1,6 @@
 ---
 name: pattern-enum-string-persistence
-description: Persist enums as explicit strings via a paired to-string / from-string extension method defined alongside the enum — never the numeric value or the framework's name. Use when adding an enum that will be stored, sent over the wire, or read back from a database.
+description: Persist enums as explicit strings via a paired to-string / from-string extension method defined alongside the enum — never the numeric value or the framework's name. Use when adding an enum that will be stored, sent over the wire, read back from a database, or accepted as a caller-supplied token at a request boundary.
 ---
 
 # Enum ↔ string persistence
@@ -34,12 +34,16 @@ public static ExampleStatus ToExampleStatus(this string s) => s switch {
 - The string values are an explicit, stable contract — chosen for readability (lower_snake), not derived from the member name.
 - The two directions live next to the enum and are exhaustive `switch`es over the members.
 - The persistence layer wires the converter at the column (`.HasConversion(v => v.ToDbString(), v => v.ToX())`).
-- For values read back from storage that *might* be unknown (a value written by a newer version), the parser may map the unrecognized string to a designated `Unknown` member rather than throw — but inputs from code should throw, because an unmapped code value is a bug.
+- **The trust level of the *source* decides what an unknown string means:**
+  - *from code* (a literal, an internal call) → **throw**; an unmapped value is a bug.
+  - *read back from storage* (possibly written by a newer version) → may map the unrecognized string to a designated `Unknown` member rather than throw, for forward-compat.
+  - *from an untrusted boundary* (a caller-supplied API/DTO filter token) → **guard with the validator and ignore unknowns**; a malformed request must never reach the throwing converter and surface as a 500. A bad request is not a server bug.
 
 ## Implementation constraints (how)
 
 - **Never** persist `(int)` casts or `.ToString()` / `Enum.Parse` on the member name.
 - When a third side exists — a validator that answers "is this string a legal value?" — keep it in the *same* family as the converters and test all three together for exhaustive agreement. (Adding an enum member and updating only the converters, leaving the validator behind, is a classic silent gap; see the string-enum-triple rule in test scaffolding.)
+- **At an untrusted boundary, guard-before-parse, on every dimension.** The canonical shape is `tokens.Where(IsValidX).Select(ToX)` — the validator runs *before* the throwing converter. When a boundary accepts more than one token dimension, guard them all the same way: guarding one and letting a sibling dimension reach the raw converter is a latent 500, and the asymmetry between the two is itself the tell.
 
 ## Boundaries
 

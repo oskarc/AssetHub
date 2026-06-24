@@ -17,6 +17,14 @@ meta-bootstrap (already run — not invoked again)
 meta-extract (run when type-category nodes are ready for extraction)
 meta-antidrift-expand (run when human requests session-level drift analysis)
 
+**Agent usage within the build loop.** Pre-approval exploration — anything before a
+`meta-contract-before-execution` proposal is approved — must use a read-only / non-mutating
+agent (`Explore`, `Plan`, or an agent restricted to Read/Grep/Glob). Write-capable agents
+(including the `.claude/agents/*` subagents that inherit all tools) are reserved for
+implementing an approved contract; using one for exploration can author code outside the
+contract gate. (Project override for gap-010 — this transferable principle is kept at the
+project layer rather than propagated into the inherited `meta-contract-before-execution` node.)
+
 ---
 
 # AssetHub — Project Instructions

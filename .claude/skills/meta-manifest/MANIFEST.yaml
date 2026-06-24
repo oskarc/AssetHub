@@ -227,6 +227,7 @@ nodes:
     dependencies: []
     open_gaps:
       - Extracted from CLAUDE.md 2026-06-15; string-enum-triple test link references implementation-add-tests
+      - 2026-06-22 added the untrusted-boundary leg — guard-before-parse with the validator on every caller-supplied token dimension; the from-string converter's throw is correct for code/DB sources but not for request input. Grounded in a decision-token 500 (one filter dimension guarded, its sibling not). Type-category sharpening (Standard Evolution Report Candidate 1).
 
   - id: pattern-hybrid-cache
     concern: Two-tier cache (L1 in-process + L2 distributed) with a central key/TTL/tag registry; tag-based invalidation; must-not-cache list
@@ -486,6 +487,7 @@ nodes:
     open_gaps:
       - Mixed type-category and project-specific content — decomposition candidate (carried from old gap-001/002)
       - 2026-06-15 added Phase 6b (mirror-CI vuln gates — dotnet vulnerable-package + Trivy on the 3 images). The principle (mirror CI security gates locally before push) is type-category; the concrete image/Dockerfile/flag specifics are project — reinforces the decomposition candidate.
+      - 2026-06-22 Phase 6 now mandates a non-incremental verification build — a static-analysis verdict is only valid on a build that re-ran the analyzers (incremental skips up-to-date projects, so a filtered "clean" can mask shipped warnings). Type-category principle (Standard Evolution Report Candidate 2); grounded in a missed warning-set this session where a filtered incremental rebuild read as clean.
 
   # ─── Project nodes (discovered through use) ───────────────────────────────
   # Naming convention: [layer]-[name]/SKILL.md
@@ -1005,6 +1007,59 @@ gap_queue:
     priority: medium
     status: resolved
     resolved_by: AdminBreadcrumbs + per-page asset trails (9962460)
+
+  - gap_id: gap-009
+    concern: Adapted .claude/agents/ subagents summarise kit skills with no staleness coupling and are unregistered in the manifest
+    surfaced_by: contract-before-execution
+    surfaced_in: Agent adaptation pass, 2026-06-21 (12 imported agents → 11 AssetHub-adapted; network-engineer dropped)
+    description: |
+      The 11 adapted subagents under .claude/agents/ each carry an "AssetHub Context" + "Defer To"
+      block that paraphrases and points at 15+ kit skills (pattern-service-result, pattern-hybrid-cache,
+      pattern-public-api-contract, pattern-pat-scope-enforcement, implementation-blazor-ui-standard,
+      implementation-a11y-check, implementation-test-conventions, project-styleguide, …). Those
+      paraphrases can go stale invisibly when a deferred skill evolves, and the agents are not
+      registered as manifest nodes — exactly the "an artifact outside the manifest does not govern;
+      it goes stale invisibly" risk meta-manifest warns about. DECISION REQUIRED: either (a) register
+      the agents as manifest nodes with loader pointers so drift is visible and they are maintained,
+      or (b) consciously accept them as disposable, regenerate-on-drift artifacts that are explicitly
+      NOT a source of truth (the Defer To block already subordinates them to the skills). Surfaced
+      alongside two evolution candidates the developer declined as low-value (a defer-or-fork principle
+      and an adapt-imported-agent pattern); this registration/staleness question is the one kept.
+      2026-06-22: a third dimension surfaced — a write-capable agent (tdd-workflows-tdd-orchestrator,
+      no tools: restriction) authored code during a pre-contract exploratory run, bypassing the contract
+      gate (reverted). The agent inventory therefore also needs a read-only-vs-write distinction:
+      pre-approval exploration must use a non-mutating agent (Explore/Plan or a Read/Grep/Glob-restricted
+      one); write-capable agents are for approved implementation only. Adds a "select/mark agents by
+      mutating capability" requirement to the same register-vs-disposable decision. The transferable
+      principle behind it is tracked separately in gap-010.
+    candidate_level: product detail
+    priority: low
+    status: open
+
+  - gap_id: gap-010
+    concern: Should the "non-mutating pre-approval exploration" principle propagate into base-contract, or stay a project rule?
+    surfaced_by: skill-builder
+    surfaced_in: Standard Evolution Report Candidate 3, 2026-06-22 (review-service TDD pass)
+    description: |
+      Candidate 3 abstracts to a principle: in a contract-gated build loop, code authorship is reserved
+      for post-approval implementation — advisory/exploratory work, delegated agents included, must be
+      non-mutating. Its natural home is meta-contract-before-execution (base-contract), but that is an
+      INHERITED base-building-kit node under the "do not modify" header. Per the skill-builder
+      inherited-node protocol, the propagate-or-override decision is the developer's:
+        (a) propagate — modify base-contract (flip inherited_modified: true, record the change, confirm
+            it should travel to the next generation), evolving the base kit for all its children; or
+        (b) project override — keep base-contract untouched and carry the rule at the project layer
+            (CLAUDE.md), with the agent-capability mechanics tracked in gap-009.
+      The project-specific half (which .claude/agents/ are read-only) belongs to gap-009 regardless;
+      this gap is only about whether the transferable principle should enter the base kit.
+      2026-06-22: RESOLVED — developer chose (b) project override. The rule now lives at the project
+      layer (CLAUDE.md § Kit-Driven Development, "Agent usage within the build loop"); the inherited
+      base-contract node is left unmodified. The transferable principle remains a future base-kit
+      candidate but is deliberately not propagated now.
+    candidate_level: principle
+    priority: medium
+    status: resolved
+    resolved_by: project override — CLAUDE.md agent-usage rule (2026-06-22); base-contract untouched
 
   # Add new gaps below as they surface:
   #

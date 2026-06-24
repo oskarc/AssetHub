@@ -118,10 +118,18 @@ If the changes include **new user-facing features, architecture changes, or capa
 ## Phase 6: Build
 
 ```powershell
-dotnet build --configuration Release
+dotnet build --configuration Release --no-incremental
 ```
 
 - Must pass with **zero warnings** (CI enforces this).
+- **Read warnings only from a build that re-ran the analyzers — i.e. a non-incremental one.**
+  A static-analysis verdict is only valid on a build that actually executed the analyzers.
+  An incremental build *skips* analyzers for any project it considers up-to-date, so a
+  filtered "no warnings on my files" result from an incremental rebuild is meaningless — it
+  can silently hide warnings that shipped in the changed code (e.g. an earlier full build
+  reported them, a later incremental one emitted nothing, and the warnings were mistaken for
+  absent). Hence `--no-incremental` on the verification pass, and likewise on any re-check
+  after iterative fixes: the *last* build you trust for "zero warnings" must be non-incremental.
 - **HIGH/CRITICAL NuGet advisories fail the build here** — `Directory.Build.props`
   promotes `NU1903` (high) and `NU1904` (critical) to errors via `WarningsAsErrors`,
   so a vulnerable package breaks `dotnet build` before Phase 6b's scan even runs.
