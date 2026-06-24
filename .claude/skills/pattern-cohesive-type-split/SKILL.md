@@ -1,6 +1,6 @@
 ---
 name: pattern-cohesive-type-split
-description: When a single type or file has grown large because it fronts many concerns (a facade, composition root, or aggregator) rather than because one responsibility is tangled — split it by relocating along its existing seams into partial files, preserving the single external surface, instead of decomposing it into many types. Use when a file crosses a size budget, when deciding whether "this class is too big" means split-the-file or split-the-design, or when reviewing a god-file.
+description: When a single type or file has grown large because it fronts many concerns (a facade, composition root, or aggregator) rather than because one responsibility is tangled — split it by relocating along its existing seams into partial files, preserving the single external surface, instead of decomposing it into many types. A companion case covers genuine tangle that must keep one external surface — decompose into per-responsibility collaborators behind a thin façade. Use when a file crosses a size budget, when a coupling/fan-out rule fires on a type serving several responsibilities, when deciding whether "this class is too big" means split-the-file or split-the-design, or when reviewing a god-file.
 ---
 
 # Splitting a cohesive type without decomposing it
@@ -36,5 +36,13 @@ Split before the seams calcify, not after. A file that fronts many concerns gets
 ## When NOT to use this
 
 - The size is one method doing too much → extract methods / a helper type, not partials.
-- The members have genuinely different consumers, lifetimes, or reasons to change → that's tangle; decompose into separate types with their own surfaces.
+- The members have genuinely different consumers, lifetimes, or reasons to change → that's tangle; decompose into separate types. Give each its own surface — *unless* the public contract must stay singular, in which case front the collaborators with a thin façade (see **Companion** below).
 - The type is small enough to read in one sitting → a budget exists to prevent god-files, not to fragment healthy ones. Splitting a cohesive 200-line type into ten files trades readability for ceremony.
+
+## Companion: tangle that must keep one external surface
+
+The cohesive cure above preserves the surface by *relocating* (partials). There is a tangle case that also wants the surface preserved: a type that trips a **type-coupling / fan-out** rule (not a size rule) because it serves several independent read models or responsibilities — yet its interface, DI registration, and tests are a contract worth protecting from churn.
+
+Here the responsibility split is real, so partials won't do — but you need not *expose* the split. Decompose the *implementation* into one `internal` collaborator per responsibility (each now small enough to clear the budget), and keep the public type as a thin **façade** that constructs the collaborators from its own injected dependencies (primary-constructor field initializers) and delegates to them. Interface, registration, call sites, and test construction stay byte-identical.
+
+This is the bridge between the two cures: the decomposition is genuine (separate types, as tangle demands), the surface stays singular (a façade, as a contract worth keeping demands). Same low-risk gate as relocation — no surface change means no test change; build + the existing suite is the whole verification. Reach for it when the trigger is *coupling from multiple responsibilities* and consumers are worth protecting; reach for plain decomposition (separate surfaces) when the consumers should see the split.

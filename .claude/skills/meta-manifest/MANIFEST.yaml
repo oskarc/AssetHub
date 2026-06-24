@@ -200,6 +200,7 @@ nodes:
     dependencies: []
     open_gaps:
       - Created 2026-06-17 from the AssetHubApiClient 1477-line split (cohesion-not-tangle, partial-by-region). Resolves the long-open "no file-size/complexity budget" structural gap (C8); the concrete budget threshold remains a project choice
+      - 2026-06-25 added the façade-over-collaborators companion case — tangle that must keep one external surface (coupling/fan-out trigger, not size). Decompose the implementation into per-responsibility internal collaborators behind a thin façade; interface/DI/tests unchanged. Grounded in the AssetReviewQueryService S1200 split (Standard Evolution Report candidate from the review refactor).
 
   # Created 2026-06-18 to close gap-003 (IA silent at every layer).
   - id: principle-information-architecture
