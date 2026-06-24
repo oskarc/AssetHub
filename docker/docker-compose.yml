@@ -169,6 +169,9 @@ services:
       ClamAV__TimeoutMs: "120000"
       ClamAV__ChunkSize: "262144"
       Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
+      # Forensic watermark HMAC signing key (T5-WMK-01) — required + ValidateOnStart.
+      # Secret lives in docker/.env (gitignored); rotation invalidates existing watermarks.
+      Watermarking__HmacKeyBase64: "${WATERMARK_HMAC_KEY}"
       OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
     volumes:
       - ../certs:/app/certs:ro
@@ -241,6 +244,8 @@ services:
       RabbitMQ__Username: "${RABBITMQ_DEFAULT_USER:-guest}"
       RabbitMQ__Password: "${RABBITMQ_DEFAULT_PASS:-guest}"
       Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
+      # Forensic watermark HMAC signing key (T5-WMK-01) — kept in sync with the api service.
+      Watermarking__HmacKeyBase64: "${WATERMARK_HMAC_KEY}"
       OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
     depends_on:
       postgres:
