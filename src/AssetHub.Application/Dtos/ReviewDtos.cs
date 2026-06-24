@@ -83,7 +83,11 @@ public class ReviewQueueResponse
 /// </summary>
 public class ReviewDecisionsRequest
 {
-    /// <summary>Target-state tokens to include — "approved", "rejected", "published", "unpublished". Null = all decisions.</summary>
+    /// <summary>
+    /// Target-state tokens to include — "approved", "rejected", "published". Unknown tokens are
+    /// ignored; null/empty means all decisions. (An unpublish lands on Approved, so it groups under
+    /// "approved" in v1 — there is no separate "unpublished" decision token.)
+    /// </summary>
     [MaxLength(10)]
     public List<string>? Decisions { get; set; }
 
@@ -105,7 +109,7 @@ public class ReviewDecisionDto
     public required Guid AssetId { get; set; }
     public required string AssetTitle { get; set; }
 
-    /// <summary>Resulting state — "approved", "rejected", "published", "unpublished".</summary>
+    /// <summary>Resulting state — "approved", "rejected", or "published" (an unpublish reports as "approved" in v1).</summary>
     public required string Decision { get; set; }
 
     /// <summary>Display name of the reviewer who made the decision.</summary>

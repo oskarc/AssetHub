@@ -229,7 +229,12 @@ public sealed class AssetReviewQueryService(
         if (tokens is not { Count: > 0 })
             return [.. DecisionStates];
 
+        // Guard with IsValidAssetWorkflowState before parsing: ToAssetWorkflowState throws on an
+        // unknown token and the DTO doesn't validate token values, so a stray token (or the
+        // historically documented-but-non-member "unpublished") would otherwise surface as a 500.
+        // Mirror the queue's IsValidAssetType guard — unknown tokens are silently ignored.
         var parsed = tokens
+            .Where(WorkflowEnumExtensions.IsValidAssetWorkflowState)
             .Select(t => t.ToAssetWorkflowState())
             .Where(DecisionStates.Contains)
             .Distinct()
