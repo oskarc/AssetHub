@@ -47,8 +47,6 @@ public static class Constants
         public const string Comment = "comment";
         public const string Webhook = "webhook";
         public const string WebhookDelivery = "webhook_delivery";
-        public const string Brand = "brand";
-        public const string GuestInvitation = "guest_invitation";
         public const string Audit = "audit";
     }
 
@@ -78,7 +76,6 @@ public static class Constants
         public const string MigrationSourceSecretProtector = "MigrationSourceSecretProtector";
         public const string NotificationUnsubscribeProtector = "NotificationUnsubscribeProtector";
         public const string WebhookSecretProtector = "WebhookSecretProtector";
-        public const string GuestInvitationProtector = "GuestInvitationProtector";
     }
 
     /// <summary>
@@ -91,7 +88,6 @@ public static class Constants
         public const string Medium = "medium";
         public const string Posters = "posters";
         public const string TempZipDownloads = "zip-downloads";
-        public const string Brands = "brands";
         public const string RenditionsOnDemand = "renditions/ondemand";
         public const string Peaks = "peaks";
     }

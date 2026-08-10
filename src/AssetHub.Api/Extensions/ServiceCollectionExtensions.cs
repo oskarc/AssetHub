@@ -272,15 +272,9 @@ public static class ServiceCollectionExtensions
         // Webhooks (T3-INT-01)
         services.AddScoped<IWebhookService, WebhookService>();
 
-        // Brands (T4-BP-01)
-        services.AddScoped<IBrandService, BrandService>();
-
         // On-the-fly renditions (T3-REND-01)
         services.AddScoped<IRenditionImageResizer, ImageProcessingRenditionResizer>();
         services.AddScoped<IRenditionService, RenditionService>();
-
-        // Guest invitations (T4-GUEST-01)
-        services.AddScoped<IGuestInvitationService, GuestInvitationService>();
 
         // Personal access tokens (T1-API-01)
         services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();

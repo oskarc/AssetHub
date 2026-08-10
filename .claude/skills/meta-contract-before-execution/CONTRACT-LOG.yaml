@@ -257,6 +257,74 @@ contracts:
         test pass + residual sweep clean + docker compose config -q parses. (-> UC8)
       - Float hygiene: no package changes expected; any fresh-restore failure is a
         mid-run stop and surface, not a silent fix. (-> all)
+    status: implemented
+    revisions: []
+    work_id: null
+
+  - contract_id: contract-004
+    feature: reshape-c3-brands-guests-cut
+    date_proposed: 2026-08-11
+    date_approved: 2026-08-11
+    tier_1: |
+      You are removing the two remaining sharing satellites. Branded share portals —
+      custom logos and colors on share pages — and magic-link guest invitations —
+      externally provisioned, auto-expiring viewer accounts — are both polish on top of
+      sharing, not part of what this product is. Share pages go back to the one clean
+      unbranded layout; external people access content the one simple way: a share
+      link. Everything core still works exactly as today — including creating shares,
+      share passwords, and expiry. If this doesn't happen, the repo keeps ~7,600
+      lines, two admin sections, an email flow, and an identity-provisioning pathway
+      for capabilities outside the five features.
+    tier_2: |
+      1. Baseline roll-forward to the green state at 6dd7a0e.
+      2. Remove Brands: entity + Collection.BrandId column, endpoints/DTOs/repo/
+         service/resolver, admin page + tab + three dialogs, BrandHeader on the share
+         page, Brand fields on shared-content DTOs and their IBrandResolver population,
+         facade partial + members, BrandsResource pair. Edge: brand logo objects in
+         MinIO stay behind (excluded from tombstone path per A-4) — operator note.
+      3. Remove Guests: entity, endpoints/DTOs/repo/services (invitation + token),
+         the email template (email infrastructure stays), /guest-accept page, admin
+         page + tab + two dialogs, Worker hourly expiry sweep + registration,
+         GuestInvitationProtector, facade partial + members, GuestsResource pair.
+         Edges: provisioned guest accounts remain in Keycloak as ordinary viewers
+         (accepted remnant; pathway dies in C12); ShareAnonymous rate-limit policy
+         stays (share endpoints still use it).
+      4. Data model: one generated migration dropping Brands + GuestInvitations
+         tables and Collection.BrandId (+ FK/index). Both Add migrations EF-discovered
+         (Designers verified) — plain drops; data loss documented.
+      5. Touchpoint edits across the 29 surveyed files (navs — no group death;
+         breadcrumbs; DbContext; DI; imports/markers; admin DTOs; notification
+         constants if guest-specific; audit-resource keys kept only if they label
+         historical audit rows). False positives left alone: RabbitMQ guest
+         credentials, unrelated brand mentions.
+      6. Tests: five named classes deleted; guest/brand cases in shared specs and
+         factories edited; E2E 01-auth/02-navigation guest scenarios edited, files
+         kept.
+      7. Prove nothing else moved: residual sweep (brand|guest|magic-link|
+         BrandHeader|GuestInvitation) over src/tests/docs/docker; expected survivors:
+         migration history, RabbitMQ guest credential lines, historical audit-row
+         data. Baseline zero regressions; non-incremental build no new warnings;
+         compose parses.
+      8. Standard prose in the same change: T4-BP-01 + T4-GUEST-01 memories ->
+         HISTORICAL; A-4 memory brand-logo note amended; USE-CASES chip list +
+         sections marked removed; CLAUDE.md "BrandConfiguration is the exemplar"
+         re-pointed. Commit per implementation-commit-and-push; approval authorizes
+         the commit; no push.
+    tier_3: |
+      - Sharing core out of scope: share creation, passwords, expiry, tokens,
+        zip-download-all, ShareLayout stay untouched. (-> UC2, UC3)
+      - Email infrastructure untouched — only the guest template goes. (-> UC3)
+      - Build is the completeness authority (C2 lesson); sweep is the acceptance
+        gate with survivors named up front. (-> UC5, UC7)
+      - Cut-vs-revert classification (C2 lesson): share-page brand rendering is a
+        revert to the unbranded layout — verified behaviorally by existing
+        share-page tests. (-> UC2, UC6)
+      - Migration per ef-config-migration + audit; has-pending-model-changes clean;
+        Add migrations never edited. (-> UC4)
+      - i18n parity both languages; DI no orphans; float hygiene: fresh-restore
+        failures are mid-run stops. (-> UC5, UC6, all)
+      - Verified means: baseline clean + zero-new-warnings non-incremental build +
+        full test pass + sweep clean + compose parses. (-> UC7)
     status: approved
     revisions: []
     work_id: null

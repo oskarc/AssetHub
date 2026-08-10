@@ -35,14 +35,12 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AssetWorkflowTransition> AssetWorkflowTransitions { get; set; } = null!;
     public DbSet<Webhook> Webhooks { get; set; } = null!;
     public DbSet<WebhookDelivery> WebhookDeliveries { get; set; } = null!;
-    public DbSet<Brand> Brands { get; set; } = null!;
-    public DbSet<GuestInvitation> GuestInvitations { get; set; } = null!;
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     // Entity configuration lives in one IEntityTypeConfiguration<T> class per entity under
-    // Data/Configurations/ (BrandConfiguration is the exemplar). Shared JSONB conventions and
+    // Data/Configurations/ (CollectionConfiguration is the exemplar). Shared JSONB conventions and
     // value comparers are in Configurations/ModelConventions. Applied explicitly below — order
     // mirrors the historical inline-block order and does not affect the resulting model.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -72,8 +70,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new AssetCommentConfiguration());
         modelBuilder.ApplyConfiguration(new AssetWorkflowTransitionConfiguration());
         modelBuilder.ApplyConfiguration(new WebhookConfiguration());
-        modelBuilder.ApplyConfiguration(new GuestInvitationConfiguration());
-        modelBuilder.ApplyConfiguration(new BrandConfiguration());
         modelBuilder.ApplyConfiguration(new WebhookDeliveryConfiguration());
         modelBuilder.ApplyConfiguration(new OrphanedObjectConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());

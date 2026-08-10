@@ -162,16 +162,4 @@ public interface IAssetHubApiClient
     Task<CreatedWebhookDto> RotateWebhookSecretAsync(Guid id, CancellationToken ct = default);
     Task<WebhookDeliveryResponseDto> SendWebhookTestAsync(Guid id, CancellationToken ct = default);
     Task<List<WebhookDeliveryResponseDto>> GetWebhookDeliveriesAsync( Guid id, int take = 50, CancellationToken ct = default);
-    Task<List<BrandResponseDto>> GetBrandsAsync(CancellationToken ct = default);
-    Task<BrandResponseDto> CreateBrandAsync(CreateBrandDto dto, CancellationToken ct = default);
-    Task<BrandResponseDto> UpdateBrandAsync(Guid id, UpdateBrandDto dto, CancellationToken ct = default);
-    Task DeleteBrandAsync(Guid id, CancellationToken ct = default);
-    Task<BrandResponseDto> UploadBrandLogoAsync( Guid id, Stream content, string fileName, string contentType, CancellationToken ct = default);
-    Task RemoveBrandLogoAsync(Guid id, CancellationToken ct = default);
-    Task AssignBrandToCollectionAsync(Guid brandId, Guid collectionId, CancellationToken ct = default);
-    Task UnassignBrandFromCollectionAsync(Guid collectionId, CancellationToken ct = default);
-    Task<List<GuestInvitationResponseDto>> GetGuestInvitationsAsync(CancellationToken ct = default);
-    Task<CreatedGuestInvitationDto> CreateGuestInvitationAsync( CreateGuestInvitationDto dto, CancellationToken ct = default);
-    Task RevokeGuestInvitationAsync(Guid id, CancellationToken ct = default);
-    Task<AcceptGuestInvitationResponseDto> AcceptGuestInvitationAsync( string token, CancellationToken ct = default);
 }

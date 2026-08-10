@@ -22,8 +22,7 @@
 
 <PageTitle>@ShareLoc["SharedContent"] - @CommonLoc["AppName"]</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="@($"py-8 {(_brand is null ? string.Empty : "ah-branded-share")}")">
-    <BrandHeader Brand="@_brand" />
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
     @if (_isLoading)
     {
         <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
@@ -137,7 +136,6 @@
 
     private SharedAssetDto? _sharedAsset;
     private SharedCollectionDto? _sharedCollection;
-    private BrandResponseDto? _brand;
 
     private IJSObjectReference? _jsModule;
     private bool _jsModuleLoaded = false;
@@ -232,13 +230,11 @@
             if (content is SharedCollectionDto col)
             {
                 _sharedCollection = col;
-                _brand = col.Brand;
                 _requiresPassword = false;
             }
             else if (content is SharedAssetDto ass)
             {
                 _sharedAsset = ass;
-                _brand = ass.Brand;
                 _requiresPassword = false;
             }
 

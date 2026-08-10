@@ -64,8 +64,6 @@ public sealed partial class AssetHubApiClient(
     ITaxonomyService taxonomyService,
     ITaxonomyQueryService taxonomyQueryService,
     IWebhookService webhookService,
-    IBrandService brandService,
-    IGuestInvitationService guestInvitationService,
     IUserLookupService userLookupService,
     IOptions<AppSettings> appSettings) : IAssetHubApiClient
 {

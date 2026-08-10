@@ -88,7 +88,7 @@ public sealed class ShareService(
 
         // Workflow share-policy gate (T3-WF-01). Asset-scoped shares only —
         // collection shares aren't bulk-checked here to keep behaviour
-        // simple for brand-portal use cases. System admins bypass, matching
+        // simple for the common external-share flow. System admins bypass, matching
         // the existing ACL-bypass pattern.
         if (dto.ScopeType == Constants.ScopeTypes.Asset && !currentUser.IsSystemAdmin)
         {
@@ -219,7 +219,7 @@ public sealed class ShareService(
     /// Returns a human-readable error when the asset's workflow state is not
     /// in <see cref="WorkflowSettings.AllowedShareStates"/>, else null.
     /// Scope is intentionally limited to asset shares; collection shares
-    /// bypass the gate to keep the common brand-portal flow simple.
+    /// bypass the gate to keep the common external-share flow simple.
     /// </summary>
     private async Task<string?> CheckWorkflowShareGateAsync(Guid assetId, CancellationToken ct)
     {

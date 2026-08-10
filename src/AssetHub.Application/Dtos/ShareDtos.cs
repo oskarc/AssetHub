@@ -79,13 +79,6 @@ public class SharedAssetDto : ISharedContentDto
     public string? MediumUrl { get; set; }
     public Dictionary<string, object> MetadataJson { get; set; } = new();
     public Dictionary<string, bool> Permissions { get; set; } = new();
-
-    /// <summary>
-    /// Optional brand to apply to the share page (T4-BP-01). Resolved
-    /// from the asset's containing collections at request time. Null =
-    /// fall back to the unbranded layout.
-    /// </summary>
-    public BrandResponseDto? Brand { get; set; }
 }
 
 /// <summary>
@@ -101,12 +94,6 @@ public class SharedCollectionDto : ISharedContentDto
     public int TotalAssets { get; set; }
     public Dictionary<string, bool> Permissions { get; set; } = new();
 
-    /// <summary>
-    /// Optional brand to apply to the share page (T4-BP-01). Resolved
-    /// from the collection's <c>BrandId</c> at request time. Null =
-    /// fall back to the unbranded layout.
-    /// </summary>
-    public BrandResponseDto? Brand { get; set; }
 }
 
 /// <summary>

@@ -18,7 +18,6 @@ plus two non-account principals and the system itself.
 | Code | Persona | Notes |
 |------|---------|-------|
 | **ANON** | Anonymous share visitor | Reaches `/share/{token}`, no account |
-| **GUEST** | Magic-link guest | Provisioned Keycloak *viewer* on invite accept; ACL-scoped, auto-expiring |
 | **V** | Viewer (L1) | Read + download within ACL; comment if enabled |
 | **C** | Contributor (L2) | + upload, edit metadata, share, submit for review |
 | **M** | Manager (L3) | + delete, edit collections, manage per-collection ACL, approve/publish |
@@ -28,8 +27,8 @@ plus two non-account principals and the system itself.
 
 ### Dimension B — Domain area (WHAT)
 Auth · Ingestion · Processing · Organization · Metadata · Discovery · View/Deliver · Editing ·
-Versioning · Lifecycle · Collaboration · Notifications · Workflow/Review · Sharing · Branding ·
-Guests · Administration · Public API · Webhooks · Migration.
+Versioning · Lifecycle · Collaboration · Notifications · Workflow/Review · Sharing ·
+Administration · Public API · Webhooks · Migration.
 
 ### Dimension C — Journey stage (WHEN)
 Onboarding → Daily work → Collaboration → Distribution → Governance → Integration.
@@ -57,7 +56,6 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-AUTH-04 | See only the nav/actions my role allows | all | `NavMenu`, role-gated buttons | ✅ |
 | UC-AUTH-05 | Switch UI language (EN / SV) | all | App bar / `ShareLayout` | ✅ |
 | UC-AUTH-06 | Toggle dark mode | all | App bar | ✅ |
-| UC-AUTH-07 | Accept a magic-link invite → provisioned viewer | ANON→GUEST | `/guest-accept` | ✅ |
 | UC-AUTH-08 | Authenticate API calls with a PAT bearer token | API | `Authorization: Bearer pat_*` | ✅ |
 
 ### B. Home / dashboard
@@ -204,23 +202,10 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-SHARE-08 | Admin manage all shares (reveal token/pw, bulk delete) | A | `/admin/shares` | ✅ |
 
 ### P. Branded portals
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-BRAND-01 | Create / edit / delete a brand (logo + colours) | A | `/admin/brands` | 🟡 edit dialog UI deferred (API exists) |
-| UC-BRAND-02 | Upload / remove a brand logo | A | `…/brands/{id}/logo` | ✅ |
-| UC-BRAND-03 | Assign a brand to a collection | A | `PUT …/brands/{id}/collections/{cid}` | 🟡 assign-from-UI deferred (API exists) |
-| UC-BRAND-04 | See a share page themed by brand | ANON | `/share/{token}` + `IBrandResolver` | ✅ custom CSS + custom domain deferred |
+Removed 2026-08 by the reshape (contract-004) — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag.
 
 ### Q. Guest invitations
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-GUEST-01 | Invite a guest by email (magic link) | A | `/admin/guests` | ✅ |
-| UC-GUEST-02 | See the generated magic link once | A | `GuestMagicLinkShownDialog` | ✅ |
-| UC-GUEST-03 | Guest accepts → provisioned + ACL granted | ANON→GUEST | `/guest-accept` | ✅ |
-| UC-GUEST-04 | Revoke an invitation | A | `…/revoke` | ✅ |
-| UC-GUEST-05 | Guest access auto-expires | SYS | `GuestInvitationExpirySweepService` | ✅ |
-| UC-GUEST-06 | Resend an invitation | A | — | 🟡 deferred |
-| UC-GUEST-07 | Inviter name / brand theming in the email | A | — | 🟡 deferred |
+Removed 2026-08 by the reshape (contract-004) — same note as P.
 
 ### R. Watermarking & forensics
 Removed 2026-08 by the reshape (contract-003) — outside the five-feature identity. The
@@ -290,7 +275,7 @@ full implementation remains browsable on the `full-featured` branch / `pre-resha
 | Status | Count (approx.) | Where it clusters |
 |--------|:---:|-------------------|
 | ✅ Shipped | ~95 | All Tier 0–5 core paths |
-| 🟡 Partial | ~16 | UI polish (reparent, brand edit/assign, badges), embedding/async fallbacks, deferred autocomplete/markdown, webhook event-source coverage |
+| 🟡 Partial | ~16 | UI polish (reparent, badges), embedding/async fallbacks, deferred autocomplete/markdown, webhook event-source coverage |
 | 🚧 In progress | 3 | The `/review` queue + history + inline reject dialog (uncommitted) |
 | ⬜ Planned | ~8 | T2 AI suite, T6 HA suite, non-S3 migration connectors |
 
@@ -314,5 +299,5 @@ extending each row with implementation columns. Suggested working schema per use
 > **Coverage signal from the test sweep:** E2E is strong on the core loop (auth → browse → upload
 > → share → revoke) and role-visibility, but several shipped features are **backend-tested only** —
 > versioning UI, metadata schemas, workflow approval end-to-end, webhooks, migrations pause/resume,
-> guest expiry, branded theming, renditions, and trash→restore. Those are the
+> renditions and trash→restore. Those are the
 > highest-value targets if we want each use case demonstrably exercised through the UI.

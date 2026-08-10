@@ -18,7 +18,7 @@ namespace AssetHub.Infrastructure.Services;
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "Composition root for public share access: 4 repos + zip + audit + MinIO adapter + 2 IOptions/DataProtection + HttpContextAccessor + brand resolver + logger. Split would scatter the share-fetch flow across helper services with no real benefit.")]
+    Justification = "Composition root for public share access: 4 repos + zip + audit + MinIO adapter + 2 IOptions/DataProtection + HttpContextAccessor + logger. Split would scatter the share-fetch flow across helper services with no real benefit.")]
 public sealed class PublicShareAccessService(
     IShareRepository shareRepo,
     IAssetRepository assetRepo,
@@ -30,7 +30,6 @@ public sealed class PublicShareAccessService(
     IOptions<MinIOSettings> minioSettings,
     IDataProtectionProvider dataProtection,
     IHttpContextAccessor httpContextAccessor,
-    IBrandResolver brandResolver,
     ILogger<PublicShareAccessService> logger) : IPublicShareAccessService
 {
     private readonly string _bucketName = minioSettings.Value.BucketName;
@@ -50,8 +49,6 @@ public sealed class PublicShareAccessService(
                 return ServiceError.NotFound("Asset not found");
 
             var dto = BuildSharedAssetDto(asset, token, share.PermissionsJson);
-            dto.Brand = await brandResolver.ResolveForShareAsync(
-                Constants.ScopeTypes.Asset, asset.Id, ct);
             return dto;
         }
 
@@ -74,9 +71,7 @@ public sealed class PublicShareAccessService(
                 Description = collection.Description,
                 Assets = assetDtos,
                 TotalAssets = totalAssets,
-                Permissions = share.PermissionsJson,
-                Brand = await brandResolver.ResolveForShareAsync(
-                    Constants.ScopeTypes.Collection, collection.Id, ct)
+                Permissions = share.PermissionsJson
             };
         }
 

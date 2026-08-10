@@ -16,7 +16,7 @@ namespace AssetHub.Api.Filters;
 /// <para>
 /// Anonymous requests (no authenticated principal) skip the check —
 /// they can't have an antiforgery session yet, and the endpoints that
-/// accept anonymous mutations (share password submit, guest invitation
+/// accept anonymous mutations (share password submit
 /// accept, unsubscribe) protect themselves with rate limits + signed
 /// tokens instead.
 /// </para>

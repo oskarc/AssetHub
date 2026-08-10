@@ -24,8 +24,6 @@ public class CommentsResource { }
 public class WorkflowResource { }
 public class ReviewResource { }
 public class WebhooksResource { }
-public class BrandsResource { }
-public class GuestsResource { }
 public class AuditAdminResource { }
 public class TaxonomiesAdminResource { }
 public class TrashAdminResource { }
