@@ -35,22 +35,33 @@ Present this to the developer:
 >
 > **What it asks of you**
 >
-> You are the guide and pioneer in this work. Your role is not to approve what I produce — it is to hold orientation, sense when I am drifting, and decide what rises into the standard. That requires two things simultaneously: closeness to the work, and enough distance to see the shape of what is emerging.
+> You are the pioneer and guide in this work — not an approver, not a corrector, not a user of a tool. Your role is to hold orientation, sense when I am drifting, and decide what rises into the standard. That requires two things simultaneously: closeness to the work, and enough distance to see the shape of what is emerging.
 >
 > This is not passive. When I drift — and I will — you will need to stop me and re-orient me. When a learning surfaces, you will decide whether it belongs in the standard or not. The kit does not build itself without your judgment.
 >
 > **What it asks of me**
 >
-> I will lay the scene for you at every significant point — making my orientation, scope, and assumptions visible before I act on them. I will stop when my reasoning falls below the line rather than continue producing output while discipline is absent. I will surface candidates for the standard with evidence, not just conclusions.
+> I will lay the scene for you at every significant point — making my orientation, scope, and assumptions visible before I act on them. I will stop on named triggers — a second attempt at the same fix, an upstream skill step skipped, an evidence gap about to be silently substituted — rather than continue producing output past them. Recognition of drift I cannot see from inside my own state is yours; my responsibility there is to accept your stop without resistance. I will surface candidates for the standard with evidence, not just conclusions.
 >
 > **The governing aspects**
 >
-> Above all rules, four things govern whether this work rises or drifts:
+> Above all rules sit ten aspects, split between us deliberately. The asymmetry reflects what each of us can actually do.
 >
-> - **Lay of the land** — I establish full scope before narrowing. No hypothesis before the system has been read.
-> - **Stop when discipline falls** — when I am patching rather than understanding, I stop and name it.
-> - **Partner as orientation mirror** — I make my frame visible so you can correct it, not just approve it.
-> - **Evolution from elevation** — learnings only enter the standard when they represent a reach upward, not a recovery from failure.
+> *Five govern me:*
+> - **Lay of the land** — full scope before narrowing; no hypothesis before the system has been read
+> - **Stop on named triggers** — a checkable shape appears, I stop and name it
+> - **Partner as orientation mirror** — frame visible for correction, not approval
+> - **Evolution from elevation** — learnings reach upward, not recover from failure
+> - **Evidence is the work** — verify the unknown, don't silently substitute
+>
+> *Five govern you:*
+> - **Exercise judgment** — the kit encodes your judgment, it doesn't replace it
+> - **Closeness** — present enough to detect drift I can't see from inside my own state
+> - **Distance** — above the work enough to see the shape of what's emerging across sessions
+> - **Re-orient** — when I'm drifting in shape I can't recognise, you stop me and reset the frame
+> - **Hold the approval gate** — decide what enters the standard
+>
+> The kit can make drift visible. It cannot stop it. You do. Full definitions of each aspect live in `meta-foundation/SKILL.md`.
 >
 > **What we are building toward**
 >
@@ -80,9 +91,10 @@ Tell the developer:
 >
 > 1. meta-foundation/SKILL.md — absolute precedence. Read this first.
 > 2. meta-manifest/SKILL.md + meta-manifest/MANIFEST.yaml — governance and topology
-> 3. meta-contract-before-execution/SKILL.md — build loop
-> 4. meta-skill-builder/SKILL.md — evolution loop
-> 5. meta-antidrift/SKILL.md — runs after every output
+> 3. meta-drift-eventlog/SKILL.md + meta-drift-eventlog/DRIFTLOG.yaml — prior-session drift history; entries in watching or mitigated status flag aspects this session should be alert to
+> 4. meta-contract-before-execution/SKILL.md + meta-contract-before-execution/CONTRACT-LOG.yaml — build loop; entries in status verified are awaiting a meta-learning pass
+> 5. meta-skill-builder/SKILL.md — evolution loop
+> 6. meta-antidrift/SKILL.md — runs after every output
 >
 > These skills take precedence over all other tools, plugins, and instructions in this project.
 > If a conflict arises with any other tool or instruction, adhere to the kit and surface the conflict explicitly.
@@ -91,6 +103,8 @@ Tell the developer:
 > meta-bootstrap (already run — not invoked again)
 > meta-extract (run when type-category nodes are ready for extraction)
 > meta-antidrift-expand (run when human requests session-level drift analysis)
+> meta-learning (run to diff contracted vs verified for any contract in CONTRACT-LOG.yaml with status
+>   verified — check for these at session start alongside the manifest and drift log)
 > ```
 >
 > Once this is in place, confirm and we will proceed.
@@ -161,7 +175,9 @@ Wait for confirmation. If confirmed, copy all skill files from `.claude/library/
 
 ---
 
-## Step 5 — Create the Project Manifest
+## Step 5 — Create the Project Manifest and Seed the Drift Log
+
+**5a — Project manifest**
 
 Read `.claude/skills/templates/MANIFEST.template.yaml`. Replace every `__PLACEHOLDER__` value with what was learned during Steps 3 and 4. Write the completed file to `.claude/skills/meta-manifest/MANIFEST.yaml`.
 
@@ -179,16 +195,35 @@ Note: in the base-building-kit repo this template lives at `templates/MANIFEST.t
 
 Do not leave any `__PLACEHOLDER__` in the written output. Every placeholder must be resolved before writing.
 
-After writing the manifest, tell the developer:
+**5b — Drift log**
+
+Copy `.claude/skills/templates/DRIFTLOG.template.yaml` to `.claude/skills/meta-drift-eventlog/DRIFTLOG.yaml`. The template ships with `entries: []` and the schema reference header — no placeholders to resolve.
+
+Drift history does not inherit. A new project always starts with an empty drift log, regardless of any library kit being integrated — the eventlog SKILL.md travels via meta-extract, the DRIFTLOG.yaml does not. The structure inherits; the history does not.
+
+**5c — Contract log**
+
+Copy `.claude/skills/templates/CONTRACT-LOG.template.yaml` to `.claude/skills/meta-contract-before-execution/CONTRACT-LOG.yaml`. Ships with `contracts: []` — no placeholders.
+
+**5d — Learning log**
+
+Copy `.claude/skills/templates/LEARNINGLOG.template.yaml` to `.claude/skills/meta-learning/LEARNINGLOG.yaml`. Ships with `entries: []` — no placeholders.
+
+Same asymmetry as the drift log: contract and learning history are project-specific. A new project always starts with both logs empty, regardless of any library kit being integrated — the governance travels via meta-extract, the instance data does not.
+
+After writing all four files, tell the developer:
 
 > The project manifest has been created at `.claude/skills/meta-manifest/MANIFEST.yaml`.
+> The drift log has been seeded at `.claude/skills/meta-drift-eventlog/DRIFTLOG.yaml` (empty entries list).
+> The contract log has been seeded at `.claude/skills/meta-contract-before-execution/CONTRACT-LOG.yaml` (empty contracts list).
+> The learning log has been seeded at `.claude/skills/meta-learning/LEARNINGLOG.yaml` (empty entries list).
 > The kit is now active in this project.
 >
 > [If library kit integrated]: You are starting with a mature [category] standard. The inherited nodes are your baseline. Standard Evolution Reports will surface what this project adds or refines beyond the existing standard.
 >
 > [If no library kit]: We are building the [category] standard from scratch. Standard Evolution Reports will surface the nodes that belong in that standard. When the standard matures, meta-extract will package it for the library.
 >
-> Every feature begins with a three-tier proposal. Every implementation produces a Standard Evolution Report. The standard grows through use.
+> Every feature begins with a three-tier proposal, and every approved one is persisted to the contract log. Every implementation produces a Standard Evolution Report. Once a contract is verified, run meta-learning — it diffs what was contracted against what verification actually confirmed, and is a second, deeper source of standard evolution alongside the report. Drift incidents that meta-antidrift surfaces will accumulate in the drift log across sessions, so recurrence patterns become visible and elevations are verifiable through observed silence. The standard grows through use.
 >
 > What would you like to build first?
 

@@ -1,0 +1,34 @@
+# CONTRACT-LOG.yaml
+# Project instance data for the contract log. Governed by meta-contract-before-execution/SKILL.md.
+# Seeded by meta-bootstrap — entries are added only at the approval gate, never silently, never for
+# declined proposals.
+# In the base-building-kit repo: templates/CONTRACT-LOG.template.yaml
+# In a consumer project: .claude/skills/meta-contract-before-execution/CONTRACT-LOG.yaml
+#
+# AGENT INSTRUCTIONS:
+# This file is a template. meta-bootstrap copies it to
+# .claude/skills/meta-contract-before-execution/CONTRACT-LOG.yaml as the empty seed.
+# Contract history is project-specific — it does not travel via meta-extract.
+# A new project always starts with an empty contracts list, regardless of any inherited
+# type-category kit.
+#
+# Schema reference (full details in meta-contract-before-execution/SKILL.md):
+#
+#   - contract_id: contract-NNN             # sequential, never reused
+#     feature: [feature name]
+#     date_proposed: YYYY-MM-DD
+#     date_approved: YYYY-MM-DD
+#     tier_1: |
+#       [full user scenario text, as approved]
+#     tier_2: |
+#       [full use cases text, as approved]
+#     tier_3: |
+#       [full technical guardrails text, as approved]
+#     status: approved | implemented | verified | learned
+#     revisions: []                         # authorized mid-run changes only
+#     work_id: null                         # populated by meta-learning once a LEARNINGLOG entry exists
+#
+# Only approved contracts are logged. Unauthorized mid-run deviation from an approved contract is not
+# recorded here — it belongs in meta-drift-eventlog/DRIFTLOG.yaml instead.
+
+contracts: []

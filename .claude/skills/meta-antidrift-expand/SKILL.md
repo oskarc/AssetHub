@@ -9,7 +9,7 @@ description: Invoked by the human when they want to deep dive and analyse behavi
 
 ## What This Skill Does
 
-Produces a full analysis of behavioural drift across the current session or a named scope. Where meta-antidrift scores individual outputs, meta-antidrift-expand maps patterns across outputs — which aspects drifted repeatedly, when discipline fell and what followed, which implicit approvals accumulated, what the trajectory looked like.
+Produces a full analysis of behavioural drift across the current session or a named scope. Where meta-antidrift scores individual outputs, meta-antidrift-expand maps patterns across outputs — which aspects drifted repeatedly, where drift onset appeared and what followed, which implicit approvals accumulated, what the trajectory looked like.
 
 This is the instrument for re-orientation conversations and skill-builder passes. It does not propose fixes. It produces the evidence the human needs to decide what to address and at what level.
 
@@ -40,10 +40,12 @@ Output N  |  [aspect initials with evidence/absent]  |  implicit approvals: N  |
 
 Example:
 ```
-Output 1  |  LotL✓  StpD✓  PrtM✓  EvEl✓  |  implicit: 0  |  deviations: 0
-Output 2  |  LotL✓  StpD✗  PrtM✗  EvEl✗  |  implicit: 2  |  deviations: 1
-Output 3  |  LotL✗  StpD✗  PrtM✗  EvEl✗  |  implicit: 3  |  deviations: 0
+Output 1  |  LotL✓  StpT✓  PrtM✓  Elev✓  Evid✓  |  implicit: 0  |  deviations: 0
+Output 2  |  LotL✓  StpT✗  PrtM✗  Elev✗  Evid✗  |  implicit: 2  |  deviations: 1
+Output 3  |  LotL✗  StpT✗  PrtM✗  Elev✗  Evid✗  |  implicit: 3  |  deviations: 0
 ```
+
+Initials map to the agent's five aspects: **LotL** = Lay of the land, **StpT** = Stop on named triggers, **PrtM** = Partner mirror, **Elev** = Evolution from elevation, **Evid** = Evidence is the work. The human's five aspects are not mapped here — see `meta-antidrift`'s *Why Only the Agent's Aspects Are Scored*.
 
 The map shows drift as a trajectory, not an isolated event.
 
@@ -73,16 +75,16 @@ Then identify any that share a root assumption — the same implicit permission 
 
 ---
 
-### 4 — Discipline Fall Point
+### 4 — Drift Onset Point
 
-Name the specific output where discipline fell — not where it was called out, but where it actually fell. These are often different. The call-out is when the human detected it. The fall is when the first ABSENT appeared or the first implicit approval was acted on without naming it.
+Name the specific output where drift onset appeared — not where it was called out, but where it actually began. These are often different. The call-out is when the human detected it. Onset is when the first ABSENT appeared or the first implicit approval was acted on without naming it.
 
 State:
-- The fall point: output number and what happened
-- The gap: how many outputs between fall and call-out
-- What ran in that gap: what the agent produced while discipline was absent
+- The onset point: output number and what happened
+- The gap: how many outputs between onset and call-out
+- What ran in that gap: what the agent produced while the trigger stood un-named
 
-The gap is the cost of the current system without antidrift. Over multiple sessions, the average gap length is a measure of how much the antidrift skill is shortening it.
+The gap is the cost of the system without antidrift surfacing the trigger. Over multiple sessions, the average gap length is a measure of how much the antidrift skill — and the human's *Re-orient* aspect — are shortening it.
 
 ---
 
@@ -125,10 +127,25 @@ Then stop. The human decides whether to accept the re-orientation or correct it.
 
 ---
 
+## Cross-Session Context — Reading the Drift Log
+
+Before producing the analysis, read `meta-drift-eventlog/DRIFTLOG.yaml`. Entries in `watching` or `mitigated` status touching aspects that drifted in this session are not background — they are the recurrence frame for the analysis.
+
+When a pattern in section 2 matches an existing entry's aspect + shape:
+- Surface the recurrence explicitly in the section: "Aspect X drifted again — see drift-NNN, previously `mitigated` via [elevation target]."
+- Note in section 6 that the elevation didn't hold — the analysis is no longer a single-session view, it is evidence for the eventlog's recurrence transition (`mitigated → watching`) and a strong signal for the next skill-builder pass.
+
+When the analysis surfaces a drift that has no matching entry, propose a new eventlog entry as part of the output. The eventlog SKILL.md governs entry creation and lifecycle transitions — this skill produces the evidence, the eventlog absorbs it.
+
+The analysis is recurrence-aware, not session-isolated.
+
+---
+
 ## What This Skill Does Not Do
 
 - It does not propose skill updates — it produces the evidence for skill-builder to act on
 - It does not self-correct the session — the session happened, the analysis names it
 - It does not evaluate whether drift was acceptable — the human decides that
+- It does not write to the eventlog silently — it proposes entries and transitions; meta-drift-eventlog governs the writes
 - It does not run antidrift on its own output — the expanded analysis is not itself scored
 - It does not propose fixes for the problems it surfaces — diagnosis only

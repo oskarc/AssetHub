@@ -52,6 +52,18 @@ nodes:
     status: mature
     dependencies: [base-contract]
     open_gaps: []
+    note: Local modification re-applied on v0.10 adoption (2026-08-10) — "Stale standard" anti-pattern (from the loopback-removal truth pass). Not yet upstream.
+
+  - id: base-learning
+    concern: Verification-gated learning diff — contracted prediction vs verified reality, elevation proposals feeding skill-builder
+    skill_file: meta-learning/SKILL.md
+    data_file: meta-learning/LEARNINGLOG.yaml
+    layer: meta
+    phase: post-build
+    status: mature
+    dependencies: [base-contract, base-skill-builder]
+    open_gaps: []
+    note: Invoked explicitly, not part of the continuous load order. Sweeps CONTRACT-LOG.yaml for entries in status verified — not a single named contract — on each invocation. Deepens the Standard Evolution Report; does not replace it.
 
   - id: base-manifest
     concern: Kit topology — node registry, coverage map, gap tracking, self-organisation
@@ -62,6 +74,7 @@ nodes:
     status: mature
     dependencies: []
     open_gaps: []
+    note: Local modification re-applied on v0.10 adoption (2026-08-10) — "standards document anywhere in repo → register it as a node with a loader pointer" update-protocol bullet (grounded in gap-004 / project-styleguide). Not yet upstream.
 
   - id: base-extract
     concern: Type-category kit extraction — separates transferable nodes from project nodes, produces library artifact and META.yaml
@@ -82,6 +95,17 @@ nodes:
     dependencies: [base-foundation]
     open_gaps: []
     note: Runs after every output. Makes drift visible so the human can accept or aim higher.
+
+  - id: base-drift-eventlog
+    concern: Persistent drift log — durable cross-session record of flagged incidents, their evidence, the in-session reaction, and the lifecycle of any elevation that absorbed the learning
+    skill_file: meta-drift-eventlog/SKILL.md
+    data_file: meta-drift-eventlog/DRIFTLOG.yaml
+    layer: meta
+    phase: always
+    status: mature
+    dependencies: [base-antidrift, base-foundation]
+    open_gaps: []
+    note: DRIFTLOG.yaml is read at session start alongside MANIFEST.yaml. Entries are written only at end-of-session or on human-flagged drift — never silently.
 
   - id: base-antidrift-expand
     concern: Session-level drift analysis — full pattern mapping, implicit approval accumulation, discipline fall point, elevation vs recovery assessment
@@ -556,6 +580,12 @@ coverage_map:
     phase: post-build
     status: mature
 
+  - concern: Verification-gated learning diff
+    node_id: base-learning
+    layer: meta
+    phase: post-build
+    status: mature
+
   - concern: Kit topology
     node_id: base-manifest
     layer: meta
@@ -570,6 +600,12 @@ coverage_map:
 
   - concern: Post-output drift scoring
     node_id: base-antidrift
+    layer: meta
+    phase: always
+    status: mature
+
+  - concern: Persistent drift eventlog
+    node_id: base-drift-eventlog
     layer: meta
     phase: always
     status: mature

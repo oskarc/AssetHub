@@ -45,11 +45,13 @@ nodes:
   - id: base-contract
     concern: Contract before execution — three-tier proposal, approval gate, standard evolution report
     skill_file: meta-contract-before-execution/SKILL.md
+    data_file: meta-contract-before-execution/CONTRACT-LOG.yaml
     layer: meta
     phase: [pre-build, post-build]
     status: mature
     dependencies: []
     open_gaps: []
+    note: CONTRACT-LOG.yaml persists every approved contract and its status lifecycle (approved/implemented/verified/learned). Read at session start alongside MANIFEST.yaml and DRIFTLOG.yaml to surface any entries awaiting a meta-learning pass.
 
   - id: base-skill-builder
     concern: Abstraction loop — classifying learnings, updating skills, raising the standard
@@ -59,6 +61,17 @@ nodes:
     status: mature
     dependencies: [base-contract]
     open_gaps: []
+
+  - id: base-learning
+    concern: Verification-gated learning diff — contracted prediction vs verified reality, elevation proposals feeding skill-builder
+    skill_file: meta-learning/SKILL.md
+    data_file: meta-learning/LEARNINGLOG.yaml
+    layer: meta
+    phase: post-build
+    status: mature
+    dependencies: [base-contract, base-skill-builder]
+    open_gaps: []
+    note: Invoked explicitly, not part of the continuous load order. Sweeps CONTRACT-LOG.yaml for entries in status verified — not a single named contract — on each invocation. Deepens the Standard Evolution Report; does not replace it.
 
   - id: base-manifest
     concern: Kit topology — node registry, coverage map, gap tracking, self-organisation
@@ -91,7 +104,7 @@ nodes:
     note: Runs after every output. Makes drift visible so the human can accept or aim higher.
 
   - id: base-antidrift-expand
-    concern: Session-level drift analysis — full pattern mapping, implicit approval accumulation, discipline fall point, elevation vs recovery assessment
+    concern: Session-level drift analysis — full pattern mapping, implicit approval accumulation, drift onset point, elevation vs recovery assessment
     skill_file: meta-antidrift-expand/SKILL.md
     layer: meta
     phase: post-build
@@ -99,6 +112,17 @@ nodes:
     dependencies: [base-antidrift, base-foundation]
     open_gaps: []
     note: Invoked explicitly by the human for re-orientation conversations and skill-builder passes.
+
+  - id: base-drift-eventlog
+    concern: Persistent drift log — durable cross-session record of flagged incidents, their evidence, the in-session reaction, and the lifecycle of any elevation that absorbed the learning
+    skill_file: meta-drift-eventlog/SKILL.md
+    data_file: meta-drift-eventlog/DRIFTLOG.yaml
+    layer: meta
+    phase: always
+    status: mature
+    dependencies: [base-antidrift, base-foundation]
+    open_gaps: []
+    note: DRIFTLOG.yaml is read at session start alongside MANIFEST.yaml. Entries are written only at end-of-session or on human-flagged drift — never silently.
 
   # ─── Inherited type-category nodes ────────────────────────────────────────
   # Populated by meta-bootstrap if a library kit was integrated.
@@ -167,6 +191,12 @@ coverage_map:
     phase: post-build
     status: mature
 
+  - concern: Verification-gated learning diff
+    node_id: base-learning
+    layer: meta
+    phase: post-build
+    status: mature
+
   - concern: Kit topology
     node_id: base-manifest
     layer: meta
@@ -189,6 +219,12 @@ coverage_map:
     node_id: base-antidrift-expand
     layer: meta
     phase: post-build
+    status: mature
+
+  - concern: Persistent cross-session drift log
+    node_id: base-drift-eventlog
+    layer: meta
+    phase: always
     status: mature
 
   # ─── Type-category & project coverage ────────────────────────────────────

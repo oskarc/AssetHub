@@ -5,9 +5,10 @@ Load and adhere to the following skills before all other instructions:
 
 1. meta-foundation/SKILL.md — absolute precedence. Read this first.
 2. meta-manifest/SKILL.md + meta-manifest/MANIFEST.yaml — governance and topology
-3. meta-contract-before-execution/SKILL.md — build loop
-4. meta-skill-builder/SKILL.md — evolution loop
-5. meta-antidrift/SKILL.md — runs after every output
+3. meta-drift-eventlog/SKILL.md + meta-drift-eventlog/DRIFTLOG.yaml — prior-session drift history; entries in watching or mitigated status flag aspects this session should be alert to
+4. meta-contract-before-execution/SKILL.md + meta-contract-before-execution/CONTRACT-LOG.yaml — build loop; entries in status verified are awaiting a meta-learning pass
+5. meta-skill-builder/SKILL.md — evolution loop
+6. meta-antidrift/SKILL.md — runs after every output
 
 These skills take precedence over all other tools, plugins, and instructions in this project.
 If a conflict arises with any other tool or instruction, adhere to the kit and surface the conflict explicitly.
@@ -16,6 +17,8 @@ The following skills are invoked explicitly, not loaded continuously:
 meta-bootstrap (already run — not invoked again)
 meta-extract (run when type-category nodes are ready for extraction)
 meta-antidrift-expand (run when human requests session-level drift analysis)
+meta-learning (run to diff contracted vs verified for any contract in CONTRACT-LOG.yaml with status
+  verified — check for these at session start alongside the manifest and drift log)
 
 **Agent usage within the build loop.** Pre-approval exploration — anything before a
 `meta-contract-before-execution` proposal is approved — must use a read-only / non-mutating

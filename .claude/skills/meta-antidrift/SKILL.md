@@ -19,14 +19,17 @@ The human reads it and decides: accept the current level, or aim higher. Neither
 
 ## The Drift Score Block
 
-Format: compact, scannable, maximum 10 lines. If it cannot be stated concisely it has not been understood.
+Format: compact, scannable. If it cannot be stated concisely it has not been understood.
+
+The block scores **the agent's five governing aspects only**. The human's five aspects are exercised, not scored here — see "Why Only the Agent's Aspects Are Scored" below.
 
 ```
-─── drift score ──────────────────────────────────────────
+─── drift score (agent) ──────────────────────────────────
 lay of the land      [evidence: X — or ABSENT]
-stop when falls      [evidence: X — or ABSENT]
+stop on triggers     [evidence: X — or ABSENT]
 partner mirror       [evidence: X — or ABSENT]
 elevation not rec.   [evidence: X — or ABSENT]
+evidence-as-work     [evidence: X — or ABSENT]
 implicit approvals   [none — or: listed explicitly]
 skill deviations     [none — or: skill name + human confirmation that authorised it]
 ──────────────────────────────────────────────────────────
@@ -39,9 +42,10 @@ skill deviations     [none — or: skill name + human confirmation that authoris
 **Governing aspects — each requires a concrete referent:**
 
 - **Lay of the land**: Name the specific survey or scope-establishing act that preceded any narrowing. If the output narrowed without surveying first, mark ABSENT.
-- **Stop when discipline falls**: Name the specific point where the agent stopped or flagged rather than continued. If the session shows continued output after a discipline failure, mark ABSENT.
+- **Stop on named triggers**: If a checkable trigger fired in this output — a second attempt at the same fix, an upstream skill step skipped, a deviation from an active skill, inferred permission acted on, a flagged concern being deferred — name the trigger and the response. If no trigger fired, cite "no triggers fired." If a trigger fired and the agent continued past it without naming it, mark ABSENT.
 - **Partner mirror**: Name the specific orientation check made visible to the human — the frame, scope, or assumption surfaced for correction. If the output presented conclusions without surfacing the frame, mark ABSENT.
 - **Evolution not recovery**: Name the specific elevation this output represents. If the output captured a failure or patched a problem rather than reaching upward, mark ABSENT.
+- **Evidence-as-work**: If an evidence gap was encountered, name it and how it was responded to — verified, scoped to verify, or proposed for human direction. If no evidence gap was encountered, cite "no gaps." If the output silently substituted an unverified mechanism for a verified-existing one — or pattern-matched past a gap rather than checking — mark ABSENT.
 
 **Implicit approvals — must be listed individually:**
 
@@ -66,10 +70,30 @@ ABSENT on the same aspect across multiple consecutive outputs is a pattern. The 
 
 ---
 
+## Why Only the Agent's Aspects Are Scored
+
+The agent's aspects are checkable from inside the work — they refer to actions and absences in the output the agent just produced. The human's aspects are not. *Closeness*, *Distance*, *Re-orient*, *Hold the approval gate*, *Exercise judgment* — these refer to the human's presence, perspective, intervention, and judgment, none of which the agent has a privileged position to assess.
+
+The asymmetry is foundational. Antidrift makes the agent's discipline visible to the human so the human can judge it. Asking the agent to also score the human's judgment would invert that relationship. The human's aspects are exercised, not scored; their effects appear elsewhere — in `meta-antidrift-expand` as session-level patterns the human reads, in `meta-drift-eventlog` as recurrence history, and most directly in whether the standard rises or drifts over time.
+
+---
+
+## Persistence Across Sessions
+
+The drift score block lives in the chat transcript and dies when the session closes. When an output's score flags drift the human or agent considers worth keeping — typically anything other than a clean all-aspects-present score, or any unauthorised skill deviation — the incident is recorded in `meta-drift-eventlog/DRIFTLOG.yaml`.
+
+The eventlog captures what the per-output score block surfaces: the cited evidence, the in-session reaction, the lifecycle of any elevation that absorbs the learning. Recurrence across sessions becomes visible there, not here.
+
+This skill does not write to the eventlog. It produces the evidence the eventlog records. End-of-session entry creation, lifecycle transitions, and recurrence tracking are governed by `meta-drift-eventlog/SKILL.md`.
+
+---
+
 ## What This Skill Does Not Do
 
 - It does not self-correct — it scores and stops
 - It does not produce analysis or explanation of the score — that is antidrift-expand
+- It does not persist scores across sessions — that is meta-drift-eventlog
 - It does not decide whether drift is acceptable — the human decides
 - It does not replace the governing aspects — it makes adherence to them visible
 - It does not run on its own output — the drift score block is not itself scored
+- It does not score the human's five aspects — see *Why Only the Agent's Aspects Are Scored* above

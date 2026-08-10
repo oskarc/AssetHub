@@ -1,0 +1,37 @@
+# CONTRACT-LOG.yaml
+# Instance data for meta-contract-before-execution. Governed by meta-contract-before-execution/SKILL.md.
+# Entries are written only at the approval gate — never silently, never for declined proposals.
+#
+# Schema reference (full details in meta-contract-before-execution/SKILL.md):
+#
+#   - contract_id: contract-NNN             # sequential, never reused
+#     feature: [feature name]
+#     date_proposed: YYYY-MM-DD
+#     date_approved: YYYY-MM-DD
+#     tier_1: |
+#       [full user scenario text, as approved]
+#     tier_2: |
+#       [full use cases text, as approved]
+#     tier_3: |
+#       [full technical guardrails text, as approved]
+#     status: approved | implemented | verified | learned
+#     revisions: []                         # authorized mid-run changes only — see below
+#     work_id: null                         # populated by meta-learning once a LEARNINGLOG entry exists
+#
+# Status lifecycle:
+#   approved    — set when this entry is created, at the approval gate
+#   implemented — set when the Standard Evolution Report is produced
+#   verified    — set when verification completes (tests / observation / human confirmation)
+#   learned     — set by meta-learning once it has produced the matching LEARNINGLOG.yaml diff
+#
+# Only approved contracts are logged. Declined or revised-before-approval proposals are not — the log
+# tracks what got built, not conversation.
+#
+# Authorized mid-run changes to an approved contract are appended to that entry's `revisions` list, not
+# overwritten silently. Unauthorized mid-run deviation from an approved contract is not recorded here at
+# all — it is a stop-on-triggers violation and belongs in meta-drift-eventlog/DRIFTLOG.yaml instead.
+#
+# meta-learning sweeps this file for every entry in `status: verified` when invoked. It does not target
+# a single named contract.
+
+contracts: []

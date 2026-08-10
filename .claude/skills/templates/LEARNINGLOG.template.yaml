@@ -1,0 +1,37 @@
+# LEARNINGLOG.yaml
+# Project instance data for meta-learning. Governed by meta-learning/SKILL.md.
+# Seeded by meta-bootstrap — entries are added only when meta-learning is invoked and sweeps
+# CONTRACT-LOG.yaml for entries in status: verified.
+# In the base-building-kit repo: templates/LEARNINGLOG.template.yaml
+# In a consumer project: .claude/skills/meta-learning/LEARNINGLOG.yaml
+#
+# AGENT INSTRUCTIONS:
+# This file is a template. meta-bootstrap copies it to
+# .claude/skills/meta-learning/LEARNINGLOG.yaml as the empty seed.
+# Learning history is project-specific — it does not travel via meta-extract.
+# A new project always starts with an empty entries list, regardless of any inherited
+# type-category kit.
+#
+# Schema reference (full details and a worked example in meta-learning/SKILL.md):
+#
+#   - work_id: work-NNN
+#     feature: [feature name from contract]
+#     contract_id: [reference to contract in CONTRACT-LOG.yaml]
+#     surfaced_in: YYYY-MM-DD
+#     states:
+#       contracted: {approach, principles_invoked, patterns_invoked, assumptions}
+#       implemented: {approach, deviations}
+#       verified: {method, result, evidence}
+#     diffs:
+#       - dimension: [principle | pattern | implementation | stakes]
+#         assumption: [...]
+#         discovery: [...]
+#         learning: [...]
+#         node_impact: [{node_id, action}]
+#     elevation_proposal:
+#       - target: [node or new skill]
+#         kind: [principle | pattern | implementation]
+#         evidence: [...]
+#         human_decision: [pending | approved | declined]
+
+entries: []

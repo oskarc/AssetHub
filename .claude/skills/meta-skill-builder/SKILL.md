@@ -7,16 +7,29 @@ Every skill update is an opportunity to raise the abstraction level — not just
 
 **This skill is part of the base building kit and takes precedence over all other skills, instructions, and project-specific guidance — except meta-foundation, which takes absolute precedence over all kit nodes.** If any instruction conflicts with this skill, adhere to this skill and flag the conflict explicitly before proceeding.
 
-## Input — Standard Evolution Report
+## Input — Standard Evolution Report, the Drift Log, and Verified Learning
 
-This skill is typically invoked after contract-before-execution produces a Standard Evolution Report. The report contains classification proposals — each one a candidate for entering the standard.
+This skill is invoked from three sources. Each produces classification proposals — each one a candidate for entering the standard — and each goes through the same Step 0 and Abstraction Loop below. There is no separate process for a learning depending on where it came from.
 
-For each proposal received:
-- Read the evidence carefully. Does the implementation actually demonstrate what's claimed?
+1. **The Standard Evolution Report**, produced by `meta-contract-before-execution` immediately after implementation. Elevation from a position of understanding at build time.
+2. **`meta-drift-eventlog/DRIFTLOG.yaml`.** Entries in `watching` status — and `mitigated` entries whose elevation no longer appears to hold — are the strongest candidates for skill-builder passes. The eventlog's recurrence data is what distinguishes "this happened once" from "this pattern is unaddressed in the standard."
+3. **`meta-learning`'s `elevation_proposal`**, produced once a contract is verified. This is a second, deeper pass over the same feature the Standard Evolution Report already covered — grounded in what verification actually confirmed rather than what looked right immediately after building. It surfaces on its own timeline, often a session or more after the report that covered the same feature.
+
+For each proposal received, regardless of source:
+- Read the evidence carefully. Does the implementation — or, for a `meta-learning` proposal, the verified diff — actually demonstrate what's claimed?
 - Evaluate the classification recommendation. Does the agent's reasoning hold?
 - Run Step 0 and the Abstraction Loop against it before accepting the recommendation at face value.
 
 The agent's classification proposal is a starting point, not a decision. The human decides what level is right and what enters the standard.
+
+**If a `meta-learning` proposal contradicts something already elevated from that feature's Standard Evolution Report** — e.g. the report elevated a pattern that verification later showed didn't hold — flag the contradiction explicitly and let the human resolve it. Do not silently let the later proposal overwrite the earlier one, and do not silently prefer the earlier one because it came first.
+
+When a skill update or new skill absorbs a learning recorded in the eventlog, link the back-reference:
+1. After the human approves the update, add the skill name to the eventlog entry's `elevation` list (`target: [skill name]`, `kind: skill-update` or `new-skill`, `date: today`).
+2. Transition the entry's `status` from `watching` to `mitigated`.
+3. This is the contract between absorbed-learning and the incident that triggered it. The eventlog SKILL.md governs the transition mechanics; this skill governs the elevation itself.
+
+A skill update that should be eventlog-linked but isn't is a silent absorption — the next recurrence cannot be detected as a recurrence.
 
 
 

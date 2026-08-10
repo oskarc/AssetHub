@@ -1,0 +1,31 @@
+# DRIFTLOG.yaml
+# Instance data for the drift event log. Governed by meta-drift-eventlog/SKILL.md.
+# Entries added only through deliberate process with developer approval — never silently.
+#
+# Schema reference:
+#
+#   - drift_id: drift-NNN                  # sequential, never reused
+#     surfaced_in: YYYY-MM-DD / topic
+#     surfaced_by: human | self | post-hoc
+#     # aspect — one of:
+#     #   agent: lay-of-the-land | stop-on-triggers | partner-mirror | elevation-not-recovery | evidence-as-work
+#     #   human: exercise-judgment | closeness | distance | re-orient | approval-gate
+#     #   meta:  meta
+#     aspect: lay-of-the-land
+#     description: |
+#       Concrete, non-evaluative statement of what happened.
+#     evidence: |
+#       Cited referent — exact statement, log line, file:line.
+#     reaction: |
+#       What was done in-session in response.
+#     status: open | watching | mitigated | resolved
+#     elevation:
+#       - target: skill or memory name
+#         kind: new-skill | skill-update | memory-update | manifest-update
+#         date: YYYY-MM-DD
+#     recurrence_count: 0
+#     related_drifts: []
+#
+# Lifecycle transitions follow the rules in meta-drift-eventlog/SKILL.md.
+
+entries: []

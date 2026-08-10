@@ -1,0 +1,40 @@
+# DRIFTLOG.yaml
+# Project instance data for the drift event log. Governed by meta-drift-eventlog/SKILL.md.
+# Seeded by meta-bootstrap — entries are added only through deliberate process with developer approval, never silently.
+# In the base-building-kit repo: templates/DRIFTLOG.template.yaml
+# In a consumer project: .claude/skills/meta-drift-eventlog/DRIFTLOG.yaml
+#
+# AGENT INSTRUCTIONS:
+# This file is a template. meta-bootstrap copies it to
+# .claude/skills/meta-drift-eventlog/DRIFTLOG.yaml as the empty seed.
+# Drift history is project-specific — it does not travel via meta-extract.
+# A new project always starts with an empty entries list, regardless of any
+# inherited type-category kit.
+#
+# Schema reference (full details in meta-drift-eventlog/SKILL.md):
+#
+#   - drift_id: drift-NNN                  # sequential, never reused
+#     surfaced_in: YYYY-MM-DD / topic
+#     surfaced_by: human | self | post-hoc
+#     # aspect — one of:
+#     #   agent: lay-of-the-land | stop-on-triggers | partner-mirror | elevation-not-recovery | evidence-as-work
+#     #   human: exercise-judgment | closeness | distance | re-orient | approval-gate
+#     #   meta:  meta
+#     aspect: lay-of-the-land
+#     description: |
+#       Concrete, non-evaluative statement of what happened.
+#     evidence: |
+#       Cited referent — exact statement, log line, file:line.
+#     reaction: |
+#       What was done in-session in response.
+#     status: open | watching | mitigated | resolved
+#     elevation:
+#       - target: skill or memory name
+#         kind: new-skill | skill-update | memory-update | manifest-update
+#         date: YYYY-MM-DD
+#     recurrence_count: 0
+#     related_drifts: []
+#
+# Lifecycle transitions follow the rules in meta-drift-eventlog/SKILL.md.
+
+entries: []

@@ -145,4 +145,4 @@ Extraction criteria:
 
 The library entry is written into the project's MANIFEST.yaml under `library_entry` by meta-extract at extraction time. The extracted folder lives at `.claude/library/[category]/` in the project that produced it. To seed a future project of the same type, the developer copies that folder into the new project at the same path (`.claude/library/[category]/`), then runs `meta-bootstrap` — which will find the kit and integrate it automatically.
 
-**Each extraction is a generation.** A kit matures through generations of real project use. The non-developer milestone is not a roadmap item — it is reached when the standard has matured enough through generations that the reports go silent and the governing aspects are fully encoded.
+**Each extraction is a generation.** A kit matures through generations of real project use. The non-developer milestone is not a roadmap item — it is reached when the standard has matured enough through generations that the reports go silent.
