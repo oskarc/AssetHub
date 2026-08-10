@@ -121,7 +121,6 @@ public sealed class CollectionService(
             UserRole = RoleHierarchy.Roles.Admin,
             ParentCollectionId = collection.ParentCollectionId,
             InheritParentAcl = collection.InheritParentAcl,
-            WatermarkEnabled = collection.WatermarkEnabled,
         };
     }
 

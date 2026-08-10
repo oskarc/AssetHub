@@ -165,7 +165,7 @@ contracts:
         full test pass + residual sweep clean. (-> UC6)
       - Scope guard: no opportunistic cleanup of neighboring code — adjacent findings
         get reported, not done. (-> all)
-    status: approved
+    status: implemented
     revisions:
       - date: 2026-08-10
         change: |
@@ -178,4 +178,85 @@ contracts:
           convention. Pre-existing dependency debt surfaced by restore, not analytics-cut
           fallout.
         authorised_by: '"approved as suggested" — owner, 2026-08-10, after mid-run stop'
+      - date: 2026-08-10
+        change: |
+          Generated DropTable calls replaced with idempotent raw SQL (DROP TABLE IF
+          EXISTS) after the first integration run failed 282 tests on 42P01: the paired
+          hand-written AddAnalyticsRollups migration carries no [Migration] attribute
+          (Designer.cs never generated), so EF never discovered it and migration-managed
+          databases never created the tables. Idempotency here is the contracted
+          ef-config-migration standard applied (tier-3 guardrail), recorded as a revision
+          for traceability of the changed migration shape, not as a new scope grant.
+        authorised_by: 'tier-3 guardrail "Migration follows implementation-ef-config-migration" in the approved contract'
+    work_id: null
+
+  - contract_id: contract-003
+    feature: reshape-c2-watermarking-cut
+    date_proposed: 2026-08-11
+    date_approved: 2026-08-11
+    tier_1: |
+      You are continuing to carve this product down to the five things it is. Forensic
+      watermarking — invisible marks embedded in downloads, per-collection toggles and
+      per-asset/share overrides, the verify page, the recipient fingerprinting — is the
+      single most impressive-but-heavy subsystem left, exactly the kind that makes a
+      discovering developer bounce off the codebase. You want it gone entirely:
+      downloads go back to being simple and fast for everyone, sharing loses its
+      watermark switches, the admin area loses its last Insights page, and no trace
+      remains — while upload, organize, find, control access, and share keep working
+      exactly as they do today. If this doesn't happen, the repo keeps ~5,000 lines of
+      signal-processing and crypto plumbing, plus a mandatory deployment secret, for a
+      capability outside the product's identity.
+    tier_2: |
+      1. Roll the baseline forward (pattern-regression-baseline update): green state at
+         2e690d7 becomes the reference.
+      2. Revert the download flow to unconditional presigned-302 in AssetEndpoints,
+         ShareEndpoints, AssetQueryService, PublicShareAccessService/IShareAccessService,
+         ZipBuildService (zips stop embedding marks). Behavior change, not deletion —
+         stream-vs-302 branch tests updated to assert pure 302. Edge: WatermarkDownload
+         recording disappears with the branch.
+      3. Remove the feature surface: both Services/Watermarking/ folders in their
+         entirety (incl. IRecipientCryptoService/RecipientCryptoService and the C1
+         survivor comments), WatermarkEndpoints + registration, DTOs/messages/constants/
+         CacheKeys entries, WatermarkSettings (validate-on-start dies with it), the
+         Worker fingerprint background service, facade partial + 4 interface members +
+         2 ctor params, three UI components + AdminWatermarkVerify page, watermark
+         fields in CreateShareDialog/ManageAccessDialog, DTO + mapper fields.
+      4. Retire the Insights group: admin nav to three groups, AdminHome to three
+         tiles, breadcrumb case removed, Group_Insights + Group_Insights_Desc deleted
+         EN+SV (cap-then-group at group death, principle-information-architecture).
+         Routable admin pages 13 -> 12.
+      5. Remove the data model: new generated migration dropping WatermarkDownloads
+         table + five entity columns (Asset x3, Collection x1, Share x1);
+         AddWatermarkSupport history untouched (its Designer verified present — EF
+         discovers it, so plain DropTable/DropColumn is correct); data loss documented;
+         has-pending-model-changes clean.
+      6. Remove config & compose wiring: Watermarking__HmacKeyBase64 env lines from
+         both services in compose (+ prod compose). Edge: WATERMARK_HMAC_KEY in the
+         gitignored docker/.env is reported for the owner to delete manually.
+      7. Remove tests: DctLsbWatermarkRoundTripTests, both bUnit component tests,
+         17-watermarks.spec.ts, plus watermark cases inside shared endpoint/service
+         tests (edited, not deleted).
+      8. Prove nothing else moved: residual sweep (watermark|Watermarking__|WATERMARK_|
+         DctLsb|RecipientCrypto) over src/tests/docs/docker as acceptance gate;
+         expected survivors migration history only. Baseline check zero regressions;
+         non-incremental build no new warnings.
+      9. Correct the standard in the same change: T5-WMK-01 memory -> HISTORICAL,
+         manifest note on pattern-hash-keyed-pii-reveal (instantiation fully removed),
+         README bullets + user-scenario catalog + styleguide swept. Commit per
+         implementation-commit-and-push; approval authorizes the commit; no push.
+    tier_3: |
+      - SemVer: WatermarkEndpoints carries 4 public-API markers — removal is a breaking
+        change, named in the commit, grounded in the approved plan's C10. (-> UC3)
+      - Scope guard: brands/guests/shares logic untouched beyond watermark fields and
+        the download-branch revert; adjacent findings reported, not fixed. (-> UC2, UC3)
+      - Migration discipline: ef-config-migration + migration-check audit; never edit
+        AddWatermarkSupport; model byte-identical until the new migration. (-> UC5)
+      - i18n parity: removed/edited keys change in both languages together. (-> UC3, UC4)
+      - DI: registrations removed with interfaces; no orphans either direction. (-> UC3)
+      - Verified means: baseline clean + zero-new-warnings non-incremental build + full
+        test pass + residual sweep clean + docker compose config -q parses. (-> UC8)
+      - Float hygiene: no package changes expected; any fresh-restore failure is a
+        mid-run stop and surface, not a silent fix. (-> all)
+    status: approved
+    revisions: []
     work_id: null

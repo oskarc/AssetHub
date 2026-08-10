@@ -149,7 +149,6 @@ static class Program
                 services.AddHostedService<GuestInvitationExpirySweepService>();
                 services.AddHostedService<OrphanedObjectsSweeperService>();
                 services.AddHostedService<OutboxDrainService>();
-                services.AddHostedService<WatermarkAssetFingerprintBackgroundService>();
             })
             .Build();
 

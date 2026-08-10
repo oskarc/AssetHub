@@ -22,7 +22,6 @@ global using AssetHub.Ui.Components.ImageEditor;
 global using AssetHub.Ui.Components.Notifications;
 global using AssetHub.Ui.Components.Shared;
 global using AssetHub.Ui.Components.Shares;
-global using AssetHub.Ui.Components.Watermark;
 global using AssetHub.Ui.Services;
 global using AssetHub.Ui.Resources;
 global using MudBlazor;

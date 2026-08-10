@@ -27,16 +27,12 @@ public sealed record ZipBuildDataDependencies(
 /// Manages queued ZIP download builds via Wolverine.
 /// Builds ZIP files in the background and stores them as temporary MinIO objects.
 /// </summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "Composition root for ZIP builds: data deps + MinIO + bus + audit + settings + watermark dispatch + share lookup + logger. Adding watermarking on egress (T5-WMK-01) requires the IWatermarkService and IShareRepository deps.")]
 public sealed class ZipBuildService(
     ZipBuildDataDependencies data,
     IMinIOAdapter minioAdapter,
     IMessageBus messageBus,
     IAuditService audit,
     IOptions<MinIOSettings> minioSettings,
-    AssetHub.Application.Services.Watermarking.IWatermarkService watermarkService,
-    IShareRepository shareRepo,
     ILogger<ZipBuildService> logger) : IZipBuildService
 {
     private readonly IDbContextFactory<AssetHubDbContext> _dbFactory = data.DbFactory;
@@ -186,17 +182,7 @@ public sealed class ZipBuildService(
             var assetList = await LoadDownloadableAssetsAsync(zip, db, ct);
             if (assetList.Count == 0) return;
 
-            // T5-WMK-01: resolve the originating share's id once per build so
-            // the per-asset watermark precedence check (Share → Asset → Collection)
-            // includes any share-level override.
-            Guid? shareId = null;
-            if (!string.IsNullOrEmpty(zip.ShareTokenHash))
-            {
-                var share = await shareRepo.GetByTokenHashAsync(zip.ShareTokenHash, ct);
-                shareId = share?.Id;
-            }
-
-            await BuildAndUploadZipAsync(zip, zipDownloadId, assetList, shareId, db, ct);
+            await BuildAndUploadZipAsync(zip, zipDownloadId, assetList, db, ct);
         }
         catch (OperationCanceledException)
         {
@@ -230,14 +216,14 @@ public sealed class ZipBuildService(
 
     private async Task BuildAndUploadZipAsync(
         ZipDownload zip, Guid zipDownloadId, List<Asset> assetList,
-        Guid? shareId, AssetHubDbContext db, CancellationToken ct)
+        AssetHubDbContext db, CancellationToken ct)
     {
         var objectKey = $"{Constants.StoragePrefixes.TempZipDownloads}/{zipDownloadId}.zip";
         var tempPath = ScratchPaths.Combine($"assethub-zip-{zipDownloadId}.zip");
 
         try
         {
-            var errors = await WriteZipFileAsync(tempPath, assetList, zipDownloadId, zip.RequestedByUserId, shareId, ct);
+            var errors = await WriteZipFileAsync(tempPath, assetList, zipDownloadId, ct);
             await UploadZipFileAsync(tempPath, objectKey, ct);
 
             var fileInfo = new FileInfo(tempPath);
@@ -263,8 +249,7 @@ public sealed class ZipBuildService(
     }
 
     private async Task<List<string>> WriteZipFileAsync(
-        string tempPath, List<Asset> assetList, Guid zipDownloadId,
-        string? requestedByUserId, Guid? shareId, CancellationToken ct)
+        string tempPath, List<Asset> assetList, Guid zipDownloadId, CancellationToken ct)
     {
         var errors = new List<string>();
 
@@ -274,7 +259,7 @@ public sealed class ZipBuildService(
         foreach (var asset in assetList)
         {
             ct.ThrowIfCancellationRequested();
-            await TryAddAssetEntryAsync(archive, asset, errors, zipDownloadId, requestedByUserId, shareId, ct);
+            await TryAddAssetEntryAsync(archive, asset, errors, zipDownloadId, ct);
         }
 
         if (errors.Count > 0)
@@ -284,57 +269,21 @@ public sealed class ZipBuildService(
 
     private async Task TryAddAssetEntryAsync(
         ZipArchive archive, Asset asset, List<string> errors, Guid zipDownloadId,
-        string? requestedByUserId, Guid? shareId, CancellationToken ct)
+        CancellationToken ct)
     {
-        Stream? watermarkedOverride = null;
         try
         {
-            // T5-WMK-01: per-asset watermark precedence — Share → Asset → Collection.
-            // Each asset added to the ZIP gets its own WatermarkDownload row so a leaked
-            // image from the bundle is still attributable to this download.
-            var effectiveResult = await watermarkService.IsWatermarkingEffectiveAsync(asset.Id, shareId, ct);
-            var watermarkOn = effectiveResult.IsSuccess && effectiveResult.Value;
-
             await using var assetStream = await minioAdapter.DownloadAsync(
                 _bucketName, asset.OriginalObjectKey!, ct);
 
             var fileName = FileHelpers.GetSafeFileName(
                 asset.Title ?? "untitled", asset.OriginalObjectKey!, asset.ContentType);
 
-            Stream effectiveStream = assetStream;
-            if (watermarkOn)
-            {
-                var watermarkContext = new AssetHub.Application.Services.Watermarking.WatermarkContext
-                {
-                    AssetId = asset.Id,
-                    DownloadPath = "zip",
-                    ShareId = shareId,
-                    RecipientUserId = requestedByUserId,
-                    RecipientEmail = null
-                };
-
-                var watermarkResult = await watermarkService.WatermarkForDownloadAsync(assetStream, watermarkContext, ct);
-                if (!watermarkResult.IsSuccess)
-                {
-                    // Per-asset failure: log, add to errors, skip — same shape as other
-                    // per-asset failures (no-gap rule honored: skipped > served-unwatermarked).
-                    logger.LogWarning("Watermark failed for asset {AssetId} in ZIP {ZipDownloadId}: {Error}",
-                        asset.Id, zipDownloadId, watermarkResult.Error?.Message);
-                    errors.Add($"{asset.Title ?? asset.Id.ToString()} — watermark failed: {watermarkResult.Error?.Message}");
-                    return;
-                }
-
-                watermarkedOverride = watermarkResult.Value!.Output;
-                effectiveStream = watermarkedOverride;
-                // Watermarked output is PNG (lossless preserves the bits); reflect that in the entry name.
-                fileName = Path.ChangeExtension(fileName, ".png");
-            }
-
             var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
             // ZipArchiveEntry.Open() is sync-only in .NET 9 (no OpenAsync); the
             // CopyToAsync below remains async.
             await using var entryStream = entry.Open(); // NOSONAR S6966
-            await effectiveStream.CopyToAsync(entryStream, ct);
+            await assetStream.CopyToAsync(entryStream, ct);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -343,11 +292,6 @@ public sealed class ZipBuildService(
                 "Failed to include asset {AssetId} in ZIP build {ZipDownloadId}",
                 asset.Id, zipDownloadId);
             errors.Add($"{asset.Title ?? asset.Id.ToString()} — {ex.Message}");
-        }
-        finally
-        {
-            if (watermarkedOverride is not null)
-                await watermarkedOverride.DisposeAsync();
         }
     }
 

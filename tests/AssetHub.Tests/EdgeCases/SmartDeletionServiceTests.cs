@@ -105,7 +105,6 @@ public class SmartDeletionServiceTests : IAsyncLifetime
             _minioMock.Object,
             _auditMock.Object,
             currentUser,
-            Mock.Of<AssetHub.Application.Services.Watermarking.IWatermarkService>(),
             minioSettings,
             NullLogger<AssetQueryService>.Instance);
     }

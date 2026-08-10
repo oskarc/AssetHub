@@ -264,10 +264,8 @@
   <data name="Group_Access" xml:space="preserve"><value>Åtkomst</value></data>
   <data name="Group_Content" xml:space="preserve"><value>Innehåll</value></data>
   <data name="Group_Operations" xml:space="preserve"><value>Drift</value></data>
-  <data name="Group_Insights" xml:space="preserve"><value>Insikter</value></data>
   <data name="Group_Access_Desc" xml:space="preserve"><value>Användare, samlingsbehörigheter, gäster och delningslänkar.</value></data>
   <data name="Group_Content_Desc" xml:space="preserve"><value>Metadatascheman, taxonomier, exportförinställningar och varumärken.</value></data>
   <data name="Group_Operations_Desc" xml:space="preserve"><value>Migreringar, papperskorg, granskningslogg och webhooks.</value></data>
-  <data name="Group_Insights_Desc" xml:space="preserve"><value>Vattenstämpelverifiering.</value></data>
   <data name="Overview_Intro" xml:space="preserve"><value>Hantera användare, innehåll, drift och insikter. Välj ett område i menyn eller ett kort nedan.</value></data>
 </root>

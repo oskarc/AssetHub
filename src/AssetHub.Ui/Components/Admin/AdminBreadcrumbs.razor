@@ -5,7 +5,6 @@
 @inject NavigationManager Nav
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
-@inject IStringLocalizer<WatermarksResource> WmkLoc
 
 @* Wayfinding for the nested /admin/* routes (principle-information-architecture, E).
    Auto-derived once here in the admin shell — no per-page code. The root /admin
@@ -58,7 +57,6 @@
         "admin/trash" => AdminLoc["Tab_Trash"].Value,
         "admin/audit" => AdminLoc["Tab_AuditLog"].Value,
         "admin/webhooks" => AdminLoc["Tab_Webhooks"].Value,
-        "admin/watermarks/verify" => WmkLoc["Verify_PageTitle"].Value,
         _ => null // /admin root or unknown — render just "Admin" (suppressed by the count guard)
     };
 

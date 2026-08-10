@@ -39,7 +39,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<GuestInvitation> GuestInvitations { get; set; } = null!;
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
-    public DbSet<WatermarkDownload> WatermarkDownloads { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     // Entity configuration lives in one IEntityTypeConfiguration<T> class per entity under
@@ -78,6 +77,5 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new WebhookDeliveryConfiguration());
         modelBuilder.ApplyConfiguration(new OrphanedObjectConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
-        modelBuilder.ApplyConfiguration(new WatermarkDownloadConfiguration());
     }
 }

@@ -53,11 +53,6 @@ public sealed class AssetConfiguration : IEntityTypeConfiguration<Asset>
         entity.Property(e => e.PosterObjectKey).HasMaxLength(512);
         entity.Property(e => e.WaveformPeaksPath).HasMaxLength(512);
 
-        // T5-WMK-01 — opaque asset-fingerprint token. Set by background sweep;
-        // null until the sweep has run, in which case downloads embed both layers
-        // on-the-fly per the no-gap rule.
-        entity.Property(e => e.AssetWatermarkToken).HasMaxLength(64);
-
         entity.Property(e => e.Tags)
             .HasColumnType(ModelConventions.TextArray)
             .Metadata.SetValueComparer(ModelConventions.StringListComparer);

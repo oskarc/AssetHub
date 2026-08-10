@@ -13,12 +13,11 @@ public interface IPublicShareAccessService
         string token, string? password, int skip, int take, CancellationToken ct);
 
     /// <summary>
-    /// Resolve a shared-asset download — returns either a presigned URL (un-watermarked,
-    /// 302 redirect) or a watermarked byte stream (T5-WMK-01). Mirrors
-    /// <c>IAssetQueryService.ResolveRenditionDownloadAsync</c> for the share path,
-    /// using the share's id in the watermark precedence chain.
+    /// Resolve a shared-asset download — returns a presigned URL the endpoint
+    /// 302-redirects to. Mirrors <c>IAssetQueryService.ResolveRenditionDownloadAsync</c>
+    /// for the share path.
     /// </summary>
-    Task<ServiceResult<RenditionDownloadResult>> GetDownloadUrlAsync(
+    Task<ServiceResult<string>> GetDownloadUrlAsync(
         string token, string? password, Guid? assetId, CancellationToken ct);
 
     /// <summary>Enqueue a ZIP build for all shared collection assets.</summary>

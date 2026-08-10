@@ -3,7 +3,6 @@ using System.IO;
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
-using AssetHub.Application.Services.Watermarking;
 
 namespace AssetHub.Ui.Services;
 
@@ -175,8 +174,4 @@ public interface IAssetHubApiClient
     Task<CreatedGuestInvitationDto> CreateGuestInvitationAsync( CreateGuestInvitationDto dto, CancellationToken ct = default);
     Task RevokeGuestInvitationAsync(Guid id, CancellationToken ct = default);
     Task<AcceptGuestInvitationResponseDto> AcceptGuestInvitationAsync( string token, CancellationToken ct = default);
-    Task SetCollectionWatermarkAsync( Guid collectionId, bool enabled, CancellationToken ct = default);
-    Task SetAssetWatermarkOverrideAsync( Guid assetId, bool? @override, CancellationToken ct = default);
-    Task SetShareWatermarkOverrideAsync( Guid shareId, bool? @override, CancellationToken ct = default);
-    Task<WatermarkVerificationResultDto> VerifyWatermarkAsync( Stream content, string contentType, long sizeBytes, CancellationToken ct = default);
 }

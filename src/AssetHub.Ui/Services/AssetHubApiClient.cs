@@ -4,7 +4,6 @@ using System.Net;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Services;
-using AssetHub.Application.Services.Watermarking;
 using Microsoft.Extensions.Options;
 
 namespace AssetHub.Ui.Services;
@@ -67,8 +66,6 @@ public sealed partial class AssetHubApiClient(
     IWebhookService webhookService,
     IBrandService brandService,
     IGuestInvitationService guestInvitationService,
-    IWatermarkService watermarkService,
-    IWatermarkVerifier watermarkVerifier,
     IUserLookupService userLookupService,
     IOptions<AppSettings> appSettings) : IAssetHubApiClient
 {

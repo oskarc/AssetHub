@@ -84,9 +84,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Postgres"] = _connectionString,
-                ["Keycloak:RequireHttpsMetadata"] = "true",
-                // T5-WMK-01: HmacKeyBase64 is required + ValidateOnStart.
-                ["Watermarking:HmacKeyBase64"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                ["Keycloak:RequireHttpsMetadata"] = "true"
             });
         });
 

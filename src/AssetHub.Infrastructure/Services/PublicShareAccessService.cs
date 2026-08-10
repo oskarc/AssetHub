@@ -31,7 +31,6 @@ public sealed class PublicShareAccessService(
     IDataProtectionProvider dataProtection,
     IHttpContextAccessor httpContextAccessor,
     IBrandResolver brandResolver,
-    AssetHub.Application.Services.Watermarking.IWatermarkService watermarkService,
     ILogger<PublicShareAccessService> logger) : IPublicShareAccessService
 {
     private readonly string _bucketName = minioSettings.Value.BucketName;
@@ -53,9 +52,6 @@ public sealed class PublicShareAccessService(
             var dto = BuildSharedAssetDto(asset, token, share.PermissionsJson);
             dto.Brand = await brandResolver.ResolveForShareAsync(
                 Constants.ScopeTypes.Asset, asset.Id, ct);
-            // T5-WMK-01 — surface effective watermark state so the share-page
-            // can render the disclosure notice for the asset.
-            dto.WatermarkingEffective = await ResolveWatermarkingEffectiveAsync(asset.Id, share.Id, ct);
             return dto;
         }
 
@@ -71,18 +67,6 @@ public sealed class PublicShareAccessService(
                 .Select(a => BuildSharedAssetDto(a, token, share.PermissionsJson, a.Id))
                 .ToList();
 
-            // T5-WMK-01 — populate per-asset effective state and a collection-wide
-            // flag (true iff any asset in the page is watermarked) for the
-            // share-page disclosure notice. The per-asset flag drives any future
-            // per-asset rendering decisions; the collection flag drives the notice.
-            var anyWatermarked = false;
-            foreach (var assetDto in assetDtos)
-            {
-                assetDto.WatermarkingEffective = await ResolveWatermarkingEffectiveAsync(
-                    assetDto.Id, share.Id, ct);
-                if (assetDto.WatermarkingEffective) anyWatermarked = true;
-            }
-
             return new SharedCollectionDto
             {
                 Id = collection.Id,
@@ -92,15 +76,14 @@ public sealed class PublicShareAccessService(
                 TotalAssets = totalAssets,
                 Permissions = share.PermissionsJson,
                 Brand = await brandResolver.ResolveForShareAsync(
-                    Constants.ScopeTypes.Collection, collection.Id, ct),
-                WatermarkingEffective = anyWatermarked
+                    Constants.ScopeTypes.Collection, collection.Id, ct)
             };
         }
 
         return ServiceError.BadRequest("Invalid share scope type");
     }
 
-    public async Task<ServiceResult<RenditionDownloadResult>> GetDownloadUrlAsync(
+    public async Task<ServiceResult<string>> GetDownloadUrlAsync(
         string token, string? password, Guid? assetId, CancellationToken ct)
     {
         var (share, error) = await ValidateAndGetShareAsync(token, password, ct);
@@ -120,60 +103,10 @@ public sealed class PublicShareAccessService(
         var ext = Path.GetExtension(targetAsset.OriginalObjectKey);
         var downloadFileName = $"{targetAsset.Title}{ext}";
 
-        // T5-WMK-01 — same dispatch shape as IAssetQueryService.ResolveRenditionDownloadAsync
-        // but in the share context: precedence chain includes share.WatermarkOverride
-        // (which wins over asset/collection settings).
-        var effectiveResult = await watermarkService.IsWatermarkingEffectiveAsync(targetAsset.Id, share.Id, ct);
-        var watermarkOn = effectiveResult.IsSuccess && effectiveResult.Value;
-
-        if (!watermarkOn)
-        {
-            var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(
-                _bucketName, targetAsset.OriginalObjectKey,
-                Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, downloadFileName, ct);
-            return new RenditionDownloadResult { PresignedUrl = presignedUrl };
-        }
-
-        // Watermarked path: stream through API. Anonymous share recipient — RecipientUserId
-        // is null; RecipientEmail is best-effort from the share invitation when available
-        // (T4-GUEST-01 surface), falling back to null for fully-anonymous shares.
-        Stream sourceStream;
-        try
-        {
-            sourceStream = await minioAdapter.DownloadAsync(_bucketName, targetAsset.OriginalObjectKey, ct);
-        }
-        catch (StorageException ex)
-        {
-            logger.LogError(ex, "Failed to download asset {AssetId} for watermarked share stream", targetAsset.Id);
-            return ServiceError.Server(ex.Message);
-        }
-
-        var watermarkContext = new AssetHub.Application.Services.Watermarking.WatermarkContext
-        {
-            AssetId = targetAsset.Id,
-            DownloadPath = "share",
-            ShareId = share.Id,
-            RecipientUserId = null,
-            RecipientEmail = null
-        };
-
-        var watermarkResult = await watermarkService.WatermarkForDownloadAsync(sourceStream, watermarkContext, ct);
-        if (!watermarkResult.IsSuccess)
-        {
-            await sourceStream.DisposeAsync();
-            return watermarkResult.Error!;
-        }
-
-        return new RenditionDownloadResult
-        {
-            Stream = new RenditionStreamPayload
-            {
-                Content = watermarkResult.Value!.Output,
-                ContentType = "image/png",
-                DownloadFileName = downloadFileName,
-                ForceDownload = true
-            }
-        };
+        var presignedUrl = await minioAdapter.GetPresignedDownloadUrlAsync(
+            _bucketName, targetAsset.OriginalObjectKey,
+            Constants.Limits.PresignedDownloadExpirySec, forceDownload: true, downloadFileName, ct);
+        return presignedUrl;
     }
 
     public async Task<ServiceResult<ZipDownloadEnqueuedResponse>> EnqueueDownloadAllAsync(
@@ -337,21 +270,6 @@ public sealed class PublicShareAccessService(
         }
     }
 
-    // Wrapper that swallows lookup errors — disclosure copy is informational only,
-    // and a transient watermark-config read failure must not block share access.
-    // Errors are logged at Debug because the caller is mid-page-render; the
-    // forensic audit trail lives on the actual download path.
-    private async Task<bool> ResolveWatermarkingEffectiveAsync(Guid assetId, Guid shareId, CancellationToken ct)
-    {
-        var result = await watermarkService.IsWatermarkingEffectiveAsync(assetId, shareId, ct);
-        if (!result.IsSuccess)
-        {
-            logger.LogDebug("Watermark effective-state lookup failed for asset {AssetId} share {ShareId}: {Error}",
-                assetId, shareId, result.Error?.Message);
-            return false;
-        }
-        return result.Value;
-    }
 
     private static SharedAssetDto BuildSharedAssetDto(
         Asset asset, string token, Dictionary<string, bool> permissions, Guid? assetId = null)

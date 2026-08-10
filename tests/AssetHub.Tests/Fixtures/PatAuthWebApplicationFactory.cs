@@ -65,13 +65,7 @@ public class PatAuthWebApplicationFactory : WebApplicationFactory<Program>, IAsy
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Postgres"] = _connectionString,
-                ["Keycloak:RequireHttpsMetadata"] = "false",
-                // T5-WMK-01: HmacKeyBase64 is required + ValidateOnStart, so tests must
-                // provide it or host.Start() throws. .NET 10's WebApplicationFactory calls
-                // host.Start() inside CreateHost — failures there surface as a generic
-                // ObjectDisposedException at Services access, not the original validation
-                // error. Use a deterministic dummy key (32 bytes base64) for tests.
-                ["Watermarking:HmacKeyBase64"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                ["Keycloak:RequireHttpsMetadata"] = "false"
             });
         });
 

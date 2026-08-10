@@ -29,7 +29,7 @@ plus two non-account principals and the system itself.
 ### Dimension B — Domain area (WHAT)
 Auth · Ingestion · Processing · Organization · Metadata · Discovery · View/Deliver · Editing ·
 Versioning · Lifecycle · Collaboration · Notifications · Workflow/Review · Sharing · Branding ·
-Guests · Watermarking · Administration · Public API · Webhooks · Migration · Analytics.
+Guests · Administration · Public API · Webhooks · Migration.
 
 ### Dimension C — Journey stage (WHEN)
 Onboarding → Daily work → Collaboration → Distribution → Governance → Integration.
@@ -223,14 +223,8 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-GUEST-07 | Inviter name / brand theming in the email | A | — | 🟡 deferred |
 
 ### R. Watermarking & forensics
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-WMK-01 | Toggle watermarking on a collection | M | `PATCH …/collections/{id}/watermark` | ✅ |
-| UC-WMK-02 | Override / clear watermarking on an asset | C+ | `AssetWatermarkOverridePanel` | ✅ |
-| UC-WMK-03 | Override watermarking on a share | C+ | `ShareWatermarkOverrideField` | ✅ |
-| UC-WMK-04 | Recipient-fingerprinted watermark on download | SYS | two-layer DCT-LSB | ✅ |
-| UC-WMK-05 | Verify a leaked image → recipient/share/asset (audited) | A | `/admin/watermarks/verify` | ✅ |
-| UC-WMK-06 | Watermark on the share **preview** path | — | — | 🟡 deferred |
+Removed 2026-08 by the reshape (contract-003) — outside the five-feature identity. The
+full implementation remains browsable on the `full-featured` branch / `pre-reshape` tag.
 
 ### S. Administration (users, ACL, audit, PATs)
 | ID | Use case | Persona | Surface | Status |
@@ -280,16 +274,8 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-MIG-09 | Import from Bynder / Canto / SharePoint | A | connector | ⬜ planned (T0-MIG-03/04/05) |
 
 ### W. Analytics & exposure
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-ANL-01 | View analytics dashboard (downloads/storage/exposure) | A | `/admin/analytics` | ✅ |
-| UC-ANL-02 | View daily download trends | A | `…/downloads/daily` | ✅ |
-| UC-ANL-03 | Storage by collection / by asset type | A | `…/storage/by-*` | ✅ |
-| UC-ANL-04 | Top watermark recipients (hash-grouped, no PII) | A | `…/exposure` | ✅ |
-| UC-ANL-05 | Reveal a recipient's PII (audited) | A | `…/exposure/reveal` | ✅ |
-| UC-ANL-06 | Export CSV / queue a PDF report | A | `…/export.csv`, `…/export-pdf` | ✅ |
-| UC-ANL-07 | Manager-scoped analytics / custom date range | M | — | 🟡 deferred |
-| UC-ANL-08 | Rollups self-heal / back-fill on start | SYS | `AnalyticsRollupBackgroundService` | ✅ |
+Removed 2026-08 by the reshape (contract-002) — outside the five-feature identity. The
+full implementation remains browsable on the `full-featured` branch / `pre-reshape` tag.
 
 ### X. Planned tiers (not started)
 | ID | Use case | Persona | Surface | Status |
@@ -304,7 +290,7 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | Status | Count (approx.) | Where it clusters |
 |--------|:---:|-------------------|
 | ✅ Shipped | ~95 | All Tier 0–5 core paths |
-| 🟡 Partial | ~16 | UI polish (reparent, brand edit/assign, badges), embedding/async fallbacks, deferred autocomplete/markdown, manager-scoped analytics, webhook event-source coverage |
+| 🟡 Partial | ~16 | UI polish (reparent, brand edit/assign, badges), embedding/async fallbacks, deferred autocomplete/markdown, webhook event-source coverage |
 | 🚧 In progress | 3 | The `/review` queue + history + inline reject dialog (uncommitted) |
 | ⬜ Planned | ~8 | T2 AI suite, T6 HA suite, non-S3 migration connectors |
 
@@ -328,5 +314,5 @@ extending each row with implementation columns. Suggested working schema per use
 > **Coverage signal from the test sweep:** E2E is strong on the core loop (auth → browse → upload
 > → share → revoke) and role-visibility, but several shipped features are **backend-tested only** —
 > versioning UI, metadata schemas, workflow approval end-to-end, webhooks, migrations pause/resume,
-> guest expiry, branded theming, renditions, trash→restore, and analytics export. Those are the
+> guest expiry, branded theming, renditions, and trash→restore. Those are the
 > highest-value targets if we want each use case demonstrably exercised through the UI.

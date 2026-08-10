@@ -420,7 +420,7 @@ nodes:
     inherited: false
     dependencies: []
     open_gaps:
-      - 2026-08-10 reveal-side instantiation removed (reshape contract-002, analytics cut); hash/encrypt side remains on WatermarkDownload until C2. The pattern stands in the blazor-web-app gen-1 library extracted before the cut
+      - 2026-08-10/11 project instantiation fully removed (reshape contracts 002+003 — analytics reveal side, then the WatermarkDownload hash/encrypt side). The pattern stands in the blazor-web-app gen-1 library extracted before the cuts
 
   - id: implementation-a11y-check
     concern: Accessibility audit (WCAG 2.2 AA) of changed Blazor UI
