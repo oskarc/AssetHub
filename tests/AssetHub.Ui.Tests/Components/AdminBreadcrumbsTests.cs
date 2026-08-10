@@ -39,7 +39,6 @@ public class AdminBreadcrumbsTests : BunitTestBase
     [Theory]
     [InlineData("admin/migrations", "Tab_Migrations")]
     [InlineData("admin/audit", "Tab_AuditLog")]
-    [InlineData("admin/analytics", "PageTitle")]              // AnalyticsResource
     [InlineData("admin/watermarks/verify", "Verify_PageTitle")] // WatermarksResource, 2 levels deep
     public void Derives_Correct_Section_Leaf(string path, string expectedKey)
     {

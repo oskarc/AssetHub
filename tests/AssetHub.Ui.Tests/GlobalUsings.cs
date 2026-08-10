@@ -5,7 +5,6 @@ global using AssetHub.Application;
 global using AssetHub.Application.Dtos;
 global using AssetHub.Ui.Components;
 global using AssetHub.Ui.Components.Admin;
-global using AssetHub.Ui.Components.Analytics;
 global using AssetHub.Ui.Components.Assets;
 global using AssetHub.Ui.Components.Collections;
 global using AssetHub.Ui.Components.Dashboard;

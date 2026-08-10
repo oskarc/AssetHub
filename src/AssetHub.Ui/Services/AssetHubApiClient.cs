@@ -69,8 +69,6 @@ public sealed partial class AssetHubApiClient(
     IGuestInvitationService guestInvitationService,
     IWatermarkService watermarkService,
     IWatermarkVerifier watermarkVerifier,
-    IAnalyticsService analyticsService,
-    IAnalyticsPdfJobService analyticsPdfJobService,
     IUserLookupService userLookupService,
     IOptions<AppSettings> appSettings) : IAssetHubApiClient
 {

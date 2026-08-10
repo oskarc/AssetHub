@@ -40,9 +40,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
     public DbSet<WatermarkDownload> WatermarkDownloads { get; set; } = null!;
-    public DbSet<AnalyticsDailyRollup> AnalyticsDailyRollups { get; set; } = null!;
-    public DbSet<AnalyticsStorageRollup> AnalyticsStorageRollups { get; set; } = null!;
-    public DbSet<AnalyticsPdfJob> AnalyticsPdfJobs { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     // Entity configuration lives in one IEntityTypeConfiguration<T> class per entity under
@@ -82,8 +79,5 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new OrphanedObjectConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
         modelBuilder.ApplyConfiguration(new WatermarkDownloadConfiguration());
-        modelBuilder.ApplyConfiguration(new AnalyticsDailyRollupConfiguration());
-        modelBuilder.ApplyConfiguration(new AnalyticsStorageRollupConfiguration());
-        modelBuilder.ApplyConfiguration(new AnalyticsPdfJobConfiguration());
     }
 }

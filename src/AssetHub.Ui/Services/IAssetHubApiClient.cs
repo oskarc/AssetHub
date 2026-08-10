@@ -179,12 +179,4 @@ public interface IAssetHubApiClient
     Task SetAssetWatermarkOverrideAsync( Guid assetId, bool? @override, CancellationToken ct = default);
     Task SetShareWatermarkOverrideAsync( Guid shareId, bool? @override, CancellationToken ct = default);
     Task<WatermarkVerificationResultDto> VerifyWatermarkAsync( Stream content, string contentType, long sizeBytes, CancellationToken ct = default);
-    Task<IReadOnlyList<AnalyticsAssetDownloadRowDto>> GetTopDownloadedAssetsAsync( int windowDays, int take, CancellationToken ct = default);
-    Task<IReadOnlyList<AnalyticsDailyPointDto>> GetDailyDownloadCountsAsync( int windowDays, CancellationToken ct = default);
-    Task<IReadOnlyList<AnalyticsStorageByCollectionRowDto>> GetStorageByCollectionAsync( int take, CancellationToken ct = default);
-    Task<IReadOnlyList<AnalyticsStorageByAssetTypeRowDto>> GetStorageByAssetTypeAsync( CancellationToken ct = default);
-    Task<IReadOnlyList<AnalyticsExposureRowDto>> GetTopRecipientsAsync( int windowDays, int take, CancellationToken ct = default);
-    Task<RevealRecipientResponseDto> RevealRecipientAsync( RevealRecipientRequestDto request, CancellationToken ct = default);
-    Task<AnalyticsPdfJobStatusDto> EnqueueAnalyticsPdfAsync( int windowDays, CancellationToken ct = default);
-    Task<AnalyticsPdfJobStatusDto> GetAnalyticsPdfStatusAsync( Guid jobId, CancellationToken ct = default);
 }

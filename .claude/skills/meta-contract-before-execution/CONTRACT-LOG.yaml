@@ -99,6 +99,83 @@ contracts:
         existing kit node — after implementation it becomes a classification proposal
         (likely a principle candidate) in this contract's Standard Evolution Report.
         (-> UC2)
-    status: approved
+    status: implemented
     revisions: []
+    work_id: null
+
+  - contract_id: contract-002
+    feature: reshape-c1-analytics-cut
+    date_proposed: 2026-08-10
+    date_approved: 2026-08-10
+    tier_1: |
+      You are shaping this product so a developer who discovers it can understand the
+      whole thing in an afternoon. Analytics — dashboards, rollup jobs, CSV/PDF exports,
+      the exposure view — is impressive but stands outside the five things this product
+      is, and is exactly the kind of heavy subsystem that makes a newcomer bounce. You
+      want it gone completely: no dashboard, no background jobs, no report generator, no
+      leftover strings or half-wired remnants — and everything the product actually is
+      still working exactly as before. Success: the admin area simply no longer has an
+      analytics section, the system runs leaner, no other feature changed behavior. If
+      the cut doesn't happen, the repo keeps ~3,700 lines plus a PDF engine for a
+      capability outside the product's identity.
+    tier_2: |
+      1. Remove the UI: AdminAnalytics.razor, the three panels, the facade partial +
+         IAssetHubApiClient members, nav link + AdminHome tile, AnalyticsResource
+         .resx/.sv.resx + marker + _Imports. Edge: the Insights nav group STAYS
+         (watermark-verify still lives there); removed in C2 with its last member.
+      2. Remove the API surface: AnalyticsEndpoints + registration, DTOs,
+         IAnalyticsService. Edge: confirm no analytics endpoint carries a public-API
+         marker before deletion; if found, surface as a SemVer event.
+      3. Remove services and jobs: three Infrastructure services + two repositories +
+         DI lines, AnalyticsSettings bindings (Infrastructure + Worker), Worker's
+         AnalyticsRollupBackgroundService, AnalyticsPdfCleanupService,
+         BuildAnalyticsPdfHandler, AnalyticsMessages, the build-analytics-pdf
+         publish/listen pair in both Program.cs. QuestPDF leaves the Worker csproj.
+      4. Remove the data model: AnalyticsDailyRollup, AnalyticsStorageRollup,
+         AnalyticsPdfJob, AnalyticsEnums, three *Configuration classes +
+         ApplyConfiguration calls; generate a NEW DropAnalyticsRollups migration
+         (never edit the 2026-05-08 one). Edge: Down() recreates schema not data —
+         documented closest reversal; rollups are re-derivable aggregates.
+      5. Remove tests: two service test classes, two bUnit panel tests,
+         18-analytics.spec.ts. Spec numbering keeps its gap.
+      6. Prove nothing else moved: pattern-regression-baseline recorded before any
+         change; after the cut, baseline check zero regressions, non-incremental
+         Release build zero warnings, residual sweep (Analytics|QuestPDF|
+         build-analytics-pdf) returns only BrandService's comment; analytics.* audit
+         strings live only in DB rows.
+      7. Correct the standard in the same change: T5-ANL-01 memory amended; manifest
+         notes on pattern-time-series-rollup and pattern-hash-keyed-pii-reveal that
+         the project instantiation was removed 2026-08 (patterns stand in library
+         gen-1). CLAUDE.md verified to carry no analytics prose.
+      8. Commit per implementation-commit-and-push (why-focused; no push unless
+         asked). Contract approval authorizes the commit.
+    tier_3: |
+      - Watermarking out of scope: WatermarkDownload, IRecipientCryptoService, all
+        embed/verify paths untouched — analytics only read them. (-> UC2, UC3)
+      - No half-deleted feature: the UC6 residual sweep is the acceptance gate; any
+        hit outside the named survivors fails the contract. (-> UC6)
+      - Migration follows implementation-ef-config-migration +
+        implementation-migration-check audit; has-pending-model-changes clean at the
+        end. (-> UC4)
+      - resx keys removed from both languages together; i18n-check run; no orphaned
+        Group_Insights usage. (-> UC1)
+      - DI removals verified with di-check — no orphaned interfaces/registrations.
+        (-> UC3)
+      - Verified means: baseline check clean + zero-warning non-incremental build +
+        full test pass + residual sweep clean. (-> UC6)
+      - Scope guard: no opportunistic cleanup of neighboring code — adjacent findings
+        get reported, not done. (-> all)
+    status: approved
+    revisions:
+      - date: 2026-08-10
+        change: |
+          Two one-line dependency fixes outside the contracted file set, forced when the
+          Worker.csproj edit triggered a fresh NuGet restore (floating versions moved +
+          advisory DB refreshed): (1) bump Microsoft.IdentityModel.Protocols.OpenIdConnect
+          pin in AssetHub.Api.csproj 8.15.0 -> 8.19.2 (JwtBearer 10.0.10 float requires it,
+          NU1605); (2) add top-level Microsoft.OpenApi pin at the patched release to clear
+          the NU1903 high advisory (GHSA-v5pm-xwqc-g5wc), per the repo's transitive-pin
+          convention. Pre-existing dependency debt surfaced by restore, not analytics-cut
+          fallout.
+        authorised_by: '"approved as suggested" — owner, 2026-08-10, after mid-run stop'
     work_id: null

@@ -2,7 +2,6 @@
 @layout MainLayout
 @using AssetHub.Ui.Resources
 @inject IStringLocalizer<AdminResource> AdminLoc
-@inject IStringLocalizer<AnalyticsResource> AnlLoc
 @inject IStringLocalizer<WatermarksResource> WmkLoc
 
 @* Admin console shell: a grouped secondary nav (Access / Content / Operations /
@@ -32,7 +31,6 @@
                     <MudNavLink Href="admin/webhooks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Webhook">@AdminLoc["Tab_Webhooks"]</MudNavLink>
                 </MudNavGroup>
                 <MudNavGroup Title="@AdminLoc["Group_Insights"]" Icon="@Icons.Material.Filled.Insights" Expanded="true">
-                    <MudNavLink Href="admin/analytics" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueryStats">@AnlLoc["PageTitle"]</MudNavLink>
                     <MudNavLink Href="admin/watermarks/verify" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Security">@WmkLoc["Verify_PageTitle"]</MudNavLink>
                 </MudNavGroup>
             </MudNavMenu>
