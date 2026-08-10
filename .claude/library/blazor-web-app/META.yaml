@@ -1,0 +1,394 @@
+# META.yaml — blazor-web-app kit, generation 1
+# Produced by meta-extract from the assethub project. Read by meta-bootstrap when
+# this folder is copied into a new project at .claude/library/blazor-web-app/.
+
+kit_name: blazor-web-app
+version: 0.1
+generation: 1
+extracted_from: assethub
+extracted_date: 2026-08-10
+category: blazor-web-app
+description: A standard for server-rendered component-UI web applications on .NET — layered architecture with thin composition roots, result-based error flow, curated public API surface, two-tier caching, worker/background conventions, and a post-build verification suite.
+status: stable
+
+covers:
+  - Layered .NET architecture & dependency direction
+  - Encoding twice-regressed rules as types/helpers over documentation
+  - Navigation & information-architecture decisions
+  - Service-layer error reporting (ServiceResult)
+  - Public API contract & SemVer
+  - API token auth & scope enforcement
+  - Splitting large-but-cohesive types along seams
+  - Enum string persistence
+  - Two-tier caching with central registry
+  - Pre-implementation interrogation (brainstorm)
+  - Debugging workflow
+  - Commit splitting decision
+  - Test regression isolation
+  - Time-bounded aggregate persistence (rollup)
+  - PII grouping with audited reveal
+  - C# coding conventions
+  - Component-UI standard (facade, error idiom, optimistic vs confirmed)
+  - Worker handlers & background services
+  - EF model config & migration safety
+  - Configuration & secrets discipline
+  - Test structure conventions
+  - Container & compose conventions
+  - Static-analysis suppression discipline
+  - Accessibility audit (WCAG 2.2 AA)
+  - UX heuristics audit
+  - Localisation parity audit
+  - DI consistency audit
+  - Migration safety audit
+  - Test scaffolding
+  - E2E coverage mapping
+  - Commit hygiene
+
+known_gaps:
+  - Most pre-build nodes are thin — extracted 2026-06 from the source project's instructions and not yet exercised standalone against a fresh system of this category
+  - Four mature check skills (ux-check, di-check, add-tests, commit-and-push) still mix type-category and project-shaped content — decomposition candidates
+  - implementation-csharp-conventions is arguably broader than this category (applies to any C# system) — promotion candidate to a wider kit
+  - pattern-brainstorm's concern boundary with plan-interrogation tooling is unclear
+  - implementation-worker-background's hosting-split principle verified only on a 2-host topology
+  - pattern-time-series-rollup has a single implementation; multi-pod coordination (SKIP LOCKED) referenced but unspecified
+  - pattern-enum-string-persistence's untrusted-boundary leg grounded in one incident
+  - implementation-commit-and-push Phase 7 assumes SonarCloud-style tooling — adapt or drop per project (carried as a worked example)
+  - implementation-ui-verify's spec-mapping table is a worked example — remap to the target app's sections and spec numbering
+  - The eight check/scaffold skills expect a host project's always-loaded instruction file to exist; their former dependencies on the source project's instruction node were dropped at extraction
+
+mature_nodes: 12
+thin_nodes: 19
+
+recommended_for:
+  - Server-rendered component-UI web applications on .NET (Blazor Server or similar) with a relational database, object storage, and background processing
+  - Internal tools and line-of-business systems where a curated public API and role-based access control matter
+  - Teams practicing kit-driven development who want a generation-1 standard to instantiate and evolve
+
+not_recommended_for:
+  - Client-heavy SPA architectures (React/Angular/Blazor WASM with API-first design) — the facade-over-in-process-services pattern does not apply
+  - Microservice topologies — the layered single-deployable assumption runs throughout
+  - Non-.NET stacks — implementation-layer skills are stack-specific by design
+
+nodes:
+  # origin: all new-in-generation-1 (no prior library kit existed)
+
+  # ── Principle layer ──
+  - id: principle-clean-architecture-dotnet
+    concern: Layered .NET architecture — Domain/Application/Infrastructure + thin composition-root hosts; dependency direction, deliberately-omitted patterns, SOLID application
+    skill_file: principle-clean-architecture-dotnet/SKILL.md
+    layer: principle
+    phase: pre-build
+    status: thin
+    dependencies: []
+    open_gaps: [not yet exercised standalone across a fresh system]
+    origin: new-in-generation-1
+
+  - id: principle-encode-over-document
+    concern: When a documented rule regresses twice, encode it as a type/helper/tool-checked structure instead of strengthening documentation
+    skill_file: principle-encode-over-document/SKILL.md
+    layer: principle
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: []
+    open_gaps: [escalation ladder unverified across further cases]
+    origin: new-in-generation-1
+
+  - id: principle-information-architecture
+    concern: Navigational structure decisions — shell-per-audience, routable-over-tabbed, cap-then-group nav, wayfinding-on-depth, derive-then-override trails
+    skill_file: principle-information-architecture/SKILL.md
+    layer: principle
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: [implementation-blazor-ui-standard]
+    open_gaps: [grounded in one admin-console restructure]
+    origin: new-in-generation-1
+
+  # ── Pattern layer ──
+  - id: pattern-service-result
+    concern: Services report business outcomes as result values (not exceptions); single boundary translation to HTTP
+    skill_file: pattern-service-result/SKILL.md
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: []
+    open_gaps: [in-process-facade exception-translation variant unverified elsewhere]
+    origin: new-in-generation-1
+
+  - id: pattern-public-api-contract
+    concern: Curated/versioned public HTTP surface — composed security helpers, scope-per-endpoint, dual CSRF gate, consistent error shape, SemVer
+    skill_file: pattern-public-api-contract/SKILL.md
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: [pattern-service-result, principle-encode-over-document]
+    open_gaps: [self-service-exception coupling with pat-scope-enforcement unverified outside source project]
+    origin: new-in-generation-1
+
+  - id: pattern-pat-scope-enforcement
+    concern: Long-lived API tokens as second auth path — hash-only persistence, per-endpoint scope claims, privilege-escalation guard
+    skill_file: pattern-pat-scope-enforcement/SKILL.md
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: [pattern-public-api-contract]
+    open_gaps: [single implementation]
+    origin: new-in-generation-1
+
+  - id: pattern-cohesive-type-split
+    concern: Split large-but-cohesive types along existing seams into partials preserving one surface; façade-over-collaborators companion for genuine tangle
+    skill_file: pattern-cohesive-type-split/SKILL.md
+    layer: pattern
+    phase: during-build
+    status: thin
+    dependencies: []
+    open_gaps: [concrete size budget remains a project choice]
+    origin: new-in-generation-1
+
+  - id: pattern-enum-string-persistence
+    concern: Persist enums as explicit strings via paired to/from extension methods; guard-before-parse at untrusted boundaries
+    skill_file: pattern-enum-string-persistence/SKILL.md
+    layer: pattern
+    phase: during-build
+    status: thin
+    dependencies: []
+    open_gaps: [untrusted-boundary leg grounded in one incident]
+    origin: new-in-generation-1
+
+  - id: pattern-hybrid-cache
+    concern: Two-tier cache (L1 in-process + L2 distributed) with central key/TTL/tag registry; tag invalidation; must-not-cache list
+    skill_file: pattern-hybrid-cache/SKILL.md
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: []
+    open_gaps: [single implementation]
+    origin: new-in-generation-1
+
+  - id: pattern-brainstorm
+    concern: Socratic interrogation of feature requests — surface real problem before code
+    skill_file: pattern-brainstorm/SKILL.md
+    layer: pattern
+    phase: pre-build
+    status: thin
+    dependencies: []
+    open_gaps: [concern boundary with plan-interrogation tooling unclear]
+    origin: new-in-generation-1
+
+  - id: pattern-systematic-debug
+    concern: Stack-agnostic debugging workflow — reproduce, isolate, hypothesise, test, fix, verify
+    skill_file: pattern-systematic-debug/SKILL.md
+    layer: pattern
+    phase: during-build
+    status: mature
+    dependencies: []
+    open_gaps: []
+    origin: new-in-generation-1
+
+  - id: pattern-commit-scope
+    concern: Decision support for splitting a branch into multiple commits
+    skill_file: pattern-commit-scope/SKILL.md
+    layer: pattern
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: []
+    origin: new-in-generation-1
+
+  - id: pattern-regression-baseline
+    concern: Separating new test regressions from pre-existing failures via a recorded baseline
+    skill_file: pattern-regression-baseline/SKILL.md
+    layer: pattern
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: []
+    origin: new-in-generation-1
+
+  - id: pattern-time-series-rollup
+    concern: Pre-aggregating time-bounded events into a rollup table that survives source-table retention
+    skill_file: pattern-time-series-rollup/SKILL.md
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: []
+    open_gaps: [single implementation; SKIP LOCKED coordination unspecified]
+    origin: new-in-generation-1
+
+  - id: pattern-hash-keyed-pii-reveal
+    concern: Indexable hash + encrypted ciphertext + audited reveal — group over PII without leaking it into the audit log
+    skill_file: pattern-hash-keyed-pii-reveal/SKILL.md
+    layer: pattern
+    phase: [pre-build, during-build]
+    status: mature
+    dependencies: []
+    open_gaps: []
+    origin: new-in-generation-1
+
+  # ── Implementation layer ──
+  - id: implementation-csharp-conventions
+    concern: Mechanical C# conventions — null style, sealing, readonly/static defaults, banned constructs, idiomatic surface
+    skill_file: implementation-csharp-conventions/SKILL.md
+    layer: implementation
+    phase: during-build
+    status: thin
+    dependencies: []
+    open_gaps: [broader than this category — promotion candidate to a wider C# kit]
+    origin: new-in-generation-1
+
+  - id: implementation-blazor-ui-standard
+    concern: Component-UI standard — facade-only backend access, default feedback-wrapper error idiom, optimistic-vs-confirmed mutation decision, one feature taxonomy
+    skill_file: implementation-blazor-ui-standard/SKILL.md
+    layer: implementation
+    phase: during-build
+    status: thin
+    dependencies: [pattern-service-result, pattern-cohesive-type-split]
+    open_gaps: [behaviour boundary with ux-check worth sharpening]
+    origin: new-in-generation-1
+
+  - id: implementation-worker-background
+    concern: Worker handlers + scheduled background services — placement by data ownership, per-item resilience, scope-per-iteration, cancellation/logging
+    skill_file: implementation-worker-background/SKILL.md
+    layer: implementation
+    phase: during-build
+    status: thin
+    dependencies: []
+    open_gaps: [hosting split verified only on a 2-host topology]
+    origin: new-in-generation-1
+
+  - id: implementation-ef-config-migration
+    concern: ORM per-entity config + migration safety — byte-identical-model discipline, reversible/idempotent migrations, startup drift guard
+    skill_file: implementation-ef-config-migration/SKILL.md
+    layer: implementation
+    phase: [during-build, post-build]
+    status: thin
+    dependencies: [implementation-migration-check]
+    open_gaps: [standard/audit split with migration-check worth confirming in use]
+    origin: new-in-generation-1
+
+  - id: implementation-config-secrets
+    concern: Strongly-typed settings + validate-on-start for critical infra; no-hardcoded-secrets with environment-aware sourcing
+    skill_file: implementation-config-secrets/SKILL.md
+    layer: implementation
+    phase: [pre-build, during-build]
+    status: thin
+    dependencies: [implementation-csharp-conventions]
+    open_gaps: [single implementation]
+    origin: new-in-generation-1
+
+  - id: implementation-test-conventions
+    concern: Test structure — naming, real-dependency fixtures vs mocked externals, shared factories, lifecycle, source-mirrored tree
+    skill_file: implementation-test-conventions/SKILL.md
+    layer: implementation
+    phase: during-build
+    status: thin
+    dependencies: [implementation-add-tests]
+    open_gaps: [boundary with add-tests is structure-vs-coverage]
+    origin: new-in-generation-1
+
+  - id: implementation-docker
+    concern: Container image + compose conventions — multi-stage, minimal pinned non-root base, healthcheck, runtime-only secrets, resource limits
+    skill_file: implementation-docker/SKILL.md
+    layer: implementation
+    phase: during-build
+    status: thin
+    dependencies: []
+    open_gaps: []
+    origin: new-in-generation-1
+
+  - id: implementation-sonar-discipline
+    concern: When a static-analysis suppression is legitimate vs hiding a problem — four conditions, smallest scope, always justified
+    skill_file: implementation-sonar-discipline/SKILL.md
+    layer: implementation
+    phase: [during-build, post-build]
+    status: thin
+    dependencies: []
+    open_gaps: [project suppression-cluster catalogs stay at project tier]
+    origin: new-in-generation-1
+
+  - id: implementation-a11y-check
+    concern: Accessibility audit (WCAG 2.2 AA) of changed component UI
+    skill_file: implementation-a11y-check/SKILL.md
+    layer: implementation
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: []
+    origin: new-in-generation-1
+    note: Former dependency on the source project's instruction node dropped at extraction — expects a host project instruction file.
+
+  - id: implementation-ux-check
+    concern: Usability review against Nielsen heuristics + house rules
+    skill_file: implementation-ux-check/SKILL.md
+    layer: implementation
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: [mixed type-category and project-shaped content — decomposition candidate]
+    origin: new-in-generation-1
+    note: Former dependency on the source project's instruction node dropped at extraction.
+
+  - id: implementation-i18n-check
+    concern: Localisation key parity and hardcoded-string detection across resource pairs
+    skill_file: implementation-i18n-check/SKILL.md
+    layer: implementation
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: []
+    origin: new-in-generation-1
+    note: Former dependency on the source project's instruction node dropped at extraction.
+
+  - id: implementation-di-check
+    concern: DI registration consistency — Application interfaces vs composition-root registrations
+    skill_file: implementation-di-check/SKILL.md
+    layer: implementation
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: [mixed type-category and project-shaped content — decomposition candidate]
+    origin: new-in-generation-1
+    note: Former dependency on the source project's instruction node dropped at extraction.
+
+  - id: implementation-migration-check
+    concern: EF Core migration safety audit before auto-migrate at startup
+    skill_file: implementation-migration-check/SKILL.md
+    layer: implementation
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: []
+    origin: new-in-generation-1
+    note: Former dependency on the source project's instruction node dropped at extraction.
+
+  - id: implementation-add-tests
+    concern: xUnit / bUnit test scaffolding for new or changed code
+    skill_file: implementation-add-tests/SKILL.md
+    layer: implementation
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: [mixed type-category and project-shaped content — decomposition candidate]
+    origin: new-in-generation-1
+    note: Former dependency on the source project's instruction node dropped at extraction.
+
+  - id: implementation-ui-verify
+    concern: E2E (Playwright) smoke-test mapping for changed component UI
+    skill_file: implementation-ui-verify/SKILL.md
+    layer: implementation
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: [spec-mapping table is a worked example — remap per app]
+    origin: new-in-generation-1
+    note: Former dependency on the source project's instruction node dropped at extraction.
+
+  - id: implementation-commit-and-push
+    concern: Commit hygiene — review, build/test/analyze gates, vuln scans, why-focused commit message
+    skill_file: implementation-commit-and-push/SKILL.md
+    layer: implementation
+    phase: post-build
+    status: mature
+    dependencies: []
+    open_gaps: [mixed content — decomposition candidate; Sonar/CI specifics carried as worked examples]
+    origin: new-in-generation-1
+    note: Former dependency on the source project's instruction node dropped at extraction.

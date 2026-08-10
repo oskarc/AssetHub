@@ -34,4 +34,71 @@
 # meta-learning sweeps this file for every entry in `status: verified` when invoked. It does not target
 # a single named contract.
 
-contracts: []
+contracts:
+  - contract_id: contract-001
+    feature: reshape-phase0-capture
+    date_proposed: 2026-08-10
+    date_approved: 2026-08-10
+    tier_1: |
+      You are the owner of a standard that was discovered and refined by building this
+      system. You are about to remove many of the very features that taught the standard
+      what it knows. Before any of that happens, you want two things safely captured: a
+      portable copy of everything the standard learned — clean enough that a future
+      project of the same kind can start from it — and a browsable snapshot of the
+      complete system as it stands today. Success looks like: the learned standard exists
+      as its own self-contained artifact, independent of this project's fate; the
+      full-featured system remains reachable by name forever; and nothing about the
+      running system has changed. If this doesn't happen first, the reshaping destroys
+      the evidence the standard is built on, and the months of work the standard
+      represents can never be extracted again.
+    tier_2: |
+      1. Secure the pending groundwork. The v0.10 kit upgrade currently sits uncommitted.
+         It is committed first (excluding Claude-Processing.md, which stays for review)
+         so the snapshot and everything after it stand on a recorded state. Flagged
+         judgment call: contract approval doubles as commit authorization for this and
+         use case 4 — stated explicitly, not inferred.
+      2. Extract the generation-1 library by running meta-extract exactly per its skill:
+         classify the 31 type-category nodes vs the 2 project nodes (project-instructions,
+         project-styleguide stay behind) and present the classification for confirmation;
+         report maturity honestly (most nodes thin — proceeding anyway is the
+         pre-authorized D5 deviation, and META.yaml records true statuses plus
+         known_gaps); determine generation (no node carries inherited_from -> generation
+         1); prepare stripped skill files, present strip-diffs grouped principle ->
+         pattern -> implementation, and write .claude/library/blazor-web-app/ + META.yaml
+         only after the single strip-approval gate; fill library_entry in MANIFEST.yaml.
+         Edge: stripping a project reference that leaves a hole in a skill -> the hole is
+         flagged in the diff presentation, never papered over.
+         Edge: .claude/library/blazor-web-app/ already existing -> stop and ask.
+      3. Snapshot the full system: after the extraction commit, create git tag
+         pre-reshape and branch full-featured at that HEAD. Edge: created locally;
+         pushing follows the owner's normal flow (no unasked push).
+      4. Record and verify: extraction committed; verification = library folder contains
+         all 31 stripped skill files, META.yaml parses and its node list matches the
+         manifest's type-category set, library_entry written, tag and branch exist,
+         working tree clean, no file outside .claude/ and git refs touched — production
+         code and build provably unaffected.
+    tier_3: |
+      - meta-extract/SKILL.md governs mechanics end-to-end; its internal gates
+        (classification confirm, maturity confirm, strip-diff approval) are honored
+        inside this contract — approval of the contract does not skip them. (-> UC2)
+      - D5 recorded as this contract's one authorized deviation: extraction despite thin
+        pre-build nodes and the open high-priority gap-001 (which this contract
+        resolves). No status is inflated to mature to satisfy criteria. (-> UC2)
+      - Base-kit nodes and instance data (MANIFEST.yaml, DRIFTLOG.yaml,
+        CONTRACT-LOG.yaml, LEARNINGLOG.yaml) never enter the library, per meta-extract's
+        asymmetry table. (-> UC2)
+      - MANIFEST.yaml is written only at the two points its protocol allows here:
+        library_entry (extract step 4c) and gap-001 status -> resolved. No other
+        manifest surgery. (-> UC2, UC4)
+      - Commits follow implementation-commit-and-push discipline (why-focused messages;
+        Claude-Processing.md excluded); no push. (-> UC1, UC3, UC4)
+      - No production source, test, or config file is touched — this contract's diff is
+        .claude/ + git refs only. (-> UC4)
+      - Novel guardrail flagged for standard evolution: "extract the library before
+        destructively reshaping the system that grounds it" is not covered by any
+        existing kit node — after implementation it becomes a classification proposal
+        (likely a principle candidate) in this contract's Standard Evolution Report.
+        (-> UC2)
+    status: approved
+    revisions: []
+    work_id: null

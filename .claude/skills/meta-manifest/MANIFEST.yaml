@@ -908,9 +908,14 @@ gap_queue:
       for gap-001 is the actual library extraction — running meta-extract to produce
       .claude/library/blazor-web-app/ from these now-extractable type-category nodes. That is a
       developer-invoked action, not yet run.
+      2026-08-10: RESOLVED — meta-extract run under contract-001 (reshape-phase0-capture).
+      Generation-1 library written to .claude/library/blazor-web-app/ (31 nodes: 12 mature,
+      19 thin; per-node statuses and known_gaps carried honestly into META.yaml under the
+      contracted D5 deviation). library_entry filled.
     candidate_level: pattern
     priority: high
-    status: in-progress
+    status: resolved
+    resolved_by: meta-extract generation-1 (contract-001, 2026-08-10)
 
   - gap_id: gap-002
     concern: skill-builder abstraction loop has never been formally run against CLAUDE.md
@@ -1110,4 +1115,9 @@ gap_queue:
   #   status: [open | in-progress | resolved]
   #   resolved_by: [skill or node that closed this, when resolved]
 
-library_entry: null
+library_entry:
+  kit_name: blazor-web-app
+  version: 0.1
+  generation: 1
+  extracted_date: 2026-08-10
+  extracted_to: .claude/library/blazor-web-app/
