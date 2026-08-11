@@ -33,8 +33,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<NotificationPreferences> NotificationPreferences { get; set; } = null!;
     public DbSet<AssetComment> AssetComments { get; set; } = null!;
     public DbSet<AssetWorkflowTransition> AssetWorkflowTransitions { get; set; } = null!;
-    public DbSet<Webhook> Webhooks { get; set; } = null!;
-    public DbSet<WebhookDelivery> WebhookDeliveries { get; set; } = null!;
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
@@ -69,8 +67,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new NotificationPreferencesConfiguration());
         modelBuilder.ApplyConfiguration(new AssetCommentConfiguration());
         modelBuilder.ApplyConfiguration(new AssetWorkflowTransitionConfiguration());
-        modelBuilder.ApplyConfiguration(new WebhookConfiguration());
-        modelBuilder.ApplyConfiguration(new WebhookDeliveryConfiguration());
         modelBuilder.ApplyConfiguration(new OrphanedObjectConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
     }

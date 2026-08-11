@@ -15,7 +15,6 @@ global using AssetHub.Ui.Components.Dialogs.Sharing;
 global using AssetHub.Ui.Components.Dialogs.Users;
 global using AssetHub.Ui.Components.Dialogs.Migrations;
 global using AssetHub.Ui.Components.Dialogs.Metadata;
-global using AssetHub.Ui.Components.Dialogs.Webhooks;
 global using AssetHub.Ui.Components.ImageEditor;
 global using AssetHub.Ui.Components.Notifications;
 global using AssetHub.Ui.Components.Shared;

@@ -25,7 +25,7 @@ public sealed record ShareServiceRepositories(
 /// <inheritdoc />
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "Composition root for share creation: pre-grouped repos + email + user lookup + audit + Data Protection + workflow settings + webhook publisher + scoped CurrentUser + logger. Already grouped via ShareServiceRepositories; further bundling would obscure intent.")]
+    Justification = "Composition root for share creation: pre-grouped repos + email + user lookup + audit + Data Protection + workflow settings + scoped CurrentUser + logger. Already grouped via ShareServiceRepositories; further bundling would obscure intent.")]
 public sealed class ShareService(
     ShareServiceRepositories repos,
     IEmailService emailService,
@@ -34,7 +34,6 @@ public sealed class ShareService(
     IUnitOfWork uow,
     IDataProtectionProvider dataProtection,
     IOptions<WorkflowSettings> workflowSettings,
-    IWebhookEventPublisher webhooks,
     CurrentUser currentUser,
     ILogger<ShareService> logger) : IShareService
 {
@@ -112,8 +111,6 @@ public sealed class ShareService(
                 new() { ["scopeType"] = dto.ScopeType, ["scopeId"] = dto.ScopeId, ["expiresAt"] = share.ExpiresAt }, tct);
         }, ct);
 
-        await PublishShareCreatedEventAsync(share, dto, userId, ct);
-
         var shareUrl = $"{baseUrl}/{Constants.Routes.Share}/{token}";
         var emailFailed = await TrySendShareEmailsAsync(dto, share, shareUrl, passwordResult.PlainPassword!, validation.ContentName!, userId);
 
@@ -172,20 +169,6 @@ public sealed class ShareService(
             PasswordEncrypted = protectedPassword
         };
     }
-
-    private Task PublishShareCreatedEventAsync(Share share, CreateShareDto dto, string userId, CancellationToken ct)
-        // Webhook event — only the safe descriptors. Plaintext token /
-        // password are NEVER included in the payload; subscribers don't
-        // need them and shouldn't be able to access shared content.
-        => webhooks.PublishAsync(WebhookEvents.ShareCreated, new
-        {
-            shareId = share.Id,
-            scopeType = dto.ScopeType,
-            scopeId = dto.ScopeId,
-            createdByUserId = userId,
-            createdAt = share.CreatedAt,
-            expiresAt = share.ExpiresAt
-        }, ct);
 
     private async Task<bool> TrySendShareEmailsAsync(
         CreateShareDto dto, Share share, string shareUrl, string plainPassword, string contentName, string userId)

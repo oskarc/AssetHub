@@ -28,17 +28,13 @@ public static class NotificationConstants
         /// <summary>Workflow state transition on an asset the user owns or reviews (T3-WF-01 — future).</summary>
         public const string WorkflowTransition = "workflow_transition";
 
-        /// <summary>Webhook delivery failed permanently (admin-only, T3-INT-01 — future).</summary>
-        public const string WebhookFailure = "webhook_failure";
-
         /// <summary>All category keys known at compile time. Used to populate defaults.</summary>
         public static readonly IReadOnlyList<string> All =
         [
             SavedSearchDigest,
             MigrationCompleted,
             Mention,
-            WorkflowTransition,
-            WebhookFailure
+            WorkflowTransition
         ];
     }
 
@@ -74,12 +70,6 @@ public static class NotificationConstants
         public const string WorkflowPublished = "asset.workflow_published";
         public const string WorkflowUnpublished = "asset.workflow_unpublished";
 
-        // T3-INT-01 — webhooks
-        public const string WebhookCreated = "webhook.created";
-        public const string WebhookUpdated = "webhook.updated";
-        public const string WebhookDeleted = "webhook.deleted";
-        public const string WebhookSecretRotated = "webhook.secret_rotated";
-        public const string WebhookDeliveryFailedPermanently = "webhook.delivery_failed_permanently";
 
     }
 

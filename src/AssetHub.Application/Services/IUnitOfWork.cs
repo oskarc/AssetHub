@@ -17,7 +17,7 @@ namespace AssetHub.Application.Services;
 /// <para>
 /// Use this for security-critical state changes (share creation, ACL
 /// changes, PAT mint/revoke, workflow transitions,
-/// webhook secret rotation). For low-stakes audit-only events
+/// and similar). For low-stakes audit-only events
 /// (notifications, dashboard reads) the standalone <see cref="IAuditService.LogAsync"/>
 /// is fine.
 /// </para>

@@ -203,13 +203,11 @@
         NotificationConstants.Categories.SavedSearchDigest => Icons.Material.Filled.Search,
         NotificationConstants.Categories.MigrationCompleted => Icons.Material.Filled.CloudUpload,
         NotificationConstants.Categories.WorkflowTransition => Icons.Material.Filled.AccountTree,
-        NotificationConstants.Categories.WebhookFailure => Icons.Material.Filled.Webhook,
         _ => Icons.Material.Filled.Notifications
     };
 
     private static Color IconColorFor(string category) => category switch
     {
-        NotificationConstants.Categories.WebhookFailure => Color.Warning,
         NotificationConstants.Categories.Mention => Color.Primary,
         _ => Color.Default
     };

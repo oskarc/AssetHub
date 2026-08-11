@@ -55,9 +55,9 @@ public class AdminBreadcrumbsTests : BunitTestBase
         var cut = Render<AdminBreadcrumbs>();
         Assert.Contains("Tab_UserManagement", cut.Markup);
 
-        NavigateTo("admin/webhooks");
+        NavigateTo("admin/audit");
 
-        Assert.Contains("Tab_Webhooks", cut.Markup);
+        Assert.Contains("Tab_AuditLog", cut.Markup);
         Assert.DoesNotContain("Tab_UserManagement", cut.Markup);
     }
 }

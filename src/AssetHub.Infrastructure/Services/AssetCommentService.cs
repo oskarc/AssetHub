@@ -10,7 +10,7 @@ namespace AssetHub.Infrastructure.Services;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "Composition root for comments: repo + asset/collection lookups + auth + user lookup + notifications + webhooks + audit + UnitOfWork + scoped CurrentUser + logger. UnitOfWork added to wrap action+audit atomically (A-4).")]
+    Justification = "Composition root for comments: repo + asset/collection lookups + auth + user lookup + notifications + audit + UnitOfWork + scoped CurrentUser + logger. UnitOfWork added to wrap action+audit atomically (A-4).")]
 public sealed class AssetCommentService(
     IAssetCommentRepository repo,
     IAssetRepository assetRepo,
@@ -18,7 +18,6 @@ public sealed class AssetCommentService(
     ICollectionAuthorizationService authService,
     IUserLookupService userLookup,
     INotificationService notifications,
-    IWebhookEventPublisher webhooks,
     IAuditService audit,
     IUnitOfWork uow,
     CurrentUser currentUser,
@@ -77,8 +76,8 @@ public sealed class AssetCommentService(
             CreatedAt = DateTime.UtcNow
         };
         // Insert + audit atomic — torn write would leave a comment with
-        // no audit trail of who posted it (A-4). Mention fan-out and the
-        // webhook stay outside the transaction (external side-effects).
+        // no audit trail of who posted it (A-4). Mention fan-out stays
+        // outside the transaction (external side-effect).
         await uow.ExecuteAsync(async tct =>
         {
             await repo.CreateAsync(entity, tct);
@@ -97,17 +96,6 @@ public sealed class AssetCommentService(
         }, ct);
 
         await FanOutMentionsAsync(entity, asset, ct);
-
-        await webhooks.PublishAsync(WebhookEvents.CommentCreated, new
-        {
-            commentId = entity.Id,
-            assetId = entity.AssetId,
-            authorUserId = entity.AuthorUserId,
-            body = entity.Body,
-            parentCommentId = entity.ParentCommentId,
-            mentionedUserIds = entity.MentionedUserIds,
-            createdAt = entity.CreatedAt
-        }, ct);
 
         logger.LogInformation(
             "Comment {CommentId} created on asset {AssetId} by {UserId} ({MentionCount} mentions)",

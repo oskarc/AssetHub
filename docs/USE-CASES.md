@@ -28,7 +28,7 @@ plus two non-account principals and the system itself.
 ### Dimension B — Domain area (WHAT)
 Auth · Ingestion · Processing · Organization · Metadata · Discovery · View/Deliver · Editing ·
 Versioning · Lifecycle · Collaboration · Notifications · Workflow/Review · Sharing ·
-Administration · Public API · Webhooks · Migration.
+Administration · Public API · Migration.
 
 ### Dimension C — Journey stage (WHEN)
 Onboarding → Daily work → Collaboration → Distribution → Governance → Integration.
@@ -236,14 +236,7 @@ full implementation remains browsable on the `full-featured` branch / `pre-resha
 | UC-API-06 | Per-endpoint scope enforcement on every public route | API | `RequireScopeFilter` | ✅ |
 
 ### U. Webhooks
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-HOOK-01 | Create a webhook (events, HMAC secret shown once) | A | `/admin/webhooks` | ✅ |
-| UC-HOOK-02 | Edit / delete / rotate-secret | A | `…/webhooks/{id}` | ✅ |
-| UC-HOOK-03 | Send a test event | A | `…/webhooks/{id}/test` | ✅ |
-| UC-HOOK-04 | View delivery history | A | `WebhookDeliveriesDialog` | ✅ |
-| UC-HOOK-05 | Downstream receives signed event w/ retry split | SYS | `DispatchWebhookHandler` | ✅ |
-| UC-HOOK-06 | Full event-source coverage + 24h scheduled retry | SYS | event publishers | 🟡 some sources (asset.created/updated/deleted, share.accessed, migration.completed) + 24h retry deferred |
+Removed 2026-08 by the reshape (contract-005) — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag.
 
 ### V. Bulk import / migration
 | ID | Use case | Persona | Surface | Status |
@@ -275,7 +268,7 @@ full implementation remains browsable on the `full-featured` branch / `pre-resha
 | Status | Count (approx.) | Where it clusters |
 |--------|:---:|-------------------|
 | ✅ Shipped | ~95 | All Tier 0–5 core paths |
-| 🟡 Partial | ~16 | UI polish (reparent, badges), embedding/async fallbacks, deferred autocomplete/markdown, webhook event-source coverage |
+| 🟡 Partial | ~16 | UI polish (reparent, badges), embedding/async fallbacks, deferred autocomplete/markdown |
 | 🚧 In progress | 3 | The `/review` queue + history + inline reject dialog (uncommitted) |
 | ⬜ Planned | ~8 | T2 AI suite, T6 HA suite, non-S3 migration connectors |
 
@@ -298,6 +291,6 @@ extending each row with implementation columns. Suggested working schema per use
 
 > **Coverage signal from the test sweep:** E2E is strong on the core loop (auth → browse → upload
 > → share → revoke) and role-visibility, but several shipped features are **backend-tested only** —
-> versioning UI, metadata schemas, workflow approval end-to-end, webhooks, migrations pause/resume,
+> versioning UI, metadata schemas, workflow approval end-to-end, migrations pause/resume,
 > renditions and trash→restore. Those are the
 > highest-value targets if we want each use case demonstrably exercised through the UI.

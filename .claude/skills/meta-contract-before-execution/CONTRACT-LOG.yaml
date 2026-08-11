@@ -325,6 +325,65 @@ contracts:
         failures are mid-run stops. (-> UC5, UC6, all)
       - Verified means: baseline clean + zero-new-warnings non-incremental build +
         full test pass + sweep clean + compose parses. (-> UC7)
+    status: implemented
+    revisions: []
+    work_id: null
+
+  - contract_id: contract-005
+    feature: reshape-c4-webhooks-cut
+    date_proposed: 2026-08-11
+    date_approved: 2026-08-11
+    tier_1: |
+      You are removing the outbound-integration machinery. Webhooks — registered
+      endpoints, HMAC-signed deliveries, the retry split, the delivery log, the admin
+      section for all of it — exist to push events at other systems, which is
+      integration polish outside the five things this product is. When it's gone,
+      nothing observable changes for anyone using the product itself: uploads,
+      collections, search, access control, and sharing behave exactly as today —
+      events simply stop being pushed to external URLs. If this doesn't happen, the
+      repo keeps ~4,400 lines of signing, dispatch, and delivery-tracking plumbing
+      plus an admin surface for a capability no identity feature needs.
+    tier_2: |
+      1. Baseline roll-forward to the green state at 5765797.
+      2. Remove the feature surface: all 32 named source files (entities + enums,
+         configs, repos, service/publisher/secret-protector + interfaces, DTOs/
+         messages/events catalog, endpoints + registration, admin page + tab + three
+         dialogs, facade partial + members + ctor param, WebhooksResource pair +
+         marker + imports, Worker DispatchWebhookHandler), plus WebhookSecretProtector
+         and webhook.* notification constants.
+      3. Detach the seven publishers (AssetProcessingCompletedHandler,
+         AssetCommentService, AssetService, AssetTrashService, AssetWorkflowService,
+         MediaProcessingService, ShareService): remove IWebhookEventPublisher deps,
+         publish calls, helper methods, S107 justification mentions. Pure detachment —
+         surrounding flows keep exact behavior, verified by existing tests; publisher
+         mocks removed alongside.
+      4. Queue wiring: remove the dispatch-webhook publish/listen pair.
+      5. Scope guard on shared helpers: OutboundUrlGuard (+ tests + host wiring)
+         STAYS — the S3 migration connector uses it until C8; only webhook call
+         sites leave.
+      6. Data model: one generated migration dropping Webhooks + WebhookDeliveries
+         (Add is EF-discovered; plain drops; data loss documented).
+      7. Tests: four named classes + 16-webhooks.spec.ts deleted; publisher mocks in
+         shared tests edited out (build enumerates the tail).
+      8. Prove nothing else moved: residual sweep (webhook) over src/tests/docs/
+         docker with survivors named: Event_webhook.* audit labels, migration
+         history, OutboundUrlGuard family, same-word false positives. Baseline zero
+         regressions; zero-new-warnings build; compose parses.
+      9. Standard prose: T3-INT-01 memory -> HISTORICAL; USE-CASES corrected;
+         CLAUDE.md hosting-split webhook-fan-out mention corrected. Commit per
+         implementation-commit-and-push; approval authorizes the commit; no push.
+    tier_3: |
+      - Nothing user-observable changes: the seven detachments leave surrounding
+        flows' tests green untouched (except removing publisher mocks) — any
+        behavioral test change is a stop-and-surface. (-> UC3)
+      - Excision discipline as established: build is completeness authority;
+        survivors named before the sweep; emptied-namespace check on the Webhooks
+        dialog folder; i18n parity; DI no orphans in either root. (-> UC2, UC7, UC8)
+      - Migration per ef-config-migration + audit; has-pending-model-changes clean;
+        AddWebhooks never edited. (-> UC6)
+      - Float hygiene: fresh-restore failures are mid-run stops. (-> all)
+      - Verified means: baseline clean + zero-new-warnings non-incremental build +
+        full test pass + sweep clean + compose parses. (-> UC8)
     status: approved
     revisions: []
     work_id: null

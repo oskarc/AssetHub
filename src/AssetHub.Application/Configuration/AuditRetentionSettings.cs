@@ -11,7 +11,7 @@ namespace AssetHub.Application.Configuration;
 /// <para>
 /// Without retention, audit rows accumulate forever — fine for low-volume security
 /// trails (ACL grants, PAT mint/revoke) but ruinous for high-volume telemetry-grade
-/// events (downloads, webhook deliveries, share accesses). The per-event-type
+/// events (downloads, share accesses). The per-event-type
 /// override map is the lever: keep regulation-relevant trails for the default
 /// two years, shrink the chatty ones to a quarter or so.
 /// </para>

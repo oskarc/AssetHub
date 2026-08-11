@@ -21,7 +21,6 @@ namespace AssetHub.Infrastructure.Services;
 public sealed class MediaProcessingService(
     IAssetRepository assetRepository,
     IOutboxPublisher outbox,
-    IWebhookEventPublisher webhooks,
     ILogger<MediaProcessingService> logger) : IMediaProcessingService
 {
     public Task<string> ScheduleProcessingAsync(Guid assetId, string assetType, string originalObjectKey, CancellationToken cancellationToken = default)
@@ -71,17 +70,6 @@ public sealed class MediaProcessingService(
             {
                 asset.MarkReady();
                 await assetRepository.UpdateAsync(asset, cancellationToken);
-
-                await webhooks.PublishAsync(WebhookEvents.AssetCreated, new
-                {
-                    assetId = asset.Id,
-                    title = asset.Title,
-                    assetType = asset.AssetType.ToDbString(),
-                    contentType = asset.ContentType,
-                    sizeBytes = asset.SizeBytes,
-                    createdAt = asset.CreatedAt,
-                    createdByUserId = asset.CreatedByUserId
-                }, cancellationToken);
             }
         }
 

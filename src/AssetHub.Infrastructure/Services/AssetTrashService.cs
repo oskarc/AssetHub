@@ -11,12 +11,11 @@ namespace AssetHub.Infrastructure.Services;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "Standard DI shape: repos + audit + webhook publisher + UnitOfWork + scoped CurrentUser + 2 IOptions + logger. UnitOfWork added to wrap action+audit atomically (A-4). Purge paths intentionally stay outside UoW because they touch MinIO.")]
+    Justification = "Standard DI shape: repos + audit + UnitOfWork + scoped CurrentUser + 2 IOptions + logger. UnitOfWork added to wrap action+audit atomically (A-4). Purge paths intentionally stay outside UoW because they touch MinIO.")]
 public sealed class AssetTrashService(
     IAssetRepository assetRepo,
     IAssetDeletionService deletionService,
     IAuditService audit,
-    IWebhookEventPublisher webhooks,
     IUnitOfWork uow,
     CurrentUser currentUser,
     IOptions<AssetLifecycleSettings> lifecycleSettings,
@@ -55,20 +54,12 @@ public sealed class AssetTrashService(
         if (asset is null) return ServiceError.NotFound("Asset not found");
         if (asset.DeletedAt is null) return ServiceError.BadRequest("Asset is not in Trash");
 
-        // Restore + audit atomic (A-4). Webhook publish stays outside the
-        // transaction (external side-effect).
+        // Restore + audit atomic (A-4).
         await uow.ExecuteAsync(async tct =>
         {
             await deletionService.RestoreAsync(asset, tct);
             await audit.LogAsync("asset.restored", Constants.ScopeTypes.Asset, id, currentUser.UserId,
                 new() { ["title"] = asset.Title }, tct);
-        }, ct);
-        await webhooks.PublishAsync(WebhookEvents.AssetRestored, new
-        {
-            assetId = id,
-            title = asset.Title,
-            restoredByUserId = currentUser.UserId,
-            restoredAt = DateTime.UtcNow
         }, ct);
         logger.LogInformation("Admin {UserId} restored asset {AssetId} from Trash", currentUser.UserId, id);
         return ServiceResult.Success;

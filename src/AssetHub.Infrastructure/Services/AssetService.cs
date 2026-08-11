@@ -37,7 +37,6 @@ public sealed class AssetService : IAssetService
     private readonly IAuditService _audit;
     private readonly IUnitOfWork _uow;
     private readonly HybridCache _cache;
-    private readonly IWebhookEventPublisher _webhooks;
     private readonly CurrentUser _currentUser;
     private readonly string _bucketName;
     private const string AssetNotFoundMessage = "Asset not found";
@@ -45,7 +44,7 @@ public sealed class AssetService : IAssetService
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Major Code Smell", "S107:Methods should not have too many parameters",
-        Justification = "Composition root for asset commands: pre-grouped repos + auth + deletion + audit + UoW + cache + webhook publisher + scoped CurrentUser + MinIO settings. Webhook publisher added so update/delete fire asset.updated/asset.deleted out-of-band.")]
+        Justification = "Composition root for asset commands: pre-grouped repos + auth + deletion + audit + UoW + cache + scoped CurrentUser + MinIO settings.")]
     public AssetService(
         AssetServiceRepositories repos,
         ICollectionAuthorizationService authService,
@@ -53,7 +52,6 @@ public sealed class AssetService : IAssetService
         IAuditService audit,
         IUnitOfWork uow,
         HybridCache cache,
-        IWebhookEventPublisher webhooks,
         CurrentUser currentUser,
         IOptions<MinIOSettings> minioSettings)
     {
@@ -65,7 +63,6 @@ public sealed class AssetService : IAssetService
         _audit = audit;
         _uow = uow;
         _cache = cache;
-        _webhooks = webhooks;
         _currentUser = currentUser;
         _bucketName = minioSettings.Value.BucketName;
     }
@@ -80,11 +77,6 @@ public sealed class AssetService : IAssetService
 
         if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Contributor, ct))
             return ServiceError.Forbidden();
-
-        // Capture pre-update field values so the asset.updated webhook payload
-        // can advertise exactly which fields changed — subscribers can no-op
-        // when their fields-of-interest weren't touched.
-        var changedFields = ComputeChangedFields(asset, dto);
 
         var validationError = ApplyFieldUpdates(asset, dto);
         if (validationError is not null)
@@ -101,44 +93,9 @@ public sealed class AssetService : IAssetService
                 tct);
         }, ct);
 
-        // Webhook out-of-band — fire-and-forget per A-4 contract (publisher
-        // logs failures and continues; we don't want an unreachable Rabbit
-        // to fail an otherwise-successful update).
-        await _webhooks.PublishAsync(WebhookEvents.AssetUpdated, new
-        {
-            assetId = id,
-            title = asset.Title,
-            description = asset.Description,
-            tags = asset.Tags,
-            changedFields,
-            updatedAt = asset.UpdatedAt,
-            updatedByUserId = _currentUser.UserId
-        }, ct);
 
         var userRole = await GetUserRoleForAssetAsync(id, ct);
         return AssetMapper.ToDto(asset, userRole);
-    }
-
-    /// <summary>
-    /// Returns the names of asset fields that this DTO actually mutates,
-    /// inspected against the current entity state. Anything the DTO leaves
-    /// at <c>null</c> is treated as "not touched"; anything provided is
-    /// considered a change even when it equals the current value (the
-    /// caller's intent was to set it). MetadataJson is treated as a single
-    /// "metadata" field rather than enumerating individual keys.
-    /// </summary>
-    private static List<string> ComputeChangedFields(Domain.Entities.Asset asset, UpdateAssetDto dto)
-    {
-        var changes = new List<string>(5);
-        if (dto.Title is not null && !string.Equals(dto.Title, asset.Title, StringComparison.Ordinal))
-            changes.Add("title");
-        if (dto.Description is not null && !string.Equals(dto.Description, asset.Description, StringComparison.Ordinal))
-            changes.Add("description");
-        if (dto.Copyright is not null && !string.Equals(dto.Copyright, asset.Copyright, StringComparison.Ordinal))
-            changes.Add("copyright");
-        if (dto.Tags is not null) changes.Add("tags");
-        if (dto.MetadataJson is not null) changes.Add("metadata");
-        return changes;
     }
 
     private static ServiceError? ApplyFieldUpdates(Domain.Entities.Asset asset, UpdateAssetDto dto)
@@ -248,7 +205,6 @@ public sealed class AssetService : IAssetService
         if (softDeleted)
         {
             await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
-            await PublishAssetDeletedAsync(asset, userId, "last_collection", ct);
         }
 
         return ServiceResult.Success;
@@ -274,29 +230,9 @@ public sealed class AssetService : IAssetService
         }, ct);
 
         await _cache.RemoveByTagAsync(CacheKeys.Tags.Dashboard, ct);
-        await PublishAssetDeletedAsync(asset, userId, reason: "user_initiated", ct);
         return ServiceResult.Success;
     }
 
-    /// <summary>
-    /// Fires the asset.deleted webhook event for soft-delete paths only.
-    /// Hard-purge from trash (TrashPurgeBackgroundService / AdminTrash empty)
-    /// is intentionally NOT wired here — that path goes through
-    /// AssetTrashService and emits asset.purged audits, not asset.deleted.
-    /// </summary>
-    private async Task PublishAssetDeletedAsync(
-        Domain.Entities.Asset asset, string userId, string reason, CancellationToken ct)
-    {
-        await _webhooks.PublishAsync(WebhookEvents.AssetDeleted, new
-        {
-            assetId = asset.Id,
-            title = asset.Title,
-            assetType = asset.AssetType.ToDbString(),
-            reason,
-            deletedAt = DateTime.UtcNow,
-            deletedByUserId = userId
-        }, ct);
-    }
 
     /// <summary>
     /// When the user lacks Manager access to all collections, removes the asset only
@@ -398,7 +334,7 @@ public sealed class AssetService : IAssetService
         }
 
         // Unlink (and possible soft-delete on orphan) + audit atomic (A-4).
-        var (removed, softDeleted) = await _uow.ExecuteAsync(async tct =>
+        var (removed, _) = await _uow.ExecuteAsync(async tct =>
         {
             var outcome = await _deletionService.RemoveFromCollectionAsync(asset, collectionId, userId, _bucketName, tct);
             if (!outcome.Removed) return outcome;
@@ -418,9 +354,6 @@ public sealed class AssetService : IAssetService
 
         if (!removed)
             return ServiceError.NotFound("Asset is not linked to this collection");
-
-        if (softDeleted)
-            await PublishAssetDeletedAsync(asset, userId, reason: "orphaned", ct);
 
         return ServiceResult.Success;
     }

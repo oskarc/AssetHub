@@ -28,10 +28,6 @@ public class NotificationPreferencesPanelTests : BunitTestBase
             [NotificationConstants.Categories.WorkflowTransition] = new()
             {
                 InApp = true, Email = true, EmailCadence = "instant"
-            },
-            [NotificationConstants.Categories.WebhookFailure] = new()
-            {
-                InApp = true, Email = true, EmailCadence = "instant"
             }
         }
     };

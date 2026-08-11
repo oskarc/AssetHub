@@ -16,7 +16,6 @@ public class AssetTrashServiceTests
     private readonly Mock<IAssetRepository> _assetRepo = new();
     private readonly Mock<IAssetDeletionService> _deletionService = new();
     private readonly Mock<IAuditService> _audit = new();
-    private readonly Mock<IWebhookEventPublisher> _webhooks = new();
 
     private AssetTrashService CreateService(string userId = "admin-001", bool isAdmin = true, int retentionDays = 30)
     {
@@ -27,7 +26,6 @@ public class AssetTrashServiceTests
             _assetRepo.Object,
             _deletionService.Object,
             _audit.Object,
-            _webhooks.Object,
             new PassThroughUnitOfWork(),
             currentUser,
             lifecycle,

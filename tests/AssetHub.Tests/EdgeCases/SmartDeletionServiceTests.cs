@@ -89,7 +89,6 @@ public class SmartDeletionServiceTests : IAsyncLifetime
             _auditMock.Object,
             new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)),
             TestCacheHelper.CreateHybridCache(),
-            new Mock<IWebhookEventPublisher>().Object,
             currentUser,
             minioSettings);
     }

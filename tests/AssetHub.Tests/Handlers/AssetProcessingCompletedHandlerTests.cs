@@ -39,12 +39,8 @@ public class AssetProcessingCompletedHandlerTests
         repo.Setup(r => r.UpdateAsync(It.IsAny<Asset>(), It.IsAny<CancellationToken>()))
             .Returns<Asset, CancellationToken>((a, _) => Task.FromResult(a));
 
-        var webhooks = new Mock<IWebhookEventPublisher>();
-        webhooks.Setup(w => w.PublishAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
         var handler = new AssetProcessingCompletedHandler(
-            repo.Object, webhooks.Object,
+            repo.Object,
             NullLogger<AssetProcessingCompletedHandler>.Instance);
 
         var evt = new AssetProcessingCompletedEvent
@@ -66,7 +62,6 @@ public class AssetProcessingCompletedHandlerTests
         Assert.Equal(2, asset.AudioChannels);
         Assert.Equal($"peaks/{assetId}.json", asset.WaveformPeaksPath);
         repo.Verify(r => r.UpdateAsync(asset, It.IsAny<CancellationToken>()), Times.Once);
-        webhooks.Verify(w => w.PublishAsync("asset.created", It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -90,9 +85,8 @@ public class AssetProcessingCompletedHandlerTests
         var repo = new Mock<IAssetRepository>();
         repo.Setup(r => r.GetByIdAsync(assetId, It.IsAny<CancellationToken>())).ReturnsAsync(asset);
 
-        var webhooks = new Mock<IWebhookEventPublisher>();
         var handler = new AssetProcessingCompletedHandler(
-            repo.Object, webhooks.Object,
+            repo.Object,
             NullLogger<AssetProcessingCompletedHandler>.Instance);
 
         var evt = new AssetProcessingCompletedEvent

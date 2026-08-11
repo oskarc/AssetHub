@@ -9,7 +9,6 @@ namespace AssetHub.Api.Handlers;
 
 public sealed class AssetProcessingCompletedHandler(
     IAssetRepository assetRepository,
-    IWebhookEventPublisher webhooks,
     ILogger<AssetProcessingCompletedHandler> logger)
 {
     public async Task HandleAsync(AssetProcessingCompletedEvent evt, CancellationToken cancellationToken)
@@ -22,11 +21,6 @@ public sealed class AssetProcessingCompletedHandler(
             logger.LogWarning("Asset {AssetId} not found, skipping completion update", evt.AssetId);
             return;
         }
-
-        // Detect first transition into Ready so we only fire asset.created
-        // once per asset. Re-running this handler (e.g. after a manual
-        // re-process) wouldn't re-emit because Status is already Ready.
-        var firstReady = asset.Status != AssetStatus.Ready;
 
         asset.MarkReady(evt.ThumbObjectKey, evt.MediumObjectKey, evt.PosterObjectKey);
         ApplyAudioFields(asset, evt);
@@ -51,23 +45,6 @@ public sealed class AssetProcessingCompletedHandler(
         await assetRepository.UpdateAsync(asset, cancellationToken);
         logger.LogInformation("Asset {AssetId} marked as Ready with renditions", evt.AssetId);
 
-        if (firstReady)
-        {
-            // Webhook fan-out happens after the row is persisted so subscribers
-            // querying back hit a consistent view. Spec calls for emit on the
-            // MarkReady transition, not at upload-start, so subscribers aren't
-            // notified about half-processed assets that might still fail.
-            await webhooks.PublishAsync(WebhookEvents.AssetCreated, new
-            {
-                assetId = asset.Id,
-                title = asset.Title,
-                assetType = asset.AssetType.ToDbString(),
-                contentType = asset.ContentType,
-                sizeBytes = asset.SizeBytes,
-                createdAt = asset.CreatedAt,
-                createdByUserId = asset.CreatedByUserId
-            }, cancellationToken);
-        }
     }
 
     /// <summary>

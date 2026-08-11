@@ -269,7 +269,7 @@ Design tokens, color palettes, typography scale, elevation, and information-arch
 - The facade is one type but **many files**: `AssetHubApiClient.cs` holds the constructor + shared result-unwrapping helpers, and each domain lives in an `AssetHubApiClient.<Domain>.cs` partial (Assets, Collections, Shares, Admin, …). It stays a single surface/registration — this is the **`pattern-cohesive-type-split`** standard (cohesion, not tangle → split the file, not the design). `IAssetHubApiClient` remains one file.
 
 ### Dialogs
-- Named `*Dialog.razor`, grouped into per-feature subfolders under `Components/Dialogs/` (Assets, Collections, Sharing, Users, Migrations, Metadata, Webhooks, Brands, Guests, Shared) — the same feature taxonomy as the facade partials and the other `Components/` folders (the `implementation-blazor-ui-standard` "one feature taxonomy" pattern). Namespaces follow the folders; `_Imports.razor` and the UI test `GlobalUsings.cs` carry the sub-namespaces.
+- Named `*Dialog.razor`, grouped into per-feature subfolders under `Components/Dialogs/` (Assets, Collections, Sharing, Users, Migrations, Metadata, Shared) — the same feature taxonomy as the facade partials and the other `Components/` folders (the `implementation-blazor-ui-standard` "one feature taxonomy" pattern). Namespaces follow the folders; `_Imports.razor` and the UI test `GlobalUsings.cs` carry the sub-namespaces.
 - `MudDialog` with `[CascadingParameter] IMudDialogInstance`.
 - Return via `MudDialog.Close(DialogResult.Ok(value))`.
 
@@ -415,7 +415,7 @@ Uses `Host.CreateDefaultBuilder()` with `.UseWolverine()` (no HTTP pipeline).
 Background work is hosted by **both** composition roots — placement follows ownership of the data the work touches:
 
 - **Worker** owns media/processing pipelines and scheduled sweeps: `process-image` / `process-video` / `process-audio` / `build-zip` / migration handlers, plus all retention/cleanup `BackgroundService`s (trash purge, audit retention, orphan sweeps, digests).
-- **Api** hosts UI-adjacent consumers: `AssetProcessingCompletedHandler` / `AssetProcessingFailedHandler` (asset row state transition + webhook fan-out on completion) and the `UserSyncBackgroundService` / `ZipCleanupBackgroundService` jobs that serve interactive flows.
+- **Api** hosts UI-adjacent consumers: `AssetProcessingCompletedHandler` / `AssetProcessingFailedHandler` (asset row state transition on completion) and the `UserSyncBackgroundService` / `ZipCleanupBackgroundService` jobs that serve interactive flows.
 
 New background work defaults to the Worker; put it in Api only when it completes an interactive request/response loop the Api owns. Either way the handler/service rules below apply unchanged.
 
@@ -556,7 +556,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - New cache entries go through `CacheKeys` with tags for invalidation. Never cache ACL/roles.
 - Background services create a scope per iteration; never inject scoped services into singletons directly.
 - Return `ServiceResult<T>` — never throw for business errors. Catch infra exceptions and wrap as `ServiceError.Server(...)`.
-- Mutating service methods that emit an audit event wrap action + audit in `IUnitOfWork.ExecuteAsync` so a torn write can't leave the mutation without its trail (A-4). External side-effects (MinIO, webhooks, cache invalidation, mention fan-out) stay outside the transaction.
+- Mutating service methods that emit an audit event wrap action + audit in `IUnitOfWork.ExecuteAsync` so a torn write can't leave the mutation without its trail (A-4). External side-effects (MinIO, cache invalidation, mention fan-out) stay outside the transaction.
 - Use `is null` / `is not null` in plain C#. The only place `== null` / `!= null` is acceptable is inside an EF Core query expression that gets translated to SQL — patterns like `.Where(s => s.RevokedAt == null)` are load-bearing.
 - **Static methods that don't touch `this`.** Pure helpers (validators, mappers, predicate-only-on-args methods) are `private static`. Sonar's S2325 fires on every instance helper that could be static.
 - **No `foreach (...) { if (cond) ... }` loops** when the loop body is just filter-then-do. Collapse to `.Where(cond)` or `.Any(cond)` (S3267). The exception is when the loop has multiple branches with side effects.

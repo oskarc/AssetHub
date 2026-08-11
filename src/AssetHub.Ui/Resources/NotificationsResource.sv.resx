@@ -60,8 +60,6 @@
   <data name="Category_migration_completed_Description" xml:space="preserve"><value>Ett bulkimportjobb har slutförts.</value></data>
   <data name="Category_workflow_transition" xml:space="preserve"><value>Arbetsflödesövergångar</value></data>
   <data name="Category_workflow_transition_Description" xml:space="preserve"><value>En tillgång du äger eller granskar har ändrat arbetsflödestillstånd.</value></data>
-  <data name="Category_webhook_failure" xml:space="preserve"><value>Webhook-fel</value></data>
-  <data name="Category_webhook_failure_Description" xml:space="preserve"><value>En webhook-leverans misslyckades permanent (endast administratörer).</value></data>
 
   <!-- Preferences panel -->
   <data name="Prefs_SectionTitle" xml:space="preserve"><value>Aviseringsinställningar</value></data>

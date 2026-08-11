@@ -269,8 +269,6 @@ public static class ServiceCollectionExtensions
         // Review queue + decisions (T-REVIEW) — query side of the workflow
         services.AddScoped<IAssetReviewQueryService, AssetReviewQueryService>();
 
-        // Webhooks (T3-INT-01)
-        services.AddScoped<IWebhookService, WebhookService>();
 
         // On-the-fly renditions (T3-REND-01)
         services.AddScoped<IRenditionImageResizer, ImageProcessingRenditionResizer>();

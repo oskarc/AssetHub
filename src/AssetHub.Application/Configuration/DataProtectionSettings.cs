@@ -20,7 +20,7 @@ public class DataProtectionSettings
     /// When unset in non-Development environments,
     /// <c>AddAssetHubServices</c> throws at startup. Without certificate
     /// wrapping the keyring sits in plaintext alongside the data it
-    /// protects (share tokens, share passwords, webhook secrets,
+    /// protects (share tokens, share passwords,
     /// migration secrets, signed magic-links, signed unsubscribe tokens)
     /// — a single DB exfil yields all of them. (A-1/A-2 in the
     /// security review.)

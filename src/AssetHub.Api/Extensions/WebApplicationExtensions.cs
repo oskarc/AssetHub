@@ -344,7 +344,6 @@ public static class WebApplicationExtensions
         app.MapNotificationEndpoints();
         app.MapAssetCommentEndpoints();
         app.MapAssetWorkflowEndpoints();
-        app.MapWebhookEndpoints();
         app.MapRenditionEndpoints();
 
         // Public OpenAPI document at /swagger/v1/swagger.json. The matching UI middleware

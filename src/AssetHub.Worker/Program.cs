@@ -52,7 +52,6 @@ static class Program
                 opts.ListenToRabbitQueue("process-migration-item");
                 opts.ListenToRabbitQueue("s3-migration-scan");
                 opts.ListenToRabbitQueue("send-notification-email");
-                opts.ListenToRabbitQueue("dispatch-webhook");
 
                 // Route events back to API
                 opts.PublishMessage<AssetProcessingCompletedEvent>()
@@ -75,9 +74,9 @@ static class Program
                 services.AddSharedInfrastructure(hostContext.Configuration, hostContext.HostingEnvironment);
 
                 // Data Protection — Worker MUST share the same keyring + wrapping
-                // cert as the API or it can't unprotect webhook secrets / share
-                // tokens / migration secrets / signed magic-links the API issued
-                // (A-1/A-2). Same call wires it: cert from Docker secret in prod.
+                // cert as the API or it can't unprotect share tokens / migration
+                // secrets the API issued (A-1/A-2). Same call wires it: cert from
+                // Docker secret in prod.
                 services.AddAssetHubDataProtection(hostContext.Configuration, hostContext.HostingEnvironment);
 
                 // Worker-specific services needed for job resolution
@@ -101,22 +100,6 @@ static class Program
                 // worker reach SMTP + Keycloak without going through the API.
                 services.AddScoped<IUserLookupService, UserLookupService>();
                 services.AddScoped<IEmailService, SmtpEmailService>();
-
-                // Outbound HTTP client used by DispatchWebhookHandler. Short
-                // timeout so a slow / hanging receiver can't hold a worker
-                // thread for minutes; Wolverine retries handle the rest.
-                // ConnectCallback re-resolves DNS at dial time and refuses any
-                // private/loopback IP — closes the rebinding window between
-                // OutboundUrlGuard's registration-time check and the actual
-                // socket connect (D-3).
-                services.AddHttpClient("webhook-dispatch", client =>
-                {
-                    client.Timeout = TimeSpan.FromSeconds(10);
-                })
-                .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.SocketsHttpHandler
-                {
-                    ConnectCallback = AssetHub.Application.Helpers.OutboundUrlGuard.CreateGuardedConnectCallback()
-                });
 
                 // Bind settings the worker-side services need
                 services.AddOptions<AppSettings>()
