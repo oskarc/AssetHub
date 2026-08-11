@@ -84,7 +84,7 @@ nodes:
     status: mature
     dependencies: [base-manifest, base-skill-builder]
     open_gaps: []
-    note: Run when developer decides type-category nodes are mature enough for the library.
+    note: Run when developer decides type-category nodes are mature enough for the library. Local modification 2026-08-11 — "capture precedes demolition" timing rule (extract before destructively reshaping the grounding system; SER Proposal 1). Queued for upstream push with the other two not-yet-upstream base-node evolutions.
 
   - id: base-antidrift
     concern: Post-output drift scoring — compact evidence-based check against governing aspects and active skills after every output
@@ -290,6 +290,7 @@ nodes:
     dependencies: [implementation-migration-check]
     open_gaps:
       - Extracted from CLAUDE.md 2026-06-15; standard/audit split with implementation-migration-check worth confirming in use
+      - 2026-08-11 added hand-written-migration discovery rule ([Migration] attribute + migrations-list check) — from the dead AddAnalyticsRollups discovery (SER Proposal 4)
 
   - id: implementation-config-secrets
     concern: Strongly-typed settings + validate-on-start for critical infra; no-hardcoded-secrets with environment-aware sourcing
@@ -394,7 +395,8 @@ nodes:
     status: mature
     inherited: false
     dependencies: []
-    open_gaps: []
+    open_gaps:
+      - 2026-08-11 added infra-precondition abort (container runtime down = abort, not data) — from two Docker-down incidents in the reshape (SER Proposal 3)
 
   - id: pattern-time-series-rollup
     concern: Pre-aggregating time-bounded events into a rollup table that survives source-table retention
@@ -409,6 +411,20 @@ nodes:
       - Single occurrence so far (T5-ANL-01) — pattern shape unverified across multiple features
       - Multi-pod coordination via SKIP LOCKED referenced as future optimisation, not specified
       - 2026-08-10 project instantiation removed (reshape contract-002, analytics cut); the pattern stands in the blazor-web-app gen-1 library extracted before the cut
+
+  # Created 2026-08-11 from the reshape programme's consolidated SER (contracts 002-005).
+  - id: pattern-feature-excision
+    concern: Complete removal of a shipped feature — baseline frame, build-as-authority straggler enumeration, residual sweep as acceptance gate, survivor taxonomy, three cut sub-cases (bounded-module / revert-to-simpler / cross-cutting detachment), prose corrected in-change
+    skill_file: pattern-feature-excision/SKILL.md
+    tier: type-category
+    layer: pattern
+    phase: [pre-build, during-build, post-build]
+    status: mature
+    inherited: false
+    dependencies: [pattern-regression-baseline]
+    open_gaps:
+      - Born from four green executions in one programme (analytics, watermarking, brands+guests, webhooks) — breadth across other system categories unverified. Graft into the blazor-web-app library at gen-2 extraction
+    origin_note: Consolidated from 15 of the reshape's 19 raw SER candidates (2026-08-11)
 
   - id: pattern-hash-keyed-pii-reveal
     concern: Indexable hash + encrypted ciphertext + audited reveal — group over PII without leaking it into the audit log
@@ -477,7 +493,8 @@ nodes:
     status: mature
     inherited: false
     dependencies: [project-instructions]
-    open_gaps: []
+    open_gaps:
+      - 2026-08-11 added Discovery audit section (migration must appear in dotnet ef migrations list) — SER Proposal 4
 
   - id: implementation-add-tests
     concern: xUnit / bUnit test scaffolding for new or changed code
@@ -515,6 +532,7 @@ nodes:
       - Mixed type-category and project-specific content — decomposition candidate (carried from old gap-001/002)
       - 2026-06-15 added Phase 6b (mirror-CI vuln gates — dotnet vulnerable-package + Trivy on the 3 images). The principle (mirror CI security gates locally before push) is type-category; the concrete image/Dockerfile/flag specifics are project — reinforces the decomposition candidate.
       - 2026-06-22 Phase 6 now mandates a non-incremental verification build — a static-analysis verdict is only valid on a build that re-ran the analyzers (incremental skips up-to-date projects, so a filtered "clean" can mask shipped warnings). Type-category principle (Standard Evolution Report Candidate 2); grounded in a missed warning-set this session where a filtered incremental rebuild read as clean.
+      - 2026-08-11 Phase 6 zero-warnings claim corrected to baseline-relative (no NEW warnings vs main; repo-wide zero is the aspiration) — observed main carried a stable known-warning population the old prose denied (SER Proposal 5). The gen-1 library copy still carries the old sentence; fix at gen-2 extraction
 
   # ─── Project nodes (discovered through use) ───────────────────────────────
   # Naming convention: [layer]-[name]/SKILL.md
@@ -698,6 +716,12 @@ coverage_map:
     node_id: pattern-hash-keyed-pii-reveal
     layer: pattern
     phase: [pre-build, during-build]
+    status: mature
+
+  - concern: Complete feature removal (excision)
+    node_id: pattern-feature-excision
+    layer: pattern
+    phase: [pre-build, during-build, post-build]
     status: mature
 
   # Implementation layer

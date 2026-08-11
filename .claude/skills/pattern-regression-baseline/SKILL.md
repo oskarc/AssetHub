@@ -107,5 +107,6 @@ Always report:
 ## Abort conditions
 
 - `dotnet build` fails — skill stops; regression check is meaningless without a clean build.
+- **The suite's own infrastructure is down** — for a Testcontainers-backed suite, check the container runtime (`docker info`) *before* running. A runtime-down result is an abort, never a recordable baseline or a diffable outcome: it produces a mass single-cause failure (hundreds of identical connection errors in seconds) that would poison the baseline or masquerade as regressions. The gate's preconditions are part of the gate.
 - Baseline JSON is malformed — ask the user to delete and re-record.
 - Zero-test run (e.g., wrong filter) — skill stops and asks the user to verify the filter.

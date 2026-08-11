@@ -11,6 +11,8 @@ description: Run this skill when the developer decides the type-category nodes i
 
 Reads the project's `.claude/skills/meta-manifest/MANIFEST.yaml`, separates type-category nodes from project-specific nodes, collects the corresponding skill files from `.claude/skills/`, and produces a clean extraction folder the developer can add to their library. The extraction is a deliberate act — it is run at end of project when the developer decides the standard is ready.
 
+**Capture precedes demolition.** There is one timing rule that overrides "wait until the standard feels mature": if the project is about to destructively reshape or remove the features that *ground* the type-category nodes, extract first — while the grounding still runs. A standard stripped from working implementations is verifiable; one reconstructed from memory of deleted code is not. In that situation, extracting early with honest `thin` statuses (recorded as such in META.yaml) beats extracting late from a system that no longer demonstrates what the skills claim.
+
 The extracted artifact is portable. It travels independently of this project — the developer copies it into a future project's `.claude/library/` to seed the next generation.
 
 ---

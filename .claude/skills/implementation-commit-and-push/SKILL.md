@@ -121,7 +121,7 @@ If the changes include **new user-facing features, architecture changes, or capa
 dotnet build --configuration Release --no-incremental
 ```
 
-- Must pass with **zero warnings** (CI enforces this).
+- Must introduce **zero new warnings relative to main** — the enforced gate is baseline-relative, not absolute. The repo carries a standing population of known warnings (the documented Sonar suppression-cluster shapes plus dated deprecations); driving that population to zero is the aspiration, and each change should reduce or hold it, never grow it. Compare the full warning set of your build against main's; any warning at a line your diff touched needs a fix or a documented suppression.
 - **Read warnings only from a build that re-ran the analyzers — i.e. a non-incremental one.**
   A static-analysis verdict is only valid on a build that actually executed the analyzers.
   An incremental build *skips* analyzers for any project it considers up-to-date, so a

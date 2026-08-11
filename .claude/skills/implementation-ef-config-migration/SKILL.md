@@ -17,6 +17,7 @@ When the application **auto-applies migrations on startup**, a migration is prod
 
 **Safe migrations.**
 - Every `Up` has a `Down` that reverses it. Never combine, in one migration: a drop + removing the code that references it; a rename without a data move; a type change without conversion SQL.
+- **A hand-written migration must be discovery-verified.** The framework finds migrations via the `[Migration("id")]` attribute, which the generated Designer file normally carries. A hand-authored migration without it compiles, reads plausibly, and is silently *never applied* — environments provisioned by the migration chain simply lack its schema, while model-derived provisioning (test fixtures using EnsureCreated) has it, hiding the gap from every test. After hand-writing a migration: carry the attribute (and a Designer or its equivalent), then confirm the migration appears in `dotnet ef migrations list`. A migration that isn't listed does not exist.
 - Raw SQL in migrations is **idempotent** (`IF NOT EXISTS` etc.) — both because auto-migration may race across instances (first to acquire the lock applies) and because re-runs must be safe.
 - Index naming is conventional and predictable (`idx_{entity}_{fields}`, `_unique` suffix for unique).
 - Foreign keys specify delete behavior explicitly.

@@ -99,9 +99,9 @@ contracts:
         existing kit node — after implementation it becomes a classification proposal
         (likely a principle candidate) in this contract's Standard Evolution Report.
         (-> UC2)
-    status: implemented
+    status: learned
     revisions: []
-    work_id: null
+    work_id: work-001
 
   - contract_id: contract-002
     feature: reshape-c1-analytics-cut
@@ -165,7 +165,7 @@ contracts:
         full test pass + residual sweep clean. (-> UC6)
       - Scope guard: no opportunistic cleanup of neighboring code — adjacent findings
         get reported, not done. (-> all)
-    status: implemented
+    status: learned
     revisions:
       - date: 2026-08-10
         change: |
@@ -188,7 +188,7 @@ contracts:
           ef-config-migration standard applied (tier-3 guardrail), recorded as a revision
           for traceability of the changed migration shape, not as a new scope grant.
         authorised_by: 'tier-3 guardrail "Migration follows implementation-ef-config-migration" in the approved contract'
-    work_id: null
+    work_id: work-002
 
   - contract_id: contract-003
     feature: reshape-c2-watermarking-cut
@@ -257,9 +257,9 @@ contracts:
         test pass + residual sweep clean + docker compose config -q parses. (-> UC8)
       - Float hygiene: no package changes expected; any fresh-restore failure is a
         mid-run stop and surface, not a silent fix. (-> all)
-    status: implemented
+    status: learned
     revisions: []
-    work_id: null
+    work_id: work-003
 
   - contract_id: contract-004
     feature: reshape-c3-brands-guests-cut
@@ -325,9 +325,9 @@ contracts:
         failures are mid-run stops. (-> UC5, UC6, all)
       - Verified means: baseline clean + zero-new-warnings non-incremental build +
         full test pass + sweep clean + compose parses. (-> UC7)
-    status: implemented
+    status: learned
     revisions: []
-    work_id: null
+    work_id: work-004
 
   - contract_id: contract-005
     feature: reshape-c4-webhooks-cut
@@ -384,6 +384,6 @@ contracts:
       - Float hygiene: fresh-restore failures are mid-run stops. (-> all)
       - Verified means: baseline clean + zero-new-warnings non-incremental build +
         full test pass + sweep clean + compose parses. (-> UC8)
-    status: approved
+    status: learned
     revisions: []
-    work_id: null
+    work_id: work-005

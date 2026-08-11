@@ -26,4 +26,213 @@
 #         evidence: [...]
 #         human_decision: [pending | approved | declined]
 
-entries: []
+entries:
+  - work_id: work-001
+    feature: reshape-phase0-capture
+    contract_id: contract-001
+    surfaced_in: 2026-08-11
+    states:
+      contracted:
+        approach: meta-extract generation-1 library + pre-reshape snapshot (tag + branch) before any cut
+        principles_invoked: [meta-extract protocol, D5 authorized criteria deviation]
+        patterns_invoked: []
+        assumptions:
+          - "31 type-category nodes classify cleanly; stripping is mostly light"
+          - "Extracting despite thin statuses is sound when statuses are recorded honestly"
+      implemented:
+        approach: as contracted; 19 of 31 files byte-identical, 12 stripped behind the single gate
+        deviations: []
+      verified:
+        method: human-confirmation
+        result: pass
+        evidence: "META.yaml parses; node set == manifest type-category set; 31 skills + META in library; pre-reshape tag + full-featured branch at a323e87; owner confirmed 2026-08-11"
+    diffs:
+      - dimension: principle
+        assumption: "Extraction timing is purely an end-of-project maturity judgment"
+        discovery: "The reshape would have deleted the features grounding the standard before any extraction ran"
+        learning: "Capture precedes demolition — extract before destructively reshaping the grounding system"
+        node_impact:
+          - node_id: base-extract
+            action: update
+    elevation_proposal:
+      - target: meta-extract (when-to-run guidance)
+        kind: principle
+        evidence: diffs[0]
+        human_decision: approved
+
+  - work_id: work-002
+    feature: reshape-c1-analytics-cut
+    contract_id: contract-002
+    surfaced_in: 2026-08-11
+    states:
+      contracted:
+        approach: delete analytics across all layers; generated DropTable migration; residual sweep over src/tests
+        principles_invoked: [no-half-deleted-feature (novel guardrail)]
+        patterns_invoked: [pattern-regression-baseline, implementation-ef-config-migration]
+        assumptions:
+          - "The migration chain provisioned the analytics schema in every environment"
+          - "src/tests sweep scope is sufficient"
+          - "No dependency changes will be needed"
+      implemented:
+        approach: as contracted plus two authorized revisions
+        deviations:
+          - "OpenIdConnect pin 8.15.0->8.19.2 + Microsoft.OpenApi 2.7.5 pin (float movement; authorized)"
+          - "DropTable -> DROP TABLE IF EXISTS (dead Add migration; authorized via tier-3 grounding)"
+      verified:
+        method: tests
+        result: pass
+        evidence: "1450/1450 green, zero regressions, 15 removals all analytics-named @ 2e690d7; owner confirmed 2026-08-11"
+    diffs:
+      - dimension: implementation
+        assumption: "AddAnalyticsRollups provisioned tables wherever migrations ran"
+        discovery: "The hand-written migration had no [Migration] attribute — EF never discovered it; only EnsureCreated fixtures had the schema"
+        learning: "A hand-written migration must carry the discovery attribute and appear in dotnet ef migrations list; unlisted = nonexistent"
+        node_impact:
+          - node_id: implementation-ef-config-migration
+            action: update
+          - node_id: implementation-migration-check
+            action: update
+      - dimension: pattern
+        assumption: "src/tests sweep suffices"
+        discovery: "docs/USE-CASES.md still advertised analytics — caught only by C2's wider sweep"
+        learning: "Excision sweep scope is canonical: src, tests, docs, docker, config"
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: new
+      - dimension: implementation
+        assumption: "No dependency changes needed"
+        discovery: "Floating versions + fresh advisory DB made the build calendar-dependent (NU1605/NU1903/CS8602)"
+        learning: "Lock the resolved package graph; builds must be time-independent"
+        node_impact:
+          - node_id: project-instructions
+            action: update  # repo decision: RestorePackagesWithLockFile
+    elevation_proposal:
+      - target: implementation-ef-config-migration + implementation-migration-check
+        kind: implementation
+        evidence: diffs[0]
+        human_decision: approved
+      - target: pattern-feature-excision (new skill)
+        kind: pattern
+        evidence: diffs[1]
+        human_decision: approved
+      - target: repo decision (NuGet lock files)
+        kind: implementation
+        evidence: diffs[2]
+        human_decision: approved
+
+  - work_id: work-003
+    feature: reshape-c2-watermarking-cut
+    contract_id: contract-003
+    surfaced_in: 2026-08-11
+    states:
+      contracted:
+        approach: delete watermark surface; REVERT download flow to unconditional presigned-302 with behavioral test updates; retire Insights group
+        principles_invoked: [principle-information-architecture (cap-then-group at group death)]
+        patterns_invoked: [pattern-regression-baseline]
+        assumptions:
+          - "The survey's file inventory is complete"
+          - "Cut-vs-revert classification per touchpoint keeps verification honest"
+      implemented:
+        approach: as contracted; zero revisions; build enumerated 3 files the survey missed (name-evading handler, test, global using)
+        deviations: []
+      verified:
+        method: tests
+        result: pass
+        evidence: "1425/1425 green, zero regressions, 25 removals all watermark-named @ 6dd7a0e; owner confirmed 2026-08-11"
+    diffs:
+      - dimension: pattern
+        assumption: "The survey enumerates the full cut"
+        discovery: "head-truncation and name-evasion missed 3 files; the compiler found every one"
+        learning: "The build is the completeness authority; the survey only plans"
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+      - dimension: pattern
+        assumption: "Revert-to-simpler touchpoints need behavioral verification"
+        discovery: "Held exactly — 302-assert updates were the only behavioral test edits and the flows stayed green"
+        learning: "Confirmed as contracted (prediction validated)"
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: verify
+    elevation_proposal:
+      - target: pattern-feature-excision
+        kind: pattern
+        evidence: diffs[0], diffs[1]
+        human_decision: approved
+
+  - work_id: work-004
+    feature: reshape-c3-brands-guests-cut
+    contract_id: contract-004
+    surfaced_in: 2026-08-11
+    states:
+      contracted:
+        approach: delete brands + guests; accepted remnants named up front (MinIO logos, Keycloak accounts); no nav group death
+        principles_invoked: [build-as-authority, cut-vs-revert (C2 lessons as guardrails)]
+        patterns_invoked: [pattern-regression-baseline]
+        assumptions:
+          - "Survivor triage classes from C1/C2 cover this cut's sweep"
+          - "Named remnants are the complete out-of-code footprint"
+      implemented:
+        approach: as contracted; zero revisions; one new straggler class (deleting a folder's last file emptied its namespace)
+        deviations: []
+      verified:
+        method: tests
+        result: pass
+        evidence: "1383/1383 green, zero regressions, 42 removals all brand/guest-named @ 5765797; owner confirmed 2026-08-11"
+    diffs:
+      - dimension: pattern
+        assumption: "Straggler classes were fully enumerated"
+        discovery: "Emptied-namespace breakage (imports/global-usings) is its own predictable class"
+        learning: "Add emptied-namespace to the excision straggler classes; survivor taxonomy now stable at four classes"
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+    elevation_proposal:
+      - target: pattern-feature-excision
+        kind: pattern
+        evidence: diffs[0]
+        human_decision: approved
+
+  - work_id: work-005
+    feature: reshape-c4-webhooks-cut
+    contract_id: contract-005
+    surfaced_in: 2026-08-11
+    states:
+      contracted:
+        approach: delete webhook machinery; detach seven publisher call sites with surrounding flows byte-for-byte intact (tests untouched bar); OutboundUrlGuard survives for the migration connector
+        principles_invoked: [nothing-user-observable-changes bar]
+        patterns_invoked: [pattern-regression-baseline, pattern-feature-excision (in gestation)]
+        assumptions:
+          - "A green suite run is a valid verdict"
+          - "Detachment is five parts per site: ctor param, calls, helpers, suppression texts, mocks"
+      implemented:
+        approach: as contracted; zero revisions; predictable orphans shed (payload-only helper, guard flag, dangling conditional)
+        deviations: []
+      verified:
+        method: tests
+        result: pass
+        evidence: "1358/1358 green, zero regressions, 25 removals all webhook-named @ 04e2ac7; owner confirmed 2026-08-11"
+    diffs:
+      - dimension: implementation
+        assumption: "A suite run's verdict is valid whenever it completes"
+        discovery: "Docker daemon down produced 667 identical failures in 10s — the second such incident; an invalid verdict, not a red one"
+        learning: "The verification gate's preconditions are part of the gate; runtime-down is an abort, never data"
+        node_impact:
+          - node_id: pattern-regression-baseline
+            action: update
+      - dimension: pattern
+        assumption: "The five-part detachment checklist is complete"
+        discovery: "Held — plus it predictably sheds orphans the warning census catches"
+        learning: "Cross-cutting detachment confirmed as an excision sub-case with its checklist and untouched-tests bar"
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+    elevation_proposal:
+      - target: pattern-regression-baseline
+        kind: implementation
+        evidence: diffs[0]
+        human_decision: approved
+      - target: pattern-feature-excision
+        kind: pattern
+        evidence: diffs[1]
+        human_decision: approved
