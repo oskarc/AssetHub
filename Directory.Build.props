@@ -29,9 +29,23 @@
     <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
   </PropertyGroup>
 
+  <!--
+    Lock the resolved package graph so builds are time-independent. The csproj
+    files keep floating versions ("10.0.*") for easy intentional upgrades, but
+    day-to-day restores replay packages.lock.json instead of re-resolving —
+    without this, any fresh restore can pull newly-published floats and a new
+    advisory database, making the build's outcome depend on the calendar
+    (observed 2026-08-10: NU1605/NU1903/CS8602 from float movement mid-change).
+    Update the locks deliberately: dotnet restore with the force-evaluate flag.
+    CI should restore in locked mode to enforce the lock (follow-up: ci.yml).
+  -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
   <!-- Override vulnerable transitive dependencies -->
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
   <!--
