@@ -341,7 +341,6 @@ public static class WebApplicationExtensions
         app.MapAdminTrashEndpoints();
         app.MapAssetVersionEndpoints();
         app.MapPersonalAccessTokenEndpoints();
-        app.MapAssetWorkflowEndpoints();
         app.MapRenditionEndpoints();
 
         // Public OpenAPI document at /swagger/v1/swagger.json. The matching UI middleware

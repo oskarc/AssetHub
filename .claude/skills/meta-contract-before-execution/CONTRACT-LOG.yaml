@@ -455,6 +455,70 @@ contracts:
         fresh-restore failure is still a mid-run stop). (-> all)
       - Verified means: baseline clean + zero-new-warnings non-incremental build +
         full test pass + sweep clean + compose parses. (-> UC9)
+    status: implemented
+    revisions: []
+    work_id: null
+
+  - contract_id: contract-007
+    feature: reshape-c6-workflow-cut
+    date_proposed: 2026-08-12
+    date_approved: 2026-08-12
+    tier_1: |
+      You are removing the publishing workflow. The Draft->InReview->Approved->
+      Published state machine, the required-metadata submission gate, the reviewer
+      queue with its own review area, transition history, and the share-state gate —
+      all editorial-process machinery on top of the five features. Because new assets
+      have always defaulted to Published, removing it changes nothing about what
+      anyone sees: every visible asset stays visible, uploads land as before, shares
+      stop asking a question whose answer was almost always yes. Otherwise the repo
+      keeps ~5,000 lines of state-machine, gate, and queue plumbing for a process
+      outside the product's identity.
+    tier_2: |
+      1. Baseline roll-forward to 6a422c8, docker pre-check first.
+      2. Remove the workflow core (bounded-module): AssetWorkflowService (incl. its
+         relocated private AuditEvents consts), transition entity/config/repo,
+         WorkflowEnums, endpoints + registration, DTOs, WorkflowSettings + Configure
+         line, WorkflowPanel + AssetDetail host line, facade AssetWorkflow partial +
+         members incl. GetUserNamesAsync (last consumer dies here), WorkflowResource
+         pair.
+      3. Remove the review area (bounded-module): ReviewLayout (shell-per-audience
+         instance retiring — IA-node manifest note), Review + ReviewHistory pages,
+         AssetReviewQueryService + three split collaborators, IAssetReviewQueryService,
+         ReviewDtos, facade Review partial + members, ReviewResource pair, and the
+         /review nav entry wherever the build finds it.
+      4. Revert the share gate (revert-to-simpler): ShareService loses
+         IOptions<WorkflowSettings>, CheckWorkflowShareGateAsync, and its call; gate
+         tests removed with the gate, all other share tests green untouched.
+      5. Foreign-tenant check up front (C5 lesson): grep dying files' public symbols
+         for outside consumers; relocate what other features own.
+      6. Data model: one migration dropping AssetWorkflowTransitions + the two Asset
+         columns (Add Designer-verified; discovery check via migrations list; data
+         loss documented).
+      7. Tests: three named classes + 13-workflows.spec.ts deleted; workflow cases in
+         shared tests edited; MediaPreview* files are find false-positives —
+         untouched.
+      8. Sweep (Workflow|AssetReview|ReviewQueue|ReviewLayout|ReviewResource|/review,
+         not bare review) over the canonical scope. Survivors: historical
+         asset.workflow_* audit labels, migration history, C9-bound catalog rows.
+      9. Prose in the same change: T3-WF-01 memory -> HISTORICAL; catalog sections +
+         UC-META-06 + chips; CLAUDE.md workflow mentions (state-transition Status
+         prose stays); manifest IA note. Commit per implementation-commit-and-push;
+         approval authorizes; no push.
+    tier_3: |
+      - Visibility invariant: no query, search, or share result set may change — the
+        Published default makes removal behavior-preserving everywhere except the
+        gate's rare rejection path; the baseline's zero-regression bar is the proof.
+        (-> UC4, UC6)
+      - Metadata engine untouched (dies in C9): only workflow-side gate consumption
+        leaves. (-> UC5)
+      - Full excision discipline: build-as-authority, census, emptied-namespace
+        checks, survivor taxonomy, foreign-tenant check, prose-in-same-change.
+        (-> all)
+      - Migration per the standards + discovery check; has-pending-model-changes
+        clean. (-> UC6)
+      - i18n parity; DI no orphans; float hygiene under locks. (-> all)
+      - Verified means: baseline clean + zero-new-warnings build + full pass + sweep
+        clean + compose parses. (-> UC8)
     status: approved
     revisions: []
     work_id: null

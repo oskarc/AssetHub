@@ -19,8 +19,6 @@ public class AdminResource { }
 public class SharesResource { }
 public class ImageEditorResource { }
 public class AccountResource { }
-public class WorkflowResource { }
-public class ReviewResource { }
 public class AuditAdminResource { }
 public class TaxonomiesAdminResource { }
 public class TrashAdminResource { }

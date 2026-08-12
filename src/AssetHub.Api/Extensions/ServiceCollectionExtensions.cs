@@ -263,10 +263,8 @@ public static class ServiceCollectionExtensions
         // Asset comments (T3-COL-01)
 
         // Asset workflow (T3-WF-01)
-        services.AddScoped<IAssetWorkflowService, AssetWorkflowService>();
 
         // Review queue + decisions (T-REVIEW) — query side of the workflow
-        services.AddScoped<IAssetReviewQueryService, AssetReviewQueryService>();
 
 
         // On-the-fly renditions (T3-REND-01)

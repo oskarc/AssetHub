@@ -133,13 +133,4 @@ public interface IAssetHubApiClient
     Task<List<AssetVersionDto>> GetAssetVersionsAsync(Guid assetId, CancellationToken ct = default);
     Task<AssetVersionDto> RestoreAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default);
     Task PruneAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default);
-    Task<Dictionary<string, string>> GetUserNamesAsync( IEnumerable<string> userIds, CancellationToken ct = default);
-    Task<AssetWorkflowResponseDto> GetAssetWorkflowAsync(Guid assetId, CancellationToken ct = default);
-    Task<AssetWorkflowResponseDto> SubmitAssetForReviewAsync(Guid assetId, string? reason, CancellationToken ct = default);
-    Task<AssetWorkflowResponseDto> ApproveAssetAsync(Guid assetId, string? reason, CancellationToken ct = default);
-    Task<AssetWorkflowResponseDto> RejectAssetAsync(Guid assetId, string reason, CancellationToken ct = default);
-    Task<AssetWorkflowResponseDto> PublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default);
-    Task<AssetWorkflowResponseDto> UnpublishAssetAsync(Guid assetId, string? reason, CancellationToken ct = default);
-    Task<ReviewQueueResponse> GetReviewQueueAsync(ReviewQueueRequest request, CancellationToken ct = default);
-    Task<ReviewDecisionsResponse> GetReviewDecisionsAsync(ReviewDecisionsRequest request, CancellationToken ct = default);
 }

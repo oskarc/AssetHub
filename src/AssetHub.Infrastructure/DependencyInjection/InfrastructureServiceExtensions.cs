@@ -137,7 +137,6 @@ public static class InfrastructureServiceExtensions
 
         services.Configure<ImageProcessingSettings>(configuration.GetSection(ImageProcessingSettings.SectionName));
         services.Configure<AssetLifecycleSettings>(configuration.GetSection(AssetLifecycleSettings.SectionName));
-        services.Configure<WorkflowSettings>(configuration.GetSection(WorkflowSettings.SectionName));
         services.Configure<RenditionSettings>(configuration.GetSection(RenditionSettings.SectionName));
 
         // T5-WMK-01: HmacKeyBase64 is required, so validate at start to fail fast
@@ -187,7 +186,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ISavedSearchRepository, SavedSearchRepository>();
         services.AddScoped<IAssetVersionRepository, AssetVersionRepository>();
         services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
-        services.AddScoped<IAssetWorkflowTransitionRepository, AssetWorkflowTransitionRepository>();
         services.AddScoped<IOrphanedObjectRepository, OrphanedObjectRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────

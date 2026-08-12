@@ -44,8 +44,6 @@ public sealed partial class AssetHubApiClient(
     ISavedSearchService savedSearchService,
     IAssetTrashService assetTrashService,
     IAssetVersionService assetVersionService,
-    IAssetWorkflowService assetWorkflowService,
-    IAssetReviewQueryService assetReviewQueryService,
     IAuthenticatedShareAccessService authShareAccessService,
     IPublicShareAccessService publicShareAccessService,
     IShareAdminService shareAdminService,
@@ -60,7 +58,6 @@ public sealed partial class AssetHubApiClient(
     IMetadataSchemaQueryService metadataSchemaQueryService,
     ITaxonomyService taxonomyService,
     ITaxonomyQueryService taxonomyQueryService,
-    IUserLookupService userLookupService,
     IOptions<AppSettings> appSettings) : IAssetHubApiClient
 {
     private readonly AppSettings _appSettings = appSettings.Value;

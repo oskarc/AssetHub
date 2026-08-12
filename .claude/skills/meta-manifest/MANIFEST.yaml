@@ -237,7 +237,7 @@ nodes:
     inherited: false
     dependencies: [implementation-blazor-ui-standard]
     open_gaps:
-      - Created 2026-06-18 to close gap-003. Encodes principles A (shell-per-audience), B (routable-over-tabbed), C (cap-then-group), E (wayfinding-on-depth). D (one feature taxonomy) deliberately deferred to implementation-blazor-ui-standard rather than duplicated. Grounded in the admin tab-monolith → 13 routable /admin/* routes in 4 intent-groups. Aspirational principle E carries a real follow-up — see gap-008
+      - Created 2026-06-18 to close gap-003. Encodes principles A (shell-per-audience), B (routable-over-tabbed), C (cap-then-group), E (wayfinding-on-depth). 2026-08-12 the ReviewLayout shell-per-audience instance retired with the workflow cut (contract-007); MainLayout/AdminLayout/ShareLayout instances remain. D (one feature taxonomy) deliberately deferred to implementation-blazor-ui-standard rather than duplicated. Grounded in the admin tab-monolith → 13 routable /admin/* routes in 4 intent-groups. Aspirational principle E carries a real follow-up — see gap-008
       - 2026-06-18 added the "derive-then-override" pattern under principle E (auto-derive the trail from route+nav structure in the shell; per-page only for dynamic leaves) — accepted from the gap-008 Standard Evolution Report. E is no longer aspirational here: gap-008 shipped (9962460)
 
   # CLAUDE.md decomposition batch 3, extracted 2026-06-15.

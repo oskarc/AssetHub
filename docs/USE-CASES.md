@@ -27,7 +27,7 @@ plus two non-account principals and the system itself.
 
 ### Dimension B — Domain area (WHAT)
 Auth · Ingestion · Processing · Organization · Metadata · Discovery · View/Deliver · Editing ·
-Versioning · Lifecycle · Workflow/Review · Sharing ·
+Versioning · Lifecycle · Sharing ·
 Administration · Public API · Migration.
 
 ### Dimension C — Journey stage (WHEN)
@@ -106,7 +106,6 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-META-03 | Bulk-set metadata across assets | A | `POST /assets/bulk-metadata` | ✅ |
 | UC-META-04 | Define a metadata schema (fields, types, required) | A | `/admin/metadata-schemas` | ✅ |
 | UC-META-05 | Manage taxonomies (controlled vocab + terms) | A | `/admin/taxonomies` | ✅ |
-| UC-META-06 | Required-metadata gate enforced at workflow submit | C+ | workflow submit | ✅ |
 | UC-META-07 | Schema scope resolution (asset-type / collection / global) | SYS | `IMetadataSchemaQueryService` | ✅ |
 
 ### G. Discovery (search)
@@ -163,16 +162,7 @@ Removed 2026-08 by the reshape (contract-006) — outside the five-feature ident
 Removed 2026-08 by the reshape (contract-006) — same note as L. Email infrastructure (share emails) remains.
 
 ### N. Publishing workflow & review
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-WF-01 | View an asset's workflow state | V+ | `WorkflowPanel`, `GET …/workflow` | ✅ |
-| UC-WF-02 | Submit a draft for review (metadata gate) | C+ | `…/workflow/submit` | ✅ |
-| UC-WF-03 | Approve / reject with a reason | M+ | `…/approve`, `…/reject` + `RejectReasonDialog` | 🚧 inline reason dialog uncommitted |
-| UC-WF-04 | Publish / unpublish an approved asset | M+ | `…/publish`, `…/unpublish` | ✅ |
-| UC-WF-05 | Resubmit a rejected asset | C+ | `…/workflow/submit` | ✅ |
-| UC-WF-06 | Work a review **queue** (pending, scoped, assigned/unassigned) | M+ | `/review` + `IAssetReviewQueryService` | 🚧 in progress (uncommitted) |
-| UC-WF-07 | Browse review **history** (decisions) | M+ | `/review/history` | 🚧 in progress (uncommitted) |
-| UC-WF-08 | See workflow-state badge on grid cards | V+ | asset grid | 🟡 deferred |
+Removed 2026-08 by the reshape (contract-007) — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag.
 
 ### O. Sharing & distribution
 | ID | Use case | Persona | Surface | Status |

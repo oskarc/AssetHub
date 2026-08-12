@@ -34,3 +34,12 @@ dotnet_diagnostic.S1200.severity = warning     # Class with too many dependencie
 dotnet_diagnostic.S2178.severity = warning     # Bitwise vs short-circuit
 dotnet_diagnostic.S2589.severity = warning     # Boolean expression always true/false
 dotnet_diagnostic.S3358.severity = warning     # Nested ternaries
+
+# EF-generated migration bodies repeat table/column literals and produce long
+# Down() methods by design; the migration standard forbids hand-editing them
+# to appease style rules. generated_code=true above is overridden for these
+# diagnostics by the explicit [*.cs] severities, so scope them off here
+# (implementation-sonar-discipline: tool-wrong-on-generated-code, smallest scope).
+[**/Migrations/*.cs]
+dotnet_diagnostic.S1192.severity = none
+dotnet_diagnostic.S138.severity = none

@@ -153,26 +153,6 @@ public static class TestData
         return (share, token);
     }
 
-    public static AssetWorkflowTransition CreateWorkflowTransition(
-        Guid assetId,
-        AssetWorkflowState fromState = AssetWorkflowState.InReview,
-        AssetWorkflowState toState = AssetWorkflowState.Approved,
-        string? actorUserId = null,
-        string? reason = null,
-        DateTime? createdAt = null,
-        Guid? id = null)
-    {
-        return new AssetWorkflowTransition
-        {
-            Id = id ?? Guid.NewGuid(),
-            AssetId = assetId,
-            FromState = fromState,
-            ToState = toState,
-            ActorUserId = actorUserId ?? DefaultUserId,
-            Reason = reason,
-            CreatedAt = createdAt ?? DateTime.UtcNow
-        };
-    }
 
     public static AuditEvent CreateAuditEvent(
         string eventType = "test.event",

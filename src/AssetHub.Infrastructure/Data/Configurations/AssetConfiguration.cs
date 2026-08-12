@@ -36,16 +36,6 @@ public sealed class AssetConfiguration : IEntityTypeConfiguration<Asset>
         entity.Property(e => e.Status)
             .HasConversion(v => v.ToDbString(), v => v.ToAssetStatus())
             .HasMaxLength(50).IsRequired();
-        // No HasDefaultValue — the Draft enum is CLR default (0), which
-        // would make EF treat any "set to Draft" as "unset" and override
-        // with the server-side default. The C# field initializer on
-        // Asset.WorkflowState covers the "brand new entity" case, and
-        // the migration's AddColumn defaultValue backfills existing rows.
-        entity.Property(e => e.WorkflowState)
-            .HasConversion(v => v.ToDbString(), v => v.ToAssetWorkflowState())
-            .HasMaxLength(50).IsRequired();
-        entity.HasIndex(e => e.WorkflowState)
-            .HasDatabaseName("idx_assets_workflow_state");
         entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
         entity.Property(e => e.OriginalObjectKey).HasMaxLength(512).IsRequired();
         entity.Property(e => e.ThumbObjectKey).HasMaxLength(512);
