@@ -523,7 +523,7 @@ public sealed class AssetUploadService : IAssetUploadService
         };
     }
 
-    // ── Image Editing ────────────────────────────────────────────────────────
+    // ── Save-copy / replace-file (version minting) ─────────────────────────────────────────────
 
     private static readonly FrozenSet<string> AllowedEditorOutputTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -629,7 +629,7 @@ public sealed class AssetUploadService : IAssetUploadService
         var oldObjectKey = asset.OriginalObjectKey;
 
         // Snapshot the asset's current state into a new AssetVersion BEFORE mutating the row.
-        // T1-VER-01 keeps every prior set of bytes/keys/edit-document so the user can roll back
+        // T1-VER-01 keeps every prior set of bytes/keys so the user can roll back
         // a Replace from the version-history panel; the old MinIO objects are intentionally
         // NOT deleted here (the version row references them).
         var snapshot = new AssetVersion
@@ -643,7 +643,6 @@ public sealed class AssetUploadService : IAssetUploadService
             SizeBytes = asset.SizeBytes,
             ContentType = asset.ContentType,
             Sha256 = asset.Sha256 ?? string.Empty,
-            EditDocument = asset.EditDocument,
             MetadataSnapshot = new Dictionary<string, object>(asset.MetadataJson),
             CreatedByUserId = userId,
             ChangeNote = request.ChangeNote

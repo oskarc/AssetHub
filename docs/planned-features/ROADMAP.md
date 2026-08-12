@@ -438,6 +438,8 @@ Implementations: `AzureAiVisionService`, `AwsRekognitionService`, etc. Register 
 
 ### T2-AI-05 — Smart crop for export presets
 
+> **Obsolete 2026-08** — export presets were removed by the reshape (contract-008).
+
 **Intent.** Subject-aware cropping instead of centre-crop.
 
 **Target state.** `ApplyExportPresetsHandler` calls `IAiVisionService.AnalyzeImageAsync` once, reuses the `SmartCropBox` across all presets. `ExportPreset` gains `UseSmartCrop bool`.
@@ -462,7 +464,7 @@ Implementations: `AzureAiVisionService`, `AwsRekognitionService`, etc. Register 
 
 ### T3-REND-01 — On-the-fly rendition URLs
 
-> **Shipped 2026-04-25.** See the **Shipped appendix** at the end of this document for the per-layer breakdown, the deliberate auth-only scope (signed-URL embedding deferred), and the smart-crop deferral (depends on T2-AI-05).
+> **Shipped 2026-04-25. Removed 2026-08 by the reshape (contract-008)** — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag. The Shipped appendix entry is retained as history.
 
 ---
 
@@ -1310,6 +1312,8 @@ Full suite: 1020 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 Full suite: 1038 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 
 ### T3-REND-01 — On-the-fly rendition URLs
+
+> **Removed 2026-08** by the reshape (contract-008).
 
 **Shipped 2026-04-25** in a single pass. `/api/v1/assets/{id}/render?w=400&h=200&fit=cover&fmt=webp` redirects to a presigned MinIO URL, generating + caching the rendition on first hit.
 

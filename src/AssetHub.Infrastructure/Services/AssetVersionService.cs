@@ -63,7 +63,6 @@ public sealed class AssetVersionService(
             SizeBytes = asset.SizeBytes,
             ContentType = asset.ContentType,
             Sha256 = asset.Sha256 ?? string.Empty,
-            EditDocument = asset.EditDocument,
             MetadataSnapshot = new Dictionary<string, object>(asset.MetadataJson),
             CreatedByUserId = currentUser.UserId,
             ChangeNote = $"Auto-snapshot before restoring v{versionNumber}"
@@ -77,7 +76,6 @@ public sealed class AssetVersionService(
         asset.SizeBytes = target.SizeBytes;
         asset.ContentType = target.ContentType;
         asset.Sha256 = target.Sha256;
-        asset.EditDocument = target.EditDocument;
         asset.MetadataJson = new Dictionary<string, object>(target.MetadataSnapshot);
         asset.CurrentVersionNumber = snapshotOfCurrent.VersionNumber;
         asset.UpdatedAt = DateTime.UtcNow;

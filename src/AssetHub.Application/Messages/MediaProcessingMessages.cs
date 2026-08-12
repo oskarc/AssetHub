@@ -26,12 +26,6 @@ public record BuildZipCommand
     public Guid ZipDownloadId { get; init; }
 }
 
-public record ApplyExportPresetsCommand
-{
-    public Guid SourceAssetId { get; init; }
-    public List<Guid> PresetIds { get; init; } = new();
-    public string RequestedByUserId { get; init; } = string.Empty;
-}
 
 // ── Events (published for any interested subscriber) ─────────────────────
 

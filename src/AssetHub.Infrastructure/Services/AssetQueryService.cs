@@ -72,10 +72,8 @@ public sealed class AssetQueryService : IAssetQueryService
         if (asset is null)
             return ServiceError.NotFound(AssetNotFound);
 
-        var derivativeCount = await _assetRepo.CountDerivativesAsync(id, ct);
-
         if (_currentUser.IsSystemAdmin)
-            return AssetMapper.ToDto(asset, RoleHierarchy.Roles.Admin, derivativeCount: derivativeCount, includeEditDocument: true);
+            return AssetMapper.ToDto(asset, RoleHierarchy.Roles.Admin);
 
         var linkedCollections = await _assetCollectionRepo.GetCollectionsForAssetAsync(id, ct);
         var collectionIds = linkedCollections.Select(c => c.Id).ToList();
@@ -83,7 +81,7 @@ public sealed class AssetQueryService : IAssetQueryService
         foreach (var collection in linkedCollections)
         {
             if (roleMap.TryGetValue(collection.Id, out var role) && role is not null)
-                return AssetMapper.ToDto(asset, role, derivativeCount: derivativeCount, includeEditDocument: true);
+                return AssetMapper.ToDto(asset, role);
         }
 
         return ServiceError.Forbidden();
@@ -297,30 +295,6 @@ public sealed class AssetQueryService : IAssetQueryService
         return $"{title}{prefix}{ext}";
     }
 
-    public async Task<ServiceResult<List<AssetDerivativeDto>>> GetDerivativesAsync(Guid id, CancellationToken ct)
-    {
-        var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset is null)
-            return ServiceError.NotFound(AssetNotFound);
-
-        if (!await CanAccessAssetAsync(id, RoleHierarchy.Roles.Viewer, ct))
-            return ServiceError.Forbidden();
-
-        var derivatives = await _assetRepo.GetDerivativesAsync(id, ct);
-        var dtos = derivatives.Select(d => new AssetDerivativeDto
-        {
-            Id = d.Id,
-            Title = d.Title,
-            Status = d.Status.ToDbString(),
-            ContentType = d.ContentType,
-            SizeBytes = d.SizeBytes,
-            ThumbObjectKey = d.ThumbObjectKey,
-            Width = TryGetIntFromMetadata(d.MetadataJson, "width"),
-            Height = TryGetIntFromMetadata(d.MetadataJson, "height")
-        }).ToList();
-
-        return dtos;
-    }
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
@@ -335,23 +309,4 @@ public sealed class AssetQueryService : IAssetQueryService
         return accessible.Count > 0;
     }
 
-    /// <summary>
-    /// Extracts an int from MetadataJson, handling both JsonElement (from DB) and string (from in-memory creation).
-    /// </summary>
-    private static int? TryGetIntFromMetadata(Dictionary<string, object> metadata, string key)
-    {
-        if (!metadata.TryGetValue(key, out var value))
-            return null;
-
-        if (value is JsonElement el)
-            return el.TryGetInt32(out var intVal) ? intVal : null;
-
-        if (value is int i)
-            return i;
-
-        if (value is string s && int.TryParse(s, out var parsed))
-            return parsed;
-
-        return null;
-    }
 }

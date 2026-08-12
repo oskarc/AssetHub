@@ -18,7 +18,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Share> Shares { get; set; } = null!;
     public DbSet<AuditEvent> AuditEvents { get; set; } = null!;
     public DbSet<ZipDownload> ZipDownloads { get; set; } = null!;
-    public DbSet<ExportPreset> ExportPresets { get; set; } = null!;
     public DbSet<Migration> Migrations { get; set; } = null!;
     public DbSet<MigrationItem> MigrationItems { get; set; } = null!;
     public DbSet<MetadataSchema> MetadataSchemas { get; set; } = null!;
@@ -48,7 +47,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new ShareConfiguration());
         modelBuilder.ApplyConfiguration(new AuditEventConfiguration());
         modelBuilder.ApplyConfiguration(new ZipDownloadConfiguration());
-        modelBuilder.ApplyConfiguration(new ExportPresetConfiguration());
         modelBuilder.ApplyConfiguration(new MigrationConfiguration());
         modelBuilder.ApplyConfiguration(new MigrationItemConfiguration());
         modelBuilder.ApplyConfiguration(new MetadataSchemaConfiguration());

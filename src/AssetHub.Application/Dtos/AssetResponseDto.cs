@@ -21,18 +21,6 @@ public class AssetResponseDto
     public string? CreatedByUserName { get; set; }
     public required DateTime UpdatedAt { get; set; }
 
-    /// <summary>The ID of the source asset this was derived from (via image editing).</summary>
-    public Guid? SourceAssetId { get; set; }
-
-    /// <summary>True when this asset has a stored edit document that can be re-opened.</summary>
-    public bool HasEditDocument { get; set; }
-
-    /// <summary>The stored edit document JSON (only populated in single-asset responses).</summary>
-    public string? EditDocument { get; set; }
-
-    /// <summary>Number of derivative assets created from this asset.</summary>
-    public int DerivativeCount { get; set; }
-
     /// <summary>
     /// Current version number on the asset (1 = no edits yet, n &gt; 1 means
     /// there are <c>n - 1</c> historical AssetVersion rows). Used by the UI

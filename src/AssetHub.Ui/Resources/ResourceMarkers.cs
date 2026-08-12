@@ -17,12 +17,10 @@ public class AssetsResource { }
 public class CollectionsResource { }
 public class AdminResource { }
 public class SharesResource { }
-public class ImageEditorResource { }
 public class AccountResource { }
 public class AuditAdminResource { }
 public class TaxonomiesAdminResource { }
 public class TrashAdminResource { }
-public class ExportPresetsAdminResource { }
 public class MetadataSchemasAdminResource { }
 public class MigrationsResource { }
 

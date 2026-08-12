@@ -72,23 +72,19 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Drag-and-drop upload with multi-collection organisation
 - Faceted search — Postgres `tsvector` full-text over title, description, tags, and searchable metadata values with live facet counts (asset type, collection, tags, status) and saved searches per user
 - Custom metadata schemas and taxonomies — admin-defined structured fields (text, numeric, date, select, taxonomy) scoped globally, per asset type, or per collection, with required-field and pattern validation
-- Canvas-based image editor (Fabric.js) — crop, rotate, flip, resize, draw, text overlays, and multi-layer composition with save-as-copy or replace-original
-- Export presets — admin-defined output formats, dimensions, quality, and fit modes applied automatically on save
-- Asset lineage tracking — derivatives link back to their parent/original asset
 - Bulk migration toolkit — import thousands of assets from external sources with progress tracking and resumability
 - Video poster extraction via ffmpeg with inline playback
 - Download collections or shared content as zip archives
 - Auto-generated thumbnails, previews, and video posters
-- On-the-fly image renditions — `GET /api/v1/assets/{id}/render?w=400&h=200&fit=cover&fmt=webp` returns a redirect to a cached MinIO rendition; first hit generates synchronously, subsequent hits serve from MinIO. Strict allowlist on dimensions / formats / fit modes prevents resize-DoS
 
 **Access Control & Sharing**
 - Per-collection RBAC — Viewer, Contributor, Manager, Admin (system admins bypass all ACLs)
 - Password-protected, time-limited share links
-- Admin dashboard with user management, share admin, export preset management, metadata schema and taxonomy management, bulk migrations, paginated audit log with filterable event types, and a Trash tab for restoring soft-deleted assets
+- Admin dashboard with user management, share admin, metadata schema and taxonomy management, bulk migrations, paginated audit log with filterable event types, and a Trash tab for restoring soft-deleted assets
 
 **Lifecycle**
 - Soft-delete with restore — deleted assets land in Trash with a configurable retention window (default 30 days), then a background worker purges them permanently. An optimistic-undo snackbar in the asset grid and detail page makes single-click recovery the norm
-- Asset versioning — replacing an asset's bytes via the image editor captures a snapshot of the prior state, with a per-version change note. Restoring a prior version is reversible (the current state is auto-snapshotted first); admins can prune individual versions to free storage
+- Asset versioning — replacing an asset's bytes via the replace-file API captures a snapshot of the prior state, with a per-version change note. Restoring a prior version is reversible (the current state is auto-snapshotted first); admins can prune individual versions to free storage
 
 **Notifications**
 - In-app notification bell with unread-count badge, a full `/notifications` page with All/Unread filter, and per-category preferences on `/account` (in-app on/off, email on/off, instant/daily/weekly cadence)
@@ -205,7 +201,7 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 | `AssetHub.Infrastructure` | EF Core, MinIO, SMTP, ClamAV, Keycloak implementations |
 | `AssetHub.Api` | Composition root — Minimal APIs, auth, DI wiring, Blazor host |
 | `AssetHub.Ui` | Blazor Server components and pages (Razor Class Library) |
-| `AssetHub.Worker` | Wolverine message consumer — media processing, export presets, migrations, cleanup jobs (separate container) |
+| `AssetHub.Worker` | Wolverine message consumer — media processing, migrations, cleanup jobs (separate container) |
 
 > Full architecture diagram, layer details, and resilience patterns in **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**.
 
@@ -311,8 +307,6 @@ cd tests/E2E && npx playwright test
 **Production-ready** — all core features implemented and tested. Builds with zero errors and zero warnings.
 
 **Recent additions:**
-- ~~In-browser image editor~~ ✓ — Fabric.js canvas editor with multi-layer support
-- ~~Export presets~~ ✓ — admin-managed format/dimension/quality presets
 - ~~Bulk migration toolkit~~ ✓ — import assets from external sources with progress tracking
 - ~~Forensic watermarking~~ ✓ — two-layer DCT-LSB attribution with admin verify page
 

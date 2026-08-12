@@ -64,8 +64,6 @@ try
             .ToRabbitQueue("process-audio");
         opts.PublishMessage<BuildZipCommand>()
             .ToRabbitQueue("build-zip");
-        opts.PublishMessage<ApplyExportPresetsCommand>()
-            .ToRabbitQueue("apply-export-presets");
         opts.PublishMessage<StartMigrationCommand>()
             .ToRabbitQueue("start-migration");
         opts.PublishMessage<ProcessMigrationItemCommand>()

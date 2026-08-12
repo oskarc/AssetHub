@@ -25,7 +25,8 @@ public class AssetVersion
     public string ContentType { get; set; } = string.Empty;
     public string Sha256 { get; set; } = string.Empty;
 
-    /// <summary>Snapshot of the Asset's EditDocument at the time the version was taken.</summary>
+    /// <summary>Historical image-editor document snapshot. The editor was removed 2026-08
+    /// (reshape C7); the column is retained for pre-existing version rows and is never written.</summary>
     public string? EditDocument { get; set; }
 
     /// <summary>

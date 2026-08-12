@@ -235,13 +235,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AssetUploadPipeline>();
         services.AddScoped<AssetServiceRepositories>();
         services.AddScoped<IAssetService, AssetService>();           // Commands: update, delete, collection membership
-        services.AddScoped<IAssetQueryService, AssetQueryService>(); // Queries: get, list, rendition URLs
+        services.AddScoped<IAssetQueryService, AssetQueryService>(); // Queries: get, list, download URLs
         services.AddScoped<IAssetUploadService, AssetUploadService>(); // Uploads: streaming and presigned
 
         // Image editing services
-        services.AddScoped<IExportPresetService, ExportPresetService>();
-        services.AddScoped<IExportPresetQueryService, ExportPresetQueryService>();
-        services.AddScoped<IImageEditingService, ImageEditingService>();
 
         // Metadata schemas and taxonomies
         services.AddScoped<IMetadataSchemaService, MetadataSchemaService>();
@@ -267,9 +264,6 @@ public static class ServiceCollectionExtensions
         // Review queue + decisions (T-REVIEW) — query side of the workflow
 
 
-        // On-the-fly renditions (T3-REND-01)
-        services.AddScoped<IRenditionImageResizer, ImageProcessingRenditionResizer>();
-        services.AddScoped<IRenditionService, RenditionService>();
 
         // Personal access tokens (T1-API-01)
         services.AddScoped<IPersonalAccessTokenService, PersonalAccessTokenService>();

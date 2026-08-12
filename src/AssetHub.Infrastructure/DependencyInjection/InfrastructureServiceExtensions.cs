@@ -137,7 +137,6 @@ public static class InfrastructureServiceExtensions
 
         services.Configure<ImageProcessingSettings>(configuration.GetSection(ImageProcessingSettings.SectionName));
         services.Configure<AssetLifecycleSettings>(configuration.GetSection(AssetLifecycleSettings.SectionName));
-        services.Configure<RenditionSettings>(configuration.GetSection(RenditionSettings.SectionName));
 
         // T5-WMK-01: HmacKeyBase64 is required, so validate at start to fail fast
         // if an operator forgot to set it (would otherwise blow up at first download).
@@ -178,7 +177,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAssetCollectionRepository, AssetCollectionRepository>();
         services.AddScoped<IShareRepository, ShareRepository>();
         services.AddScoped<IAuditEventRepository, AuditEventRepository>();
-        services.AddScoped<IExportPresetRepository, ExportPresetRepository>();
         services.AddScoped<IMigrationRepository, MigrationRepository>();
         services.AddScoped<IMetadataSchemaRepository, MetadataSchemaRepository>();
         services.AddScoped<ITaxonomyRepository, TaxonomyRepository>();

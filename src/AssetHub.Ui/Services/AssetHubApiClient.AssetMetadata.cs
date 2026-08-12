@@ -13,12 +13,6 @@ public sealed partial class AssetHubApiClient
         return Unwrap(result, "Get asset collections").ToList();
     }
 
-    public async Task<List<AssetDerivativeDto>> GetAssetDerivativesAsync(Guid assetId, CancellationToken ct = default)
-    {
-        var result = await assetQueryService.GetDerivativesAsync(assetId, ct);
-        return Unwrap(result, "Get asset derivatives");
-    }
-
     public async Task AddAssetToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default)
     {
         var result = await assetService.AddToCollectionAsync(assetId, collectionId, ct);

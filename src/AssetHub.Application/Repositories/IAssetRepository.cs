@@ -49,16 +49,6 @@ public interface IAssetRepository
     Task<Dictionary<Guid, string>> GetTitlesByIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns the number of derivative assets whose SourceAssetId matches the given ID.
-    /// </summary>
-    Task<int> CountDerivativesAsync(Guid sourceAssetId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Returns derivative assets whose SourceAssetId matches the given ID.
-    /// </summary>
-    Task<List<Asset>> GetDerivativesAsync(Guid sourceAssetId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Find an existing asset by SHA256 hash (for duplicate detection during migration).
     /// </summary>
     Task<Asset?> GetBySha256Async(string sha256, CancellationToken cancellationToken = default);

@@ -16,7 +16,6 @@
 @inject IDialogService DialogService
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<AssetsResource> AssetLoc
-@inject IStringLocalizer<ImageEditorResource> EditorLoc
 @inject IStringLocalizer<AdminResource> AdminLoc
 @inject IStringLocalizer<TrashAdminResource> TrashLoc
 @inject LocalizedDisplayService Display
@@ -293,9 +292,6 @@ else
                             </MudExpansionPanels>
                         }
 
-                        <DerivativesPanel Derivatives="_derivatives" />
-
-
                         <MudDivider />
 
                         <!-- Actions -->
@@ -351,31 +347,6 @@ else
                             </MudButton>
                             }
 
-                            @if (RolePermissions.CanEdit(_asset?.UserRole)
-                                 && _asset?.AssetType == Constants.AssetTypeFilters.Image
-                                 && _asset?.Status == Constants.AssetStatus.Ready)
-                            {
-                            <MudButton Variant="Variant.Outlined"
-                                       StartIcon="@Icons.Material.Filled.Tune"
-                                       FullWidth="true"
-                                       OnClick="@(() => Nav.NavigateTo($"/assets/{AssetId}/edit" + (ReturnUrl != null ? $"?returnUrl={Uri.EscapeDataString(ReturnUrl)}" : "")))">
-                                @EditorLoc["Btn_EditImage"]
-                            </MudButton>
-                            }
-
-                            @if (RolePermissions.CanEdit(_asset?.UserRole)
-                                 && _asset is { HasEditDocument: true }
-                                 && _asset.AssetType == Constants.AssetTypeFilters.Image
-                                 && _asset.Status == Constants.AssetStatus.Ready)
-                            {
-                            <MudButton Variant="Variant.Outlined"
-                                       StartIcon="@Icons.Material.Filled.History"
-                                       FullWidth="true"
-                                       OnClick="@(() => Nav.NavigateTo($"/assets/{AssetId}/edit?reedit=true" + (ReturnUrl != null ? $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}" : "")))">
-                                @EditorLoc["Btn_ReEdit"]
-                            </MudButton>
-                            }
-
                             @* Version history — contributor+. Greyed out when there's
                                nothing to show (CurrentVersionNumber == 1 means no
                                historical AssetVersion rows have been created yet). *@
@@ -419,8 +390,6 @@ else
 
     private AssetResponseDto? _asset;
     private List<AssetCollectionDto> _assetCollections = new();
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding to <DerivativesPanel Derivatives=\"_derivatives\" />.")]
-    private List<AssetDerivativeDto> _derivatives = new();
     private bool _isAdmin;
     private bool _isLoading = true;
     private bool _isPollingProcessing;
@@ -499,7 +468,6 @@ else
             if (asset is not null)
             {
                 await LoadAssetCollectionsAsync();
-                await LoadDerivativesAsync();
             }
         }
         else
@@ -561,21 +529,6 @@ else
         _assetCollections = ok && cols is not null ? cols : new();
     }
 
-    private async Task LoadDerivativesAsync()
-    {
-        try
-        {
-            _derivatives = await Api.GetAssetDerivativesAsync(AssetId, _cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Cancelled — ignore
-        }
-        catch
-        {
-            _derivatives = new();
-        }
-    }
 
     private async Task OpenAddToCollectionDialogAsync()
     {

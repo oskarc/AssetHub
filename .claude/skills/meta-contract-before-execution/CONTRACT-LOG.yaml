@@ -519,6 +519,95 @@ contracts:
       - i18n parity; DI no orphans; float hygiene under locks. (-> all)
       - Verified means: baseline clean + zero-new-warnings build + full pass + sweep
         clean + compose parses. (-> UC8)
-    status: approved
+    status: implemented
     revisions: []
     work_id: null
+
+  - contract_id: contract-008
+    feature: reshape-c7-renditions-editor-presets-cut
+    date_proposed: 2026-08-13
+    date_approved: 2026-08-13
+    tier_1: |
+      You are removing the image-manipulation layer: on-the-fly rendition URLs, the
+      in-browser image editor, and export presets. What remains is the clean core a
+      DAM needs: fixed thumbnails/medium/poster from processing, original downloads,
+      and version history you can view and restore. Nothing else changes — previews,
+      downloads, zips, shares behave exactly as today. Otherwise the repo keeps
+      ~5,800 lines plus a browser canvas stack for capabilities outside the five
+      features.
+    tier_2: |
+      1. Baseline roll-forward to 6e602f1, docker pre-check first.
+      2. Remove renditions: endpoints + registration, IRenditionService/
+         RenditionService, resizer seam (foreign-tenant-checked),
+         ImageProcessingRenditionResizer, RenditionSettings + Configure,
+         RenditionsOnDemand prefix. Edge: generated rendition objects stay in MinIO
+         (named remnant, operator note).
+      3. Remove the editor: page + css + models + 4 components + imageEditor.js,
+         IImageEditingService/ImageEditingService, ImageEditEndpoints + registration,
+         ImageEditDtos, ApplyEditAsync + ImageEditOptions in the facade, AssetDetail
+         editor button + EditorLoc inject, ImageEditorResource pair. Ruling:
+         ReplaceImageFileAsync/SaveImageCopyAsync are upload-service capabilities —
+         service methods/endpoints/DTOs stay; facade members stay only if a surviving
+         UI calls them (foreign-tenant check decides); if editor-only, members go and
+         version creation remains reachable via upload endpoints — accepted
+         consequence, catalog updated.
+      4. Remove export presets: entity/enums/config/repo/services, endpoints +
+         registration, admin page + tab (Content group survives until C9), two
+         preset dialogs (name-owned; Dialogs/Metadata folder stays),
+         ExportPresetsAdminResource pair, apply-export-presets queue pair + Worker
+         handler, ApplyExportPresetsCommand ONLY out of shared
+         MediaProcessingMessages.cs.
+      5. Data model: one migration dropping ExportPresets + Asset.EditDocument +
+         Asset.SourceAssetId (+ index); DTO fields SourceAssetId/HasEditDocument/
+         EditDocument/DerivativeCount + mapper legs removed. Edge: derived-asset
+         lineage lost (copies remain ordinary assets) — accepted, documented.
+         Discovery check; AddImageEditorV2 history untouched.
+      6. Tests: eight named classes deleted; editor/preset/rendition cases in shared
+         tests edited; 15-ui-features.spec.ts gets scenario EDITS (2 refs,
+         name-vs-content applied); no dedicated E2E spec exists.
+      7. Sweep (Rendition|ImageEdit|imageEditor|ExportPreset|EditDocument|
+         SourceAssetId|apply-export-presets); non-compiled assets read before
+         touching. Survivors: historical audit labels, migration history,
+         ImageProcessingSettings (fixed pipeline — stays).
+      8. Prose: T3-REND-01 memory -> HISTORICAL; catalog rows + Editing chip;
+         CLAUDE.md exemplar re-points; planned-features editor docs are archives
+         (reported, left). Commit per implementation-commit-and-push; approval
+         authorizes; no push.
+    tier_3: |
+      - Fixed-rendition pipeline untouchable: process-image thumbnails/medium/
+        poster, ImageProcessingSettings, MediaProcessing stay byte-for-byte; only
+        on-demand renditions leave. (-> UC2)
+      - Versioning stays whole: view/restore/prune untouched; every non-editor
+        creation pathway preserved; a lost UI minting surface is surfaced as a named
+        consequence, never silently. (-> UC3)
+      - Full excision discipline (foreign-tenant up front, build-as-authority,
+        census, name-vs-content on non-compiled assets, survivor taxonomy,
+        prose-in-same-change). (-> all)
+      - Migration per standards + discovery check; has-pending-model-changes clean.
+        (-> UC5)
+      - i18n parity; DI no orphans; float hygiene under locks. (-> all)
+      - Verified means: baseline clean + zero-new-warnings build + full pass +
+        sweep clean + compose parses. (-> UC7)
+    status: implemented
+    revisions: []
+    work_id: null
+    implemented: 2026-08-13
+    implementation_notes: >-
+      48 files deleted (45 surveyed + DerivativesPanel/SaveImageCopyDialog/
+      ResizeDialog discovered via ImageEditorResource injections), plus
+      wwwroot/lib/fabric and two planned-features design docs. Derivative
+      concept excised end-to-end with SourceAssetId. Named consequence held:
+      save-copy/replace-file survive as API-only version-minting path;
+      AssetVersion.EditDocument retained as never-written historical column.
+      Migration DropImageEditorAndExportPresets (FK + index + ExportPresets
+      table + 2 Asset columns), discovery check + has-pending-model-changes
+      clean after fresh build (stale --no-build state caught first). Census 80
+      distinct warning lines, identical to C6. Suite 1124 passed / 0 failed;
+      baseline 1211 minus exactly the 87 tests in the 8 deleted test classes.
+      Survivors labeled: rendition-as-size-vocabulary (same-word),
+      Event_exportpreset.* resx keys (historical-data labels), E2E editor
+      hits were role-chip regex false positives. CacheKeys preset entries
+      removed (dead registry). Prose: README/CLAUDE/STYLEGUIDE/USE-CASES/
+      ROADMAP/FOLLOW-UPS banners per precedent; /derivatives was [PublicApi]
+      so its removal is a SemVer-breaking change absorbed by the sanctioned
+      reshape wave.

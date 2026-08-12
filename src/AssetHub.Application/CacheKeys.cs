@@ -18,8 +18,6 @@ public static class CacheKeys
     private const string CollectionNamePrefix = "collection:name:";
     private const string CollectionCountPrefix = "collection:count:";
     private const string DashboardSummaryPrefix = "dashboard:summary:";
-    private const string ExportPresetPrefix = "export-preset:";
-    private const string ExportPresetsAllKey = "export-presets:all";
     private const string MetadataSchemaPrefix = "metadata-schema:";
     private const string MetadataSchemasAllKey = "metadata-schemas:all";
     private const string TaxonomyPrefix = "taxonomy:";
@@ -49,9 +47,6 @@ public static class CacheKeys
 
     /// <summary>Dashboard summary data. Invalidated on asset/collection changes.</summary>
     public static readonly TimeSpan DashboardSummaryTtl = TimeSpan.FromMinutes(2);
-
-    /// <summary>Export presets. Invalidated on preset create/update/delete.</summary>
-    public static readonly TimeSpan ExportPresetTtl = TimeSpan.FromMinutes(10);
 
     /// <summary>Metadata schemas. Invalidated on schema create/update/delete.</summary>
     public static readonly TimeSpan MetadataSchemaTtl = TimeSpan.FromMinutes(10);
@@ -112,13 +107,6 @@ public static class CacheKeys
     public static string DashboardSummary(string userId)
         => $"{DashboardSummaryPrefix}{userId}";
 
-    /// <summary>Cache key for a single export preset.</summary>
-    public static string ExportPreset(Guid id)
-        => $"{ExportPresetPrefix}{id}";
-
-    /// <summary>Cache key for the all export presets list.</summary>
-    public static string ExportPresetsAll() => ExportPresetsAllKey;
-
     /// <summary>Cache key for a single metadata schema.</summary>
     public static string MetadataSchema(Guid id)
         => $"{MetadataSchemaPrefix}{id}";
@@ -165,9 +153,6 @@ public static class CacheKeys
 
         /// <summary>Tag for all dashboard summary entries.</summary>
         public const string Dashboard = "dashboard";
-
-        /// <summary>Tag for all export preset entries.</summary>
-        public const string ExportPresets = "export-presets";
 
         /// <summary>Tag for all metadata schema entries.</summary>
         public const string MetadataSchemas = "metadata-schemas";

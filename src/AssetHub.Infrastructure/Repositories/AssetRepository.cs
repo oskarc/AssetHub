@@ -356,24 +356,6 @@ public sealed class AssetRepository(
             .ToDictionaryAsync(a => a.Id, a => a.Title, cancellationToken);
     }
 
-    public async Task<int> CountDerivativesAsync(Guid sourceAssetId, CancellationToken cancellationToken = default)
-    {
-        await using var lease = await provider.AcquireAsync(cancellationToken);
-        var dbContext = lease.Db;
-        return await dbContext.Assets
-            .CountAsync(a => a.SourceAssetId == sourceAssetId, cancellationToken);
-    }
-
-    public async Task<List<Asset>> GetDerivativesAsync(Guid sourceAssetId, CancellationToken cancellationToken = default)
-    {
-        await using var lease = await provider.AcquireAsync(cancellationToken);
-        var dbContext = lease.Db;
-        return await dbContext.Assets
-            .AsNoTracking()
-            .Where(a => a.SourceAssetId == sourceAssetId)
-            .OrderByDescending(a => a.CreatedAt)
-            .ToListAsync(cancellationToken);
-    }
 
     public async Task<Asset?> GetBySha256Async(string sha256, CancellationToken cancellationToken = default)
     {

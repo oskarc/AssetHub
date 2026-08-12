@@ -84,7 +84,6 @@ public static class Constants
         public const string Medium = "medium";
         public const string Posters = "posters";
         public const string TempZipDownloads = "zip-downloads";
-        public const string RenditionsOnDemand = "renditions/ondemand";
         public const string Peaks = "peaks";
     }
 

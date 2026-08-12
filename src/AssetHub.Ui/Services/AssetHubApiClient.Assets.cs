@@ -78,56 +78,8 @@ public sealed partial class AssetHubApiClient
         return Unwrap(result, "Confirm upload");
     }
 
-    public async Task<InitUploadResponse> SaveImageCopyAsync(
-        Guid sourceAssetId, string contentType, long fileSize, string? title = null, Guid? collectionId = null, CancellationToken ct = default)
-    {
-        var request = new SaveImageCopyRequest
-        {
-            ContentType = contentType,
-            FileSize = fileSize,
-            Title = title,
-            CollectionId = collectionId
-        };
-        Validate(request, "Save image copy");
-        var result = await assetUploadService.SaveImageCopyAsync(sourceAssetId, request, ct);
-        return Unwrap(result, "Save image copy");
-    }
 
-    public async Task<InitUploadResponse> ReplaceImageFileAsync(
-        Guid assetId, string contentType, long fileSize, CancellationToken ct = default)
-    {
-        var request = new ReplaceImageFileRequest
-        {
-            ContentType = contentType,
-            FileSize = fileSize
-        };
-        Validate(request, "Replace image file");
-        var result = await assetUploadService.ReplaceImageFileAsync(assetId, request, ct);
-        return Unwrap(result, "Replace image file");
-    }
 
-    public async Task<ImageEditResultDto> ApplyEditAsync(
-        Guid assetId, Stream renderedPng, string fileName, ImageEditSaveMode saveMode,
-        ImageEditOptions? options = null, CancellationToken ct = default)
-    {
-        options ??= new ImageEditOptions();
-
-        var dto = new ImageEditRequestDto
-        {
-            SaveMode = saveMode,
-            PresetIds = options.PresetIds,
-            Title = options.Title,
-            EditDocument = options.EditDocument,
-            DestinationCollectionId = options.DestinationCollectionId
-        };
-        Validate(dto, "Apply image edit");
-
-        long fileSize = -1;
-        try { if (renderedPng.CanSeek) fileSize = renderedPng.Length; } catch { /* not seekable */ }
-
-        var result = await imageEditingService.ApplyEditAsync(assetId, dto, renderedPng, fileName, fileSize, ct);
-        return Unwrap(result, "Apply image edit");
-    }
 
     public async Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, CancellationToken ct = default)
     {

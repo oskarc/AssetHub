@@ -48,12 +48,11 @@ public static class AssetEndpoints
         group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).MarkAsPublicMutation(write).WithName("RemoveAssetFromCollection");
         // deletion-context is a UI-oriented helper (pre-delete impact preview) — kept internal.
         group.MapGet("{id:guid}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
-        group.MapGet("{id:guid}/derivatives", GetDerivatives).MarkAsPublicRead(read).WithName("GetDerivatives");
 
         group.MapPost("init-upload", InitUpload).AddEndpointFilter<ValidationFilter<InitUploadRequest>>().MarkAsPublicMutation(write).WithName("InitUpload");
         group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).MarkAsPublicMutation(write).WithName("ConfirmUpload");
 
-        // Image-editor save paths — UI-specific, stay internal.
+        // Copy/replace save paths — internal; replace-file is the sole version-minting path (T1-VER-01).
         group.MapPost("{id:guid}/save-copy", SaveImageCopy).AddEndpointFilter<ValidationFilter<SaveImageCopyRequest>>().DisableAntiforgery().WithName("SaveImageCopy");
         group.MapPost("{id:guid}/replace-file", ReplaceImageFile).AddEndpointFilter<ValidationFilter<ReplaceImageFileRequest>>().DisableAntiforgery().WithName("ReplaceImageFile");
 
@@ -97,13 +96,6 @@ public static class AssetEndpoints
         Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
     {
         var result = await svc.GetDeletionContextAsync(id, ct);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> GetDerivatives(
-        Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
-    {
-        var result = await svc.GetDerivativesAsync(id, ct);
         return result.ToHttpResult();
     }
 

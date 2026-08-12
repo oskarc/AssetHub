@@ -58,31 +58,13 @@ public class Asset
 
     /// <summary>
     /// Current version number. Starts at 1; bumps each time a new AssetVersion is captured
-    /// (e.g., the image-editor Replace flow). The Asset row always holds the current state;
+    /// (e.g., the replace-file flow). The Asset row always holds the current state;
     /// historical versions live in AssetVersions.
     /// </summary>
     public int CurrentVersionNumber { get; set; } = 1;
 
     /// <summary>Historical versions captured before each Replace. Ordered by VersionNumber.</summary>
     public ICollection<AssetVersion> Versions { get; set; } = new List<AssetVersion>();
-
-    /// <summary>
-    /// References the source asset this was derived from (via image editing / export presets).
-    /// Null for original assets.
-    /// </summary>
-    public Guid? SourceAssetId { get; set; }
-    public Asset? SourceAsset { get; set; }
-
-    /// <summary>
-    /// Assets derived from this one (edited copies, preset exports).
-    /// </summary>
-    public ICollection<Asset> Derivatives { get; set; } = new List<Asset>();
-
-    /// <summary>
-    /// Persisted edit document (fabric.js layer JSON) for re-opening edits.
-    /// Stored as JSONB. Versioned: {"v":1,"layers":[...],"canvas":{...}}
-    /// </summary>
-    public string? EditDocument { get; set; }
 
     /// <summary>
     /// All collections this asset belongs to. All collections are equal - no hierarchy.

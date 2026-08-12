@@ -213,7 +213,6 @@
   <data name="NoMatchingAuditEventsDesc" xml:space="preserve"><value>Try adjusting your search or filter criteria.</value></data>
 
   <!-- Export Presets -->
-  <data name="Tab_ExportPresets" xml:space="preserve"><value>Export Presets</value></data>
 
   <!-- Audit Events: Export Presets & Image Editing -->
 

@@ -180,37 +180,6 @@ public sealed partial class AssetHubApiClient
         return Unwrap(result, "Get audit events paginated");
     }
 
-    public async Task<List<ExportPresetDto>> GetExportPresetsAsync(CancellationToken ct = default)
-    {
-        var result = await exportPresetQueryService.GetAllAsync(ct);
-        return Unwrap(result, "Get export presets");
-    }
-
-    public async Task<ExportPresetDto?> GetExportPresetAsync(Guid id, CancellationToken ct = default)
-    {
-        var result = await exportPresetQueryService.GetByIdAsync(id, ct);
-        return UnwrapOrNullOn(result, "Get export preset", 404);
-    }
-
-    public async Task<ExportPresetDto> CreateExportPresetAsync(CreateExportPresetDto dto, CancellationToken ct = default)
-    {
-        Validate(dto, "Create export preset");
-        var result = await exportPresetService.CreateAsync(dto, ct);
-        return Unwrap(result, "Create export preset");
-    }
-
-    public async Task UpdateExportPresetAsync(Guid id, UpdateExportPresetDto dto, CancellationToken ct = default)
-    {
-        Validate(dto, "Update export preset");
-        var result = await exportPresetService.UpdateAsync(id, dto, ct);
-        EnsureSuccess(new ServiceResult { Error = result.Error }, "Update export preset");
-    }
-
-    public async Task DeleteExportPresetAsync(Guid id, CancellationToken ct = default)
-    {
-        var result = await exportPresetService.DeleteAsync(id, ct);
-        EnsureSuccess(result, "Delete export preset");
-    }
 
     public async Task<TrashListResponse> GetTrashAsync(int skip = 0, int take = 50, CancellationToken ct = default)
     {

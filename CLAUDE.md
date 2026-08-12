@@ -358,7 +358,6 @@ src/AssetHub.Ui/Resources/
   AssetsResource.resx / .sv.resx
   CollectionsResource.resx / .sv.resx
   AdminResource.resx / .sv.resx
-  ImageEditorResource.resx / .sv.resx
   ...
 ```
 
@@ -518,7 +517,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - Destructive mutations go through `ConfirmDialog`. Bulk permanent delete gets a second confirm with an explicit count.
 - Long-running actions (upload, save, zip build, media processing) surface progress — never a frozen button.
 - Edit dialogs with non-trivial input track dirty state and warn before discarding (`OnLocationChanging` on full pages, dialog guard on dialogs).
-- Every icon-only button has `MudTooltip`; ImageEditor tool tooltips include keyboard shortcuts.
+- Every icon-only button has `MudTooltip`.
 - `EmptyState` components include an action CTA, not just a headline.
 - User-visible error text is localized and action-oriented — never raw `ServiceError.Message`.
 - Button naming: **Delete** = permanent, **Remove** = unlink from parent, **Discard** = cancel changes. Stay consistent.

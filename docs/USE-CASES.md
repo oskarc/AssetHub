@@ -123,18 +123,10 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-VIEW-02 | Preview media inline (image/video/audio/doc) | V+ | `MediaPreview`, `…/preview` | ✅ |
 | UC-VIEW-03 | Download the original | V+ | `…/download` | ✅ |
 | UC-VIEW-04 | Get thumbnail / medium / poster renditions | V+ | `…/thumb` `…/medium` `…/poster` | ✅ |
-| UC-VIEW-05 | Request on-the-fly rendition (w/h/fit/fmt) | V+/API | `GET …/render` | 🟡 auth-only; signed-URL embedding + async-202 (>50MP) deferred |
-| UC-VIEW-06 | See an asset's derivatives | V+ | `DerivativesPanel`, `…/derivatives` | ✅ |
 | UC-VIEW-07 | See which collections an asset belongs to | V+ | `…/collections` | ✅ |
 
 ### I. Editing & export presets
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-EDIT-01 | Edit an image (crop/resize/rotate/filter/watermark) | C+ | `/assets/{id}/edit` | ✅ |
-| UC-EDIT-02 | Save the edit as a new copy (lineage) | C+ | `SaveImageCopyDialog`, `…/save-copy` | 🟡 versioning interpretation of save-copy deferred |
-| UC-EDIT-03 | Replace the original with the edited file | C+ | `…/replace-file` | ✅ |
-| UC-EDIT-04 | Apply export presets to generate derivatives | C+/A | `ApplyExportPresetsHandler` | ✅ |
-| UC-EDIT-05 | Manage export presets | A | `/admin/export-presets` | ✅ |
+Removed 2026-08 by the reshape (contract-008) — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag. The internal `…/save-copy` and `…/replace-file` endpoints survive as the API-only copy and version-minting path (no UI surface; § J versioning still applies).
 
 ### J. Versioning
 | ID | Use case | Persona | Surface | Status |

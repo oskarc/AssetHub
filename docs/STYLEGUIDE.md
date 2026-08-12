@@ -135,7 +135,6 @@ Material Icons via `Icons.Material.Filled.*` (default), `Icons.Material.Outlined
 | Audit / history | `History` |
 | User (account) | `AccountCircle` |
 | User management | `ManageAccounts` |
-| Export preset | `Tune` |
 | Password | `Lock` / `Visibility` / `VisibilityOff` |
 | Menu toggle | `Menu` |
 | Light/dark | `LightMode` / `DarkMode` |
@@ -345,19 +344,6 @@ Canonical: [AssetUpload.razor](../src/AssetHub.Ui/Components/AssetUpload.razor).
 - Always include drag-and-drop handlers with `@ondragover:preventDefault` + `@ondrop:preventDefault`.
 - After upload, render an `.upload-report` `MudPaper` with total / succeeded / failed counts and a per-file list (icon + name + size + optional error).
 
-### 3.17 Image Editor (scoped styles)
-
-The image editor uses a scoped stylesheet ([ImageEditor.razor.css](../src/AssetHub.Ui/Pages/ImageEditor.razor.css)) — the **only** place where CSS grid/flex layout is used at page scale. Tokens:
-
-- `.editor-page` — fixed position under app bar, takes remaining viewport height.
-- `.editor-layer-panel` — 240px left panel, collapses below 900px.
-- `.editor-inspector-panel` — 260px right panel, collapses below 900px.
-- `.editor-canvas-area` — 1fr center with `background: var(--mud-palette-background)`.
-
-Do not copy this pattern for non-editor pages.
-
----
-
 ## 4. Theming
 
 ### 4.1 Theme service
@@ -391,7 +377,6 @@ Located in [src/AssetHub.Ui/Resources/](../src/AssetHub.Ui/Resources/):
 | `AssetsResource` | Asset list + detail |
 | `CollectionsResource` | Collection browser + forms |
 | `AdminResource` | Admin tabs and dialogs |
-| `ImageEditorResource` | Image editor toolbar and inspector |
 | `SharesResource` | Share dialogs and share landing pages |
 
 ### 5.2 Key naming
@@ -473,10 +458,9 @@ Defined in [app.css](../src/AssetHub.Api/wwwroot/css/app.css). Prefer MudBlazor 
 |---|---|---|---|
 | `/` | [Home.razor](../src/AssetHub.Ui/Pages/Home.razor) | `[Authorize]` | Dashboard: welcome, stats (admin), recent assets, quick-access collections, shares + activity sidebar (manager+) |
 | `/collections`, `/assets` | [Assets.razor](../src/AssetHub.Ui/Pages/Assets.razor) | `[Authorize]` | Collection browser + asset grid/list. Collection selected via `?collection=<guid>` |
-| `/assets/{id}` | [AssetDetail.razor](../src/AssetHub.Ui/Pages/AssetDetail.razor) | `[Authorize]` | Single-asset viewer: media preview, metadata, derivatives, actions |
+| `/assets/{id}` | [AssetDetail.razor](../src/AssetHub.Ui/Pages/AssetDetail.razor) | `[Authorize]` | Single-asset viewer: media preview, metadata, actions |
 | `/all-assets` | [AllAssets.razor](../src/AssetHub.Ui/Pages/AllAssets.razor) | `RequireAdmin` | Flat admin view of every asset |
-| `/admin` | [Admin.razor](../src/AssetHub.Ui/Pages/Admin.razor) | `RequireAdmin` | Tabs: Shares, Collection Access, Users, Export Presets, Audit. Tab index in `?tab=N` |
-| `/image-editor/{id}` | [ImageEditor.razor](../src/AssetHub.Ui/Pages/ImageEditor.razor) | `[Authorize]` | Crop, rotate, resize, layer, save-as-copy |
+| `/admin` | [Admin.razor](../src/AssetHub.Ui/Pages/Admin.razor) | `RequireAdmin` | Tabs: Shares, Collection Access, Users, Audit. Tab index in `?tab=N` |
 | `/share/{token}` | [Share.razor](../src/AssetHub.Ui/Pages/Share.razor) | `AllowAnonymous` (uses ShareLayout) | Public share landing |
 | `/login` | [Login.razor](../src/AssetHub.Ui/Pages/Login.razor) | `AllowAnonymous` | OIDC redirect entrypoint |
 | `/error` | [Error.razor](../src/AssetHub.Ui/Pages/Error.razor) | `AllowAnonymous` | Global error surface |
@@ -488,7 +472,7 @@ Defined in [app.css](../src/AssetHub.Api/wwwroot/css/app.css). Prefer MudBlazor 
 | Viewer | 1 | Read assets/collections they have ACL on |
 | Contributor | 2 | + Upload, share, edit metadata, manage collection membership |
 | Manager | 3 | + Delete assets, edit collection properties, manage ACLs |
-| Admin | 4 | + Platform admin: users, audit, export presets, all assets |
+| Admin | 4 | + Platform admin: users, audit, all assets |
 
 - Check role via `RoleHierarchy` predicates (`CanUpload`, `CanDelete`, `HasSufficientLevel`) or `RolePermissions` (UI wrapper). **Never hardcode role strings or integer levels**.
 - Per-collection permissions come from `CollectionAcl` via `ICollectionAuthorizationService` — check collection access before entity access.
@@ -524,8 +508,7 @@ Tab index is stored in the `?tab=N` query string and restored on navigation.
 | 0 | Share Management | `AdminSharesTab` |
 | 1 | Collection Access | `AdminCollectionAccessTab` |
 | 2 | User Management | `AdminUsersTab` |
-| 3 | Export Presets | `AdminExportPresetsTab` |
-| 4 | Audit Log | `AdminAuditTab` |
+| 3 | Audit Log | `AdminAuditTab` |
 
 Each tab is self-loading — do not load admin data in `Admin.razor` itself.
 
@@ -535,8 +518,7 @@ Vertical stack:
 1. Back breadcrumb.
 2. `MediaPreview` (image/video/pdf iframe — max-height 600px).
 3. Metadata panel (title, type chip, size, created, collection, tags).
-4. `DerivativesPanel` (thumb/medium/original download links).
-5. Actions (share, edit, download, delete, open in editor for images).
+4. Actions (share, edit, download, delete).
 
 ---
 
@@ -571,7 +553,6 @@ Vertical stack:
 - Drawer: `Breakpoint.Md` — becomes temporary below md.
 - Asset grid: `xs=12 sm=6 md=4 lg=3 xl=2`.
 - Dashboard sidebar: collapses under md (main content becomes `xs=12`).
-- Image editor panels: hidden below 900px via media query.
 - Always verify new layouts at 375px (mobile), 768px (tablet), 1440px (desktop).
 
 ---
@@ -598,5 +579,4 @@ Vertical stack:
 - ❌ Create a new layout — extend `MainLayout` or `ShareLayout`.
 - ❌ Cache authorization data globally.
 - ❌ Throw exceptions from services for business errors — return `ServiceResult`.
-- ❌ Copy the image-editor scoped CSS pattern for other pages without design review.
 - ❌ Add a utility class used in only one place — inline it.

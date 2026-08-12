@@ -7,15 +7,6 @@ using AssetHub.Application.Services;
 namespace AssetHub.Ui.Services;
 
 /// <summary>
-/// Optional parameters for <see cref="IAssetHubApiClient.ApplyEditAsync"/>.
-/// </summary>
-public sealed record ImageEditOptions(
-    string? Title = null,
-    string? EditDocument = null,
-    Guid? DestinationCollectionId = null,
-    Guid[]? PresetIds = null);
-
-/// <summary>
 /// In-process facade surface consumed by the Blazor UI. Implemented by
 /// <see cref="AssetHubApiClient"/>; mocked directly in component tests.
 /// Methods return DTOs and throw <see cref="ApiException"/> on failure
@@ -45,9 +36,6 @@ public interface IAssetHubApiClient
     Task<AssetUploadResult> UploadAssetAsync( Guid collectionId, string title, Stream fileStream, string fileName, string contentType, CancellationToken ct = default);
     Task<InitUploadResponse> InitUploadAsync( Guid? collectionId, string fileName, string contentType, long fileSize, string? title = null, CancellationToken ct = default);
     Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, bool force = false, CancellationToken ct = default);
-    Task<InitUploadResponse> SaveImageCopyAsync( Guid sourceAssetId, string contentType, long fileSize, string? title = null, Guid? collectionId = null, CancellationToken ct = default);
-    Task<InitUploadResponse> ReplaceImageFileAsync( Guid assetId, string contentType, long fileSize, CancellationToken ct = default);
-    Task<ImageEditResultDto> ApplyEditAsync( Guid assetId, Stream renderedPng, string fileName, ImageEditSaveMode saveMode, ImageEditOptions? options = null, CancellationToken ct = default);
     Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, CancellationToken ct = default);
     Task<BulkDeleteAssetsResponse> BulkDeleteAssetsAsync( List<Guid> assetIds, Guid? fromCollectionId = null, CancellationToken ct = default);
     Task<AssetDeletionContextDto> GetAssetDeletionContextAsync(Guid id, CancellationToken ct = default);
@@ -79,11 +67,6 @@ public interface IAssetHubApiClient
     Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default);
     Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default);
     Task<AuditQueryResponse> GetAuditEventsPaginatedAsync( int pageSize = 50, DateTime? cursor = null, string? eventType = null, string? targetType = null, string? actorUserId = null, CancellationToken ct = default);
-    Task<List<ExportPresetDto>> GetExportPresetsAsync(CancellationToken ct = default);
-    Task<ExportPresetDto?> GetExportPresetAsync(Guid id, CancellationToken ct = default);
-    Task<ExportPresetDto> CreateExportPresetAsync(CreateExportPresetDto dto, CancellationToken ct = default);
-    Task UpdateExportPresetAsync(Guid id, UpdateExportPresetDto dto, CancellationToken ct = default);
-    Task DeleteExportPresetAsync(Guid id, CancellationToken ct = default);
     Task<List<PersonalAccessTokenDto>> GetMyPersonalAccessTokensAsync(CancellationToken ct = default);
     Task<CreatedPersonalAccessTokenDto> CreatePersonalAccessTokenAsync( CreatePersonalAccessTokenRequest request, CancellationToken ct = default);
     Task RevokePersonalAccessTokenAsync(Guid id, CancellationToken ct = default);
@@ -103,7 +86,6 @@ public interface IAssetHubApiClient
     Task UnstageMigrationItemAsync(Guid migrationId, Guid itemId, CancellationToken ct = default);
     Task<int> BulkDeleteMigrationsAsync(string filter, CancellationToken ct = default);
     Task<List<AssetCollectionDto>> GetAssetCollectionsAsync(Guid assetId, CancellationToken ct = default);
-    Task<List<AssetDerivativeDto>> GetAssetDerivativesAsync(Guid assetId, CancellationToken ct = default);
     Task AddAssetToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default);
     Task RemoveAssetFromCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default);
     Task<List<MetadataSchemaDto>> GetMetadataSchemasAsync(CancellationToken ct = default);

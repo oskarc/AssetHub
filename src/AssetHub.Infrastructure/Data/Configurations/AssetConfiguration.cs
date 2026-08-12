@@ -52,15 +52,6 @@ public sealed class AssetConfiguration : IEntityTypeConfiguration<Asset>
             .HasColumnType(ModelConventions.Jsonb)
             .Metadata.SetValueComparer(ModelConventions.JsonbDictionaryComparer);
 
-        // Source asset self-FK for derivative lineage
-        entity.HasIndex(e => e.SourceAssetId).HasDatabaseName("idx_assets_source_asset_id");
-        entity.HasOne(e => e.SourceAsset)
-            .WithMany(e => e.Derivatives)
-            .HasForeignKey(e => e.SourceAssetId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        entity.Property(e => e.EditDocument).HasColumnType(ModelConventions.Jsonb);
-
         // Shadow SearchVector: tsvector column maintained by Postgres triggers (see migration
         // AddAssetSearchAndSavedSearch). Query via EF.Property<NpgsqlTsVector>(asset, "SearchVector").
         entity.Property<NpgsqlTsVector?>("SearchVector")

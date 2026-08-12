@@ -86,6 +86,8 @@ main thumbnail.
 
 ### T1-VER-01 — SaveImageCopy versioning interpretation
 
+> **Scope shrunk 2026-08** — the image editor UI was removed by the reshape (contract-008); `save-copy` survives only as an internal API endpoint, so this interpretation question now applies to API callers alone.
+
 **Deferred from**: `a4fe14e` (T1-VER-01 phase 2-3)
 **Why deferred**: The roadmap line "Replace + image-save-copy create a new
 version" was interpreted as Replace only, because save-copy already creates a
@@ -439,6 +441,8 @@ caller, expires after the embedded TTL, and burns through resize work
 proportional to the rate-limit budget — not unbounded.
 
 ### T3-REND-01 — async rendition generation for very large originals
+
+> **Obsolete 2026-08** — on-the-fly renditions were removed by the reshape (contract-008).
 
 **Deferred from**: T3-REND-01 phase (2026-04-25)
 **Why deferred**: v1 generates synchronously on cache miss. For 100+

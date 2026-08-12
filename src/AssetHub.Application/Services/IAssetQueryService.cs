@@ -54,10 +54,4 @@ public interface IAssetQueryService
     /// </summary>
     Task<ServiceResult<string>> ResolveRenditionDownloadAsync(
         Guid id, string size, bool forceDownload, Guid? shareId, CancellationToken ct);
-
-    /// <summary>
-    /// Get derivative assets created from a source asset via image editing.
-    /// </summary>
-    Task<ServiceResult<List<AssetDerivativeDto>>> GetDerivativesAsync(
-        Guid id, CancellationToken ct);
 }
