@@ -261,7 +261,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAssetVersionService, AssetVersionService>();
 
         // Asset comments (T3-COL-01)
-        services.AddScoped<IAssetCommentService, AssetCommentService>();
 
         // Asset workflow (T3-WF-01)
         services.AddScoped<IAssetWorkflowService, AssetWorkflowService>();

@@ -41,4 +41,14 @@ public sealed partial class AssetHubApiClient
         var result = await assetWorkflowService.UnpublishAsync(assetId, new WorkflowActionDto { Reason = reason }, ct);
         return Unwrap(result, "unpublish asset workflow");
     }
+
+    /// <summary>
+    /// Resolve display names for a set of user ids. Used by the workflow
+    /// panel's transition history to avoid rendering raw identity-provider subs.
+    /// </summary>
+    public async Task<Dictionary<string, string>> GetUserNamesAsync(
+        IEnumerable<string> userIds, CancellationToken ct = default)
+    {
+        return await userLookupService.GetUserNamesAsync(userIds, ct);
+    }
 }

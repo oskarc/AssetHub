@@ -387,3 +387,74 @@ contracts:
     status: learned
     revisions: []
     work_id: work-005
+
+  - contract_id: contract-006
+    feature: reshape-c5-comments-notifications-cut
+    date_proposed: 2026-08-11
+    date_approved: 2026-08-11
+    tier_1: |
+      You are removing the collaboration-and-notify layer. Commenting on assets with
+      @-mentions, the notification bell and its page, per-category preferences, instant
+      emails, digest emails, unsubscribe links — all of it exists to tell people about
+      activity, which sits outside the five things this product is. When it's gone, the
+      product is quieter but otherwise identical: uploading, organizing, finding,
+      controlling access, and sharing all work exactly as today — and share links still
+      arrive by email, because sending mail is plumbing this product keeps (the future
+      built-in login's password reset will need it). If this doesn't happen, the repo
+      carries ~8,700 lines of feeds, preferences, and delivery machinery for
+      conversations the product no longer hosts.
+    tier_2: |
+      1. Baseline roll-forward to 32c7588 with the docker-info gate pre-check.
+      2. Remove comments wholesale (bounded-module): entity/config/repo/service +
+         interfaces, endpoints, DTOs, MentionParser, three AssetComment* components,
+         facade partial + members, CommentsResource pair, AssetCommentsPanel host line
+         in AssetDetail.razor.
+      3. Remove notifications wholesale: Notification + NotificationPreferences
+         entities/configs/repos/services, unsubscribe token service + DP protector
+         constant, endpoints (incl. anonymous unsubscribe), DTOs/messages, the entire
+         NotificationConstants file, NotificationBell (MainLayout host), notifications
+         page, preferences panel (Account host), facade partial + members,
+         NotificationsResource pair, NotificationEmailTemplate.
+      4. Remove delivery machinery: send-notification-email publish/listen pair,
+         SendNotificationEmailHandler, SavedSearchDigestBackgroundService +
+         registration. Edge: Worker IEmailService registration removed ONLY if the
+         build confirms no remaining Worker-side consumer.
+      5. Cross-cutting detachments (five-part checklist, untouched-tests bar):
+         AssetWorkflowService.NotifyAuthorAsync leg (workflow intact until C6); any
+         migration-completion notification path the build surfaces.
+      6. UI truth: save-search dialog notify option removed; SavedSearch.Notify column
+         stays as a named inert remnant until C11.
+      7. Data model: one migration dropping Notifications, NotificationPreferences,
+         AssetComments (Adds Designer-verified -> plain drops; discovery check per the
+         new standard; data loss documented).
+      8. Tests: ten named classes deleted; notification/mention mocks in shared tests
+         edited out; no E2E spec expected (sweep confirms).
+      9. Sweep with targeted terms (AssetComment|INotification|NotificationBell|
+         MentionParser|SavedSearchDigest|unsubscribe|send-notification-email|
+         NotificationConstants) — not bare comment/notification. Survivors expected:
+         historical comment/mention audit labels, migration history.
+      10. Standard prose in the same change: T3-COL-01 + T3-NTF-01 memories ->
+          HISTORICAL; USE-CASES sections + chips; CLAUDE.md corrections (UoW
+          mention-fan-out example, hosting-split digests mention, Quality Guardrails
+          AssetCommentsPanel exemplar re-pointed). Commit per
+          implementation-commit-and-push; approval authorizes the commit; no push.
+    tier_3: |
+      - Email-infrastructure boundary is hard: IEmailService, SmtpEmailService,
+        EmailSettings, EmailTemplateBase, ShareCreatedEmailTemplate,
+        WelcomeEmailTemplate, and share-email flows stay byte-for-byte untouched.
+        (-> UC3, UC4)
+      - Surviving features keep exact behavior: workflow (until C6), saved searches
+        (until C11), migrations (until C8) — tests green untouched except removed
+        notification mocks; behavioral test changes are stop-and-surface. (-> UC5, UC6)
+      - Full pattern-feature-excision discipline: build-as-authority, warning census,
+        emptied-namespace check on Components/Notifications/, survivor taxonomy,
+        prose-in-same-change. (-> UC2, UC3, UC9, UC10)
+      - Migration per ef-config-migration (+ discovery check) and migration-check
+        audit; has-pending-model-changes clean. (-> UC7)
+      - i18n parity; DI no orphans in either root; float hygiene (locks in place; any
+        fresh-restore failure is still a mid-run stop). (-> all)
+      - Verified means: baseline clean + zero-new-warnings non-incremental build +
+        full test pass + sweep clean + compose parses. (-> UC9)
+    status: approved
+    revisions: []
+    work_id: null

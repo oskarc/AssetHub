@@ -341,8 +341,6 @@ public static class WebApplicationExtensions
         app.MapAdminTrashEndpoints();
         app.MapAssetVersionEndpoints();
         app.MapPersonalAccessTokenEndpoints();
-        app.MapNotificationEndpoints();
-        app.MapAssetCommentEndpoints();
         app.MapAssetWorkflowEndpoints();
         app.MapRenditionEndpoints();
 

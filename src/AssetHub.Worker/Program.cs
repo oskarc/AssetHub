@@ -51,7 +51,6 @@ static class Program
                 opts.ListenToRabbitQueue("start-migration");
                 opts.ListenToRabbitQueue("process-migration-item");
                 opts.ListenToRabbitQueue("s3-migration-scan");
-                opts.ListenToRabbitQueue("send-notification-email");
 
                 // Route events back to API
                 opts.PublishMessage<AssetProcessingCompletedEvent>()
@@ -87,19 +86,8 @@ static class Program
                 services.AddScoped<IAuditRetentionSweeper, AuditRetentionSweeper>();
 
                 // CurrentUser is HTTP-scoped in the API. In the Worker there is no
-                // HttpContext, so we register an always-anonymous instance per
-                // scope. Services that take CurrentUser (NotificationService,
-                // NotificationPreferencesService, etc.) call it with an explicit
-                // userId for write paths; for read-current-user paths the worker
-                // does not call them.
+                // HttpContext, so we register an always-anonymous instance per scope.
                 services.AddScoped<CurrentUser>(_ => CurrentUser.Anonymous);
-
-                // Email + Keycloak directory lookups for notification fan-out.
-                // These were API-only before phase 3; moving the interfaces to
-                // the Worker lets SendNotificationEmailHandler and the digest
-                // worker reach SMTP + Keycloak without going through the API.
-                services.AddScoped<IUserLookupService, UserLookupService>();
-                services.AddScoped<IEmailService, SmtpEmailService>();
 
                 // Bind settings the worker-side services need
                 services.AddOptions<AppSettings>()
@@ -128,7 +116,6 @@ static class Program
                 services.AddHostedService<OrphanedSharesCleanupService>();
                 services.AddHostedService<AuditRetentionService>();
                 services.AddHostedService<TrashPurgeBackgroundService>();
-                services.AddHostedService<SavedSearchDigestBackgroundService>();
                 services.AddHostedService<OrphanedObjectsSweeperService>();
                 services.AddHostedService<OutboxDrainService>();
             })

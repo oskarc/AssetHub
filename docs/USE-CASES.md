@@ -18,16 +18,16 @@ plus two non-account principals and the system itself.
 | Code | Persona | Notes |
 |------|---------|-------|
 | **ANON** | Anonymous share visitor | Reaches `/share/{token}`, no account |
-| **V** | Viewer (L1) | Read + download within ACL; comment if enabled |
+| **V** | Viewer (L1) | Read + download within ACL |
 | **C** | Contributor (L2) | + upload, edit metadata, share, submit for review |
 | **M** | Manager (L3) | + delete, edit collections, manage per-collection ACL, approve/publish |
 | **A** | Admin (L4) | + platform governance; bypasses all ACL checks |
 | **API** | PAT / integration | Bearer `pat_*`; scope-constrained; cannot mint PATs |
-| **SYS** | Background worker | Not a user, but produces user-visible outcomes (processing, sweeps, digests) |
+| **SYS** | Background worker | Not a user, but produces user-visible outcomes (processing, sweeps) |
 
 ### Dimension B — Domain area (WHAT)
 Auth · Ingestion · Processing · Organization · Metadata · Discovery · View/Deliver · Editing ·
-Versioning · Lifecycle · Collaboration · Notifications · Workflow/Review · Sharing ·
+Versioning · Lifecycle · Workflow/Review · Sharing ·
 Administration · Public API · Migration.
 
 ### Dimension C — Journey stage (WHEN)
@@ -115,7 +115,6 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-DISC-01 | Faceted full-text search (type/status/date/metadata/tags) | V+ | `/search`, `POST /assets/search` | ✅ |
 | UC-DISC-02 | Save a search with a name | V+ | `SaveSearchDialog` | ✅ |
 | UC-DISC-03 | Re-run / load a saved search | V+ | `SavedSearchesMenu` | ✅ |
-| UC-DISC-04 | Get notified of new matches to a saved search | V+ | digest worker | 🟡 delivery shipped; batching + localisation deferred |
 | UC-DISC-05 | Search results scoped to my ACL | V+ | `IAssetSearchService` | ✅ |
 
 ### H. View, deliver & render
@@ -158,24 +157,10 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-LIFE-08 | Orphaned storage objects swept (tombstones) | SYS | `OrphanedObjectsSweeperService` | ✅ |
 
 ### L. Collaboration (comments & mentions)
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-COLLAB-01 | Read comments on an asset | V+ | `AssetCommentsPanel`, `GET …/comments` | ✅ |
-| UC-COLLAB-02 | Post a comment | C+ | `POST …/comments` | ✅ |
-| UC-COLLAB-03 | @mention a user → notify them | C+ | server-side regex | 🟡 autocomplete + display-name/avatar + markdown deferred |
-| UC-COLLAB-04 | Reply (single-level thread) | C+ | comments panel | ✅ |
-| UC-COLLAB-05 | Edit / delete own comment (admin deletes any) | C+/A | `PATCH/DELETE …/comments/{id}` | ✅ (edit re-notifies mention diff) |
+Removed 2026-08 by the reshape (contract-006) — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag.
 
 ### M. Notifications
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-NOTIF-01 | See unread badge + bell dropdown | V+ | `NotificationBell` | ✅ |
-| UC-NOTIF-02 | Open notification center, filter unread/all | V+ | `/notifications` | ✅ |
-| UC-NOTIF-03 | Mark read (single/all) / delete | V+ | `…/read`, `…/read-all` | ✅ |
-| UC-NOTIF-04 | Manage preferences (category, cadence, email) | V+ | `PUT …/preferences` | ✅ |
-| UC-NOTIF-05 | Receive instant email for events | V+ | `SendNotificationEmailHandler` | ✅ |
-| UC-NOTIF-06 | One-click unsubscribe from an email (DP-signed) | V+/ANON | `GET …/unsubscribe` | 🟡 page localisation deferred |
-| UC-NOTIF-07 | Rotate unsubscribe token | V+ | `…/rotate-unsubscribe-token` | ✅ (user-visible UI deferred) |
+Removed 2026-08 by the reshape (contract-006) — same note as L. Email infrastructure (share emails) remains.
 
 ### N. Publishing workflow & review
 | ID | Use case | Persona | Surface | Status |

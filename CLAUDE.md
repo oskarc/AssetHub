@@ -414,7 +414,7 @@ Uses `Host.CreateDefaultBuilder()` with `.UseWolverine()` (no HTTP pipeline).
 ### Hosting split (Api vs Worker)
 Background work is hosted by **both** composition roots — placement follows ownership of the data the work touches:
 
-- **Worker** owns media/processing pipelines and scheduled sweeps: `process-image` / `process-video` / `process-audio` / `build-zip` / migration handlers, plus all retention/cleanup `BackgroundService`s (trash purge, audit retention, orphan sweeps, digests).
+- **Worker** owns media/processing pipelines and scheduled sweeps: `process-image` / `process-video` / `process-audio` / `build-zip` / migration handlers, plus all retention/cleanup `BackgroundService`s (trash purge, audit retention, orphan sweeps).
 - **Api** hosts UI-adjacent consumers: `AssetProcessingCompletedHandler` / `AssetProcessingFailedHandler` (asset row state transition on completion) and the `UserSyncBackgroundService` / `ZipCleanupBackgroundService` jobs that serve interactive flows.
 
 New background work defaults to the Worker; put it in Api only when it completes an interactive request/response loop the Api owns. Either way the handler/service rules below apply unchanged.
@@ -531,7 +531,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 
 **Reliability / Sonar hotspots specific to Razor:**
 - **Components that own a `CancellationTokenSource` or `Timer` `@implements IAsyncDisposable`** and dispose it in `DisposeAsync` (`await _cts.CancelAsync(); _cts.Dispose();`). Forgetting this leaves cancellation registrations alive across the Blazor circuit (S2930). Pages that hold a CTS the same way.
-- **Component-scoped fields default to `private readonly`** when assigned only at field declaration (`private readonly CancellationTokenSource _cts = new();`, `private readonly List<X> _items = new();`). Sonar's S2933 catches the rest, but writing it readonly first is cheaper than fixing it later. The exception is genuine reassignment patterns (e.g. `AssetCommentsPanel` allocates a new `_cts` when the asset id changes) — keep those mutable.
+- **Component-scoped fields default to `private readonly`** when assigned only at field declaration (`private readonly CancellationTokenSource _cts = new();`, `private readonly List<X> _items = new();`). Sonar's S2933 catches the rest, but writing it readonly first is cheaper than fixing it later. The exception is genuine reassignment patterns (a component that allocates a new `_cts` when its target id parameter changes) — keep those mutable.
 - **`IBrowserFile.OpenReadStream` always pairs a `file.Size > maxBytes` pre-flight check with a `maxAllowedSize:` argument** before the call. The pre-flight aborts before any buffer is allocated; the cap is the second-line defense. Show `Common.Error_FileTooLarge` via `IUserFeedbackService.ShowError` on rejection. S5693 hotspot is satisfied behaviourally — Sonar's taint analysis can't trace the pre-flight guard back to the `OpenReadStream` line, so add a line-level `// NOSONAR S5693 — <reason>` after the call to keep the IDE Problems panel clean. **Only after the full pattern is in place** (pre-flight Size check + `maxAllowedSize` cap + admin/scoped auth on the host page + server-side enforcement); a drive-by `// NOSONAR` without the pattern is a regression, not a cleanup.
 - **`@ref`-bound and parameter-bound private fields need a `[SuppressMessage("...", "S4487", Justification = "Read by Razor markup binding to <X @ref=\"_field\" />")]`** because Sonar's C# analyser doesn't follow Razor markup back to source. Apply per-field, never globally.
 - **Empty `catch (JSDisconnectedException) { }` blocks always carry a one-line comment** like `/* circuit gone — JS module unreachable */`. Empty-with-no-comment is S108.
@@ -556,7 +556,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - New cache entries go through `CacheKeys` with tags for invalidation. Never cache ACL/roles.
 - Background services create a scope per iteration; never inject scoped services into singletons directly.
 - Return `ServiceResult<T>` — never throw for business errors. Catch infra exceptions and wrap as `ServiceError.Server(...)`.
-- Mutating service methods that emit an audit event wrap action + audit in `IUnitOfWork.ExecuteAsync` so a torn write can't leave the mutation without its trail (A-4). External side-effects (MinIO, cache invalidation, mention fan-out) stay outside the transaction.
+- Mutating service methods that emit an audit event wrap action + audit in `IUnitOfWork.ExecuteAsync` so a torn write can't leave the mutation without its trail (A-4). External side-effects (MinIO, cache invalidation) stay outside the transaction.
 - Use `is null` / `is not null` in plain C#. The only place `== null` / `!= null` is acceptable is inside an EF Core query expression that gets translated to SQL — patterns like `.Where(s => s.RevokedAt == null)` are load-bearing.
 - **Static methods that don't touch `this`.** Pure helpers (validators, mappers, predicate-only-on-args methods) are `private static`. Sonar's S2325 fires on every instance helper that could be static.
 - **No `foreach (...) { if (cond) ... }` loops** when the loop body is just filter-then-do. Collapse to `.Where(cond)` or `.Any(cond)` (S3267). The exception is when the loop has multiple branches with side effects.

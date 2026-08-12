@@ -159,12 +159,6 @@
   <data name="SavedSearch_DialogTitle_Save" xml:space="preserve"><value>Save search</value></data>
   <data name="SavedSearch_DialogTitle_Edit" xml:space="preserve"><value>Edit saved search</value></data>
   <data name="SavedSearch_Name" xml:space="preserve"><value>Name</value></data>
-  <data name="SavedSearch_Notify" xml:space="preserve"><value>Notify me</value></data>
-  <data name="SavedSearch_Notify_None" xml:space="preserve"><value>Never</value></data>
-  <data name="SavedSearch_Notify_OnNewMatch" xml:space="preserve"><value>When a new asset matches</value></data>
-  <data name="SavedSearch_Notify_Daily" xml:space="preserve"><value>Daily digest</value></data>
-  <data name="SavedSearch_Notify_Weekly" xml:space="preserve"><value>Weekly digest</value></data>
-  <data name="SavedSearch_NotifyPreviewBanner" xml:space="preserve"><value>Notifications are coming soon — your preference will be honoured once email digests ship.</value></data>
   <data name="SavedSearch_Saved" xml:space="preserve"><value>Saved search '{0}' saved.</value></data>
   <data name="SavedSearch_Deleted" xml:space="preserve"><value>Saved search deleted.</value></data>
   <data name="SavedSearch_DeleteConfirm" xml:space="preserve"><value>Delete saved search '{0}'?</value></data>

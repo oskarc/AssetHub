@@ -29,9 +29,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<SavedSearch> SavedSearches { get; set; } = null!;
     public DbSet<AssetVersion> AssetVersions { get; set; } = null!;
     public DbSet<PersonalAccessToken> PersonalAccessTokens { get; set; } = null!;
-    public DbSet<Notification> Notifications { get; set; } = null!;
-    public DbSet<NotificationPreferences> NotificationPreferences { get; set; } = null!;
-    public DbSet<AssetComment> AssetComments { get; set; } = null!;
     public DbSet<AssetWorkflowTransition> AssetWorkflowTransitions { get; set; } = null!;
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
@@ -63,9 +60,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new SavedSearchConfiguration());
         modelBuilder.ApplyConfiguration(new AssetVersionConfiguration());
         modelBuilder.ApplyConfiguration(new PersonalAccessTokenConfiguration());
-        modelBuilder.ApplyConfiguration(new NotificationConfiguration());
-        modelBuilder.ApplyConfiguration(new NotificationPreferencesConfiguration());
-        modelBuilder.ApplyConfiguration(new AssetCommentConfiguration());
         modelBuilder.ApplyConfiguration(new AssetWorkflowTransitionConfiguration());
         modelBuilder.ApplyConfiguration(new OrphanedObjectConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());

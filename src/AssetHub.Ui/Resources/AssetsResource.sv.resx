@@ -159,12 +159,6 @@
   <data name="SavedSearch_DialogTitle_Save" xml:space="preserve"><value>Spara sökning</value></data>
   <data name="SavedSearch_DialogTitle_Edit" xml:space="preserve"><value>Redigera sparad sökning</value></data>
   <data name="SavedSearch_Name" xml:space="preserve"><value>Namn</value></data>
-  <data name="SavedSearch_Notify" xml:space="preserve"><value>Notifiera mig</value></data>
-  <data name="SavedSearch_Notify_None" xml:space="preserve"><value>Aldrig</value></data>
-  <data name="SavedSearch_Notify_OnNewMatch" xml:space="preserve"><value>När en ny tillgång matchar</value></data>
-  <data name="SavedSearch_Notify_Daily" xml:space="preserve"><value>Dagligt sammandrag</value></data>
-  <data name="SavedSearch_Notify_Weekly" xml:space="preserve"><value>Veckovis sammandrag</value></data>
-  <data name="SavedSearch_NotifyPreviewBanner" xml:space="preserve"><value>Notifieringar kommer snart — din inställning sparas och aktiveras när e-postsammandrag levereras.</value></data>
   <data name="SavedSearch_Saved" xml:space="preserve"><value>Sparade sökning '{0}'.</value></data>
   <data name="SavedSearch_Deleted" xml:space="preserve"><value>Sparad sökning raderad.</value></data>
   <data name="SavedSearch_DeleteConfirm" xml:space="preserve"><value>Ta bort sparad sökning '{0}'?</value></data>

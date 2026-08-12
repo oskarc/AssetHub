@@ -9,7 +9,7 @@ namespace AssetHub.Infrastructure.Services;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "Composition root for the workflow flow: asset/transition/metadata repos + schema query + collection auth + notifications + audit + UnitOfWork + scoped CurrentUser + logger. Bundling them obscures intent; UnitOfWork was added to wrap action+audit atomically (A-4).")]
+    Justification = "Composition root for the workflow flow: asset/transition/metadata repos + schema query + collection auth + audit + UnitOfWork + scoped CurrentUser + logger. Bundling them obscures intent; UnitOfWork was added to wrap action+audit atomically (A-4).")]
 public sealed class AssetWorkflowService(
     IAssetRepository assetRepo,
     IAssetCollectionRepository assetCollectionRepo,
@@ -17,7 +17,6 @@ public sealed class AssetWorkflowService(
     IAssetMetadataRepository metadataRepo,
     IMetadataSchemaQueryService schemaQuery,
     ICollectionAuthorizationService authService,
-    INotificationService notifications,
     IAuditService audit,
     IUnitOfWork uow,
     CurrentUser currentUser,
@@ -76,9 +75,7 @@ public sealed class AssetWorkflowService(
 
         // State change + transition row + audit run in one transaction
         // (A-4) — a torn write would otherwise leave the asset in the new
-        // state with no transition record, or vice-versa. Author notification
-        // is deliberately outside the transaction (external side-effects
-        // can't be rolled back).
+        // state with no transition record, or vice-versa.
         await uow.ExecuteAsync(async tct =>
         {
             await ApplyStateChangeAsync(asset, to, now, tct);
@@ -92,7 +89,6 @@ public sealed class AssetWorkflowService(
                 tct);
         }, ct);
 
-        await NotifyAuthorAsync(asset, assetId, from, to, reason, ct);
 
         logger.LogInformation(
             "Asset {AssetId} workflow {From} → {To} by {UserId}",
@@ -181,41 +177,16 @@ public sealed class AssetWorkflowService(
             ["reason"] = reason ?? string.Empty
         };
 
-    private async Task NotifyAuthorAsync(
-        Asset asset, Guid assetId, AssetWorkflowState from, AssetWorkflowState to,
-        string? reason, CancellationToken ct)
+    // Audit event types for workflow transitions. Relocated here from the removed
+    // NotificationConstants (contract-006) — this service is their only consumer;
+    // the strings are audit-row data and must not change.
+    private static class AuditEvents
     {
-        // Notify the asset's author unless they're also the actor — no point
-        // pinging yourself about your own approval click.
-        if (string.IsNullOrEmpty(asset.CreatedByUserId) || asset.CreatedByUserId == currentUser.UserId)
-            return;
-
-        try
-        {
-            await notifications.CreateAsync(
-                userId: asset.CreatedByUserId,
-                category: NotificationConstants.Categories.WorkflowTransition,
-                title: $"'{asset.Title}' is now {to.ToDbString()}",
-                body: string.IsNullOrWhiteSpace(reason)
-                    ? $"State changed from {from.ToDbString()} to {to.ToDbString()}."
-                    : $"State changed from {from.ToDbString()} to {to.ToDbString()}. Reason: {reason}",
-                url: $"/assets/{assetId}",
-                data: new Dictionary<string, object>
-                {
-                    ["asset_id"] = assetId,
-                    ["from_state"] = from.ToDbString(),
-                    ["to_state"] = to.ToDbString(),
-                    ["actor_user_id"] = currentUser.UserId
-                },
-                ct);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // Broken notification shouldn't undo the workflow change.
-            logger.LogWarning(ex,
-                "Failed to notify author {UserId} about workflow transition on asset {AssetId}",
-                asset.CreatedByUserId, assetId);
-        }
+        public const string WorkflowSubmitted = "asset.workflow_submitted";
+        public const string WorkflowApproved = "asset.workflow_approved";
+        public const string WorkflowRejected = "asset.workflow_rejected";
+        public const string WorkflowPublished = "asset.workflow_published";
+        public const string WorkflowUnpublished = "asset.workflow_unpublished";
     }
 
     // ── Transition table ────────────────────────────────────────────────
@@ -235,36 +206,36 @@ public sealed class AssetWorkflowService(
             // Submit / resubmit: author-bound, needs required metadata filled.
             (AssetWorkflowState.Draft, WorkflowActions.Submit)
                 => new TransitionPlan(AssetWorkflowState.InReview,
-                    NotificationConstants.AuditEvents.WorkflowSubmitted,
+                    AuditEvents.WorkflowSubmitted,
                     RequiresAuthor: true, RequiresRole: null,
                     CheckRequiredMetadata: true),
             (AssetWorkflowState.Rejected, WorkflowActions.Submit)
                 => new TransitionPlan(AssetWorkflowState.InReview,
-                    NotificationConstants.AuditEvents.WorkflowSubmitted,
+                    AuditEvents.WorkflowSubmitted,
                     RequiresAuthor: true, RequiresRole: null,
                     CheckRequiredMetadata: true),
 
             // Reviewer actions from InReview.
             (AssetWorkflowState.InReview, WorkflowActions.Approve)
                 => new TransitionPlan(AssetWorkflowState.Approved,
-                    NotificationConstants.AuditEvents.WorkflowApproved,
+                    AuditEvents.WorkflowApproved,
                     RequiresAuthor: false, RequiresRole: RoleHierarchy.Roles.Manager,
                     CheckRequiredMetadata: false),
             (AssetWorkflowState.InReview, WorkflowActions.Reject)
                 => new TransitionPlan(AssetWorkflowState.Rejected,
-                    NotificationConstants.AuditEvents.WorkflowRejected,
+                    AuditEvents.WorkflowRejected,
                     RequiresAuthor: false, RequiresRole: RoleHierarchy.Roles.Manager,
                     CheckRequiredMetadata: false),
 
             // Publish / unpublish toggle.
             (AssetWorkflowState.Approved, WorkflowActions.Publish)
                 => new TransitionPlan(AssetWorkflowState.Published,
-                    NotificationConstants.AuditEvents.WorkflowPublished,
+                    AuditEvents.WorkflowPublished,
                     RequiresAuthor: false, RequiresRole: RoleHierarchy.Roles.Manager,
                     CheckRequiredMetadata: false),
             (AssetWorkflowState.Published, WorkflowActions.Unpublish)
                 => new TransitionPlan(AssetWorkflowState.Approved,
-                    NotificationConstants.AuditEvents.WorkflowUnpublished,
+                    AuditEvents.WorkflowUnpublished,
                     RequiresAuthor: false, RequiresRole: RoleHierarchy.Roles.Manager,
                     CheckRequiredMetadata: false),
 

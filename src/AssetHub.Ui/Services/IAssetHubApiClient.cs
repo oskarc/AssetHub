@@ -87,14 +87,6 @@ public interface IAssetHubApiClient
     Task<List<PersonalAccessTokenDto>> GetMyPersonalAccessTokensAsync(CancellationToken ct = default);
     Task<CreatedPersonalAccessTokenDto> CreatePersonalAccessTokenAsync( CreatePersonalAccessTokenRequest request, CancellationToken ct = default);
     Task RevokePersonalAccessTokenAsync(Guid id, CancellationToken ct = default);
-    Task<NotificationListResponse> GetNotificationsAsync( bool unreadOnly = false, int skip = 0, int take = 50, CancellationToken ct = default);
-    Task<int> GetNotificationUnreadCountAsync(CancellationToken ct = default);
-    Task MarkNotificationReadAsync(Guid id, CancellationToken ct = default);
-    Task<int> MarkAllNotificationsReadAsync(CancellationToken ct = default);
-    Task DeleteNotificationAsync(Guid id, CancellationToken ct = default);
-    Task<NotificationPreferencesDto> GetNotificationPreferencesAsync(CancellationToken ct = default);
-    Task<NotificationPreferencesDto> UpdateNotificationPreferencesAsync( UpdateNotificationPreferencesDto dto, CancellationToken ct = default);
-    Task RotateUnsubscribeTokenAsync(CancellationToken ct = default);
     Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default);
     Task<MigrationResponseDto> GetMigrationAsync(Guid id, CancellationToken ct = default);
     Task<MigrationResponseDto> CreateMigrationAsync(CreateMigrationDto dto, CancellationToken ct = default);
@@ -141,12 +133,7 @@ public interface IAssetHubApiClient
     Task<List<AssetVersionDto>> GetAssetVersionsAsync(Guid assetId, CancellationToken ct = default);
     Task<AssetVersionDto> RestoreAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default);
     Task PruneAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default);
-    Task<List<AssetCommentResponseDto>> GetAssetCommentsAsync(Guid assetId, CancellationToken ct = default);
-    Task<AssetCommentResponseDto> CreateAssetCommentAsync( Guid assetId, CreateAssetCommentDto dto, CancellationToken ct = default);
-    Task<AssetCommentResponseDto> UpdateAssetCommentAsync( Guid assetId, Guid commentId, UpdateAssetCommentDto dto, CancellationToken ct = default);
-    Task DeleteAssetCommentAsync(Guid assetId, Guid commentId, CancellationToken ct = default);
     Task<Dictionary<string, string>> GetUserNamesAsync( IEnumerable<string> userIds, CancellationToken ct = default);
-    Task<List<UserSearchResultDto>> SearchUsersForMentionAsync( string query, int take = 10, CancellationToken ct = default);
     Task<AssetWorkflowResponseDto> GetAssetWorkflowAsync(Guid assetId, CancellationToken ct = default);
     Task<AssetWorkflowResponseDto> SubmitAssetForReviewAsync(Guid assetId, string? reason, CancellationToken ct = default);
     Task<AssetWorkflowResponseDto> ApproveAssetAsync(Guid assetId, string? reason, CancellationToken ct = default);

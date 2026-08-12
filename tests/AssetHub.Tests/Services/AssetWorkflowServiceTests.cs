@@ -18,7 +18,6 @@ public class AssetWorkflowServiceTests
     private readonly Mock<IAssetMetadataRepository> _metadataRepo = new();
     private readonly Mock<IMetadataSchemaQueryService> _schemaQuery = new();
     private readonly Mock<ICollectionAuthorizationService> _authService = new();
-    private readonly Mock<INotificationService> _notifications = new();
     private readonly Mock<IAuditService> _audit = new();
 
     private const string AuthorId = "user-author";
@@ -48,7 +47,7 @@ public class AssetWorkflowServiceTests
     private AssetWorkflowService CreateService(string userId = AuthorId, bool isAdmin = false)
         => new(_assetRepo.Object, _assetCollectionRepo.Object, _transitionRepo.Object,
                _metadataRepo.Object, _schemaQuery.Object, _authService.Object,
-               _notifications.Object, _audit.Object,
+               _audit.Object,
                new PassThroughUnitOfWork(),
                new CurrentUser(userId, isAdmin),
                NullLogger<AssetWorkflowService>.Instance);
@@ -96,7 +95,7 @@ public class AssetWorkflowServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal("in_review", result.Value!.CurrentState);
         _audit.Verify(a => a.LogAsync(
-                NotificationConstants.AuditEvents.WorkflowSubmitted,
+                "asset.workflow_submitted",
                 Constants.ScopeTypes.Asset, asset.Id, AuthorId,
                 It.IsAny<Dictionary<string, object>>(), It.IsAny<CancellationToken>()),
             Times.Once);
@@ -175,7 +174,7 @@ public class AssetWorkflowServiceTests
     }
 
     [Fact]
-    public async Task Approve_FromInReview_ByManager_Succeeds_NotifiesAuthor()
+    public async Task Approve_FromInReview_ByManager_Succeeds()
     {
         var asset = MakeAsset(AssetWorkflowState.InReview);
         _assetRepo.Setup(r => r.GetByIdAsync(asset.Id, It.IsAny<CancellationToken>())).ReturnsAsync(asset);
@@ -189,15 +188,8 @@ public class AssetWorkflowServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal("approved", result.Value!.CurrentState);
 
-        _notifications.Verify(n => n.CreateAsync(
-                AuthorId,
-                NotificationConstants.Categories.WorkflowTransition,
-                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
-                It.IsAny<Dictionary<string, object>?>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
         _audit.Verify(a => a.LogAsync(
-                NotificationConstants.AuditEvents.WorkflowApproved,
+                "asset.workflow_approved",
                 Constants.ScopeTypes.Asset, asset.Id, ManagerId,
                 It.IsAny<Dictionary<string, object>>(), It.IsAny<CancellationToken>()),
             Times.Once);
@@ -258,7 +250,7 @@ public class AssetWorkflowServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal("published", result.Value!.CurrentState);
         _audit.Verify(a => a.LogAsync(
-                NotificationConstants.AuditEvents.WorkflowPublished,
+                "asset.workflow_published",
                 Constants.ScopeTypes.Asset, asset.Id, ManagerId,
                 It.IsAny<Dictionary<string, object>>(), It.IsAny<CancellationToken>()),
             Times.Once);
@@ -287,7 +279,7 @@ public class AssetWorkflowServiceTests
         var svc = new AssetWorkflowService(
             _assetRepo.Object, _assetCollectionRepo.Object, _transitionRepo.Object,
             _metadataRepo.Object, _schemaQuery.Object, _authService.Object,
-            _notifications.Object, _audit.Object,
+            _audit.Object,
             new PassThroughUnitOfWork(),
             CurrentUser.Anonymous,
             NullLogger<AssetWorkflowService>.Instance);
@@ -316,23 +308,5 @@ public class AssetWorkflowServiceTests
         Assert.True(result.IsSuccess);
         Assert.Contains(WorkflowActions.Submit, result.Value!.AvailableActions);
         Assert.DoesNotContain(WorkflowActions.Approve, result.Value.AvailableActions);
-    }
-
-    [Fact]
-    public async Task ActorEqualsAuthor_DoesNotNotifySelf()
-    {
-        // Author is also the actor (e.g. resubmitting their own asset).
-        var asset = MakeAsset(AssetWorkflowState.Rejected, creator: AuthorId);
-        _assetRepo.Setup(r => r.GetByIdAsync(asset.Id, It.IsAny<CancellationToken>())).ReturnsAsync(asset);
-        SetupAccess(asset.Id, (RoleHierarchy.Roles.Viewer, true));
-
-        var svc = CreateService(AuthorId);
-        await svc.SubmitAsync(asset.Id, new WorkflowActionDto(), CancellationToken.None);
-
-        _notifications.Verify(n => n.CreateAsync(
-                AuthorId, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(),
-                It.IsAny<string?>(), It.IsAny<Dictionary<string, object>?>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
     }
 }
