@@ -20,11 +20,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ZipDownload> ZipDownloads { get; set; } = null!;
     public DbSet<Migration> Migrations { get; set; } = null!;
     public DbSet<MigrationItem> MigrationItems { get; set; } = null!;
-    public DbSet<MetadataSchema> MetadataSchemas { get; set; } = null!;
-    public DbSet<MetadataField> MetadataFields { get; set; } = null!;
-    public DbSet<Taxonomy> Taxonomies { get; set; } = null!;
-    public DbSet<TaxonomyTerm> TaxonomyTerms { get; set; } = null!;
-    public DbSet<AssetMetadataValue> AssetMetadataValues { get; set; } = null!;
     public DbSet<SavedSearch> SavedSearches { get; set; } = null!;
     public DbSet<AssetVersion> AssetVersions { get; set; } = null!;
     public DbSet<PersonalAccessToken> PersonalAccessTokens { get; set; } = null!;
@@ -49,11 +44,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new ZipDownloadConfiguration());
         modelBuilder.ApplyConfiguration(new MigrationConfiguration());
         modelBuilder.ApplyConfiguration(new MigrationItemConfiguration());
-        modelBuilder.ApplyConfiguration(new MetadataSchemaConfiguration());
-        modelBuilder.ApplyConfiguration(new MetadataFieldConfiguration());
-        modelBuilder.ApplyConfiguration(new TaxonomyConfiguration());
-        modelBuilder.ApplyConfiguration(new TaxonomyTermConfiguration());
-        modelBuilder.ApplyConfiguration(new AssetMetadataValueConfiguration());
         modelBuilder.ApplyConfiguration(new SavedSearchConfiguration());
         modelBuilder.ApplyConfiguration(new AssetVersionConfiguration());
         modelBuilder.ApplyConfiguration(new PersonalAccessTokenConfiguration());

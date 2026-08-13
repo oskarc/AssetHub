@@ -32,9 +32,6 @@ public class AssetSearchRequest
     [MaxItems(50)]
     public List<string>? Tags { get; set; }
 
-    /// <summary>Metadata facet filters — metadata-field id → accepted values (text / taxonomy-term id as string).</summary>
-    public Dictionary<Guid, List<string>>? MetadataFilters { get; set; }
-
     /// <summary>Lower bound on CreatedAt.</summary>
     public DateTime? CreatedAfter { get; set; }
 
@@ -54,8 +51,7 @@ public class AssetSearchRequest
     /// <summary>
     /// Which facet dimensions to aggregate for this response. Callers should request only the
     /// facets they display so server-side aggregation cost stays bounded.
-    /// Accepted values: "asset_type", "status", "collection", "tag", plus metadata-field ids in
-    /// the form "meta:{guid}".
+    /// Accepted values: "asset_type", "status", "collection", "tag".
     /// </summary>
     [MaxItems(50)]
     public List<string>? Facets { get; set; }

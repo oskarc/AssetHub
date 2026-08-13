@@ -18,10 +18,6 @@ public static class CacheKeys
     private const string CollectionNamePrefix = "collection:name:";
     private const string CollectionCountPrefix = "collection:count:";
     private const string DashboardSummaryPrefix = "dashboard:summary:";
-    private const string MetadataSchemaPrefix = "metadata-schema:";
-    private const string MetadataSchemasAllKey = "metadata-schemas:all";
-    private const string TaxonomyPrefix = "taxonomy:";
-    private const string TaxonomiesAllKey = "taxonomies:all";
     private const string UserRealmRolesPrefix = "user:realmroles:";
     private const string NotificationUnreadCountPrefix = "notif:unread-count:";
 
@@ -47,12 +43,6 @@ public static class CacheKeys
 
     /// <summary>Dashboard summary data. Invalidated on asset/collection changes.</summary>
     public static readonly TimeSpan DashboardSummaryTtl = TimeSpan.FromMinutes(2);
-
-    /// <summary>Metadata schemas. Invalidated on schema create/update/delete.</summary>
-    public static readonly TimeSpan MetadataSchemaTtl = TimeSpan.FromMinutes(10);
-
-    /// <summary>Taxonomies. Invalidated on taxonomy create/update/delete.</summary>
-    public static readonly TimeSpan TaxonomyTtl = TimeSpan.FromMinutes(10);
 
     /// <summary>
     /// Realm roles for a single user (PAT auth path). Short TTL — role
@@ -107,20 +97,6 @@ public static class CacheKeys
     public static string DashboardSummary(string userId)
         => $"{DashboardSummaryPrefix}{userId}";
 
-    /// <summary>Cache key for a single metadata schema.</summary>
-    public static string MetadataSchema(Guid id)
-        => $"{MetadataSchemaPrefix}{id}";
-
-    /// <summary>Cache key for the all metadata schemas list.</summary>
-    public static string MetadataSchemasAll() => MetadataSchemasAllKey;
-
-    /// <summary>Cache key for a single taxonomy.</summary>
-    public static string Taxonomy(Guid id)
-        => $"{TaxonomyPrefix}{id}";
-
-    /// <summary>Cache key for the all taxonomies list.</summary>
-    public static string TaxonomiesAll() => TaxonomiesAllKey;
-
     /// <summary>Cache key for a user's realm role set (used by PAT auth).</summary>
     public static string UserRealmRoles(string userId)
         => $"{UserRealmRolesPrefix}{userId}";
@@ -153,12 +129,6 @@ public static class CacheKeys
 
         /// <summary>Tag for all dashboard summary entries.</summary>
         public const string Dashboard = "dashboard";
-
-        /// <summary>Tag for all metadata schema entries.</summary>
-        public const string MetadataSchemas = "metadata-schemas";
-
-        /// <summary>Tag for all taxonomy entries.</summary>
-        public const string Taxonomies = "taxonomies";
 
         /// <summary>Tag for a user's notification entries (used to invalidate the unread-count cache).</summary>
         public static string NotificationsForUser(string userId) => $"notifications:{userId}";

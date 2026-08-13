@@ -704,3 +704,115 @@ contracts:
       Survivors labeled: MinIO's own S3 protocol vocabulary (the storage adapter IS
       S3-compatible), DTO ErrorMessageResourceType same-word hits, and the
       migration.s3_scan_* audit labels (historical-data, matching the C7 call).
+
+  - contract_id: contract-010
+    feature: reshape-c9-metadata-schema-engine-cut
+    date_proposed: 2026-08-13
+    date_approved: 2026-08-13
+    tier_1: |
+      You are removing the admin-defined metadata engine: schemas, typed fields,
+      taxonomies with hierarchical terms, and the per-asset typed values they
+      produce. What survives is the metadata people actually see on an asset —
+      Tags (free-form, faceted, searchable) and MetadataJson (technical metadata
+      extracted from the file: EXIF, dimensions, duration). Full-text search, the
+      tag facet, asset-type/status/collection facets, and saved searches are
+      untouched. "Metadata & search" is one of the five kept features; the
+      judgment is that the schema engine is the enterprise-DAM apparatus AROUND
+      metadata, not metadata itself.
+
+      Named consequence, owner-approved: AssetMetadataEndpoints is a PUBLIC API
+      surface — GET /api/v1/assets/{id}/metadata, PUT .../metadata, and POST
+      /api/v1/assets/bulk-metadata, all scope-guarded. Every one keys on
+      MetadataFieldId, so all three die with the engine. This is a read/write
+      pair plus a bulk mutation leaving the documented contract — a larger SemVer
+      event than any prior cut, and the one place the reshape removes a
+      capability an external integrator could genuinely depend on. Accepted as a
+      programme-level decision; the replacement is tags, which is NOT equivalent
+      and must be stated as such rather than implied. The rejected alternative
+      (keep the routes as a thin JSONB read/write over Asset.MetadataJson) was
+      argued against: same URL with different meaning is worse than clean removal.
+    tier_2: |
+      1. Baseline roll-forward to d652ff3 (1083), docker pre-check first —
+         drift-001 says assume the daemon is down.
+      2. Survey WITH TRACER GREPS (evolved standard): grep the
+         MetadataSchemasAdminResource / TaxonomiesAdminResource markers and the
+         "meta:" facet token before deleting; enumerate Components/Dialogs/Metadata/
+         rather than trusting the folder name (drift-004).
+      3. Delete the engine: 5 entities + MetadataEnums, 3 repositories +
+         interfaces, 5 services + 5 interfaces, 5 EF configurations + DbSets,
+         3 endpoint files, DTOs, CacheKeys schema/taxonomy registry entries.
+      4. Search is a REVERT-TO-SIMPLER touchpoint, not a deletion: the "meta:"
+         arm of the facet dispatch, MetadataBuckets, the field/taxonomy lookups
+         and AssetSearchRequest.MetadataFilters come out; asset_type / status /
+         collection / tag and the tsvector path stay byte-identical. Verification
+         is behavioural — surviving facet and full-text tests pass on UNCHANGED
+         assertions; a changed assertion is a stop-and-surface.
+      5. UI: 2 admin pages, 2 tabs, 2 dialogs, 4 resx pairs, facade members +
+         interface, Search.razor facetable-fields block, AdminBreadcrumbs cases.
+         The Content nav group dies — Admin drops from four intent groups to
+         three (Access / Operations / Insights), a real IA change to record in
+         the styleguide, not just a link removal.
+      6. Migration dropping 5 tables in FK order (AssetMetadataValues ->
+         MetadataFields -> MetadataSchemas, TaxonomyTerms -> Taxonomies),
+         reversible Down, discovery check on a FRESH build (drift-006).
+      7. Tests: 5 named classes deleted, metadata cases excised from search +
+         endpoint tests, reconciliation gate on the baseline diff.
+      8. Sweep including the unreachable-branch leg: the facet dispatch default
+         arm and any guard only schema fields could satisfy. Expected survivors:
+         MetadataJson / ImageMetadataExtractor / FormatMetadataKey (same-word —
+         technical metadata, stays), Detail_* audit labels, migration history.
+      9. Prose: README, USE-CASES, STYLEGUIDE admin-nav table + IA section,
+         ROADMAP T1-META-01 -> historical, project_t1_meta_01_complete memory ->
+         HISTORICAL, CLAUDE.md four-intent-group sentence. Commit per
+         implementation-commit-and-push; approval authorizes; no push.
+    tier_3: |
+      - Search behaviour identical minus the metadata dimension: full-text, tags,
+        saved searches and four facet dimensions pass on unchanged assertions.
+        (-> UC4)
+      - Asset.Tags and Asset.MetadataJson untouched end-to-end; AssetDetail's
+        metadata panel renders exactly as today. (-> UC1)
+      - Public-API removal stated as a breaking change in the commit body AND the
+        use-case catalog, with "use tags" named as the non-equivalent
+        replacement. (-> tier_1 named consequence)
+      - Admin IA change (4 groups -> 3) reflected in STYLEGUIDE, not just markup.
+        (-> UC5)
+      - Full excision discipline per the node as evolved 2026-08-13: tracer
+        greps, four-sub-case classification, silent-straggler awareness,
+        reconciliation gate, prose-in-same-change. (-> all)
+      - Verified means: baseline clean + no new warnings + full pass +
+        reconciliation closes + sweep clean + discovery check clean on a fresh
+        build. (-> UC7)
+    status: implemented
+    revisions: []
+    work_id: null
+    implemented: 2026-08-13
+    implementation_notes: >-
+      47 files deleted. The tracer-grep leg added to the standard the same day
+      paid for itself immediately: it found SearchSidebar.razor, a consumer the
+      type-name survey had missed entirely because it references only the "meta:"
+      token and MetadataFieldDto. Folder enumeration found
+      AssetHubApiClient.AssetMetadata.cs to be MIXED (collection membership lives
+      there) — edited, not deleted.
+
+      CONTRACT UNDER-SPECIFICATION found in execution: tier_2 step 6 said "drop 5
+      tables" but the full-text search_vector was computed by JOINing
+      AssetMetadataValues + MetadataFields (weight D), with two triggers on those
+      tables keeping it fresh. A plain DropTable would have failed on the
+      dependent triggers and left assets_refresh_search_vector referencing
+      missing relations — breaking every asset insert. The migration now drops
+      both triggers and their functions first, replaces the function with an
+      A/B/C-only version, reindexes existing rows, then drops the tables. Down
+      restores all of it verbatim from AddAssetSearchAndSavedSearch.
+
+      Verification: suite 1013 passed / 0 failed; reconciliation closes exactly
+      (1083 - 70 + 0), all 70 removals traceable to six named classes. Census 79
+      -> 73 distinct, no new rules. Discovery check clean on a fresh build.
+      Unreachable-branch leg run: the facet dispatch default arm is still
+      reachable via an unknown caller dimension, so it stays.
+
+      Two self-inflicted process errors, both caught and corrected: a concurrent
+      census build wiped ref assemblies and invalidated the first API suite run;
+      and the first UI result predated the residue cleanup that touched UI files.
+      Both re-run sequentially. Also: the Down block initially paraphrased the
+      trigger functions from memory (one dropped an IS DISTINCT FROM guard) and
+      claimed byte-identity it did not have — replaced with verbatim copies.

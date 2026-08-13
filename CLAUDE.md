@@ -269,7 +269,7 @@ Design tokens, color palettes, typography scale, elevation, and information-arch
 - The facade is one type but **many files**: `AssetHubApiClient.cs` holds the constructor + shared result-unwrapping helpers, and each domain lives in an `AssetHubApiClient.<Domain>.cs` partial (Assets, Collections, Shares, Admin, …). It stays a single surface/registration — this is the **`pattern-cohesive-type-split`** standard (cohesion, not tangle → split the file, not the design). `IAssetHubApiClient` remains one file.
 
 ### Dialogs
-- Named `*Dialog.razor`, grouped into per-feature subfolders under `Components/Dialogs/` (Assets, Collections, Sharing, Users, Migrations, Metadata, Shared) — the same feature taxonomy as the facade partials and the other `Components/` folders (the `implementation-blazor-ui-standard` "one feature taxonomy" pattern). Namespaces follow the folders; `_Imports.razor` and the UI test `GlobalUsings.cs` carry the sub-namespaces.
+- Named `*Dialog.razor`, grouped into per-feature subfolders under `Components/Dialogs/` (Assets, Collections, Sharing, Users, Migrations, Shared) — the same feature taxonomy as the facade partials and the other `Components/` folders (the `implementation-blazor-ui-standard` "one feature taxonomy" pattern). Namespaces follow the folders; `_Imports.razor` and the UI test `GlobalUsings.cs` carry the sub-namespaces.
 - `MudDialog` with `[CascadingParameter] IMudDialogInstance`.
 - Return via `MudDialog.Close(DialogResult.Ok(value))`.
 
@@ -340,7 +340,7 @@ Two sanctioned modes for user-initiated mutations. Pick by whether the user's fl
 ### Layouts & information architecture
 Navigation-structure decisions follow the **`principle-information-architecture`** standard (shell-per-audience, routable-over-tabbed sub-views, cap-then-group nav, wayfinding-on-depth). AssetHub's instantiation:
 - `MainLayout.razor` — authenticated app shell with nav menu.
-- `AdminLayout.razor` — admin console shell; its 13 routable `/admin/*` sub-pages are grouped into four intent groups — **Access / Content / Operations / Insights** (the cap-then-group pattern; never re-collapse them into a single tabbed admin page).
+- `AdminLayout.razor` — admin console shell; its routable `/admin/*` sub-pages are grouped into three intent groups — **Access / Operations / Insights** (a fourth, Content, held metadata schemas and taxonomies until the 2026-08 reshape removed them) (the cap-then-group pattern; never re-collapse them into a single tabbed admin page).
 - `ShareLayout.razor` — separate layout for public share pages (no nav).
 - **Known gap (gap-008):** nested routes have no breadcrumb/contextual-back layer yet — principle E is aspirational here until that follow-up ships.
 

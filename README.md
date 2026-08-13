@@ -71,7 +71,6 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Asset Management**
 - Drag-and-drop upload with multi-collection organisation
 - Faceted search — Postgres `tsvector` full-text over title, description, tags, and searchable metadata values with live facet counts (asset type, collection, tags, status) and saved searches per user
-- Custom metadata schemas and taxonomies — admin-defined structured fields (text, numeric, date, select, taxonomy) scoped globally, per asset type, or per collection, with required-field and pattern validation
 - Bulk migration toolkit — import thousands of assets from external sources with progress tracking and resumability
 - Video poster extraction via ffmpeg with inline playback
 - Download collections or shared content as zip archives
@@ -80,7 +79,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Access Control & Sharing**
 - Per-collection RBAC — Viewer, Contributor, Manager, Admin (system admins bypass all ACLs)
 - Password-protected, time-limited share links
-- Admin dashboard with user management, share admin, metadata schema and taxonomy management, bulk migrations, paginated audit log with filterable event types, and a Trash tab for restoring soft-deleted assets
+- Admin dashboard with user management, share admin, bulk migrations, paginated audit log with filterable event types, and a Trash tab for restoring soft-deleted assets
 
 **Lifecycle**
 - Soft-delete with restore — deleted assets land in Trash with a configurable retention window (default 30 days), then a background worker purges them permanently. An optimistic-undo snackbar in the asset grid and detail page makes single-click recovery the norm

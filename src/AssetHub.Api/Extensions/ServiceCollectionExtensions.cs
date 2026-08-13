@@ -240,12 +240,6 @@ public static class ServiceCollectionExtensions
 
         // Image editing services
 
-        // Metadata schemas and taxonomies
-        services.AddScoped<IMetadataSchemaService, MetadataSchemaService>();
-        services.AddScoped<IMetadataSchemaQueryService, MetadataSchemaQueryService>();
-        services.AddScoped<ITaxonomyService, TaxonomyService>();
-        services.AddScoped<ITaxonomyQueryService, TaxonomyQueryService>();
-        services.AddScoped<IAssetMetadataService, AssetMetadataService>();
 
         // Search
         services.AddScoped<IAssetSearchService, AssetSearchService>();

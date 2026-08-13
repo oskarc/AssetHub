@@ -19,9 +19,7 @@ public class AdminResource { }
 public class SharesResource { }
 public class AccountResource { }
 public class AuditAdminResource { }
-public class TaxonomiesAdminResource { }
 public class TrashAdminResource { }
-public class MetadataSchemasAdminResource { }
 public class MigrationsResource { }
 
 #pragma warning restore S2094

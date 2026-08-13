@@ -165,31 +165,6 @@ public class AssetSearchServiceTests : IAsyncLifetime
         Assert.Equal("One", result.Value.Items[0].Title);
     }
 
-    [Fact]
-    public async Task SearchAsync_Text_PicksUpSearchableMetadataValuesViaTriggers()
-    {
-        var userId = "alice";
-        var asset = TestData.CreateAsset(title: "Campaign");
-        await SeedCollectionWithAssetsAsync(userId, asset);
-
-        // Add a searchable metadata field with a value that's unique to the asset.
-        var field = TestData.CreateMetadataField(key: "campaign_code", type: MetadataFieldType.Text);
-        field.Searchable = true;
-        var schema = TestData.CreateMetadataSchema(name: "test-schema", fields: new() { field });
-        _db.MetadataSchemas.Add(schema);
-        _db.AssetMetadataValues.Add(TestData.CreateAssetMetadataValue(
-            assetId: asset.Id, fieldId: field.Id, valueText: "moonshot-42"));
-        await _db.SaveChangesAsync();
-
-        var svc = CreateService(userId, isAdmin: false);
-        var result = await svc.SearchAsync(
-            new AssetSearchRequest { Text = "moonshot" },
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(1, result.Value!.TotalCount);
-        Assert.Equal(asset.Id, result.Value.Items[0].Id);
-    }
 
     // ── Filter dimensions ────────────────────────────────────────────
 

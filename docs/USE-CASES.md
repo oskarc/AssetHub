@@ -99,19 +99,24 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-ORG-11 | Bulk-delete / bulk-set-access on collections | A | `/admin/collection-access` | ✅ |
 
 ### F. Metadata & taxonomies
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-META-01 | View resolved asset metadata | V+ | asset detail, `GET …/metadata` | ✅ |
-| UC-META-02 | Edit metadata / tags / taxonomy values | C+ | `EditAssetDialog`, `PUT …/metadata` | ✅ |
-| UC-META-03 | Bulk-set metadata across assets | A | `POST /assets/bulk-metadata` | ✅ |
-| UC-META-04 | Define a metadata schema (fields, types, required) | A | `/admin/metadata-schemas` | ✅ |
-| UC-META-05 | Manage taxonomies (controlled vocab + terms) | A | `/admin/taxonomies` | ✅ |
-| UC-META-07 | Schema scope resolution (asset-type / collection / global) | SYS | `IMetadataSchemaQueryService` | ✅ |
+Removed 2026-08 by the reshape (contract-010) — the admin-defined schema/taxonomy
+engine is outside the five-feature identity. Browsable on the `full-featured`
+branch / `pre-reshape` tag.
+
+**Breaking API change**: `GET`/`PUT /api/v1/assets/{id}/metadata` and
+`POST /api/v1/assets/bulk-metadata` are gone. Free-form **tags** are the
+replacement and are *not* equivalent — they carry no field identity, no type, no
+validation and no controlled vocabulary. An integration writing structured
+metadata has no drop-in substitute.
+
+What survives on an asset: `Tags` (free-form, faceted, searchable) and
+`MetadataJson` (technical metadata extracted from the file — EXIF, dimensions,
+duration), both returned by `GET /api/v1/assets/{id}` and rendered on asset detail.
 
 ### G. Discovery (search)
 | ID | Use case | Persona | Surface | Status |
 |----|----------|---------|---------|:------:|
-| UC-DISC-01 | Faceted full-text search (type/status/date/metadata/tags) | V+ | `/search`, `POST /assets/search` | ✅ |
+| UC-DISC-01 | Faceted full-text search (type/status/collection/date/tags) | V+ | `/search`, `POST /assets/search` | ✅ |
 | UC-DISC-02 | Save a search with a name | V+ | `SaveSearchDialog` | ✅ |
 | UC-DISC-03 | Re-run / load a saved search | V+ | `SavedSearchesMenu` | ✅ |
 | UC-DISC-05 | Search results scoped to my ACL | V+ | `IAssetSearchService` | ✅ |

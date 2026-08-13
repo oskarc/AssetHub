@@ -240,10 +240,8 @@
   <!-- Audit Events: Migrations -->
 
   <!-- Metadata Schemas -->
-  <data name="Tab_MetadataSchemas" xml:space="preserve"><value>Metadata Schemas</value></data>
 
   <!-- Taxonomies -->
-  <data name="Tab_Taxonomies" xml:space="preserve"><value>Taxonomies</value></data>
 
   <!-- Webhooks -->
 
@@ -254,7 +252,6 @@
   <!-- Trash -->
   <data name="Tab_Trash" xml:space="preserve"><value>Trash</value></data>
   <data name="Group_Access" xml:space="preserve"><value>Access</value></data>
-  <data name="Group_Content" xml:space="preserve"><value>Content</value></data>
   <data name="Group_Operations" xml:space="preserve"><value>Operations</value></data>
   <data name="Group_Access_Desc" xml:space="preserve"><value>Users, collection permissions, guests, and share links.</value></data>
   <data name="Group_Content_Desc" xml:space="preserve"><value>Metadata schemas, taxonomies, export presets, and brands.</value></data>

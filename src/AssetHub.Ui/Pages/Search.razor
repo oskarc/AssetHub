@@ -31,7 +31,6 @@
         <!-- Sidebar -->
         <MudItem xs="12" md="3">
             <SearchSidebar Request="_request" Facets="_facets"
-                           FacetableFields="_facetableFields"
                            OnRequestChanged="OnRequestChanged" />
         </MudItem>
 
@@ -106,34 +105,16 @@
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S4487:Unread \"private\" fields should be removed", Justification = "Read by Razor markup binding (Facets=\"_facets\").")]
     private Dictionary<string, List<FacetBucket>> _facets = new();
     private List<AssetResponseDto> _items = new();
-    private List<MetadataFieldDto> _facetableFields = new();
     private int _total;
     private bool _loading;
     private bool _loadingMore;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadFacetableFieldsAsync();
         await TryReplaySavedSearchAsync();
         await RunSearchAsync();
     }
 
-    private async Task LoadFacetableFieldsAsync()
-    {
-        // Pull facetable metadata fields once on mount — the set doesn't change during a session.
-        // Each field adds a "meta:{id}" facet dimension to the request so the backend aggregates counts for it.
-        try
-        {
-            var schemas = await Api.GetMetadataSchemasAsync();
-            _facetableFields = schemas
-                .SelectMany(s => s.Fields)
-                .Where(f => f.Facetable)
-                .OrderBy(f => f.Label, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            EnsureMetaFacetsOnRequest();
-        }
-        catch { /* non-fatal — the built-in facets still render */ }
-    }
 
     private async Task TryReplaySavedSearchAsync()
     {
@@ -151,21 +132,10 @@
             _request = saved.Request;
             _request.Skip = 0;
             _request.Facets ??= new() { "asset_type", "status", "collection", "tag" };
-            EnsureMetaFacetsOnRequest();
         }
         catch { /* fall through to default search */ }
     }
 
-    private void EnsureMetaFacetsOnRequest()
-    {
-        _request.Facets ??= new();
-        foreach (var f in _facetableFields)
-        {
-            var token = "meta:" + f.Id;
-            if (!_request.Facets.Contains(token))
-                _request.Facets.Add(token);
-        }
-    }
 
     private async Task OnRequestChanged(AssetSearchRequest next)
     {
@@ -203,7 +173,6 @@
             Statuses = _request.Statuses,
             CollectionIds = _request.CollectionIds,
             Tags = _request.Tags,
-            MetadataFilters = _request.MetadataFilters,
             CreatedAfter = _request.CreatedAfter,
             CreatedBefore = _request.CreatedBefore,
             Sort = _request.Sort,

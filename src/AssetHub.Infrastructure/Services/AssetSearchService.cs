@@ -86,7 +86,6 @@ public sealed class AssetSearchService(
         q = ApplyCollectionFilter(q, request, accessibleCollectionIds, excludeDimension);
         q = ApplyTagFilter(q, request, excludeDimension);
         q = ApplyCreatedRangeFilter(q, request);
-        q = ApplyMetadataFilters(db, q, request, excludeDimension);
         return q;
     }
 
@@ -148,30 +147,6 @@ public sealed class AssetSearchService(
         return q;
     }
 
-    private static IQueryable<Asset> ApplyMetadataFilters(
-        AssetHubDbContext db, IQueryable<Asset> q, AssetSearchRequest request, string? excludeDimension)
-    {
-        if (request.MetadataFilters is null) return q;
-        foreach (var (fieldId, values) in request.MetadataFilters)
-        {
-            if (excludeDimension == MetaFacet(fieldId)) continue;
-            if (values is null || values.Count == 0) continue;
-
-            var localFieldId = fieldId;
-            var localValues = values;
-            // EF predicate must be a single expression for SQL translation; can't
-            // refactor to helper methods without losing the IQueryable shape.
-#pragma warning disable S1067 // Inline predicate required for EF Core translation.
-            q = q.Where(a => db.AssetMetadataValues.Any(v =>
-                v.AssetId == a.Id
-                && v.MetadataFieldId == localFieldId
-                && ((v.ValueText != null && localValues.Contains(v.ValueText))
-                    || (v.ValueTaxonomyTermId.HasValue
-                        && localValues.Contains(v.ValueTaxonomyTermId.Value.ToString())))));
-#pragma warning restore S1067
-        }
-        return q;
-    }
 
     private static IQueryable<Asset> ApplySort(IQueryable<Asset> q, string sort, bool hasText) => sort switch
     {
@@ -220,8 +195,6 @@ public sealed class AssetSearchService(
             "status" => await StatusBuckets(q, ct),
             "collection" => await CollectionBuckets(db, q, ct),
             "tag" => await TagBuckets(q, ct),
-            _ when dimension.StartsWith("meta:", StringComparison.OrdinalIgnoreCase)
-                && Guid.TryParse(dimension[5..], out var fieldId) => await MetadataBuckets(db, q, fieldId, ct),
             _ => null
         };
     }
@@ -300,58 +273,4 @@ public sealed class AssetSearchService(
             .ToList();
     }
 
-    private static async Task<List<FacetBucket>?> MetadataBuckets(AssetHubDbContext db, IQueryable<Asset> q, Guid fieldId, CancellationToken ct)
-    {
-        var field = await db.MetadataFields.AsNoTracking()
-            .Include(f => f.Taxonomy)
-            .FirstOrDefaultAsync(f => f.Id == fieldId, ct);
-        if (field is null || !field.Facetable) return null;
-
-        // Join Assets in the filtered set with their values for this field.
-        var pairs = await (
-            from a in q
-            join v in db.AssetMetadataValues.AsNoTracking().Where(v => v.MetadataFieldId == fieldId)
-                on a.Id equals v.AssetId
-            select new
-            {
-                Text = v.ValueText,
-                TermId = v.ValueTaxonomyTermId
-            })
-            .ToListAsync(ct);
-
-        if (field.Type == MetadataFieldType.Taxonomy)
-        {
-            var termIds = pairs.Where(p => p.TermId.HasValue).Select(p => p.TermId!.Value).Distinct().ToList();
-            var termLabels = termIds.Count == 0
-                ? new Dictionary<Guid, string>()
-                : await db.TaxonomyTerms.AsNoTracking()
-                    .Where(t => termIds.Contains(t.Id))
-                    .Select(t => new { t.Id, t.Label })
-                    .ToDictionaryAsync(t => t.Id, t => t.Label, ct);
-
-            return pairs
-                .Where(p => p.TermId.HasValue)
-                .GroupBy(p => p.TermId!.Value)
-                .Select(g => new FacetBucket
-                {
-                    Value = g.Key.ToString(),
-                    Label = termLabels.TryGetValue(g.Key, out var lbl) ? lbl : g.Key.ToString(),
-                    Count = g.Count()
-                })
-                .OrderByDescending(b => b.Count)
-                .Take(FacetBucketLimit)
-                .ToList();
-        }
-
-        // Text / select / multi-select — group by ValueText.
-        return pairs
-            .Where(p => !string.IsNullOrEmpty(p.Text))
-            .GroupBy(p => p.Text!)
-            .Select(g => new FacetBucket { Value = g.Key, Label = g.Key, Count = g.Count() })
-            .OrderByDescending(b => b.Count)
-            .Take(FacetBucketLimit)
-            .ToList();
-    }
-
-    private static string MetaFacet(Guid fieldId) => $"meta:{fieldId}";
 }
