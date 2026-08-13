@@ -17,7 +17,6 @@ public class AssetsResource { }
 public class CollectionsResource { }
 public class AdminResource { }
 public class SharesResource { }
-public class AccountResource { }
 public class AuditAdminResource { }
 public class TrashAdminResource { }
 public class MigrationsResource { }

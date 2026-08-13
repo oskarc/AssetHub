@@ -5,7 +5,7 @@ namespace AssetHub.Api.Filters;
 
 /// <summary>
 /// Endpoint filter that requires a valid antiforgery token for cookie-
-/// authenticated requests, and skips entirely for JWT / PAT bearer auth
+/// authenticated requests, and skips entirely for JWT bearer auth
 /// (which is CSRF-immune by construction — the token must be explicitly
 /// attached, browsers never auto-send it). Closes P-12 / A-7 in the
 /// security review: an XSS in the Blazor UI used to be able to call
@@ -33,7 +33,7 @@ public sealed class AntiforgeryUnlessBearerFilter(IAntiforgery antiforgery) : IE
     {
         var http = context.HttpContext;
 
-        // Bearer auth (JWT or PAT) is CSRF-immune — skip.
+        // Bearer auth (JWT) is CSRF-immune — skip.
         var authHeader = http.Request.Headers.Authorization;
         if (authHeader.Count > 0
             && authHeader[0] is { } first
@@ -43,7 +43,7 @@ public sealed class AntiforgeryUnlessBearerFilter(IAntiforgery antiforgery) : IE
         }
 
         // Only validate when the resolved principal is cookie-authenticated.
-        // PAT and JWT principals are caught by the Bearer check above; this
+        // JWT principals are caught by the Bearer check above; this
         // catches the case where a request has no Authorization header AND
         // no cookie session either (anonymous fall-through).
         var isCookieAuth =

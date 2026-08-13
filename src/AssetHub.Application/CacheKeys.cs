@@ -18,7 +18,6 @@ public static class CacheKeys
     private const string CollectionNamePrefix = "collection:name:";
     private const string CollectionCountPrefix = "collection:count:";
     private const string DashboardSummaryPrefix = "dashboard:summary:";
-    private const string UserRealmRolesPrefix = "user:realmroles:";
     private const string NotificationUnreadCountPrefix = "notif:unread-count:";
 
     // ── TTLs ──────────────────────────────────────────────────────────
@@ -43,24 +42,6 @@ public static class CacheKeys
 
     /// <summary>Dashboard summary data. Invalidated on asset/collection changes.</summary>
     public static readonly TimeSpan DashboardSummaryTtl = TimeSpan.FromMinutes(2);
-
-    /// <summary>
-    /// Realm roles for a single user (PAT auth path). Short TTL — role
-    /// changes in Keycloak take effect within this window without an
-    /// explicit invalidation. Not an ACL lookup — those remain request-
-    /// scoped per CLAUDE.md.
-    /// </summary>
-    /// <remarks>
-    /// Security implication: a Keycloak user demoted from admin → viewer
-    /// retains admin privileges on PAT-authenticated requests for up to
-    /// this TTL. This is the deliberate compromise for performance —
-    /// raising it past a minute or two would amplify the demotion-lag
-    /// window beyond what most policies allow. Acknowledged in the
-    /// security review (A-5). Per-PAT validity (revoke / expiry) is
-    /// re-checked on every request via the DB; this cache only covers
-    /// the realm-role lookup.
-    /// </remarks>
-    public static readonly TimeSpan UserRealmRolesTtl = TimeSpan.FromMinutes(1);
 
     /// <summary>
     /// Unread notification count for the bell badge. Short TTL + tag invalidation on
@@ -96,10 +77,6 @@ public static class CacheKeys
     /// <summary>Cache key for dashboard summary for a user.</summary>
     public static string DashboardSummary(string userId)
         => $"{DashboardSummaryPrefix}{userId}";
-
-    /// <summary>Cache key for a user's realm role set (used by PAT auth).</summary>
-    public static string UserRealmRoles(string userId)
-        => $"{UserRealmRolesPrefix}{userId}";
 
     /// <summary>Cache key for a user's unread-notification count (bell badge).</summary>
     public static string NotificationUnreadCount(string userId)

@@ -816,3 +816,119 @@ contracts:
       Both re-run sequentially. Also: the Down block initially paraphrased the
       trigger functions from memory (one dropped an IS DISTINCT FROM guard) and
       claimed byte-identity it did not have — replaced with verbatim copies.
+
+  - contract_id: contract-011
+    feature: reshape-c10-public-api-contract-cut
+    date_proposed: 2026-08-13
+    date_approved: 2026-08-13
+    tier_1: |
+      You are removing the external-integration story: Personal Access Tokens, the
+      OpenAPI/Swagger document, and the [PublicApi] + scope-filter apparatus that
+      curates a stable public REST contract. What remains is an internal REST
+      surface behind cookie/JWT auth, serving the Blazor UI and the browser.
+
+      A curated public API is a product commitment — SemVer discipline,
+      deprecation paths, scope design, token lifecycle, generated docs. None of
+      the five features is "be an integration platform," and the apparatus costs
+      ~1,400 lines plus a permanent tax on every endpoint added.
+
+      SCOPE DECISION, quantified and deferred with owner approval: the Blazor UI
+      talks to the backend through an in-process facade, not HTTP. What actually
+      calls the REST layer is narrow — the browser fetches media bytes directly
+      (/assets/{id}/{download,preview,thumb,medium,poster}, the share
+      equivalents, /collections/{id}/download-all, the migration outcome CSV).
+      The remaining JSON CRUD routes have NO caller at all. 97 routes, ~153
+      endpoint tests. Whether those consumer-less routes should also go is a
+      DIFFERENT judgment (is a REST API part of AssetHub's identity?) and is
+      explicitly deferred to a later decision, not folded in here: bundling would
+      put two independent risks under one green/not-green verdict, and those ~150
+      endpoint tests are the only coverage of authorization POLICY wiring
+      (RequireManager, antiforgery, group-level auth) as distinct from
+      service-layer ACL checks.
+
+      DELIBERATE SURVIVORS: JWT bearer auth and RequireAntiforgeryUnlessBearer.
+      Bearer principals still exist after PATs go, so the dual CSRF gate stays
+      load-bearing — and auth is C12's subject, so pre-empting it here would
+      collide.
+    tier_2: |
+      1. Baseline roll-forward to d9f9931 (1013), docker pre-check first
+         (drift-001). Baseline re-established on a clean tree because C9's API
+         run overlapped its own residue edits.
+      2. Tracer greps before deleting: PublicApiAttribute type name, the "pat_"
+         token prefix, the pat_id claim (4 sites), the PAT resource marker.
+      3. Delete PATs: entity, repository + interface, service + interface, DTOs,
+         auth handler, endpoints, EF configuration + DbSet, UI dialog, facade
+         partial + interface members, Account.razor section, 4 test classes +
+         PatAuthWebApplicationFactory.
+      4. Delete the public-contract apparatus: OpenApi/ (4 files),
+         RequireScopeAttribute, AddOpenApi registration, UseSwaggerUIAndGate +
+         the MapOpenApi route and its admin gate, OpenApiEndpointTests.
+      5. CROSS-CUTTING DETACHMENT across 5 endpoint files: strip 29
+         MarkAsPublic* calls and 9 RequireScopeFilter filters. Five-part
+         checklist per site. KEEP every RequireAuthorization and both halves of
+         the CSRF gate — removing a scope filter must not weaken a route's auth.
+      6. Auth: drop the PAT branch from the Smart selector and the PAT scheme
+         registration; JWT + Cookie routing unchanged.
+      7. Migration dropping PersonalAccessTokens, reversible Down, discovery
+         check on a FRESH build (drift-006).
+      8. Sweep including the unreachable-branch leg: the pat_id guards become
+         unreachable once no PAT principal can exist, and
+         RequireAntiforgeryUnlessBearer's bearer branch must be RE-VERIFIED as
+         still reachable via JWT — confirm, do not assume.
+      9. Prose: README, USE-CASES, SECURITY, CLAUDE.md (substantial — the Public
+         API contract section, PAT & scope enforcement, parts of the endpoint
+         checklist and pre-commit sweep describe machinery that will not exist).
+         pattern-public-api-contract and pattern-pat-scope-enforcement become
+         UNINSTANTIATED in this project — manifest notes, not deletions, since
+         they are type-category nodes bound for the library.
+    tier_3: |
+      - NO ROUTE LOSES AUTHORIZATION. Every endpoint that had
+        RequireAuthorization still has it; the CSRF gate is intact on every
+        mutating group. This is the one place this cut could silently weaken
+        security, so it gets an explicit before/after diff of auth annotations
+        per route, not just a green build. (-> primary risk)
+      - Browser-fetched media endpoints behave identically — downloads,
+        previews, thumbnails, share media, download-all, outcome CSV. (-> UC1)
+      - JWT bearer path still authenticates; RequireAntiforgeryUnlessBearer
+        still no-ops for bearer and validates for cookie. (-> UC2)
+      - Reconciliation closes on the baseline diff; removals traceable to the
+        named PAT/OpenAPI test classes. (-> UC7)
+      - Sweep clean; census no new rules. (-> all)
+      - Verified means: baseline clean + no new warnings + full pass +
+        reconciliation closes + auth-annotation diff reviewed + discovery check
+        clean on a fresh build.
+    status: implemented
+    revisions: []
+    work_id: null
+    implemented: 2026-08-13
+    implementation_notes: >-
+      25 files deleted. Tracer greps found RequireScopeFilterTests.cs, a test the
+      file-name inventory missed. AUTH INVARIANT VERIFIED MECHANICALLY, not by
+      inspection — a before/after script captured per-group RequireAuthorization
+      and RequireAntiforgeryUnlessBearer posture across all endpoint files;
+      routes went 97 -> 94 (exactly the 3 PAT routes) and every surviving group
+      kept identical auth + CSRF posture.
+
+      Unreachable-branch leg paid off — IKeycloakUserService.GetUserRealmRolesAsync
+      and the CacheKeys.UserRealmRoles registry entries were orphaned by the cut
+      (the PAT handler was their only consumer) and removed. The CSRF filter's
+      bearer branch was re-verified as still reachable via JWT, per contract, not
+      assumed.
+
+      Verification: suite 971 passed / 0 failed; reconciliation closes exactly
+      (1013 - 42 + 0), all 42 removals traceable to five named classes. Census
+      flat at 73 distinct, no new rules. Discovery check clean on a fresh build.
+
+      Three self-inflicted defects, all caught before commit: (1) a python helper
+      truncated AssetHubApiClient.cs to zero bytes because open(p,'w') evaluated
+      before the read — restored from HEAD and the helper rewritten to read and
+      assert before opening for write; (2) source edits applied while both suites
+      ran, so the first 971 verdict described a pre-edit tree — re-run clean on
+      the final tree, identical result (drift-007, count 4); (3) YAML colon-space
+      turned two manifest notes into mappings again (drift-009).
+
+      Prose: CLAUDE.md's Public API contract and PAT sections REPLACED rather than
+      trimmed — both described machinery that no longer exists. Two type-category
+      nodes (pattern-public-api-contract, pattern-pat-scope-enforcement) recorded
+      in the manifest as UNINSTANTIATED rather than deleted; they carry the rules
+      any future public API or token auth must satisfy.

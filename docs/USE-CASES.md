@@ -22,13 +22,12 @@ plus two non-account principals and the system itself.
 | **C** | Contributor (L2) | + upload, edit metadata, share, submit for review |
 | **M** | Manager (L3) | + delete, edit collections, manage per-collection ACL, approve/publish |
 | **A** | Admin (L4) | + platform governance; bypasses all ACL checks |
-| **API** | PAT / integration | Bearer `pat_*`; scope-constrained; cannot mint PATs |
 | **SYS** | Background worker | Not a user, but produces user-visible outcomes (processing, sweeps) |
 
 ### Dimension B — Domain area (WHAT)
 Auth · Ingestion · Processing · Organization · Metadata · Discovery · View/Deliver · Editing ·
 Versioning · Lifecycle · Sharing ·
-Administration · Public API · Migration.
+Administration · Migration.
 
 ### Dimension C — Journey stage (WHEN)
 Onboarding → Daily work → Collaboration → Distribution → Governance → Integration.
@@ -56,7 +55,6 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-AUTH-04 | See only the nav/actions my role allows | all | `NavMenu`, role-gated buttons | ✅ |
 | UC-AUTH-05 | Switch UI language (EN / SV) | all | App bar / `ShareLayout` | ✅ |
 | UC-AUTH-06 | Toggle dark mode | all | App bar | ✅ |
-| UC-AUTH-08 | Authenticate API calls with a PAT bearer token | API | `Authorization: Bearer pat_*` | ✅ |
 
 ### B. Home / dashboard
 | ID | Use case | Persona | Surface | Status |
@@ -194,18 +192,16 @@ full implementation remains browsable on the `full-featured` branch / `pre-resha
 | UC-ADMIN-06 | Search users for the ACL picker | M/A | `…/acl/users/search` | ✅ |
 | UC-ADMIN-07 | View / filter / paginate the audit log | A | `/admin/audit` | ✅ |
 | UC-ADMIN-08 | Audit retention auto-prune | SYS | `AuditRetentionService` | ✅ |
-| UC-ADMIN-09 | Self-service PAT create / list / revoke | V+ | `/account`, `…/me/personal-access-tokens` | ✅ |
-| UC-ADMIN-10 | PAT cannot mint/revoke PATs (escalation guard) | API | `pat_id` guard | ✅ |
 
 ### T. Public API & integration
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-API-01 | Read assets/collections via scoped PAT | API | `assets:read` / `collections:read` | ✅ |
-| UC-API-02 | Write assets/collections via scoped PAT | API | `assets:write` / `collections:write` | ✅ |
-| UC-API-03 | Search via PAT | API | `search:read` | ✅ |
-| UC-API-04 | Manage shares via PAT | API | `shares:write` | ✅ |
-| UC-API-05 | Discover the API via OpenAPI / Swagger | API/dev | `/swagger` | ✅ |
-| UC-API-06 | Per-endpoint scope enforcement on every public route | API | `RequireScopeFilter` | ✅ |
+Removed 2026-08 by the reshape (contract-011) — Personal Access Tokens, the
+OpenAPI/Swagger document, and the `[PublicApi]` + scope-filter apparatus are gone.
+AssetHub is no longer an integration platform. Browsable on the `full-featured`
+branch / `pre-reshape` tag.
+
+The REST endpoints still exist but are **internal**: they serve the Blazor UI's
+browser-side fetches (media bytes, downloads, share media) behind cookie/JWT auth,
+carry no SemVer promise, and are not documented.
 
 ### U. Webhooks
 Removed 2026-08 by the reshape (contract-005) — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag.
@@ -254,7 +250,7 @@ extending each row with implementation columns. Suggested working schema per use
 |-------|---------|
 | **Entry point** | The page/endpoint already in the Surface column |
 | **Service / handler** | Application service + Infrastructure impl that does the work |
-| **Auth path** | Policy + (if applicable) collection ACL check + PAT scope |
+| **Auth path** | Policy + (if applicable) collection ACL check |
 | **Persistence / side-effects** | Tables touched, MinIO objects, cache tags invalidated, audit events emitted |
 | **Async tail** | Wolverine messages / background jobs triggered |
 | **Tests** | Covering xUnit / bUnit / E2E specs (or "gap") |

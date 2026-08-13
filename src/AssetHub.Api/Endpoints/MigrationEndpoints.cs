@@ -131,7 +131,6 @@ public static class MigrationEndpoints
         return (await svc.StartAsync(id, ct)).ToHttpResult();
     }
 
-
     private static async Task<IResult> CancelMigration(
         Guid id,
         [FromServices] IMigrationService svc,

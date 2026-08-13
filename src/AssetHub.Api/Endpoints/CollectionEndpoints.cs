@@ -1,7 +1,5 @@
-using AssetHub.Api.Authentication;
 using AssetHub.Api.Extensions;
 using AssetHub.Api.Filters;
-using AssetHub.Api.OpenApi;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -17,33 +15,27 @@ public static class CollectionEndpoints
             .RequireAuthorization()
             .RequireAntiforgeryUnlessBearer();
 
-        var read = new RequireScopeFilter("collections:read");
-        var write = new RequireScopeFilter("collections:write");
-
-        // MarkAsPublicRead / MarkAsPublicMutation bundle scope + antiforgery + OpenAPI
-        // inclusion (see PublicApiEndpointExtensions); the group-level
-        // RequireAntiforgeryUnlessBearer() stays the CSRF gate for cookie principals.
-        group.MapGet("", GetRootCollections).MarkAsPublicRead(read).WithName("GetRootCollections");
-        group.MapGet("{id:guid}", GetCollectionById).MarkAsPublicRead(read).WithName("GetCollectionById");
+        // The group-level RequireAntiforgeryUnlessBearer() is the CSRF gate for cookie
+        // principals; Bearer clients are inherently CSRF-immune.
+        group.MapGet("", GetRootCollections).WithName("GetRootCollections");
+        group.MapGet("{id:guid}", GetCollectionById).WithName("GetCollectionById");
         // deletion-context is a UI-specific pre-delete preview — kept internal.
         group.MapGet("{id:guid}/deletion-context", GetDeletionContext).WithName("GetCollectionDeletionContext");
-        group.MapPost("", CreateCollection).AddEndpointFilter<ValidationFilter<CreateCollectionDto>>().MarkAsPublicMutation(write).RequireAuthorization("RequireContributor").WithName("CreateCollection");
-        group.MapPatch("{id:guid}", UpdateCollection).AddEndpointFilter<ValidationFilter<UpdateCollectionDto>>().MarkAsPublicMutation(write).WithName("UpdateCollection");
-        group.MapDelete("{id:guid}", DeleteCollection).MarkAsPublicMutation(write).WithName("DeleteCollection");
+        group.MapPost("", CreateCollection).AddEndpointFilter<ValidationFilter<CreateCollectionDto>>().RequireAuthorization("RequireContributor").WithName("CreateCollection");
+        group.MapPatch("{id:guid}", UpdateCollection).AddEndpointFilter<ValidationFilter<UpdateCollectionDto>>().WithName("UpdateCollection");
+        group.MapDelete("{id:guid}", DeleteCollection).WithName("DeleteCollection");
         // download-all kicks off a ZIP build job and streams a UI-driven download flow — kept internal.
         group.MapPost("{id:guid}/download-all", DownloadAllAssets).DisableAntiforgery().WithName("DownloadAllAssets");
 
         // Nested collections (T5-NEST-01) — admin-only mutations of parent / inheritance.
-        // Reparent + inherit toggle are public-API ("collections:write") so admins can script
+        // Reparent + inherit toggle are admin-scriptable mutations so admins can script
         // taxonomy setup. Copy-from-parent stays internal — admin UX only, not part of the contract.
         group.MapPatch("{id:guid}/parent", SetCollectionParent)
             .AddEndpointFilter<ValidationFilter<SetParentRequestDto>>()
-            .MarkAsPublicMutation(write)
             .RequireAuthorization("RequireAdmin")
             .WithName("SetCollectionParent");
         group.MapPatch("{id:guid}/inherit-acl", SetCollectionInheritAcl)
             .AddEndpointFilter<ValidationFilter<SetInheritAclRequestDto>>()
-            .MarkAsPublicMutation(write)
             .RequireAuthorization("RequireAdmin")
             .WithName("SetCollectionInheritAcl");
         group.MapPost("{id:guid}/copy-acl-from-parent", CopyCollectionAclFromParent)

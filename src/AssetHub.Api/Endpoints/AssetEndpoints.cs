@@ -1,7 +1,5 @@
-using AssetHub.Api.Authentication;
 using AssetHub.Api.Extensions;
 using AssetHub.Api.Filters;
-using AssetHub.Api.OpenApi;
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
@@ -23,46 +21,38 @@ public static class AssetEndpoints
             .RequireAntiforgeryUnlessBearer()
             .WithTags("Assets");
 
-        // PAT scope enforcement: `.AddEndpointFilter(new RequireScopeFilter(...))` only
-        // rejects PAT principals that lack the required scope. Cookie / JWT principals
-        // and PATs with no declared scopes (full owner impersonation) pass unchanged.
-        var read = new RequireScopeFilter("assets:read");
-        var write = new RequireScopeFilter("assets:write");
-
-        // Admin-only asset listing — intentionally NOT part of the public OpenAPI contract.
+        // Admin-only asset listing.
         group.MapGet("", GetAssets).RequireAuthorization("RequireAdmin").WithName("GetAssets");
         // GET /all retired — POST /search (AssetSearchEndpoints) is the single asset-listing path.
-        // MarkAsPublicRead / MarkAsPublicMutation bundle scope + antiforgery + OpenAPI
-        // inclusion (see PublicApiEndpointExtensions). Mutations rely on the group-level
-        // RequireAntiforgeryUnlessBearer() above as the actual CSRF gate for cookie
-        // principals; Bearer clients are inherently CSRF-immune.
-        group.MapGet("{id:guid}", GetAsset).MarkAsPublicRead(read).WithName("GetAsset");
-        group.MapPost("", UploadAsset).MarkAsPublicMutation(write).WithName("UploadAsset");
-        group.MapPatch("{id:guid}", UpdateAsset).AddEndpointFilter<ValidationFilter<UpdateAssetDto>>().MarkAsPublicMutation(write).WithName("UpdateAsset");
-        group.MapDelete("{id:guid}", DeleteAsset).MarkAsPublicMutation(write).WithName("DeleteAsset");
-        group.MapPost("bulk-delete", BulkDeleteAssets).AddEndpointFilter<ValidationFilter<BulkDeleteAssetsRequest>>().MarkAsPublicMutation(write).WithName("BulkDeleteAssets");
-        group.MapGet("collection/{collectionId:guid}", GetAssetsByCollection).MarkAsPublicRead(read).WithName("GetAssetsByCollection");
+        // Mutations rely on the group-level RequireAntiforgeryUnlessBearer() above as the
+        // CSRF gate for cookie principals; Bearer clients are inherently CSRF-immune.
+        group.MapGet("{id:guid}", GetAsset).WithName("GetAsset");
+        group.MapPost("", UploadAsset).WithName("UploadAsset");
+        group.MapPatch("{id:guid}", UpdateAsset).AddEndpointFilter<ValidationFilter<UpdateAssetDto>>().WithName("UpdateAsset");
+        group.MapDelete("{id:guid}", DeleteAsset).WithName("DeleteAsset");
+        group.MapPost("bulk-delete", BulkDeleteAssets).AddEndpointFilter<ValidationFilter<BulkDeleteAssetsRequest>>().WithName("BulkDeleteAssets");
+        group.MapGet("collection/{collectionId:guid}", GetAssetsByCollection).WithName("GetAssetsByCollection");
 
-        group.MapGet("{id:guid}/collections", GetAssetCollections).MarkAsPublicRead(read).WithName("GetAssetCollections");
-        group.MapPost("{id:guid}/collections/{collectionId:guid}", AddAssetToCollection).MarkAsPublicMutation(write).WithName("AddAssetToCollection");
-        group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).MarkAsPublicMutation(write).WithName("RemoveAssetFromCollection");
+        group.MapGet("{id:guid}/collections", GetAssetCollections).WithName("GetAssetCollections");
+        group.MapPost("{id:guid}/collections/{collectionId:guid}", AddAssetToCollection).WithName("AddAssetToCollection");
+        group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).WithName("RemoveAssetFromCollection");
         // deletion-context is a UI-oriented helper (pre-delete impact preview) — kept internal.
         group.MapGet("{id:guid}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
 
-        group.MapPost("init-upload", InitUpload).AddEndpointFilter<ValidationFilter<InitUploadRequest>>().MarkAsPublicMutation(write).WithName("InitUpload");
-        group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).MarkAsPublicMutation(write).WithName("ConfirmUpload");
+        group.MapPost("init-upload", InitUpload).AddEndpointFilter<ValidationFilter<InitUploadRequest>>().WithName("InitUpload");
+        group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).WithName("ConfirmUpload");
 
         // Copy/replace save paths — internal; replace-file is the sole version-minting path (T1-VER-01).
         group.MapPost("{id:guid}/save-copy", SaveImageCopy).AddEndpointFilter<ValidationFilter<SaveImageCopyRequest>>().DisableAntiforgery().WithName("SaveImageCopy");
         group.MapPost("{id:guid}/replace-file", ReplaceImageFile).AddEndpointFilter<ValidationFilter<ReplaceImageFileRequest>>().DisableAntiforgery().WithName("ReplaceImageFile");
 
-        group.MapGet("{id:guid}/download", GetRendition("original", forceDownload: true)).MarkAsPublicRead(read).WithName("DownloadOriginal");
-        group.MapGet("{id:guid}/preview", GetRendition("original", forceDownload: false)).MarkAsPublicRead(read).WithName("PreviewOriginal");
-        group.MapGet("{id:guid}/thumb", GetRendition("thumb", forceDownload: false)).MarkAsPublicRead(read).WithName("GetThumbnail");
-        group.MapGet("{id:guid}/thumb/download", GetRendition("thumb", forceDownload: true)).MarkAsPublicRead(read).WithName("DownloadThumbnail");
-        group.MapGet("{id:guid}/medium", GetRendition("medium", forceDownload: false)).MarkAsPublicRead(read).WithName("GetMedium");
-        group.MapGet("{id:guid}/medium/download", GetRendition("medium", forceDownload: true)).MarkAsPublicRead(read).WithName("DownloadMedium");
-        group.MapGet("{id:guid}/poster", GetRendition("poster", forceDownload: false)).MarkAsPublicRead(read).WithName("GetPoster");
+        group.MapGet("{id:guid}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
+        group.MapGet("{id:guid}/preview", GetRendition("original", forceDownload: false)).WithName("PreviewOriginal");
+        group.MapGet("{id:guid}/thumb", GetRendition("thumb", forceDownload: false)).WithName("GetThumbnail");
+        group.MapGet("{id:guid}/thumb/download", GetRendition("thumb", forceDownload: true)).WithName("DownloadThumbnail");
+        group.MapGet("{id:guid}/medium", GetRendition("medium", forceDownload: false)).WithName("GetMedium");
+        group.MapGet("{id:guid}/medium/download", GetRendition("medium", forceDownload: true)).WithName("DownloadMedium");
+        group.MapGet("{id:guid}/poster", GetRendition("poster", forceDownload: false)).WithName("GetPoster");
     }
 
     // ── Queries ──────────────────────────────────────────────────────────────

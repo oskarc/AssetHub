@@ -192,6 +192,7 @@ nodes:
     inherited: false
     dependencies: [pattern-service-result, principle-encode-over-document]
     open_gaps:
+      - 2026-08-13 (contract-011) UNINSTANTIATED in AssetHub — the curated public surface, OpenAPI document and MarkAsPublic* helpers were removed by the reshape. Node retained — it carries the composed-helper and scope-on-every-public-endpoint rules any future public API must satisfy. The dual CSRF gate it defined survives in the project and is still load-bearing for JWT bearer principals
       - Extracted from CLAUDE.md 2026-06-14; self-service-exception coupling with pattern-pat-scope-enforcement unverified outside AssetHub
 
   - id: pattern-pat-scope-enforcement
@@ -204,6 +205,7 @@ nodes:
     inherited: false
     dependencies: [pattern-public-api-contract]
     open_gaps:
+      - 2026-08-13 (contract-011) UNINSTANTIATED in AssetHub — PATs removed with the public API contract they served. Node retained — hash-only persistence and the privilege-escalation guard are the rules any future token auth must satisfy
       - Extracted from CLAUDE.md 2026-06-14; single implementation so far
 
   - id: implementation-blazor-ui-standard

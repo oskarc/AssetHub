@@ -180,7 +180,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMigrationRepository, MigrationRepository>();
         services.AddScoped<ISavedSearchRepository, SavedSearchRepository>();
         services.AddScoped<IAssetVersionRepository, AssetVersionRepository>();
-        services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
         services.AddScoped<IOrphanedObjectRepository, OrphanedObjectRepository>();
 
         // ── Resilience pipelines ──────────────────────────────────────────

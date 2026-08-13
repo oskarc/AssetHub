@@ -56,7 +56,6 @@ The dependency direction, the deliberately-omitted patterns, and how SOLID appli
 - **Messaging** is Wolverine (the standard's "explicit message contracts" — no domain events).
 - **OIDC** is Keycloak (the standard's "one external identity provider").
 - **Only `Asset`** has state-transition methods (the standard's "few entities with a genuine lifecycle"); every other entity is standalone data.
-- OpenAPI/Swagger is used **only** for the curated public surface — see "Public API contract" below.
 
 ---
 
@@ -149,7 +148,7 @@ AssetHub specifics:
 
 ## API Endpoints (`AssetHub.Api`)
 
-The curated-public-surface design — composed `MarkAsPublic*` helpers, scope-filter-on-every-public-endpoint, the dual CSRF gate, consistent error shape, SemVer — is the **`pattern-public-api-contract`** standard. AssetHub's concrete wiring:
+The REST surface is **internal**: it serves the Blazor UI's browser-side fetches (media bytes, downloads) and nothing else. There is no curated public contract, no OpenAPI document, and no SemVer promise — the 2026-08 reshape removed all three. `pattern-public-api-contract` stays in the kit as a standard this project no longer instantiates. AssetHub's wiring:
 
 - One static class per domain: `AssetEndpoints`, `CollectionEndpoints`, etc.
 - Extension method: `Map*Endpoints(this WebApplication app)`.
@@ -157,7 +156,7 @@ The curated-public-surface design — composed `MarkAsPublic*` helpers, scope-fi
 
 ### Route groups
 
-The dual CSRF gate is the `pattern-public-api-contract` standard; AssetHub's concrete pieces: every `MapGroup` with a POST/PATCH/PUT/DELETE chains **`.RequireAntiforgeryUnlessBearer()`** (validates `X-CSRF-TOKEN` for cookie principals, no-ops for Bearer/anonymous), and each mutating endpoint chains `.DisableAntiforgery()` (turns off the built-in pipeline so Bearer clients aren't rejected). **Both are required together** — this is the P-12 / A-7 fix; don't reopen it.
+The dual CSRF gate remains load-bearing (JWT bearer principals still exist); AssetHub's concrete pieces: every `MapGroup` with a POST/PATCH/PUT/DELETE chains **`.RequireAntiforgeryUnlessBearer()`** (validates `X-CSRF-TOKEN` for cookie principals, no-ops for Bearer/anonymous), and each mutating endpoint chains `.DisableAntiforgery()` (turns off the built-in pipeline so Bearer clients aren't rejected). **Both are required together** — this is the P-12 / A-7 fix; don't reopen it.
 
 ```csharp
 var group = app.MapGroup("/api/v1/examples")
@@ -186,17 +185,22 @@ All error returns from endpoints flow through `ServiceResult.ToHttpResult()`, wh
 { "code": "NOT_FOUND", "message": "Asset not found", "details": {} }
 ```
 
-When you can't use `ServiceResult` because the validation fires before the service call (e.g., `IFormFile` parameter binding for uploads), use `Results.BadRequest(ApiError.BadRequest("…"))` — the `ApiError` factories in `AssetHub.Application.Dtos` produce the same shape. **Never** return `Results.BadRequest(new { error = "…" })` — that ships an inconsistent shape that breaks SDK consumers reading the OpenAPI schema.
+When you can't use `ServiceResult` because the validation fires before the service call (e.g., `IFormFile` parameter binding for uploads), use `Results.BadRequest(ApiError.BadRequest("…"))` — the `ApiError` factories in `AssetHub.Application.Dtos` produce the same shape. **Never** return `Results.BadRequest(new { error = "…" })` — that ships an inconsistent shape, and the error contract is supposed to be uniform across every endpoint.
 
-### Public API contract (`[PublicApi]` + OpenAPI)
+### REST surface (internal)
 
-A curated subset of endpoints forms the stable public REST contract consumed by external integrations, CI scripts, and migration tools. The rest (admin UX, UI-only helpers) remains functional but undocumented.
+Endpoints exist to serve the Blazor UI's browser-side fetches — media bytes
+(`/thumb`, `/medium`, `/preview`, `/download`, `/poster`), share media, ZIP
+`download-all`, and the migration outcome CSV. The Blazor server itself does
+**not** go through HTTP; it calls Application services in-process through
+`AssetHubApiClient`.
 
-- Mark public endpoints with the composed helpers **`.MarkAsPublicRead(scope)`** / **`.MarkAsPublicMutation(scope)`** (in `AssetHub.Api.OpenApi`) — they bundle the scope filter, antiforgery handling, and OpenAPI inclusion so no leg can be forgotten. Chain `ValidationFilter<T>` *before* the helper. Raw `.MarkAsPublicApi()` remains only for groups and the documented PAT self-service exception. Only marked endpoints appear in the generated OpenAPI document at `/swagger/v1/swagger.json`.
-- Every public-API endpoint **must** also carry a `RequireScopeFilter` with the appropriate `assets:read`/`assets:write`/`collections:read`/`collections:write`/`search:read` scope — never ship a `[PublicApi]` endpoint without one (see PAT section below).
-  - **One documented exception**: PAT self-service endpoints (`/api/v1/me/personal-access-tokens/*`) skip `RequireScopeFilter` because they're guarded by a `pat_id` claim check that *strictly forbids* PAT principals from reaching them at all. No scope (including `admin`) is enough. If you add a new "PAT-can-never-do-this" surface, follow the same pattern: `pat_id` guard inside the handler, no `RequireScopeFilter`, comment in the route mapping pointing back at this rule.
-- Changes to `[PublicApi]` endpoints are breaking changes under SemVer. Renames, removals, and type changes need a version bump or a deprecation path.
-- Swagger UI lives at `/swagger`. Anonymous in Development; `RequireAdmin` gated in every other environment via middleware in `UseAssetHubMiddleware` + `RequireAuthorization` on the JSON endpoint.
+- No endpoint is marked public, documented in an OpenAPI document, or covered by
+  a SemVer promise. Do not add `[PublicApi]`-style marking back without an
+  explicit decision to re-enter the integration business.
+- Group-level `.RequireAuthorization(...)` and the dual CSRF gate are still
+  mandatory on every group — see the checklist below. Those did not go away with
+  the public contract.
 
 ---
 
@@ -217,30 +221,18 @@ Per-collection permissions via `CollectionAcl`. Check through `CollectionAuthori
 - Never trust client-supplied role values without `HasSufficientLevel()`.
 - Never expose other users' IDs without authorization checks.
 
-### Personal Access Tokens (PATs) & scope enforcement
+### Authentication paths
 
-The token model — hash-only persistence, per-endpoint scope enforcement, and the privilege-escalation guard — is the **`pattern-pat-scope-enforcement`** standard. AssetHub's concrete instantiation:
+Two principal types reach the API: **cookie** (the Blazor UI, interactive OIDC
+login) and **JWT bearer** (Keycloak-issued). The `Smart` scheme selector routes
+`Authorization: Bearer …` to JWT and everything else to Cookie.
 
-External callers authenticate using either an OIDC JWT **or** a Personal Access Token. The "Smart" authentication scheme selector routes `Authorization: Bearer pat_*` headers to the PAT handler and everything else to JWT / Cookie.
-
-**Token lifecycle.** Users mint PATs on the `/account` page. Plaintext format is `pat_` + 32-char base64url (24 bytes of CSPRNG entropy); only the SHA-256 hash is persisted. Plaintext is returned once in `CreatedPersonalAccessTokenDto.PlaintextToken` and never logged or re-rendered. Idempotent revoke, optional expiry, and `pat.created` / `pat.revoked` audit events.
-
-**Scope enforcement is mandatory on public endpoints.** Allowed scopes are declared in `PersonalAccessTokenDto.AllowedScopes` (`assets:read`, `assets:write`, `collections:read`, `collections:write`, `shares:read`, `shares:write`, `search:read`, `admin`). Enforce with `RequireScopeFilter`:
-
-```csharp
-group.MapGet("{id:guid}", GetAsset)
-    .AddEndpointFilter(new RequireScopeFilter("assets:read"))
-    .MarkAsPublicApi();
-```
-
-Filter behaviour: cookie / JWT principals pass through unchanged (no `pat_scope` claims). A PAT with zero scopes is owner-impersonation and passes every check. The `admin` scope is a wildcard. Case-sensitive ordinal comparison.
-
-**Privilege-escalation guard.** A PAT-authenticated principal must **not** be able to mint or revoke PATs. Endpoints that do so (see `PersonalAccessTokenEndpoints`) check for the presence of a `pat_id` claim and return `403` when it's set. Apply the same guard anywhere a caller could otherwise "bootstrap" new long-lived credentials from a compromised token.
-
-**Rules:**
-- Every `[PublicApi]` endpoint ships with a `RequireScopeFilter` — no exceptions.
-- Never skip the `pat_id` guard when adding mutating self-service endpoints.
-- Keycloak realm roles for PAT principals are fetched via `IKeycloakUserService.GetUserRealmRolesAsync` and cached 1 min via `CacheKeys.UserRealmRoles`; do not cache longer.
+Personal Access Tokens were removed by the 2026-08 reshape (contract-011) along
+with the public API contract they existed to serve — there is no longer a
+long-lived credential a user can mint. `pattern-pat-scope-enforcement` stays in
+the kit as a standard this project no longer instantiates; if token auth ever
+returns, that node carries the hash-only-persistence and
+privilege-escalation-guard rules it must satisfy.
 
 ---
 
@@ -544,7 +536,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - Input DTOs apply `ValidationFilter<T>`.
 - Return via `.ToHttpResult(...)` — never manually inspect `IsSuccess`.
 - **Error shape is `ApiError`, not anonymous types.** When you can't route through `ServiceResult` (typically `IFormFile` parameter validation), return `Results.BadRequest(ApiError.BadRequest("…"))`. Never `Results.BadRequest(new { error = "…" })` — the anonymous shape doesn't match the OpenAPI schema and breaks SDK consumers.
-- Public endpoints use `.MarkAsPublicRead(scope)` / `.MarkAsPublicMutation(scope)` — never hand-assemble the scope + antiforgery + `MarkAsPublicApi` chain on individual endpoints. A raw `.MarkAsPublicApi()` on a single endpoint is a review flag; the only documented exceptions are group-level marking and the `pat_id`-guarded PAT self-service surface.
+- No endpoint is marked public or added to an OpenAPI document — the curated public contract was removed by the 2026-08 reshape. Re-introducing one is a design decision, not a per-endpoint choice.
 
 ### When editing services / repositories (`src/AssetHub.Infrastructure/**`)
 
@@ -607,7 +599,6 @@ When the changeset is non-trivial (new endpoints, services, repos, resource keys
 | `^public class.*(?:Service\|Repository\|Adapter)\(` in `src/AssetHub.Infrastructure/` | Missing `sealed` on a service / repo / adapter (S3260 + house rule) | None — every match is a fix |
 | `private (class\|record)` in `src/AssetHub.Ui/` without `sealed` | Nested private types not sealed (S3260) | None |
 | `Results\.BadRequest\(new \{ error` in `src/AssetHub.Api/Endpoints/` | Anonymous error shape leaking out | None — convert to `ApiError.BadRequest(...)` |
-| `\.MarkAsPublicApi\(\)` lines in `src/AssetHub.Api/Endpoints/` | Public-API endpoint without scope filter | Only the PAT self-service routes (commented exception) |
 | `\.RequireAuthorization\(.*\)$` on a `MapGroup` whose body has POST/PATCH/PUT/DELETE — without a sibling `RequireAntiforgeryUnlessBearer()` | Mutating group missing CSRF gate | None |
 | ` == null\| != null` outside `.Where(...)` / `.Count(...)` / projection trees | Plain C# nullability drift | EF query expressions only |
 | `data name="…"` count in `Foo.resx` vs `Foo.sv.resx` | Missing Swedish translation | Counts must match |

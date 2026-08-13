@@ -67,9 +67,6 @@ public interface IAssetHubApiClient
     Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default);
     Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default);
     Task<AuditQueryResponse> GetAuditEventsPaginatedAsync( int pageSize = 50, DateTime? cursor = null, string? eventType = null, string? targetType = null, string? actorUserId = null, CancellationToken ct = default);
-    Task<List<PersonalAccessTokenDto>> GetMyPersonalAccessTokensAsync(CancellationToken ct = default);
-    Task<CreatedPersonalAccessTokenDto> CreatePersonalAccessTokenAsync( CreatePersonalAccessTokenRequest request, CancellationToken ct = default);
-    Task RevokePersonalAccessTokenAsync(Guid id, CancellationToken ct = default);
     Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default);
     Task<MigrationResponseDto> GetMigrationAsync(Guid id, CancellationToken ct = default);
     Task<MigrationResponseDto> CreateMigrationAsync(CreateMigrationDto dto, CancellationToken ct = default);

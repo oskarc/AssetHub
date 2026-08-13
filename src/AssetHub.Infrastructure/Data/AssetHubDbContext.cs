@@ -22,7 +22,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<MigrationItem> MigrationItems { get; set; } = null!;
     public DbSet<SavedSearch> SavedSearches { get; set; } = null!;
     public DbSet<AssetVersion> AssetVersions { get; set; } = null!;
-    public DbSet<PersonalAccessToken> PersonalAccessTokens { get; set; } = null!;
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
@@ -46,7 +45,6 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new MigrationItemConfiguration());
         modelBuilder.ApplyConfiguration(new SavedSearchConfiguration());
         modelBuilder.ApplyConfiguration(new AssetVersionConfiguration());
-        modelBuilder.ApplyConfiguration(new PersonalAccessTokenConfiguration());
         modelBuilder.ApplyConfiguration(new OrphanedObjectConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
     }

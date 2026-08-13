@@ -48,7 +48,6 @@ public sealed partial class AssetHubApiClient(
     IUserAdminQueryService userAdminQueryService,
     IUserAdminService userAdminService,
     IAuditQueryService auditQueryService,
-    IPersonalAccessTokenService personalAccessTokenService,
     IMigrationService migrationService,
     IOptions<AppSettings> appSettings) : IAssetHubApiClient
 {

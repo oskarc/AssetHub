@@ -244,9 +244,22 @@ entries:
       situation was handled without any wasted run: the suite was allowed to
       finish, the residue edit applied afterwards, and only the affected project
       re-run to revalidate.
+
+      2026-08-13 (C9, contract-010): recurred in a new shape — a concurrent
+      `--no-incremental` census build deleted the ref assemblies underneath a
+      running suite, so the API project never compiled and its result was
+      UI-only. Re-run sequentially. Same root cause: two processes over one tree.
+
+      2026-08-13 (C10, contract-011): recurred again — source edits (stale
+      comments, then removal of an orphaned method) were applied WHILE both
+      suites ran, so the 971 verdict described a pre-edit tree. Caught before
+      commit and both suites re-run clean on the final tree; the result was
+      identical, but the first verdict was not evidence about the committed code.
+      The operative rule is broader than "don't run two builds": the tree must
+      not change at all between a suite's build step and its verdict.
     status: watching
     elevation: []
-    recurrence_count: 2
+    recurrence_count: 4
     related_drifts: [drift-006]
 
   - drift_id: drift-008
@@ -280,4 +293,31 @@ entries:
         kind: manifest-update
         date: 2026-08-13
     recurrence_count: 0
+    related_drifts: []
+
+  - drift_id: drift-009
+    surfaced_in: 2026-08-13 / SER implementation + C10 — unquoted colon-space in YAML list items
+    surfaced_by: self
+    aspect: evidence-as-work
+    description: |
+      Three times in one session, prose written into MANIFEST.yaml list items
+      contained a colon followed by a space ("Drift refs: drift-004",
+      "count 3): the elevation...", "Node retained: it carries..."). YAML parses
+      that as a mapping key, so the entry silently became a dict instead of the
+      intended string. No parse error is raised — the file stays valid YAML and
+      means something different from what was written.
+    evidence: |
+      First two found by a post-edit parse check that asserted every open_gaps
+      entry is a str; the check also surfaced a pre-existing instance in
+      principle-information-architecture that predated this session. A fourth
+      instance (a note: field) DID break the parse outright at line 108 col 172,
+      which is what prompted adding the check.
+    reaction: |
+      All instances rewritten to use an em-dash instead of a colon. The
+      isinstance check over open_gaps became the standing verification after any
+      MANIFEST edit — validating "it parses" is insufficient, because the failure
+      mode here is valid YAML with the wrong shape.
+    status: watching
+    elevation: []
+    recurrence_count: 2
     related_drifts: []

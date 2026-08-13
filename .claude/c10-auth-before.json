@@ -1,0 +1,140 @@
+{
+ "Endpoints\\AdminEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/admin",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags"
+   }
+  ],
+  "routeCount": 20
+ },
+ "Endpoints\\AdminTrashEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/admin/trash",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags"
+   }
+  ],
+  "routeCount": 4
+ },
+ "Endpoints\\AssetEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/assets",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags"
+   }
+  ],
+  "routeCount": 22
+ },
+ "Endpoints\\AssetSearchEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/assets",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags MarkAsPublicApi"
+   }
+  ],
+  "routeCount": 1
+ },
+ "Endpoints\\AssetVersionEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/assets/{id:guid}/versions",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags MarkAsPublicApi"
+   }
+  ],
+  "routeCount": 3
+ },
+ "Endpoints\\CollectionEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/collections",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "WithTags RequireAuthorization RequireAntiforgeryUnlessBearer"
+   },
+   {
+    "route": "/api/v1/collections/{collectionId:guid}/acl",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "WithTags RequireAuthorization RequireAntiforgeryUnlessBearer"
+   }
+  ],
+  "routeCount": 14
+ },
+ "Endpoints\\DashboardEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/dashboard",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags"
+   }
+  ],
+  "routeCount": 1
+ },
+ "Endpoints\\MigrationEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/admin/migrations",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags"
+   }
+  ],
+  "routeCount": 14
+ },
+ "Endpoints\\PersonalAccessTokenEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/me/personal-access-tokens",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags MarkAsPublicApi"
+   }
+  ],
+  "routeCount": 3
+ },
+ "Endpoints\\SavedSearchEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/saved-searches",
+    "requireAuth": true,
+    "csrf": true,
+    "chain": "RequireAuthorization RequireAntiforgeryUnlessBearer WithTags"
+   }
+  ],
+  "routeCount": 5
+ },
+ "Endpoints\\ShareEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/shares",
+    "requireAuth": false,
+    "csrf": false,
+    "chain": "WithTags"
+   }
+  ],
+  "routeCount": 8
+ },
+ "Endpoints\\ZipDownloadEndpoints.cs": {
+  "groups": [
+   {
+    "route": "/api/v1/zip-downloads",
+    "requireAuth": false,
+    "csrf": false,
+    "chain": "WithTags"
+   }
+  ],
+  "routeCount": 2
+ }
+}

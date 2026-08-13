@@ -12,7 +12,7 @@ public static class RouteGroupSecurityExtensions
     /// <summary>
     /// Applies <see cref="AntiforgeryUnlessBearerFilter"/> to every endpoint
     /// in the group. CSRF protection kicks in for cookie-authenticated
-    /// requests; Bearer (JWT / PAT) requests pass through unchanged.
+    /// requests; Bearer (JWT) requests pass through unchanged.
     /// </summary>
     public static RouteGroupBuilder RequireAntiforgeryUnlessBearer(this RouteGroupBuilder group)
     {
