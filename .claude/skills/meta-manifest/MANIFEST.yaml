@@ -105,7 +105,14 @@ nodes:
     status: mature
     dependencies: [base-antidrift, base-foundation]
     open_gaps: []
-    note: DRIFTLOG.yaml is read at session start alongside MANIFEST.yaml. Entries are written only at end-of-session or on human-flagged drift — never silently.
+    note: >-
+      DRIFTLOG.yaml is read at session start alongside MANIFEST.yaml. Entries are
+      written only at end-of-session or on human-flagged drift — never silently.
+      2026-08-13 — backfilled with drift-001..008 covering contracts 001-009 (the
+      log had stood empty through nine contracts, recorded as drift-008). The
+      backfill note at the head of that file states the exclusion rule; incidents
+      the standard's own machinery caught as designed are NOT logged, so that
+      recurrence counts stay meaningful.
 
   - id: base-antidrift-expand
     concern: Session-level drift analysis — full pattern mapping, implicit approval accumulation, discipline fall point, elevation vs recovery assessment
@@ -238,7 +245,7 @@ nodes:
     dependencies: [implementation-blazor-ui-standard]
     open_gaps:
       - Created 2026-06-18 to close gap-003. Encodes principles A (shell-per-audience), B (routable-over-tabbed), C (cap-then-group), E (wayfinding-on-depth). 2026-08-12 the ReviewLayout shell-per-audience instance retired with the workflow cut (contract-007); MainLayout/AdminLayout/ShareLayout instances remain. D (one feature taxonomy) deliberately deferred to implementation-blazor-ui-standard rather than duplicated. Grounded in the admin tab-monolith → 13 routable /admin/* routes in 4 intent-groups. Aspirational principle E carries a real follow-up — see gap-008
-      - 2026-06-18 added the "derive-then-override" pattern under principle E (auto-derive the trail from route+nav structure in the shell; per-page only for dynamic leaves) — accepted from the gap-008 Standard Evolution Report. E is no longer aspirational here: gap-008 shipped (9962460)
+      - 2026-06-18 added the "derive-then-override" pattern under principle E (auto-derive the trail from route+nav structure in the shell; per-page only for dynamic leaves) — accepted from the gap-008 Standard Evolution Report. E is no longer aspirational here — gap-008 shipped (9962460)
 
   # CLAUDE.md decomposition batch 3, extracted 2026-06-15.
   - id: pattern-enum-string-persistence
@@ -291,6 +298,7 @@ nodes:
     open_gaps:
       - Extracted from CLAUDE.md 2026-06-15; standard/audit split with implementation-migration-check worth confirming in use
       - 2026-08-11 added hand-written-migration discovery rule ([Migration] attribute + migrations-list check) — from the dead AddAnalyticsRollups discovery (SER Proposal 4)
+      - 2026-08-13 added stale-tooling principle (a checker reading build output is only as current as the last build; never pass a skip-build flag to a check you intend to trust) — generalises past EF (drift-006)
 
   - id: implementation-config-secrets
     concern: Strongly-typed settings + validate-on-start for critical infra; no-hardcoded-secrets with environment-aware sourcing
@@ -396,7 +404,8 @@ nodes:
     inherited: false
     dependencies: []
     open_gaps:
-      - 2026-08-11 added infra-precondition abort (container runtime down = abort, not data) — from two Docker-down incidents in the reshape (SER Proposal 3)
+      - 2026-08-11 added infra-precondition abort (container runtime down = abort, not data) — from two Docker-down incidents in the reshape (SER Proposal 3). Recurred twice more — drift-001, count 3 — because the elevation governs interpretation, not prevention; entry held at `watching`
+      - 2026-08-13 added reconciliation gate (baseline - removed + added = current, every removal traceable) — a count is an assertion, a reconciliation is a proof (C5-C8 SER Proposal 1)
 
   - id: pattern-time-series-rollup
     concern: Pre-aggregating time-bounded events into a rollup table that survives source-table retention
@@ -414,7 +423,7 @@ nodes:
 
   # Created 2026-08-11 from the reshape programme's consolidated SER (contracts 002-005).
   - id: pattern-feature-excision
-    concern: Complete removal of a shipped feature — baseline frame, build-as-authority straggler enumeration, residual sweep as acceptance gate, survivor taxonomy, three cut sub-cases (bounded-module / revert-to-simpler / cross-cutting detachment), prose corrected in-change
+    concern: Complete removal of a shipped feature — baseline frame, build-as-authority straggler enumeration, residual sweep as acceptance gate, survivor taxonomy, four cut sub-cases (bounded-module / revert-to-simpler / cross-cutting detachment / seam dissolution), prose corrected in-change
     skill_file: pattern-feature-excision/SKILL.md
     tier: type-category
     layer: pattern
@@ -424,7 +433,8 @@ nodes:
     dependencies: [pattern-regression-baseline]
     open_gaps:
       - Born from four green executions in one programme (analytics, watermarking, brands+guests, webhooks) — breadth across other system categories unverified. Graft into the blazor-web-app library at gen-2 extraction
-    origin_note: Consolidated from 15 of the reshape's 19 raw SER candidates (2026-08-11)
+      - 2026-08-13 (C5-C8 SER) added — two principle corollaries (a container's name is not a manifest of its contents; removing variability manufactures dead weight); tracer-name greps in the survey step; the seam-dissolution fourth sub-case with a wiring-only test bar; newly-unreachable-code and non-compiled-collateral as SILENT straggler classes the build cannot find; unreachable-branch leg in the sweep; capability-asymmetry and destructive-data-step boundaries. Drift refs — drift-004 and drift-005
+    origin_note: Consolidated from 15 of the reshape's 19 raw SER candidates (2026-08-11); extended by the C5-C8 SER (2026-08-13)
 
   - id: pattern-hash-keyed-pii-reveal
     concern: Indexable hash + encrypted ciphertext + audited reveal — group over PII without leaking it into the audit log
@@ -495,6 +505,7 @@ nodes:
     dependencies: [project-instructions]
     open_gaps:
       - 2026-08-11 added Discovery audit section (migration must appear in dotnet ef migrations list) — SER Proposal 4
+      - 2026-08-13 added fresh-build requirement for the discovery and model-sync checks — `--no-build` returns confidently-wrong answers from stale binaries (drift-006)
 
   - id: implementation-add-tests
     concern: xUnit / bUnit test scaffolding for new or changed code

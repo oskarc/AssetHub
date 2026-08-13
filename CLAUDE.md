@@ -594,6 +594,8 @@ The discipline — the four conditions for a legitimate suppression, smallest-sc
 - **`S2068` UI password-mask placeholders (`"********"`).** Not credentials. Attribute with explicit `Justification = "UI mask placeholder, not a credential"`.
 - **`S5693` (file-upload size cap) on `IBrowserFile.OpenReadStream(maxAllowedSize)` calls.** False positive — Sonar's taint analysis doesn't follow the pre-flight `Size > maxBytes` guard back to the call. Apply only when the documented pattern is in place: pre-flight Size check, `maxAllowedSize` cap, `RequireAdmin`/scoped auth on the host page, and an independent server-side enforcement constant (e.g. `WMK_TOO_LARGE`, `MaxMigrationManifestSizeMb`). Inline `// NOSONAR S5693 — <one-line why>`. Removing the pattern AND the suppression are equally wrong; both stay or both go.
 
+- **Generated EF migrations (`S1192`, `S138`) are suppressed by path, not by attribute** — a `[**/Migrations/*.cs]` section in `.editorconfig` sets them to `severity = none`. Generated code isn't ours to restructure. **The section must sit after the `[*.cs]` section**: `.editorconfig` resolves last-match-wins per property, so a path section placed above the general one is silently overridden and the warnings keep firing.
+
 If a new feature ends up with a suppression cluster that doesn't match one of these, it probably means the design is wrong — push back on the design before suppressing.
 
 ### Pre-commit grep sweep

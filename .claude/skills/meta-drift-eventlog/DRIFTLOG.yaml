@@ -27,5 +27,257 @@
 #     related_drifts: []
 #
 # Lifecycle transitions follow the rules in meta-drift-eventlog/SKILL.md.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# BACKFILL NOTE (2026-08-13, owner-authorised)
+#
+# Entries drift-001..008 are post-hoc, reconstructed from CONTRACT-LOG.yaml,
+# Claude-Processing.md, and the session transcript covering contracts 001-009
+# (the reshape programme, 2026-08-10 .. 2026-08-13). The log was empty until
+# this backfill despite nine contracts — that omission is itself recorded as
+# drift-008.
+#
+# Deliberately NOT backfilled: incidents where the standard's own machinery
+# caught a straggler exactly as designed (emptied namespaces, an orphaned
+# constructor parameter with its stale suppression text, a constants file
+# holding another feature's names, generated-migration Sonar noise). Those are
+# the build-as-authority and survivor-taxonomy legs working, not drift. Logging
+# them would inflate recurrence counts and destroy the signal this file exists
+# to carry. The per-output antidrift blocks across these sessions scored zero
+# agent-drift events, and that assessment stands for those cases.
+# ─────────────────────────────────────────────────────────────────────────────
 
-entries: []
+entries:
+
+  - drift_id: drift-001
+    surfaced_in: 2026-08-10 .. 2026-08-13 / reshape C1, C4, C5, C8 — container runtime down at the test gate
+    surfaced_by: self
+    aspect: lay-of-the-land
+    description: |
+      Four times across the programme a Testcontainers-backed suite was started
+      while the Docker daemon was not running. Each run produced a mass
+      single-cause failure (688 and 667 DockerUnavailableException in ~10s on the
+      first two) that carries no regression information. The discipline-aligned
+      alternative is to establish the gate's own precondition — `docker info` —
+      before spending a suite run, and to treat a runtime-down result as an abort
+      rather than as data.
+    evidence: |
+      C1 baseline: 688 failures, all DockerUnavailableException, ~10s.
+      C4 suite: 667 failures, same signature.
+      C5 gate and C8 baseline: `docker info` returned
+      "failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine
+       ... open //./pipe/dockerDesktopLinuxEngine: Det gar inte att hitta filen."
+    reaction: |
+      Every occurrence: the result was refused as data, Docker Desktop was
+      started via PowerShell, `docker info` polled to healthy, and the suite
+      re-run. No occurrence was ever misread as a regression. From C5 onward the
+      precondition check was run BEFORE the suite rather than diagnosed after it,
+      so the later two cost a restart but not a wasted run.
+
+      Status is `watching` rather than `mitigated` per the recurrence rule: the
+      2026-08-11 elevation ("container runtime down = abort, never data") governs
+      INTERPRETATION and has held without exception — zero misreads across four
+      occurrences. It does not govern PREVENTION, which is why the shape keeps
+      recurring. The unaddressed half is environmental (Docker Desktop Resource
+      Saver idling the daemon) and sits with the owner, not the standard.
+    status: watching
+    elevation:
+      - target: pattern-regression-baseline
+        kind: skill-update
+        date: 2026-08-11
+    recurrence_count: 3
+    related_drifts: []
+
+  - drift_id: drift-002
+    surfaced_in: 2026-08-10 / reshape C1 — analytics cut
+    surfaced_by: self
+    aspect: lay-of-the-land
+    description: |
+      The C1 contract planned a plain DropTable for the analytics rollup tables.
+      A hand-written migration in the repo's history (AddAnalyticsRollups) carried
+      no [Migration] attribute, so EF had never discovered or applied it; the
+      tables did not exist in any database. The drop failed and took 282 tests
+      with it. The survey read the migration file and inferred applicability from
+      its presence rather than verifying discoverability.
+    evidence: |
+      282 test failures on the DropTable. `dotnet ef migrations list` did not
+      contain AddAnalyticsRollups despite the file existing in Migrations/.
+    reaction: |
+      Drop rewritten as `DROP TABLE IF EXISTS`. The verification step —
+      confirm each Add migration is EF-discoverable before choosing a plain drop
+      — was elevated into the migration standards in the same programme.
+    status: mitigated
+    elevation:
+      - target: implementation-ef-config-migration
+        kind: skill-update
+        date: 2026-08-11
+      - target: implementation-migration-check
+        kind: skill-update
+        date: 2026-08-11
+    recurrence_count: 0
+    related_drifts: [drift-006]
+
+  - drift_id: drift-003
+    surfaced_in: 2026-08-10 / reshape C1 — dependency floats moved under a fresh restore
+    surfaced_by: self
+    aspect: lay-of-the-land
+    description: |
+      A fresh restore during C1 moved floating package versions, producing build
+      failures unrelated to the cut: NU1605 (OpenIdConnect downgrade), NU1903
+      (Microsoft.OpenApi 2.0.0, advisory GHSA-v5pm-xwqc-g5wc) and a CS8602. The
+      build was therefore not a stable authority across time — the same source
+      could build differently on two days.
+    evidence: |
+      NU1605 downgrade error; NU1903 high-severity advisory on Microsoft.OpenApi
+      2.0.0 (patched at 2.7.5); CS8602 at AssetDetail.razor:310.
+    reaction: |
+      Handled first by an authorised contract revision pinning the affected
+      packages. Root cause addressed later in the programme by adopting NuGet
+      lock files (RestorePackagesWithLockFile), which forced Newtonsoft.Json
+      13.0.3 -> 13.0.4 as a side effect. The CS8602 was reported to the owner and
+      deliberately left unfixed (out of contract scope).
+    status: mitigated
+    elevation:
+      - target: Directory.Build.props (NuGet lock files, SER proposal 6)
+        kind: manifest-update
+        date: 2026-08-11
+    recurrence_count: 0
+    related_drifts: []
+
+  - drift_id: drift-004
+    surfaced_in: 2026-08-12 / reshape C5 — comments + notifications cut
+    surfaced_by: self
+    aspect: lay-of-the-land
+    description: |
+      A folder-level `git rm -r src/AssetHub.Ui/Components/Notifications` deleted
+      SavedSearchesMenu.razor, a saved-search surface that lived in the folder but
+      did not belong to the feature being cut. The folder's name was treated as a
+      statement of its contents. The discipline-aligned alternative is to
+      enumerate a directory's files before any recursive delete.
+    evidence: |
+      Razor compiler warning RZ10012 (unrecognised component) during the post-cut
+      warning census — the only signal, and it arrived after the deletion.
+    reaction: |
+      File restored, relocated to Components/Search/, and
+      `@using AssetHub.Ui.Components.Search` added to _Imports.razor. Caught
+      before commit by the census leg of the excision standard.
+    status: mitigated
+    elevation:
+      - target: pattern-feature-excision
+        kind: skill-update
+        date: 2026-08-13
+    recurrence_count: 0
+    related_drifts: [drift-005]
+
+  - drift_id: drift-005
+    surfaced_in: 2026-08-12 / reshape C6 — publishing workflow cut
+    surfaced_by: self
+    aspect: evidence-as-work
+    description: |
+      tests/E2E/tests/specs/13-workflows.spec.ts was deleted because its filename
+      matched the feature being cut. Its contents were the cross-feature journey
+      smoke spec, unrelated to the publishing workflow. E2E specs are not
+      compiled, so the build-as-authority loop could not catch the error. A
+      filename was accepted as evidence of a file's contents.
+    evidence: |
+      The deletion survived the build and the full test suite. It was exposed
+      only by the prose leg of the cut, when updating the E2E README revealed the
+      spec's real subject.
+    reaction: |
+      Restored via `git restore --staged --worktree`. The general rule — read
+      non-compiled assets before deleting them, because no compiler will check
+      the deletion — was noted for elevation at the next SER.
+    status: mitigated
+    elevation:
+      - target: pattern-feature-excision
+        kind: skill-update
+        date: 2026-08-13
+    recurrence_count: 0
+    related_drifts: [drift-004]
+
+  - drift_id: drift-006
+    surfaced_in: 2026-08-13 / reshape C7 — renditions, image editor, export presets cut
+    surfaced_by: self
+    aspect: evidence-as-work
+    description: |
+      The post-migration discovery check was run with `--no-build`. Reading stale
+      binaries, it omitted the migration that had just been scaffolded and
+      reported "Changes have been made to the model since the last migration"
+      when none remained. Tool output was briefly accepted as current without
+      establishing that the tool had read current input.
+    evidence: |
+      `dotnet ef migrations list --no-build` did not list
+      20260812225841_DropImageEditorAndExportPresets, which existed on disk.
+      `has-pending-model-changes --no-build` reported pending changes; after a
+      fresh build the same command reported "No changes have been made to the
+      model since the last migration."
+    reaction: |
+      Both commands re-run against a fresh build; both inverted. C8 applied the
+      lesson pre-emptively and its discovery check passed on the first attempt.
+    status: mitigated
+    elevation:
+      - target: implementation-ef-config-migration
+        kind: skill-update
+        date: 2026-08-13
+      - target: implementation-migration-check
+        kind: skill-update
+        date: 2026-08-13
+    recurrence_count: 0
+    related_drifts: [drift-002, drift-007]
+
+  - drift_id: drift-007
+    surfaced_in: 2026-08-10 .. 2026-08-12 / reshape — test suites launched against stale binaries
+    surfaced_by: self
+    aspect: evidence-as-work
+    description: |
+      Twice a full suite was launched before late fixes had landed, so its verdict
+      would have described a tree that was not the one heading for commit. A
+      passing result from such a run is not evidence about the committed code.
+    evidence: |
+      Both runs were stopped via TaskStop before completion rather than being
+      read. A third, related incident: a `grep -c` returning exit 1 on zero
+      matches broke an `&&` chain that would have skipped the tests entirely on a
+      clean build — caught, the background task stopped, and the command
+      relaunched correctly.
+    reaction: |
+      Both suites killed and re-run against the final tree. In C8 the same
+      situation was handled without any wasted run: the suite was allowed to
+      finish, the residue edit applied afterwards, and only the affected project
+      re-run to revalidate.
+    status: watching
+    elevation: []
+    recurrence_count: 2
+    related_drifts: [drift-006]
+
+  - drift_id: drift-008
+    surfaced_in: 2026-08-13 / reshape SER — the drift log itself was never written to
+    surfaced_by: human
+    aspect: meta
+    description: |
+      Nine contracts were proposed, executed, verified and committed while
+      DRIFTLOG.yaml remained `entries: []`. The project's CLAUDE.md directs the
+      agent to read this file at session start for entries in `watching` or
+      `mitigated` status; there were never any to read. The node designed to make
+      drift cumulative across sessions carried no data, so every incident
+      presented as a first occurrence and every elevation shipped without a
+      back-reference to the incident that produced it.
+    evidence: |
+      `grep -vE "^\s*#" DRIFTLOG.yaml` returned exactly `entries: []` on
+      2026-08-13, after commits 2e690d7, 6dd7a0e, 5765797, 04e2ac7, 6a422c8,
+      6e602f1, 62aaf33, 20b3e94 and the consolidated SER at bb2fbd4.
+      Concrete cost: drift-001 recurred four times; without a log the fourth
+      occurrence could not be recognised as a recurrence, and the fact that the
+      2026-08-11 elevation addressed interpretation but not prevention stayed
+      invisible.
+    reaction: |
+      Surfaced by the owner during the C5-C8 Standard Evolution Report. Backfill
+      of drift-001..007 authorised and performed in the same session, with an
+      explicit exclusion rule recorded at the head of this file so the backfill
+      does not inflate recurrence data.
+    status: mitigated
+    elevation:
+      - target: meta-drift-eventlog/DRIFTLOG.yaml
+        kind: manifest-update
+        date: 2026-08-13
+    recurrence_count: 0
+    related_drifts: []

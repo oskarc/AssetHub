@@ -9,29 +9,39 @@ description: Remove a shipped feature completely — with a regression baseline 
 
 A removal has the same completeness bar as an addition, inverted. A half-deleted feature — an orphaned resource key, a dead endpoint, a stale sentence in the standard claiming the feature exists — is drift wearing a cleanup's clothes. And a removal has one risk an addition doesn't: it must prove a *negative* — that nothing else moved. That proof cannot come from the survey that planned the cut (surveys truncate, names evade greps); it comes from the compiler, the test baseline, and a scoped residual sweep, in that order.
 
+Two corollaries govern the judgment calls the sequence below can't enumerate:
+
+- **A container's name is not a manifest of its contents.** A folder named for the feature, a file named for it, a constants class named for it — each is a *claim* about what lives inside, made when it was written and not maintained since. Deleting on the strength of a name is acting on an assertion you could have checked. Enumerate before any recursive delete; open non-compiled assets (specs, config, fixtures, docs) before removing them, because no compiler will catch that one.
+- **Removing a source of variability turns the code that handled it into dead weight.** Every branch, guard, parameter and abstraction that existed to absorb the feature's variation is residue the moment the feature goes, and the compiler is silent about all of it — it still compiles, it just can't happen any more.
+
 ## The sequence (what)
 
 1. **Roll the regression baseline forward** to the current green commit — after checking the gate's own preconditions (for a Testcontainers-backed suite: `docker info`; a runtime-down result is an abort, never data — see `pattern-regression-baseline`).
-2. **Survey to plan, never to gate.** Inventory named files, grep the touchpoints untruncated, check for public-API markers (a marked endpoint makes the cut a SemVer event to surface), verify each Add migration is EF-discoverable before choosing plain drops. The survey sizes the contract; it is not the completeness authority.
+2. **Survey to plan, never to gate.** Inventory named files, grep the touchpoints untruncated, check for public-API markers (a marked endpoint makes the cut a SemVer event to surface), verify each Add migration is EF-discoverable before choosing plain drops. Enumerate the contents of every directory the cut will delete recursively. **Grep the tracer names**: for each type the cut deletes that is referenced *by name* rather than called — resource markers, DI keys, queue names, magic strings, enum members — grep the name now. The compiler finds call-site users, but only after you have already deleted; the grep finds them while the survey is still cheap and while a surprise is still free. The survey sizes the contract; it is not the completeness authority.
 3. **Classify every touchpoint into one of three cut sub-cases** (they have different verification bars — see below).
 4. **Delete the named set**, then apply touchpoint edits.
 5. **Build-as-authority loop.** Compile; the error list *is* the straggler enumeration — files whose names evaded the survey, emptied namespaces, mocks in shared tests. Iterate to zero errors, then run a warning census against the baseline build: warnings at lines the diff touched are the cut's own orphans (unused helpers, dangling conditionals) — fix, don't suppress.
 6. **Migration** dropping the feature's schema, audited per the migration standard, model-sync clean.
-7. **Residual sweep as the acceptance gate**: case-insensitive grep of the feature's terms over `src`, `tests`, `docs`, `docker`, and config — the canonical scope; narrower scopes are how escapes happen (a removed feature living on in the use-case catalog or the instructions file). Survivors must belong to a named class (below); any other hit fails the gate.
+7. **Residual sweep as the acceptance gate**: case-insensitive grep of the feature's terms over `src`, `tests`, `docs`, `docker`, and config — the canonical scope; narrower scopes are how escapes happen (a removed feature living on in the use-case catalog or the instructions file). Survivors must belong to a named class (below); any other hit fails the gate. Sweep for **newly-unreachable code** in the same pass: conditions that became constant, guards whose only non-trivial input came from the removed feature, parameters now always the same value. These compile and pass tests — nothing but this sweep will find them.
 8. **Correct the standard's prose in the same change** (the Stale-standard rule): project instructions, use-case catalog, memory entries → historical, manifest notes on kit nodes whose instantiation the cut removed.
 9. **Commit** with the verification evidence in the message: baseline diff (zero regressions; removed tests all feature-named), warning delta, sweep verdict.
 
-## The three cut sub-cases (classify per touchpoint, up front)
+## The four cut sub-cases (classify per touchpoint, up front)
 
 - **Bounded-module deletion** — files that exist only for the feature. Verification: absence (build + sweep).
 - **Revert-to-simpler** — code where the feature *changed* existing behavior and removal restores the older, simpler behavior (a conditional download path collapsing back to one branch). Verification: **behavioral** — the restored behavior's tests, updated assertions included; absence checks are not enough.
 - **Cross-cutting detachment** — a dependency injected across many consumers (an event publisher with N call sites). Five-part checklist per site: constructor parameter, call sites, helper methods that existed only to build its payloads, suppression-justification texts naming it, test mocks. The bar: every surrounding flow's tests stay green **untouched** (except removing the mocks) — a behaviorally-changed test here is a stop-and-surface, not an edit.
+- **Seam dissolution** — the cut removes the last-but-one implementation of an abstraction, leaving an interface, registry or strategy fronting exactly one implementation. Removing the last implementation *is* removing the abstraction: the indirection has no remaining job, and leaving it ships a seam that only documents a capability the system no longer has. In scope for the same contract. Verification: surviving tests may change **wiring only** — swapping a mock of the dissolved seam for a mock of what it delegated to. Any assertion edit is a stop-and-surface: it means the collapse changed behavior. Declare this bar in the contract before starting, so "did I change behavior?" is answerable at the end rather than argued.
 
-## Predictable straggler classes (the build will find them; know them anyway)
+## Predictable straggler classes
+
+The build finds the first three; know them anyway. **It cannot find the last two** — they compile clean and pass every test, so only the survey and the sweep will catch them.
 
 - **Emptied namespaces**: deleting a folder's last file kills its namespace — `_Imports` / global usings break.
 - **Payload-only helpers and guard flags**: methods and locals that existed solely to feed the removed calls.
 - **Dangling conditionals**: line-level deletion leaving an `if` whose body was the deleted statement.
+- **Newly-unreachable branches** *(silent)*: a guard whose only non-trivial input came from the removed feature. It still compiles; its condition is now constant. Find it by asking, per surviving branch the diff touched, "what could still make this true?"
+- **Non-compiled collateral** *(silent)*: deletions in specs, config, fixtures, docs — nothing type-checks these, so a wrong file goes unnoticed until something downstream reads it.
 
 ## Survivor taxonomy (sweep triage is a checklist, not judgment)
 
@@ -43,5 +53,7 @@ A removal has the same completeness bar as an addition, inverted. A half-deleted
 ## Boundaries
 
 - Data remnants outside the codebase (object-storage blobs, IdP accounts, historical DB rows) are **named in the contract as accepted remnants with an owner note** — not silently left, not swept by the code cut.
+- **Capability asymmetry is a consequence, not a detail.** When a cut removes a capability's only entry point for one audience while another audience keeps it — the UI surface goes, the API endpoint stays; the admin console loses it, the job retains it — the system's answer to "who can do this?" has changed even though nothing was technically lost. Name it in the contract *and* in the standard's prose where a discovering developer will meet it. A capability reachable only by a route nobody documents is indistinguishable from a missing one.
+- **A destructive data step is stated where the operator meets it**, not only in the contract. If the migration deletes rows rather than just schema, the migration's own comment carries the reason and the irreversibility; `Down` restoring columns but not rows must be said out loud.
 - Scope guard: adjacent findings get reported, not fixed; an excision contract's diff contains the cut and nothing else.
 - This pattern removes; it does not decide *what* to remove — that judgment (identity, plan, contract) sits upstream.

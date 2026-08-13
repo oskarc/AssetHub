@@ -50,11 +50,15 @@ The skill supports three verbs. If no arg given, pick based on state:
    - **Fix** — was Failed, now Passed. Attribute to current change as an improvement.
    - **Pre-existing failure** — was Failed, still Failed. Not this change's problem but report as known debt.
    - **New test** — not in baseline. Mark as new and report pass/fail.
-   - **Removed test** — in baseline, not in run. Report for sanity.
-4. Summary:
+   - **Removed test** — in baseline, not in run. **Every removal must be traceable to an intended cause** — name the deleted class or the feature it belonged to. An untraceable removal is a silently-skipped test and fails the check exactly like a regression.
+4. Summary — lead with the reconciliation, not the total:
    ```
    Baseline: c5ea695 (565/566), recorded 2026-04-19
    Current : <dirty> (564/566)
+
+   Reconciliation: 565 − 3 removed + 2 added = 564  ✓
+     Removed (3):  FooServiceTests ×3          → deleted with the Foo cut
+     Added   (2):  BarGuardTests ×2            → relocated from FooGuardTests
 
    Regressions (1):
      AssetHub.Tests.Services.FooServiceTests.Bar_X_ReturnsY
@@ -63,10 +67,8 @@ The skill supports three verbs. If no arg given, pick based on state:
    Pre-existing failures (1):
      AssetHub.Tests.Endpoints.AssetEndpointTests.ConfirmUpload_NonExistentAsset_Returns404
        Known since: <commit from baseline>
-
-   New tests (3 passing, 0 failing)
-   Fixes (0)
    ```
+   If the arithmetic doesn't close, the run is not clean regardless of how many tests passed.
 5. **Stop at the first regression** — treat it as the user's problem to fix. Offer to run targeted test + open the stack trace.
 
 ### `update` — accept the current run as the new baseline
@@ -88,6 +90,7 @@ To share a team baseline, commit `.claude/test-baseline.json` explicitly and re-
 
 ## Rules and gotchas
 
+- **A count is an assertion; a reconciliation is a proof.** "1083 passed, 0 failed" says nothing on its own when the baseline was 1124 — the 41 missing tests could be a deliberate deletion or a silently-skipped suite, and the two look identical in the total. Only `baseline − removed + added = current`, with every term named, distinguishes them. Report the arithmetic; never report the total alone after a change that removes tests.
 - **Only two outcomes count: Passed and Failed.** `Skipped` is not a signal — ignore.
 - **Flaky tests** — if the same test flaps between runs, record its flakiness count in `flakyHistory` field and surface that warning on `check`. Flaky regressions should be confirmed by rerunning before declaring them real.
 - **E2E tests are excluded** by default from the record/check flow — they belong in a separate CI lane and would blow up the baseline time.

@@ -66,6 +66,7 @@ AssetHub auto-migrates on Api + Worker startup (`Database.MigrateAsync()`), so a
 
 ### Discovery
 - **The migration must be EF-discoverable.** Confirm a `.Designer.cs` (or an explicit `[Migration("id")]` attribute) exists and the migration appears in `dotnet ef migrations list`. A hand-written migration without the attribute is silently skipped forever: migration-provisioned databases never get its schema while EnsureCreated fixtures do — the gap only surfaces when a later migration references the phantom schema. Flag CRITICAL.
+- **Run the discovery and model-sync checks against a fresh build.** `--no-build` makes both commands read the previous compile: a just-scaffolded migration is missing from `migrations list`, and `has-pending-model-changes` reports drift that a rebuild shows is already captured. The output is confidently wrong rather than erroneous, so nothing signals the staleness. If either check disagrees with what you just did, rebuild and re-run before believing it.
 
 ## Output
 
