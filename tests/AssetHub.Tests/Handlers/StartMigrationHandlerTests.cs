@@ -12,23 +12,10 @@ namespace AssetHub.Tests.Handlers;
 public class StartMigrationHandlerTests
 {
     private readonly Mock<IMigrationRepository> _repo = new();
-    private readonly Mock<IMigrationSourceConnector> _csvConnector = new();
-    private readonly Mock<IMigrationSourceConnector> _s3Connector = new();
-    private readonly Mock<IMigrationSourceConnectorRegistry> _connectors = new();
     private readonly Mock<IAuditService> _audit = new();
 
-    public StartMigrationHandlerTests()
-    {
-        _csvConnector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.CsvUpload);
-        _csvConnector.SetupGet(c => c.RequiresLocalStaging).Returns(true);
-        _s3Connector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.S3);
-        _s3Connector.SetupGet(c => c.RequiresLocalStaging).Returns(false);
-        _connectors.Setup(r => r.Resolve(MigrationSourceType.CsvUpload)).Returns(_csvConnector.Object);
-        _connectors.Setup(r => r.Resolve(MigrationSourceType.S3)).Returns(_s3Connector.Object);
-    }
-
     private StartMigrationHandler CreateHandler()
-        => new(_repo.Object, _connectors.Object, _audit.Object, NullLogger<StartMigrationHandler>.Instance);
+        => new(_repo.Object, _audit.Object, NullLogger<StartMigrationHandler>.Instance);
 
     private static Migration MakeMigration(
         Guid? id = null,
@@ -38,7 +25,6 @@ public class StartMigrationHandlerTests
         {
             Id = id ?? Guid.NewGuid(),
             Name = "Test",
-            SourceType = MigrationSourceType.CsvUpload,
             Status = status,
             ItemsTotal = total,
             CreatedByUserId = "user-1",
@@ -191,60 +177,4 @@ public class StartMigrationHandlerTests
         Assert.Equal(MigrationStatus.Completed, migration.Status);
     }
 
-    [Fact]
-    public async Task HandleAsync_S3Source_FansOutAllPendingIgnoringStagedFlag()
-    {
-        var migration = new Migration
-        {
-            Id = Guid.NewGuid(),
-            Name = "S3",
-            SourceType = MigrationSourceType.S3,
-            Status = MigrationStatus.Running,
-            ItemsTotal = 3,
-            CreatedByUserId = "admin-1",
-            CreatedAt = DateTime.UtcNow
-        };
-        // All items have IsFileStaged = false — S3 never stages locally.
-        var items = new List<MigrationItem>
-        {
-            MakeItem(migration.Id, staged: false),
-            MakeItem(migration.Id, staged: false),
-            MakeItem(migration.Id, staged: false)
-        };
-        _repo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _repo.Setup(r => r.GetPendingItemsAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(items);
-
-        var result = await CreateHandler().HandleAsync(
-            new StartMigrationCommand { MigrationId = migration.Id }, CancellationToken.None);
-
-        Assert.Equal(3, result.Length);
-        var commands = result.OfType<ProcessMigrationItemCommand>().ToList();
-        Assert.Equal(3, commands.Count);
-    }
-
-    [Fact]
-    public async Task HandleAsync_S3Source_NoItems_FinalizesAsCompletedNotPartial()
-    {
-        var migration = new Migration
-        {
-            Id = Guid.NewGuid(),
-            Name = "S3",
-            SourceType = MigrationSourceType.S3,
-            Status = MigrationStatus.Running,
-            ItemsTotal = 2,
-            CreatedByUserId = "admin-1",
-            CreatedAt = DateTime.UtcNow
-        };
-        _repo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _repo.Setup(r => r.GetPendingItemsAsync(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<MigrationItem>());
-        // S3: Staged=0 is normal — finalize must NOT read that as PartiallyCompleted.
-        _repo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationItemCounts(2, 0, 0, 2, 0, 0, 0, 0));
-
-        await CreateHandler().HandleAsync(
-            new StartMigrationCommand { MigrationId = migration.Id }, CancellationToken.None);
-
-        Assert.Equal(MigrationStatus.Completed, migration.Status);
-    }
 }

@@ -148,8 +148,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll<IUserLookupService>();
             services.AddScoped(_ => MockUserLookup.Object);
 
-            // Leave the real CSV + S3 connector DI registrations alone. Endpoint
-            // tests don't actually exercise S3 network I/O — the S3MigrationScanHandler
             // catches any connector exception (e.g., fake credentials against a real
             // endpoint) and records it as a scan-failed outcome, so the HTTP response
             // stays well-formed.

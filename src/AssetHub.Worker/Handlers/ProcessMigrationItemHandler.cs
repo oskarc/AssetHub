@@ -13,7 +13,7 @@ namespace AssetHub.Worker.Handlers;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
-    Justification = "Migration item handler is the convergence point for source connector + asset/collection repos + MinIO + media processing + migration row updates. The whole point is per-item ingest orchestration.")]
+    Justification = "Migration item handler is the convergence point for asset/collection repos + MinIO + media processing + migration row updates. The whole point is per-item ingest orchestration.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
     Justification = "Same justification as S1200 above — Wolverine handler ctor wires together every collaborator needed for one migration item; bundling them into a holder would just relocate the parameter count.")]
@@ -24,7 +24,6 @@ public sealed class ProcessMigrationItemHandler(
     ICollectionRepository collectionRepo,
     ICollectionAclRepository collectionAclRepo,
     IMinIOAdapter minioAdapter,
-    IMigrationSourceConnectorRegistry connectors,
     IMediaProcessingService mediaProcessing,
     IAuditService audit,
     HybridCache cache,
@@ -75,8 +74,7 @@ public sealed class ProcessMigrationItemHandler(
             }
             else
             {
-                var connector = connectors.Resolve(migration.SourceType);
-                await ProcessItemAsync(migration, item, connector, cancellationToken);
+                await ProcessItemAsync(migration, item, cancellationToken);
             }
         }
         catch (Exception ex)
@@ -132,31 +130,24 @@ public sealed class ProcessMigrationItemHandler(
     }
 
     /// <summary>
-    /// Source-agnostic ingest: stat + download via the connector, hash + dup-check,
-    /// then write through the internal MinIO adapter and persist the asset.
+    /// Ingest one staged file: stat + download from the staging bucket, hash +
+    /// dup-check, then write through the internal MinIO adapter and persist the asset.
     /// </summary>
     private async Task ProcessItemAsync(
-        Migration migration, MigrationItem item, IMigrationSourceConnector connector, CancellationToken ct)
+        Migration migration, MigrationItem item, CancellationToken ct)
     {
-        var sourceKey = connector.ResolveSourceKey(migration, item);
-        if (string.IsNullOrWhiteSpace(sourceKey))
-        {
-            await FailItem(item, MigrationConstants.ErrorCodes.FileNotFound,
-                "Migration item has no source key.", ct);
-            return;
-        }
+        var sourceKey = MigrationConstants.StagingKey(migration.Id, item.FileName);
 
-        var stat = await StatSourceAsync(connector, migration, item, sourceKey, ct);
+        var stat = await StatSourceAsync(item, sourceKey, ct);
         if (stat is null) return;
 
-        // SHA256 dup check: prefer the pre-known hash (CSV manifest can supply
-        // it); otherwise compute after download. Computing for every S3 item is
-        // required to detect duplicates across a remote bucket.
+        // SHA256 dup check: prefer the pre-known hash (the CSV manifest can
+        // supply it); otherwise compute after download.
         if (!string.IsNullOrWhiteSpace(item.Sha256)
             && await TryHandleKnownDuplicateAsync(item, item.Sha256, ct))
             return;
 
-        var bytes = await DownloadSourceAsync(connector, migration, item, sourceKey, ct);
+        var bytes = await DownloadSourceAsync(item, sourceKey, ct);
         if (bytes is null) return;
 
         await using (bytes)
@@ -171,13 +162,16 @@ public sealed class ProcessMigrationItemHandler(
         }
     }
 
-    private async Task<MigrationObjectStat?> StatSourceAsync(
-        IMigrationSourceConnector connector, Migration migration, MigrationItem item,
-        string sourceKey, CancellationToken ct)
+    private async Task<ObjectStatInfo?> StatSourceAsync(
+        MigrationItem item, string sourceKey, CancellationToken ct)
     {
         try
         {
-            var stat = await connector.StatAsync(migration, sourceKey, ct);
+            // Existence is probed before StatObject because StatObject throws for
+            // missing keys on some MinIO builds.
+            var stat = await minioAdapter.ExistsAsync(_bucketName, sourceKey, ct)
+                ? await minioAdapter.StatObjectAsync(_bucketName, sourceKey, ct)
+                : null;
             if (stat is not null) return stat;
             await FailItem(item, MigrationConstants.ErrorCodes.FileNotFound,
                 $"Source object '{sourceKey}' not found (moved or deleted between scan/upload and ingest).", ct);
@@ -201,12 +195,11 @@ public sealed class ProcessMigrationItemHandler(
     }
 
     private async Task<Stream?> DownloadSourceAsync(
-        IMigrationSourceConnector connector, Migration migration, MigrationItem item,
-        string sourceKey, CancellationToken ct)
+        MigrationItem item, string sourceKey, CancellationToken ct)
     {
         try
         {
-            return await connector.DownloadAsync(migration, sourceKey, ct);
+            return await minioAdapter.DownloadAsync(_bucketName, sourceKey, ct);
         }
         catch (Exception ex)
         {
@@ -224,7 +217,7 @@ public sealed class ProcessMigrationItemHandler(
     }
 
     private async Task CreateAssetFromMigrationAsync(
-        Migration migration, MigrationItem item, Stream bytes, MigrationObjectStat stat,
+        Migration migration, MigrationItem item, Stream bytes, ObjectStatInfo stat,
         string sha256, string sourceKey, CancellationToken ct)
     {
         var contentType = stat.ContentType;
@@ -264,8 +257,8 @@ public sealed class ProcessMigrationItemHandler(
         await migrationRepo.UpdateItemAsync(item, ct);
 
         logger.LogDebug(
-            "Migration item {ItemId}: {SourceType} object {Key} → asset {AssetId} ({Size} bytes)",
-            item.Id, migration.SourceType.ToDbString(), sourceKey, assetId, stat.Size);
+            "Migration item {ItemId}: staged object {Key} → asset {AssetId} ({Size} bytes)",
+            item.Id, sourceKey, assetId, stat.Size);
     }
 
     private async Task MarkDuplicate(MigrationItem item, Asset existing, string sha256, CancellationToken ct)
@@ -350,18 +343,11 @@ public sealed class ProcessMigrationItemHandler(
         if (migration is null || migration.Status is not MigrationStatus.Running)
             return;
 
-        var connector = connectors.Resolve(migration.SourceType);
         var counts = await migrationRepo.GetItemCountsAsync(migrationId, ct);
 
-        // Pending dispatchable items: staging-based sources only dispatch items
-        // with a staged local file, so unstaged-pending items must not block
-        // finalization. Remote-pull sources treat every pending item as
-        // dispatchable, so Pending is the right gate.
-        var pendingToDispatch = connector.RequiresLocalStaging
-            ? counts.StagedPending
-            : counts.Pending;
-
-        if (pendingToDispatch > 0 || counts.Processing > 0)
+        // Only staged items are dispatchable, so unstaged-pending items must not
+        // block finalization.
+        if (counts.StagedPending > 0 || counts.Processing > 0)
             return;
 
         migration.ItemsSucceeded = counts.Succeeded;
@@ -369,7 +355,7 @@ public sealed class ProcessMigrationItemHandler(
         migration.ItemsSkipped = counts.Skipped;
         migration.FinishedAt = DateTime.UtcNow;
 
-        migration.Status = ComputeTerminalStatus(connector, counts);
+        migration.Status = ComputeTerminalStatus(counts);
 
         await migrationRepo.UpdateAsync(migration, ct);
 
@@ -394,19 +380,14 @@ public sealed class ProcessMigrationItemHandler(
     }
 
     /// <summary>
-    /// Chooses the terminal status for a migration. Only staging-based sources
-    /// can end in <see cref="MigrationStatus.PartiallyCompleted"/> (some items
-    /// never got their file staged); remote-pull sources always complete once
-    /// every pending item is terminal.
+    /// Chooses the terminal status for a migration. A migration ends in
+    /// <see cref="MigrationStatus.PartiallyCompleted"/> when some items never got
+    /// their file staged.
     /// </summary>
-    internal static MigrationStatus ComputeTerminalStatus(
-        IMigrationSourceConnector connector, MigrationItemCounts counts)
+    internal static MigrationStatus ComputeTerminalStatus(MigrationItemCounts counts)
     {
         if (counts.Failed > 0)
             return MigrationStatus.CompletedWithErrors;
-
-        if (!connector.RequiresLocalStaging)
-            return MigrationStatus.Completed;
 
         return counts.Staged < counts.Total
             ? MigrationStatus.PartiallyCompleted

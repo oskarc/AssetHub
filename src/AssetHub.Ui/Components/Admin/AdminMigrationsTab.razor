@@ -102,16 +102,6 @@
                 </MudTd>
                 <MudTd>
                     <MudStack Row="true" Spacing="1">
-                        @if (context.Status is "draft" && context.SourceType == "s3")
-                        {
-                            <MudTooltip Text="@MigrationLoc["Migration_StartS3Scan_Tooltip"]">
-                                <MudIconButton Icon="@Icons.Material.Filled.TravelExplore"
-                                               Color="Color.Info"
-                                               Size="Size.Small"
-                                               aria-label="@MigrationLoc["Migration_StartS3Scan"]"
-                                               OnClick="@(() => StartS3ScanAsync(context))" />
-                            </MudTooltip>
-                        }
                         @if (context.Status is "draft" or "partially_completed")
                         {
                             <MudTooltip Text="@string.Format(MigrationLoc["Migration_StartTooltip"].Value, context.ItemsStaged, context.ItemsTotal)">
@@ -288,24 +278,8 @@
         StartPollingIfNeeded();
     }
 
-    // S3 migrations never stage locally, so the Start gate differs: they just need
-    // scanned items (ItemsTotal > 0), not staged ones.
-    private static bool CanStart(MigrationResponseDto m)
-        => m.SourceType == "s3" ? m.ItemsTotal > 0 : m.ItemsStaged > 0;
+    private static bool CanStart(MigrationResponseDto m) => m.ItemsStaged > 0;
 
-    private async Task StartS3ScanAsync(MigrationResponseDto migration)
-    {
-        var success = await Feedback.ExecuteWithFeedbackAsync(
-            () => Api.StartMigrationS3ScanAsync(migration.Id),
-            "start S3 scan",
-            MigrationLoc["Migration_S3ScanQueued"].Value);
-
-        if (success)
-        {
-            await LoadAsync(reset: true);
-            StartPollingIfNeeded();
-        }
-    }
 
     private async Task StartMigrationAsync(MigrationResponseDto migration)
     {

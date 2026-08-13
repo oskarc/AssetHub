@@ -311,7 +311,6 @@ cd tests/E2E && npx playwright test
 - ~~Forensic watermarking~~ ✓ — two-layer DCT-LSB attribution with admin verify page
 
 **Roadmap:**
-- S3/Dropbox/SharePoint migration connectors
 - Office document preview (Word, Excel, PowerPoint)
 - Video transcoding (HLS/DASH adaptive streaming)
 - AI-powered auto-tagging and visual search

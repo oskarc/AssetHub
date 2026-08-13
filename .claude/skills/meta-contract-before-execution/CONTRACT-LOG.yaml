@@ -611,3 +611,96 @@ contracts:
       ROADMAP/FOLLOW-UPS banners per precedent; /derivatives was [PublicApi]
       so its removal is a SemVer-breaking change absorbed by the sanctioned
       reshape wave.
+  - contract_id: contract-009
+    feature: reshape-c8-migration-connectors-cut
+    date_proposed: 2026-08-13
+    date_approved: 2026-08-13
+    tier_1: |
+      You are removing the remote-pull side of the bulk-import toolkit: the
+      S3/MinIO connector (endpoint + credentials + bucket scan), the encrypted-
+      secret plumbing that existed only to store its keys, and the SSRF guard
+      whose reason to exist was fetching from admin-supplied URLs. What remains
+      is the import path the design centred on: upload a CSV manifest, stage the
+      files into the internal bucket, ingest. Migrations stay a feature; this
+      removes where bytes could come from, not the ability to import. Owner
+      approved decision A (deep cut: dissolve the one-implementation connector
+      seam rather than keep an abstraction fronting a single impl) and, by
+      approving the contract as drawn, decision B (delete s3-type migration rows
+      before dropping the columns — their config holds encrypted credentials, so
+      deletion is also secret hygiene).
+    tier_2: |
+      1. Baseline roll-forward to 62aaf33, docker pre-check first (4th outage
+         this programme — started and polled before proceeding).
+      2. Delete the S3 tenant: S3MigrationSourceConnector, S3MigrationScanHandler,
+         MigrationS3ConfigCodec, MigrationSecretProtector + interface,
+         S3SourceConfigDto, S3MigrationScanCommand, s3-migration-scan queue pair,
+         POST /{id}/s3/scan + StartS3ScanAsync (service + interface + facade),
+         CreateMigrationDialog S3 legs + resx pairs. Constants.DataProtection
+         keeps its three share protectors (foreign tenants) — member, not file.
+      3. Dissolve the connector seam (decision A): fold CsvMigrationSourceConnector
+         staging-key/stat/download into the surviving service/handlers; delete
+         IMigrationSourceConnector, registry + interface; simplify
+         StartMigrationHandler (staged-only dispatch) and ProcessMigrationItemHandler
+         (inline staging stat/download, ComputeTerminalStatus loses its connector
+         parameter). Behavioural bar: surviving CSV-flow tests pass with mock-wiring
+         edits only; any assertion change is a stop-and-report trigger.
+      4. OutboundUrlGuard: SSRF surface (IsSafeOutboundUrl, guarded-connect
+         callbacks) dies; IsPrivateOrInternal has a second consumer (proxy-mismatch
+         middleware, WebApplicationExtensions.cs:181) — relocate byte-identical as
+         PrivateNetworkGuard, tests trimmed to surviving range cases (C5 precedent).
+      5. Data model: delete s3-type rows (idempotent SQL), then drop SourceType +
+         SourceConfig; MigrationSourceType enum + converters die. Down restores
+         columns, not rows — named irreversibility. Discovery check +
+         has-pending-model-changes on a FRESH build (C7 lesson).
+      6. Tests: S3MigrationScanHandlerTests + MigrationSecretProtectorTests deleted;
+         S3 cases excised from MigrationServiceTests / StartMigrationHandlerTests /
+         ProcessMigrationItemHandlerTests / MigrationEndpointTests /
+         CustomWebApplicationFactory; OutboundUrlGuardTests trimmed.
+      7. Sweep (S3Migration|S3Config|s3-migration-scan|s3/scan|SourceType|
+         SourceConfig|OutboundUrlGuard|IsSafeOutboundUrl|MigrationSecretProtector|
+         connector). Expected survivors: MinIO's own S3 protocol vocabulary (the
+         storage adapter IS S3-compatible — same-word, stays), migration history,
+         MinIOSettings.
+      8. Prose: README / USE-CASES / SECURITY (SSRF section) / ROADMAP (connector
+         roadmap line + T0-MIG-01) / ARCHITECTURE queue lists; T3-INT-01 memory
+         ("guard survives until C8") closed out; T0-MIG-01 memory annotated.
+         Commit per implementation-commit-and-push; approval authorizes; no push.
+    tier_3: |
+      - CSV/staged import flow behaviourally identical: create -> manifest ->
+        stage -> start -> ingest -> pause/resume -> outcome download all pass on
+        existing assertions. (-> UC-core)
+      - Proxy-mismatch middleware unchanged: relocated range check byte-identical
+        and still test-covered. (-> security)
+      - No [PublicApi] surface involved (migrations are admin-internal) — no
+        SemVer event this cut.
+      - Full excision discipline: foreign-tenant checks up front, build-as-
+        authority, census vs the 80-line standing set, survivor taxonomy,
+        prose-in-same-change, resource-marker tracer grep (C7 SER proposal 2,
+        applied though un-ratified — cheap and read-only).
+      - Verified means: baseline clean + zero-new-warnings build + full pass +
+        sweep clean + discovery check clean.
+    status: implemented
+    revisions: []
+    work_id: null
+    implemented: 2026-08-13
+    implementation_notes: >-
+      13 files deleted (11 surveyed + MigrationSourceTypeMappingTests discovered
+      via the build + OutboundUrlGuard relocated). Connector seam dissolved per
+      decision A: registry, interface and both implementations gone; staging
+      stat/download inlined; ComputeTerminalStatus lost its connector parameter;
+      ObjectStatInfo replaced MigrationObjectStat one-for-one (identical shape).
+      Decision B executed as idempotent SQL ahead of the column drops, with the
+      irreversibility stated in the migration comment. PrivateNetworkGuard keeps
+      the range logic byte-identical and documents that it is NOT an SSRF defence
+      on its own. Census 79 distinct warning lines (was 80, no new rules).
+      Discovery check clean on a FRESH build — the C7 lesson, applied. Suite 1083
+      passed / 0 failed; baseline diff reconciles exactly: 1124 - 50 + 9, all 50
+      removals traceable to the cut, 9 additions are the relocated guard tests.
+      Behavioural bar held: every surviving CSV-flow test needed mock-wiring edits
+      only (_csvConnector -> _minio), no assertion changed. One residue removed
+      beyond the contract: the empty-source-key guard in ProcessItemAsync became
+      unreachable once StagingKey was the only key source (only the S3 connector
+      could return an empty key) — same error code still reached via the stat path.
+      Survivors labeled: MinIO's own S3 protocol vocabulary (the storage adapter IS
+      S3-compatible), DTO ErrorMessageResourceType same-word hits, and the
+      migration.s3_scan_* audit labels (historical-data, matching the C7 call).

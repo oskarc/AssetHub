@@ -46,11 +46,6 @@ public sealed partial class AssetHubApiClient
         EnsureSuccess(result, "Start migration");
     }
 
-    public async Task StartMigrationS3ScanAsync(Guid id, CancellationToken ct = default)
-    {
-        var result = await migrationService.StartS3ScanAsync(id, ct);
-        EnsureSuccess(result, "Start S3 scan");
-    }
 
     public async Task CancelMigrationAsync(Guid id, CancellationToken ct = default)
     {

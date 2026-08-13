@@ -280,13 +280,13 @@ New localization in **AdminResource**:
 
 ### T0-MIG-02 — S3 / MinIO pull connector
 
-> **Shipped (already in main).** S3 connector + scan endpoint + Wolverine handler + UI form + DataProtection-encrypted secrets all landed during the broader migration toolkit work. See the **Shipped appendix** for the per-layer breakdown.
+> **Shipped, then removed 2026-08 by the reshape (contract-008)** — remote-pull import is outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag. The Shipped appendix entry is retained as history.
 
 ---
 
 ### T0-MIG-03 through T0-MIG-05 — Bynder / Canto / SharePoint connectors
 
-Same pattern as T0-MIG-02, one per source. Each is a sealed service implementing `IMigrationSourceConnector` with methods `ScanAsync`, `FetchBytesAsync`, `FetchMetadataAsync`. Ship as prospects demand — don't build all three speculatively. Each one adds an enum value to `MigrationSourceType`, a `SourceConfig` schema, a connector class, and a preset in `FieldMappingEditor`.
+> **Withdrawn 2026-08 by the reshape (contract-008).** These depended on the connector abstraction (`IMigrationSourceConnector`, `MigrationSourceType`, `Migration.SourceConfig`), all of which were removed with T0-MIG-02. Import is CSV-manifest + staged-file only. Reviving remote pull means re-introducing the seam, a source-type discriminator, encrypted per-source secrets, and a URL-level SSRF guard (see `PrivateNetworkGuard` for what survives of the latter) — not just one new class.
 
 ---
 
@@ -980,7 +980,7 @@ A realistic sequence that minimises rework and delivers visible progress:
 5. **T1-META-01** — Custom metadata + taxonomies. Foundation for search and rights.
 6. **T1-SRCH-01** — Faceted search. Lights up all the metadata work.
 7. **T1-VER-01** — Versioning.
-8. **T0-MIG-02..05** — Additional source connectors as prospects demand.
+8. ~~**T0-MIG-02..05** — Additional source connectors as prospects demand.~~ *(withdrawn 2026-08, reshape contract-008)*
 9. **T2-AI-01..05** — AI features in order: provider abstraction, alt-text, auto-tag, OCR, smart crop.
 10. **T3 / T4** — Collaboration, distribution, brand portals. Parallelisable across engineers.
 11. **T5** — Polish.
@@ -1033,7 +1033,7 @@ When a new gap is discovered:
 - **`migration.paused` / `migration.resumed` audit events are NOT emitted** (they would only exist once pause/resume ships). All other events from the spec's audit list are wired.
 - **Batch upload of a ZIP file (`/items/batch-upload`) is NOT shipped** — the admin UI uploads files individually to `/files`. Adequate for the initial import flows but documented as a follow-up if customers bring pre-bundled ZIPs.
 - **`?purgeAssets=true` on DELETE is NOT shipped.** Deleting a migration record leaves any produced assets intact; admins delete them via the normal asset UI. Low-stakes deviation.
-- **Pull connectors (`/s3/scan` and T0-MIG-02..05 generally) are NOT shipped** — they remain as separate roadmap items.
+- **Pull connectors (`/s3/scan` and T0-MIG-02..05 generally) are NOT shipped** — they remain as separate roadmap items. *(2026-08: the S3 connector that did ship was removed by reshape contract-008; the remaining items are withdrawn.)*
 
 **Race-condition known issue.** `ProcessMigrationItemHandler.TryFinalizeMigration` is not serialised across concurrent item handlers. In theory two handlers finalising the last two items at the same time could both pass the `counts.StagedPending == 0 && counts.Processing == 0` check and both emit `migration.completed`. In practice the window is small and the second `UpdateAsync` is idempotent; the only user-visible symptom is a duplicate audit entry. A proper fix (advisory lock or optimistic concurrency token on the `Migrations` row) is deferred — call this out if we ever see duplicate completed events in the audit log.
 
@@ -1362,6 +1362,8 @@ Full suite: 1050 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 Full suite: 1072 passing (AssetHub.Tests) + 234 passing (AssetHub.Ui.Tests).
 
 ### T0-MIG-02 — S3 / MinIO pull connector
+
+> **Removed 2026-08** by the reshape (contract-008). Retained below as history.
 
 **Shipped 2026-04-26.** Confirmed already in `main` during the post-feature-bundle audit; the spec body had not been moved to this appendix until this update. All components below were authored alongside the broader T0-MIG-01 ingest pipeline and lit up by registering the connector for `MigrationSourceType.S3`.
 

@@ -1,15 +1,6 @@
 namespace AssetHub.Domain.Entities;
 
 /// <summary>
-/// Source type for a bulk import migration.
-/// </summary>
-public enum MigrationSourceType
-{
-    CsvUpload,
-    S3
-}
-
-/// <summary>
 /// Overall status of a migration job.
 /// </summary>
 public enum MigrationStatus
@@ -45,20 +36,6 @@ public enum MigrationItemStatus
 public static class MigrationEnumExtensions
 {
     private const string Failed = "failed";
-
-    public static string ToDbString(this MigrationSourceType type) => type switch
-    {
-        MigrationSourceType.CsvUpload => "csv_upload",
-        MigrationSourceType.S3 => "s3",
-        _ => throw new ArgumentOutOfRangeException(nameof(type))
-    };
-
-    public static MigrationSourceType ToMigrationSourceType(this string value) => value switch
-    {
-        "csv_upload" => MigrationSourceType.CsvUpload,
-        "s3" => MigrationSourceType.S3,
-        _ => throw new ArgumentOutOfRangeException(nameof(value), $"Unknown migration source type: {value}")
-    };
 
     public static string ToDbString(this MigrationStatus status) => status switch
     {

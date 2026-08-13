@@ -210,13 +210,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IZipBuildService>(sp => sp.GetRequiredService<ZipBuildService>());
         services.AddScoped<IAssetDeletionService, AssetDeletionService>();
         services.AddScoped<IMigrationService, MigrationService>();
-        services.AddSingleton<IMigrationSecretProtector, MigrationSecretProtector>();
-        // Migration source connectors: one impl per MigrationSourceType.
-        // Registry fans them out by SourceType at resolve time.
-        // Scoped (not singleton): CsvMigrationSourceConnector injects the scoped IMinIOAdapter.
-        services.AddScoped<IMigrationSourceConnector, CsvMigrationSourceConnector>();
-        services.AddScoped<IMigrationSourceConnector, S3MigrationSourceConnector>();
-        services.AddScoped<IMigrationSourceConnectorRegistry, MigrationSourceConnectorRegistry>();
 
         return services;
     }

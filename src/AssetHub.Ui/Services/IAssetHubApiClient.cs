@@ -76,7 +76,6 @@ public interface IAssetHubApiClient
     Task UploadMigrationManifestAsync(Guid id, Stream csvStream, string fileName, CancellationToken ct = default);
     Task UploadMigrationFilesAsync(Guid id, IEnumerable<(string FileName, Stream Stream, string ContentType)> files, CancellationToken ct = default);
     Task StartMigrationAsync(Guid id, CancellationToken ct = default);
-    Task StartMigrationS3ScanAsync(Guid id, CancellationToken ct = default);
     Task CancelMigrationAsync(Guid id, CancellationToken ct = default);
     Task RetryFailedMigrationAsync(Guid id, CancellationToken ct = default);
     Task<MigrationProgressDto> GetMigrationProgressAsync(Guid id, CancellationToken ct = default);

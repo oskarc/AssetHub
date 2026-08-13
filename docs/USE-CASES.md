@@ -210,13 +210,12 @@ Removed 2026-08 by the reshape (contract-005) — outside the five-feature ident
 |----|----------|---------|---------|:------:|
 | UC-MIG-01 | Create a migration job | A | `/admin/migrations` | ✅ |
 | UC-MIG-02 | Upload a CSV manifest | A | `…/migrations/{id}/manifest` | ✅ |
-| UC-MIG-03 | Scan a source S3 bucket | A | `…/migrations/{id}/s3/scan` | ✅ |
 | UC-MIG-04 | Upload staging files (multipart) | A | `…/migrations/{id}/files` | ✅ |
 | UC-MIG-05 | Start / cancel / retry-failed | A | `…/start` `…/cancel` `…/retry` | ✅ |
 | UC-MIG-06 | Poll progress / view items by status | A | `MigrationDetailDialog` | ✅ |
 | UC-MIG-07 | Download the outcome CSV | A | `…/outcome.csv` | ✅ |
 | UC-MIG-08 | Unstage an item / bulk-delete migrations | A | `…/unstage`, `…/bulk` | ✅ |
-| UC-MIG-09 | Import from Bynder / Canto / SharePoint | A | connector | ⬜ planned (T0-MIG-03/04/05) |
+| UC-MIG-09 | Import from a remote source (S3 / Bynder / Canto / SharePoint) | A | — | ❌ removed 2026-08 by the reshape (contract-008); import is CSV-manifest + staged-file only |
 
 ### W. Analytics & exposure
 Removed 2026-08 by the reshape (contract-002) — outside the five-feature identity. The
@@ -237,7 +236,7 @@ full implementation remains browsable on the `full-featured` branch / `pre-resha
 | ✅ Shipped | ~95 | All Tier 0–5 core paths |
 | 🟡 Partial | ~16 | UI polish (reparent, badges), embedding/async fallbacks, deferred autocomplete/markdown |
 | 🚧 In progress | 3 | The `/review` queue + history + inline reject dialog (uncommitted) |
-| ⬜ Planned | ~8 | T2 AI suite, T6 HA suite, non-S3 migration connectors |
+| ⬜ Planned | ~7 | T2 AI suite, T6 HA suite |
 
 ---
 

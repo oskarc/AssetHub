@@ -178,7 +178,7 @@ public static class WebApplicationExtensions
             {
                 var remote = context.Connection.RemoteIpAddress;
                 if (remote is not null
-                    && !AssetHub.Application.Helpers.OutboundUrlGuard.IsPrivateOrInternal(remote)
+                    && !AssetHub.Application.Helpers.PrivateNetworkGuard.IsPrivateOrInternal(remote)
                     && Interlocked.Exchange(ref proxyMismatchLogged, 1) == 0)
                 {
                     var logger = app.Services.GetRequiredService<ILoggerFactory>()

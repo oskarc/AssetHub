@@ -49,7 +49,6 @@ static class Program
                 opts.ListenToRabbitQueue("build-zip");
                 opts.ListenToRabbitQueue("start-migration");
                 opts.ListenToRabbitQueue("process-migration-item");
-                opts.ListenToRabbitQueue("s3-migration-scan");
 
                 // Route events back to API
                 opts.PublishMessage<AssetProcessingCompletedEvent>()

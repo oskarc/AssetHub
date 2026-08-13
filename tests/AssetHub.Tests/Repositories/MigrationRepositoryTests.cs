@@ -37,7 +37,6 @@ public class MigrationRepositoryTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(),
             Name = name,
-            SourceType = MigrationSourceType.CsvUpload,
             Status = status,
             ItemsTotal = total,
             CreatedByUserId = "test-user-001",
@@ -68,7 +67,6 @@ public class MigrationRepositoryTests : IAsyncLifetime
     public async Task CreateAsync_PersistsMigrationWithJsonbFields()
     {
         var migration = MakeMigration();
-        migration.SourceConfig["rowCount"] = 42;
         migration.FieldMapping["csv_title"] = "title";
 
         await _repo.CreateAsync(migration);
@@ -77,9 +75,7 @@ public class MigrationRepositoryTests : IAsyncLifetime
         Assert.NotNull(loaded);
         Assert.Equal("Test migration", loaded.Name);
         Assert.Equal(MigrationStatus.Draft, loaded.Status);
-        // SourceConfig is Dictionary<string, object> — JSONB roundtrip yields JsonElement values.
-        // FieldMapping is Dictionary<string, string> — values stay strings.
-        Assert.Equal(42L, ((JsonElement)loaded.SourceConfig["rowCount"]).GetInt64());
+        // FieldMapping is Dictionary<string, string> — JSONB roundtrip keeps values as strings.
         Assert.Equal("title", loaded.FieldMapping["csv_title"]);
     }
 

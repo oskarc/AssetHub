@@ -9,7 +9,6 @@ namespace AssetHub.Worker.Handlers;
 
 public sealed class StartMigrationHandler(
     IMigrationRepository migrationRepo,
-    IMigrationSourceConnectorRegistry connectors,
     IAuditService audit,
     ILogger<StartMigrationHandler> logger)
 {
@@ -31,16 +30,12 @@ public sealed class StartMigrationHandler(
             return [];
         }
 
-        var connector = connectors.Resolve(migration.SourceType);
         var pendingItems = await migrationRepo.GetPendingItemsAsync(command.MigrationId, cancellationToken);
 
-        // Staging-based sources (CSV) only dispatch items whose bytes have been
-        // uploaded to the staging bucket — unstaged items stay pending and hold
-        // the migration in PartiallyCompleted. Remote-pull sources fan out every
-        // pending item.
-        var itemsToDispatch = connector.RequiresLocalStaging
-            ? pendingItems.Where(i => i.IsFileStaged).ToList()
-            : pendingItems;
+        // Only items whose bytes have been uploaded to the staging bucket are
+        // dispatchable — unstaged items stay pending and hold the migration in
+        // PartiallyCompleted.
+        var itemsToDispatch = pendingItems.Where(i => i.IsFileStaged).ToList();
         var skippedUnstaged = pendingItems.Count - itemsToDispatch.Count;
 
         if (skippedUnstaged > 0)
@@ -55,7 +50,7 @@ public sealed class StartMigrationHandler(
 
             // Check if all items are terminal — finalize migration
             var counts = await migrationRepo.GetItemCountsAsync(command.MigrationId, cancellationToken);
-            await FinalizeMigration(migration, connector, counts, cancellationToken);
+            await FinalizeMigration(migration, counts, cancellationToken);
             return [];
         }
 
@@ -76,14 +71,14 @@ public sealed class StartMigrationHandler(
     }
 
     private async Task FinalizeMigration(
-        Migration migration, IMigrationSourceConnector connector, MigrationItemCounts counts, CancellationToken ct)
+        Migration migration, MigrationItemCounts counts, CancellationToken ct)
     {
         migration.ItemsSucceeded = counts.Succeeded;
         migration.ItemsFailed = counts.Failed;
         migration.ItemsSkipped = counts.Skipped;
         migration.FinishedAt = DateTime.UtcNow;
 
-        migration.Status = ProcessMigrationItemHandler.ComputeTerminalStatus(connector, counts);
+        migration.Status = ProcessMigrationItemHandler.ComputeTerminalStatus(counts);
 
         await migrationRepo.UpdateAsync(migration, ct);
 

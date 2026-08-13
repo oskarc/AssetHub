@@ -17,7 +17,7 @@ namespace AssetHub.Infrastructure.Services;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "Composition root for migration ingest: 3 repos + MinIO adapter + 2 IOptions + audit + message bus + cache + scoped CurrentUser + logger. Bundling them into a holder would obscure intent.")]
+    Justification = "Composition root for migration ingest: 3 repos + MinIO adapter + IOptions + audit + message bus + cache + scoped CurrentUser + logger. Bundling them into a holder would obscure intent.")]
 public sealed class MigrationService(
     IMigrationRepository migrationRepo,
     ICollectionRepository collectionRepo,
@@ -26,8 +26,6 @@ public sealed class MigrationService(
     IOptions<MinIOSettings> minioSettings,
     IAuditService audit,
     IMessageBus messageBus,
-    IMigrationSecretProtector secretProtector,
-    IMigrationSourceConnectorRegistry connectors,
     HybridCache cache,
     CurrentUser currentUser,
     ILogger<MigrationService> logger) : IMigrationService
@@ -47,15 +45,6 @@ public sealed class MigrationService(
     {
         if (!currentUser.IsSystemAdmin)
             return ServiceError.Forbidden("Only administrators can create migrations.");
-
-        var sourceType = dto.SourceType.ToMigrationSourceType();
-        var connector = connectors.Resolve(sourceType);
-
-        // Delegate source-specific config validation + encoding to the connector.
-        // Each connector also rejects config that belongs to a different source.
-        var encodedConfigResult = connector.EncodeConfig(dto);
-        if (!encodedConfigResult.IsSuccess)
-            return encodedConfigResult.Error!;
 
         // Validate mutually exclusive collection fields
         if (dto.DefaultCollectionId.HasValue && !string.IsNullOrWhiteSpace(dto.DefaultCollectionName))
@@ -103,7 +92,6 @@ public sealed class MigrationService(
         {
             Id = Guid.NewGuid(),
             Name = dto.Name.Trim(),
-            SourceType = sourceType,
             Status = MigrationStatus.Draft,
             DefaultCollectionId = resolvedCollectionId,
             DryRun = dto.DryRun,
@@ -111,16 +99,12 @@ public sealed class MigrationService(
             CreatedAt = DateTime.UtcNow
         };
 
-        if (encodedConfigResult.Value is { } encodedConfig)
-            migration.SourceConfig = encodedConfig;
-
         await migrationRepo.CreateAsync(migration, ct);
 
         await audit.LogAsync(MigrationConstants.AuditEvents.Created, Constants.ScopeTypes.Migration, migration.Id,
             currentUser.UserId, new Dictionary<string, object>
             {
                 ["name"] = migration.Name,
-                ["sourceType"] = dto.SourceType,
                 ["dryRun"] = dto.DryRun
             }, ct);
 
@@ -190,55 +174,6 @@ public sealed class MigrationService(
         return ServiceResult.Success;
     }
 
-    public async Task<ServiceResult> StartS3ScanAsync(Guid migrationId, CancellationToken ct)
-    {
-        if (!currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can scan S3 migrations.");
-
-        var migration = await migrationRepo.GetByIdAsync(migrationId, ct);
-        if (migration is null)
-            return ServiceError.NotFound(MigrationNotFound);
-
-        if (migration.SourceType is not MigrationSourceType.S3)
-            return ServiceError.BadRequest("Scan is only valid for S3-source migrations.");
-
-        if (migration.Status is not MigrationStatus.Draft)
-            return ServiceError.BadRequest($"Cannot scan a migration in '{migration.Status.ToDbString()}' status.");
-
-        // Decode the stored config to capture bucket+prefix for the audit event and to
-        // fail fast if the stored ciphertext is corrupted, before the worker starts.
-        S3SourceConfigDto config;
-        try
-        {
-            config = MigrationS3ConfigCodec.Read(migration.SourceConfig, secretProtector);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Migration {MigrationId}: S3 source config is invalid or unreadable", migrationId);
-            return ServiceError.BadRequest("Stored S3 source configuration is invalid. Recreate the migration.");
-        }
-
-        migration.Status = MigrationStatus.Validating;
-        await migrationRepo.UpdateAsync(migration, ct);
-
-        await messageBus.PublishAsync(new S3MigrationScanCommand { MigrationId = migrationId });
-
-        await audit.LogAsync(
-            MigrationConstants.AuditEvents.S3ScanStarted,
-            Constants.ScopeTypes.Migration,
-            migrationId,
-            currentUser.UserId,
-            new Dictionary<string, object>
-            {
-                ["bucket"] = config.Bucket,
-                ["prefix"] = config.Prefix ?? string.Empty
-            },
-            ct);
-
-        logger.LogInformation("Migration {MigrationId}: S3 scan queued for bucket {Bucket}", migrationId, config.Bucket);
-
-        return ServiceResult.Success;
-    }
 
     public async Task<ServiceResult> CancelAsync(Guid migrationId, CancellationToken ct)
     {
@@ -615,7 +550,6 @@ public sealed class MigrationService(
     {
         Id = m.Id,
         Name = m.Name,
-        SourceType = m.SourceType.ToDbString(),
         Status = m.Status.ToDbString(),
         DefaultCollectionId = m.DefaultCollectionId,
         DryRun = m.DryRun,

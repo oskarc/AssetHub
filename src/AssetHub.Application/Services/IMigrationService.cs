@@ -25,12 +25,6 @@ public interface IMigrationService
     /// </summary>
     Task<ServiceResult> StartAsync(Guid migrationId, CancellationToken ct);
 
-    /// <summary>
-    /// Queue an S3 bucket scan for an S3-source draft migration. Transitions the
-    /// migration to Validating and publishes an S3MigrationScanCommand; the worker
-    /// enumerates objects and creates migration items. Returns to Draft on completion.
-    /// </summary>
-    Task<ServiceResult> StartS3ScanAsync(Guid migrationId, CancellationToken ct);
 
     /// <summary>
     /// Cancel a running migration.

@@ -15,13 +15,6 @@ public class CreateMigrationDto
     public required string Name { get; set; }
 
     /// <summary>
-    /// Source type — one of "csv_upload" or "s3".
-    /// </summary>
-    [Required]
-    [RegularExpression("^(csv_upload|s3)$", ErrorMessage = "Source type must be 'csv_upload' or 's3'.")]
-    public required string SourceType { get; set; }
-
-    /// <summary>
     /// Optional default collection ID to assign imported assets to.
     /// Mutually exclusive with DefaultCollectionName.
     /// </summary>
@@ -39,59 +32,8 @@ public class CreateMigrationDto
     /// </summary>
     public bool DryRun { get; set; }
 
-    /// <summary>
-    /// S3 connector configuration — required when <see cref="SourceType"/> is "s3", ignored otherwise.
-    /// </summary>
-    public S3SourceConfigDto? S3Config { get; set; }
 }
 
-/// <summary>
-/// S3 / MinIO pull connector configuration. The secret key is encrypted at rest via
-/// ASP.NET Core Data Protection before being persisted into <c>Migration.SourceConfig</c>.
-/// </summary>
-public class S3SourceConfigDto
-{
-    /// <summary>
-    /// Full endpoint URL, e.g. "https://s3.eu-west-1.amazonaws.com" or "http://minio.local:9000".
-    /// </summary>
-    [Required]
-    [StringLength(500, MinimumLength = 1)]
-    [Url]
-    public required string Endpoint { get; set; }
-
-    /// <summary>
-    /// Bucket name.
-    /// </summary>
-    [Required]
-    [StringLength(255, MinimumLength = 1)]
-    public required string Bucket { get; set; }
-
-    /// <summary>
-    /// Optional object-key prefix to restrict scanning.
-    /// </summary>
-    [StringLength(1024)]
-    public string? Prefix { get; set; }
-
-    /// <summary>
-    /// Access key identifier.
-    /// </summary>
-    [Required]
-    [StringLength(255, MinimumLength = 1)]
-    public required string AccessKey { get; set; }
-
-    /// <summary>
-    /// Secret access key. Encrypted before persistence; never stored or logged in plaintext.
-    /// </summary>
-    [Required]
-    [StringLength(1024, MinimumLength = 1)]
-    public required string SecretKey { get; set; }
-
-    /// <summary>
-    /// Optional AWS region (e.g. "eu-west-1"). Not required for MinIO / non-AWS endpoints.
-    /// </summary>
-    [StringLength(64)]
-    public string? Region { get; set; }
-}
 
 /// <summary>
 /// Response DTO for a migration job.
@@ -100,7 +42,6 @@ public class MigrationResponseDto
 {
     public required Guid Id { get; set; }
     public required string Name { get; set; }
-    public required string SourceType { get; set; }
     public required string Status { get; set; }
     public Guid? DefaultCollectionId { get; set; }
     public bool DryRun { get; set; }

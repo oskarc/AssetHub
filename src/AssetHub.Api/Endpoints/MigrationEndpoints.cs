@@ -38,10 +38,6 @@ public static class MigrationEndpoints
             .DisableAntiforgery()
             .WithName("StartMigration");
 
-        group.MapPost("{id:guid}/s3/scan", StartS3Scan)
-            .DisableAntiforgery()
-            .WithName("StartMigrationS3Scan");
-
         group.MapPost("{id:guid}/cancel", CancelMigration)
             .DisableAntiforgery()
             .WithName("CancelMigration");
@@ -135,13 +131,6 @@ public static class MigrationEndpoints
         return (await svc.StartAsync(id, ct)).ToHttpResult();
     }
 
-    private static async Task<IResult> StartS3Scan(
-        Guid id,
-        [FromServices] IMigrationService svc,
-        CancellationToken ct)
-    {
-        return (await svc.StartS3ScanAsync(id, ct)).ToHttpResult();
-    }
 
     private static async Task<IResult> CancelMigration(
         Guid id,

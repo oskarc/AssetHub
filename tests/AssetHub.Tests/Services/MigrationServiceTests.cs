@@ -23,41 +23,8 @@ public class MigrationServiceTests
     private readonly Mock<IMinIOAdapter> _minio = new();
     private readonly Mock<IAuditService> _audit = new();
     private readonly Mock<IMessageBus> _bus = new();
-    private readonly Mock<IMigrationSecretProtector> _secretProtector = new();
-    private readonly Mock<IMigrationSourceConnector> _csvConnector = new();
-    private readonly Mock<IMigrationSourceConnector> _s3Connector = new();
-    private readonly Mock<IMigrationSourceConnectorRegistry> _connectors = new();
 
     private const string AdminUserId = "admin-001";
-
-    public MigrationServiceTests()
-    {
-        // Default protector: round-trip through a `enc(...)` wrapper so tests can assert
-        // that the plaintext secret never leaks into persisted state.
-        _secretProtector.Setup(p => p.Protect(It.IsAny<string>()))
-            .Returns<string>(s => $"enc({s})");
-        _secretProtector.Setup(p => p.Unprotect(It.IsAny<string>()))
-            .Returns<string>(s => s.StartsWith("enc(") && s.EndsWith(')') ? s[4..^1] : s);
-
-        // Default connector behaviour: CSV accepts dtos with no S3 config and
-        // returns null (no persisted config); S3 requires S3Config and encodes
-        // it through the real codec so existing assertions on the persisted
-        // SourceConfig shape still hold.
-        _csvConnector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.CsvUpload);
-        _csvConnector.Setup(c => c.EncodeConfig(It.IsAny<CreateMigrationDto>()))
-            .Returns<CreateMigrationDto>(dto => dto.S3Config is not null
-                ? ServiceError.BadRequest("S3 source config must not be provided for non-S3 migrations.")
-                : (Dictionary<string, object>?)null);
-
-        _s3Connector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.S3);
-        _s3Connector.Setup(c => c.EncodeConfig(It.IsAny<CreateMigrationDto>()))
-            .Returns<CreateMigrationDto>(dto => dto.S3Config is null
-                ? ServiceError.BadRequest("S3 source config is required when sourceType is 's3'.")
-                : (Dictionary<string, object>?)MigrationS3ConfigCodec.Write(dto.S3Config, _secretProtector.Object));
-
-        _connectors.Setup(r => r.Resolve(MigrationSourceType.CsvUpload)).Returns(_csvConnector.Object);
-        _connectors.Setup(r => r.Resolve(MigrationSourceType.S3)).Returns(_s3Connector.Object);
-    }
 
     private MigrationService CreateService(bool isAdmin = true)
     {
@@ -71,8 +38,6 @@ public class MigrationServiceTests
             minioSettings,
             _audit.Object,
             _bus.Object,
-            _secretProtector.Object,
-            _connectors.Object,
             TestCacheHelper.CreateHybridCache(),
             currentUser,
             NullLogger<MigrationService>.Instance);
@@ -87,7 +52,6 @@ public class MigrationServiceTests
         {
             Id = Guid.NewGuid(),
             Name = "Test migration",
-            SourceType = MigrationSourceType.CsvUpload,
             Status = status,
             DefaultCollectionId = defaultCollectionId,
             ItemsTotal = total,
@@ -115,7 +79,7 @@ public class MigrationServiceTests
         var svc = CreateService(isAdmin: false);
 
         var result = await svc.CreateAsync(
-            new CreateMigrationDto { Name = "X", SourceType = "csv_upload" },
+            new CreateMigrationDto { Name = "X" },
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -131,7 +95,6 @@ public class MigrationServiceTests
             new CreateMigrationDto
             {
                 Name = "X",
-                SourceType = "csv_upload",
                 DefaultCollectionId = Guid.NewGuid(),
                 DefaultCollectionName = "Also-a-name"
             },
@@ -149,7 +112,7 @@ public class MigrationServiceTests
         _collectionRepo.Setup(r => r.ExistsAsync(cid, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
         var result = await svc.CreateAsync(
-            new CreateMigrationDto { Name = "X", SourceType = "csv_upload", DefaultCollectionId = cid },
+            new CreateMigrationDto { Name = "X", DefaultCollectionId = cid },
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -164,7 +127,7 @@ public class MigrationServiceTests
         _collectionRepo.Setup(r => r.GetByNameAsync("Existing", It.IsAny<CancellationToken>())).ReturnsAsync(existing);
 
         var result = await svc.CreateAsync(
-            new CreateMigrationDto { Name = "X", SourceType = "csv_upload", DefaultCollectionName = "Existing" },
+            new CreateMigrationDto { Name = "X", DefaultCollectionName = "Existing" },
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -179,7 +142,7 @@ public class MigrationServiceTests
         _collectionRepo.Setup(r => r.GetByNameAsync("Fresh", It.IsAny<CancellationToken>())).ReturnsAsync((Collection?)null);
 
         var result = await svc.CreateAsync(
-            new CreateMigrationDto { Name = "X", SourceType = "csv_upload", DefaultCollectionName = "Fresh" },
+            new CreateMigrationDto { Name = "X", DefaultCollectionName = "Fresh" },
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -198,7 +161,7 @@ public class MigrationServiceTests
         var svc = CreateService();
 
         var result = await svc.CreateAsync(
-            new CreateMigrationDto { Name = " Trimmed ", SourceType = "csv_upload", DryRun = true },
+            new CreateMigrationDto { Name = " Trimmed ", DryRun = true },
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -215,178 +178,7 @@ public class MigrationServiceTests
         _repo.Verify(r => r.CreateAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    // ── CreateAsync — S3 ────────────────────────────────────────────
-
-    private static S3SourceConfigDto ValidS3Config() => new()
-    {
-        Endpoint = "https://s3.eu-west-1.amazonaws.com",
-        Bucket = "my-bucket",
-        Prefix = "images/",
-        AccessKey = "AKIA...",
-        SecretKey = "super-secret",
-        Region = "eu-west-1"
-    };
-
-    [Fact]
-    public async Task CreateAsync_S3SourceMissingConfig_ReturnsBadRequest()
-    {
-        var svc = CreateService();
-
-        var result = await svc.CreateAsync(
-            new CreateMigrationDto { Name = "X", SourceType = "s3", S3Config = null },
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(400, result.Error!.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreateAsync_CsvSourceWithS3Config_ReturnsBadRequest()
-    {
-        var svc = CreateService();
-
-        var result = await svc.CreateAsync(
-            new CreateMigrationDto { Name = "X", SourceType = "csv_upload", S3Config = ValidS3Config() },
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(400, result.Error!.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreateAsync_S3Source_PersistsEncryptedSecretInSourceConfig()
-    {
-        var svc = CreateService();
-        Migration? captured = null;
-        _repo.Setup(r => r.CreateAsync(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
-            .Callback<Migration, CancellationToken>((m, _) => captured = m)
-            .ReturnsAsync((Migration m, CancellationToken _) => m);
-
-        var result = await svc.CreateAsync(
-            new CreateMigrationDto { Name = "X", SourceType = "s3", S3Config = ValidS3Config() },
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(captured);
-        Assert.Equal(MigrationSourceType.S3, captured!.SourceType);
-        // Non-secret fields persist as-is
-        Assert.Equal("my-bucket", captured.SourceConfig[MigrationS3ConfigCodec.Keys.Bucket]);
-        Assert.Equal("images/", captured.SourceConfig[MigrationS3ConfigCodec.Keys.Prefix]);
-        Assert.Equal("AKIA...", captured.SourceConfig[MigrationS3ConfigCodec.Keys.AccessKey]);
-        // Secret key is the protector output, never the plaintext
-        Assert.Equal("enc(super-secret)", captured.SourceConfig[MigrationS3ConfigCodec.Keys.SecretKeyEncrypted]);
-        Assert.False(captured.SourceConfig.ContainsKey("secret_key"));
-    }
-
-    // ── StartS3ScanAsync ────────────────────────────────────────────
-
-    [Fact]
-    public async Task StartS3ScanAsync_NonAdmin_ReturnsForbidden()
-    {
-        var svc = CreateService(isAdmin: false);
-
-        var result = await svc.StartS3ScanAsync(Guid.NewGuid(), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(403, result.Error!.StatusCode);
-    }
-
-    [Fact]
-    public async Task StartS3ScanAsync_MigrationNotFound_ReturnsNotFound()
-    {
-        var svc = CreateService();
-        var id = Guid.NewGuid();
-        _repo.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((Migration?)null);
-
-        var result = await svc.StartS3ScanAsync(id, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(404, result.Error!.StatusCode);
-    }
-
-    [Fact]
-    public async Task StartS3ScanAsync_CsvMigration_ReturnsBadRequest()
-    {
-        var svc = CreateService();
-        var m = MakeMigration();  // CsvUpload source
-        _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
-
-        var result = await svc.StartS3ScanAsync(m.Id, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(400, result.Error!.StatusCode);
-    }
-
-    [Fact]
-    public async Task StartS3ScanAsync_NotDraft_ReturnsBadRequest()
-    {
-        var svc = CreateService();
-        var m = MakeS3Migration(MigrationStatus.Running);
-        _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
-
-        var result = await svc.StartS3ScanAsync(m.Id, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(400, result.Error!.StatusCode);
-    }
-
-    [Fact]
-    public async Task StartS3ScanAsync_CorruptedConfig_ReturnsBadRequest()
-    {
-        var svc = CreateService();
-        var m = MakeS3Migration(MigrationStatus.Draft);
-        m.SourceConfig.Clear();  // missing required keys — Read() throws
-        _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
-
-        var result = await svc.StartS3ScanAsync(m.Id, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(400, result.Error!.StatusCode);
-        _bus.Verify(b => b.PublishAsync(It.IsAny<S3MigrationScanCommand>(), It.IsAny<DeliveryOptions?>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task StartS3ScanAsync_HappyPath_TransitionsToValidatingAndPublishes()
-    {
-        var svc = CreateService();
-        var m = MakeS3Migration(MigrationStatus.Draft);
-        _repo.Setup(r => r.GetByIdAsync(m.Id, It.IsAny<CancellationToken>())).ReturnsAsync(m);
-
-        var result = await svc.StartS3ScanAsync(m.Id, CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(MigrationStatus.Validating, m.Status);
-        _bus.Verify(b => b.PublishAsync(
-            It.Is<S3MigrationScanCommand>(c => c.MigrationId == m.Id),
-            It.IsAny<DeliveryOptions?>()), Times.Once);
-        _audit.Verify(a => a.LogAsync(
-            MigrationConstants.AuditEvents.S3ScanStarted,
-            Constants.ScopeTypes.Migration,
-            m.Id,
-            AdminUserId,
-            It.Is<Dictionary<string, object>?>(d =>
-                d != null &&
-                (string)d["bucket"] == "my-bucket" &&
-                (string)d["prefix"] == "images/"),
-            It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    private Migration MakeS3Migration(MigrationStatus status)
-    {
-        var m = new Migration
-        {
-            Id = Guid.NewGuid(),
-            Name = "S3 test",
-            SourceType = MigrationSourceType.S3,
-            Status = status,
-            CreatedByUserId = AdminUserId,
-            CreatedAt = DateTime.UtcNow.AddMinutes(-5),
-            SourceConfig = MigrationS3ConfigCodec.Write(ValidS3Config(), _secretProtector.Object)
-        };
-        return m;
-    }
-
-    // ── UploadManifestAsync ─────────────────────────────────────────
+    // ── UploadManifestAsync ──────────────────────────────────────────
 
     [Fact]
     public async Task UploadManifestAsync_NonAdmin_ReturnsForbidden()

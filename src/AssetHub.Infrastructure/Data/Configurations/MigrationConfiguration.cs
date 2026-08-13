@@ -16,18 +16,10 @@ public sealed class MigrationConfiguration : IEntityTypeConfiguration<Migration>
         entity.HasIndex(e => e.CreatedByUserId).HasDatabaseName("idx_migrations_created_by");
 
         entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
-        entity.Property(e => e.SourceType)
-            .HasConversion(v => v.ToDbString(), v => v.ToMigrationSourceType())
-            .HasMaxLength(50).IsRequired();
         entity.Property(e => e.Status)
             .HasConversion(v => v.ToDbString(), v => v.ToMigrationStatus())
             .HasMaxLength(50).IsRequired();
         entity.Property(e => e.CreatedByUserId).HasMaxLength(255).IsRequired();
-
-        entity.Property(e => e.SourceConfig)
-            .HasConversion(ModelConventions.JsonbDictionaryConverter)
-            .HasColumnType(ModelConventions.Jsonb)
-            .Metadata.SetValueComparer(ModelConventions.JsonbDictionaryComparer);
 
         entity.Property(e => e.FieldMapping)
             .HasConversion(

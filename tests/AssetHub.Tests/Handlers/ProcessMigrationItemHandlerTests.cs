@@ -22,9 +22,6 @@ public class ProcessMigrationItemHandlerTests
     private readonly Mock<ICollectionRepository> _collectionRepo = new();
     private readonly Mock<ICollectionAclRepository> _aclRepo = new();
     private readonly Mock<IMinIOAdapter> _minio = new();
-    private readonly Mock<IMigrationSourceConnector> _csvConnector = new();
-    private readonly Mock<IMigrationSourceConnector> _s3Connector = new();
-    private readonly Mock<IMigrationSourceConnectorRegistry> _connectors = new();
     private readonly Mock<IMediaProcessingService> _media = new();
     private readonly Mock<IAuditService> _audit = new();
 
@@ -32,21 +29,9 @@ public class ProcessMigrationItemHandlerTests
 
     public ProcessMigrationItemHandlerTests()
     {
-        _csvConnector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.CsvUpload);
-        _csvConnector.SetupGet(c => c.RequiresLocalStaging).Returns(true);
-        _csvConnector.SetupGet(c => c.SupportsScan).Returns(false);
-        _csvConnector.Setup(c => c.ResolveSourceKey(It.IsAny<Migration>(), It.IsAny<MigrationItem>()))
-            .Returns<Migration, MigrationItem>((m, i) => MigrationConstants.StagingKey(m.Id, i.FileName));
-
-        _s3Connector.SetupGet(c => c.SourceType).Returns(MigrationSourceType.S3);
-        _s3Connector.SetupGet(c => c.RequiresLocalStaging).Returns(false);
-        _s3Connector.SetupGet(c => c.SupportsScan).Returns(true);
-        _s3Connector.Setup(c => c.ResolveSourceKey(It.IsAny<Migration>(), It.IsAny<MigrationItem>()))
-            .Returns<Migration, MigrationItem>((_, i) =>
-                !string.IsNullOrWhiteSpace(i.SourcePath) ? i.SourcePath : i.ExternalId ?? string.Empty);
-
-        _connectors.Setup(r => r.Resolve(MigrationSourceType.CsvUpload)).Returns(_csvConnector.Object);
-        _connectors.Setup(r => r.Resolve(MigrationSourceType.S3)).Returns(_s3Connector.Object);
+        // Staged files exist in the internal bucket unless a test says otherwise.
+        _minio.Setup(m => m.ExistsAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
     }
 
     private ProcessMigrationItemHandler CreateHandler()
@@ -57,7 +42,6 @@ public class ProcessMigrationItemHandlerTests
             _collectionRepo.Object,
             _aclRepo.Object,
             _minio.Object,
-            _connectors.Object,
             _media.Object,
             _audit.Object,
             TestCacheHelper.CreateHybridCache(),
@@ -73,7 +57,6 @@ public class ProcessMigrationItemHandlerTests
         {
             Id = id ?? Guid.NewGuid(),
             Name = "Test",
-            SourceType = MigrationSourceType.CsvUpload,
             Status = status,
             DryRun = dryRun,
             DefaultCollectionId = defaultCollectionId,
@@ -223,7 +206,7 @@ public class ProcessMigrationItemHandlerTests
         var item = MakeItem(migration.Id);
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((MigrationObjectStat?)null);
+        _minio.Setup(m => m.ExistsAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 1, 1, 1, 0));
 
@@ -251,8 +234,8 @@ public class ProcessMigrationItemHandlerTests
         };
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(10, "image/jpeg", "e"));
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(10, "image/jpeg", "e"));
         _assetRepo.Setup(a => a.GetBySha256Async("dup", It.IsAny<CancellationToken>())).ReturnsAsync(existing);
         _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 0, 1, 1, 0));
@@ -265,7 +248,7 @@ public class ProcessMigrationItemHandlerTests
         Assert.Equal(existing.Id, item.AssetId);
         Assert.Equal(MigrationConstants.ErrorCodes.Duplicate, item.ErrorCode);
         _assetRepo.Verify(a => a.CreateAsync(It.IsAny<Asset>(), It.IsAny<CancellationToken>()), Times.Never);
-        _csvConnector.Verify(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _minio.Verify(m => m.DownloadAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -278,9 +261,9 @@ public class ProcessMigrationItemHandlerTests
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
         _assetRepo.Setup(a => a.GetBySha256Async("new-hash", It.IsAny<CancellationToken>())).ReturnsAsync((Asset?)null);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(12345, "image/jpeg", "etag-1"));
-        _csvConnector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(12345, "image/jpeg", "etag-1"));
+        _minio.Setup(m => m.DownloadAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(Encoding.UTF8.GetBytes("fake-bytes")));
 
         Asset? createdAsset = null;
@@ -326,9 +309,9 @@ public class ProcessMigrationItemHandlerTests
 
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(100, "image/png", "etag"));
-        _csvConnector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(100, "image/png", "etag"));
+        _minio.Setup(m => m.DownloadAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(new byte[] { 1, 2, 3 }));
         _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 1, 0, 1, 1, 0));
@@ -356,9 +339,9 @@ public class ProcessMigrationItemHandlerTests
 
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(50, "image/png", "e"));
-        _csvConnector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(50, "image/png", "e"));
+        _minio.Setup(m => m.DownloadAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream());
         _collectionRepo.Setup(c => c.GetByNameAsync("Vacation 2026", It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingCol);
@@ -382,9 +365,9 @@ public class ProcessMigrationItemHandlerTests
 
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(50, "image/png", "e"));
-        _csvConnector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(50, "image/png", "e"));
+        _minio.Setup(m => m.DownloadAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream());
         _collectionRepo.Setup(c => c.GetByNameAsync("New Album", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Collection?)null);
@@ -423,9 +406,9 @@ public class ProcessMigrationItemHandlerTests
 
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(50, contentType, "e"));
-        _csvConnector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(50, contentType, "e"));
+        _minio.Setup(m => m.DownloadAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream());
         _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 1, 0, 1, 1, 0));
@@ -451,7 +434,7 @@ public class ProcessMigrationItemHandlerTests
 
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException(longMessage));
         _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 1, 1, 1, 0));
@@ -461,7 +444,7 @@ public class ProcessMigrationItemHandlerTests
             CancellationToken.None);
 
         Assert.Equal(MigrationItemStatus.Failed, item.Status);
-        // Connector.StatAsync throws → specific FileStatFailed, not generic ProcessingError.
+        // StatObjectAsync throws → specific FileStatFailed, not generic ProcessingError.
         Assert.Equal(MigrationConstants.ErrorCodes.FileStatFailed, item.ErrorCode);
         Assert.Equal(MigrationConstants.Limits.MaxErrorMessageLength, item.ErrorMessage!.Length);
     }
@@ -474,9 +457,9 @@ public class ProcessMigrationItemHandlerTests
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
         _assetRepo.Setup(a => a.GetBySha256Async("s1", It.IsAny<CancellationToken>())).ReturnsAsync((Asset?)null);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(50, "image/png", "e"));
-        _csvConnector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(50, "image/png", "e"));
+        _minio.Setup(m => m.DownloadAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream());
         _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 1, 0, 1, 1, 0));
@@ -504,9 +487,9 @@ public class ProcessMigrationItemHandlerTests
         _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
         _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
         _assetRepo.Setup(a => a.GetBySha256Async("s2", It.IsAny<CancellationToken>())).ReturnsAsync((Asset?)null);
-        _csvConnector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(50, "image/png", "e"));
-        _csvConnector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _minio.Setup(m => m.StatObjectAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectStatInfo(50, "image/png", "e"));
+        _minio.Setup(m => m.DownloadAsync(Bucket, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream());
         _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MigrationItemCounts(3, 2, 0, 1, 0, 3, 3, 2));
@@ -522,194 +505,4 @@ public class ProcessMigrationItemHandlerTests
             Times.Never);
     }
 
-    // ── S3 source ingest ─────────────────────────────────────────────
-
-    // SourceConfig doesn't matter for handler tests — the connector is mocked and
-    // never actually decodes. Just stamp a non-empty dict so the migration looks
-    // well-formed.
-    private static readonly Dictionary<string, object> FakeS3SourceConfig = new()
-    {
-        ["bucket"] = "bucket-a",
-        ["endpoint"] = "https://s3.eu-west-1.amazonaws.com",
-        ["access_key"] = "AK",
-        ["secret_key_encrypted"] = "enc(SK)"
-    };
-
-    private static Migration MakeS3Migration(
-        Guid? defaultCollectionId = null, bool dryRun = false)
-        => new()
-        {
-            Id = Guid.NewGuid(),
-            Name = "S3 migration",
-            SourceType = MigrationSourceType.S3,
-            Status = MigrationStatus.Running,
-            DryRun = dryRun,
-            DefaultCollectionId = defaultCollectionId,
-            CreatedByUserId = "admin-1",
-            CreatedAt = DateTime.UtcNow,
-            SourceConfig = new Dictionary<string, object>(FakeS3SourceConfig)
-        };
-
-    private static MigrationItem MakeS3Item(
-        Guid migrationId,
-        string objectKey = "photos/a/alpha.jpg",
-        string fileName = "alpha.jpg",
-        MigrationItemStatus status = MigrationItemStatus.Pending)
-        => new()
-        {
-            Id = Guid.NewGuid(),
-            MigrationId = migrationId,
-            FileName = fileName,
-            SourcePath = objectKey,
-            ExternalId = objectKey,
-            Status = status,
-            IsFileStaged = false,   // S3 items are never locally staged
-            IdempotencyKey = Guid.NewGuid().ToString(),
-            CollectionNames = new List<string>(),
-            CreatedAt = DateTime.UtcNow
-        };
-
-    [Fact]
-    public async Task HandleAsync_S3_HappyPath_DownloadsUploadsCreatesAsset()
-    {
-        var migration = MakeS3Migration();
-        var item = MakeS3Item(migration.Id);
-
-        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
-        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _s3Connector.Setup(c => c.StatAsync(It.IsAny<Migration>(),"photos/a/alpha.jpg", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(2048, "image/jpeg", "etag-a"));
-        _s3Connector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(),"photos/a/alpha.jpg", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => new MemoryStream(new byte[] { 1, 2, 3, 4 }));
-        _assetRepo.Setup(a => a.GetBySha256Async(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((Asset?)null);
-        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 1, 0, 0, 0, 0));  // S3: Staged=0 is normal
-
-        await CreateHandler().HandleAsync(
-            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
-            CancellationToken.None);
-
-        Assert.Equal(MigrationItemStatus.Succeeded, item.Status);
-        Assert.NotNull(item.AssetId);
-        Assert.NotNull(item.Sha256);   // computed from downloaded bytes
-#pragma warning disable S1067 // Moq It.Is<T> predicate must be a single expression.
-        _assetRepo.Verify(a => a.CreateAsync(It.Is<Asset>(ax =>
-            ax.Sha256 == item.Sha256
-            && ax.SizeBytes == 2048
-            && ax.ContentType == "image/jpeg"
-            && ax.AssetType == AssetType.Image
-            && ax.OriginalObjectKey.EndsWith("/alpha.jpg")), It.IsAny<CancellationToken>()), Times.Once);
-#pragma warning restore S1067
-        _minio.Verify(m => m.UploadAsync(
-            Bucket, It.Is<string>(k => k.EndsWith("/alpha.jpg")),
-            It.IsAny<Stream>(), "image/jpeg", It.IsAny<CancellationToken>()), Times.Once);
-        _media.Verify(m => m.ScheduleProcessingAsync(
-            It.IsAny<Guid>(), "image", It.IsAny<string>(), false, It.IsAny<CancellationToken>()), Times.Once);
-
-        // Finalize audit should now fire as Completed (not PartiallyCompleted) — S3 has no staging.
-        _audit.Verify(a => a.LogAsync(
-            MigrationConstants.AuditEvents.Completed,
-            Constants.ScopeTypes.Migration,
-            migration.Id, null,
-            It.Is<Dictionary<string, object>?>(d => d != null && (string)d["status"] == "completed"),
-            It.IsAny<CancellationToken>()), Times.Once);
-        Assert.Equal(MigrationStatus.Completed, migration.Status);
-    }
-
-    [Fact]
-    public async Task HandleAsync_S3_StatReturnsNull_MarksFileNotFound()
-    {
-        var migration = MakeS3Migration();
-        var item = MakeS3Item(migration.Id);
-
-        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
-        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _s3Connector.Setup(c => c.StatAsync(It.IsAny<Migration>(),It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((MigrationObjectStat?)null);
-        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 1, 0, 0, 0));
-
-        await CreateHandler().HandleAsync(
-            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
-            CancellationToken.None);
-
-        Assert.Equal(MigrationItemStatus.Failed, item.Status);
-        Assert.Equal(MigrationConstants.ErrorCodes.FileNotFound, item.ErrorCode);
-        _s3Connector.Verify(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task HandleAsync_S3_DownloadThrows_MarksFailed()
-    {
-        var migration = MakeS3Migration();
-        var item = MakeS3Item(migration.Id);
-
-        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
-        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _s3Connector.Setup(c => c.StatAsync(It.IsAny<Migration>(),It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(10, "image/png", "e"));
-        _s3Connector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(),It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Access Denied"));
-        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 1, 0, 0, 0));
-
-        await CreateHandler().HandleAsync(
-            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
-            CancellationToken.None);
-
-        Assert.Equal(MigrationItemStatus.Failed, item.Status);
-        Assert.Equal(MigrationConstants.ErrorCodes.ProcessingError, item.ErrorCode);
-        Assert.Contains("Access Denied", item.ErrorMessage);
-        _assetRepo.Verify(a => a.CreateAsync(It.IsAny<Asset>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task HandleAsync_S3_StatThrows_MarksFileStatFailed()
-    {
-        var migration = MakeS3Migration();
-        var item = MakeS3Item(migration.Id);
-
-        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
-        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _s3Connector.Setup(c => c.StatAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Bad config"));
-        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 1, 0, 0, 0));
-
-        await CreateHandler().HandleAsync(
-            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
-            CancellationToken.None);
-
-        Assert.Equal(MigrationItemStatus.Failed, item.Status);
-        Assert.Equal(MigrationConstants.ErrorCodes.FileStatFailed, item.ErrorCode);
-        _s3Connector.Verify(c => c.DownloadAsync(It.IsAny<Migration>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-[Fact]
-    public async Task HandleAsync_S3_DuplicateSha256_SkipsAndLinksExistingAsset()
-    {
-        var migration = MakeS3Migration();
-        var item = MakeS3Item(migration.Id);
-        var existing = TestData.CreateAsset();
-
-        _migrationRepo.Setup(r => r.GetItemByIdAsync(item.Id, It.IsAny<CancellationToken>())).ReturnsAsync(item);
-        _migrationRepo.Setup(r => r.GetByIdAsync(migration.Id, It.IsAny<CancellationToken>())).ReturnsAsync(migration);
-        _s3Connector.Setup(c => c.StatAsync(It.IsAny<Migration>(),It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationObjectStat(4, "image/jpeg", "e"));
-        _s3Connector.Setup(c => c.DownloadAsync(It.IsAny<Migration>(),It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => new MemoryStream(new byte[] { 1, 2, 3, 4 }));
-        _assetRepo.Setup(a => a.GetBySha256Async(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(existing);
-        _migrationRepo.Setup(r => r.GetItemCountsAsync(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MigrationItemCounts(1, 0, 0, 0, 0, 1, 0, 0));
-
-        await CreateHandler().HandleAsync(
-            new ProcessMigrationItemCommand { MigrationId = migration.Id, MigrationItemId = item.Id },
-            CancellationToken.None);
-
-        Assert.Equal(MigrationItemStatus.Skipped, item.Status);
-        Assert.Equal(MigrationConstants.ErrorCodes.Duplicate, item.ErrorCode);
-        Assert.Equal(existing.Id, item.AssetId);
-        _minio.Verify(m => m.UploadAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-        _assetRepo.Verify(a => a.CreateAsync(It.IsAny<Asset>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
 }
