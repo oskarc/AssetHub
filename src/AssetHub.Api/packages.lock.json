@@ -309,6 +309,14 @@
           "Microsoft.EntityFrameworkCore": "10.0.11"
         }
       },
+      "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
+        "type": "Transitive",
+        "resolved": "10.0.11",
+        "contentHash": "N3+Fs465t08FyrQ+uoQyYH6TehLjtuGr/v5IjlFZANBbsivq9M5xFCVD25Ktq+HpWCfWXIrRjoakgymzO2trlw==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "10.0.11"
+        }
+      },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
         "resolved": "9.0.0",
@@ -916,6 +924,7 @@
           "Magick.NET-Q8-AnyCPU": "[14.14.0, )",
           "MetadataExtractor": "[2.8.1, )",
           "Microsoft.AspNetCore.DataProtection.EntityFrameworkCore": "[10.0.*, )",
+          "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.*, )",
           "Microsoft.EntityFrameworkCore": "[10.0.*, )",
           "Microsoft.Extensions.Caching.Hybrid": "[10.4.0, )",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.5, )",

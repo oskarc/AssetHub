@@ -1,47 +1,92 @@
 @page "/login"
 @using Microsoft.AspNetCore.Authorization
+@using AssetHub.Application.Configuration
+@using Microsoft.Extensions.Options
 
 @attribute [AllowAnonymous]
 
 @inject NavigationManager Nav
 @inject IStringLocalizer<CommonResource> CommonLoc
+@inject IOptions<AuthSettings> Auth
 
 <PageTitle>@CommonLoc["Btn_SignIn"] - @CommonLoc["AppName"]</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center login-container">
     <MudPaper Class="pa-8 login-card" Elevation="4">
         <MudStack Spacing="4" AlignItems="AlignItems.Center">
-            <MudIcon Icon="@Icons.Material.Filled.Collections" 
-                     Color="Color.Primary" 
-                     Size="Size.Large" 
+            <MudIcon Icon="@Icons.Material.Filled.Collections"
+                     Color="Color.Primary"
+                     Size="Size.Large"
                      Class="login-icon" />
-            
+
             <MudText Typo="Typo.h4" Align="Align.Center">
                 @CommonLoc["AppName"]
             </MudText>
-            
+
             <MudText Typo="Typo.body1" Color="Color.Secondary" Align="Align.Center">
                 @CommonLoc["AppSubtitle"]
             </MudText>
 
             <MudDivider Class="my-4" FlexItem="true" />
 
-            <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">
-                @CommonLoc["Text_SignInDescription"]
-            </MudText>
+            @if (Auth.Value.UsesIdentity)
+            {
+                @* Local sign-in. A plain form POST rather than a Blazor handler:
+                   establishing the auth cookie needs a real HTTP response, which
+                   an interactive circuit cannot produce. *@
+                @if (!string.IsNullOrEmpty(Error))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="w-100" role="alert">
+                        @(Error == "locked"
+                            ? CommonLoc["Login_Error_LockedOut"]
+                            : CommonLoc["Login_Error_InvalidCredentials"])
+                    </MudAlert>
+                }
 
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       Size="Size.Large"
-                       FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.Login"
-                       OnClick="SignIn">
-                @CommonLoc["Btn_SignIn"]
-            </MudButton>
+                <form method="post" action="/auth/login" class="w-100">
+                    <input type="hidden" name="returnUrl" value="@(ReturnUrl ?? "/")" />
 
-            <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
-                @CommonLoc["Text_RedirectIdentityProvider"]
-            </MudText>
+                    <div class="mb-4">
+                        <label for="userName" class="mud-input-label">@CommonLoc["Login_UserName"]</label>
+                        <input id="userName" name="userName" type="text" required autofocus
+                               autocomplete="username" class="mud-input-slot login-input" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password" class="mud-input-label">@CommonLoc["Login_Password"]</label>
+                        <input id="password" name="password" type="password" required
+                               autocomplete="current-password" class="mud-input-slot login-input" />
+                    </div>
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Large"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Login">
+                        @CommonLoc["Btn_SignIn"]
+                    </MudButton>
+                </form>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">
+                    @CommonLoc["Text_SignInDescription"]
+                </MudText>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Large"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Login"
+                           OnClick="SignIn">
+                    @CommonLoc["Btn_SignIn"]
+                </MudButton>
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
+                    @CommonLoc["Text_RedirectIdentityProvider"]
+                </MudText>
+            }
 
             <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-2">
                 @CommonLoc["Text_ForgotPasswordHint"]
@@ -53,6 +98,9 @@
 @code {
     [SupplyParameterFromQuery]
     public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
 
     private void SignIn()
     {

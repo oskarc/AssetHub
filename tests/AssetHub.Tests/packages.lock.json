@@ -64,10 +64,10 @@
       "Testcontainers.PostgreSql": {
         "type": "Direct",
         "requested": "[4.*, )",
-        "resolved": "4.13.0",
-        "contentHash": "2ow4AE8drI9iA9Fr4ycAPusXPB1lJfQyyNONSMLE/XqLpm8VuNAh3pK38fOjkOWtTrnD03s4hAIdl4036Ik69A==",
+        "resolved": "4.14.0",
+        "contentHash": "OPHWR9oCW89yuNxJjUo8Xtwrk0bcOdzFOE2Ryo01GAf/3WEzD+0j0gmdKSxx5kBprCdlbXurBJyaV7nSLPyWKQ==",
         "dependencies": {
-          "Testcontainers": "4.13.0"
+          "Testcontainers": "4.14.0"
         }
       },
       "xunit": {
@@ -112,8 +112,8 @@
       },
       "BouncyCastle.Cryptography": {
         "type": "Transitive",
-        "resolved": "2.6.2",
-        "contentHash": "7oWOcvnntmMKNzDLsdxAYqApt+AjpRpP2CShjMfIa3umZ42UQMvH0tl1qAliYPNYO6vTdcGMqnRrCPmsfzTI1w=="
+        "resolved": "2.7.0",
+        "contentHash": "U+12df8UEWHgBi04YVf/Lgi2dy3SItlIYvHjjEVa/BngCQIzDCDRBk50DDByCfDvSbe5pRNFr3b7UrVK2kMcLw=="
       },
       "Castle.Core": {
         "type": "Transitive",
@@ -339,6 +339,14 @@
         "resolved": "10.0.11",
         "contentHash": "rDS7psQk0UGKAHFg8O3Ho9E+wLz1E2O9Ppt47wtc7A5H0kI6rwTcJ7V1rxj5jN7FfD/KkS4jzbdMiVOaHGUyiQ=="
       },
+      "Microsoft.AspNetCore.Cryptography.KeyDerivation": {
+        "type": "Transitive",
+        "resolved": "10.0.11",
+        "contentHash": "4L8yQnfUR6SJ2uu52YOyNGNmvSmX77Wr/XLNn+dM5IazSFz/z71BEzdDCLBlGU/GCUxxPhogJJ+l6rHR3WWEaQ==",
+        "dependencies": {
+          "Microsoft.AspNetCore.Cryptography.Internal": "10.0.11"
+        }
+      },
       "Microsoft.AspNetCore.DataProtection": {
         "type": "Transitive",
         "resolved": "10.0.11",
@@ -365,6 +373,15 @@
         "dependencies": {
           "Microsoft.AspNetCore.DataProtection": "10.0.11",
           "Microsoft.EntityFrameworkCore": "10.0.11"
+        }
+      },
+      "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
+        "type": "Transitive",
+        "resolved": "10.0.11",
+        "contentHash": "N3+Fs465t08FyrQ+uoQyYH6TehLjtuGr/v5IjlFZANBbsivq9M5xFCVD25Ktq+HpWCfWXIrRjoakgymzO2trlw==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "10.0.11",
+          "Microsoft.Extensions.Identity.Stores": "10.0.11"
         }
       },
       "Microsoft.AspNetCore.Metadata": {
@@ -912,6 +929,27 @@
           "Microsoft.Extensions.Resilience": "10.3.0"
         }
       },
+      "Microsoft.Extensions.Identity.Core": {
+        "type": "Transitive",
+        "resolved": "10.0.11",
+        "contentHash": "74BKWqcioSjoG2NopnIPoxtc8uqJjsMEXsZ+a0dGkLnZmCtcEOnwS7FFqxcA7TbJVNk54IMLqjrvacPSOKH80Q==",
+        "dependencies": {
+          "Microsoft.AspNetCore.Cryptography.KeyDerivation": "10.0.11",
+          "Microsoft.Extensions.Diagnostics": "10.0.11",
+          "Microsoft.Extensions.Logging": "10.0.11",
+          "Microsoft.Extensions.Options": "10.0.11"
+        }
+      },
+      "Microsoft.Extensions.Identity.Stores": {
+        "type": "Transitive",
+        "resolved": "10.0.11",
+        "contentHash": "9g72hwc5ARsracMp9aQuG0HcTg1Oj62dnq+LcRNpoqk5MIVfUE3xvlMprxhDhU/Dj1Vpc658W6vs3Rjs5dp0Jg==",
+        "dependencies": {
+          "Microsoft.Extensions.Caching.Abstractions": "10.0.11",
+          "Microsoft.Extensions.Identity.Core": "10.0.11",
+          "Microsoft.Extensions.Logging": "10.0.11"
+        }
+      },
       "Microsoft.Extensions.Localization": {
         "type": "Transitive",
         "resolved": "9.0.1",
@@ -1430,10 +1468,10 @@
       },
       "SSH.NET": {
         "type": "Transitive",
-        "resolved": "2025.1.0",
-        "contentHash": "jrnbtf0ItVaXAe6jE8X/kSLa6uC+0C+7W1vepcnRQB/rD88qy4IxG7Lf1FIbWmkoc4iVXv0pKrz+Wc6J4ngmHw==",
+        "resolved": "2026.0.0",
+        "contentHash": "Yu9dirPq8l3oaat0+OQ7K0nUf5MmYltpia5UGqsApTG4zTPvBC1cxbNnC3NERij26dUST0A3Ef1QdHSn5ArbWQ==",
         "dependencies": {
-          "BouncyCastle.Cryptography": "2.6.2",
+          "BouncyCastle.Cryptography": "2.7.0",
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3"
         }
       },
@@ -1556,13 +1594,13 @@
       },
       "Testcontainers": {
         "type": "Transitive",
-        "resolved": "4.13.0",
-        "contentHash": "j8vi9jPBNSwaraGGx8w+2gtZyWrlbKxdhiGMS3nektg+KiwjFWx9ghCjs57EoQfvI+IAbzti0oQJupQChwgMog==",
+        "resolved": "4.14.0",
+        "contentHash": "ojuBi91xcMsR6vnFuNsQDWU9tlZlrtmqy95VPNWVVnh24GiwFL/WMnVmb6bRv8LqovtnKPJN9cpmH1k02Z4ZoA==",
         "dependencies": {
           "Docker.DotNet.Enhanced": "4.3.3",
           "Docker.DotNet.Enhanced.X509": "4.3.3",
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
-          "SSH.NET": "2025.1.0",
+          "SSH.NET": "2026.0.0",
           "SharpZipLib": "1.4.2"
         }
       },
@@ -1697,6 +1735,7 @@
           "Magick.NET-Q8-AnyCPU": "[14.14.0, )",
           "MetadataExtractor": "[2.8.1, )",
           "Microsoft.AspNetCore.DataProtection.EntityFrameworkCore": "[10.0.*, )",
+          "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.*, )",
           "Microsoft.EntityFrameworkCore": "[10.0.*, )",
           "Microsoft.Extensions.Caching.Hybrid": "[10.4.0, )",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.5, )",

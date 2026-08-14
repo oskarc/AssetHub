@@ -1,3 +1,8 @@
+using Microsoft.AspNetCore.Mvc;
+using AssetHub.Application.Configuration;
+using AssetHub.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Security.Claims;
 using AssetHub.Api.Endpoints;
@@ -44,8 +49,32 @@ public static class WebApplicationExtensions
         var autoMigrate = app.Configuration.GetValue("Database:AutoMigrate", true);
         await MigrateDatabaseAsync(scope.ServiceProvider, logger, autoMigrate);
         await EnsureMinioBucketAsync(scope.ServiceProvider, app.Configuration, logger);
+        await SeedIdentityAsync(scope.ServiceProvider, logger);
 
         LogBuildStamp(app);
+    }
+
+    /// <summary>
+    /// Creates the application roles and, on an empty user store, the bootstrap
+    /// admin. Runs only under the Identity provider — a no-op under Keycloak,
+    /// which owns its own users.
+    /// </summary>
+    private static async Task SeedIdentityAsync(IServiceProvider services, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        var auth = services.GetRequiredService<IOptions<AuthSettings>>().Value;
+        if (!auth.UsesIdentity) return;
+
+        try
+        {
+            var seeder = services.GetRequiredService<IdentitySeeder>();
+            await seeder.SeedAsync();
+        }
+        catch (Exception ex)
+        {
+            // Refuse to start rather than run with no way to sign in.
+            logger.LogCritical(ex, "Identity seeding failed — the application cannot start without an administrator");
+            throw;
+        }
     }
 
     // ── Middleware pipeline ─────────────────────────────────────────────────
@@ -266,28 +295,14 @@ public static class WebApplicationExtensions
                 Results.BadRequest("OIDC callback hit without state/code. Start login via /auth/login."))
             .AllowAnonymous();
 
-        // Auth routes
-        app.MapGet("/auth/login", async (HttpContext http, string? returnUrl) =>
-        {
-            // Prevent open redirect: only allow known internal routes
-            var redirectUri = AssetHub.Application.Helpers.UrlSafetyHelper.SafeReturnUrl(returnUrl);
-            await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
-                new() { RedirectUri = redirectUri });
-        });
-
-        app.MapGet("/auth/logout", async (HttpContext http) =>
-        {
-            await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            await http.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme,
-                new() { RedirectUri = "/" });
-        });
-
-        app.MapGet("/auth/change-password", async (HttpContext http) =>
-        {
-            var properties = new AuthenticationProperties { RedirectUri = "/" };
-            properties.Items["kc_action"] = "UPDATE_PASSWORD";
-            await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, properties);
-        }).RequireAuthorization();
+        // Auth routes. The paths are identical under both providers so the UI
+        // (MainLayout, Login.razor) never learns which one is configured — only
+        // what each path does behind the scenes differs.
+        var authSettings = app.Services.GetRequiredService<IOptions<AuthSettings>>().Value;
+        if (authSettings.UsesIdentity)
+            MapIdentityAuthRoutes(app);
+        else
+            MapKeycloakAuthRoutes(app);
 
         // API endpoints
         app.MapDashboardEndpoints();
@@ -479,4 +494,91 @@ public static class WebApplicationExtensions
         };
         return context.Response.WriteAsJsonAsync(result);
     }
+
+    /// <summary>Keycloak OIDC auth routes — unchanged from before the provider split.</summary>
+    private static void MapKeycloakAuthRoutes(WebApplication app)
+    {
+        app.MapGet("/auth/login", async (HttpContext http, string? returnUrl) =>
+        {
+            // Prevent open redirect: only allow known internal routes
+            var redirectUri = AssetHub.Application.Helpers.UrlSafetyHelper.SafeReturnUrl(returnUrl);
+            await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
+                new() { RedirectUri = redirectUri });
+        });
+
+        app.MapGet("/auth/logout", async (HttpContext http) =>
+        {
+            await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await http.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme,
+                new() { RedirectUri = "/" });
+        });
+
+        app.MapGet("/auth/change-password", async (HttpContext http) =>
+        {
+            var properties = new AuthenticationProperties { RedirectUri = "/" };
+            properties.Items["kc_action"] = "UPDATE_PASSWORD";
+            await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, properties);
+        }).RequireAuthorization();
+    }
+
+    /// <summary>
+    /// Local Identity auth routes. Sign-in is a form POST rather than an OIDC
+    /// challenge, so /auth/login simply forwards to the Blazor login page; the
+    /// POST handler below is what actually establishes the cookie.
+    /// </summary>
+    private static void MapIdentityAuthRoutes(WebApplication app)
+    {
+        app.MapGet("/auth/login", (string? returnUrl) =>
+        {
+            var redirectUri = AssetHub.Application.Helpers.UrlSafetyHelper.SafeReturnUrl(returnUrl);
+            return Results.Redirect($"/login?returnUrl={Uri.EscapeDataString(redirectUri)}");
+        }).AllowAnonymous();
+
+        // Form POST from the login page. Kept out of Blazor Server because
+        // establishing an auth cookie needs a real HTTP response, which an
+        // interactive circuit cannot produce.
+        app.MapPost("/auth/login", async (
+            HttpContext http,
+            [FromForm] string userName,
+            [FromForm] string password,
+            [FromForm] string? returnUrl,
+            [FromServices] SignInManager<AppUser> signInManager,
+            [FromServices] IAuditService audit,
+            CancellationToken ct) =>
+        {
+            var redirectUri = AssetHub.Application.Helpers.UrlSafetyHelper.SafeReturnUrl(returnUrl);
+            var result = await signInManager.PasswordSignInAsync(
+                userName, password, isPersistent: true, lockoutOnFailure: true);
+
+            if (!result.Succeeded)
+            {
+                // Deliberately identical response for wrong-user and wrong-password
+                // so the form cannot be used to enumerate accounts. Lockout is the
+                // one distinguishable state, because the user needs to know to wait.
+                var reason = result.IsLockedOut ? "locked" : "invalid";
+                await audit.LogAsync("auth.login_failed", Constants.ScopeTypes.User, targetId: null, actorUserId: userName,
+                    new() { ["reason"] = reason }, ct);
+                return Results.Redirect($"/login?error={reason}&returnUrl={Uri.EscapeDataString(redirectUri)}");
+            }
+
+            return Results.Redirect(redirectUri);
+        }).AllowAnonymous().DisableAntiforgery();
+
+        app.MapPost("/auth/logout", async (HttpContext http, [FromServices] SignInManager<AppUser> signInManager) =>
+        {
+            await signInManager.SignOutAsync();
+            return Results.Redirect("/");
+        }).DisableAntiforgery();
+
+        // GET logout kept so MainLayout's existing navigation keeps working.
+        app.MapGet("/auth/logout", async (HttpContext http, [FromServices] SignInManager<AppUser> signInManager) =>
+        {
+            await signInManager.SignOutAsync();
+            return Results.Redirect("/");
+        });
+
+        app.MapGet("/auth/change-password", () => Results.Redirect("/account/password"))
+            .RequireAuthorization();
+    }
+
 }

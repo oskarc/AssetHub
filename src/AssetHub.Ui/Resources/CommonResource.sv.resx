@@ -457,4 +457,8 @@
   <data name="Aria_TogglePasswordVisibility" xml:space="preserve"><value>Växla lösenordssynlighet</value></data>
   <data name="Aria_ProcessingInProgress" xml:space="preserve"><value>Bearbetning pågår</value></data>
   <data name="Btn_Open" xml:space="preserve"><value>Öppna</value></data>
+  <data name="Login_UserName" xml:space="preserve"><value>Användarnamn</value></data>
+  <data name="Login_Password" xml:space="preserve"><value>Lösenord</value></data>
+  <data name="Login_Error_InvalidCredentials" xml:space="preserve"><value>Felaktigt användarnamn eller lösenord.</value></data>
+  <data name="Login_Error_LockedOut" xml:space="preserve"><value>Kontot är tillfälligt låst efter för många misslyckade försök. Försök igen om en stund.</value></data>
 </root>

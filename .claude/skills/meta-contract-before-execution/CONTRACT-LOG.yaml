@@ -1046,3 +1046,124 @@ contracts:
       removals done with a brace-matching extractor instead. drift-007 recurred
       a fifth time (suite launched before the sweep, which then edited source);
       the run was stopped rather than read and a single clean suite run last.
+
+  - contract_id: contract-013
+    feature: reshape-c12a-identity-alongside-keycloak
+    date_proposed: 2026-08-14
+    date_approved: 2026-08-14
+    tier_1: |
+      C12 replaces Keycloak with ASP.NET Core Identity. Split in two on the
+      agent's recommendation, approved: this contract ADDS Identity alongside
+      Keycloak, config-gated, leaving Keycloak the default and fully working. The
+      next contract removes Keycloak once the Identity path is proven. Each
+      contract ends with a system that runs.
+
+      Three survey findings drove the split:
+      1. There is NO local user table — Keycloak is the entire user store, and
+         CurrentUser.UserId is a Keycloak subject string that fills
+         CollectionAcl.PrincipalId, Asset.CreatedByUserId and
+         AuditEvent.ActorUserId. Identity means adding seven tables and becoming
+         the user store: the largest ADDITIVE change in the programme.
+      2. The unit suite CANNOT gate this. CustomWebApplicationFactory:158-160
+         replaces every scheme with TestAuthHandler, so all 901 tests bypass real
+         authentication. Only E2E 01-auth.spec.ts (8 tests) plus the .auth
+         storage states cover it, and those states are Keycloak artifacts.
+      3. A single-contract swap has no working intermediate state.
+
+      DECISION (a), approved — existing user IDs are NOT migrated. New Identity
+      users get new GUIDs, so pre-existing ACL grants and audit rows would
+      reference users the new store does not know and render as "Deleted User
+      (xxxx)". Accepted as fresh-install semantics per D3. NOTE: this contract
+      orphans nothing, because Keycloak remains the default provider — the
+      consequence lands only at actual cutover (C12b).
+    tier_2: |
+      1. Baseline roll-forward to 4e836b3 (901); docker pre-check FIRST
+         (drift-001 — it was down again, sixth occurrence). Suite starts only
+         after every edit including the sweep (drift-007, five occurrences).
+      2. Add Identity: AppUser : IdentityUser (string key so the existing
+         user-id type is unchanged), Identity tables via one migration,
+         AddIdentityCore + RoleManager, password/lockout policy in
+         IdentitySettings with validate-on-start. AppUser lives in
+         Infrastructure, NOT Domain — Domain has zero package references by
+         standard and Identity is a NuGet type.
+      3. Auth wiring: new "Identity" provider mode in AuthenticationExtensions
+         selected by Auth:Provider (Keycloak | Identity), defaulting to Keycloak
+         so nothing changes without opting in. Cookie scheme shared; Smart
+         selector still routes bearer to JWT. Identity roles map to the same
+         ClaimTypes.Role values RoleHierarchy already expects.
+      4. Local auth UI: real login form, sign-out and change-password pages used
+         when the provider is Identity. /auth/login, /auth/logout and
+         /auth/change-password keep their paths so MainLayout and Login.razor are
+         untouched.
+      5. Seed on startup when provider is Identity and no users exist: one admin
+         from Identity:SeedAdmin config, audited, idempotent, no-op otherwise.
+      6. IUserDirectory abstraction over the four read operations the app needs
+         (names, emails, lookup-by-username, list/search) with a Keycloak
+         implementation delegating to today's UserLookupService and an Identity
+         implementation querying AspNetUsers. Behaviour under Keycloak stays
+         byte-identical.
+      7. Tests: unit tests for the Identity provider path (seed, login, role
+         mapping, password policy); TestAuthHandler untouched so the existing 901
+         keep passing unchanged; a second E2E storage-state fixture.
+      8. Prose: CLAUDE.md auth section gains the provider-mode concept; README
+         quickstart notes both modes; compose unchanged (Keycloak still required
+         in mode Keycloak).
+    tier_3: |
+      - KEYCLOAK MODE IS BYTE-IDENTICAL. With Auth:Provider=Keycloak (the
+        default) the 901-test suite passes with ZERO assertion edits. (-> primary
+        risk)
+      - Identity mode authenticates end-to-end: seed admin logs in via the new
+        form, gets correct role claims, reaches an admin-gated page, changes
+        password, signs out. Demonstrated in E2E — NOT by the unit suite, which
+        cannot see auth. (-> finding 2)
+      - RoleHierarchy, the policies and CollectionAuthorizationService are
+        untouched; the authorization layer must not know which provider issued
+        the claims. Verified by re-running C11's 75-test ACL matrix identical.
+      - No existing user-id column type or value changes.
+      - Reconciliation closes (expect additions only); census no new rules.
+      - Verified means: baseline clean + no new warnings + full pass + BOTH auth
+        modes exercised in E2E + ACL matrix identical + discovery check clean on
+        a fresh build.
+    status: implemented
+    revisions: []
+    work_id: null
+    implemented: 2026-08-14
+    implementation_notes: >-
+      Additive contract — the first in the programme that builds rather than
+      cuts. ALL THREE GATES HELD: zero pre-existing tests removed or broken
+      (Keycloak mode byte-identical), reconciliation closes exactly
+      (901 - 0 + 8 = 909), and C11's 75-test ACL matrix is identical.
+
+      PLAN DEVIATION, smaller than contracted: tier_2 step 6 called for a new
+      IUserDirectory abstraction with callers migrated onto it. Execution found
+      IUserLookupService already IS that abstraction — same shape, eight
+      consumers already depending on it. So the work reduced to adding a second
+      implementation (IdentityUserLookupService) and selecting by provider; zero
+      consumers changed. Less churn for the same outcome.
+
+      Architectural note: AppUser lives in Infrastructure, not Domain, because
+      IdentityUser is a framework type and Domain carries zero package
+      references by standard. The key stays string, so no persisted user
+      reference changes type.
+
+      Identity tables ship regardless of provider (7 tables, one migration) —
+      unused under Keycloak, which keeps the schema stable across a switch.
+      Discovery check clean on a fresh build.
+
+      Census 70 -> 71 distinct, nothing outside known clusters; the one new rule
+      hit (S927, parameter name must match IdentityDbContext's base) was fixed by
+      renaming rather than suppressed, and the suite re-run afterwards because
+      the tree had changed since the previous verdict.
+
+      One self-inflicted test defect: the new tests took their connection string
+      from GetDbConnection().ConnectionString, which Npgsql redacts the password
+      from — six failures, all in new tests, none in product code. Fixed by
+      deriving the per-test connection from the fixture's own string.
+
+      drift-001 recurred a sixth time (Docker down), caught by the pre-check
+      before any suite was spent.
+
+      NOT YET DONE, deferred to C12b as contracted: the admin user-management
+      surface still calls the Keycloak admin API, so under Auth:Provider=Identity
+      those operations are non-functional. E2E verification of the Identity
+      sign-in path also remains outstanding — the unit suite cannot cover it.

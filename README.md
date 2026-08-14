@@ -228,7 +228,7 @@ Every external dependency can be swapped by implementing a clean interface:
 
 | Category | Implementation |
 |----------|---------------|
-| **Authentication** | OIDC with PKCE (Authorization Code flow) for browsers; JWT bearer for service callers — both routed by a single Smart scheme selector |
+| **Authentication** | Pluggable via `Auth:Provider` — `Keycloak` (OIDC with PKCE, the default) or `Identity` (local ASP.NET Core Identity with a sign-in form). JWT bearer for service callers in both modes, routed by a single Smart scheme selector |
 | **Authorization** | Per-collection RBAC — Viewer, Contributor, Manager, Admin roles |
 | **Rate Limiting** | Per-user, SignalR, anonymous shares, password brute-force protection |
 | **Upload Security** | Content-type allowlist → magic byte check → ClamAV scan → size limits |

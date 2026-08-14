@@ -35,6 +35,15 @@
           "Microsoft.EntityFrameworkCore": "10.0.11"
         }
       },
+      "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
+        "type": "Direct",
+        "requested": "[10.0.*, )",
+        "resolved": "10.0.11",
+        "contentHash": "N3+Fs465t08FyrQ+uoQyYH6TehLjtuGr/v5IjlFZANBbsivq9M5xFCVD25Ktq+HpWCfWXIrRjoakgymzO2trlw==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "10.0.11"
+        }
+      },
       "Microsoft.EntityFrameworkCore": {
         "type": "Direct",
         "requested": "[10.0.*, )",
@@ -358,10 +367,10 @@
       },
       "Microsoft.EntityFrameworkCore.Relational": {
         "type": "Transitive",
-        "resolved": "10.0.4",
-        "contentHash": "DOTjTHy93W3TwpMLM4SCm0n57Sc0Jj3+m2S6LSTstKyBB34eT1UouaMS19mpWwvtj42+sRiEjA3+rOTNoNzXFQ==",
+        "resolved": "10.0.11",
+        "contentHash": "grznnTJgEYxaWpdKAsTzg6j+89jHgCXWYp+QGtlX5O92+w/VuhWM6JLPYb+uw8M9VhGUvOTsO76dYOy9vNPd5Q==",
         "dependencies": {
-          "Microsoft.EntityFrameworkCore": "10.0.4"
+          "Microsoft.EntityFrameworkCore": "10.0.11"
         }
       },
       "Microsoft.Extensions.Compliance.Abstractions": {

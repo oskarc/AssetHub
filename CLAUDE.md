@@ -225,9 +225,34 @@ Collections are **flat** — a user's effective role on a collection is the dire
 
 ### Authentication paths
 
-Two principal types reach the API: **cookie** (the Blazor UI, interactive OIDC
-login) and **JWT bearer** (Keycloak-issued). The `Smart` scheme selector routes
-`Authorization: Bearer …` to JWT and everything else to Cookie.
+Two principal types reach the API: **cookie** (the Blazor UI) and **JWT bearer**.
+The `Smart` scheme selector routes `Authorization: Bearer …` to JWT and
+everything else to Cookie.
+
+**Provider modes.** `Auth:Provider` selects the identity provider:
+
+| Mode | Sign-in | User store | Roles |
+|------|---------|-----------|-------|
+| `Keycloak` *(default)* | OIDC redirect | Keycloak realm | realm roles → `ClaimTypes.Role` |
+| `Identity` | local form POST to `/auth/login` | `AspNetUsers` in the app database | Identity roles → `ClaimTypes.Role` |
+
+Both modes produce the same claims, so **nothing downstream of the claims
+principal knows which provider issued it** — `RoleHierarchy`, the authorization
+policies, and `CollectionAuthorizationService` are provider-agnostic and must
+stay that way. `/auth/login`, `/auth/logout` and `/auth/change-password` exist in
+both modes with the same paths; only their behaviour differs, so UI code never
+branches on the provider.
+
+Under `Identity`, `IdentitySeeder` creates the four roles and — **only when the
+user store is completely empty** — one bootstrap admin from `Identity:SeedAdmin`.
+It never overwrites an existing account, and it throws rather than inventing a
+default password. `IUserLookupService` resolves to `IdentityUserLookupService`
+(local queries) instead of `UserLookupService` (Keycloak admin API); every
+consumer keeps depending on the interface.
+
+The 2026-08 reshape is migrating off Keycloak (contract-013 added Identity
+alongside it; a follow-up removes Keycloak). Until then Keycloak remains the
+default and existing deployments are unaffected.
 
 Personal Access Tokens were removed by the 2026-08 reshape (contract-011) along
 with the public API contract they existed to serve — there is no longer a

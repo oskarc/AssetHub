@@ -164,10 +164,34 @@ public static class ServiceCollectionExtensions
         // ── Options (API-specific — shared options are in AddSharedInfrastructure) ─
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
 
-        services.AddOptions<KeycloakSettings>()
-            .Bind(configuration.GetSection(KeycloakSettings.SectionName))
+        var authSettings = configuration.GetSection(AuthSettings.SectionName).Get<AuthSettings>() ?? new AuthSettings();
+        services.AddOptions<AuthSettings>()
+            .Bind(configuration.GetSection(AuthSettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        // Keycloak settings are only required when Keycloak is the selected
+        // provider — validating them on start under Identity would demand
+        // config for a system the deployment no longer runs.
+        if (authSettings.UsesKeycloak)
+        {
+            services.AddOptions<KeycloakSettings>()
+                .Bind(configuration.GetSection(KeycloakSettings.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+        }
+        else
+        {
+            services.Configure<KeycloakSettings>(configuration.GetSection(KeycloakSettings.SectionName));
+        }
+
+        if (authSettings.UsesIdentity)
+        {
+            services.AddOptions<IdentitySettings>()
+                .Bind(configuration.GetSection(IdentitySettings.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+        }
 
         services.AddOptions<AppSettings>()
             .Bind(configuration.GetSection(AppSettings.SectionName))
@@ -176,7 +200,13 @@ public static class ServiceCollectionExtensions
 
         // ── Application & Domain Services (API-only) ────────────────────────
         services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizationService>();
-        services.AddScoped<IUserLookupService, UserLookupService>();
+        // User lookup follows the configured provider: the Keycloak
+        // implementation calls the admin API, the Identity one queries the local
+        // store. Every consumer keeps depending on IUserLookupService.
+        if (authSettings.UsesIdentity)
+            services.AddScoped<IUserLookupService, IdentityUserLookupService>();
+        else
+            services.AddScoped<IUserLookupService, UserLookupService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<IAuditService, AuditService>();

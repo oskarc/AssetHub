@@ -460,4 +460,8 @@
   <data name="Aria_TogglePasswordVisibility" xml:space="preserve"><value>Toggle password visibility</value></data>
   <data name="Aria_ProcessingInProgress" xml:space="preserve"><value>Processing in progress</value></data>
   <data name="Btn_Open" xml:space="preserve"><value>Open</value></data>
+  <data name="Login_UserName" xml:space="preserve"><value>Username</value></data>
+  <data name="Login_Password" xml:space="preserve"><value>Password</value></data>
+  <data name="Login_Error_InvalidCredentials" xml:space="preserve"><value>Incorrect username or password.</value></data>
+  <data name="Login_Error_LockedOut" xml:space="preserve"><value>This account is temporarily locked after too many failed attempts. Try again shortly.</value></data>
 </root>

@@ -1,3 +1,8 @@
+using AssetHub.Application.Configuration;
+using AssetHub.Infrastructure.Data;
+using AssetHub.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using AssetHub.Application;
 using AssetHub.Application.Services;
@@ -19,8 +24,90 @@ namespace AssetHub.Api.Extensions;
     Justification = "Auth wiring touches OIDC + JWT + Cookie + scheme selector + every authorization policy.")]
 public static class AuthenticationExtensions
 {
+    /// <summary>
+    /// Wires authentication for the configured provider. <c>Auth:Provider</c>
+    /// selects between Keycloak (the default) and local ASP.NET Core Identity;
+    /// the authorization policies are shared by both, so nothing downstream of
+    /// the claims principal knows which one issued it.
+    /// </summary>
     public static IServiceCollection AddAssetHubAuthentication(
         this IServiceCollection services,
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
+    {
+        var auth = configuration.GetSection(AuthSettings.SectionName).Get<AuthSettings>() ?? new AuthSettings();
+
+        if (auth.UsesIdentity)
+            AddIdentityProvider(services, environment);
+        else
+            AddKeycloakProvider(services, configuration, environment);
+
+        ConfigureAuthorizationPolicies(services);
+
+        return services;
+    }
+
+    /// <summary>
+    /// Local Identity: cookie sign-in against the app's own user store. JWT
+    /// bearer stays wired so service callers and the Smart selector behave the
+    /// same as under Keycloak; only the interactive path changes.
+    /// </summary>
+    private static void AddIdentityProvider(IServiceCollection services, IWebHostEnvironment environment)
+    {
+        services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = IdentityConstants.ApplicationScheme;
+            options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+        });
+
+        services.AddIdentityCore<AppUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.SignIn.RequireConfirmedAccount = false;
+            })
+            .AddRoles<IdentityRole>()
+            .AddEntityFrameworkStores<AssetHubDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
+
+        // Password and lockout policy come from IdentitySettings so a deployment
+        // can tighten them without a code change.
+        services.AddOptions<IdentityOptions>()
+            .Configure<IOptions<IdentitySettings>>((identity, cfg) =>
+            {
+                var s = cfg.Value;
+                identity.Password.RequiredLength = s.PasswordMinLength;
+                identity.Password.RequireNonAlphanumeric = s.PasswordRequireNonAlphanumeric;
+                identity.Password.RequireDigit = s.PasswordRequireDigit;
+                identity.Password.RequireUppercase = s.PasswordRequireMixedCase;
+                identity.Password.RequireLowercase = s.PasswordRequireMixedCase;
+                identity.Lockout.MaxFailedAccessAttempts = s.MaxFailedAccessAttempts;
+                identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(s.LockoutMinutes);
+                identity.Lockout.AllowedForNewUsers = true;
+            });
+
+        services.AddScoped<IdentitySeeder>();
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.Cookie.Name = environment.IsDevelopment()
+                ? "assethub.auth"
+                : "__Host-assethub.auth";
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = environment.IsDevelopment()
+                ? CookieSecurePolicy.SameAsRequest
+                : CookieSecurePolicy.Always;
+            options.LoginPath = "/login";
+            options.LogoutPath = "/auth/logout";
+            options.AccessDeniedPath = "/login";
+        });
+    }
+
+
+    /// <summary>Keycloak-backed OIDC — unchanged from before the provider split.</summary>
+    private static void AddKeycloakProvider(
+        IServiceCollection services,
         IConfiguration configuration,
         IWebHostEnvironment environment)
     {
@@ -77,10 +164,6 @@ public static class AuthenticationExtensions
             ConfigureOpenIdConnect(options, keycloakAuthority, clientId, clientSecret,
                 requireHttpsMetadata, environment);
         });
-
-        ConfigureAuthorizationPolicies(services);
-
-        return services;
     }
 
     private static void ValidateHttpsMetadata(bool requireHttpsMetadata, IWebHostEnvironment environment)

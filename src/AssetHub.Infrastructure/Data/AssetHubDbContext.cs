@@ -1,11 +1,19 @@
 using AssetHub.Domain.Entities;
 using AssetHub.Infrastructure.Data.Configurations;
+using AssetHub.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace AssetHub.Infrastructure.Data;
 
-public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
+/// <remarks>
+/// Derives from <see cref="IdentityDbContext{TUser}"/> so the local Identity
+/// provider has a user store. The Identity tables exist regardless of which
+/// provider is configured — they are simply unused under Keycloak, which keeps
+/// the schema stable across a provider switch.
+/// </remarks>
+public class AssetHubDbContext : IdentityDbContext<AppUser>, IDataProtectionKeyContext
 {
     public AssetHubDbContext(DbContextOptions<AssetHubDbContext> options) : base(options)
     {
@@ -29,21 +37,21 @@ public class AssetHubDbContext : DbContext, IDataProtectionKeyContext
     // Data/Configurations/ (CollectionConfiguration is the exemplar). Shared JSONB conventions and
     // value comparers are in Configurations/ModelConventions. Applied explicitly below — order
     // mirrors the historical inline-block order and does not affect the resulting model.
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        base.OnModelCreating(modelBuilder);
+        base.OnModelCreating(builder);
 
-        modelBuilder.ApplyConfiguration(new CollectionConfiguration());
-        modelBuilder.ApplyConfiguration(new CollectionAclConfiguration());
-        modelBuilder.ApplyConfiguration(new AssetConfiguration());
-        modelBuilder.ApplyConfiguration(new AssetCollectionConfiguration());
-        modelBuilder.ApplyConfiguration(new ShareConfiguration());
-        modelBuilder.ApplyConfiguration(new AuditEventConfiguration());
-        modelBuilder.ApplyConfiguration(new ZipDownloadConfiguration());
-        modelBuilder.ApplyConfiguration(new MigrationConfiguration());
-        modelBuilder.ApplyConfiguration(new MigrationItemConfiguration());
-        modelBuilder.ApplyConfiguration(new AssetVersionConfiguration());
-        modelBuilder.ApplyConfiguration(new OrphanedObjectConfiguration());
-        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+        builder.ApplyConfiguration(new CollectionConfiguration());
+        builder.ApplyConfiguration(new CollectionAclConfiguration());
+        builder.ApplyConfiguration(new AssetConfiguration());
+        builder.ApplyConfiguration(new AssetCollectionConfiguration());
+        builder.ApplyConfiguration(new ShareConfiguration());
+        builder.ApplyConfiguration(new AuditEventConfiguration());
+        builder.ApplyConfiguration(new ZipDownloadConfiguration());
+        builder.ApplyConfiguration(new MigrationConfiguration());
+        builder.ApplyConfiguration(new MigrationItemConfiguration());
+        builder.ApplyConfiguration(new AssetVersionConfiguration());
+        builder.ApplyConfiguration(new OrphanedObjectConfiguration());
+        builder.ApplyConfiguration(new OutboxMessageConfiguration());
     }
 }
