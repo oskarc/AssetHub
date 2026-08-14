@@ -80,45 +80,6 @@ public interface ICollectionRepository
     /// </summary>
     Task<int> GetOrphanedAssetCountAsync(Guid collectionId, CancellationToken ct = default);
 
-    // ── Nested collections (T5-NEST-01) ──────────────────────────────────
-
-    /// <summary>
-    /// Returns just the <c>ParentCollectionId</c> for one collection. Used
-    /// by the cycle-detection walk in <c>SetParentAsync</c>; cheaper than
-    /// pulling the whole row.
-    /// </summary>
-    Task<Guid?> GetParentIdAsync(Guid id, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns <c>(Id, ParentCollectionId, InheritParentAcl)</c> tuples for
-    /// every collection in <paramref name="ids"/> plus every ancestor
-    /// reachable up to <see cref="Constants.Limits.MaxCollectionDepth"/>
-    /// hops. One round-trip via a recursive CTE; used by
-    /// <c>ICollectionAuthorizationService.FilterAccessibleAsync</c> to walk
-    /// the inheritance chain in memory.
-    /// </summary>
-    Task<Dictionary<Guid, (Guid? ParentId, bool InheritParentAcl)>> GetAncestorChainAsync(
-        IEnumerable<Guid> ids, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns the IDs of all collections that transitively inherit from
-    /// <paramref name="rootId"/> through <c>InheritParentAcl = true</c>
-    /// links. Used to cascade cache invalidation when an inheriting parent's
-    /// ACL changes. Bounded by <see cref="Constants.Limits.MaxCollectionDepth"/>
-    /// hops.
-    /// </summary>
-    Task<List<Guid>> GetInheritingDescendantIdsAsync(Guid rootId, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns the depth of the subtree rooted at <paramref name="id"/>. A leaf
-    /// returns 1, a parent with one child returns 2, and so on. Walks at most
-    /// <paramref name="cap"/> levels — if the actual depth exceeds the cap, the
-    /// returned value will be <paramref name="cap"/> + 1, signalling "deeper
-    /// than the budget allows" without enumerating the rest of the tree. Used
-    /// by reparent validation so a moving collection's existing descendants are
-    /// counted toward the depth limit.
-    /// </summary>
-    Task<int> GetMaxSubtreeDepthAsync(Guid id, int cap, CancellationToken ct = default);
 }
 
 /// <summary>

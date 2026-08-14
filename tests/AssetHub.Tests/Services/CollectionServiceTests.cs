@@ -51,7 +51,7 @@ public class CollectionServiceTests : IAsyncLifetime
         _collectionRepo = new CollectionRepository(_provider, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
         _aclRepo = new CollectionAclRepository(_provider, NullLogger<CollectionAclRepository>.Instance);
         _shareRepo = new ShareRepository(_provider, NullLogger<ShareRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_provider, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        _authService = new CollectionAuthorizationService(_provider, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         _deletionServiceMock = new Mock<IAssetDeletionService>();
         _zipBuildServiceMock = new Mock<IZipBuildService>();
         _auditMock = new Mock<IAuditService>();

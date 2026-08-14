@@ -219,7 +219,6 @@ public static class ServiceCollectionExtensions
 
         // Search
         services.AddScoped<IAssetSearchService, AssetSearchService>();
-        services.AddScoped<ISavedSearchService, SavedSearchService>();
 
         // Trash (T1-LIFE-01)
         services.AddScoped<IAssetTrashService, AssetTrashService>();

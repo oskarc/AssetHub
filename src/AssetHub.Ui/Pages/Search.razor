@@ -17,15 +17,7 @@
 <PageTitle>@AssetLoc["Search_PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
-    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudText Typo="Typo.h4">@AssetLoc["Search_PageTitle"]</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.BookmarkAdd"
-                   OnClick="OpenSaveDialog"
-                   Disabled="@(!HasAnyFilter() || _loading)">
-            @AssetLoc["Search_SaveSearch"]
-        </MudButton>
-    </MudStack>
+    <MudText Typo="Typo.h4" Class="mb-4">@AssetLoc["Search_PageTitle"]</MudText>
 
     <MudGrid>
         <!-- Sidebar -->
@@ -111,31 +103,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await TryReplaySavedSearchAsync();
         await RunSearchAsync();
     }
-
-
-    private async Task TryReplaySavedSearchAsync()
-    {
-        // If arriving with ?savedId=..., load that saved search and replay its request.
-        var uri = Nav.ToAbsoluteUri(Nav.Uri);
-        if (!Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query)
-                .TryGetValue("savedId", out var sidStr) || !Guid.TryParse(sidStr, out var sid))
-            return;
-
-        try
-        {
-            var saved = await Api.GetSavedSearchAsync(sid);
-            if (saved is null) return;
-
-            _request = saved.Request;
-            _request.Skip = 0;
-            _request.Facets ??= new() { "asset_type", "status", "collection", "tag" };
-        }
-        catch { /* fall through to default search */ }
-    }
-
 
     private async Task OnRequestChanged(AssetSearchRequest next)
     {
@@ -188,16 +157,6 @@
             _total = response.TotalCount;
         }
         _loadingMore = false;
-    }
-
-    private async Task OpenSaveDialog()
-    {
-        var parameters = new DialogParameters<SaveSearchDialog>
-        {
-            { x => x.Request, _request }
-        };
-        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
-        await DialogService.ShowAsync<SaveSearchDialog>(AssetLoc["SavedSearch_DialogTitle_Save"].Value, parameters, options);
     }
 
     private void OpenAsset(Guid id) => Nav.NavigateTo($"/assets/{id}?returnUrl=/search");

@@ -27,22 +27,6 @@ public static class CollectionEndpoints
         // download-all kicks off a ZIP build job and streams a UI-driven download flow — kept internal.
         group.MapPost("{id:guid}/download-all", DownloadAllAssets).DisableAntiforgery().WithName("DownloadAllAssets");
 
-        // Nested collections (T5-NEST-01) — admin-only mutations of parent / inheritance.
-        // Reparent + inherit toggle are admin-scriptable mutations so admins can script
-        // taxonomy setup. Copy-from-parent stays internal — admin UX only, not part of the contract.
-        group.MapPatch("{id:guid}/parent", SetCollectionParent)
-            .AddEndpointFilter<ValidationFilter<SetParentRequestDto>>()
-            .RequireAuthorization("RequireAdmin")
-            .WithName("SetCollectionParent");
-        group.MapPatch("{id:guid}/inherit-acl", SetCollectionInheritAcl)
-            .AddEndpointFilter<ValidationFilter<SetInheritAclRequestDto>>()
-            .RequireAuthorization("RequireAdmin")
-            .WithName("SetCollectionInheritAcl");
-        group.MapPost("{id:guid}/copy-acl-from-parent", CopyCollectionAclFromParent)
-            .DisableAntiforgery()
-            .RequireAuthorization("RequireAdmin")
-            .WithName("CopyCollectionAclFromParent");
-
         // ACL Management — admin/manager UX surface, not part of the public integration contract.
         var aclGroup = app.MapGroup("/api/v1/collections/{collectionId:guid}/acl")
             .WithTags("CollectionACL")
@@ -107,32 +91,6 @@ public static class CollectionEndpoints
     {
         var result = await svc.DownloadAllAssetsAsync(id, ct);
         return result.ToHttpResult(v => Results.Accepted(v.StatusUrl, v));
-    }
-
-    // ── Nested collections (T5-NEST-01) ──────────────────────────────────────
-
-    private static async Task<IResult> SetCollectionParent(
-        Guid id, SetParentRequestDto dto,
-        [FromServices] ICollectionService svc, CancellationToken ct)
-    {
-        var result = await svc.SetParentAsync(id, dto.ParentId, ct);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> SetCollectionInheritAcl(
-        Guid id, SetInheritAclRequestDto dto,
-        [FromServices] ICollectionService svc, CancellationToken ct)
-    {
-        // [Required] on a bool? guarantees non-null by the validation filter.
-        var result = await svc.SetInheritParentAclAsync(id, dto.Inherit!.Value, ct);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> CopyCollectionAclFromParent(
-        Guid id, [FromServices] ICollectionService svc, CancellationToken ct)
-    {
-        var result = await svc.CopyParentAclAsync(id, ct);
-        return result.ToHttpResult(count => Results.Ok(new CopyParentAclResponseDto(count)));
     }
 
     // ── ACL Management ───────────────────────────────────────────────────────

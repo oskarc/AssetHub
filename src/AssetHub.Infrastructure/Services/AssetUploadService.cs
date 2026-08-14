@@ -37,8 +37,6 @@ public sealed record AssetUploadPipeline(
 public sealed class AssetUploadService : IAssetUploadService
 {
     // Audit-detail dictionary keys reused across the upload paths (Sonar S1192).
-    private const string KeySha256 = "sha256";
-    private const string KeyExistingAssetId = "existingAssetId";
     private const string KeyTitle = "title";
     // Metadata bag key for cleaning up the previous file after a replace
     // operation (see ConfirmUpload + ConfirmPreScannedUpload).
@@ -89,11 +87,11 @@ public sealed class AssetUploadService : IAssetUploadService
 
     public async Task<ServiceResult<AssetUploadResult>> UploadAsync(
         Stream fileStream, string fileName, string contentType, long fileSize,
-        Guid collectionId, string title, bool skipDuplicateCheck = false, CancellationToken ct = default)
+        Guid collectionId, string title, CancellationToken ct = default)
     {
         var userId = _currentUser.UserId;
 
-        var preflight = await PreflightUploadAsync(userId, collectionId, fileSize, contentType, skipDuplicateCheck, ct);
+        var preflight = await PreflightUploadAsync(userId, collectionId, fileSize, contentType, ct);
         if (preflight is not null) return preflight;
 
         if (!await FileMagicValidator.ValidateStreamAsync(fileStream, contentType, ct))
@@ -105,12 +103,6 @@ public sealed class AssetUploadService : IAssetUploadService
 
         var sha256Hash = await ComputeSha256Async(fileStream, ct);
         fileStream.Position = 0;
-
-        // Check for duplicate. Admin callers can bypass with skipDuplicateCheck=true; we still
-        // look up the existing asset so we can emit a duplicate_override audit row.
-        var duplicate = await _assetRepo.GetBySha256Async(sha256Hash, ct);
-        if (duplicate is not null && !skipDuplicateCheck)
-            return await BlockDuplicateAsync(duplicate, sha256Hash, fileName, userId, ct);
 
         var asset = CreateAssetEntity(fileName, contentType, fileSize, userId, AssetStatus.Processing);
         asset.Sha256 = sha256Hash;
@@ -133,11 +125,6 @@ public sealed class AssetUploadService : IAssetUploadService
         if (linkError is not null) return linkError;
 
         await AuditCreatedAsync(asset, title, collectionId, contentType, userId, ct);
-        // Reaching here with a non-null duplicate implies skipDuplicateCheck = true
-        // (otherwise BlockDuplicateAsync above would have returned early).
-        if (duplicate is not null)
-            await AuditDuplicateOverrideAsync(asset, sha256Hash, duplicate, userId, ct);
-
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
 
         return new AssetUploadResult
@@ -151,13 +138,10 @@ public sealed class AssetUploadService : IAssetUploadService
 
     private async Task<ServiceError?> PreflightUploadAsync(
         string userId, Guid collectionId, long fileSize, string contentType,
-        bool skipDuplicateCheck, CancellationToken ct)
+        CancellationToken ct)
     {
         var canContribute = await _authService.CheckAccessAsync(userId, collectionId, RoleHierarchy.Roles.Contributor, ct);
         if (!canContribute) return ServiceError.Forbidden();
-
-        if (skipDuplicateCheck && !_currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can bypass duplicate detection.");
 
         if (fileSize == 0) return ServiceError.BadRequest("File is required");
 
@@ -196,22 +180,6 @@ public sealed class AssetUploadService : IAssetUploadService
         return Convert.ToHexStringLower(hashBytes);
     }
 
-    private async Task<ServiceError> BlockDuplicateAsync(
-        Asset duplicate, string sha256Hash, string fileName, string userId, CancellationToken ct)
-    {
-        _logger.LogInformation("Duplicate asset detected for upload {FileName}: existing asset {ExistingAssetId} ({ExistingTitle})",
-            fileName, duplicate.Id, duplicate.Title);
-        await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
-            new() { [KeySha256] = sha256Hash, [KeyExistingAssetId] = duplicate.Id.ToString(), ["fileName"] = fileName }, ct);
-        return ServiceError.DuplicateAsset(
-            "A file with identical content already exists.",
-            new Dictionary<string, string>
-            {
-                [KeyExistingAssetId] = duplicate.Id.ToString(),
-                ["existingTitle"] = duplicate.Title
-            });
-    }
-
     private async Task<ServiceError?> LinkAssetToCollectionAsync(
         Asset asset, Guid collectionId, string userId, CancellationToken ct)
     {
@@ -233,10 +201,6 @@ public sealed class AssetUploadService : IAssetUploadService
         => _audit.LogAsync("asset.created", Constants.ScopeTypes.Asset, asset.Id, userId,
             new() { [KeyTitle] = title ?? "", ["collectionId"] = collectionId, ["contentType"] = contentType },
             ct);
-
-    private Task AuditDuplicateOverrideAsync(Asset asset, string sha256Hash, Asset duplicate, string userId, CancellationToken ct)
-        => _audit.LogAsync("asset.duplicate_override", Constants.ScopeTypes.Asset, asset.Id, userId,
-            new() { [KeySha256] = sha256Hash, [KeyExistingAssetId] = duplicate.Id.ToString() }, ct);
 
     public async Task<ServiceResult<InitUploadResponse>> InitUploadAsync(
         InitUploadRequest request, CancellationToken ct)
@@ -296,14 +260,14 @@ public sealed class AssetUploadService : IAssetUploadService
         };
     }
 
-    public async Task<ServiceResult<AssetUploadResult>> ConfirmUploadAsync(Guid id, bool skipDuplicateCheck = false, CancellationToken ct = default)
+    public async Task<ServiceResult<AssetUploadResult>> ConfirmUploadAsync(Guid id, CancellationToken ct = default)
     {
         var userId = _currentUser.UserId;
         var asset = await _assetRepo.GetByIdAsync(id, ct);
         if (asset is null)
             return ServiceError.NotFound("Asset not found");
 
-        var preflight = await PreflightConfirmAsync(asset, id, userId, skipDuplicateCheck, ct);
+        var preflight = await PreflightConfirmAsync(asset, id, userId, ct);
         if (preflight is not null) return preflight;
 
         var stat = await _minioAdapter.StatObjectAsync(_bucketName, asset.OriginalObjectKey, ct);
@@ -319,13 +283,6 @@ public sealed class AssetUploadService : IAssetUploadService
         if (scanError is not null) return scanError;
 
         var sha256Hash = await ComputeSha256Async(fileStream, ct);
-
-        // Check for duplicate. Admin callers can bypass with skipDuplicateCheck=true; we still
-        // look up the existing asset so we can emit a duplicate_override audit row.
-        // The asset stays in "Uploading" state so the user can retry with force=true.
-        var duplicate = await _assetRepo.GetBySha256Async(sha256Hash, ct);
-        if (duplicate is not null && duplicate.Id != asset.Id && !skipDuplicateCheck)
-            return await BlockConfirmDuplicateAsync(duplicate, sha256Hash, id, asset, userId, ct);
 
         asset.Sha256 = sha256Hash;
 
@@ -353,12 +310,6 @@ public sealed class AssetUploadService : IAssetUploadService
         await _audit.LogAsync("asset.upload_confirmed", Constants.ScopeTypes.Asset, asset.Id, userId,
             new() { [KeyTitle] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
 
-        if (duplicate is not null && duplicate.Id != asset.Id && skipDuplicateCheck)
-        {
-            await _audit.LogAsync("asset.duplicate_override", Constants.ScopeTypes.Asset, asset.Id, userId,
-                new() { [KeySha256] = sha256Hash, [KeyExistingAssetId] = duplicate.Id.ToString() }, ct);
-        }
-
         var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, ct);
 
         return new AssetUploadResult
@@ -372,14 +323,11 @@ public sealed class AssetUploadService : IAssetUploadService
     }
 
     private async Task<ServiceError?> PreflightConfirmAsync(
-        Asset asset, Guid id, string userId, bool skipDuplicateCheck, CancellationToken ct)
+        Asset asset, Guid id, string userId, CancellationToken ct)
     {
         // Allow the original uploader OR any user with Contributor access (e.g. image editor replace flow)
         if (asset.CreatedByUserId != userId && !await CanAccessAssetAsync(id, userId, RoleHierarchy.Roles.Contributor, ct))
             return ServiceError.Forbidden();
-
-        if (skipDuplicateCheck && !_currentUser.IsSystemAdmin)
-            return ServiceError.Forbidden("Only administrators can bypass duplicate detection.");
 
         if (asset.Status != AssetStatus.Uploading)
             return ServiceError.BadRequest("Asset is not in uploading state");
@@ -419,22 +367,6 @@ public sealed class AssetUploadService : IAssetUploadService
         await _minioAdapter.DeleteAsync(_bucketName, asset.OriginalObjectKey, ct);
         await _assetRepo.DeleteAsync(asset.Id, ct);
         return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
-    }
-
-    private async Task<ServiceError> BlockConfirmDuplicateAsync(
-        Asset duplicate, string sha256Hash, Guid id, Asset asset, string userId, CancellationToken ct)
-    {
-        _logger.LogInformation("Duplicate asset detected during confirm for {AssetId}: existing asset {ExistingAssetId} ({ExistingTitle})",
-            id, duplicate.Id, duplicate.Title);
-        await _audit.LogAsync("asset.duplicate_blocked", Constants.ScopeTypes.Asset, duplicate.Id, userId,
-            new() { [KeySha256] = sha256Hash, [KeyExistingAssetId] = duplicate.Id.ToString(), ["pendingAssetId"] = asset.Id.ToString() }, ct);
-        return ServiceError.DuplicateAsset(
-            "A file with identical content already exists.",
-            new Dictionary<string, string>
-            {
-                [KeyExistingAssetId] = duplicate.Id.ToString(),
-                ["existingTitle"] = duplicate.Title
-            });
     }
 
     public async Task<ServiceResult<AssetUploadResult>> ConfirmPreScannedUploadAsync(Guid id, bool skipMetadata = false, CancellationToken ct = default)

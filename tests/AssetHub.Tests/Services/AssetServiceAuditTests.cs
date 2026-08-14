@@ -49,7 +49,7 @@ public class AssetServiceAuditTests : IAsyncLifetime
         _colRepo = new CollectionRepository(provider, cache, NullLogger<CollectionRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
-            provider, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            provider, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();

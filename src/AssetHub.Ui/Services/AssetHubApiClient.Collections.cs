@@ -43,24 +43,6 @@ public sealed partial class AssetHubApiClient
         return UnwrapOrNullOn(result, "Get collection deletion context", 403, 404);
     }
 
-    public async Task SetCollectionParentAsync(Guid collectionId, Guid? parentId, CancellationToken ct = default)
-    {
-        var result = await collectionService.SetParentAsync(collectionId, parentId, ct);
-        EnsureSuccess(result, "Set collection parent");
-    }
-
-    public async Task SetCollectionInheritParentAclAsync(Guid collectionId, bool inherit, CancellationToken ct = default)
-    {
-        var result = await collectionService.SetInheritParentAclAsync(collectionId, inherit, ct);
-        EnsureSuccess(result, "Set collection inherit-acl");
-    }
-
-    public async Task<int> CopyCollectionAclFromParentAsync(Guid collectionId, CancellationToken ct = default)
-    {
-        var result = await collectionService.CopyParentAclAsync(collectionId, ct);
-        return Unwrap(result, "Copy collection ACL from parent");
-    }
-
     public async Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default)
     {
         var result = await collectionAclService.GetAclsAsync(collectionId, ct);

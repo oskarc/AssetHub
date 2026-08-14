@@ -23,9 +23,6 @@ public interface IAssetHubApiClient
     Task UpdateCollectionAsync(Guid id, UpdateCollectionDto dto, CancellationToken ct = default);
     Task DeleteCollectionAsync(Guid id, CancellationToken ct = default);
     Task<CollectionDeletionContextDto?> GetCollectionDeletionContextAsync(Guid id, CancellationToken ct = default);
-    Task SetCollectionParentAsync(Guid collectionId, Guid? parentId, CancellationToken ct = default);
-    Task SetCollectionInheritParentAclAsync(Guid collectionId, bool inherit, CancellationToken ct = default);
-    Task<int> CopyCollectionAclFromParentAsync(Guid collectionId, CancellationToken ct = default);
     Task<List<CollectionAclResponseDto>> GetCollectionAclsAsync(Guid collectionId, CancellationToken ct = default);
     Task SetCollectionAccessAsync(Guid collectionId, string principalType, string principalId, string role, CancellationToken ct = default);
     Task RevokeCollectionAccessAsync(Guid collectionId, string principalType, string principalId, CancellationToken ct = default);
@@ -35,7 +32,7 @@ public interface IAssetHubApiClient
     Task<AssetResponseDto> UpdateAssetAsync(Guid id, UpdateAssetDto dto, CancellationToken ct = default);
     Task<AssetUploadResult> UploadAssetAsync( Guid collectionId, string title, Stream fileStream, string fileName, string contentType, CancellationToken ct = default);
     Task<InitUploadResponse> InitUploadAsync( Guid? collectionId, string fileName, string contentType, long fileSize, string? title = null, CancellationToken ct = default);
-    Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, bool force = false, CancellationToken ct = default);
+    Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, CancellationToken ct = default);
     Task DeleteAssetAsync(Guid id, Guid? fromCollectionId = null, CancellationToken ct = default);
     Task<BulkDeleteAssetsResponse> BulkDeleteAssetsAsync( List<Guid> assetIds, Guid? fromCollectionId = null, CancellationToken ct = default);
     Task<AssetDeletionContextDto> GetAssetDeletionContextAsync(Guid id, CancellationToken ct = default);
@@ -85,11 +82,6 @@ public interface IAssetHubApiClient
     Task AddAssetToCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default);
     Task RemoveAssetFromCollectionAsync(Guid assetId, Guid collectionId, CancellationToken ct = default);
     Task<AssetSearchResponse> SearchAssetsAsync(AssetSearchRequest request, CancellationToken ct = default);
-    Task<List<SavedSearchDto>> GetSavedSearchesAsync(CancellationToken ct = default);
-    Task<SavedSearchDto?> GetSavedSearchAsync(Guid id, CancellationToken ct = default);
-    Task<SavedSearchDto> CreateSavedSearchAsync(CreateSavedSearchDto dto, CancellationToken ct = default);
-    Task<SavedSearchDto> UpdateSavedSearchAsync(Guid id, UpdateSavedSearchDto dto, CancellationToken ct = default);
-    Task DeleteSavedSearchAsync(Guid id, CancellationToken ct = default);
     Task<TrashListResponse> GetTrashAsync(int skip = 0, int take = 50, CancellationToken ct = default);
     Task RestoreFromTrashAsync(Guid id, CancellationToken ct = default);
     Task PurgeFromTrashAsync(Guid id, CancellationToken ct = default);

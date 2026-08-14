@@ -93,7 +93,6 @@ public static class AssetEndpoints
 
     private static async Task<IResult> UploadAsset(
         IFormFile file, [FromForm] Guid collectionId, [FromForm] string title,
-        [FromQuery] bool force,
         [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
         if (file is null || file.Length == 0)
@@ -107,7 +106,7 @@ public static class AssetEndpoints
             return Results.BadRequest(ApiError.BadRequest(titleError));
 
         using var stream = file.OpenReadStream();
-        var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, skipDuplicateCheck: force, ct: ct);
+        var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, ct: ct);
         return result.ToHttpResult(v => Results.Accepted($"/api/v1/assets/{v.Id}", v));
     }
 
@@ -146,13 +145,9 @@ public static class AssetEndpoints
     }
 
     private static async Task<IResult> ConfirmUpload(
-        Guid id, [FromServices] IAssetUploadService svc, CancellationToken ct,
-        [FromQuery] bool force = false)
+        Guid id, [FromServices] IAssetUploadService svc, CancellationToken ct)
     {
-        // `force` defaults to false so callers that don't want to override duplicate detection can
-        // POST with no query string. Minimal APIs treat parameters without defaults as required
-        // and return 400 before the handler runs — which is what broke CI after T1-DUP-01 landed.
-        var result = await svc.ConfirmUploadAsync(id, skipDuplicateCheck: force, ct: ct);
+        var result = await svc.ConfirmUploadAsync(id, ct: ct);
         return result.ToHttpResult();
     }
 

@@ -31,8 +31,6 @@ public static class CollectionMapper
             CreatedByUserId = collection.CreatedByUserId,
             UserRole = role ?? "none",
             AssetCount = assetCount,
-            ParentCollectionId = collection.ParentCollectionId,
-            InheritParentAcl = collection.InheritParentAcl,
         };
     }
 
@@ -70,8 +68,6 @@ public static class CollectionMapper
                 CreatedByUserId = c.CreatedByUserId,
                 UserRole = role ?? "none",
                 AssetCount = count,
-                ParentCollectionId = c.ParentCollectionId,
-                InheritParentAcl = c.InheritParentAcl,
             });
         }
         return results;

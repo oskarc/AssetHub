@@ -16,12 +16,9 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 /// <remarks>
 /// <para>
-/// T5-NEST-01 — for collections with <c>InheritParentAcl = true</c> the effective
-/// role is the highest of (direct grant on the collection, effective role on the
-/// parent). The walk stops at the first ancestor with the flag set to <c>false</c>,
-/// or at <see cref="Constants.Limits.MaxCollectionDepth"/> hops, whichever comes first.
-/// Collections with the flag <c>false</c> (the default for every collection that
-/// hasn't opted in) take the same fast path as today's flat model.
+/// Collections are flat — the effective role is the user's direct ACL grant on
+/// that collection. Nesting and ACL inheritance were removed 2026-08
+/// (contract-012).
 /// </para>
 /// <para>
 /// Batch methods (<see cref="GetUserRolesAsync"/> / <see cref="FilterAccessibleAsync"/>)
@@ -31,7 +28,6 @@ using Microsoft.Extensions.Logging;
 /// </remarks>
 public sealed class CollectionAuthorizationService(
     DbContextProvider provider,
-    ICollectionRepository collectionRepo,
     CurrentUser currentUser,
     ILogger<CollectionAuthorizationService> logger) : ICollectionAuthorizationService
 {
@@ -109,11 +105,16 @@ public sealed class CollectionAuthorizationService(
 
     /// <summary>
     /// Resolves the effective role for one user across <paramref name="seedIds"/>:
-    /// loads each seed's ancestor chain bounded by <see cref="Constants.Limits.MaxCollectionDepth"/>,
-    /// loads the user's direct ACL grants across the expanded set in one query,
-    /// then walks each seed in memory (highest role wins, stop at non-inheriting node).
+    /// loads the user's direct ACL grants across the uncached seeds in one query.
     /// Caches every resolved seed in <see cref="_roleCache"/>.
     /// </summary>
+    /// <remarks>
+    /// Collections are flat (nesting was removed 2026-08, contract-012), so the
+    /// effective role IS the direct grant — there is no ancestor chain to walk.
+    /// A collection with no grant for this user and a collection that does not
+    /// exist both resolve to <c>null</c>, which is what the previous ancestor
+    /// walk also returned for those cases.
+    /// </remarks>
     private async Task<Dictionary<Guid, string?>> ResolveRolesAsync(
         string userId, IReadOnlyCollection<Guid> seedIds, CancellationToken ct)
     {
@@ -132,63 +133,25 @@ public sealed class CollectionAuthorizationService(
 
         if (uncached.Count == 0) return result;
 
-        // Pre-load: ancestor chain (id → parentId, inheritFlag) bounded by depth cap…
-        var chain = await collectionRepo.GetAncestorChainAsync(uncached, ct);
-
-        // …and direct ACL rows for the user across the expanded set.
-        var expandedIds = chain.Keys.ToList();
         var aclRows = await dbContext.CollectionAcls
             .AsNoTracking()
-            .Where(a => expandedIds.Contains(a.CollectionId)
+            .Where(a => uncached.Contains(a.CollectionId)
                 && a.PrincipalType == PrincipalType.User
                 && a.PrincipalId == userId)
             .Select(a => new { a.CollectionId, a.Role })
             .ToDictionaryAsync(a => a.CollectionId, a => a.Role.ToDbString(), ct);
 
-        // Walk each seed in memory and cache the result.
         foreach (var seed in uncached)
         {
-            var effective = WalkEffectiveRole(seed, chain, aclRows);
+            var effective = aclRows.TryGetValue(seed, out var direct) ? direct : null;
             result[seed] = effective;
             _roleCache[$"{userId}:{seed}"] = effective;
         }
 
         logger.LogDebug(
-            "Resolved {Seeds} seed collection(s) for {UserId} (chain {Chain}, direct grants {Grants})",
-            uncached.Count, userId, chain.Count, aclRows.Count);
+            "Resolved {Seeds} seed collection(s) for {UserId} (direct grants {Grants})",
+            uncached.Count, userId, aclRows.Count);
 
         return result;
-    }
-
-    /// <summary>
-    /// Walks the parent chain in memory starting at <paramref name="seed"/>,
-    /// returning the highest role found across the seed and any inheriting
-    /// ancestors. Stops at the first ancestor with <c>InheritParentAcl = false</c>
-    /// (that ancestor's ACL is still considered, but its parents are not) or at
-    /// <see cref="Constants.Limits.MaxCollectionDepth"/> hops.
-    /// </summary>
-    private static string? WalkEffectiveRole(
-        Guid seed,
-        Dictionary<Guid, (Guid? ParentId, bool InheritParentAcl)> chain,
-        Dictionary<Guid, string> aclRows)
-    {
-        if (!chain.ContainsKey(seed)) return null; // collection doesn't exist
-
-        string? best = null;
-        var current = seed;
-        for (var depth = 0; depth <= Constants.Limits.MaxCollectionDepth; depth++)
-        {
-            if (aclRows.TryGetValue(current, out var direct)
-                && RoleHierarchy.GetLevel(direct) > RoleHierarchy.GetLevel(best))
-            {
-                best = direct;
-            }
-
-            if (!chain.TryGetValue(current, out var node) || !node.InheritParentAcl || node.ParentId is null)
-                break;
-
-            current = node.ParentId.Value;
-        }
-        return best;
     }
 }

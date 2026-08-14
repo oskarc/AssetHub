@@ -257,9 +257,19 @@ entries:
       identical, but the first verdict was not evidence about the committed code.
       The operative rule is broader than "don't run two builds": the tree must
       not change at all between a suite's build step and its verdict.
+
+      2026-08-14 (C11, contract-012): recurred a FIFTH time — a suite was launched
+      before the residual sweep, and the sweep then edited .cs and .resx files
+      under it. Caught mid-flight, the run was stopped via TaskStop rather than
+      read, and a single clean suite was run after every edit including prose.
+      The corrected sequencing rule: do not start the verifying suite until the
+      sweep and all code-touching prose are finished. Four of the five
+      occurrences were "I edited while it ran", not "I ran two builds" — the
+      earlier framing named the wrong cause, which is likely why restating it
+      did not prevent recurrence.
     status: watching
     elevation: []
-    recurrence_count: 4
+    recurrence_count: 5
     related_drifts: [drift-006]
 
   - drift_id: drift-008

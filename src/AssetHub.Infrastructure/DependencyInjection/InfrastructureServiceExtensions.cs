@@ -178,7 +178,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IShareRepository, ShareRepository>();
         services.AddScoped<IAuditEventRepository, AuditEventRepository>();
         services.AddScoped<IMigrationRepository, MigrationRepository>();
-        services.AddScoped<ISavedSearchRepository, SavedSearchRepository>();
         services.AddScoped<IAssetVersionRepository, AssetVersionRepository>();
         services.AddScoped<IOrphanedObjectRepository, OrphanedObjectRepository>();
 

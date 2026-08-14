@@ -55,7 +55,7 @@ public class ExternalServiceResilienceTests : IAsyncLifetime
         _colRepo = new CollectionRepository(_provider, cache, NullLogger<CollectionRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
-            _provider, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            _provider, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();

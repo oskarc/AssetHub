@@ -932,3 +932,117 @@ contracts:
       nodes (pattern-public-api-contract, pattern-pat-scope-enforcement) recorded
       in the manifest as UNINSTANTIATED rather than deleted; they carry the rules
       any future public API or token auth must satisfy.
+
+  - contract_id: contract-012
+    feature: reshape-c11-borderline-cuts
+    date_proposed: 2026-08-14
+    date_approved: 2026-08-14
+    tier_1: |
+      The last Phase-1 cut: the three features D1 marked borderline — SavedSearch,
+      duplicate detection, and nested collections. Each reads as reasonable in
+      isolation but sits outside the five-feature core, and each adds a concept a
+      discovering developer must learn before reading the code that matters.
+
+      DECISION A (owner: "go for A") — duplicate detection has TWO consumers.
+      The user-facing feature is the upload gate (block on SHA-256 match,
+      admin-only force override, duplicate_blocked / duplicate_override audit
+      events); that is what D1 targeted and it goes. But GetBySha256Async is also
+      called by the migration ingest handler, where a hash match marks the item
+      Skipped/Duplicate — which is what makes re-running an import idempotent
+      rather than duplicating the library. Migration dedup is KEPT.
+      GetBySha256Async survives with one caller. The rejected alternative (cut
+      both) was argued against: it turns a migration re-run into a destructive
+      operation.
+
+      DECISION B (approved as recommended) — nested collections reach into ACL
+      resolution. CollectionAuthorizationService walks the ancestor chain to
+      compute an effective role for collections with InheritParentAcl, bounded by
+      MaxCollectionDepth. Removing nesting is a revert-to-simpler on the
+      ACCESS-CONTROL path, and access control is one of the five kept features.
+      All three legs stay in one contract, with the nesting leg gated by a
+      mechanical ACL-equivalence check rather than a green build.
+    tier_2: |
+      1. Baseline roll-forward to a81f561 (971), docker pre-check first
+         (drift-001). NO tree mutation between a suite build and its verdict
+         (drift-007, count 4).
+      2. Tracer greps: SavedSearchesMenu / SaveSearchDialog by name, the savedId
+         query token, CollectionTreeHelper, MaxCollectionDepth,
+         duplicate_blocked / duplicate_override.
+      3. Leg 1 — SavedSearch (bounded-module deletion): entity + enums,
+         repository + interface, service + interface, DTOs, EF config + DbSet,
+         endpoints, SavedSearchesMenu, SaveSearchDialog, facade partial +
+         interface members, MainLayout entry, Search.razor ?savedId= replay,
+         SavedSearchServiceTests (14).
+      4. Leg 2 — duplicate upload gate (revert-to-simpler): the two
+         AssetUploadService blocks, the force query parameter on upload/confirm
+         endpoints, the UI force-retry path, the two audit event types. KEEP
+         GetBySha256Async, Asset.Sha256, AssetVersion.Sha256, MigrationItem.Sha256
+         and the migration handler dedup. Verification: upload tests pass with the
+         block-path cases removed and EVERY other assertion unchanged.
+      5. Leg 3 — nested collections (revert-to-simpler, ACL-gated):
+         ParentCollectionId, InheritParentAcl, the WalkEffectiveRole ancestor
+         walk, descendant/ancestor repository queries, MaxCollectionDepth,
+         reparent + inherit-toggle endpoints, CollectionTree +
+         CollectionTreeHelper (and the three components flattening through it),
+         CollectionServiceNestingTests (16) + CollectionInheritanceWalkTests (8)
+         + CollectionAclInheritanceTests (7). Effective-role resolution collapses
+         to direct ACL on the collection plus system-admin bypass.
+      6. Migration dropping SavedSearches + the two Collections columns,
+         reversible Down, discovery check on a FRESH build (drift-006).
+      7. Sweep including the unreachable-branch leg: guards only a parent chain
+         could satisfy; PreloadUserRolesAsync if nesting was its only reason.
+      8. Prose: README, USE-CASES (three sections), CLAUDE.md collection-RBAC
+         section, STYLEGUIDE, T5-NEST-01 / T1-DUP-01 / T1-SRCH-01 memories,
+         T5-NEST-01-DESIGN.md.
+    tier_3: |
+      - ACL EQUIVALENCE PROVEN MECHANICALLY. A 75-test matrix across four
+        nesting-independent access-control classes (AuthorizationEdgeCaseTests,
+        CollectionAclServiceTests, ShareAccessServiceTests,
+        CollectionServiceTests) was captured before the cut and must be identical
+        after — same tests, same outcomes, ZERO assertion edits. A changed
+        assertion is a stop-and-surface, not an edit. This is the contract's
+        primary risk and does not get a "build is green" verdict. (-> decision B)
+      - Migration re-run stays idempotent: the dedup path and its
+        Skipped/Duplicate outcome untouched and still covered. (-> decision A)
+      - Search keeps full-text, tags and all four facets; only saving/replaying
+        a search goes. (-> leg 1)
+      - Upload still hashes and stores SHA-256 — only the blocking gate goes.
+        (-> leg 2)
+      - Reconciliation closes; removals traceable to the named classes. (-> all)
+      - Sweep clean; census no new rules. (-> all)
+      - Verified means: baseline clean + no new warnings + full pass +
+        reconciliation closes + ACL matrix identical + discovery check clean on
+        a fresh build.
+    status: implemented
+    revisions: []
+    work_id: null
+    implemented: 2026-08-14
+    implementation_notes: >-
+      Three legs, 18 files deleted. PRIMARY GATE PASSED: the 75-test ACL
+      equivalence matrix is identical after the cut — same tests, same outcomes,
+      zero assertion edits. Test constructor calls changed (wiring only, allowed
+      by the bar) and the matrix was re-verified after that change and again on
+      the settled tree.
+
+      Decision A honoured: migration dedup kept (ProcessMigrationItemHandler
+      still skips existing SHA-256), upload gate removed. Asset.Sha256 still
+      computed and stored.
+
+      Tracer greps caught CollectionTreeHelper as a SAME-WORD SURVIVOR — despite
+      the name it is a flat ACL DTO mapper (Flatten sets Depth=0, FlattenAll
+      returns the list as-is) and never implemented nesting; it stays.
+      AssetHubApiClient.AssetSearch.cs was a MIXED file (SearchAssetsAsync
+      survives) — restored and edited rather than deleted.
+
+      Verification: suite 901 passed / 0 failed; reconciliation closes exactly
+      (971 - 70 + 0), all 70 removals traceable to seven named classes. Census
+      73 -> 70 after fixing three cut orphans the census surfaced (two unused
+      audit-key constants, an unread ctor param, three orphaned test locals) —
+      fixed, not suppressed. Discovery check clean on a fresh build.
+
+      Process: DOTALL regexes over-consumed twice (swallowing CreateAsync et al.
+      in CollectionService, and InitUploadAsync in AssetUploadService) — both
+      caught by the build, files restored from HEAD, and the remaining member
+      removals done with a brace-matching extractor instead. drift-007 recurred
+      a fifth time (suite launched before the sweep, which then edited source);
+      the run was stopped rather than read and a single clean suite run last.

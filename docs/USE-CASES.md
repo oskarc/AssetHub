@@ -67,8 +67,6 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-ING-01 | Upload a single asset (image/video/audio/doc) | C+ | `AssetUpload`, `POST /assets` | ✅ |
 | UC-ING-02 | Upload many files with live progress | C+ | `AssetUpload` | ✅ |
 | UC-ING-03 | Large-file presigned upload (init → confirm) | C+/API | `POST /assets/init-upload`, `/confirm-upload` | ✅ |
-| UC-ING-04 | Be blocked/warned on a duplicate (SHA-256) | C+ | upload flow | ✅ |
-| UC-ING-05 | Admin force-create over a duplicate (audited) | A | upload flow | ✅ |
 | UC-ING-06 | See failed uploads explained | C+ | `UploadErrorsDialog` | ✅ |
 
 ### D. Processing (async, user-visible outcome)
@@ -90,11 +88,13 @@ async/background outcome. Recorded per row so "how is this implemented?" starts 
 | UC-ORG-04 | Delete a collection (with impact preview) | M/C | `…/deletion-context` | ✅ |
 | UC-ORG-05 | Add / remove an asset to / from a collection | C+ | `AssetToolbar`, `POST/DELETE …/collections/{id}` | ✅ |
 | UC-ORG-06 | Reach the same asset from each of its collections | V+ | — | ✅ |
-| UC-ORG-07 | Nest a collection under a parent (reparent) | A | `PATCH …/parent` | 🟡 reparent UI + recursive tree view deferred |
-| UC-ORG-08 | Toggle / break ACL inheritance from parent | A | `PATCH …/inherit-acl` | ✅ |
-| UC-ORG-09 | Copy parent ACL as a standalone snapshot | A | `POST …/copy-acl-from-parent` | ✅ |
 | UC-ORG-10 | Download a whole collection as a ZIP (queued) | V+ | `POST …/download-all` | ✅ |
 | UC-ORG-11 | Bulk-delete / bulk-set-access on collections | A | `/admin/collection-access` | ✅ |
+
+**Nested collections removed 2026-08** by the reshape (contract-012) — collections
+are flat. A collection's effective role is the direct ACL grant on it (plus the
+system-admin bypass); there is no parent chain, no inheritance toggle, and no
+copy-from-parent. Browsable on the `full-featured` branch / `pre-reshape` tag.
 
 ### F. Metadata & taxonomies
 Removed 2026-08 by the reshape (contract-010) — the admin-defined schema/taxonomy
@@ -115,9 +115,16 @@ duration), both returned by `GET /api/v1/assets/{id}` and rendered on asset deta
 | ID | Use case | Persona | Surface | Status |
 |----|----------|---------|---------|:------:|
 | UC-DISC-01 | Faceted full-text search (type/status/collection/date/tags) | V+ | `/search`, `POST /assets/search` | ✅ |
-| UC-DISC-02 | Save a search with a name | V+ | `SaveSearchDialog` | ✅ |
-| UC-DISC-03 | Re-run / load a saved search | V+ | `SavedSearchesMenu` | ✅ |
 | UC-DISC-05 | Search results scoped to my ACL | V+ | `IAssetSearchService` | ✅ |
+
+**Saved searches removed 2026-08** by the reshape (contract-012). Search itself is
+unchanged — full-text, tags and all four facets — but a search is no longer a
+persistable object.
+
+**Upload duplicate detection removed 2026-08** (contract-012). Uploads still hash
+content into `Asset.Sha256`; nothing blocks an identical file, and the admin
+force-override and its audit events are gone. Migration ingest *retains* its
+SHA-256 dedup, so re-running an import still skips assets that already exist.
 
 ### H. View, deliver & render
 | ID | Use case | Persona | Surface | Status |

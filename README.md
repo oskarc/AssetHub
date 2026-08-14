@@ -70,7 +70,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 
 **Asset Management**
 - Drag-and-drop upload with multi-collection organisation
-- Faceted search — Postgres `tsvector` full-text over title, description, tags, and searchable metadata values with live facet counts (asset type, collection, tags, status) and saved searches per user
+- Faceted search — Postgres `tsvector` full-text over title, description and tags with live facet counts (asset type, collection, tags, status)
 - Bulk migration toolkit — import thousands of assets from external sources with progress tracking and resumability
 - Video poster extraction via ffmpeg with inline playback
 - Download collections or shared content as zip archives
@@ -88,7 +88,6 @@ Navigate to **https://assethub.local:7252** and sign in:
 **Notifications**
 - In-app notification bell with unread-count badge, a full `/notifications` page with All/Unread filter, and per-category preferences on `/account` (in-app on/off, email on/off, instant/daily/weekly cadence)
 - Instant email delivery — notifications publish a Wolverine command that the worker picks up and sends via `IEmailService`, so the API stays fast and SMTP retries are handled by the message queue
-- Saved-search digests — a background worker re-runs saved searches on their chosen cadence (on-new-match / daily / weekly) and notifies owners about new matches, with email delivery riding the same pipeline
 - One-click email unsubscribe — signed stateless tokens (ASP.NET Core Data Protection) embedded in every email link; the anonymous unsubscribe endpoint flips just that category without needing the user to sign in
 
 **Collaboration**

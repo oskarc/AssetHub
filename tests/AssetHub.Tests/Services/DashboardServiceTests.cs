@@ -42,7 +42,7 @@ public class DashboardServiceTests : IAsyncLifetime
         var provider = _fixture.CreateDbContextProvider(dbName);
         var collectionRepo = new CollectionRepository(provider, cache, NullLogger<CollectionRepository>.Instance);
         var assetRepo = new AssetRepository(provider, cache, NullLogger<AssetRepository>.Instance);
-        var authService = new CollectionAuthorizationService(provider, collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        var authService = new CollectionAuthorizationService(provider, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         var userLookupMock = new Mock<IUserLookupService>();
         userLookupMock.Setup(m => m.GetUserNamesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(userNames ?? new Dictionary<string, string>());

@@ -23,37 +23,6 @@
             <CollectionForm @ref="_collectionForm"
                             Name="@InitialName"
                             Description="@(InitialDescription ?? "")" />
-
-            @* Reparent picker — admin-only (T5-NEST-01 UX follow-up).
-               Cycle detection and depth limits are enforced by the API. *@
-            @if (_isAdmin)
-            {
-                <MudPaper Class="pa-3 dialog-section" Elevation="0" Outlined="true">
-                    <div class="dialog-section-title">@CollectionLoc["Parent_Section_Header"]</div>
-                    <MudAutocomplete T="CollectionResponseDto"
-                                     @bind-Value="_selectedParent"
-                                     SearchFunc="SearchCollectionsAsync"
-                                     ToStringFunc="@(c => c?.Name ?? "")"
-                                     Label="@CollectionLoc["Parent_PickerLabel"]"
-                                     HelperText="@CollectionLoc["Parent_PickerHelperText"]"
-                                     Variant="Variant.Outlined"
-                                     Clearable="true"
-                                     Dense="true"
-                                     ResetValueOnEmptyText="true"
-                                     DebounceInterval="300"
-                                     MinCharacters="0">
-                        <ItemTemplate Context="c">
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body2">@c.Name</MudText>
-                                @if (!string.IsNullOrEmpty(c.Description))
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@c.Description</MudText>
-                                }
-                            </MudStack>
-                        </ItemTemplate>
-                    </MudAutocomplete>
-                </MudPaper>
-            }
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -87,10 +56,6 @@
     [Parameter]
     public string? InitialDescription { get; set; }
 
-    /// <summary>The current parent collection ID, passed by the caller so the picker shows the correct initial value.</summary>
-    [Parameter]
-    public Guid? CurrentParentId { get; set; }
-
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "S4487",
         Justification = "Read by Razor @ref binding to <CollectionForm @ref=\"_collectionForm\" />")]
     private CollectionForm? _collectionForm;
@@ -98,8 +63,6 @@
 
     // Reparent picker state
     private bool _isAdmin;
-    private CollectionResponseDto? _selectedParent;
-    private List<CollectionResponseDto> _availableCollections = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,28 +72,6 @@
             _isAdmin = state.User.IsInRole("admin");
         }
 
-        if (_isAdmin)
-        {
-            var (ok, available) = await Feedback.ExecuteWithFeedbackAsync(
-                () => Api.GetCollectionsAsync(), "load collections for reparent");
-            if (ok && available is not null)
-            {
-                _availableCollections = available;
-                _selectedParent = CurrentParentId.HasValue
-                    ? _availableCollections.FirstOrDefault(c => c.Id == CurrentParentId.Value)
-                    : null;
-            }
-        }
-    }
-
-    private Task<IEnumerable<CollectionResponseDto>> SearchCollectionsAsync(string? query, CancellationToken ct)
-    {
-        var candidates = _availableCollections.Where(c => c.Id != CollectionId);
-
-        if (!string.IsNullOrWhiteSpace(query))
-            candidates = candidates.Where(c => c.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
-
-        return Task.FromResult(candidates.OrderBy(c => c.Name).AsEnumerable());
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -150,20 +91,6 @@
         var nameSuccess = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.UpdateCollectionAsync(CollectionId, dto),
             "update collection");
-
-        if (nameSuccess && _isAdmin && _selectedParent?.Id != CurrentParentId)
-        {
-            var parentSuccess = await Feedback.ExecuteWithFeedbackAsync(
-                () => Api.SetCollectionParentAsync(CollectionId, _selectedParent?.Id),
-                "update parent",
-                CollectionLoc["Parent_Changed"]);
-
-            if (!parentSuccess)
-            {
-                _isSaving = false;
-                return;
-            }
-        }
 
         _isSaving = false;
 

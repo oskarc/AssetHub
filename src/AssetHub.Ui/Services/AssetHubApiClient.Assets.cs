@@ -46,8 +46,7 @@ public sealed partial class AssetHubApiClient
         try { if (fileStream.CanSeek) fileSize = fileStream.Length; } catch { /* not seekable */ }
 
         var result = await assetUploadService.UploadAsync(
-            fileStream, fileName, contentType, fileSize, collectionId, title,
-            skipDuplicateCheck: false, ct);
+            fileStream, fileName, contentType, fileSize, collectionId, title, ct);
         return Unwrap(result, "Upload asset");
     }
 
@@ -72,9 +71,9 @@ public sealed partial class AssetHubApiClient
         return Unwrap(result, "Init upload");
     }
 
-    public async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, bool force = false, CancellationToken ct = default)
+    public async Task<AssetUploadResult> ConfirmUploadAsync(Guid assetId, CancellationToken ct = default)
     {
-        var result = await assetUploadService.ConfirmUploadAsync(assetId, skipDuplicateCheck: force, ct);
+        var result = await assetUploadService.ConfirmUploadAsync(assetId, ct);
         return Unwrap(result, "Confirm upload");
     }
 

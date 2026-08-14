@@ -139,7 +139,6 @@
   <data name="Search_Facet_Status" xml:space="preserve"><value>Status</value></data>
   <data name="Search_Facet_Collection" xml:space="preserve"><value>Collection</value></data>
   <data name="Search_Facet_Tag" xml:space="preserve"><value>Tags</value></data>
-  <data name="Search_SaveSearch" xml:space="preserve"><value>Save this search</value></data>
   <data name="Search_ShowSidebar" xml:space="preserve"><value>Show filters</value></data>
   <data name="Search_HideSidebar" xml:space="preserve"><value>Hide filters</value></data>
   <data name="Search_Sort" xml:space="preserve"><value>Sort by</value></data>
@@ -153,16 +152,6 @@
   <data name="Search_ResultsSummary" xml:space="preserve"><value>Showing {0} of {1} assets</value></data>
 
   <!-- Saved Searches -->
-  <data name="SavedSearch_Menu" xml:space="preserve"><value>Saved searches</value></data>
-  <data name="SavedSearch_MenuEmpty" xml:space="preserve"><value>No saved searches yet</value></data>
-  <data name="SavedSearch_Manage" xml:space="preserve"><value>Manage saved searches</value></data>
-  <data name="SavedSearch_DialogTitle_Save" xml:space="preserve"><value>Save search</value></data>
-  <data name="SavedSearch_DialogTitle_Edit" xml:space="preserve"><value>Edit saved search</value></data>
-  <data name="SavedSearch_Name" xml:space="preserve"><value>Name</value></data>
-  <data name="SavedSearch_Saved" xml:space="preserve"><value>Saved search '{0}' saved.</value></data>
-  <data name="SavedSearch_Deleted" xml:space="preserve"><value>Saved search deleted.</value></data>
-  <data name="SavedSearch_DeleteConfirm" xml:space="preserve"><value>Delete saved search '{0}'?</value></data>
-  <data name="SavedSearch_DuplicateName" xml:space="preserve"><value>You already have a saved search with that name.</value></data>
 
   <!-- Versions -->
   <data name="Versions_Section_Title" xml:space="preserve"><value>Version history</value></data>

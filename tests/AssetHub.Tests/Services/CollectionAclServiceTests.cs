@@ -46,7 +46,7 @@ public class CollectionAclServiceTests : IAsyncLifetime
         _provider = _fixture.CreateDbContextProvider(_dbName);
         _collectionRepo = new CollectionRepository(_provider, TestCacheHelper.CreateHybridCache(), NullLogger<CollectionRepository>.Instance);
         _aclRepo = new CollectionAclRepository(_provider, NullLogger<CollectionAclRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_provider, _collectionRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        _authService = new CollectionAuthorizationService(_provider, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         _userLookupMock = new Mock<IUserLookupService>();
         _keycloakMock = new Mock<IKeycloakUserService>();
         _auditMock = new Mock<IAuditService>();

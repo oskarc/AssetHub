@@ -384,8 +384,7 @@
         {
             { x => x.CollectionId, collection.Id },
             { x => x.InitialName, collection.Name },
-            { x => x.InitialDescription, collection.Description },
-            { x => x.CurrentParentId, collection.ParentCollectionId }
+            { x => x.InitialDescription, collection.Description }
         };
 
         var dialog = await DialogService.ShowAsync<EditCollectionDialog>(CollectionLoc["EditCollection"], parameters);

@@ -215,6 +215,8 @@ Inject `CurrentUser` (scoped) — never access `HttpContext.User` directly. `Cur
 ### Collection-scoped RBAC
 Per-collection permissions via `CollectionAcl`. Check through `CollectionAuthorizationService`. System admins bypass ACL checks. Check collection access before entity access. Use `PreloadUserRolesAsync()` for batch checks.
 
+Collections are **flat** — a user's effective role on a collection is the direct ACL grant on that collection, nothing more. Nesting and ACL inheritance were removed by the 2026-08 reshape (contract-012); do not reintroduce a parent chain without re-deciding the access-control model.
+
 ### Rules
 - Never cache ACL/roles globally — use request-scoped dictionaries.
 - Never skip role level checks on role-assigning mutations.

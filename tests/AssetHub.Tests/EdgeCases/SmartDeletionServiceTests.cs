@@ -62,7 +62,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         _shareRepo = new ShareRepository(_provider, NullLogger<ShareRepository>.Instance);
 
         _authService = new CollectionAuthorizationService(
-            _provider, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+            _provider, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
@@ -255,8 +255,7 @@ public class SmartDeletionServiceTests : IAsyncLifetime
         var assetRepo2 = new AssetRepository(provider2, cache2, NullLogger<AssetRepository>.Instance);
         var acRepo2 = new AssetCollectionRepository(provider2, cache2,
             NullLogger<AssetCollectionRepository>.Instance);
-        var colRepo2 = new CollectionRepository(provider2, cache2, NullLogger<CollectionRepository>.Instance);
-        var authService2 = new CollectionAuthorizationService(provider2, colRepo2,
+        var authService2 = new CollectionAuthorizationService(provider2,
             CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
 
         // Asset still exists

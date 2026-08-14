@@ -47,7 +47,7 @@ public class AssetServiceValidationTests : IAsyncLifetime
         _assetRepo = new AssetRepository(_provider, cache, NullLogger<AssetRepository>.Instance);
         _acRepo = new AssetCollectionRepository(_provider, cache, NullLogger<AssetCollectionRepository>.Instance);
         _colRepo = new CollectionRepository(_provider, cache, NullLogger<CollectionRepository>.Instance);
-        _authService = new CollectionAuthorizationService(_provider, _colRepo, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
+        _authService = new CollectionAuthorizationService(_provider, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         _auditMock = new Mock<IAuditService>();
     }
 
