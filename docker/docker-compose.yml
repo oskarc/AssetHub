@@ -135,6 +135,12 @@ services:
       TZ: Europe/Stockholm
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: https://+:7252
+      # Identity provider selection. Keycloak remains the default in config;
+      # this pins the compose stack to the local Identity provider.
+      Auth__Provider: "${AUTH_PROVIDER:-Keycloak}"
+      Identity__SeedAdmin__UserName: "${IDENTITY_ADMIN_USERNAME:-admin}"
+      Identity__SeedAdmin__Email: "${IDENTITY_ADMIN_EMAIL:-admin@assethub.local}"
+      Identity__SeedAdmin__Password: "${IDENTITY_ADMIN_PASSWORD:-}"
       ASPNETCORE_Kestrel__Certificates__Default__Path: /app/certs/dev-cert.pfx
       ASPNETCORE_Kestrel__Certificates__Default__Password: ${ASPNETCORE_Kestrel__Certificates__Default__Password}
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"

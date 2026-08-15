@@ -1316,3 +1316,76 @@ contracts:
       regeneration is wired but UNRUN — the E2E toolchain has no local
       TypeScript install, so those edits are unverified by tooling in this
       environment.
+
+  - contract_id: contract-015
+    feature: reshape-c12c-remove-keycloak
+    date_proposed: 2026-08-14
+    date_approved: 2026-08-14
+    tier_1: |
+      Last of three. C12a made AssetHub authenticate under Identity, C12b made it
+      administrable. This removes Keycloak entirely — container, database,
+      KeycloakSettings, KeycloakUserDirectoryAdmin, UserLookupService,
+      KeycloakHealthCheck, the OIDC branch, and the whole Auth:Provider switch —
+      after which Identity is simply how AssetHub authenticates.
+
+      THE DECISION, AND IT IS THE WHOLE CONTRACT: Identity has never been
+      executed. Not once. Both prior contracts are proven by unit tests running
+      behind TestAuthHandler which structurally cannot see authentication, plus
+      E2E wiring added but never run. Removing Keycloak now would remove the
+      fallback for a replacement nobody has observed working.
+
+      So this contract has a HARD PRECONDITION: E2E green against an
+      Identity-backed stack BEFORE anything is deleted. It is a gate, not a task.
+      If it fails, the contract stops and converts into a fix-Identity contract.
+
+      Correction recorded: C12b reported "no local TypeScript toolchain, so E2E
+      edits are unverified". Playwright bundles its own transpilation and Node 24
+      / npm 11 are present, so the specs CAN run here. What is missing is a
+      standalone typecheck — and the fact that they have never been executed
+      against Identity.
+    tier_2: |
+      1. Baseline roll-forward to 572dbbb (918); docker pre-check first. Note
+         drift-001 recurred MID-SESSION in C12b, so a healthy check at the start
+         is not a guarantee.
+      2. GATE — prove Identity end-to-end. Compose up with Auth:Provider=Identity
+         and a seeded admin; regenerate .auth storage states via
+         IdentityLoginPage; run the E2E suite. Fix what breaks. NOTHING is
+         deleted until this is green. Six E2E specs currently reach Keycloak;
+         which of that is storage-state plumbing versus real coupling is unknown
+         until it runs.
+      3. Remove the provider switch: AuthSettings, the Auth:Provider branches in
+         AuthenticationExtensions / ServiceCollectionExtensions /
+         WebApplicationExtensions / Login.razor. Identity becomes unconditional.
+      4. Delete the Keycloak implementations: KeycloakUserDirectoryAdmin,
+         UserLookupService, KeycloakHealthCheck, KeycloakSettings,
+         KeycloakApiException, keycloak-login.page.ts,
+         KeycloakUserDirectoryAdminTests.
+      5. Compose: drop the keycloak service, volume, realm-import and theme
+         mounts, init-keycloak-db.sh, the Keycloak database and credentials, and
+         the KeycloakDb connection string — both compose files.
+      6. Config: strip the Keycloak section from all six appsettings files; make
+         Identity settings validate-on-start unconditionally.
+      7. Sweep with survivor taxonomy — ClaimsPrincipalExtensions and role-mapping
+         helpers expected to survive as provider-neutral; migration history
+         untouched. Unreachable-branch leg on anything the removed switch made
+         constant.
+      8. Prose: CLAUDE.md loses the provider-modes table; README quickstart drops
+         Keycloak setup; manifest note on principle-clean-architecture-dotnet's
+         "OIDC is Keycloak" instantiation.
+    tier_3: |
+      - THE GATE IS THE CONTRACT. E2E green against Identity before any deletion.
+        Not "unit tests pass" — the failure mode this guards against is invisible
+        to them. (-> the decision)
+      - After removal, E2E green again with no provider branching anywhere.
+      - Reconciliation closes; Keycloak-specific test classes are the expected
+        removals.
+      - No route loses authorization: re-run C10's auth-annotation capture,
+        posture identical.
+      - ACL matrix re-runs identical.
+      - Sweep clean; census no new rules.
+      - Verified means: E2E green under Identity BOTH before and after the cut +
+        full unit pass + reconciliation + auth posture identical + ACL matrix
+        identical + compose parses + discovery check clean.
+    status: approved
+    revisions: []
+    work_id: null

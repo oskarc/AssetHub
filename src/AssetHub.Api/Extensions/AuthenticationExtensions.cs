@@ -54,11 +54,17 @@ public static class AuthenticationExtensions
     /// </summary>
     private static void AddIdentityProvider(IServiceCollection services, IWebHostEnvironment environment)
     {
+        // AddIdentityCookies() is what actually registers the Identity.Application
+        // cookie handler. AddIdentityCore + AddSignInManager does NOT — without
+        // this, SignInAsync throws "No sign-in authentication handlers are
+        // registered" and ConfigureApplicationCookie below silently configures a
+        // scheme that does not exist.
         services.AddAuthentication(options =>
         {
             options.DefaultScheme = IdentityConstants.ApplicationScheme;
             options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
-        });
+        })
+        .AddIdentityCookies();
 
         services.AddIdentityCore<AppUser>(options =>
             {
