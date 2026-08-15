@@ -398,8 +398,8 @@ test.describe('API Endpoint Tests @api', () => {
       }
     });
 
-    test('admin keycloak users returns user list with roles', async () => {
-      const users = await api.getKeycloakUsers();
+    test('admin directory users returns user list with roles', async () => {
+      const users = await api.getDirectoryUsers();
       expect(Array.isArray(users)).toBe(true);
       expect(users.length).toBeGreaterThan(0);
       const user = users[0];

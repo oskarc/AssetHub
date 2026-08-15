@@ -25,7 +25,7 @@ public static class CacheKeys
     /// <summary>Collection IDs an asset belongs to. Invalidated on add/remove.</summary>
     public static readonly TimeSpan AssetCollectionIdsTtl = TimeSpan.FromMinutes(2);
 
-    /// <summary>Username lookups from Keycloak user_entity. Rarely changes.</summary>
+    /// <summary>Username lookups from the local Identity store. Rarely changes.</summary>
     public static readonly TimeSpan UserNameTtl = TimeSpan.FromMinutes(10);
 
     /// <summary>All users list (admin page). Short TTL since users can be created.</summary>

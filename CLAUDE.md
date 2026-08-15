@@ -34,7 +34,7 @@ project layer rather than propagated into the inherited `meta-contract-before-ex
 
 ## Project Overview
 
-AssetHub is a digital asset management system. It uses **C# 14 / .NET 10**, **Blazor Server**, **PostgreSQL**, **MinIO** (S3-compatible storage), **RabbitMQ** (via Wolverine), **Redis** (HybridCache L2), and **Keycloak** (OIDC auth). 
+AssetHub is a digital asset management system. It uses **C# 14 / .NET 10**, **Blazor Server**, **PostgreSQL**, **MinIO** (S3-compatible storage), **RabbitMQ** (via Wolverine), **Redis** (HybridCache L2), and **ASP.NET Core Identity** (local auth). 
 
 ---
 
@@ -54,7 +54,7 @@ Layers:
 The dependency direction, the deliberately-omitted patterns, and how SOLID applies to this shape are the **`principle-clean-architecture-dotnet`** standard. AssetHub's concrete instantiation of it:
 
 - **Messaging** is Wolverine (the standard's "explicit message contracts" — no domain events).
-- **OIDC** is Keycloak (the standard's "one external identity provider").
+- **Identity** is local ASP.NET Core Identity (the standard's "one identity provider") — the app owns its user store.
 - **Only `Asset`** has state-transition methods (the standard's "few entities with a genuine lifecycle"); every other entity is standalone data.
 
 ---
@@ -225,16 +225,9 @@ Collections are **flat** — a user's effective role on a collection is the dire
 
 ### Authentication paths
 
-Two principal types reach the API: **cookie** (the Blazor UI) and **JWT bearer**.
-The `Smart` scheme selector routes `Authorization: Bearer …` to JWT and
-everything else to Cookie.
-
-**Provider modes.** `Auth:Provider` selects the identity provider:
-
-| Mode | Sign-in | User store | Roles |
-|------|---------|-----------|-------|
-| `Keycloak` *(default)* | OIDC redirect | Keycloak realm | realm roles → `ClaimTypes.Role` |
-| `Identity` | local form POST to `/auth/login` | `AspNetUsers` in the app database | Identity roles → `ClaimTypes.Role` |
+Two principal types reach the API: **cookie** (the Blazor UI, local sign-in) and
+**JWT bearer**. The `Smart` scheme selector routed bearer to JWT; local Identity
+issues the cookie.
 
 Both modes produce the same claims, so **nothing downstream of the claims
 principal knows which provider issued it** — `RoleHierarchy`, the authorization
@@ -243,21 +236,16 @@ stay that way. `/auth/login`, `/auth/logout` and `/auth/change-password` exist i
 both modes with the same paths; only their behaviour differs, so UI code never
 branches on the provider.
 
-Under `Identity`, `IdentitySeeder` creates the four roles and — **only when the
+`IdentitySeeder` creates the four roles and — **only when the
 user store is completely empty** — one bootstrap admin from `Identity:SeedAdmin`.
 It never overwrites an existing account, and it throws rather than inventing a
 default password.
 
-Two interfaces resolve per provider; every consumer keeps depending on the
-interface, never the implementation:
+`IUserLookupService` (reads) and `IUserDirectoryAdmin` (lifecycle + roles) are
+backed by the local Identity stores.
 
-| Interface | Keycloak | Identity |
-|-----------|----------|----------|
-| `IUserLookupService` (reads) | `UserLookupService` (admin API) | `IdentityUserLookupService` (local queries) |
-| `IUserDirectoryAdmin` (lifecycle + roles) | `KeycloakUserDirectoryAdmin` | `IdentityUserDirectoryAdmin` (`UserManager`) |
 
-**Password reset** is the one flow with no Keycloak equivalent to delegate to.
-Under Identity, `PasswordResetLinkSender` mints an Identity reset token, encodes
+**Password reset**: `PasswordResetLinkSender` mints an Identity reset token, encodes
 it Base64Url into a `/reset-password` link, and mails it via the existing
 `IEmailService`. Its security properties are load-bearing and must be preserved
 by anything that touches it:
@@ -271,9 +259,8 @@ by anything that touches it:
   token/user errors (silent), so neither response reveals whether an account
   exists.
 
-The 2026-08 reshape is migrating off Keycloak (contract-013 added Identity
-alongside it; a follow-up removes Keycloak). Until then Keycloak remains the
-default and existing deployments are unaffected.
+Keycloak was removed by the 2026-08 reshape (contract-015). ASP.NET Core
+Identity is the only provider; there is no `Auth:Provider` switch.
 
 Personal Access Tokens were removed by the 2026-08 reshape (contract-011) along
 with the public API contract they existed to serve — there is no longer a
@@ -494,7 +481,7 @@ Strongly-typed settings + validate-on-start for critical infra + the no-hardcode
       public int Port { get; set; } = 5672;
   }
   ```
-- Validate-on-start: Keycloak, MinIO, PostgreSQL, RabbitMQ, Redis. Optional (no validate-on-start): Email, ImageProcessing.
+- Validate-on-start: Identity, MinIO, PostgreSQL, RabbitMQ, Redis. Optional (no validate-on-start): Email, ImageProcessing.
 - Env override via `__` → `:`; production uses Docker file-based secrets, not env vars.
 
 ### Existing settings
@@ -502,7 +489,7 @@ Strongly-typed settings + validate-on-start for critical infra + the no-hardcode
 | Class | Section | ValidateOnStart | Purpose |
 |-------|---------|:-:|---------|
 | `AppSettings` | `App` | Yes | Base URL, upload limits |
-| `KeycloakSettings` | `Keycloak` | Yes | OIDC authority, client ID/secret |
+| `IdentitySettings` | `Identity` | Yes | Password/lockout policy, bootstrap admin |
 | `MinIOSettings` | `MinIO` | Yes | Endpoint, bucket, credentials |
 | `RabbitMQSettings` | `RabbitMQ` | Yes | Host, port, credentials |
 | `RedisSettings` | `Redis` | No | Connection string (optional) |

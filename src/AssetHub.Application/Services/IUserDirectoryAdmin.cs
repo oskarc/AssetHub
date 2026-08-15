@@ -4,9 +4,7 @@ namespace AssetHub.Application.Services;
 /// Administrative operations against the configured identity provider — user
 /// lifecycle and role membership.
 ///
-/// Implemented twice: <c>KeycloakUserDirectoryAdmin</c> calls the Keycloak Admin
-/// REST API, <c>IdentityUserDirectoryAdmin</c> uses the local Identity stores.
-/// Selected by <c>Auth:Provider</c>, so callers stay provider-agnostic.
+/// Implemented by <c>IdentityUserDirectoryAdmin</c> over the local Identity stores.
 /// </summary>
 public interface IUserDirectoryAdmin
 {
@@ -35,13 +33,13 @@ public interface IUserDirectoryAdmin
     /// Sends the user a link to complete the specified required actions
     /// (currently only UPDATE_PASSWORD).
     ///
-    /// Under Keycloak this delegates to the execute-actions-email Admin API.
+    /// Under identity-store this delegates to the execute-actions-email Admin API.
     /// Under Identity it mints a password-reset token and sends the app's own
     /// reset email — the action list is honoured, the mechanism differs.
     /// </summary>
     /// <param name="userId">The user ID.</param>
     /// <param name="actions">The required actions (e.g., "UPDATE_PASSWORD").</param>
-    /// <param name="lifespan">Optional link lifespan in seconds (default: Keycloak server default).</param>
+    /// <param name="lifespan">Optional link lifespan in seconds (default: identity-store server default).</param>
     /// <param name="ct">Cancellation token.</param>
     Task SendExecuteActionsEmailAsync(
         string userId,
@@ -71,7 +69,7 @@ public interface IUserDirectoryAdmin
 
     /// <summary>
     /// Removes a realm role from a user. No-op when the user does not have
-    /// the role — Keycloak's DELETE /role-mappings endpoint accepts that.
+    /// the role — removing a role the user does not have is a no-op.
     /// </summary>
     /// <param name="userId">The user ID.</param>
     /// <param name="roleName">The realm role name (e.g., "admin").</param>
@@ -80,18 +78,18 @@ public interface IUserDirectoryAdmin
 }
 
 /// <summary>
-/// Exception thrown when a Keycloak Admin API call fails.
+/// Exception thrown when a identity-store Admin API call fails.
 /// </summary>
-public class KeycloakApiException : Exception
+public class UserDirectoryException : Exception
 {
     public int StatusCode { get; }
     
-    public KeycloakApiException(string message, int statusCode = 0) : base(message)
+    public UserDirectoryException(string message, int statusCode = 0) : base(message)
     {
         StatusCode = statusCode;
     }
     
-    public KeycloakApiException(string message, int statusCode, Exception innerException) 
+    public UserDirectoryException(string message, int statusCode, Exception innerException) 
         : base(message, innerException)
     {
         StatusCode = statusCode;

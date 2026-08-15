@@ -1,13 +1,10 @@
 @page "/login"
 @using Microsoft.AspNetCore.Authorization
-@using AssetHub.Application.Configuration
-@using Microsoft.Extensions.Options
 
 @attribute [AllowAnonymous]
 
 @inject NavigationManager Nav
 @inject IStringLocalizer<CommonResource> CommonLoc
-@inject IOptions<AuthSettings> Auth
 
 <PageTitle>@CommonLoc["Btn_SignIn"] - @CommonLoc["AppName"]</PageTitle>
 
@@ -29,8 +26,6 @@
 
             <MudDivider Class="my-4" FlexItem="true" />
 
-            @if (Auth.Value.UsesIdentity)
-            {
                 @* Local sign-in. A plain form POST rather than a Blazor handler:
                    establishing the auth cookie needs a real HTTP response, which
                    an interactive circuit cannot produce. *@
@@ -67,26 +62,6 @@
                         @CommonLoc["Btn_SignIn"]
                     </MudButton>
                 </form>
-            }
-            else
-            {
-                <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">
-                    @CommonLoc["Text_SignInDescription"]
-                </MudText>
-
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           Size="Size.Large"
-                           FullWidth="true"
-                           StartIcon="@Icons.Material.Filled.Login"
-                           OnClick="SignIn">
-                    @CommonLoc["Btn_SignIn"]
-                </MudButton>
-
-                <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
-                    @CommonLoc["Text_RedirectIdentityProvider"]
-                </MudText>
-            }
 
             <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-2">
                 @CommonLoc["Text_ForgotPasswordHint"]
@@ -102,9 +77,4 @@
     [SupplyParameterFromQuery]
     public string? Error { get; set; }
 
-    private void SignIn()
-    {
-        var returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl;
-        Nav.NavigateTo($"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
-    }
 }

@@ -8,10 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace AssetHub.Infrastructure.Data;
 
 /// <remarks>
-/// Derives from <see cref="IdentityDbContext{TUser}"/> so the local Identity
-/// provider has a user store. The Identity tables exist regardless of which
-/// provider is configured — they are simply unused under Keycloak, which keeps
-/// the schema stable across a provider switch.
+/// Derives from <see cref="IdentityDbContext{TUser}"/> so the application owns
+/// its user store.
 /// </remarks>
 public class AssetHubDbContext : IdentityDbContext<AppUser>, IDataProtectionKeyContext
 {

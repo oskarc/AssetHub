@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { KeycloakLoginPage } from '../pages/keycloak-login.page';
+import { IdentityLoginPage } from '../pages/identity-login.page';
 import { LayoutPage } from '../pages/layout.page';
 import { env } from '../config/env';
 
@@ -10,8 +10,8 @@ test.describe('Viewer Role Restrictions @acl @auth', () => {
 
   test.beforeEach(async ({ page }) => {
     layout = new LayoutPage(page);
-    const keycloak = new KeycloakLoginPage(page);
-    await keycloak.loginAsViewer();
+    const login = new IdentityLoginPage(page);
+    await login.loginAsViewer();
     await page.waitForLoadState('networkidle');
   });
 

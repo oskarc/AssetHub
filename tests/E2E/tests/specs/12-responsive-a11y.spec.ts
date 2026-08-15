@@ -52,16 +52,14 @@ test.describe('Responsive & Accessibility @ui', () => {
       await page.waitForLoadState('networkidle');
 
       const mudLoginCard = page.locator('.mud-paper').first();
-      const keycloakUsername = page.locator('#username');
       const appBar = page.locator('.mud-appbar').first();
 
       await expect
         .poll(
           async () => {
             const hasMudLogin = await mudLoginCard.isVisible();
-            const hasKeycloakLogin = await keycloakUsername.isVisible();
             const hasAuthenticatedShell = await appBar.isVisible();
-            return hasMudLogin || hasKeycloakLogin || hasAuthenticatedShell;
+            return hasMudLogin || hasAuthenticatedShell;
           },
           { timeout: 10_000 }
         )
@@ -74,14 +72,11 @@ test.describe('Responsive & Accessibility @ui', () => {
       await page.goto('/login');
 
       const mudHeading = page.locator('h4, .mud-typography-h4').first();
-      const keycloakHeading = page.locator('h1, #kc-page-title').first();
 
       await expect
         .poll(
           async () => {
-            const hasMudHeading = await mudHeading.isVisible();
-            const hasKeycloakHeading = await keycloakHeading.isVisible();
-            return hasMudHeading || hasKeycloakHeading;
+            return await mudHeading.isVisible();
           },
           { timeout: 10_000 }
         )

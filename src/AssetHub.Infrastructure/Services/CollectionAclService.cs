@@ -22,7 +22,7 @@ public sealed record CollectionAclRepositories(
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S107:Methods should not have too many parameters",
-    Justification = "ACL service composition root: pre-grouped repos + auth + user lookup + Keycloak + audit + UnitOfWork + cache + CurrentUser. UnitOfWork was added to wrap ACL changes + audit atomically (A-4).")]
+    Justification = "ACL service composition root: pre-grouped repos + auth + user lookup + identity-store + audit + UnitOfWork + cache + CurrentUser. UnitOfWork was added to wrap ACL changes + audit atomically (A-4).")]
 public sealed class CollectionAclService(
     CollectionAclRepositories repos,
     ICollectionAuthorizationService authService,
@@ -50,7 +50,7 @@ public sealed class CollectionAclService(
         var acls = await _aclRepo.GetByCollectionAsync(collectionId, ct);
         var userIds = acls.Where(a => a.PrincipalType == PrincipalType.User).Select(a => a.PrincipalId);
 
-        // These are independent Keycloak DB/API calls — run in parallel
+        // These are independent identity-store DB/API calls — run in parallel
         var nameMapTask = userLookup.GetUserNamesAsync(userIds, ct);
         var emailMapTask = userLookup.GetUserEmailsAsync(userIds, ct);
         var adminIdsTask = userDirectoryAdmin.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);

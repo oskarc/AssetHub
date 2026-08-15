@@ -20,8 +20,8 @@ test.describe('Access Control & Permissions @acl', () => {
     const collection = await api.createCollection(testCollectionName, 'ACL test collection');
     testCollectionId = collection.id;
 
-    // Get viewer user ID from Keycloak
-    const users = await api.getKeycloakUsers();
+    // Get viewer user ID from the directory
+    const users = await api.getDirectoryUsers();
     const viewer = users.find((u: any) => u.username === env.viewerUser.username);
     if (viewer) {
       viewerUserId = viewer.id;

@@ -9,12 +9,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      # Keycloak DB credentials (used by init-keycloak-db.sh)
-      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
-      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -69,62 +65,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.1.0
-    container_name: assethub-keycloak
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      KEYCLOAK_TESTUSER_PASSWORD: ${KEYCLOAK_TESTUSER_PASSWORD}
-      KEYCLOAK_ADMIN_USER_PASSWORD: ${KEYCLOAK_ADMIN_USER_PASSWORD}
-      KEYCLOAK_SEED_PASSWORD: ${KEYCLOAK_SEED_PASSWORD}
-      KC_HOSTNAME: keycloak.assethub.local
-      KC_HTTPS_KEY_STORE_FILE: /opt/keycloak/certs/dev-cert.pfx
-      KC_HTTPS_KEY_STORE_PASSWORD: ${KC_HTTPS_KEY_STORE_PASSWORD}
-      KC_HTTPS_KEY_STORE_TYPE: PKCS12
-      KC_HTTP_ENABLED: 'true'
-    volumes:
-      - keycloakdata:/opt/keycloak/data
-      - ../keycloak/import:/opt/keycloak/data/import:ro
-      - ../keycloak/themes:/opt/keycloak/themes:ro
-      - ../certs:/opt/keycloak/certs:ro
-    ports:
-      - "127.0.0.1:8080:8080"
-      - "127.0.0.1:8443:8443"
-    command:
-      - start-dev
-      - --import-realm
-      - --health-enabled=true
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      backend:
-        aliases:
-          - keycloak.assethub.local
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 2>/dev/null"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 768M
-          pids: 200
-    # Security hardening
-    user: "1000:1000"  # keycloak runs as UID 1000
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
 
   api:
     build:
@@ -135,29 +75,12 @@ services:
       TZ: Europe/Stockholm
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: https://+:7252
-      # Identity provider selection. Keycloak remains the default in config;
-      # this pins the compose stack to the local Identity provider.
-      Auth__Provider: "${AUTH_PROVIDER:-Keycloak}"
       Identity__SeedAdmin__UserName: "${IDENTITY_ADMIN_USERNAME:-admin}"
       Identity__SeedAdmin__Email: "${IDENTITY_ADMIN_EMAIL:-admin@assethub.local}"
       Identity__SeedAdmin__Password: "${IDENTITY_ADMIN_PASSWORD:-}"
       ASPNETCORE_Kestrel__Certificates__Default__Path: /app/certs/dev-cert.pfx
       ASPNETCORE_Kestrel__Certificates__Default__Password: ${ASPNETCORE_Kestrel__Certificates__Default__Password}
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
-      ConnectionStrings__KeycloakDb: "Server=postgres;Port=5432;Database=keycloak;User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
-      Keycloak__Authority: "https://keycloak.assethub.local:8443/realms/media"
-      Keycloak__ClientId: "${KEYCLOAK_CLIENT_ID}"
-      Keycloak__ClientSecret: "${KEYCLOAK_CLIENT_SECRET}"
-      Keycloak__AdminUsername: "${KEYCLOAK_ADMIN_API_USERNAME}"
-      Keycloak__AdminPassword: "${KEYCLOAK_ADMIN_API_PASSWORD}"
-      Keycloak__AdminClientId: "${KEYCLOAK_ADMIN_CLIENT_ID:-admin-cli}"
-      Keycloak__AdminClientSecret: "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}"
-      # AllowAdminPasswordGrant: required when AdminClientSecret is empty.
-      # KeycloakUserService refuses to start otherwise (A-6 guard) — password
-      # grant bypasses MFA and is OAuth 2.1-deprecated. Dev defaults to true
-      # so the local stack works without a service-account client; when you
-      # set KEYCLOAK_ADMIN_CLIENT_SECRET, flip this to false (or just unset).
-      Keycloak__AllowAdminPasswordGrant: "${KEYCLOAK_ALLOW_ADMIN_PASSWORD_GRANT:-true}"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
       MinIO__SecretKey: "${MINIO_SECRET_KEY}"
@@ -184,8 +107,6 @@ services:
       postgres:
         condition: service_healthy
       minio:
-        condition: service_healthy
-      keycloak:
         condition: service_healthy
       clamav:
         condition: service_healthy
@@ -233,11 +154,6 @@ services:
       # in sync with the api service above.
       App__BaseUrl: "https://assethub.local:7252"
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
-      # Worker resolves recipient emails via UserLookupService (Keycloak's user_entity table)
-      # when sending notification emails — must point at the keycloak DB, same as the api service.
-      # Missing this caused SendNotificationEmailHandler to fail with 42P01 "relation user_entity
-      # does not exist" (it had silently fallen back to the AssetHub Postgres DB).
-      ConnectionStrings__KeycloakDb: "Server=postgres;Port=5432;Database=keycloak;User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
       MinIO__SecretKey: "${MINIO_SECRET_KEY}"
@@ -457,7 +373,6 @@ services:
 volumes:
   pgdata:
   miniodata:
-  keycloakdata:
   redisdata:
 
 networks:

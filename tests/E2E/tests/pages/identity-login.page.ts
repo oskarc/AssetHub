@@ -4,9 +4,8 @@ import { env } from '../config/env';
 /**
  * Page Object for the local ASP.NET Core Identity sign-in form.
  *
- * Used when the application runs with `Auth:Provider=Identity`. Unlike the
- * Keycloak flow there is no redirect to an external identity provider — the form
- * is served by the app itself at /login and POSTs to /auth/login.
+ * Sign-in is served by the application itself at /login and POSTs to
+ * /auth/login — there is no redirect to an external identity provider.
  */
 export class IdentityLoginPage {
   readonly page: Page;

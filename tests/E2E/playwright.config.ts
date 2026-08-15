@@ -11,7 +11,6 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
  *
  * Environment variables:
  *   BASE_URL   - Application URL (default: https://assethub.local:7252)
- *   KC_URL     - Keycloak URL (default: https://keycloak.assethub.local:8443)
  *   HEADED     - Run in headed mode (set to "true")
  *   CI         - Running in CI environment
  */

@@ -83,7 +83,7 @@ public record UserCollectionAccessDto
 }
 
 /// <summary>
-/// User details from Keycloak.
+/// User details from the identity store.
 /// </summary>
 public record DirectoryUserDto
 {
@@ -95,12 +95,12 @@ public record DirectoryUserDto
     public DateTime? CreatedAt { get; init; }
     public int CollectionCount { get; init; }
     public string? HighestRole { get; init; }
-    /// <summary>True when the user has the global "admin" Keycloak realm role.</summary>
+    /// <summary>True when the user has the global "admin" role.</summary>
     public bool IsSystemAdmin { get; init; }
 }
 
 /// <summary>
-/// Paginated response for Keycloak users with category counts for filter chips.
+/// Paginated response for directory users with category counts for filter chips.
 /// </summary>
 public record PaginatedDirectoryUsersResponse
 {
@@ -113,7 +113,7 @@ public record PaginatedDirectoryUsersResponse
 }
 
 /// <summary>
-/// Request to create a new user via Keycloak Admin API.
+/// Request to create a new user.
 /// </summary>
 public record CreateUserRequest
 {
@@ -162,7 +162,7 @@ public record CreateUserRequest
     public string InitialRole { get; init; } = "viewer";
 
     /// <summary>
-    /// If true, the user will be assigned the global "admin" Keycloak realm role.
+    /// If true, the user will be assigned the global "admin" role.
     /// When enabled, collection-level access is not needed as admins have full access.
     /// </summary>
     public bool IsSystemAdmin { get; init; }
@@ -180,7 +180,7 @@ public record CreateUserResponse
 }
 
 // ResetPasswordRequest removed — admin-initiated password resets are now
-// handled by sending a Keycloak "execute-actions-email" (UPDATE_PASSWORD)
+// handled by emailing a single-use password-reset link
 // so the admin never sees or types a user's password.
 
 /// <summary>

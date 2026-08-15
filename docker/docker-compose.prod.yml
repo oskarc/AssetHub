@@ -22,15 +22,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-      # Keycloak DB credentials (used by init-keycloak-db.sh)
-      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
-      KEYCLOAK_DB_PASSWORD_FILE: /run/secrets/keycloak_db_password
     secrets:
       - postgres_password
-      - keycloak_db_password
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
     # In production, do NOT expose the port externally. Only internal services
     # need to reach PostgreSQL. Uncomment the line below only for debugging.
     # ports:
@@ -101,82 +96,6 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-
-  # ---------- Keycloak (OIDC provider) ----------------------------------------
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.1.0
-    container_name: assethub-keycloak
-    restart: unless-stopped
-    environment:
-      # Database — separate 'keycloak' database with dedicated user
-      # (created automatically by docker/init-keycloak-db.sh on first start)
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
-      KC_DB_PASSWORD_FILE: /run/secrets/keycloak_db_password
-
-      # Admin bootstrap (KC_BOOTSTRAP_* is the non-deprecated form for Keycloak 26+)
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
-      KC_BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_admin_password
-
-      # Production hostname — must match the URL users see in the browser.
-      # Keycloak embeds this in tokens; the app validates it.
-      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
-      KC_HOSTNAME_STRICT: "true"
-
-      # Proxy / TLS — assumes a reverse proxy (Nginx, Traefik, Caddy)
-      # terminates HTTPS and forwards to Keycloak on port 8080 (HTTP).
-      KC_PROXY_HEADERS: xforwarded
-      KC_HTTP_ENABLED: "true"
-
-      # Secrets for realm import (media-realm.json)
-      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      KEYCLOAK_TESTUSER_PASSWORD: ${KEYCLOAK_TESTUSER_PASSWORD}
-      KEYCLOAK_ADMIN_USER_PASSWORD: ${KEYCLOAK_ADMIN_USER_PASSWORD}
-      KEYCLOAK_SEED_PASSWORD: ${KEYCLOAK_SEED_PASSWORD}
-    secrets:
-      - keycloak_admin_password
-      - keycloak_db_password
-      - keycloak_client_secret
-    volumes:
-      - keycloakdata:/opt/keycloak/data
-      - ../keycloak/import:/opt/keycloak/data/import:ro
-    # Note: --import-realm is idempotent in Keycloak 26+ (skips if realm exists).
-    # This adds minimal startup overhead (~100ms) but simplifies deployment.
-    # For zero-overhead in existing deployments, remove --import-realm after first run.
-    command:
-      - start
-      - --import-realm
-      - --health-enabled=true
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 2>/dev/null"]
-      interval: 30s
-      timeout: 5s
-      retries: 10
-      start_period: 120s
-    networks:
-      - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 768M
-          pids: 200
-    # Security hardening
-    user: "1000:1000"  # keycloak runs as UID 1000
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
-
   # ---------- Redis (Distributed Cache) ----------------------------------------
   redis:
     image: redis:7.4-alpine
@@ -230,8 +149,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       args:
-        # Trust the local dev CA so the API container can validate Keycloak's
-        # self-signed cert during OIDC discovery. Default 1 here because this
+                # self-signed cert during OIDC discovery. Default 1 here because this
         # compose file is what the team uses for prod-like local runs; real
         # production builds should set this to 0 (or omit the build arg).
         TRUST_LOCAL_DEV_CERT: "${TRUST_LOCAL_DEV_CERT:-1}"
@@ -250,23 +168,9 @@ services:
 
       # Database
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
-      # Keycloak's database — UserLookupService queries user_entity directly here.
-      ConnectionStrings__KeycloakDb: "Server=postgres;Port=5432;Database=keycloak;User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
 
-      # Keycloak OIDC
-      Keycloak__Authority: "https://${KEYCLOAK_HOSTNAME}/realms/media"
-      Keycloak__ClientId: "${KEYCLOAK_CLIENT_ID}"
-      Keycloak__ClientSecret: "${KEYCLOAK_CLIENT_SECRET}"
-      Keycloak__RequireHttpsMetadata: "true"
-      Keycloak__AdminUsername: "${KEYCLOAK_ADMIN_API_USERNAME}"
-      Keycloak__AdminPassword: "${KEYCLOAK_ADMIN_API_PASSWORD}"
-      Keycloak__AdminClientId: "${KEYCLOAK_ADMIN_CLIENT_ID:-admin-cli}"
-      Keycloak__AdminClientSecret: "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}"
       # AllowAdminPasswordGrant: required when AdminClientSecret is empty.
       # The admin credentials above are used with the password grant (OAuth ROPC).
-      # Preferred upgrade path: create a Keycloak service account, set
-      # KEYCLOAK_ADMIN_CLIENT_SECRET, and remove this flag.
-      Keycloak__AllowAdminPasswordGrant: "${KEYCLOAK_ALLOW_ADMIN_PASSWORD_GRANT:-true}"
 
       # MinIO — internal endpoint (container-to-container)
       MinIO__Endpoint: "minio:9000"
@@ -343,8 +247,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      keycloak:
-        condition: service_healthy
       clamav:
         condition: service_healthy
       redis:
@@ -391,8 +293,6 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       App__BaseUrl: "${APP_BASE_URL}"
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
-      # Keycloak's database — UserLookupService queries user_entity directly here.
-      ConnectionStrings__KeycloakDb: "Server=postgres;Port=5432;Database=keycloak;User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
       MinIO__SecretKey: "${MINIO_SECRET_KEY}"
@@ -591,7 +491,6 @@ services:
 volumes:
   pgdata:
   miniodata:
-  keycloakdata:
   redisdata:
   rabbitmqdata:
 
@@ -606,7 +505,6 @@ networks:
 # Network Segmentation
 # ============================================================================
 # Services are isolated into separate networks for defense-in-depth:
-#   - backend: postgres, minio, clamav, keycloak (internal data stores)
 #   - observability: aspire-dashboard (monitoring)
 #
 # The api and worker services bridge both networks to access data stores
@@ -621,10 +519,7 @@ networks:
 # Setup:
 #   mkdir -p secrets && chmod 700 secrets
 #   echo "your-postgres-password" > secrets/postgres_password
-#   echo "your-keycloak-admin-password" > secrets/keycloak_admin_password
-#   echo "your-keycloak-db-password" > secrets/keycloak_db_password
 #   echo "your-minio-root-password" > secrets/minio_root_password
-#   echo "your-keycloak-client-secret" > secrets/keycloak_client_secret
 #   openssl rand -hex 32 > secrets/rabbitmq_erlang_cookie
 #   # Data Protection PFX (no password — the cert itself is the secret):
 #   openssl req -x509 -newkey rsa:4096 -keyout /tmp/dp.key -out /tmp/dp.crt \
@@ -642,14 +537,8 @@ networks:
 secrets:
   postgres_password:
     file: ./secrets/postgres_password
-  keycloak_admin_password:
-    file: ./secrets/keycloak_admin_password
-  keycloak_db_password:
-    file: ./secrets/keycloak_db_password
   minio_root_password:
     file: ./secrets/minio_root_password
-  keycloak_client_secret:
-    file: ./secrets/keycloak_client_secret
   rabbitmq_erlang_cookie:
     file: ./secrets/rabbitmq_erlang_cookie
   dp_cert:

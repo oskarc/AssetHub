@@ -301,7 +301,7 @@ public static class Constants
         public const int DefaultAdminPageSize = 50;
 
         /// <summary>
-        /// Maximum number of users loaded in a single query from the Keycloak database.
+        /// Maximum number of users loaded in a single query from the user store.
         /// Prevents unbounded memory use in large deployments (CWE-400).
         /// </summary>
         public const int MaxUserQueryLimit = 10_000;

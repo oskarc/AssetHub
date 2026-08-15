@@ -39,7 +39,7 @@ public sealed class DashboardService(
 
         var showManagerSections = isAdmin || RoleHierarchy.GetLevel(highestRole) >= RoleHierarchy.GetLevel(RoleHierarchy.Roles.Manager);
 
-        // ── Start non-DB calls (Keycloak HTTP) in parallel with DB work ──
+        // ── Start non-DB calls (identity-store HTTP) in parallel with DB work ──
         var adminIdsTask = isAdmin
             ? userDirectoryAdmin.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct)
             : Task.FromResult<HashSet<string>>(null!);

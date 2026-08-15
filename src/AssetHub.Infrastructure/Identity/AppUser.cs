@@ -8,8 +8,8 @@ namespace AssetHub.Infrastructure.Identity;
 /// package references by standard.
 /// </summary>
 /// <remarks>
-/// The key stays <see cref="string"/> — the same shape as the Keycloak subject
-/// it replaces. Every user reference already persisted (CollectionAcl.PrincipalId,
+/// The key stays <see cref="string"/> — the same shape as the external subject
+/// it replaced. Every user reference already persisted (CollectionAcl.PrincipalId,
 /// Asset.CreatedByUserId, AuditEvent.ActorUserId) is a string, so switching
 /// providers changes no column type anywhere.
 /// </remarks>

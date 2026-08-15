@@ -1,8 +1,16 @@
 import { test, expect } from '@playwright/test';
-import { KeycloakLoginPage } from '../pages/keycloak-login.page';
+import { IdentityLoginPage } from '../pages/identity-login.page';
 import { LoginPage } from '../pages/login.page';
 import { LayoutPage } from '../pages/layout.page';
+import { env } from '../config/env';
 
+/**
+ * Authentication against the local ASP.NET Core Identity provider.
+ *
+ * Sign-in is a form POST served by the application itself — there is no
+ * redirect to an external identity provider, so every assertion here stays
+ * within the app's own origin.
+ */
 test.describe('Authentication & Login @auth @smoke', () => {
   test.describe('Login page', () => {
     test.use({ storageState: { cookies: [], origins: [] } }); // Unauthenticated
@@ -14,65 +22,66 @@ test.describe('Authentication & Login @auth @smoke', () => {
       await expect(page.locator('.mud-typography-h4')).toContainText(/assethub/i);
     });
 
-    test('has a functional sign-in button', async ({ page }) => {
-      const loginPage = new LoginPage(page);
-      await loginPage.goto();
-      await expect(loginPage.signInButton).toBeEnabled();
-    });
-
-    test('sign-in redirects to Keycloak', async ({ page }) => {
-      // Navigate directly to auth endpoint (bypasses Blazor button which requires circuit)
-      await page.goto('/auth/login?returnUrl=%2F');
-      // Should redirect to Keycloak login
-      await page.waitForURL(/keycloak|8443/, { timeout: 15_000 });
-      await expect(page.locator('#username')).toBeVisible();
+    test('shows the sign-in form', async ({ page }) => {
+      await page.goto('/login');
+      await expect(page.locator('#userName')).toBeVisible();
       await expect(page.locator('#password')).toBeVisible();
     });
 
+    test('/auth/login serves the sign-in form', async ({ page }) => {
+      // Under Identity this redirects to /login rather than to an external IdP.
+      await page.goto('/auth/login?returnUrl=%2F');
+      await page.waitForURL(/\/login/, { timeout: 15_000 });
+      await expect(page.locator('#userName')).toBeVisible();
+    });
+
     test('full login flow with admin user', async ({ page }) => {
-      const keycloak = new KeycloakLoginPage(page);
-      await keycloak.loginAsAdmin();
+      const login = new IdentityLoginPage(page);
+      await login.loginAsAdmin();
 
       const layout = new LayoutPage(page);
       await layout.expectAuthenticated();
     });
 
     test('full login flow with viewer user', async ({ page }) => {
-      const keycloak = new KeycloakLoginPage(page);
-      await keycloak.loginAsViewer();
+      const login = new IdentityLoginPage(page);
+      await login.loginAsViewer();
 
       const layout = new LayoutPage(page);
       await layout.expectAuthenticated();
     });
 
-    test('rejects invalid credentials at Keycloak', async ({ page }) => {
-      // Navigate directly to auth endpoint to reach Keycloak
-      await page.goto('/auth/login?returnUrl=%2F');
-      await page.waitForURL(/keycloak|8443/);
+    test('rejects invalid credentials without revealing whether the account exists', async ({ page }) => {
+      const login = new IdentityLoginPage(page);
+      await page.goto('/login', { waitUntil: 'domcontentloaded' });
+      await login.login('baduser', 'badpassword');
 
-      const keycloak = new KeycloakLoginPage(page);
-      await keycloak.login('baduser', 'badpassword');
-
-      // Should stay on Keycloak with error
-      await expect(page.locator('#input-error, .kc-feedback-text, [class*="alert"]')).toBeVisible({ timeout: 10_000 });
+      // Comes back to the sign-in page with a generic error. The message must be
+      // the same for an unknown user as for a wrong password — see
+      // PasswordResetLinkSender / the /auth/login handler for why.
+      await page.waitForURL(/\/login\?.*error=/, { timeout: 15_000 });
+      await expect(login.errorAlert).toBeVisible({ timeout: 10_000 });
     });
 
     test('unauthenticated user redirected from protected pages', async ({ page }) => {
       await page.goto('/assets');
-      // Should redirect to login
-      await page.waitForURL(/\/login|keycloak|8443/, { timeout: 15_000 });
+      await page.waitForURL(/\/login/, { timeout: 15_000 });
     });
   });
 
   test.describe('Authenticated session', () => {
     test('logout clears session', async ({ page }) => {
       await page.goto('/');
+      // Blazor Server prerenders the shell before the circuit connects; the menu
+      // button exists in the DOM but has no handler until then.
+      await page.waitForLoadState('networkidle');
       const layout = new LayoutPage(page);
       await layout.expectAuthenticated();
 
       await layout.signOut();
-      // Should redirect to login or Keycloak logout
-      await page.waitForURL(/\/login|keycloak/, { timeout: 15_000 });
+      // Assert the resulting STATE, not a URL — the pre-logout URL can match a
+      // permissive pattern and let waitForURL return before navigation happens.
+      await layout.expectUnauthenticated();
     });
   });
 });

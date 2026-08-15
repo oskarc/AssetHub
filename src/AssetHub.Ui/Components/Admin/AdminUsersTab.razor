@@ -222,7 +222,7 @@
         var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.GetDirectoryUsersPaginatedAsync(
                 _userSearchString, _activeCategory, sortBy, sortDesc, skip, state.PageSize, ct),
-            "load Keycloak users");
+            "load identity-store users");
         if (!ok || response is null)
             return new TableData<DirectoryUserDto> { TotalItems = 0, Items = [] };
 

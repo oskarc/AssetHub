@@ -34,7 +34,9 @@ export class LayoutPage {
     this.darkModeToggle = page.locator('.mud-appbar .mud-icon-button').last();
     this.userDisplayName = page.locator('.mud-appbar .mud-typography-body2');
     // The account menu trigger is the first MudMenu icon button in the app bar
-    this.accountMenuTrigger = page.locator('.mud-appbar .mud-menu .mud-menu-icon-button-activator').first();
+    // Target by accessible name — the app bar holds several icon menus, so a
+    // positional .first() picks whichever happens to render first.
+    this.accountMenuTrigger = page.getByLabel('Account menu').locator('button').first();
 
     this.drawer = page.locator('#nav-drawer, .mud-drawer');
     this.navHome = page.locator('.mud-navmenu a[href="/"], .mud-navmenu a[href=""]').first();

@@ -50,13 +50,13 @@ public class DashboardServiceTests : IAsyncLifetime
             .ReturnsAsync(new List<(string Id, string Username, string? Email, string? FirstName, string? LastName, DateTime? CreatedAt)>());
 
         var queryService = new DashboardQueryService(provider, userLookupMock.Object, cache);
-        var keycloakMock = new Mock<IUserDirectoryAdmin>();
-        keycloakMock.Setup(m => m.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        var directoryMock = new Mock<IUserDirectoryAdmin>();
+        directoryMock.Setup(m => m.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<string>());
 
         return new DashboardService(
             queryService, collectionRepo, authService, assetRepo,
-            userLookupMock.Object, keycloakMock.Object, currentUser);
+            userLookupMock.Object, directoryMock.Object, currentUser);
     }
 
     public async Task DisposeAsync()

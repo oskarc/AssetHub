@@ -19,7 +19,7 @@ namespace AssetHub.Tests.Fixtures;
 /// <summary>
 /// WebApplicationFactory configured for integration tests:
 /// - Real PostgreSQL via Testcontainers (full fidelity)
-/// - Mocked external services (MinIO, Keycloak, Email, Media)
+/// - Mocked external services (MinIO, Email, Media)
 /// - Test authentication handler (no real OIDC required)
 /// </summary>
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
@@ -30,7 +30,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     private string _connectionString = string.Empty;
 
     public Mock<IMinIOAdapter> MockMinIO { get; } = new();
-    public Mock<IUserDirectoryAdmin> MockKeycloak { get; } = new();
+    public Mock<IUserDirectoryAdmin> MockDirectoryAdmin { get; } = new();
     public Mock<IEmailService> MockEmail { get; } = new();
     public Mock<IMediaProcessingService> MockMedia { get; } = new();
     public Mock<IUserLookupService> MockUserLookup { get; } = new();
@@ -58,7 +58,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         MockMedia.Setup(m => m.ScheduleProcessingAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-job-id");
 
-        MockKeycloak.Setup(m => m.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        MockDirectoryAdmin.Setup(m => m.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<string>());
 
         MockUserLookup.Setup(m => m.GetUserNameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -84,7 +84,12 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Postgres"] = _connectionString,
-                ["Keycloak:RequireHttpsMetadata"] = "true"
+                // IdentitySettings validates on start, so the test host needs a
+                // seed admin even though TestAuthHandler bypasses real sign-in.
+                ["Identity:SeedOnStartup"] = "false",
+                ["Identity:SeedAdmin:UserName"] = "test-admin",
+                ["Identity:SeedAdmin:Email"] = "test-admin@example.test",
+                ["Identity:SeedAdmin:Password"] = "Test-Host-Admin-1!"
             });
         });
 
@@ -137,7 +142,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.AddScoped(_ => MockMinIO.Object);
 
             services.RemoveAll<IUserDirectoryAdmin>();
-            services.AddScoped(_ => MockKeycloak.Object);
+            services.AddScoped(_ => MockDirectoryAdmin.Object);
 
             services.RemoveAll<IEmailService>();
             services.AddScoped(_ => MockEmail.Object);

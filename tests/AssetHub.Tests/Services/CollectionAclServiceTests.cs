@@ -29,7 +29,7 @@ public class CollectionAclServiceTests : IAsyncLifetime
     private CollectionAclRepository _aclRepo = null!;
     private CollectionAuthorizationService _authService = null!;
     private Mock<IUserLookupService> _userLookupMock = null!;
-    private Mock<IUserDirectoryAdmin> _keycloakMock = null!;
+    private Mock<IUserDirectoryAdmin> _directoryMock = null!;
     private Mock<IAuditService> _auditMock = null!;
 
     private const string AdminUser = "acl-admin-001";
@@ -48,7 +48,7 @@ public class CollectionAclServiceTests : IAsyncLifetime
         _aclRepo = new CollectionAclRepository(_provider, NullLogger<CollectionAclRepository>.Instance);
         _authService = new CollectionAuthorizationService(_provider, CurrentUser.Anonymous, NullLogger<CollectionAuthorizationService>.Instance);
         _userLookupMock = new Mock<IUserLookupService>();
-        _keycloakMock = new Mock<IUserDirectoryAdmin>();
+        _directoryMock = new Mock<IUserDirectoryAdmin>();
         _auditMock = new Mock<IAuditService>();
 
         // Default mock setups
@@ -56,7 +56,7 @@ public class CollectionAclServiceTests : IAsyncLifetime
             .ReturnsAsync(new Dictionary<string, string>());
         _userLookupMock.Setup(x => x.GetUserEmailsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, string>());
-        _keycloakMock.Setup(x => x.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _directoryMock.Setup(x => x.GetRealmRoleMemberIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<string>());
     }
 
@@ -66,7 +66,7 @@ public class CollectionAclServiceTests : IAsyncLifetime
 
         return new CollectionAclService(
             new CollectionAclRepositories(_collectionRepo, _aclRepo), _authService, _userLookupMock.Object,
-            _keycloakMock.Object, _auditMock.Object, new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)), TestCacheHelper.CreateHybridCache(), currentUser);
+            _directoryMock.Object, _auditMock.Object, new UnitOfWork(_fixture.CreateDbContextFactory(_dbName)), TestCacheHelper.CreateHybridCache(), currentUser);
     }
 
     public async Task DisposeAsync()

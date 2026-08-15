@@ -1,6 +1,5 @@
 import { test as setup, expect } from '@playwright/test';
 import { env } from './config/env';
-import { KeycloakLoginPage } from './pages/keycloak-login.page';
 import { IdentityLoginPage } from './pages/identity-login.page';
 import { ensureTestFixtures } from './helpers/test-fixtures';
 import * as fs from 'node:fs';
@@ -9,9 +8,8 @@ import * as path from 'node:path';
 const AUTH_DIR = path.join(__dirname, '.auth');
 
 /**
- * Authenticate a user and save browser state. Which login surface is driven
- * depends on the provider the app under test is running with — the resulting
- * storage state is equivalent either way.
+ * Authenticate a user against the local Identity sign-in form and save the
+ * browser state for reuse across specs.
  */
 async function authenticateUser(
   page: import('@playwright/test').Page,
@@ -19,7 +17,7 @@ async function authenticateUser(
   password: string,
   stateFileName: string
 ) {
-  const loginPage = env.usesIdentity ? new IdentityLoginPage(page) : new KeycloakLoginPage(page);
+  const loginPage = new IdentityLoginPage(page);
   await loginPage.fullLogin(username, password);
 
   // Verify we're authenticated — check for user display name in the app bar
@@ -61,7 +59,7 @@ setup('authenticate as admin', async ({ page }) => {
     throw new Error(`Application at ${env.baseUrl} is not responding. Ensure docker-compose is running.`);
   }
 
-  // Login as admin via the configured provider
+  // Login as admin
   await authenticateUser(page, env.adminUser.username, env.adminUser.password, 'admin.json');
 });
 
@@ -72,7 +70,7 @@ setup('authenticate as viewer', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   
-  // Login as viewer via the configured provider
+  // Login as viewer
   await authenticateUser(page, env.viewerUser.username, env.viewerUser.password, 'viewer.json');
   
   await context.close();

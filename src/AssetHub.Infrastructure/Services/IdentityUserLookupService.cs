@@ -7,15 +7,11 @@ using Microsoft.Extensions.Logging;
 namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
-/// <see cref="IUserLookupService"/> backed by the local ASP.NET Core Identity
-/// store. Selected when <c>Auth:Provider</c> is <c>Identity</c>; the Keycloak
-/// implementation (<see cref="UserLookupService"/>) is used otherwise.
+/// <see cref="IUserLookupService"/> backed by the local ASP.NET Core Identity store.
 /// </summary>
 /// <remarks>
-/// The Keycloak implementation caches aggressively because every lookup is an
-/// outbound admin-API call. Here the users live in the same database as the rows
-/// being rendered, so each method is a single indexed query and caching would
-/// add staleness for no gain.
+/// Users live in the same database as the rows being rendered, so each method is
+/// a single indexed query — caching would add staleness for no gain.
 /// </remarks>
 public sealed class IdentityUserLookupService(
     DbContextProvider provider,
@@ -88,9 +84,8 @@ public sealed class IdentityUserLookupService(
             .Select(u => new { u.Id, u.UserName, u.Email, u.DisplayName, u.CreatedAt })
             .ToListAsync(ct);
 
-        // Identity has no first/last name split — DisplayName is the whole name.
-        // Returning it as FirstName keeps the tuple shape the Keycloak
-        // implementation established without inventing a surname.
+        // Identity has no first/last name split — DisplayName is the whole name,
+        // returned as FirstName so the tuple shape is unchanged.
         return rows
             .Select(u => (u.Id, u.UserName ?? string.Empty, u.Email, u.DisplayName, (string?)null, (DateTime?)u.CreatedAt))
             .ToList();

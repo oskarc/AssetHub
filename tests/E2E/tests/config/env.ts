@@ -16,27 +16,8 @@ function required(name: string): string {
   return value;
 }
 
-/**
- * Which identity provider the application under test is running with. Mirrors
- * the server's `Auth:Provider`. Keycloak remains the default so an unset
- * variable behaves exactly as before.
- */
-const authProvider =
-  (processEnv.AUTH_PROVIDER || 'Keycloak').toLowerCase() === 'identity' ? 'Identity' : 'Keycloak';
-
-/** Required only when the run targets Keycloak — Identity runs have no realm. */
-function requiredForKeycloak(name: string): string {
-  return authProvider === 'Keycloak' ? required(name) : (processEnv[name] ?? '');
-}
-
 export const env = {
   baseUrl: processEnv.BASE_URL || 'https://assethub.local:7252',
-  authProvider,
-  usesIdentity: authProvider === 'Identity',
-  keycloakUrl: processEnv.KC_URL || 'https://keycloak.assethub.local:8443',
-  keycloakRealm: 'media',
-  keycloakClientId: 'assethub-app',
-  keycloakClientSecret: requiredForKeycloak('KEYCLOAK_CLIENT_SECRET'),
 
   /** Pre-seeded admin user */
   adminUser: {

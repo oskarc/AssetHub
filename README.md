@@ -50,7 +50,7 @@ docker compose up --build
 Add this line to your hosts file (`C:\Windows\System32\drivers\etc\hosts` on Windows, `/etc/hosts` on Linux/Mac):
 
 ```
-127.0.0.1 assethub.local keycloak.assethub.local
+127.0.0.1 assethub.local
 ```
 
 **3. Open and log in**
@@ -105,7 +105,6 @@ Navigate to **https://assethub.local:7252** and sign in:
 - Logos uploaded as PNG / JPEG / SVG / WebP up to 1 MB, served via 24-hour presigned MinIO URLs
 
 **Guest access**
-- Magic-link guest invitations — admin invites an external reviewer by email; AssetHub provisions a Keycloak guest user on first redemption and grants viewer ACL on the chosen collections. Tokens are signed via Data Protection and only the SHA-256 hash is persisted; the plaintext is shown once at create and never logged. Time-limited, hourly expiry sweep auto-revokes ACLs once the invitation lapses
 
 **Security**
 - ClamAV malware scanning on every upload
@@ -194,7 +193,6 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 |---------|---------|
 | `AssetHub.Domain` | Entities, enums — zero dependencies |
 | `AssetHub.Application` | Service interfaces, DTOs, constants, business rules |
-| `AssetHub.Infrastructure` | EF Core, MinIO, SMTP, ClamAV, Keycloak implementations |
 | `AssetHub.Api` | Composition root — Minimal APIs, auth, DI wiring, Blazor host |
 | `AssetHub.Ui` | Blazor Server components and pages (Razor Class Library) |
 | `AssetHub.Worker` | Wolverine message consumer — media processing, migrations, cleanup jobs (separate container) |
@@ -209,7 +207,6 @@ Every external dependency can be swapped by implementing a clean interface:
 
 | Component | Default | Interface | Swap with |
 |-----------|---------|-----------|-----------|
-| Identity | Keycloak 26 (OIDC) | `IKeycloakUserService` | Azure AD, Okta, Auth0 |
 | Storage | MinIO (S3 API) | `IMinIOAdapter` | AWS S3, Azure Blob, GCS |
 | Database | PostgreSQL 16 | EF Core + Npgsql | SQL Server* |
 | Email | SMTP (Mailpit in dev) | `IEmailService` | SendGrid, AWS SES |
@@ -228,7 +225,7 @@ Every external dependency can be swapped by implementing a clean interface:
 
 | Category | Implementation |
 |----------|---------------|
-| **Authentication** | Pluggable via `Auth:Provider` — `Keycloak` (OIDC with PKCE, the default) or `Identity` (local ASP.NET Core Identity with a sign-in form). JWT bearer for service callers in both modes, routed by a single Smart scheme selector |
+| **Authentication** | Local ASP.NET Core Identity — cookie sign-in via the app's own form, JWT bearer for service callers |
 | **Authorization** | Per-collection RBAC — Viewer, Contributor, Manager, Admin roles |
 | **Rate Limiting** | Per-user, SignalR, anonymous shares, password brute-force protection |
 | **Upload Security** | Content-type allowlist → magic byte check → ClamAV scan → size limits |
@@ -254,7 +251,6 @@ cp .env.template .env          # Configure secrets and domains
 docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
-The deployment guide covers reverse proxy setup (Caddy/Nginx), TLS certificates, backup/restore scripts, Keycloak configuration, CI/CD pipeline, monitoring, and troubleshooting.
 
 > **[DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)** — complete production deployment guide.
 
@@ -290,7 +286,6 @@ cd tests/E2E && npx playwright test
 | UI | Blazor Server, MudBlazor 8 |
 | Database | PostgreSQL 16, EF Core 9 |
 | Storage | MinIO (S3 API) |
-| Auth | Keycloak 26 (OIDC) |
 | Messaging | Wolverine + RabbitMQ |
 | Security | ClamAV, ASP.NET Data Protection |
 | Observability | OpenTelemetry, Aspire Dashboard |
@@ -310,7 +305,6 @@ cd tests/E2E && npx playwright test
 - Office document preview (Word, Excel, PowerPoint)
 - Video transcoding (HLS/DASH adaptive streaming)
 - AI-powered auto-tagging and visual search
-- Group-based ACLs (Keycloak groups/roles)
 - Brand portal and public distribution
 
 > See **[ROADMAP.md](docs/planned-features/ROADMAP.md)** for the full tiered roadmap.

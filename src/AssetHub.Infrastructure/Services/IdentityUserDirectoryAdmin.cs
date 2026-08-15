@@ -9,10 +9,10 @@ namespace AssetHub.Infrastructure.Services;
 
 /// <summary>
 /// <see cref="IUserDirectoryAdmin"/> backed by the local ASP.NET Core Identity
-/// stores. Selected when <c>Auth:Provider</c> is <c>Identity</c>.
+/// stores.
 /// </summary>
 /// <remarks>
-/// The Keycloak implementation talks to a remote admin API and therefore wraps
+/// The identity-store implementation talks to a remote admin API and therefore wraps
 /// every call in HTTP error handling. Here the stores are local, so failures
 /// arrive as <see cref="IdentityResult"/> errors instead; they are translated
 /// into <see cref="InvalidOperationException"/> to match the exception-based
@@ -76,7 +76,7 @@ public sealed class IdentityUserDirectoryAdmin(
         var user = await userManager.FindByIdAsync(userId);
         if (user is null)
         {
-            // Idempotent, matching the Keycloak implementation's behaviour for an
+            // Idempotent, matching the identity-store implementation's behaviour for an
             // already-absent user.
             logger.LogInformation("Delete requested for unknown user {UserId} — nothing to do", userId);
             return;

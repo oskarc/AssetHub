@@ -109,7 +109,7 @@ public sealed partial class AssetHubApiClient
     public async Task<List<DirectoryUserDto>> GetDirectoryUsersAsync(CancellationToken ct = default)
     {
         var result = await userAdminQueryService.GetDirectoryUsersAsync(ct);
-        return Unwrap(result, "Get Keycloak users");
+        return Unwrap(result, "Get identity-store users");
     }
 
     public async Task<PaginatedDirectoryUsersResponse> GetDirectoryUsersPaginatedAsync(
@@ -119,7 +119,7 @@ public sealed partial class AssetHubApiClient
     {
         var result = await userAdminQueryService.GetDirectoryUsersPaginatedAsync(
             search, category, sortBy, sortDesc, skip, take, ct);
-        return Unwrap(result, "Get Keycloak users (paginated)");
+        return Unwrap(result, "Get identity-store users (paginated)");
     }
 
     public async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken ct = default)

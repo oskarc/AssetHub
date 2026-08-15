@@ -235,7 +235,7 @@ test.describe('Admin Panel @admin', () => {
 
     test('user table shows seeded users', async ({ page }) => {
       await page.waitForTimeout(env.timeouts.animation * 2);
-      // Should show mediaadmin and testuser from Keycloak seed
+      // Should show the seeded admin and the test viewer
       const adminRow = page.getByText('mediaadmin');
       const viewerRow = page.getByText('testuser');
       // At least admin should be visible

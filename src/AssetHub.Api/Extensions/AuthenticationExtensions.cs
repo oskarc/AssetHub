@@ -16,7 +16,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace AssetHub.Api.Extensions;
 
 /// <summary>
-/// Configures Keycloak-based authentication (OIDC + JWT + Cookie) and
+/// Configures local Identity authentication (cookie) and
 /// role-based authorization policies.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
@@ -25,22 +25,15 @@ namespace AssetHub.Api.Extensions;
 public static class AuthenticationExtensions
 {
     /// <summary>
-    /// Wires authentication for the configured provider. <c>Auth:Provider</c>
-    /// selects between Keycloak (the default) and local ASP.NET Core Identity;
-    /// the authorization policies are shared by both, so nothing downstream of
-    /// the claims principal knows which one issued it.
+    /// Wires local ASP.NET Core Identity authentication and the shared
+    /// authorization policies.
     /// </summary>
     public static IServiceCollection AddAssetHubAuthentication(
         this IServiceCollection services,
         IConfiguration configuration,
         IWebHostEnvironment environment)
     {
-        var auth = configuration.GetSection(AuthSettings.SectionName).Get<AuthSettings>() ?? new AuthSettings();
-
-        if (auth.UsesIdentity)
-            AddIdentityProvider(services, environment);
-        else
-            AddKeycloakProvider(services, configuration, environment);
+        AddIdentityProvider(services, environment);
 
         ConfigureAuthorizationPolicies(services);
 
@@ -50,7 +43,6 @@ public static class AuthenticationExtensions
     /// <summary>
     /// Local Identity: cookie sign-in against the app's own user store. JWT
     /// bearer stays wired so service callers and the Smart selector behave the
-    /// same as under Keycloak; only the interactive path changes.
     /// </summary>
     private static void AddIdentityProvider(IServiceCollection services, IWebHostEnvironment environment)
     {
@@ -110,126 +102,6 @@ public static class AuthenticationExtensions
         });
     }
 
-
-    /// <summary>Keycloak-backed OIDC — unchanged from before the provider split.</summary>
-    private static void AddKeycloakProvider(
-        IServiceCollection services,
-        IConfiguration configuration,
-        IWebHostEnvironment environment)
-    {
-        var keycloakConfig = configuration.GetSection("Keycloak");
-        var keycloakAuthority = keycloakConfig["Authority"]
-            ?? throw new InvalidOperationException("Keycloak:Authority is required.");
-        var clientId = keycloakConfig["ClientId"]
-            ?? throw new InvalidOperationException("Keycloak:ClientId is required.");
-        var clientSecret = keycloakConfig["ClientSecret"]
-            ?? throw new InvalidOperationException("Keycloak:ClientSecret is required.");
-        var requireHttpsMetadata = keycloakConfig.GetValue("RequireHttpsMetadata", true);
-
-        ValidateHttpsMetadata(requireHttpsMetadata, environment);
-
-        services.AddAuthentication(options =>
-        {
-            options.DefaultScheme = "Smart";
-            options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-        })
-        .AddPolicyScheme("Smart", "Smart Auth Selector", options =>
-        {
-            options.ForwardDefaultSelector = context =>
-            {
-                string? authorization = context.Request.Headers.Authorization;
-                if (!string.IsNullOrEmpty(authorization) &&
-                    authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                {
-                    return Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
-                }
-                return CookieAuthenticationDefaults.AuthenticationScheme;
-            };
-        })
-        .AddJwtBearer(options =>
-        {
-            ConfigureJwtBearer(options, keycloakAuthority, clientId, requireHttpsMetadata, environment);
-        })
-        .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
-        {
-            // In Production we use the real "__Host-" prefix (hyphen!) so the
-            // browser enforces Secure + Path=/ + no Domain. In Development the
-            // cookie isn't Secure under HTTP, and "__Host-" without Secure is
-            // rejected by browsers — so we drop the prefix there.
-            options.Cookie.Name = environment.IsDevelopment()
-                ? "assethub.auth"
-                : "__Host-assethub.auth";
-            options.Cookie.SameSite = SameSiteMode.Strict;
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = environment.IsDevelopment()
-                ? CookieSecurePolicy.SameAsRequest
-                : CookieSecurePolicy.Always;
-        })
-        .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
-        {
-            ConfigureOpenIdConnect(options, keycloakAuthority, clientId, clientSecret,
-                requireHttpsMetadata, environment);
-        });
-    }
-
-    private static void ValidateHttpsMetadata(bool requireHttpsMetadata, IWebHostEnvironment environment)
-    {
-        if (!requireHttpsMetadata && !environment.IsDevelopment())
-        {
-            throw new InvalidOperationException(
-                "Keycloak:RequireHttpsMetadata is false in a non-development environment. " +
-                "This disables HTTPS validation for the OIDC authority and is a significant security risk. " +
-                "Set Keycloak:RequireHttpsMetadata=true for production deployments, or use the Development environment.");
-        }
-    }
-
-    private static void ConfigureJwtBearer(
-        Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions options,
-        string keycloakAuthority,
-        string clientId,
-        bool requireHttpsMetadata,
-        IWebHostEnvironment environment)
-    {
-        options.Authority = keycloakAuthority;
-        options.RequireHttpsMetadata = requireHttpsMetadata;
-        if (environment.IsDevelopment())
-        {
-            // Development only: self-signed certs for local Keycloak. Production
-            // images get the dev cert into the OS trust store at build time
-            // (see Dockerfile TRUST_LOCAL_DEV_CERT build arg) when the prod
-            // compose is being run locally; real production deployments rely
-            // on the system CA bundle.
-#pragma warning disable S4830 // Server certificates should be verified during SSL/TLS connections
-            options.BackchannelHttpHandler = new HttpClientHandler
-            {
-                ServerCertificateCustomValidationCallback =
-                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-            };
-#pragma warning restore S4830
-        }
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = keycloakAuthority,
-            ValidateAudience = true,
-            ValidAudiences = new[] { clientId, "account" },
-            ValidateLifetime = true,
-            NameClaimType = "preferred_username",
-            RoleClaimType = ClaimTypes.Role
-        };
-        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
-        {
-            OnTokenValidated = context =>
-            {
-                if (context.Principal?.Identity is ClaimsIdentity identity)
-                {
-                    MapKeycloakRoles(identity, clientId);
-                }
-                return Task.CompletedTask;
-            }
-        };
-    }
-
     private static void ConfigureAuthorizationPolicies(IServiceCollection services)
     {
         services.AddAuthorization(options =>
@@ -262,149 +134,6 @@ public static class AuthenticationExtensions
             options.AddPolicy("RequireAdmin", policy =>
                 policy.RequireRole(RoleHierarchy.Roles.Admin));
         });
-    }
-
-    // ── OpenID Connect configuration ────────────────────────────────────────
-
-    private static void ConfigureOpenIdConnect(
-        OpenIdConnectOptions options,
-        string keycloakAuthority,
-        string clientId,
-        string clientSecret,
-        bool requireHttpsMetadata,
-        IWebHostEnvironment environment)
-    {
-        options.Authority = keycloakAuthority;
-        options.MetadataAddress = keycloakAuthority + "/.well-known/openid-configuration";
-
-        options.ClientId = clientId;
-        options.ClientSecret = clientSecret;
-
-        options.RequireHttpsMetadata = requireHttpsMetadata;
-        if (environment.IsDevelopment())
-        {
-            // Development only: self-signed certs for local Keycloak. See
-            // ConfigureJwtBearer for the production-image trust-store path.
-#pragma warning disable S4830 // Server certificates should be verified during SSL/TLS connections
-            options.BackchannelHttpHandler = new HttpClientHandler
-            {
-                ServerCertificateCustomValidationCallback =
-                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-            };
-#pragma warning restore S4830
-        }
-
-        options.CallbackPath = "/signin-oidc";
-        options.SignedOutCallbackPath = "/signout-callback-oidc";
-        options.SkipUnrecognizedRequests = true;
-        options.UsePkce = true;
-        options.ResponseType = OpenIdConnectResponseType.Code;
-        options.SaveTokens = true;
-        options.GetClaimsFromUserInfoEndpoint = true;
-
-        options.Scope.Clear();
-        options.Scope.Add("openid");
-        options.Scope.Add("profile");
-        options.Scope.Add("email");
-
-        options.MapInboundClaims = false;
-
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = keycloakAuthority,
-            ValidateAudience = true,
-            ValidAudiences = new[] { clientId, "account" },
-            ValidateLifetime = true,
-            NameClaimType = "preferred_username",
-            RoleClaimType = ClaimTypes.Role
-        };
-
-        options.Events = new OpenIdConnectEvents
-        {
-            OnRedirectToIdentityProvider = context =>
-            {
-                if (context.Properties.Items.TryGetValue("kc_action", out var kcAction))
-                {
-                    context.ProtocolMessage.SetParameter("kc_action", kcAction);
-                }
-                return Task.CompletedTask;
-            },
-            OnRemoteFailure = context =>
-            {
-                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                logger.LogError(context.Failure, "OIDC remote failure: {Message}", context.Failure?.Message);
-                context.HandleResponse();
-                context.Response.Redirect("/?authError=oidc_remote_failure");
-                return Task.CompletedTask;
-            },
-            OnAuthenticationFailed = context =>
-            {
-                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                logger.LogError(context.Exception, "OIDC authentication failed: {Message}", context.Exception?.Message ?? "Unknown");
-                context.HandleResponse();
-                context.Response.Redirect("/?authError=authentication_failed");
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = context =>
-            {
-                if (context.Principal?.Identity is not ClaimsIdentity identity)
-                    return Task.CompletedTask;
-
-                MapKeycloakRoles(identity, clientId);
-                return Task.CompletedTask;
-            }
-        };
-    }
-
-    // ── Keycloak role mapping ───────────────────────────────────────────────
-
-    private static void MapKeycloakRoles(ClaimsIdentity identity, string clientId)
-    {
-        // Realm roles from "realm_access" claim
-        var realmAccess = identity.FindFirst("realm_access")?.Value;
-        if (!string.IsNullOrWhiteSpace(realmAccess))
-        {
-            foreach (var role in ExtractRolesFromJson(realmAccess))
-                AddRoleIfMissing(identity, role);
-        }
-
-        // Client roles from "resource_access" claim
-        var resourceAccess = identity.FindFirst("resource_access")?.Value;
-        if (!string.IsNullOrWhiteSpace(resourceAccess))
-        {
-            foreach (var role in ExtractClientRolesFromJson(resourceAccess, clientId))
-                AddRoleIfMissing(identity, role);
-        }
-    }
-
-    private static void AddRoleIfMissing(ClaimsIdentity identity, string role)
-    {
-        if (!identity.HasClaim(c => c.Type == ClaimTypes.Role && c.Value == role))
-            identity.AddClaim(new Claim(ClaimTypes.Role, role));
-    }
-
-    // ── JSON helpers (Keycloak token parsing) ───────────────────────────────
-
-    internal static IEnumerable<string> ExtractRolesFromJson(string json)
-    {
-        try
-        {
-            using var doc = System.Text.Json.JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("roles", out var rolesProp) ||
-                rolesProp.ValueKind != System.Text.Json.JsonValueKind.Array)
-                return Array.Empty<string>();
-
-            return rolesProp.EnumerateArray()
-                .Where(e => e.ValueKind == System.Text.Json.JsonValueKind.String)
-                .Select(e => e.GetString()!)
-                .Where(s => !string.IsNullOrWhiteSpace(s))
-                .ToArray();
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return Array.Empty<string>();
-        }
     }
 
     internal static IEnumerable<string> ExtractClientRolesFromJson(string json, string clientId)

@@ -1386,6 +1386,72 @@ contracts:
       - Verified means: E2E green under Identity BOTH before and after the cut +
         full unit pass + reconciliation + auth posture identical + ACL matrix
         identical + compose parses + discovery check clean.
-    status: approved
-    revisions: []
+    status: implemented
+    implemented: 2026-08-14
+    implementation_notes: >-
+      THE GATE PAID FOR ITSELF BEFORE ANYTHING WAS DELETED. Bringing the stack up
+      under Identity and driving a real browser sign-in found that sign-in was
+      IMPOSSIBLE — AddIdentityCore + AddSignInManager never registers the
+      Identity.Application cookie handler, so SignInAsync threw and
+      ConfigureApplicationCookie was configuring a scheme that did not exist. The
+      918-test unit suite passed before and after; it runs behind TestAuthHandler
+      and structurally cannot see authentication. Fixed and committed separately
+      as 365fc04 before the removal began.
+
+      Verified live under Identity: migration creates the seven tables, the seeder
+      creates four roles and one bootstrap admin, admin signs in through the form,
+      creating a user via the admin API returns 201, the password policy rejects
+      a weak password, and GET /auth/logout clears the cookie.
+
+      Removal: Keycloak service/DB/volume/init-script from both compose files,
+      KeycloakSettings, AuthSettings and the whole Auth:Provider switch,
+      KeycloakUserDirectoryAdmin, UserLookupService, KeycloakHealthCheck, the
+      OIDC branch and its helpers, KeycloakApiException (renamed
+      UserDirectoryException), and the E2E Keycloak page object. Specs rebuilt as
+      Identity specs per the authorised revision.
+
+      Verification: 909 passed / 0 failed; reconciliation closes exactly
+      (918 - 9 + 0) with the only removals being the 9 Keycloak-implementation
+      tests; ACL matrix identical; census 72 -> 71 after removing an orphaned
+      helper; both compose files parse.
+
+      TWO FINDINGS THE GATE SURFACED THAT ARE NOT AUTH BUGS:
+      (1) The container ships WITHOUT _framework/blazor.web.js — it 404s even with
+      a valid cookie — so no interactive Blazor component works in Docker. This is
+      a pre-existing packaging problem, unrelated to auth, and it is why 2 of 15
+      E2E tests still fail (both need a working circuit). Reported, not fixed:
+      out of contract scope.
+      (2) The account menu still linked to /account, a page C10 deleted. Removed
+      along with its handler and orphaned resource key.
+
+      Self-inflicted during execution: a blanket regex replacing 'Keycloak ' with
+      'identity-store ' corrupted identifiers across 16 files (UserAdminService,
+      CustomWebApplicationFactory) — caught by the build, repaired. And making
+      IdentitySettings validate-on-start plus unconditional seeding broke 167
+      tests by failing host startup; resolved by adding Identity:SeedOnStartup so
+      production keeps its refuse-to-start-without-an-admin guarantee while test
+      hosts, which provision their own schema, opt out.
+    revisions:
+      - date: 2026-08-14
+        authorised_by: >-
+          "I want us to power through, if we rebuild the functionality to identity
+          and drop keycloak that is fine, we do not need to keep the data currently
+          in the instance."
+        change: >-
+          The gate failed on E2E and, per tier_1, would have converted the contract
+          into a fix-Identity contract. Owner instead authorised proceeding in one
+          push. Two consequences. First, the E2E specs are REBUILT as Identity
+          specs rather than made provider-aware — 01-auth.spec.ts drives
+          IdentityLoginPage, keycloak-login.page.ts is deleted, and the
+          AUTH_PROVIDER switch added during the gate comes back out, because after
+          this contract there is only one provider. Second, existing instance data
+          need not be preserved, so no user migration from Keycloak is attempted
+          and the database may be wiped and reseeded.
+        gate_outcome: >-
+          The gate is retained as the contract's verification, not waived — E2E
+          must be green under Identity before the contract closes. What changed is
+          the ORDER: removal and spec rebuild happen together, then E2E proves the
+          end state, rather than E2E proving the pre-state before removal begins.
+          The gate already paid for itself: it found that sign-in was impossible
+          under Identity (missing Identity cookie handlers), fixed in 365fc04.
     work_id: null

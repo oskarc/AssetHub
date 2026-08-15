@@ -16,7 +16,7 @@ namespace AssetHub.Infrastructure.Services;
 /// </summary>
 public sealed record UserLifecycleServices(
     IUserLookupService UserLookup,
-    IUserDirectoryAdmin KeycloakUserDirectoryAdmin,
+    IUserDirectoryAdmin DirectoryAdmin,
     IUserProvisioningService Provisioning,
     IUserCleanupService CleanupService);
 
@@ -28,14 +28,12 @@ public sealed class UserAdminService(
     ICollectionRepository collectionRepo,
     UserLifecycleServices lifecycle,
     IAuditService audit,
-    IOptions<KeycloakSettings> keycloakSettings,
     CurrentUser currentUser,
     ILogger<UserAdminService> logger) : IUserAdminQueryService, IUserAdminService
 {
     private const string AuditKeyUsername = "username";
     private const string UnexpectedError = "An unexpected error occurred";
 
-    private readonly string _adminUsername = keycloakSettings.Value.AdminUsername;
 
     public async Task<ServiceResult<List<UserAccessSummaryDto>>> GetUsersAsync(CancellationToken ct)
     {
@@ -71,14 +69,12 @@ public sealed class UserAdminService(
     {
         var allUsers = await lifecycle.UserLookup.GetAllUsersAsync(ct);
 
-        // Filter out Keycloak admin accounts and service accounts
-        allUsers = allUsers
-            .Where(u => !string.Equals(u.Username, _adminUsername, StringComparison.OrdinalIgnoreCase))
-            .Where(u => !u.Username.StartsWith("service-account-", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        // No filtering: the identity-store admin-API service account this used to hide
+        // does not exist under Identity, and the seeded administrator is a real
+        // user who belongs in the list.
 
-        // Start Keycloak API call in parallel with EF Core query
-        var adminUserIdsTask = lifecycle.KeycloakUserDirectoryAdmin.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        // Start the directory call in parallel with the EF Core query
+        var adminUserIdsTask = lifecycle.DirectoryAdmin.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
         var allAcls = await aclRepo.GetAllAsync(ct);
         var adminUserIds = await adminUserIdsTask;
 
@@ -208,7 +204,7 @@ public sealed class UserAdminService(
 
         try
         {
-            var userId = await lifecycle.KeycloakUserDirectoryAdmin.CreateUserAsync(
+            var userId = await lifecycle.DirectoryAdmin.CreateUserAsync(
                 username, email, firstName, lastName,
                 password, true /* always temporary */, ct);
 
@@ -217,7 +213,7 @@ public sealed class UserAdminService(
             // Assign system admin realm role if requested
             if (request.IsSystemAdmin)
             {
-                await lifecycle.KeycloakUserDirectoryAdmin.AssignRealmRoleAsync(userId, "admin", ct);
+                await lifecycle.DirectoryAdmin.AssignRealmRoleAsync(userId, "admin", ct);
                 logger.LogInformation("Assigned 'admin' realm role to user '{Username}'", username);
             }
 
@@ -228,7 +224,7 @@ public sealed class UserAdminService(
                 await lifecycle.Provisioning.GrantCollectionAccessAsync(request.InitialCollectionIds, userId, role, username, ct);
             }
 
-            // Send password setup email via Keycloak (user sets their own password)
+            // Send password setup email (the user sets their own password)
             if (!string.IsNullOrWhiteSpace(email))
                 await TrySendPasswordSetupEmailAsync(userId, email, username, ct);
 
@@ -247,9 +243,9 @@ public sealed class UserAdminService(
                 Message = message
             };
         }
-        catch (KeycloakApiException ex)
+        catch (UserDirectoryException ex)
         {
-            logger.LogWarning(ex, "Keycloak API error creating user '{Username}'", username);
+            logger.LogWarning(ex, "identity-store API error creating user '{Username}'", username);
 
             await audit.LogAsync("user.create_failed", Constants.ScopeTypes.User, null, currentUser.UserId,
                 new() { [AuditKeyUsername] = username, ["error"] = ex.Message },
@@ -274,7 +270,7 @@ public sealed class UserAdminService(
 
         try
         {
-            await lifecycle.KeycloakUserDirectoryAdmin.SendExecuteActionsEmailAsync(
+            await lifecycle.DirectoryAdmin.SendExecuteActionsEmailAsync(
                 userId, new[] { "UPDATE_PASSWORD" }, lifespan: 86400, ct);
 
             logger.LogInformation("Admin sent password reset email for user '{UserId}'", userId);
@@ -286,9 +282,9 @@ public sealed class UserAdminService(
 
             return ServiceResult.Success;
         }
-        catch (KeycloakApiException ex)
+        catch (UserDirectoryException ex)
         {
-            logger.LogWarning(ex, "Keycloak API error sending password reset email for user '{UserId}'", userId);
+            logger.LogWarning(ex, "identity-store API error sending password reset email for user '{UserId}'", userId);
             return ex.StatusCode == 404
                 ? ServiceError.NotFound(ex.Message)
                 : ServiceError.BadRequest(ex.Message);
@@ -314,11 +310,11 @@ public sealed class UserAdminService(
         {
             if (username is not null)
             {
-                await lifecycle.KeycloakUserDirectoryAdmin.DeleteUserAsync(userId, ct);
+                await lifecycle.DirectoryAdmin.DeleteUserAsync(userId, ct);
             }
             else
             {
-                logger.LogInformation("User '{UserId}' already absent from Keycloak, cleaning up app data only", userId);
+                logger.LogInformation("User '{UserId}' already absent from the identity store, cleaning up app data only", userId);
                 username = userId;
             }
 
@@ -343,9 +339,9 @@ public sealed class UserAdminService(
                 SharesRevoked = sharesRevoked
             };
         }
-        catch (KeycloakApiException ex)
+        catch (UserDirectoryException ex)
         {
-            logger.LogWarning(ex, "Keycloak API error deleting user '{UserId}'", userId);
+            logger.LogWarning(ex, "identity-store API error deleting user '{UserId}'", userId);
             return ex.StatusCode == 404
                 ? ServiceError.NotFound(ex.Message)
                 : ServiceError.BadRequest(ex.Message);
@@ -364,7 +360,7 @@ public sealed class UserAdminService(
 
         // Block self-demotion. The last admin demoting themselves locks the
         // realm out of admin operations from the AssetHub UI; another admin
-        // (or a Keycloak operator) is required to recover. Promotion of self
+        // (or a identity-store operator) is required to recover. Promotion of self
         // is also unnecessary since the caller is already admin to be here.
         if (string.Equals(userId, currentUser.UserId, StringComparison.OrdinalIgnoreCase))
             return ServiceError.BadRequest(isAdmin
@@ -376,12 +372,12 @@ public sealed class UserAdminService(
         try
         {
             // Mutation + audit are intentionally NOT wrapped in IUnitOfWork:
-            // the Keycloak Admin API is the source of truth and rolls back
+            // the identity-store Admin API is the source of truth and rolls back
             // independently if it fails. The audit row is best-effort.
             if (isAdmin)
-                await lifecycle.KeycloakUserDirectoryAdmin.AssignRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
+                await lifecycle.DirectoryAdmin.AssignRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
             else
-                await lifecycle.KeycloakUserDirectoryAdmin.RemoveRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
+                await lifecycle.DirectoryAdmin.RemoveRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
 
             var auditEvent = isAdmin ? "user.promoted_to_admin" : "user.demoted_from_admin";
             await audit.LogAsync(auditEvent, Constants.ScopeTypes.User,
@@ -396,9 +392,9 @@ public sealed class UserAdminService(
 
             return ServiceResult.Success;
         }
-        catch (KeycloakApiException ex)
+        catch (UserDirectoryException ex)
         {
-            logger.LogWarning(ex, "Keycloak API error setting admin role on user '{UserId}'", userId);
+            logger.LogWarning(ex, "identity-store API error setting admin role on user '{UserId}'", userId);
             return ex.StatusCode == 404
                 ? ServiceError.NotFound(ex.Message)
                 : ServiceError.BadRequest(ex.Message);
@@ -431,7 +427,7 @@ public sealed class UserAdminService(
     {
         try
         {
-            await lifecycle.KeycloakUserDirectoryAdmin.SendExecuteActionsEmailAsync(
+            await lifecycle.DirectoryAdmin.SendExecuteActionsEmailAsync(
                 userId, new[] { "UPDATE_PASSWORD" }, lifespan: 86400, ct);
             logger.LogInformation(
                 "Sent password setup email to '{Email}' for new user '{Username}'",

@@ -29,7 +29,7 @@ public static class ClaimsPrincipalExtensions
     }
 
     /// <summary>
-    /// Checks if the user has the global admin role (Keycloak realm role).
+    /// Checks if the user has the global admin role.
     /// </summary>
     public static bool IsGlobalAdmin(this ClaimsPrincipal user)
     {

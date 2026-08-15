@@ -85,7 +85,7 @@ public class SetCollectionAccessDto
     public required string PrincipalType { get; set; }
 
     /// <summary>
-    /// Principal ID (user ID from Keycloak).
+    /// Principal ID (user ID).
     /// </summary>
     [Required]
     [StringLength(255, MinimumLength = 1)]

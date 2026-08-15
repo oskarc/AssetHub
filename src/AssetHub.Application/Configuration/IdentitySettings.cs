@@ -4,7 +4,6 @@ namespace AssetHub.Application.Configuration;
 
 /// <summary>
 /// Local ASP.NET Core Identity configuration. Bound to the "Identity" section.
-/// Only consulted when <see cref="AuthSettings.Provider"/> is <c>Identity</c>.
 /// </summary>
 public class IdentitySettings
 {
@@ -30,6 +29,13 @@ public class IdentitySettings
     /// <summary>Lockout duration in minutes once the attempt limit is hit.</summary>
     [Range(1, 1440)]
     public int LockoutMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Whether to create roles and the bootstrap admin at startup. Production
+    /// leaves this on — an Identity deployment with no administrator cannot be
+    /// signed into. Test hosts that provision their own schema turn it off.
+    /// </summary>
+    public bool SeedOnStartup { get; set; } = true;
 
     /// <summary>
     /// Admin account created on first start when the Identity provider is

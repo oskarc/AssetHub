@@ -164,34 +164,10 @@ public static class ServiceCollectionExtensions
         // ── Options (API-specific — shared options are in AddSharedInfrastructure) ─
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
 
-        var authSettings = configuration.GetSection(AuthSettings.SectionName).Get<AuthSettings>() ?? new AuthSettings();
-        services.AddOptions<AuthSettings>()
-            .Bind(configuration.GetSection(AuthSettings.SectionName))
+        services.AddOptions<IdentitySettings>()
+            .Bind(configuration.GetSection(IdentitySettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
-
-        // Keycloak settings are only required when Keycloak is the selected
-        // provider — validating them on start under Identity would demand
-        // config for a system the deployment no longer runs.
-        if (authSettings.UsesKeycloak)
-        {
-            services.AddOptions<KeycloakSettings>()
-                .Bind(configuration.GetSection(KeycloakSettings.SectionName))
-                .ValidateDataAnnotations()
-                .ValidateOnStart();
-        }
-        else
-        {
-            services.Configure<KeycloakSettings>(configuration.GetSection(KeycloakSettings.SectionName));
-        }
-
-        if (authSettings.UsesIdentity)
-        {
-            services.AddOptions<IdentitySettings>()
-                .Bind(configuration.GetSection(IdentitySettings.SectionName))
-                .ValidateDataAnnotations()
-                .ValidateOnStart();
-        }
 
         services.AddOptions<AppSettings>()
             .Bind(configuration.GetSection(AppSettings.SectionName))
@@ -200,20 +176,10 @@ public static class ServiceCollectionExtensions
 
         // ── Application & Domain Services (API-only) ────────────────────────
         services.AddScoped<ICollectionAuthorizationService, CollectionAuthorizationService>();
-        // User lookup follows the configured provider: the Keycloak
-        // implementation calls the admin API, the Identity one queries the local
-        // store. Every consumer keeps depending on IUserLookupService.
-        if (authSettings.UsesIdentity)
-        {
-            services.AddScoped<IUserLookupService, IdentityUserLookupService>();
-            services.AddScoped<IUserDirectoryAdmin, IdentityUserDirectoryAdmin>();
-            services.AddScoped<PasswordResetLinkSender>();
-            services.AddScoped<IPasswordResetLinkSender<AppUser>>(sp => sp.GetRequiredService<PasswordResetLinkSender>());
-        }
-        else
-        {
-            services.AddScoped<IUserLookupService, UserLookupService>();
-        }
+        services.AddScoped<IUserLookupService, IdentityUserLookupService>();
+        services.AddScoped<IUserDirectoryAdmin, IdentityUserDirectoryAdmin>();
+        services.AddScoped<PasswordResetLinkSender>();
+        services.AddScoped<IPasswordResetLinkSender<AppUser>>(sp => sp.GetRequiredService<PasswordResetLinkSender>());
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<IAuditService, AuditService>();
@@ -295,51 +261,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDashboardQueryService, DashboardQueryService>();
         services.AddScoped<IDashboardService, DashboardService>();
 
-        // ── Keycloak Admin API HttpClient ───────────────────────────────────
         // HttpClient.Timeout is disabled (Infinite) because Polly manages both
         // per-attempt and total timeouts. Setting HttpClient.Timeout alongside
         // Polly would cap the entire retry sequence, potentially killing the
         // last retry mid-flight.
-        var keycloakAttemptTimeoutSeconds = configuration.GetValue("Keycloak:TimeoutSeconds", 10);
-        // Braces are load-bearing for readability here: the registration below is a
-        // single fluent statement spanning ~36 lines, so an unbraced `if` guards all
-        // of it but does not look like it.
-        if (authSettings.UsesKeycloak)
-        {
-        services.AddHttpClient<IUserDirectoryAdmin, KeycloakUserDirectoryAdmin>(client =>
-        {
-            client.Timeout = Timeout.InfiniteTimeSpan;
-        })
-        .ConfigurePrimaryHttpMessageHandler(() => CreateHttpHandler(environment))
-        .AddResilienceHandler("keycloak", builder =>
-        {
-            // Retry 5xx and transient network errors; never retry 4xx (auth/conflict).
-            static bool IsTransientHttpFailure(Outcome<HttpResponseMessage> outcome) =>
-                outcome.Exception is HttpRequestException or TimeoutException
-                || (outcome.Result is { StatusCode: >= System.Net.HttpStatusCode.InternalServerError });
-
-            builder.AddRetry(new HttpRetryStrategyOptions
-            {
-                MaxRetryAttempts = 3,
-                BackoffType = DelayBackoffType.Exponential,
-                Delay = TimeSpan.FromMilliseconds(500),
-                ShouldHandle = args => ValueTask.FromResult(IsTransientHttpFailure(args.Outcome))
-            });
-
-            builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
-            {
-                SamplingDuration = TimeSpan.FromSeconds(30),
-                FailureRatio = 0.5,
-                MinimumThroughput = 10,
-                BreakDuration = TimeSpan.FromSeconds(15),
-                ShouldHandle = args => ValueTask.FromResult(IsTransientHttpFailure(args.Outcome))
-            });
-
-            // Per-attempt timeout (each individual HTTP call).
-            // Total time is bounded by: attempts × timeout + backoff delays.
-            builder.AddTimeout(TimeSpan.FromSeconds(keycloakAttemptTimeoutSeconds));
-        });
-        }
 
         // ── UI Services ─────────────────────────────────────────────────────
         services.AddScoped<AssetHub.Ui.Services.IUserFeedbackService, AssetHub.Ui.Services.UserFeedbackService>();
@@ -364,11 +289,6 @@ public static class ServiceCollectionExtensions
             .AddCheck<MinioHealthCheck>("minio", tags: ["storage", ReadyTag])
             .AddCheck<ClamAvHealthCheck>("clamav", tags: ["security", ReadyTag]);
 
-        // Keycloak health is only meaningful when Keycloak is the provider —
-        // under Identity the app would otherwise report unhealthy against a
-        // system it no longer uses.
-        if (authSettings.UsesKeycloak)
-            healthChecks.AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", ReadyTag]);
 
         if (!string.IsNullOrEmpty(redisConnection))
         {
@@ -490,23 +410,4 @@ public static class ServiceCollectionExtensions
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             QueueLimit = 0
         });
-
-    /// <summary>
-    /// Creates an HttpClientHandler that bypasses TLS certificate validation in
-    /// Development only (self-signed certs for Keycloak, etc.). In all other
-    /// environments, standard certificate validation is enforced.
-    /// </summary>
-    private static HttpClientHandler CreateHttpHandler(IWebHostEnvironment environment)
-    {
-        var handler = new HttpClientHandler();
-        if (environment.IsDevelopment())
-        {
-            // Development only: self-signed certs for local Keycloak/MinIO
-#pragma warning disable S4830 // Server certificates should be verified during SSL/TLS connections
-            handler.ServerCertificateCustomValidationCallback =
-                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-#pragma warning restore S4830
-        }
-        return handler;
-    }
 }

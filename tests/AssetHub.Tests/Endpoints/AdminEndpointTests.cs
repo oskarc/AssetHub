@@ -238,8 +238,8 @@ public class AdminEndpointTests : IAsyncLifetime
     {
         var client = AdminClient();
 
-        // Setup Keycloak mock to simulate user creation
-        _factory.MockKeycloak
+        // Setup identity-store mock to simulate user creation
+        _factory.MockDirectoryAdmin
             .Setup(x => x.CreateUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("new-user-id");
 
@@ -303,9 +303,9 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task DeleteUser_NonExistentUser_Returns404Or500()
     {
         var client = AdminClient();
-        _factory.MockKeycloak
+        _factory.MockDirectoryAdmin
             .Setup(x => x.DeleteUserAsync("non-existent-uid", It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new AssetHub.Application.Services.KeycloakApiException("User not found", 404));
+            .ThrowsAsync(new AssetHub.Application.Services.UserDirectoryException("User not found", 404));
 
         var response = await client.DeleteAsync("/api/v1/admin/users/non-existent-uid");
 
@@ -320,9 +320,9 @@ public class AdminEndpointTests : IAsyncLifetime
     public async Task ResetPassword_NonExistentUser_Returns404Or500()
     {
         var client = AdminClient();
-        _factory.MockKeycloak
+        _factory.MockDirectoryAdmin
             .Setup(x => x.SendExecuteActionsEmailAsync("non-existent-uid", It.IsAny<IEnumerable<string>>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new AssetHub.Application.Services.KeycloakApiException("User not found", 404));
+            .ThrowsAsync(new AssetHub.Application.Services.UserDirectoryException("User not found", 404));
 
         var response = await client.PostAsync("/api/v1/admin/users/non-existent-uid/reset-password", null);
 

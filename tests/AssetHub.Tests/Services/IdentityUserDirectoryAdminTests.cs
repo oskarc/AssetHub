@@ -124,7 +124,7 @@ public class IdentityUserDirectoryAdminTests : IAsyncLifetime
         using var scope = Scope();
         var admin = scope.ServiceProvider.GetRequiredService<IUserDirectoryAdmin>();
 
-        // Matches the Keycloak implementation's idempotent behaviour: deleting an
+        // Matches the identity-store implementation's idempotent behaviour: deleting an
         // absent user is a no-op, not an error.
         var ex = await Record.ExceptionAsync(() => admin.DeleteUserAsync(Guid.NewGuid().ToString()));
         Assert.Null(ex);

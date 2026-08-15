@@ -9,7 +9,7 @@ public interface ICollectionAuthorizationService
     /// <summary>
     /// Checks if a user has a specific role on a collection.
     /// </summary>
-    /// <param name="userId">User ID (from Keycloak token)</param>
+    /// <param name="userId">User ID (from the claims principal)</param>
     /// <param name="collectionId">Collection ID to check</param>
     /// <param name="requiredRole">Required role: "viewer", "contributor", "manager", "admin"</param>
     /// <param name="ct">Cancellation token</param>

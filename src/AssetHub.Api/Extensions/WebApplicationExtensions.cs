@@ -56,13 +56,16 @@ public static class WebApplicationExtensions
 
     /// <summary>
     /// Creates the application roles and, on an empty user store, the bootstrap
-    /// admin. Runs only under the Identity provider — a no-op under Keycloak,
-    /// which owns its own users.
+    /// admin.
     /// </summary>
     private static async Task SeedIdentityAsync(IServiceProvider services, Microsoft.Extensions.Logging.ILogger logger)
     {
-        var auth = services.GetRequiredService<IOptions<AuthSettings>>().Value;
-        if (!auth.UsesIdentity) return;
+        var identity = services.GetRequiredService<IOptions<IdentitySettings>>().Value;
+        if (!identity.SeedOnStartup)
+        {
+            logger.LogInformation("Identity seeding disabled by configuration");
+            return;
+        }
 
         try
         {
@@ -295,14 +298,8 @@ public static class WebApplicationExtensions
                 Results.BadRequest("OIDC callback hit without state/code. Start login via /auth/login."))
             .AllowAnonymous();
 
-        // Auth routes. The paths are identical under both providers so the UI
-        // (MainLayout, Login.razor) never learns which one is configured — only
-        // what each path does behind the scenes differs.
-        var authSettings = app.Services.GetRequiredService<IOptions<AuthSettings>>().Value;
-        if (authSettings.UsesIdentity)
-            MapIdentityAuthRoutes(app);
-        else
-            MapKeycloakAuthRoutes(app);
+        // Auth routes.
+        MapIdentityAuthRoutes(app);
 
         // API endpoints
         app.MapDashboardEndpoints();
@@ -495,31 +492,6 @@ public static class WebApplicationExtensions
         return context.Response.WriteAsJsonAsync(result);
     }
 
-    /// <summary>Keycloak OIDC auth routes — unchanged from before the provider split.</summary>
-    private static void MapKeycloakAuthRoutes(WebApplication app)
-    {
-        app.MapGet("/auth/login", async (HttpContext http, string? returnUrl) =>
-        {
-            // Prevent open redirect: only allow known internal routes
-            var redirectUri = AssetHub.Application.Helpers.UrlSafetyHelper.SafeReturnUrl(returnUrl);
-            await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
-                new() { RedirectUri = redirectUri });
-        });
-
-        app.MapGet("/auth/logout", async (HttpContext http) =>
-        {
-            await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            await http.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme,
-                new() { RedirectUri = "/" });
-        });
-
-        app.MapGet("/auth/change-password", async (HttpContext http) =>
-        {
-            var properties = new AuthenticationProperties { RedirectUri = "/" };
-            properties.Items["kc_action"] = "UPDATE_PASSWORD";
-            await http.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, properties);
-        }).RequireAuthorization();
-    }
 
     /// <summary>
     /// Local Identity auth routes. Sign-in is a form POST rather than an OIDC
