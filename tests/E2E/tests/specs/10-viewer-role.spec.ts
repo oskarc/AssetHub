@@ -57,7 +57,13 @@ test.describe('Viewer Role Restrictions @acl @auth', () => {
   });
 
   test('viewer sees collections page', async ({ page }) => {
-    await page.goto('/assets');
+    // Was navigating to /assets, which no page declares — the app answers 404
+    // with an empty body (endpoint routing rejects it before Blazor renders, so
+    // the Router's NotFound branch never runs) and the assertion saw a blank
+    // page. Measured identical on the pre- and post-contract-017 trees, so this
+    // was a stale route, not a regression. /collections is the page the test name
+    // has always described.
+    await page.goto('/collections');
     await page.waitForLoadState('networkidle');
     await expect(page.getByText(/collections/i).first()).toBeVisible();
   });

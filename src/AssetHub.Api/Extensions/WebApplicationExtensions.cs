@@ -10,7 +10,7 @@ using AssetHub.Api.Middleware;
 using AssetHub.Application;
 using AssetHub.Application.Dtos;
 using AssetHub.Application.Services;
-using AssetHub.Ui;
+using AssetHub.Api.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -313,9 +313,16 @@ public static class WebApplicationExtensions
         app.MapAdminTrashEndpoints();
         app.MapAssetVersionEndpoints();
 
-        // Blazor
+        // Blazor. App lives here (the host owns its own document); every routable
+        // page lives in the AssetHub.Ui RCL, so that assembly must be named
+        // explicitly. This is NOT the same knob as Router.AdditionalAssemblies in
+        // Routes.razor: that one drives interactive client-side routing, while this
+        // one drives server-side endpoint discovery — and with it each page's
+        // [Authorize]/[AllowAnonymous] metadata. Omit it and every page falls to the
+        // fallback policy, which turns /login into a redirect loop.
         app.MapRazorComponents<App>()
-           .AddInteractiveServerRenderMode();
+           .AddInteractiveServerRenderMode()
+           .AddAdditionalAssemblies(typeof(AssetHub.Ui.Layout.MainLayout).Assembly);
 
         // Health checks
         MapHealthCheckEndpoints(app);

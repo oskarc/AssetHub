@@ -1537,3 +1537,77 @@ contracts:
       contributes no _framework or scoped-CSS assets for this Api-hosts-RCL
       layout — rather than from a proposed fix.
 
+  - contract_id: contract-017
+    feature: restore-host-owns-its-document
+    date_proposed: 2026-08-16
+    date_approved: 2026-08-16
+    supersedes: contract-016
+    tier_1: |
+      Redraw of stopped contract-016, now grounded in a traced root cause.
+
+      blazor.web.js ships in the NuGet package Microsoft.AspNetCore.App.Internal.Assets,
+      which the SDK adds IMPLICITLY and ONLY when a Web project contains Razor
+      content. AssetHub.Api contains zero .razor files — all 70 live in the
+      AssetHub.Ui RCL, App.razor included — so the SDK never classified the host
+      as a Blazor app and never published its client assets. Proven by three
+      controlled builds: reference template (host owns components) -> asset
+      present; minimal Web host + RCL with no own components -> absent,
+      reproducing the bug exactly; same host plus one trivial .razor -> present.
+
+      The fix is structural. The SDK rule encodes a real assumption: a host owns
+      its own document. App.razor IS hosting — head, script tags, asset links,
+      render-mode declarations — and it currently lives in a library. Moving it
+      back restores that ownership; the SDK behaviour follows as a consequence
+      rather than as the goal.
+
+      The one-line alternative (explicit PackageReference to that package) was
+      TESTED and works, including on the real project — and is recommended
+      AGAINST: the package name announces it is not a public contract, it needs a
+      version pin, and adopting it would leave in place the drift-from-tooling-
+      assumptions that produced a silent failure.
+
+      The RCL stays. AssetHub.Ui references only AssetHub.Application — the
+      compiler-enforced boundary keeping UI off Infrastructure. App.razor does
+      not reference Infrastructure, so moving it costs that rule nothing.
+
+      A guard is part of the contract, not an extra. This broke silently and
+      stayed broken: green build, 909 passing tests, correct server-rendered
+      HTML, a working /_blazor hub — every signal healthy while no user could
+      click anything.
+    tier_2: |
+      1. Baseline roll-forward to be40d17 (909); docker pre-check first.
+      2. Move App.razor to AssetHub.Api; add a host _Imports.razor carrying only
+         what the document needs, NOT a copy of the RCL's 34-line list.
+      3. Move Routes.razor alongside it. AppAssembly becomes typeof(Program).Assembly
+         plus AdditionalAssemblies naming the Ui assembly. ROUTING MUST NOT CHANGE
+         — all 16 routable pages resolve exactly as before.
+      4. Update MapRazorComponents<App>() resolution and the RCL _Imports where it
+         references AssetHub.Ui.App.
+      5. Verify SDK classification: Microsoft.AspNetCore.App.Internal.Assets appears
+         as a resolved dependency of AssetHub.Api, and publish emits
+         wwwroot/_framework/blazor.web.js.
+      6. Scoped CSS: confirm AssetHub.Api.styles.css generates and serves; if the
+         bundle is still absent (RCL has zero .razor.css), remove the dangling link
+         rather than leave a known 404.
+      7. REGRESSION GUARD: automated assertion that /_framework/blazor.web.js
+         returns 200 with an executable content type, placed so it runs without a
+         browser if possible.
+      8. Sweep: _Imports duplication, stale @using AssetHub.Ui references, anything
+         assuming the document lives in the library.
+    tier_3: |
+      - /_framework/blazor.web.js returns 200 with an executable content type IN
+        THE CONTAINER, and window.Blazor exists in a real browser.
+      - A MENU OPENS — the thing that has never worked in Docker.
+      - All 16 routable pages resolve at their existing URLs; enumerated, not
+        spot-checked.
+      - E2E green including the two circuit-dependent tests that currently fail.
+      - The regression guard fails if the script 404s — verified by deliberately
+        breaking it once.
+      - Unit suite unchanged at 909 with zero assertion edits.
+      - AssetHub.Ui still references only AssetHub.Application.
+      - No dependency on Microsoft.AspNetCore.App.Internal.Assets in any csproj.
+      - Census no new rules; both compose files parse.
+      - Owner asked for a VERIFY PASS after implementation.
+    status: approved
+    revisions: []
+    work_id: null

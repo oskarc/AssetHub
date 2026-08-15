@@ -277,6 +277,15 @@ The UI standard — facade-only backend access, the `ExecuteWithFeedbackAsync` d
 
 Razor Class Library that depends **only** on Application. Never reference Infrastructure or Api.
 
+### The host owns the document
+
+`App.razor`, `Routes.razor` and their `_Imports.razor` live in **`AssetHub.Api/Components/`**, not in the RCL. Everything else — pages, layouts, dialogs, components — lives in `AssetHub.Ui`. The split is deliberate and load-bearing in two independent ways; both failed silently when the document lived in the RCL, so neither is safe to "tidy up":
+
+1. **Static assets.** `blazor.web.js` ships in `Microsoft.AspNetCore.App.Internal.Assets`, which the SDK adds **implicitly and only when a Web project contains Razor content of its own**. With zero `.razor` files in `AssetHub.Api`, the SDK did not treat the host as a Blazor app and published no client script — so no circuit ever started and nothing in the UI responded to a click. Never add that package by hand; keeping the document in the host is what earns it.
+2. **Routable-page discovery.** `MapRazorComponents<App>()` discovers pages from `App`'s own assembly, so the RCL must be named explicitly via **`.AddAdditionalAssemblies(...)`**. This is *not* the same knob as `Router.AdditionalAssemblies` in `Routes.razor` — that one drives interactive client-side routing, while this one drives server-side endpoint discovery **and each page's `[Authorize]` / `[AllowAnonymous]` metadata**. Drop it and every page falls to the fallback policy, turning `/login` into a redirect to itself. Both are required together.
+
+The unit suite cannot see either failure: `TestAuthHandler` authenticates every request, and static assets aren't exercised by ordinary tests. `BlazorHostAssetTests` guards both — treat a failure there as a hosting regression, not a flaky test.
+
 Design tokens, color palettes, typography scale, elevation, and information-architecture conventions live in **[docs/STYLEGUIDE.md](docs/STYLEGUIDE.md)** — consult it before styling any new surface. Never hard-code hex values or font sizes; use MudBlazor CSS variables and `Typo.*`.
 
 ### Component library

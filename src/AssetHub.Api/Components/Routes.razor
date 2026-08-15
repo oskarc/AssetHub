@@ -2,9 +2,11 @@
 
 @inject IStringLocalizer<CommonResource> CommonLoc
 
-<Router AppAssembly="typeof(AssetHub.Ui.App).Assembly">
+@* AppAssembly is the host (it owns App.razor); every routable page lives in the
+   AssetHub.Ui RCL, so that assembly is scanned via AdditionalAssemblies. *@
+<Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="UiAssembly">
     <Found Context="routeData">
-        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
             <NotAuthorized>
                 @if (context.User.Identity?.IsAuthenticated != true)
                 {
@@ -23,7 +25,7 @@
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
     <NotFound>
-        <LayoutView Layout="typeof(Layout.MainLayout)">
+        <LayoutView Layout="typeof(MainLayout)">
             <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center error-page-height">
                 <MudStack AlignItems="AlignItems.Center" Spacing="4">
                     <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Secondary" />
@@ -39,3 +41,8 @@
         </LayoutView>
     </NotFound>
 </Router>
+
+@code {
+    // Static so the router is not handed a freshly-allocated array on every render.
+    private static readonly Assembly[] UiAssembly = [typeof(MainLayout).Assembly];
+}

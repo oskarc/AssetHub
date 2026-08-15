@@ -1,0 +1,18 @@
+@* Imports for the host document only (App.razor, Routes.razor).
+
+   Deliberately NOT a copy of src/AssetHub.Ui/_Imports.razor. The host owns two
+   components — the HTML document and the router — so it imports only what those
+   two need. Page and component namespaces stay imported by the RCL that
+   contains them. *@
+
+@using System.Reflection
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.Extensions.Localization
+@using MudBlazor
+@using AssetHub.Api.Components
+@using AssetHub.Ui.Layout
+@using AssetHub.Ui.Components.Shared
+@using AssetHub.Ui.Resources

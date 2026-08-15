@@ -78,6 +78,13 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     {
         builder.UseEnvironment("Testing");
 
+        // The build output has no physical wwwroot — every static file (including
+        // _framework/blazor.web.js) is served from the static web assets manifest,
+        // which the host only loads automatically in Development. Without this the
+        // test host serves no static files at all, so any test asserting on one
+        // would fail identically whether or not the asset was ever built.
+        builder.UseStaticWebAssets();
+
         // Inject test connection string so AddSharedInfrastructure doesn't fail
         builder.ConfigureAppConfiguration((_, config) =>
         {
