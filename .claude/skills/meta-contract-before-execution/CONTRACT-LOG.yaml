@@ -1455,3 +1455,85 @@ contracts:
           The gate already paid for itself: it found that sign-in was impossible
           under Identity (missing Identity cookie handlers), fixed in 365fc04.
     work_id: null
+
+  - contract_id: contract-016
+    feature: fix-blazor-static-assets
+    date_proposed: 2026-08-14
+    date_approved: 2026-08-14
+    tier_1: |
+      The containerised app has no working interactive UI.
+      /_framework/blazor.web.js returns 404 even with a valid session, so the
+      Blazor circuit never starts: no menus, no dialogs, no buttons. Everything
+      server-rendered looks correct, which is why it went unnoticed. Found while
+      running the C12c gate; it is why 2 of 15 E2E tests fail. Not an auth
+      problem and not caused by the reshape.
+
+      Diagnosis stated as a HYPOTHESIS, not a fact: MapStaticAssets() appears
+      nowhere in source and the published endpoints manifest looked nearly empty.
+      From .NET 9 the Blazor script moved to the MapStaticAssets() pipeline. That
+      fit the symptoms but was unproven, so confirming the root cause was step
+      one rather than an assumption baked into the plan.
+
+      Sequenced before C13 because the unit suite structurally cannot see UI or
+      auth — E2E is the only real gate for either, and C13 folds the Worker into
+      the Api. Fix the gate before leaning on it.
+    tier_2: |
+      1. Baseline roll-forward to bc3e75c (909); docker pre-check first.
+      2. CONFIRM THE ROOT CAUSE BEFORE CHANGING ANYTHING. Reproduce outside
+         Docker against the published output; inspect what the manifest actually
+         contains versus what MapRazorComponents expects. If the cause is
+         something other than the missing MapStaticAssets(), the plan below is
+         wrong and I stop and re-draw.
+      3. Adopt the current pipeline: app.MapStaticAssets() ahead of
+         MapRazorComponents<App>(), reconciled with the existing UseStaticFiles().
+      4. Verify the published manifest carries the framework routes and that
+         /_framework/blazor.web.js returns 200 with an executable content-type.
+      5. Re-check the UseBlazorAnonymousAccess carve-out once assets are served
+         by endpoint routing rather than middleware.
+      6. Tests: the two circuit-dependent E2E specs pass; add a smoke assertion
+         that the framework script returns 200 so this cannot silently regress.
+      7. Sweep for other assets the same gap hid — scoped CSS, _content/.
+    tier_3: |
+      - /_framework/blazor.web.js returns 200 with an executable content-type in
+        the container, authenticated and anonymous.
+      - The circuit connects: window.Blazor exists and a menu opens in a browser.
+      - E2E green: all 15 @auth chromium tests.
+      - Scoped CSS resolves with no MIME-type console errors.
+      - Unit suite unchanged at 909 with zero assertion edits — hosting fix, not
+        behaviour change.
+      - Census no new rules; both compose files parse.
+    status: stopped
+    stopped: 2026-08-14
+    work_id: null
+    stop_reason: >-
+      Tier_2 step 2 was an explicit stop-and-redraw gate. That condition fired:
+      adding MapStaticAssets() did NOT resolve the 404, so tier_2 steps 3-7 rest
+      on a wrong diagnosis. Contract stopped with the tree clean — no partial fix
+      left behind, nothing committed.
+
+      What the investigation ESTABLISHED (measured, not inferred). The symptom is
+      real: /_framework/blazor.web.js returns 404 to an authenticated request, so
+      no circuit starts; anonymous requests get 302 from auth redirect before
+      routing reaches the 404. It is NOT a Docker problem — the published output
+      behaves identically outside Docker and the container manifest has 70
+      endpoints, matching a local publish. It is NOT the flattened intermediate
+      `dotnet build -o` step in the Dockerfile; removing that changed nothing and
+      it was reverted. It is NOT a missing MapStaticAssets() on its own; added,
+      rebuilt, still 404, reverted. The manifest contains ZERO _framework routes
+      (70 endpoints, all _content/*, css/*, favicon*), and AssetHub.Api.styles.css
+      is likewise absent, yet App.razor references both. App.razor is a correct
+      .NET 8+ Blazor Web App head. blazor.web.js exists nowhere on disk in SDK or
+      container — it is framework-embedded, so the real question is why its route
+      is never registered.
+
+      TWO MEASUREMENT ERRORS OF MINE, both caught and corrected mid-investigation:
+      `grep -c Route` counted lines in minified JSON and reported 1 endpoint where
+      there were 70, which sent the Docker hypothesis down a blind alley; and the
+      first 302-vs-404 comparison used different Host headers, later re-run
+      controlled. The first error is the more instructive: a measurement artefact
+      became a diagnosis, and a change was made on its strength.
+
+      The redraw should start from the manifest question — why the Razor SDK
+      contributes no _framework or scoped-CSS assets for this Api-hosts-RCL
+      layout — rather than from a proposed fix.
+
