@@ -85,7 +85,7 @@ public record UserCollectionAccessDto
 /// <summary>
 /// User details from Keycloak.
 /// </summary>
-public record KeycloakUserDto
+public record DirectoryUserDto
 {
     public required string Id { get; init; }
     public required string Username { get; init; }
@@ -102,9 +102,9 @@ public record KeycloakUserDto
 /// <summary>
 /// Paginated response for Keycloak users with category counts for filter chips.
 /// </summary>
-public record PaginatedKeycloakUsersResponse
+public record PaginatedDirectoryUsersResponse
 {
-    public List<KeycloakUserDto> Users { get; init; } = [];
+    public List<DirectoryUserDto> Users { get; init; } = [];
     public int TotalFiltered { get; init; }
     public int TotalAll { get; init; }
     public int WithAccessCount { get; init; }

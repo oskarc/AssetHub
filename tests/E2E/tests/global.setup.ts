@@ -1,6 +1,7 @@
 import { test as setup, expect } from '@playwright/test';
 import { env } from './config/env';
 import { KeycloakLoginPage } from './pages/keycloak-login.page';
+import { IdentityLoginPage } from './pages/identity-login.page';
 import { ensureTestFixtures } from './helpers/test-fixtures';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -8,7 +9,9 @@ import * as path from 'node:path';
 const AUTH_DIR = path.join(__dirname, '.auth');
 
 /**
- * Helper to authenticate a user via OIDC and save browser state.
+ * Authenticate a user and save browser state. Which login surface is driven
+ * depends on the provider the app under test is running with — the resulting
+ * storage state is equivalent either way.
  */
 async function authenticateUser(
   page: import('@playwright/test').Page,
@@ -16,8 +19,8 @@ async function authenticateUser(
   password: string,
   stateFileName: string
 ) {
-  const keycloak = new KeycloakLoginPage(page);
-  await keycloak.fullLogin(username, password);
+  const loginPage = env.usesIdentity ? new IdentityLoginPage(page) : new KeycloakLoginPage(page);
+  await loginPage.fullLogin(username, password);
 
   // Verify we're authenticated — check for user display name in the app bar
   await expect(page.locator('.mud-appbar .mud-typography-body2')).toBeVisible({
@@ -58,7 +61,7 @@ setup('authenticate as admin', async ({ page }) => {
     throw new Error(`Application at ${env.baseUrl} is not responding. Ensure docker-compose is running.`);
   }
 
-  // Login as admin via Keycloak
+  // Login as admin via the configured provider
   await authenticateUser(page, env.adminUser.username, env.adminUser.password, 'admin.json');
 });
 
@@ -69,7 +72,7 @@ setup('authenticate as viewer', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   
-  // Login as viewer via Keycloak
+  // Login as viewer via the configured provider
   await authenticateUser(page, env.viewerUser.username, env.viewerUser.password, 'viewer.json');
   
   await context.close();

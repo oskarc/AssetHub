@@ -30,7 +30,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     private string _connectionString = string.Empty;
 
     public Mock<IMinIOAdapter> MockMinIO { get; } = new();
-    public Mock<IKeycloakUserService> MockKeycloak { get; } = new();
+    public Mock<IUserDirectoryAdmin> MockKeycloak { get; } = new();
     public Mock<IEmailService> MockEmail { get; } = new();
     public Mock<IMediaProcessingService> MockMedia { get; } = new();
     public Mock<IUserLookupService> MockUserLookup { get; } = new();
@@ -136,7 +136,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll<IMinIOAdapter>();
             services.AddScoped(_ => MockMinIO.Object);
 
-            services.RemoveAll<IKeycloakUserService>();
+            services.RemoveAll<IUserDirectoryAdmin>();
             services.AddScoped(_ => MockKeycloak.Object);
 
             services.RemoveAll<IEmailService>();

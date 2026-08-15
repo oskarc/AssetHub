@@ -11,8 +11,8 @@ public class BulkCollectionActionsDialogTests : BunitTestBase
 {
     private void SetupUsers()
     {
-        MockApi.Setup(a => a.GetKeycloakUsersAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<KeycloakUserDto>
+        MockApi.Setup(a => a.GetDirectoryUsersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<DirectoryUserDto>
             {
                 new()
                 {
@@ -97,13 +97,13 @@ public class BulkCollectionActionsDialogTests : BunitTestBase
     {
         await RenderDialogAsync();
 
-        MockApi.Verify(a => a.GetKeycloakUsersAsync(It.IsAny<CancellationToken>()), Times.Once());
+        MockApi.Verify(a => a.GetDirectoryUsersAsync(It.IsAny<CancellationToken>()), Times.Once());
     }
 
     [Fact]
     public async Task Handles_User_Load_Error()
     {
-        MockApi.Setup(a => a.GetKeycloakUsersAsync(It.IsAny<CancellationToken>()))
+        MockApi.Setup(a => a.GetDirectoryUsersAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("API error"));
 
         var collections = TestData.CreateCollections(2);

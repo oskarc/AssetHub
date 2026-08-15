@@ -577,8 +577,46 @@ public static class WebApplicationExtensions
             return Results.Redirect("/");
         });
 
-        app.MapGet("/auth/change-password", () => Results.Redirect("/account/password"))
+        app.MapGet("/auth/change-password", () => Results.Redirect("/reset-password/self"))
             .RequireAuthorization();
+
+        // Self-service reset request. Always reports success: telling the caller
+        // whether an account exists would make this an account-enumeration oracle.
+        app.MapPost("/auth/forgot-password", async (
+            [FromForm] string userNameOrEmail,
+            [FromServices] UserManager<AppUser> users,
+            [FromServices] IPasswordResetLinkSender<AppUser> sender,
+            CancellationToken ct) =>
+        {
+            var user = await users.FindByNameAsync(userNameOrEmail)
+                       ?? await users.FindByEmailAsync(userNameOrEmail);
+            if (user is not null)
+                await sender.SendAsync(user, isNewAccount: false, ct);
+
+            return Results.Redirect("/login?reset=sent");
+        }).AllowAnonymous().DisableAntiforgery();
+
+        // Completes a reset from the emailed link.
+        app.MapPost("/auth/reset-password", async (
+            [FromForm] string userId,
+            [FromForm] string token,
+            [FromForm] string newPassword,
+            [FromServices] PasswordResetLinkSender sender,
+            [FromServices] IAuditService audit,
+            CancellationToken ct) =>
+        {
+            var (ok, error) = await sender.ResetAsync(userId, token, newPassword, ct);
+            if (!ok)
+            {
+                var reason = error is null ? "invalid" : "policy";
+                return Results.Redirect(
+                    $"/reset-password?userId={Uri.EscapeDataString(userId)}&token={Uri.EscapeDataString(token)}&error={reason}");
+            }
+
+            await audit.LogAsync("user.password_reset_completed", Constants.ScopeTypes.User,
+                targetId: null, actorUserId: userId, null, ct);
+            return Results.Redirect("/login?reset=done");
+        }).AllowAnonymous().DisableAntiforgery();
     }
 
 }

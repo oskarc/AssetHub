@@ -197,14 +197,6 @@ public class AdminEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Viewer_CannotSyncUsers_Returns403()
-    {
-        var client = ViewerClient();
-        var response = await client.PostAsync("/api/v1/admin/users/sync?dryRun=true", null);
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
     public async Task Viewer_CannotSetCollectionAccess_Returns403()
     {
         var client = ViewerClient();
@@ -222,10 +214,10 @@ public class AdminEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Viewer_CannotGetKeycloakUsers_Returns403()
+    public async Task Viewer_CannotGetDirectoryUsers_Returns403()
     {
         var client = ViewerClient();
-        var response = await client.GetAsync("/api/v1/admin/keycloak-users");
+        var response = await client.GetAsync("/api/v1/admin/directory-users");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 

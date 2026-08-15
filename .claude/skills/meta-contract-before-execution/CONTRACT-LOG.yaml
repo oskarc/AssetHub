@@ -1167,3 +1167,131 @@ contracts:
       surface still calls the Keycloak admin API, so under Auth:Provider=Identity
       those operations are non-functional. E2E verification of the Identity
       sign-in path also remains outstanding — the unit suite cannot cover it.
+
+  - contract_id: contract-014
+    feature: reshape-c12b-identity-admin-and-password-reset
+    date_proposed: 2026-08-14
+    date_approved: 2026-08-14
+    tier_1: |
+      Second of three. C12a made AssetHub authenticate under Identity; this makes
+      it administrable under Identity. Afterwards both providers are fully
+      functional and the Identity path is proven end-to-end — the precondition
+      for C12c removing Keycloak.
+
+      The dependency is smaller than its 702-line implementation suggests.
+      IKeycloakUserService declares 7 methods; ResetPasswordAsync has ZERO
+      callers and simply goes. Of the rest, GetRealmRoleMemberIdsAsync is the
+      only one reaching outside the admin surface (CollectionAclService,
+      DashboardService, UserAdminService) and is a pure read; Create/Delete/
+      Assign/RemoveRole are UserAdminService-only and map one-to-one onto
+      UserManager. Following C12a's lesson the abstraction already exists in the
+      right shape, so the move is to make IKeycloakUserService provider-neutral
+      rather than invent a new seam.
+
+      THE HARD PART: SendExecuteActionsEmailAsync (new-user password setup and
+      admin-triggered reset). Keycloak owns that entire flow — signed expiring
+      token, hosted set-password page, email. Identity supplies only the token
+      generator. This is a small FEATURE to build, not a substitution, and is the
+      contract's main risk. Agent flagged it as the one piece worth isolating;
+      owner approved keeping it in this contract.
+
+      VERIFICATION REALITY (unchanged from C12a): the unit suite runs behind
+      TestAuthHandler and cannot see any of this. E2E is the only real gate, and
+      global.setup.ts currently drives a KeycloakLoginPage to mint storage
+      states — so regenerating those against Identity is step one, not an
+      afterthought.
+    tier_2: |
+      1. Baseline roll-forward to d85dcf2 (909); docker pre-check first
+         (drift-001, six occurrences). Suite starts only after every edit
+         including the sweep (drift-007, five).
+      2. E2E FIRST: parameterise global.setup.ts on the provider — keep
+         KeycloakLoginPage for Keycloak mode, add IdentityLoginPage for the local
+         form, generate storage states either way.
+      3. Rename IKeycloakUserService -> IUserDirectoryAdmin, drop the unused
+         ResetPasswordAsync, keep the existing implementation body unchanged as
+         KeycloakUserDirectoryAdmin. Update 4 consumers — mechanical.
+      4. Add IdentityUserDirectoryAdmin over UserManager/RoleManager; registered
+         by Auth:Provider exactly as IUserLookupService is.
+      5. PASSWORD-RESET FLOW (new feature): POST /auth/forgot-password and a
+         /auth/reset-password page consuming userId + token;
+         PasswordResetEmailTemplate alongside WelcomeEmailTemplate; token via
+         GeneratePasswordResetTokenAsync; single-use is inherent via the security
+         stamp. Admin "send reset" and new-user setup both route here under
+         Identity.
+      6. Rename /admin/keycloak-users routes to /admin/directory-users and
+         KeycloakUserDto -> DirectoryUserDto. Admin-internal, so no SemVer event.
+      7. KeycloakHealthCheck becomes provider-conditional.
+      8. DELETE UserSyncService and /admin/users/sync — it detects out-of-band
+         Keycloak deletions; under Identity deletion goes through UserManager and
+         the app knows immediately. pattern-feature-excision applies to this leg.
+      9. Tests: unit coverage for IdentityUserDirectoryAdmin and the reset-token
+         flow; existing suite unchanged. E2E: create user -> assign role ->
+         password reset -> delete user under Identity.
+      10. Prose: CLAUDE.md auth section, README quickstart. Compose unchanged
+          (Keycloak still required in Keycloak mode — C12c's job).
+    tier_3: |
+      - KEYCLOAK MODE BYTE-IDENTICAL: zero pre-existing tests removed or broken;
+        Keycloak E2E storage states still generate and pass. A rename must not
+        change behaviour. (-> primary risk)
+      - IDENTITY ADMIN PROVEN IN E2E: create user -> assign role -> password
+        reset -> delete user. Not claimed on a green unit suite. (-> the
+        verification-reality finding)
+      - PASSWORD RESET SAFE BY CONSTRUCTION: token expires, is single-use, is
+        never logged, and the endpoint response does not reveal whether an
+        account exists. (-> the hard part)
+      - GetRealmRoleMemberIdsAsync's three consumers behave identically under
+        both providers; the 75-test ACL matrix re-runs identical.
+      - UserSyncService removal passes the excision sweep — no orphaned
+        endpoint, DTO or UI action.
+      - Reconciliation closes; census no new rules.
+      - Verified means: baseline clean + no new warnings + full pass +
+        reconciliation + ACL matrix identical + BOTH providers' E2E green +
+        discovery check clean on a fresh build.
+    status: implemented
+    revisions: []
+    work_id: null
+    implemented: 2026-08-14
+    implementation_notes: >-
+      ALL GATES HELD: reconciliation closes exactly (909 - 11 + 20 = 918), zero
+      regressions, ACL matrix identical. The 11 "removed" tests decomposed on
+      inspection into 10 RENAMES (class and route renames changing
+      fully-qualified names) and exactly 1 true removal —
+      Viewer_CannotSyncUsers_Returns403, which tested the endpoint this contract
+      deletes. Verifying that decomposition rather than accepting the raw count
+      is what the reconciliation gate is for.
+
+      Scope discovery: tier_2 step 8 named UserSyncService and its endpoint. The
+      tracer greps also found UserSyncBackgroundService (a daily hosted service)
+      which died with it, and IUserCleanupService which SURVIVES — it is shared
+      with the admin delete-user flow and still needed under Identity (survivor
+      taxonomy: shared helper with remaining users).
+
+      Tracer-grep gap worth noting: the excision tracer searched
+      UserSync|SyncDeletedUsers|UserSyncResult and missed the endpoint test
+      Viewer_CannotSyncUsers_Returns403, whose name contains "Sync" but none of
+      those tokens. The suite caught it as a pre-existing failure. A tracer on
+      the ROUTE string ("users/sync") would have found it.
+
+      Password reset built with its security properties as construction
+      constraints, each covered by a test: single-use (security-stamp rotation,
+      replay rejected), expiring (24h data-protection default), never logged
+      (user id only), non-enumerating (forgot-password always reports success;
+      failed reset surfaces policy errors but stays silent on token/user
+      errors).
+
+      Self-corrections: I called an S2681 warning a "real bug" on first read —
+      it was not. The unbraced `if` guards a single fluent statement, so
+      behaviour was correct; Sonar was flagging misleading formatting. Braces
+      added anyway. Also a test-setup gap (AddDefaultTokenProviders needs
+      AddDataProtection) caused 10 new-test failures, and three census warnings
+      of my own making were fixed rather than suppressed.
+
+      drift-001 recurred a SEVENTH time and for the first time mid-session: the
+      pre-check passed, then the daemon died and the final suite returned 491
+      failures in 21s. Recognised, refused as data, re-run clean.
+
+      NOT DONE, deferred to C12c as contracted: Keycloak removal (compose,
+      settings, KeycloakUserDirectoryAdmin, the OIDC branch). E2E storage-state
+      regeneration is wired but UNRUN — the E2E toolchain has no local
+      TypeScript install, so those edits are unverified by tooling in this
+      environment.

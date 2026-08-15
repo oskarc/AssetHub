@@ -11,10 +11,10 @@ using System.Text.Json;
 namespace AssetHub.Tests.Services;
 
 /// <summary>
-/// Unit tests for KeycloakUserService focusing on grant type selection
+/// Unit tests for KeycloakUserDirectoryAdmin focusing on grant type selection
 /// and admin token acquisition.
 /// </summary>
-public class KeycloakUserServiceTests
+public class KeycloakUserDirectoryAdminTests
 {
     private static IOptions<KeycloakSettings> CreateSettings(
         string? adminClientSecret = null,
@@ -42,12 +42,12 @@ public class KeycloakUserServiceTests
     public void Constructor_WithClientSecret_UsesClientCredentialsGrant()
     {
         // Arrange
-        var loggerMock = new Mock<ILogger<KeycloakUserService>>();
+        var loggerMock = new Mock<ILogger<KeycloakUserDirectoryAdmin>>();
         var config = CreateSettings(adminClientSecret: "my-secret", adminClientId: "assethub-admin");
         var httpClient = new HttpClient();
 
         // Act
-        _ = new KeycloakUserService(config, loggerMock.Object, httpClient);
+        _ = new KeycloakUserDirectoryAdmin(config, loggerMock.Object, httpClient);
 
         // Assert - verify log message indicates client_credentials
         loggerMock.Verify(
@@ -64,12 +64,12 @@ public class KeycloakUserServiceTests
     public void Constructor_WithoutClientSecret_UsesPasswordGrant()
     {
         // Arrange
-        var loggerMock = new Mock<ILogger<KeycloakUserService>>();
+        var loggerMock = new Mock<ILogger<KeycloakUserDirectoryAdmin>>();
         var config = CreateSettings(adminClientSecret: null);
         var httpClient = new HttpClient();
 
         // Act
-        _ = new KeycloakUserService(config, loggerMock.Object, httpClient);
+        _ = new KeycloakUserDirectoryAdmin(config, loggerMock.Object, httpClient);
 
         // Assert - verify log message indicates password grant
         loggerMock.Verify(
@@ -86,12 +86,12 @@ public class KeycloakUserServiceTests
     public void Constructor_WithEmptyClientSecret_UsesPasswordGrant()
     {
         // Arrange
-        var loggerMock = new Mock<ILogger<KeycloakUserService>>();
+        var loggerMock = new Mock<ILogger<KeycloakUserDirectoryAdmin>>();
         var config = CreateSettings(adminClientSecret: "");
         var httpClient = new HttpClient();
 
         // Act
-        _ = new KeycloakUserService(config, loggerMock.Object, httpClient);
+        _ = new KeycloakUserDirectoryAdmin(config, loggerMock.Object, httpClient);
 
         // Assert
         loggerMock.Verify(
@@ -117,7 +117,7 @@ public class KeycloakUserServiceTests
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>
-            new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
+            new KeycloakUserDirectoryAdmin(settings, NullLogger<KeycloakUserDirectoryAdmin>.Instance, new HttpClient()));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class KeycloakUserServiceTests
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>
-            new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
+            new KeycloakUserDirectoryAdmin(settings, NullLogger<KeycloakUserDirectoryAdmin>.Instance, new HttpClient()));
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class KeycloakUserServiceTests
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>
-            new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, new HttpClient()));
+            new KeycloakUserDirectoryAdmin(settings, NullLogger<KeycloakUserDirectoryAdmin>.Instance, new HttpClient()));
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class KeycloakUserServiceTests
         var httpClient = new HttpClient();
 
         // Act - should not throw, meaning parsing succeeded
-        var service = new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, httpClient);
+        var service = new KeycloakUserDirectoryAdmin(settings, NullLogger<KeycloakUserDirectoryAdmin>.Instance, httpClient);
 
         // Assert - no exception means parsing worked
         Assert.NotNull(service);
@@ -181,7 +181,7 @@ public class KeycloakUserServiceTests
         });
 
         // Act - should not throw
-        var service = new KeycloakUserService(settings, NullLogger<KeycloakUserService>.Instance, new HttpClient());
+        var service = new KeycloakUserDirectoryAdmin(settings, NullLogger<KeycloakUserDirectoryAdmin>.Instance, new HttpClient());
 
         // Assert
         Assert.NotNull(service);
@@ -226,7 +226,7 @@ public class KeycloakUserServiceTests
 
         var config = CreateSettings();
         var httpClient = new HttpClient(handlerMock.Object);
-        var service = new KeycloakUserService(config, NullLogger<KeycloakUserService>.Instance, httpClient);
+        var service = new KeycloakUserDirectoryAdmin(config, NullLogger<KeycloakUserDirectoryAdmin>.Instance, httpClient);
 
         // Act
         var result = await service.CreateUserAsync("testuser", "test@example.com", "Test", "User", "password123");

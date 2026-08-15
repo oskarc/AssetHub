@@ -17,7 +17,7 @@ public sealed class DashboardService(
     ICollectionAuthorizationService authService,
     IAssetRepository assetRepo,
     IUserLookupService userLookup,
-    IKeycloakUserService keycloakUsers,
+    IUserDirectoryAdmin userDirectoryAdmin,
     CurrentUser currentUser) : IDashboardService
 {
     private const int RecentAssetsLimit = 12;
@@ -41,7 +41,7 @@ public sealed class DashboardService(
 
         // ── Start non-DB calls (Keycloak HTTP) in parallel with DB work ──
         var adminIdsTask = isAdmin
-            ? keycloakUsers.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct)
+            ? userDirectoryAdmin.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct)
             : Task.FromResult<HashSet<string>>(null!);
         var allUsersTask = isAdmin
             ? userLookup.GetAllUsersAsync(ct)

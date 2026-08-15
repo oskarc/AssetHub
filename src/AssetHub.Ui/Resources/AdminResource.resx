@@ -191,8 +191,6 @@
   <data name="DemotedFromAdminSuccess" xml:space="preserve"><value>"{0}" is no longer a system administrator</value></data>
 
   <!-- User Sync -->
-  <data name="Btn_SyncUsers" xml:space="preserve"><value>Sync Users</value></data>
-  <data name="SyncUsersTooltip" xml:space="preserve"><value>Check for users deleted in Keycloak and clean up their orphaned data</value></data>
   <data name="SyncNoGhostUsers" xml:space="preserve"><value>All users are in sync — no orphaned data found</value></data>
   <data name="SyncConfirm" xml:space="preserve"><value>Found {0} deleted user(s) with orphaned data: {1} ACL(s) and {2} share(s) will be removed. Proceed?</value></data>
   <data name="SyncCompleted" xml:space="preserve"><value>Sync complete: cleaned up {0} deleted user(s), removed {1} ACL(s) and revoked {2} share(s)</value></data>

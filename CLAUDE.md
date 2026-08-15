@@ -246,9 +246,30 @@ branches on the provider.
 Under `Identity`, `IdentitySeeder` creates the four roles and — **only when the
 user store is completely empty** — one bootstrap admin from `Identity:SeedAdmin`.
 It never overwrites an existing account, and it throws rather than inventing a
-default password. `IUserLookupService` resolves to `IdentityUserLookupService`
-(local queries) instead of `UserLookupService` (Keycloak admin API); every
-consumer keeps depending on the interface.
+default password.
+
+Two interfaces resolve per provider; every consumer keeps depending on the
+interface, never the implementation:
+
+| Interface | Keycloak | Identity |
+|-----------|----------|----------|
+| `IUserLookupService` (reads) | `UserLookupService` (admin API) | `IdentityUserLookupService` (local queries) |
+| `IUserDirectoryAdmin` (lifecycle + roles) | `KeycloakUserDirectoryAdmin` | `IdentityUserDirectoryAdmin` (`UserManager`) |
+
+**Password reset** is the one flow with no Keycloak equivalent to delegate to.
+Under Identity, `PasswordResetLinkSender` mints an Identity reset token, encodes
+it Base64Url into a `/reset-password` link, and mails it via the existing
+`IEmailService`. Its security properties are load-bearing and must be preserved
+by anything that touches it:
+
+- **single-use** — the token derives from the user's security stamp, which
+  `ResetPasswordAsync` rotates, so a used link cannot be replayed;
+- **expiring** — 24h via the data-protection token provider;
+- **never logged** — only the user id reaches the log, never the token or link;
+- **non-enumerating** — `/auth/forgot-password` always reports success, and a
+  failed reset distinguishes password-policy errors (actionable, surfaced) from
+  token/user errors (silent), so neither response reveals whether an account
+  exists.
 
 The 2026-08 reshape is migrating off Keycloak (contract-013 added Identity
 alongside it; a follow-up removes Keycloak). Until then Keycloak remains the

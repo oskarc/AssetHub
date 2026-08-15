@@ -464,4 +464,9 @@
   <data name="Login_Password" xml:space="preserve"><value>Password</value></data>
   <data name="Login_Error_InvalidCredentials" xml:space="preserve"><value>Incorrect username or password.</value></data>
   <data name="Login_Error_LockedOut" xml:space="preserve"><value>This account is temporarily locked after too many failed attempts. Try again shortly.</value></data>
+  <data name="ResetPassword_Title" xml:space="preserve"><value>Reset password</value></data>
+  <data name="ResetPassword_NewPassword" xml:space="preserve"><value>New password</value></data>
+  <data name="ResetPassword_Submit" xml:space="preserve"><value>Save password</value></data>
+  <data name="ResetPassword_LinkInvalid" xml:space="preserve"><value>This link is invalid or has expired. Request a new reset.</value></data>
+  <data name="ResetPassword_Error_Policy" xml:space="preserve"><value>That password does not meet the requirements. Choose a longer, more complex one.</value></data>
 </root>

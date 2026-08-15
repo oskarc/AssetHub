@@ -87,12 +87,22 @@ entries:
       the earlier ones; the follow-up `docker ps` surfaced the real message.
       Desktop was started and the daemon polled healthy before the suite ran, so
       the cost was a restart and nothing else. Prevention still unaddressed.
+
+      2026-08-14 (C12b, contract-014): SEVENTH occurrence, and the first where
+      the daemon died MID-SESSION rather than being down at the start — the
+      pre-check passed, work proceeded for ~40 minutes, and the final suite then
+      returned 491 failures in 21s. The elevation held again: the signature was
+      recognised, `docker info` confirmed, and the result was refused as data
+      rather than investigated as regressions. Re-run clean after a restart.
+      This occurrence shows a pre-check alone cannot prevent the shape — the
+      runtime can leave at any point — which strengthens the case that the
+      unaddressed half is environmental and belongs with the owner.
     status: watching
     elevation:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 5
+    recurrence_count: 6
     related_drifts: []
 
   - drift_id: drift-002

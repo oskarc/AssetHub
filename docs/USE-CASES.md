@@ -193,8 +193,8 @@ full implementation remains browsable on the `full-featured` branch / `pre-resha
 |----|----------|---------|---------|:------:|
 | UC-ADMIN-01 | Admin console grouped Access/Content/Operations/Insights | A | `/admin` | ✅ |
 | UC-ADMIN-02 | List / create / edit / delete users (Keycloak) | A | `/admin/users` | ✅ |
+| UC-ADMIN-03b | Reset a user password (emailed single-use link) | A/V+ | `…/auth/forgot-password`, `/reset-password` | ✅ Identity only |
 | UC-ADMIN-03 | Send a password-reset email | A | `…/users/{id}/reset-password` | ✅ |
-| UC-ADMIN-04 | Sync deleted users (dry-run / live) | A | `…/users/sync` | ✅ |
 | UC-ADMIN-05 | Manage per-collection ACL (grant/revoke roles) | M/A | `/admin/collection-access` | ✅ |
 | UC-ADMIN-06 | Search users for the ACL picker | M/A | `…/acl/users/search` | ✅ |
 | UC-ADMIN-07 | View / filter / paginate the audit log | A | `/admin/audit` | ✅ |

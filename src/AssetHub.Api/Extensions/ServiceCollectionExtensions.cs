@@ -1,3 +1,4 @@
+using AssetHub.Infrastructure.Identity;
 using AssetHub.Api.BackgroundServices;
 using AssetHub.Api.HealthChecks;
 using AssetHub.Application;
@@ -148,7 +149,6 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         // ── Background services (recurring tasks) ────────────────────────────
-        services.AddHostedService<UserSyncBackgroundService>();
         services.AddHostedService<ZipCleanupBackgroundService>();
 
         // ── Rate Limiting ───────────────────────────────────────────────────
@@ -204,16 +204,22 @@ public static class ServiceCollectionExtensions
         // implementation calls the admin API, the Identity one queries the local
         // store. Every consumer keeps depending on IUserLookupService.
         if (authSettings.UsesIdentity)
+        {
             services.AddScoped<IUserLookupService, IdentityUserLookupService>();
+            services.AddScoped<IUserDirectoryAdmin, IdentityUserDirectoryAdmin>();
+            services.AddScoped<PasswordResetLinkSender>();
+            services.AddScoped<IPasswordResetLinkSender<AppUser>>(sp => sp.GetRequiredService<PasswordResetLinkSender>());
+        }
         else
+        {
             services.AddScoped<IUserLookupService, UserLookupService>();
+        }
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IOutboxPublisher, OutboxPublisher>();
         services.AddScoped<IAuditQueryService, AuditQueryService>();
-        services.AddScoped<IUserSyncService, UserSyncService>();
         // IZipBuildService registered in AddSharedInfrastructure for Worker access
         services.AddScoped<ShareServiceRepositories>();
         services.AddScoped<IShareService, ShareService>();
@@ -295,7 +301,12 @@ public static class ServiceCollectionExtensions
         // Polly would cap the entire retry sequence, potentially killing the
         // last retry mid-flight.
         var keycloakAttemptTimeoutSeconds = configuration.GetValue("Keycloak:TimeoutSeconds", 10);
-        services.AddHttpClient<IKeycloakUserService, KeycloakUserService>(client =>
+        // Braces are load-bearing for readability here: the registration below is a
+        // single fluent statement spanning ~36 lines, so an unbraced `if` guards all
+        // of it but does not look like it.
+        if (authSettings.UsesKeycloak)
+        {
+        services.AddHttpClient<IUserDirectoryAdmin, KeycloakUserDirectoryAdmin>(client =>
         {
             client.Timeout = Timeout.InfiniteTimeSpan;
         })
@@ -328,6 +339,7 @@ public static class ServiceCollectionExtensions
             // Total time is bounded by: attempts × timeout + backoff delays.
             builder.AddTimeout(TimeSpan.FromSeconds(keycloakAttemptTimeoutSeconds));
         });
+        }
 
         // ── UI Services ─────────────────────────────────────────────────────
         services.AddScoped<AssetHub.Ui.Services.IUserFeedbackService, AssetHub.Ui.Services.UserFeedbackService>();
@@ -350,8 +362,13 @@ public static class ServiceCollectionExtensions
                 name: "postgresql",
                 tags: ["db", ReadyTag])
             .AddCheck<MinioHealthCheck>("minio", tags: ["storage", ReadyTag])
-            .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", ReadyTag])
             .AddCheck<ClamAvHealthCheck>("clamav", tags: ["security", ReadyTag]);
+
+        // Keycloak health is only meaningful when Keycloak is the provider —
+        // under Identity the app would otherwise report unhealthy against a
+        // system it no longer uses.
+        if (authSettings.UsesKeycloak)
+            healthChecks.AddCheck<KeycloakHealthCheck>("keycloak", tags: ["auth", ReadyTag]);
 
         if (!string.IsNullOrEmpty(redisConnection))
         {

@@ -327,7 +327,6 @@ GET    /api/v1/admin/keycloak-users                  # All Keycloak users
 GET    /api/v1/admin/keycloak-users/paginated        # Paginated Keycloak users (search, sort)
 POST   /api/v1/admin/users                           # Create user in Keycloak
 POST   /api/v1/admin/users/{userId}/reset-password   # Reset password
-POST   /api/v1/admin/users/sync                      # Sync deleted users (supports dry-run)
 DELETE /api/v1/admin/users/{userId}                  # Delete user
 GET    /api/v1/admin/audit                           # Recent audit events (default 200, max 200)
 GET    /api/v1/admin/audit/paginated                 # Paginated audit log

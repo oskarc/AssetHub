@@ -461,4 +461,9 @@
   <data name="Login_Password" xml:space="preserve"><value>Lösenord</value></data>
   <data name="Login_Error_InvalidCredentials" xml:space="preserve"><value>Felaktigt användarnamn eller lösenord.</value></data>
   <data name="Login_Error_LockedOut" xml:space="preserve"><value>Kontot är tillfälligt låst efter för många misslyckade försök. Försök igen om en stund.</value></data>
+  <data name="ResetPassword_Title" xml:space="preserve"><value>Återställ lösenord</value></data>
+  <data name="ResetPassword_NewPassword" xml:space="preserve"><value>Nytt lösenord</value></data>
+  <data name="ResetPassword_Submit" xml:space="preserve"><value>Spara lösenord</value></data>
+  <data name="ResetPassword_LinkInvalid" xml:space="preserve"><value>Länken är ogiltig eller har gått ut. Begär en ny återställning.</value></data>
+  <data name="ResetPassword_Error_Policy" xml:space="preserve"><value>Lösenordet uppfyller inte kraven. Välj ett längre och mer komplext lösenord.</value></data>
 </root>

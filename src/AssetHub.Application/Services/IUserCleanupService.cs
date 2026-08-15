@@ -2,7 +2,7 @@ namespace AssetHub.Application.Services;
 
 /// <summary>
 /// Removes a user's application data (ACLs and active shares).
-/// Shared between AdminEndpoints.DeleteUser and UserSyncService.
+/// Used by the admin delete-user flow.
 /// </summary>
 public interface IUserCleanupService
 {

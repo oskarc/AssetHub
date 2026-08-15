@@ -44,11 +44,10 @@ public static class AdminEndpoints
 
         // ===== USER MANAGEMENT =====
         group.MapGet("/users", GetUsers).WithName("GetUsers");
-        group.MapGet("/keycloak-users", GetKeycloakUsers).WithName("GetKeycloakUsers");
-        group.MapGet("/keycloak-users/paginated", GetKeycloakUsersPaginated).WithName("GetKeycloakUsersPaginated");
+        group.MapGet("/directory-users", GetDirectoryUsers).WithName("GetDirectoryUsers");
+        group.MapGet("/directory-users/paginated", GetDirectoryUsersPaginated).WithName("GetDirectoryUsersPaginated");
         group.MapPost("/users", CreateUser).AddEndpointFilter<ValidationFilter<CreateUserRequest>>().DisableAntiforgery().WithName("CreateUser");
         group.MapPost("/users/{userId}/reset-password", ResetUserPassword).DisableAntiforgery().WithName("ResetUserPassword");
-        group.MapPost("/users/sync", SyncDeletedUsers).DisableAntiforgery().WithName("SyncDeletedUsers");
         group.MapDelete("/users/{userId}", DeleteUser).DisableAntiforgery().WithName("DeleteUser");
 
         // ===== AUDIT LOG =====
@@ -154,24 +153,24 @@ public static class AdminEndpoints
         return result.ToHttpResult();
     }
 
-    private static async Task<IResult> GetKeycloakUsers(
+    private static async Task<IResult> GetDirectoryUsers(
         [FromServices] IUserAdminQueryService svc, CancellationToken ct)
     {
-        var result = await svc.GetKeycloakUsersAsync(ct);
+        var result = await svc.GetDirectoryUsersAsync(ct);
         return result.ToHttpResult();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Major Code Smell", "S107:Methods should not have too many parameters",
         Justification = "Mirrors the documented query string for the public users-list endpoint (search/category/sortBy/sortDesc/skip/take). Wrapping into a DTO breaks the [AsParameters] binding ergonomics for cookie + Bearer callers and obscures the OpenAPI shape.")]
-    private static async Task<IResult> GetKeycloakUsersPaginated(
+    private static async Task<IResult> GetDirectoryUsersPaginated(
         [FromServices] IUserAdminQueryService svc, CancellationToken ct,
         [FromQuery] string? search = null, [FromQuery] string? category = null,
         [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
         [FromQuery] int skip = 0, [FromQuery] int take = 50)
     {
         take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
-        var result = await svc.GetKeycloakUsersPaginatedAsync(search, category, sortBy, sortDesc, skip, take, ct);
+        var result = await svc.GetDirectoryUsersPaginatedAsync(search, category, sortBy, sortDesc, skip, take, ct);
         return result.ToHttpResult();
     }
 
@@ -191,15 +190,6 @@ public static class AdminEndpoints
         [FromServices] IUserAdminService svc, CancellationToken ct)
     {
         var result = await svc.SendPasswordResetEmailAsync(userId, ct);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> SyncDeletedUsers(
-        [FromServices] IUserAdminService svc,
-        CancellationToken ct,
-        [FromQuery] bool dryRun = true)
-    {
-        var result = await svc.SyncDeletedUsersAsync(dryRun, ct);
         return result.ToHttpResult();
     }
 

@@ -11,10 +11,10 @@ public interface IUserAdminQueryService
     Task<ServiceResult<List<UserAccessSummaryDto>>> GetUsersAsync(CancellationToken ct);
 
     /// <summary>Get all users from Keycloak with app-level access info.</summary>
-    Task<ServiceResult<List<KeycloakUserDto>>> GetKeycloakUsersAsync(CancellationToken ct);
+    Task<ServiceResult<List<DirectoryUserDto>>> GetDirectoryUsersAsync(CancellationToken ct);
 
     /// <summary>Get paginated users from Keycloak with filtering, sorting, and category counts.</summary>
-    Task<ServiceResult<PaginatedKeycloakUsersResponse>> GetKeycloakUsersPaginatedAsync(
+    Task<ServiceResult<PaginatedDirectoryUsersResponse>> GetDirectoryUsersPaginatedAsync(
         string? search, string? category, string? sortBy, bool sortDescending,
         int skip, int take, CancellationToken ct);
 }
@@ -31,8 +31,6 @@ public interface IUserAdminService
     /// <summary>Send a password reset email to a user via Keycloak.</summary>
     Task<ServiceResult> SendPasswordResetEmailAsync(string userId, CancellationToken ct);
 
-    /// <summary>Sync and clean up users deleted from Keycloak.</summary>
-    Task<ServiceResult<UserSyncResult>> SyncDeletedUsersAsync(bool dryRun, CancellationToken ct);
 
     /// <summary>Delete a user from Keycloak and clean up app data.</summary>
     Task<ServiceResult<DeleteUserResponse>> DeleteUserAsync(string userId, CancellationToken ct);

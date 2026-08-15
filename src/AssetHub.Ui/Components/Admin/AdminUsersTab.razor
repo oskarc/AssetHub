@@ -7,7 +7,7 @@
 @inject ISnackbar Snackbar
 @inject LocalStorageService LocalStorage
 
-<MudTable T="KeycloakUserDto" ServerData="LoadServerData" @ref="_table"
+<MudTable T="DirectoryUserDto" ServerData="LoadServerData" @ref="_table"
           Hover="true" Dense="true" Striped="true">
     <NoRecordsContent>
         @if (_totalAll == 0)
@@ -50,18 +50,6 @@
                  Size="Size.Small" OnClick="@(() => SetCategory("noaccess"))" Class="chip-clickable">
             @AdminLoc["NoAssignedAccess"]: @_noAccessCount
         </MudChip>
-        <MudTooltip Text="@AdminLoc["SyncUsersTooltip"]">
-            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Sync"
-                       OnClick="SyncDeletedUsers" Class="ml-2"
-                       Disabled="@_isSyncing">
-                @if (_isSyncing)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
-                }
-                @AdminLoc["Btn_SyncUsers"]
-            </MudButton>
-        </MudTooltip>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                    StartIcon="@Icons.Material.Filled.PersonAdd"
                    OnClick="OpenCreateUserDialog" Class="ml-2">
@@ -69,11 +57,11 @@
         </MudButton>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel T="KeycloakUserDto" SortLabel="username">@AdminLoc["Header_Username"]</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel T="KeycloakUserDto" SortLabel="email">@AdminLoc["Header_Email"]</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel T="KeycloakUserDto" SortLabel="createdat">@AdminLoc["Header_Created"]</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel T="KeycloakUserDto" SortLabel="collectioncount">@CommonLoc["Label_Collections"]</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel T="KeycloakUserDto" SortLabel="highestrole">@AdminLoc["Header_HighestRole"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DirectoryUserDto" SortLabel="username">@AdminLoc["Header_Username"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DirectoryUserDto" SortLabel="email">@AdminLoc["Header_Email"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DirectoryUserDto" SortLabel="createdat">@AdminLoc["Header_Created"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DirectoryUserDto" SortLabel="collectioncount">@CommonLoc["Label_Collections"]</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DirectoryUserDto" SortLabel="highestrole">@AdminLoc["Header_HighestRole"]</MudTableSortLabel></MudTh>
         <MudTh>@CommonLoc["Label_Actions"]</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -181,9 +169,8 @@
 
     [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
 
-    private MudTable<KeycloakUserDto>? _table;
+    private MudTable<DirectoryUserDto>? _table;
     private string _userSearchString = "";
-    private bool _isSyncing;
     private string? _activeCategory;
     private int _totalAll;
     private int _withAccessCount;
@@ -226,25 +213,25 @@
         if (_table != null) await _table.ReloadServerData();
     }
 
-    private async Task<TableData<KeycloakUserDto>> LoadServerData(TableState state, CancellationToken ct)
+    private async Task<TableData<DirectoryUserDto>> LoadServerData(TableState state, CancellationToken ct)
     {
         var sortBy = state.SortLabel;
         var sortDesc = state.SortDirection == SortDirection.Descending;
         var skip = state.Page * state.PageSize;
 
         var (ok, response) = await Feedback.ExecuteWithFeedbackAsync(
-            () => Api.GetKeycloakUsersPaginatedAsync(
+            () => Api.GetDirectoryUsersPaginatedAsync(
                 _userSearchString, _activeCategory, sortBy, sortDesc, skip, state.PageSize, ct),
             "load Keycloak users");
         if (!ok || response is null)
-            return new TableData<KeycloakUserDto> { TotalItems = 0, Items = [] };
+            return new TableData<DirectoryUserDto> { TotalItems = 0, Items = [] };
 
         _totalAll = response.TotalAll;
         _withAccessCount = response.WithAccessCount;
         _adminCount = response.AdminCount;
         _noAccessCount = response.NoAccessCount;
 
-        return new TableData<KeycloakUserDto>
+        return new TableData<DirectoryUserDto>
         {
             TotalItems = response.TotalFiltered,
             Items = response.Users
@@ -263,7 +250,7 @@
         if (_table != null) await _table.ReloadServerData();
     }
 
-    private async Task ManageUserAccess(KeycloakUserDto user)
+    private async Task ManageUserAccess(DirectoryUserDto user)
     {
         var parameters = new DialogParameters<ManageUserAccessDialog>
         {
@@ -311,7 +298,7 @@
         }
     }
 
-    private async Task SetAdmin(KeycloakUserDto user, bool isAdmin)
+    private async Task SetAdmin(DirectoryUserDto user, bool isAdmin)
     {
         var titleKey = isAdmin ? "PromoteToAdmin" : "DemoteFromAdmin";
         var confirmKey = isAdmin ? "ConfirmPromoteToAdmin" : "ConfirmDemoteFromAdmin";
@@ -336,7 +323,7 @@
         }
     }
 
-    private async Task DeleteUser(KeycloakUserDto user)
+    private async Task DeleteUser(DirectoryUserDto user)
     {
         var confirmed = await DialogService.ShowConfirmAsync(
             AdminLoc["DeleteUser"],
@@ -359,51 +346,5 @@
             if (_table != null) await _table.ReloadServerData();
             await OnChanged.InvokeAsync();
         }
-    }
-
-    private async Task SyncDeletedUsers()
-    {
-        _isSyncing = true;
-        StateHasChanged();
-
-        // Multi-step: dry-run preview → confirm → commit. Each facade call goes
-        // through the wrapper; the loading flag is reset on every exit path below.
-        var (previewOk, preview) = await Feedback.ExecuteWithFeedbackAsync(
-            () => Api.SyncDeletedUsersAsync(dryRun: true), "sync users");
-        if (previewOk && preview is not null)
-        {
-            if (preview.DeletedUsers == 0)
-            {
-                Snackbar.Add(AdminLoc["SyncNoGhostUsers"], Severity.Success);
-            }
-            else
-            {
-                var message = string.Format(AdminLoc["SyncConfirm"], preview.DeletedUsers, preview.AclsRemoved, preview.SharesRevoked);
-
-                var confirmed = await DialogService.ShowConfirmAsync(
-                    AdminLoc["Btn_SyncUsers"],
-                    message,
-                    CommonLoc["Btn_Confirm"],
-                    Icons.Material.Filled.Sync,
-                    Color.Warning,
-                    Color.Primary);
-
-                if (confirmed)
-                {
-                    var (commitOk, result) = await Feedback.ExecuteWithFeedbackAsync(
-                        () => Api.SyncDeletedUsersAsync(dryRun: false), "sync users");
-                    if (commitOk && result is not null)
-                    {
-                        Snackbar.Add(string.Format(AdminLoc["SyncCompleted"], result.DeletedUsers, result.AclsRemoved, result.SharesRevoked), Severity.Success);
-
-                        if (_table is not null) await _table.ReloadServerData();
-                        await OnChanged.InvokeAsync();
-                    }
-                }
-            }
-        }
-
-        _isSyncing = false;
-        StateHasChanged();
     }
 }

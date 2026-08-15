@@ -16,9 +16,9 @@ namespace AssetHub.Infrastructure.Services;
 /// Uses client credentials (admin username/password) to obtain an admin access token,
 /// then calls the Keycloak Admin API to create users.
 /// </summary>
-public sealed class KeycloakUserService : IKeycloakUserService
+public sealed class KeycloakUserDirectoryAdmin : IUserDirectoryAdmin
 {
-    private readonly ILogger<KeycloakUserService> _logger;
+    private readonly ILogger<KeycloakUserDirectoryAdmin> _logger;
     private readonly HttpClient _httpClient;
     private readonly string _keycloakBaseUrl;
     private readonly string _realm;
@@ -37,9 +37,9 @@ public sealed class KeycloakUserService : IKeycloakUserService
     private string? _cachedToken;
     private DateTime _tokenExpiry = DateTime.MinValue;
 
-    public KeycloakUserService(
+    public KeycloakUserDirectoryAdmin(
         IOptions<KeycloakSettings> keycloakSettings,
-        ILogger<KeycloakUserService> logger,
+        ILogger<KeycloakUserDirectoryAdmin> logger,
         HttpClient httpClient)
     {
         _logger = logger;
@@ -219,67 +219,6 @@ public sealed class KeycloakUserService : IKeycloakUserService
         }
 
         throw new KeycloakApiException("User was created but could not determine the user ID");
-    }
-
-    /// <inheritdoc />
-    public async Task ResetPasswordAsync(
-        string userId,
-        string newPassword,
-        bool temporary = true,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var token = await GetAdminTokenAsync(ct);
-
-            var credentialPayload = new
-            {
-                type = "password",
-                value = newPassword,
-                temporary
-            };
-
-            var url = $"{_keycloakBaseUrl}/admin/realms/{_realm}/users/{Uri.EscapeDataString(userId)}/reset-password";
-
-            using var request = new HttpRequestMessage(HttpMethod.Put, url);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(BearerScheme, token);
-            request.Content = JsonContent.Create(credentialPayload);
-
-            using var response = await _httpClient.SendAsync(request, ct);
-
-            if (response.StatusCode == HttpStatusCode.NotFound)
-            {
-                throw new KeycloakApiException("User not found in Keycloak", (int)response.StatusCode);
-            }
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync(ct);
-                _logger.LogError("Keycloak password reset failed for user '{UserId}'. Status: {Status}, Body: {Body}",
-                    userId, response.StatusCode, errorBody);
-
-                var message = ExtractKeycloakErrorMessage(errorBody)
-                    ?? $"Failed to reset password (HTTP {(int)response.StatusCode})";
-                throw new KeycloakApiException(message, (int)response.StatusCode);
-            }
-
-            _logger.LogInformation("Successfully reset password for Keycloak user '{UserId}'", userId);
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "Network error while resetting password for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
-        }
-        catch (SocketException ex)
-        {
-            _logger.LogError(ex, "Connection error while resetting password for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException(ServiceUnavailableMessage, 0, ex);
-        }
-        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
-        {
-            _logger.LogError(ex, "Timeout while resetting password for Keycloak user '{UserId}'", userId);
-            throw new KeycloakApiException(ServiceTimeoutMessage, 0, ex);
-        }
     }
 
     /// <inheritdoc />

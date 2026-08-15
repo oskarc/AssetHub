@@ -27,7 +27,7 @@ public sealed class CollectionAclService(
     CollectionAclRepositories repos,
     ICollectionAuthorizationService authService,
     IUserLookupService userLookup,
-    IKeycloakUserService keycloakUserService,
+    IUserDirectoryAdmin userDirectoryAdmin,
     IAuditService audit,
     IUnitOfWork uow,
     HybridCache cache,
@@ -53,7 +53,7 @@ public sealed class CollectionAclService(
         // These are independent Keycloak DB/API calls — run in parallel
         var nameMapTask = userLookup.GetUserNamesAsync(userIds, ct);
         var emailMapTask = userLookup.GetUserEmailsAsync(userIds, ct);
-        var adminIdsTask = keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        var adminIdsTask = userDirectoryAdmin.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
         await Task.WhenAll(nameMapTask, emailMapTask, adminIdsTask);
         var nameMap = nameMapTask.Result;
         var emailMap = emailMapTask.Result;
@@ -300,7 +300,7 @@ public sealed class CollectionAclService(
             .ToList();
         var userNames = await userLookup.GetUserNamesAsync(allUserIds, ct);
         var userEmails = await userLookup.GetUserEmailsAsync(allUserIds, ct);
-        var adminIds = await keycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        var adminIds = await userDirectoryAdmin.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
 
         var result = allCollections
             .Select(c => CollectionTreeHelper.ToAccessDto(c, userNames, userEmails, adminIds))

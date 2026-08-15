@@ -59,7 +59,7 @@
                         </MudText>
 
                         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
-                            <MudAutocomplete T="KeycloakUserDto"
+                            <MudAutocomplete T="DirectoryUserDto"
                                              @bind-Value="_selectedUser"
                                              SearchFunc="SearchUsersAsync"
                                              ToStringFunc="@(u => u?.Username ?? "")"
@@ -134,8 +134,8 @@
 
     private bool _isProcessing;
     private bool _deleteAssets = true;
-    private List<KeycloakUserDto>? _allUsers;
-    private KeycloakUserDto? _selectedUser;
+    private List<DirectoryUserDto>? _allUsers;
+    private DirectoryUserDto? _selectedUser;
     private string _selectedRole = RoleHierarchy.Roles.Viewer;
 
     protected override async Task OnInitializedAsync()
@@ -146,14 +146,14 @@
     private async Task LoadUsersAsync()
     {
         var (ok, users) = await Feedback.ExecuteWithFeedbackAsync(
-            () => Api.GetKeycloakUsersAsync(), "load users");
+            () => Api.GetDirectoryUsersAsync(), "load users");
         if (ok && users is not null)
             _allUsers = users;
     }
 
-    private Task<IEnumerable<KeycloakUserDto>> SearchUsersAsync(string? value, CancellationToken ct)
+    private Task<IEnumerable<DirectoryUserDto>> SearchUsersAsync(string? value, CancellationToken ct)
     {
-        var users = _allUsers ?? new List<KeycloakUserDto>();
+        var users = _allUsers ?? new List<DirectoryUserDto>();
         if (string.IsNullOrWhiteSpace(value))
             return Task.FromResult(users.AsEnumerable());
 

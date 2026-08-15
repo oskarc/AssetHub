@@ -106,18 +106,18 @@ public sealed partial class AssetHubApiClient
         return Unwrap(result, "Get users");
     }
 
-    public async Task<List<KeycloakUserDto>> GetKeycloakUsersAsync(CancellationToken ct = default)
+    public async Task<List<DirectoryUserDto>> GetDirectoryUsersAsync(CancellationToken ct = default)
     {
-        var result = await userAdminQueryService.GetKeycloakUsersAsync(ct);
+        var result = await userAdminQueryService.GetDirectoryUsersAsync(ct);
         return Unwrap(result, "Get Keycloak users");
     }
 
-    public async Task<PaginatedKeycloakUsersResponse> GetKeycloakUsersPaginatedAsync(
+    public async Task<PaginatedDirectoryUsersResponse> GetDirectoryUsersPaginatedAsync(
         string? search = null, string? category = null,
         string? sortBy = null, bool sortDesc = false,
         int skip = 0, int take = 50, CancellationToken ct = default)
     {
-        var result = await userAdminQueryService.GetKeycloakUsersPaginatedAsync(
+        var result = await userAdminQueryService.GetDirectoryUsersPaginatedAsync(
             search, category, sortBy, sortDesc, skip, take, ct);
         return Unwrap(result, "Get Keycloak users (paginated)");
     }
@@ -145,12 +145,6 @@ public sealed partial class AssetHubApiClient
     {
         var result = await userAdminService.SetAdminAsync(userId, isAdmin, ct);
         EnsureSuccess(result, isAdmin ? "Promote user to admin" : "Demote user from admin");
-    }
-
-    public async Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default)
-    {
-        var result = await userAdminService.SyncDeletedUsersAsync(dryRun, ct);
-        return Unwrap(result, "Sync deleted users");
     }
 
     public async Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default)

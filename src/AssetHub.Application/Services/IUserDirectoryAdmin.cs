@@ -1,14 +1,17 @@
 namespace AssetHub.Application.Services;
 
 /// <summary>
-/// Service for managing users in Keycloak via the Admin REST API.
-/// Used for operations that cannot be done via direct database queries
-/// (e.g., creating users, resetting passwords).
+/// Administrative operations against the configured identity provider — user
+/// lifecycle and role membership.
+///
+/// Implemented twice: <c>KeycloakUserDirectoryAdmin</c> calls the Keycloak Admin
+/// REST API, <c>IdentityUserDirectoryAdmin</c> uses the local Identity stores.
+/// Selected by <c>Auth:Provider</c>, so callers stay provider-agnostic.
 /// </summary>
-public interface IKeycloakUserService
+public interface IUserDirectoryAdmin
 {
     /// <summary>
-    /// Creates a new user in Keycloak and returns the user's ID.
+    /// Creates a new user and returns the user's ID.
     /// </summary>
     /// <param name="username">The username (must be unique).</param>
     /// <param name="email">The user's email (must be unique).</param>
@@ -17,8 +20,7 @@ public interface IKeycloakUserService
     /// <param name="password">The initial password.</param>
     /// <param name="temporaryPassword">If true, the user must change password on first login.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The Keycloak user ID of the newly created user.</returns>
-    /// <exception cref="KeycloakApiException">Thrown when user creation fails.</exception>
+    /// <returns>The ID of the newly created user.</returns>
     Task<string> CreateUserAsync(
         string username,
         string email,
@@ -28,29 +30,19 @@ public interface IKeycloakUserService
         bool temporaryPassword = true,
         CancellationToken ct = default);
 
-    /// <summary>
-    /// Resets a Keycloak user's password.
-    /// </summary>
-    /// <param name="userId">The Keycloak user ID.</param>
-    /// <param name="newPassword">The new password to set.</param>
-    /// <param name="temporary">If true, the user must change password on next login.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <exception cref="KeycloakApiException">Thrown when password reset fails.</exception>
-    Task ResetPasswordAsync(
-        string userId,
-        string newPassword,
-        bool temporary = true,
-        CancellationToken ct = default);
 
     /// <summary>
-    /// Sends an email to the user with a link to execute the specified required actions
-    /// (e.g., UPDATE_PASSWORD). Uses Keycloak's execute-actions-email Admin API.
+    /// Sends the user a link to complete the specified required actions
+    /// (currently only UPDATE_PASSWORD).
+    ///
+    /// Under Keycloak this delegates to the execute-actions-email Admin API.
+    /// Under Identity it mints a password-reset token and sends the app's own
+    /// reset email — the action list is honoured, the mechanism differs.
     /// </summary>
-    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="userId">The user ID.</param>
     /// <param name="actions">The required actions (e.g., "UPDATE_PASSWORD").</param>
     /// <param name="lifespan">Optional link lifespan in seconds (default: Keycloak server default).</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <exception cref="KeycloakApiException">Thrown when the API call fails.</exception>
     Task SendExecuteActionsEmailAsync(
         string userId,
         IEnumerable<string> actions,
@@ -58,11 +50,10 @@ public interface IKeycloakUserService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Deletes a user from Keycloak.
+    /// Deletes a user.
     /// </summary>
-    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="userId">The user ID.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <exception cref="KeycloakApiException">Thrown when user deletion fails.</exception>
     Task DeleteUserAsync(string userId, CancellationToken ct = default);
 
     /// <summary>
@@ -73,20 +64,18 @@ public interface IKeycloakUserService
     /// <summary>
     /// Assigns a realm role to a user.
     /// </summary>
-    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="userId">The user ID.</param>
     /// <param name="roleName">The realm role name (e.g., "admin").</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <exception cref="KeycloakApiException">Thrown when role assignment fails.</exception>
     Task AssignRealmRoleAsync(string userId, string roleName, CancellationToken ct = default);
 
     /// <summary>
     /// Removes a realm role from a user. No-op when the user does not have
     /// the role — Keycloak's DELETE /role-mappings endpoint accepts that.
     /// </summary>
-    /// <param name="userId">The Keycloak user ID.</param>
+    /// <param name="userId">The user ID.</param>
     /// <param name="roleName">The realm role name (e.g., "admin").</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <exception cref="KeycloakApiException">Thrown when role removal fails.</exception>
     Task RemoveRealmRoleAsync(string userId, string roleName, CancellationToken ct = default);
 }
 

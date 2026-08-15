@@ -55,13 +55,12 @@ public interface IAssetHubApiClient
     Task<BulkDeleteCollectionsResponse> BulkDeleteCollectionsAsync(List<Guid> collectionIds, bool deleteAssets = true, CancellationToken ct = default);
     Task<BulkSetCollectionAccessResponse> BulkSetCollectionAccessAsync( List<Guid> collectionIds, string principalId, string role, CancellationToken ct = default);
     Task<List<UserAccessSummaryDto>> GetUsersAsync(CancellationToken ct = default);
-    Task<List<KeycloakUserDto>> GetKeycloakUsersAsync(CancellationToken ct = default);
-    Task<PaginatedKeycloakUsersResponse> GetKeycloakUsersPaginatedAsync( string? search = null, string? category = null, string? sortBy = null, bool sortDesc = false, int skip = 0, int take = 50, CancellationToken ct = default);
+    Task<List<DirectoryUserDto>> GetDirectoryUsersAsync(CancellationToken ct = default);
+    Task<PaginatedDirectoryUsersResponse> GetDirectoryUsersPaginatedAsync( string? search = null, string? category = null, string? sortBy = null, bool sortDesc = false, int skip = 0, int take = 50, CancellationToken ct = default);
     Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken ct = default);
     Task SendPasswordResetEmailAsync(string userId, CancellationToken ct = default);
     Task<DeleteUserResponse> DeleteUserAsync(string userId, CancellationToken ct = default);
     Task SetUserAdminAsync(string userId, bool isAdmin, CancellationToken ct = default);
-    Task<UserSyncResult> SyncDeletedUsersAsync(bool dryRun = false, CancellationToken ct = default);
     Task<List<AuditEventDto>> GetAuditEventsAsync(int take = 200, CancellationToken ct = default);
     Task<AuditQueryResponse> GetAuditEventsPaginatedAsync( int pageSize = 50, DateTime? cursor = null, string? eventType = null, string? targetType = null, string? actorUserId = null, CancellationToken ct = default);
     Task<MigrationListResponse> GetMigrationsAsync(int skip = 0, int take = 20, CancellationToken ct = default);

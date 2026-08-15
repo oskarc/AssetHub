@@ -16,13 +16,12 @@ namespace AssetHub.Infrastructure.Services;
 /// </summary>
 public sealed record UserLifecycleServices(
     IUserLookupService UserLookup,
-    IKeycloakUserService KeycloakUserService,
+    IUserDirectoryAdmin KeycloakUserDirectoryAdmin,
     IUserProvisioningService Provisioning,
-    IUserCleanupService CleanupService,
-    IUserSyncService SyncService);
+    IUserCleanupService CleanupService);
 
 /// <summary>
-/// Admin user lifecycle management: listing, creation, password reset, sync, and deletion.
+/// Admin user lifecycle management: listing, creation, password reset, and deletion.
 /// </summary>
 public sealed class UserAdminService(
     ICollectionAclRepository aclRepo,
@@ -68,7 +67,7 @@ public sealed class UserAdminService(
         return userAccess;
     }
 
-    public async Task<ServiceResult<List<KeycloakUserDto>>> GetKeycloakUsersAsync(CancellationToken ct)
+    public async Task<ServiceResult<List<DirectoryUserDto>>> GetDirectoryUsersAsync(CancellationToken ct)
     {
         var allUsers = await lifecycle.UserLookup.GetAllUsersAsync(ct);
 
@@ -79,7 +78,7 @@ public sealed class UserAdminService(
             .ToList();
 
         // Start Keycloak API call in parallel with EF Core query
-        var adminUserIdsTask = lifecycle.KeycloakUserService.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
+        var adminUserIdsTask = lifecycle.KeycloakUserDirectoryAdmin.GetRealmRoleMemberIdsAsync(RoleHierarchy.Roles.Admin, ct);
         var allAcls = await aclRepo.GetAllAsync(ct);
         var adminUserIds = await adminUserIdsTask;
 
@@ -97,7 +96,7 @@ public sealed class UserAdminService(
             var hasAccess = userAclGroups.TryGetValue(u.Id, out var acl);
             var isAdmin = adminUserIds.Contains(u.Id);
             var (collectionCount, highestRole) = ResolveUserAccess(isAdmin, hasAccess, acl?.CollectionCount ?? 0, acl?.HighestRole);
-            return new KeycloakUserDto
+            return new DirectoryUserDto
             {
                 Id = u.Id,
                 Username = u.Username,
@@ -114,12 +113,12 @@ public sealed class UserAdminService(
         return result;
     }
 
-    public async Task<ServiceResult<PaginatedKeycloakUsersResponse>> GetKeycloakUsersPaginatedAsync(
+    public async Task<ServiceResult<PaginatedDirectoryUsersResponse>> GetDirectoryUsersPaginatedAsync(
         string? search, string? category, string? sortBy, bool sortDescending,
         int skip, int take, CancellationToken ct)
     {
         // Reuse existing method to get all enriched users
-        var allResult = await GetKeycloakUsersAsync(ct);
+        var allResult = await GetDirectoryUsersAsync(ct);
         if (!allResult.IsSuccess) return allResult.Error!;
 
         var all = allResult.Value!;
@@ -130,7 +129,7 @@ public sealed class UserAdminService(
         var noAccessCount = all.Count(u => !u.IsSystemAdmin && u.CollectionCount == 0);
 
         // Apply category filter
-        IEnumerable<KeycloakUserDto> filtered = category?.ToLowerInvariant() switch
+        IEnumerable<DirectoryUserDto> filtered = category?.ToLowerInvariant() switch
         {
             "admin" => all.Where(u => u.IsSystemAdmin),
             "withaccess" => all.Where(u => !u.IsSystemAdmin && u.CollectionCount > 0),
@@ -151,7 +150,7 @@ public sealed class UserAdminService(
 
         var materialised = filtered.ToList();
 
-        return new PaginatedKeycloakUsersResponse
+        return new PaginatedDirectoryUsersResponse
         {
             Users = materialised.Skip(skip).Take(take).ToList(),
             TotalFiltered = materialised.Count,
@@ -162,8 +161,8 @@ public sealed class UserAdminService(
         };
     }
 
-    private static IEnumerable<KeycloakUserDto> ApplySort(
-        IEnumerable<KeycloakUserDto> source, string? sortBy, bool descending)
+    private static IEnumerable<DirectoryUserDto> ApplySort(
+        IEnumerable<DirectoryUserDto> source, string? sortBy, bool descending)
     {
         return sortBy?.ToLowerInvariant() switch
         {
@@ -209,7 +208,7 @@ public sealed class UserAdminService(
 
         try
         {
-            var userId = await lifecycle.KeycloakUserService.CreateUserAsync(
+            var userId = await lifecycle.KeycloakUserDirectoryAdmin.CreateUserAsync(
                 username, email, firstName, lastName,
                 password, true /* always temporary */, ct);
 
@@ -218,7 +217,7 @@ public sealed class UserAdminService(
             // Assign system admin realm role if requested
             if (request.IsSystemAdmin)
             {
-                await lifecycle.KeycloakUserService.AssignRealmRoleAsync(userId, "admin", ct);
+                await lifecycle.KeycloakUserDirectoryAdmin.AssignRealmRoleAsync(userId, "admin", ct);
                 logger.LogInformation("Assigned 'admin' realm role to user '{Username}'", username);
             }
 
@@ -275,7 +274,7 @@ public sealed class UserAdminService(
 
         try
         {
-            await lifecycle.KeycloakUserService.SendExecuteActionsEmailAsync(
+            await lifecycle.KeycloakUserDirectoryAdmin.SendExecuteActionsEmailAsync(
                 userId, new[] { "UPDATE_PASSWORD" }, lifespan: 86400, ct);
 
             logger.LogInformation("Admin sent password reset email for user '{UserId}'", userId);
@@ -301,32 +300,6 @@ public sealed class UserAdminService(
         }
     }
 
-    public async Task<ServiceResult<UserSyncResult>> SyncDeletedUsersAsync(bool dryRun, CancellationToken ct)
-    {
-        try
-        {
-            var result = await lifecycle.SyncService.SyncDeletedUsersAsync(dryRun, ct);
-
-            if (!dryRun && result.DeletedUsers > 0)
-            {
-                await audit.LogAsync("user.sync.completed", "system", null, currentUser.UserId,
-                    new()
-                    {
-                        ["deletedUsers"] = result.DeletedUsers,
-                        ["aclsRemoved"] = result.AclsRemoved,
-                        ["sharesRevoked"] = result.SharesRevoked
-                    }, ct);
-            }
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error during user sync");
-            return ServiceError.Server(UnexpectedError);
-        }
-    }
-
     public async Task<ServiceResult<DeleteUserResponse>> DeleteUserAsync(string userId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(userId))
@@ -341,7 +314,7 @@ public sealed class UserAdminService(
         {
             if (username is not null)
             {
-                await lifecycle.KeycloakUserService.DeleteUserAsync(userId, ct);
+                await lifecycle.KeycloakUserDirectoryAdmin.DeleteUserAsync(userId, ct);
             }
             else
             {
@@ -406,9 +379,9 @@ public sealed class UserAdminService(
             // the Keycloak Admin API is the source of truth and rolls back
             // independently if it fails. The audit row is best-effort.
             if (isAdmin)
-                await lifecycle.KeycloakUserService.AssignRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
+                await lifecycle.KeycloakUserDirectoryAdmin.AssignRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
             else
-                await lifecycle.KeycloakUserService.RemoveRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
+                await lifecycle.KeycloakUserDirectoryAdmin.RemoveRealmRoleAsync(userId, RoleHierarchy.Roles.Admin, ct);
 
             var auditEvent = isAdmin ? "user.promoted_to_admin" : "user.demoted_from_admin";
             await audit.LogAsync(auditEvent, Constants.ScopeTypes.User,
@@ -458,7 +431,7 @@ public sealed class UserAdminService(
     {
         try
         {
-            await lifecycle.KeycloakUserService.SendExecuteActionsEmailAsync(
+            await lifecycle.KeycloakUserDirectoryAdmin.SendExecuteActionsEmailAsync(
                 userId, new[] { "UPDATE_PASSWORD" }, lifespan: 86400, ct);
             logger.LogInformation(
                 "Sent password setup email to '{Email}' for new user '{Username}'",
