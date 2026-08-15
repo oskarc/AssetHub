@@ -236,3 +236,321 @@ entries:
         kind: pattern
         evidence: diffs[1]
         human_decision: approved
+
+  - work_id: work-006
+    feature: reshape-c5-comments-notifications-cut
+    contract_id: contract-006
+    surfaced_in: 2026-08-14
+    states:
+      contracted:
+        approach: bounded-module deletion of comments + notifications, email infrastructure held byte-for-byte
+        principles_invoked: [pattern-feature-excision]
+        patterns_invoked: [pattern-feature-excision, pattern-regression-baseline]
+        assumptions:
+          - "An emptied-namespace check on Components/Notifications/ is sufficient for that folder"
+          - "A folder named for the feature contains only that feature"
+      implemented:
+        approach: as contracted, plus two unplanned recoveries
+        deviations:
+          - "SavedSearchesMenu.razor was swept by a folder-level recursive delete and had to be restored and relocated to Components/Search/"
+          - "NotificationConstants held workflow audit-event names; relocated as private consts with byte-identical strings"
+          - authorized: true
+      verified:
+        method: tests
+        result: pass
+        evidence: "Suite green at 6a422c8; reconciliation closed; warning census fell 111 to 80."
+    diffs:
+      - dimension: pattern
+        assumption: "A folder named for the feature contains only that feature"
+        discovery: "Components/Notifications/ also held a saved-search surface. The recursive delete removed it; only a Razor RZ10012 census warning exposed the loss, after the fact."
+        learning: "A container's name is a claim about its contents made when it was written, not a maintained fact. Enumerate a directory before any recursive delete."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+      - dimension: pattern
+        assumption: "A constants file named for a feature belongs to that feature"
+        discovery: "NotificationConstants carried another feature's audit-event names, which would have been deleted with it."
+        learning: "Shared-vocabulary files attract foreign tenants. Check ownership per constant, not per file."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+    elevation_proposal:
+      - target: pattern-feature-excision
+        kind: principle
+        evidence: "diffs[0] and diffs[1] are the same failure of trusting a name over contents"
+        human_decision: approved
+
+  - work_id: work-007
+    feature: reshape-c6-workflow-cut
+    contract_id: contract-007
+    surfaced_in: 2026-08-14
+    states:
+      contracted:
+        approach: revert-to-simpler with a Published default making removal visibility-preserving
+        principles_invoked: [pattern-feature-excision]
+        patterns_invoked: [pattern-feature-excision, pattern-regression-baseline]
+        assumptions:
+          - "The build-as-authority loop enumerates every straggler"
+          - "The zero-regression baseline proves the visibility invariant"
+      implemented:
+        approach: as contracted; visibility invariant held
+        deviations:
+          - "13-workflows.spec.ts was deleted on a filename match but contained the cross-feature journey smoke spec; restored"
+          - "CS9113 orphaned ShareService constructor parameter and its stale S107 justification text removed"
+          - "Generated-migration Sonar noise suppressed by a scoped .editorconfig section"
+          - authorized: true
+      verified:
+        method: tests
+        result: pass
+        evidence: "Suite green at 6e602f1; no query, search or share result set changed."
+    diffs:
+      - dimension: pattern
+        assumption: "The build-as-authority loop enumerates every straggler"
+        discovery: "E2E specs are not compiled, so a wrongly-deleted spec passed the build and the full suite. Only the prose leg, updating the E2E README, exposed it."
+        learning: "Build-as-authority has a blind spot shaped exactly like the assets no compiler reads. Non-compiled assets need name-versus-content verification before deletion, because nothing downstream will catch the error."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+      - dimension: implementation
+        assumption: "Scoped analyser suppressions apply wherever they are declared"
+        discovery: "editorconfig resolves last-match-wins per property, so a path section placed above the general section is silently overridden."
+        learning: "Configuration formats with last-match-wins semantics make ordering load-bearing; a correct rule in the wrong position is indistinguishable from a missing one."
+        node_impact:
+          - node_id: project-instructions
+            action: update
+    elevation_proposal:
+      - target: pattern-feature-excision
+        kind: pattern
+        evidence: "diffs[0], the silent straggler class the build cannot reach"
+        human_decision: approved
+
+  - work_id: work-008
+    feature: reshape-c7-renditions-editor-presets-cut
+    contract_id: contract-008
+    surfaced_in: 2026-08-14
+    states:
+      contracted:
+        approach: bounded-module deletion of renditions, image editor and export presets; fixed-rendition pipeline untouchable
+        principles_invoked: [pattern-feature-excision]
+        patterns_invoked: [pattern-feature-excision, implementation-ef-config-migration]
+        assumptions:
+          - "A file-name survey enumerates the UI surface"
+          - "The post-migration discovery check reports current state"
+      implemented:
+        approach: as contracted; save-copy and replace-file survived as the API-only version-minting path
+        deviations:
+          - "Three further UI files found via the deleted resource marker rather than by file name"
+          - authorized: true
+      verified:
+        method: tests
+        result: pass
+        evidence: "Suite 1124 passed and 0 failed at 62aaf33; reconciliation 1211 minus 87 removed plus 0 added; census flat at 80."
+    diffs:
+      - dimension: pattern
+        assumption: "A file-name survey enumerates the UI surface"
+        discovery: "Grepping the doomed ImageEditorResource marker class found DerivativesPanel, SaveImageCopyDialog and ResizeDialog, three consumers whose names carry no trace of the feature."
+        learning: "Types referenced by name rather than by call (resource markers, DI keys, queue names) are invisible to a file-name survey and only reach the compiler after deletion. Grep the tracer name while the survey is still cheap."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+      - dimension: implementation
+        assumption: "The post-migration discovery check reports current state"
+        discovery: "dotnet ef migrations list with --no-build omitted the just-scaffolded migration, and has-pending-model-changes reported drift that a rebuild showed was already captured. Both inverted after a fresh build."
+        learning: "A verification tool reading build output is only as current as the last build. Its failure mode is a confident wrong answer rather than an error, so nothing signals the staleness."
+        node_impact:
+          - node_id: implementation-ef-config-migration
+            action: update
+          - node_id: implementation-migration-check
+            action: update
+    elevation_proposal:
+      - target: pattern-feature-excision
+        kind: pattern
+        evidence: "diffs[0], tracer-name greps in the survey step"
+        human_decision: approved
+      - target: implementation-ef-config-migration
+        kind: principle
+        evidence: "diffs[1], stale tooling generalises past EF to any analyser reading compiled assemblies"
+        human_decision: approved
+
+  - work_id: work-009
+    feature: reshape-c8-migration-connectors-cut
+    contract_id: contract-009
+    surfaced_in: 2026-08-14
+    states:
+      contracted:
+        approach: remove the S3 connector and the apparatus around remote pull
+        principles_invoked: [pattern-feature-excision]
+        patterns_invoked: [pattern-feature-excision, pattern-regression-baseline]
+        assumptions:
+          - "Removing the S3 implementation leaves the connector abstraction intact and useful"
+          - "A passing suite with a plausible count is a clean run"
+      implemented:
+        approach: connector abstraction dissolved along with S3; CSV logic folded into the service and handlers
+        deviations:
+          - "Owner-approved decision A widened the cut to the abstraction itself"
+          - authorized: true
+      verified:
+        method: tests
+        result: pass
+        evidence: "Suite 1083 passed and 0 failed at 20b3e94; reconciliation 1124 minus 50 plus 9; every surviving CSV-flow test needed wiring edits only, no assertion changed."
+    diffs:
+      - dimension: pattern
+        assumption: "Removing an implementation leaves its abstraction intact and useful"
+        discovery: "With S3 gone the connector interface fronted exactly one implementation, indirection documenting a capability the system no longer had."
+        learning: "Removing the last-but-one implementation of an abstraction makes the abstraction part of the cut. Its verification bar differs from the other sub-cases: surviving tests may change wiring only, and any assertion edit means the collapse changed behaviour."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+      - dimension: pattern
+        assumption: "A passing suite with a plausible count is a clean run"
+        discovery: "A count cannot distinguish a deliberate deletion from a silently-skipped suite. Only baseline minus removed plus added, with every term named, separates them."
+        learning: "A count is an assertion; a reconciliation is a proof. Report the arithmetic, never the total alone, after any change that removes tests."
+        node_impact:
+          - node_id: pattern-regression-baseline
+            action: update
+    elevation_proposal:
+      - target: pattern-feature-excision
+        kind: pattern
+        evidence: "diffs[0], seam dissolution as a fourth cut sub-case"
+        human_decision: approved
+      - target: pattern-regression-baseline
+        kind: principle
+        evidence: "diffs[1], the reconciliation gate"
+        human_decision: approved
+
+  - work_id: work-010
+    feature: reshape-c9-metadata-schema-engine-cut
+    contract_id: contract-010
+    surfaced_in: 2026-08-14
+    states:
+      contracted:
+        approach: remove the admin-defined metadata engine; keep tags and technical metadata; search reverts to simpler
+        principles_invoked: [pattern-feature-excision]
+        patterns_invoked: [pattern-feature-excision, implementation-ef-config-migration]
+        assumptions:
+          - "The migration is five DropTable calls in foreign-key order"
+          - "Search reverting to simpler is a code change"
+      implemented:
+        approach: as contracted, plus a database-level rewrite the contract did not anticipate
+        deviations:
+          - "Migration additionally drops two triggers and their functions, replaces assets_refresh_search_vector, and reindexes existing rows before dropping any table"
+          - authorized: true
+      verified:
+        method: tests
+        result: pass
+        evidence: "Suite 1013 passed and 0 failed at d9f9931; reconciliation 1083 minus 70 plus 0; discovery check clean on a fresh build."
+    diffs:
+      - dimension: implementation
+        assumption: "The migration is five DropTable calls in foreign-key order"
+        discovery: "The full-text search vector was computed by a PL/pgSQL function joining two of the doomed tables, with two triggers on them. A plain drop would have failed on the dependent triggers and left the function referencing missing relations, breaking every asset insert."
+        learning: "A schema drop must account for database-level dependents (functions, triggers, views, generated columns), not only foreign-key order. These live in the database rather than the codebase, so neither the compiler nor a source grep reveals them; the migration history and the database catalogue are the only places they appear."
+        node_impact:
+          - node_id: implementation-ef-config-migration
+            action: update
+          - node_id: implementation-migration-check
+            action: update
+      - dimension: pattern
+        assumption: "A contract tier 2 enumerates the work"
+        discovery: "Tier 2 said drop five tables. Execution found the coupling only because a surviving test named the trigger behaviour, and reading the original migration SQL was necessary to write the replacement."
+        learning: "For a feature with database-level machinery, the contract survey must read the migration that created it, not only the code that uses it."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+    elevation_proposal:
+      - target: implementation-migration-check
+        kind: implementation
+        evidence: "diffs[0]. NOT YET ELEVATED. The migration standards cover reversibility and discoverability but say nothing about database-level dependents of a dropped table."
+        human_decision: pending
+
+  - work_id: work-011
+    feature: reshape-c10-public-api-contract-cut
+    contract_id: contract-011
+    surfaced_in: 2026-08-14
+    states:
+      contracted:
+        approach: remove PATs, OpenAPI and the public-contract apparatus; no route may lose authorization
+        principles_invoked: [pattern-feature-excision, pattern-pat-scope-enforcement]
+        patterns_invoked: [pattern-feature-excision, pattern-public-api-contract]
+        assumptions:
+          - "A green build plus review is adequate proof that no route lost authorization"
+          - "Removing the scope filters leaves the rest of the auth wiring untouched"
+      implemented:
+        approach: as contracted, with the auth invariant verified by scripted capture rather than review
+        deviations:
+          - "GetUserRealmRolesAsync and its cache registry entries removed, orphaned by the cut"
+          - authorized: true
+      verified:
+        method: tests
+        result: pass
+        evidence: "Suite 971 passed and 0 failed at a81f561; before/after auth-annotation capture shows 97 to 94 routes, exactly the three PAT routes, every surviving group identical in RequireAuthorization and CSRF posture."
+    diffs:
+      - dimension: stakes
+        assumption: "A green build plus review is adequate proof that no route lost authorization"
+        discovery: "Authorization posture is a property of annotations spread across 13 route groups. A build cannot see it and diff review scales badly; capturing posture per group before the change and diffing after made the invariant checkable in seconds."
+        learning: "When a change could silently weaken a security invariant, capture the invariant mechanically before the change and diff it after. A green build is evidence about compilation, not about the property you care about."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+      - dimension: pattern
+        assumption: "Removing a feature removes only what the feature owned"
+        discovery: "A Keycloak role-lookup method and its cache-registry entries became unreachable because the PAT auth handler was their only consumer. They compiled and passed tests."
+        learning: "Removing a source of variability turns the code that handled it into dead weight the compiler cannot see."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: update
+    elevation_proposal:
+      - target: new node pattern-invariant-capture-and-diff
+        kind: pattern
+        evidence: "diffs[0], reused independently in work-012 as the ACL matrix. Two uses, two different invariants, same shape."
+        human_decision: pending
+
+  - work_id: work-012
+    feature: reshape-c11-borderline-cuts
+    contract_id: contract-012
+    surfaced_in: 2026-08-14
+    states:
+      contracted:
+        approach: cut nested collections, saved searches and the upload duplicate gate; ACL equivalence proven mechanically
+        principles_invoked: [pattern-feature-excision]
+        patterns_invoked: [pattern-feature-excision, pattern-regression-baseline]
+        assumptions:
+          - "Duplicate detection has one consumer, the upload gate"
+          - "CollectionTreeHelper is part of the nesting machinery"
+          - "Files named for a feature belong to it"
+      implemented:
+        approach: as contracted, with migration dedup deliberately kept
+        deviations:
+          - "Owner decision A kept the migration ingest dedup; only the upload gate was cut"
+          - authorized: true
+      verified:
+        method: tests
+        result: pass
+        evidence: "Suite 901 passed and 0 failed at 4e836b3; reconciliation 971 minus 70 plus 0; 75-test ACL matrix identical with zero assertion edits."
+    diffs:
+      - dimension: pattern
+        assumption: "A feature has one consumer, so cutting it is local"
+        discovery: "GetBySha256Async served both the user-facing upload gate and the migration ingest path, where a hash match is what makes re-running an import idempotent rather than duplicating the library."
+        learning: "A user-facing feature and an invisible correctness property can share one implementation. Cutting by feature name alone would have made a batch tool destructive on re-run."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: verify
+      - dimension: pattern
+        assumption: "CollectionTreeHelper is part of the nesting machinery"
+        discovery: "Despite the name it is a flat DTO mapper. Flatten sets Depth to zero and FlattenAll returns the list unchanged. It never implemented nesting."
+        learning: "The name-versus-contents trap runs in both directions. A name can claim a feature the code does not implement, just as a container can hide contents its name disclaims."
+        node_impact:
+          - node_id: pattern-feature-excision
+            action: verify
+      - dimension: stakes
+        assumption: "Removing ACL inheritance is verifiable by a green suite"
+        discovery: "The 75-test ACL matrix captured before the cut returned identical after it, with only constructor wiring changed. That is what made the access-control claim checkable rather than asserted."
+        learning: "Access control is exactly the kind of invariant that should be captured and diffed rather than reviewed, the same shape used for auth-annotation posture in work-011."
+        node_impact:
+          - node_id: new node pattern-invariant-capture-and-diff
+            action: new
+    elevation_proposal:
+      - target: new node pattern-invariant-capture-and-diff
+        kind: pattern
+        evidence: "diffs[2] plus work-011 diffs[0], the second independent use"
+        human_decision: pending
+

@@ -455,9 +455,12 @@ contracts:
         fresh-restore failure is still a mid-run stop). (-> all)
       - Verified means: baseline clean + zero-new-warnings non-incremental build +
         full test pass + sweep clean + compose parses. (-> UC9)
-    status: implemented
+    status: learned
+    verified: 2026-08-14
+    verification: >-
+      Tests pass (criterion 1 of the status rule). Suite green at 6a422c8 (comments+notifications cut); reconciliation closed; census fell 111->80.
     revisions: []
-    work_id: null
+    work_id: work-006
 
   - contract_id: contract-007
     feature: reshape-c6-workflow-cut
@@ -519,9 +522,12 @@ contracts:
       - i18n parity; DI no orphans; float hygiene under locks. (-> all)
       - Verified means: baseline clean + zero-new-warnings build + full pass + sweep
         clean + compose parses. (-> UC8)
-    status: implemented
+    status: learned
+    verified: 2026-08-14
+    verification: >-
+      Tests pass (criterion 1 of the status rule). Suite green at 6e602f1 (workflow cut); reconciliation closed; Published-default made the cut visibility-preserving.
     revisions: []
-    work_id: null
+    work_id: work-007
 
   - contract_id: contract-008
     feature: reshape-c7-renditions-editor-presets-cut
@@ -588,9 +594,12 @@ contracts:
       - i18n parity; DI no orphans; float hygiene under locks. (-> all)
       - Verified means: baseline clean + zero-new-warnings build + full pass +
         sweep clean + compose parses. (-> UC7)
-    status: implemented
+    status: learned
+    verified: 2026-08-14
+    verification: >-
+      Tests pass (criterion 1 of the status rule). Suite 1124 passed/0 failed at 62aaf33; reconciliation 1211-87+0; census flat at 80.
     revisions: []
-    work_id: null
+    work_id: work-008
     implemented: 2026-08-13
     implementation_notes: >-
       48 files deleted (45 surveyed + DerivativesPanel/SaveImageCopyDialog/
@@ -679,9 +688,12 @@ contracts:
         applied though un-ratified — cheap and read-only).
       - Verified means: baseline clean + zero-new-warnings build + full pass +
         sweep clean + discovery check clean.
-    status: implemented
+    status: learned
+    verified: 2026-08-14
+    verification: >-
+      Tests pass (criterion 1 of the status rule). Suite 1083 passed/0 failed at 20b3e94; reconciliation 1124-50+9; census 80->79.
     revisions: []
-    work_id: null
+    work_id: work-009
     implemented: 2026-08-13
     implementation_notes: >-
       13 files deleted (11 surveyed + MigrationSourceTypeMappingTests discovered
@@ -782,9 +794,12 @@ contracts:
       - Verified means: baseline clean + no new warnings + full pass +
         reconciliation closes + sweep clean + discovery check clean on a fresh
         build. (-> UC7)
-    status: implemented
+    status: learned
+    verified: 2026-08-14
+    verification: >-
+      Tests pass (criterion 1 of the status rule). Suite 1013 passed/0 failed at d9f9931; reconciliation 1083-70+0; census 79->73.
     revisions: []
-    work_id: null
+    work_id: work-010
     implemented: 2026-08-13
     implementation_notes: >-
       47 files deleted. The tracer-grep leg added to the standard the same day
@@ -897,9 +912,12 @@ contracts:
       - Verified means: baseline clean + no new warnings + full pass +
         reconciliation closes + auth-annotation diff reviewed + discovery check
         clean on a fresh build.
-    status: implemented
+    status: learned
+    verified: 2026-08-14
+    verification: >-
+      Tests pass (criterion 1 of the status rule). Suite 971 passed/0 failed at a81f561; reconciliation 1013-42+0; auth-annotation diff 97->94 routes, posture identical.
     revisions: []
-    work_id: null
+    work_id: work-011
     implemented: 2026-08-13
     implementation_notes: >-
       25 files deleted. Tracer greps found RequireScopeFilterTests.cs, a test the
@@ -1013,9 +1031,12 @@ contracts:
       - Verified means: baseline clean + no new warnings + full pass +
         reconciliation closes + ACL matrix identical + discovery check clean on
         a fresh build.
-    status: implemented
+    status: learned
+    verified: 2026-08-14
+    verification: >-
+      Tests pass (criterion 1 of the status rule). Suite 901 passed/0 failed at 4e836b3; reconciliation 971-70+0; 75-test ACL matrix identical.
     revisions: []
-    work_id: null
+    work_id: work-012
     implemented: 2026-08-14
     implementation_notes: >-
       Three legs, 18 files deleted. PRIMARY GATE PASSED: the 75-test ACL
