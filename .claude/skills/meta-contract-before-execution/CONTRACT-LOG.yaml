@@ -1608,6 +1608,150 @@ contracts:
       - No dependency on Microsoft.AspNetCore.App.Internal.Assets in any csproj.
       - Census no new rules; both compose files parse.
       - Owner asked for a VERIFY PASS after implementation.
-    status: approved
+    status: implemented
+    implemented: 2026-08-16
+    commit: d9a977a
     revisions: []
     work_id: null
+    outcome: |
+      Acceptance met. Suite 909 -> 911 (2 guards added, 0 removed, 0 regressions,
+      reconciled by test-name set). @auth E2E 15/15 including both tests that
+      failed before this contract. Container: blazor.web.js 200 text/javascript
+      200645 bytes; published manifest _framework routes 0 -> 12, endpoints
+      70 -> 90; all 16 routes resolve (anonymous render 200, authorized redirect
+      to /login). Both guards proven to fail when their own fix is reverted.
+      No csproj references Microsoft.AspNetCore.App.Internal.Assets — it arrives
+      implicitly, which was the point.
+
+      TIER_2 STEP 3 FAILED AS THE CONTRACT PREDICTED IT MIGHT. Moving App.razor
+      silently broke authorization on every page: MapRazorComponents<App>()
+      discovers routable pages from App's assembly, so the RCL had to be named
+      via .AddAdditionalAssemblies() — a DIFFERENT knob from
+      Router.AdditionalAssemblies. Build clean, 910 tests green, /login redirecting
+      to itself. Caught only because "all 16 pages resolve, enumerated" was written
+      into tier_3 for exactly this reason.
+
+      MY OWN VERIFICATION TOOL CERTIFIED THE BREAKAGE AS HEALTHY. The route probe
+      scored any 302 as "resolved", which is right for [Authorize] pages and exactly
+      backwards for the four anonymous ones, so a blanket 302 across all 16 routes
+      printed ALL CHECKS PASSED against a redirect loop. Caught only by comparing
+      /login against a before-picture captured from the pre-fix container. Third
+      measurement artefact of this programme (grep -c on minified JSON; head -3
+      truncation; now vacuous-302) and further evidence for the pending
+      pattern-invariant-capture-and-diff elevation.
+
+      SIDE EFFECT, REAL AND USER-FACING: the login page hydrates for the first
+      time, and hydration discards input typed before it completes. Waiting on
+      window.Blazor is NOT a valid signal — it is defined as soon as the script
+      parses. E2E now verifies the typed values survived. Root fix is static SSR
+      for the auth forms — contract-018.
+
+      FULL E2E SWEEP (first ever): 63 passed, ~32 failed, 3 skipped, 49 did-not-run
+      (serial-block short-circuits; workers=1). NOT an 017 regression — sampled
+      failure waits on getByRole('tab', name:/user/i), an admin tab bar the reshape
+      deliberately removed in favour of routable /admin/* sub-pages. The E2E suite
+      is stale against 11 feature cuts and needs its own truth pass. Recorded here
+      as the baseline contract-018 measures against, with that caveat attached.
+
+  - contract_id: contract-018
+    feature: static-render-the-auth-forms
+    date_proposed: 2026-08-16
+    date_approved: 2026-08-16
+    follows: contract-017
+    tier_1: |
+      contract-017 made the app interactive in the container for the first time,
+      which exposed a real defect: the login page discards input typed before
+      hydration. Measured two-arm — filling on domcontentloaded leaves both fields
+      empty; filling after hydration retains both. A user typing quickly loses
+      their username, and because `required` then blocks the POST they get no
+      error, just a form that does nothing.
+
+      Cause is a mismatch. Routes carried a global InteractiveServer render mode,
+      making EVERY page interactive — including a login form that is deliberately a
+      plain HTML POST, because establishing an auth cookie needs a real HTTP
+      response, which a circuit cannot produce. The one page that gains nothing
+      from interactivity paid its full cost.
+
+      A retry-and-refill loop in the E2E page object was compensating. That
+      workaround is a test papering over a product defect; its removal is part of
+      this contract, not a follow-up.
+
+      Not introduced by contract-017 so much as revealed by it — the page was never
+      interactive before, so the race could not fire. That does not make it less real.
+    tier_2: |
+      1. Baseline roll-forward to d9a977a (911); docker pre-check.
+      2. Gate the render mode in App.razor on HttpContext.AcceptsInteractiveRouting(),
+         applying the same mode to HeadOutlet so head and body agree.
+      3. ExcludeFromInteractiveRouting on Login.razor and ResetPassword.razor.
+      4. Keep the chrome honest on statically-rendered pages.
+      5. DELETE the E2E retry loop; a plain fill is the proof.
+      6. Confirm surviving interactive pages are unaffected.
+    tier_3: |
+      - A plain fill on /login with no retry and no hydration wait signs in reliably.
+      - /login and /reset-password serve no circuit; every other page still does.
+      - Sign-in, sign-out and password reset work end-to-end in the container.
+      - E2E green: at-auth 15/15, no spec regresses against the contract-017 sweep
+        (63 passed / ~32 failed / 3 skipped / 49 did-not-run — stale specs from the
+        reshape, recorded with that caveat).
+      - Unit suite unchanged at 911 with zero assertion edits; both contract-017
+        guards still pass.
+      - No page loses interactivity it needs — enumerated, not spot-checked.
+    status: implemented
+    implemented: 2026-08-16
+    revisions:
+      - date: 2026-08-16
+        note: >-
+          Tier_2 step 4 was drawn as "give those pages a minimal auth layout".
+          Two measurements changed the design during implementation. First, static
+          rendering makes the LAYOUT inert too, and LanguageSwitcher is a MudMenu
+          driven by JS interop — shipping the plan as drawn would have silently
+          removed language switching from the sign-in page of a bilingual app.
+          Second, MainLayout and ShareLayout palettes were compared and found to
+          DIFFER, so a new auth layout meant a third divergent copy rather than a
+          reuse. Implemented instead as: MainLayout branches on
+          RendererInfo.IsInteractive, rendering a form-POST StaticLanguageSwitcher
+          (new /auth/culture endpoint, culture validated against the supported
+          list, redirect guarded by UrlSafetyHelper which gains a /reset-password
+          prefix) where the interactive control cannot work; the dark-mode toggle
+          is hidden rather than shipped inert (the theme cookie still applies); the
+          Sign In button moves from OnClick to Href so it works in both modes,
+          which made MainLayout.Login() dead and it was removed.
+          Capability preserved rather than silently dropped; no new layout, no
+          palette duplication.
+    work_id: null
+    outcome: |
+      Acceptance met. Hydration race gone: filling /login IMMEDIATELY after
+      domcontentloaded now retains both fields (was empty/empty). @auth E2E 15/15
+      with a plain fill — no retry, no hydration wait — and the run halved from
+      29.2s to 15.5s once the workaround was deleted. Unit suite 911 unchanged
+      (0 added, 0 removed, 0 regressions); both contract-017 guards still pass.
+
+      Interactivity ENUMERATED across all 16 routes against an authenticated
+      session: exactly /login and /reset-password are static, the other 14 keep
+      their circuit. Language switching preserved on the static pages and verified
+      end-to-end (POST /auth/culture -> "Logga in"), including its guards —
+      off-site returnUrl redirects to "/", unsupported culture falls back.
+
+      Full E2E sweep 63 passed / 3 skipped / 49 did-not-run — identical counts to
+      the contract-017 baseline with an identical failure tail. Claim of "no
+      regression" rests on matching counts + matching tail, NOT on a full failure-set
+      diff; the baseline run's per-test list was not captured in machine-readable
+      form. Stated as measured, with that limit named.
+
+      DESIGN CHANGED UNDER MEASUREMENT — see revisions[0]. The drawn plan would have
+      silently removed language switching from a bilingual app's sign-in page.
+
+      SIDE EFFECT, deliberate: the app-bar sign-in control became <a href> so it
+      works without a circuit, changing its ARIA role from button to link. More
+      correct for navigation; the E2E locator was updated to follow the markup
+      rather than the markup bent to suit the test.
+
+      /auth/culture carries AllowAnonymous + DisableAntiforgery, matching the
+      sibling auth form POSTs (/auth/login, /auth/reset-password) which must be
+      CSRF-exempt to work as plain forms. Impact of forging one is a changed UI
+      language, and the culture value is validated against the supported list
+      rather than echoed into the cookie.
+
+      INFRA: Docker Desktop died mid-verification (drift-001, 8th occurrence,
+      recurrence_count now 7). A curl exit-7 was refused as data rather than read
+      as a product failure; engine restarted and verification resumed.

@@ -30,12 +30,17 @@ export class LayoutPage {
     this.appBar = page.locator('.mud-appbar');
     this.menuToggle = page.locator('.mud-appbar button').first();
     this.appName = page.locator('.mud-appbar').getByText('AssetHub');
-    // Scoped to the app bar. Unscoped this is ambiguous on /login, which renders
-    // both the layout's sign-in button and the sign-in form's submit button —
-    // strict mode then fails with "resolved to 2 elements". That only started
-    // biting once sign-out actually worked and the assertion got as far as the
-    // login page; the ambiguity was always there.
-    this.signInButton = page.locator('.mud-appbar').getByRole('button', { name: /sign in/i });
+    // Role is `link`, not `button`: the app bar's sign-in control is an <a href>
+    // so it works on statically-rendered pages too (MudButton renders an anchor
+    // when given Href). Playwright resolves <a href> to role=link regardless of
+    // its type="button" attribute.
+    //
+    // Scoped to the app bar as well. Unscoped this is ambiguous on /login, which
+    // also renders the sign-in form's submit control — strict mode then fails with
+    // "resolved to 2 elements". That only started biting once sign-out actually
+    // worked and the assertion got as far as the login page; the ambiguity was
+    // always there.
+    this.signInButton = page.locator('.mud-appbar').getByRole('link', { name: /sign in/i });
     this.darkModeToggle = page.locator('.mud-appbar .mud-icon-button').last();
     this.userDisplayName = page.locator('.mud-appbar .mud-typography-body2');
     // The account menu trigger is the first MudMenu icon button in the app bar

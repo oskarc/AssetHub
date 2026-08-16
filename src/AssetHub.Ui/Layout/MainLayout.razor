@@ -49,21 +49,35 @@
             </Authorized>
 
             <NotAuthorized>
+                @* Href, not OnClick: renders a real anchor, so it works on
+                   statically-rendered pages too (and still forces a full load,
+                   which /auth/login needs anyway). *@
                 <MudButton Variant="Variant.Filled"
                            Size="Size.Small"
-                           OnClick="@Login"
+                           Href="/auth/login"
                            Class="mr-2">
                     @CommonLoc["Btn_SignIn"]
                 </MudButton>
             </NotAuthorized>
         </AuthorizeView>
 
-        <LanguageSwitcher />
+        @* Statically-rendered pages (the auth forms) have no circuit, so OnClick
+           and JS interop do nothing. Rather than ship controls that look live and
+           silently fail, render the form-POST switcher there and hide the dark-mode
+           toggle — the theme cookie still applies, only toggling is unavailable. *@
+        @if (RendererInfo.IsInteractive)
+        {
+            <LanguageSwitcher />
 
-        <MudIconButton Icon="@(DarkLightModeButtonIcon)"
-                       Color="Color.Inherit"
-                       aria-label="@CommonLoc["Aria_ToggleDarkMode"]"
-                       OnClick="@DarkModeToggle" />
+            <MudIconButton Icon="@(DarkLightModeButtonIcon)"
+                           Color="Color.Inherit"
+                           aria-label="@CommonLoc["Aria_ToggleDarkMode"]"
+                           OnClick="@DarkModeToggle" />
+        }
+        else
+        {
+            <StaticLanguageSwitcher />
+        }
     </MudAppBar>
 
     <AuthorizeView>
@@ -182,12 +196,6 @@
     private async Task DarkModeToggle()
     {
         await Theme.ToggleAsync();
-    }
-
-    private void Login()
-    {
-        // forceLoad = true so we do a full navigation and the OIDC middleware takes over
-        Nav.NavigateTo("/auth/login", forceLoad: true);
     }
 
     private void ChangePassword()

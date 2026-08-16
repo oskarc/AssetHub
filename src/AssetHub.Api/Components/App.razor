@@ -10,13 +10,28 @@
     <link href="css/app.css" rel="stylesheet" />
     <ImportMap />
     <link rel="icon" type="image/ico" href="favicon.ico" />
-    <HeadOutlet @rendermode="InteractiveServer" />
+    <HeadOutlet @rendermode="@PageRenderMode" />
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="@PageRenderMode" />
     <script src="_framework/blazor.web.js"></script>
     <script src=@Assets["_content/MudBlazor/MudBlazor.min.js"]></script>
 </body>
 
 </html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // Pages marked [ExcludeFromInteractiveRouting] render statically: no circuit,
+    // so no hydration, so nothing can discard what the user already typed. The auth
+    // forms need that — they are plain POSTs that establish a cookie, which an
+    // interactive circuit cannot do, so interactivity was pure cost there.
+    //
+    // HeadOutlet takes the SAME mode as Routes on purpose; mismatching them makes
+    // the head and body disagree about whether the page is interactive.
+    private IComponentRenderMode? PageRenderMode =>
+        HttpContext?.AcceptsInteractiveRouting() is true ? InteractiveServer : null;
+}

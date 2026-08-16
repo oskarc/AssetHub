@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -34,6 +35,9 @@ namespace AssetHub.Api.Extensions;
     Justification = "Middleware + endpoint composition root — by definition references every endpoint module + middleware.")]
 public static class WebApplicationExtensions
 {
+    /// <summary>Cultures the app ships resources for; index 0 is the fallback.</summary>
+    private static readonly string[] SupportedCultures = ["en", "sv"];
+
     // ── Startup tasks ───────────────────────────────────────────────────────
 
     /// <summary>
@@ -507,6 +511,36 @@ public static class WebApplicationExtensions
     /// </summary>
     private static void MapIdentityAuthRoutes(WebApplication app)
     {
+        // Culture switch as a form POST. The interactive LanguageSwitcher sets the
+        // cookie over JS interop, which does nothing on a statically-rendered page —
+        // and the auth forms are deliberately static (see App.razor). Without this,
+        // making /login static would silently drop language switching from the
+        // sign-in page of a bilingual app.
+        app.MapPost("/auth/culture", (
+            HttpContext http,
+            [FromForm] string? culture,
+            [FromForm] string? returnUrl) =>
+        {
+            // Never echo a client-supplied culture into the cookie unchecked.
+            var selected = SupportedCultures.Contains(culture, StringComparer.OrdinalIgnoreCase)
+                ? culture!
+                : SupportedCultures[0];
+
+            http.Response.Cookies.Append(
+                CookieRequestCultureProvider.DefaultCookieName,
+                CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(selected, selected)),
+                new CookieOptions
+                {
+                    Expires = DateTimeOffset.UtcNow.AddYears(1),
+                    IsEssential = true,
+                    SameSite = SameSiteMode.Lax,
+                    Secure = http.Request.IsHttps,
+                    Path = "/"
+                });
+
+            return Results.Redirect(AssetHub.Application.Helpers.UrlSafetyHelper.SafeReturnUrl(returnUrl));
+        }).AllowAnonymous().DisableAntiforgery();
+
         app.MapGet("/auth/login", (string? returnUrl) =>
         {
             var redirectUri = AssetHub.Application.Helpers.UrlSafetyHelper.SafeReturnUrl(returnUrl);

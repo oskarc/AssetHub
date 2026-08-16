@@ -16,6 +16,7 @@ public static class UrlSafetyHelper
         "/admin",
         "/share",
         "/login",
+        "/reset-password",
     ];
 
     /// <summary>

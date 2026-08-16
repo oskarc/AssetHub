@@ -67,6 +67,11 @@ entries:
       C5 gate and C8 baseline: `docker info` returned
       "failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine
        ... open //./pipe/dockerDesktopLinuxEngine: Det gar inte att hitta filen."
+      contract-018 (2026-08-16): engine died mid-verification — a curl against
+      the app returned exit 7 and `docker ps` reported the same npipe error.
+      Refused as data: the connection failure was infrastructure, not the change
+      under test. The hydration measurement taken minutes earlier completed
+      before the engine went down and remains valid.
     reaction: |
       Every occurrence: the result was refused as data, Docker Desktop was
       started via PowerShell, `docker info` polled to healthy, and the suite
@@ -102,7 +107,7 @@ entries:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 6
+    recurrence_count: 7
     related_drifts: []
 
   - drift_id: drift-002

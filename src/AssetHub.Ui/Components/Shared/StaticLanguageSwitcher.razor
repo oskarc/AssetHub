@@ -1,0 +1,49 @@
+@inject IStringLocalizer<CommonResource> CommonLoc
+@inject NavigationManager Nav
+
+@*
+    Language switch for statically-rendered pages.
+
+    The interactive LanguageSwitcher writes the culture cookie over JS interop, so
+    it is inert without a circuit — and the auth pages are deliberately static
+    (a plain form POST establishes the auth cookie; see App.razor). This posts the
+    same cookie server-side instead, so /login and /reset-password keep language
+    switching rather than silently losing it.
+
+    Two supported cultures, so this is a toggle rather than a menu — one control,
+    one click, no popover to hydrate.
+*@
+
+<form method="post" action="/auth/culture" class="d-inline-flex align-center">
+    <input type="hidden" name="culture" value="@_target" />
+    <input type="hidden" name="returnUrl" value="@_returnUrl" />
+    <MudButton ButtonType="ButtonType.Submit"
+               Color="Color.Inherit"
+               Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Language"
+               aria-label="@($"{CommonLoc["Language_Label"]}: {_targetLabel}")">
+        @_targetLabel
+    </MudButton>
+</form>
+
+@code {
+    private string _target = "sv";
+    private string _targetLabel = "Svenska";
+    private string _returnUrl = "/";
+
+    protected override void OnInitialized()
+    {
+        var current = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+
+        // Offer the language the user is NOT currently reading.
+        _target = current == "sv" ? "en" : "sv";
+        _targetLabel = _target == "sv"
+            ? CommonLoc["Language_Swedish"].Value
+            : CommonLoc["Language_English"].Value;
+
+        // Base-relative, then re-rooted — the server re-validates against its own
+        // allowlist, so a tampered value redirects to "/" rather than off-site.
+        var relative = Nav.ToBaseRelativePath(Nav.Uri);
+        _returnUrl = string.IsNullOrEmpty(relative) ? "/" : "/" + relative;
+    }
+}
