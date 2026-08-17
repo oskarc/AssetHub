@@ -267,7 +267,7 @@ AssetHub.Infrastructure.Common/ — ServiceResult, Polly pipelines, MinIO adapte
 
 **Priority: FIRST** — Lowest risk, already a separate container.
 
-**Current state:** `AssetHub.Worker` is a separate Dockerfile running Wolverine message consumers via RabbitMQ.
+**Current state:** Wolverine message consumers run inside the API container (contract-019 folded the separate `AssetHub.Worker` host in); dispatch is still over RabbitMQ.
 
 **Target state:** Independent service consuming messages from RabbitMQ.
 

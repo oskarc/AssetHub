@@ -212,7 +212,6 @@ Update `docker-compose.prod.yml` to mount the certificate and set the password i
 | Container | Purpose | Internal Port | Dev Exposed | Prod Exposed | Swappable? |
 |-----------|---------|--------------|-------------|--------------|------------|
 | `assethub-api` | ASP.NET Core API + Blazor UI | 7252 | 127.0.0.1:7252 | 127.0.0.1:7252 | — (core) |
-| `assethub-worker` | Wolverine message consumer (ImageMagick, ffmpeg, zip) | — | — | — | — (core) |
 | `assethub-postgres` | Primary database (EF Core) | 5432 | 127.0.0.1:5432 | not exposed | Any PostgreSQL instance |
 | `assethub-rabbitmq` | Message broker (Wolverine commands/events) | 5672 / 15672 | 127.0.0.1:5672, :15672 | not exposed | Any AMQP 0-9-1 broker |
 | `assethub-minio` | S3-compatible object storage | 9000 / 9001 | 127.0.0.1:9000, :9001 | not exposed | AWS S3 or any S3-compatible store |
@@ -726,7 +725,7 @@ docker compose -f docker/docker-compose.prod.yml up -d --build
 | Health check fails | Hit `/health/ready` to see which dependency is down. |
 | Certificate errors | Trust the self-signed certificate in your OS certificate store. See [Certificate Setup](#certificate-setup). |
 | ClamAV slow to start | First boot downloads virus definitions (2-5 min). Health check has a 5-minute start period. |
-| Thumbnails not generating | Check Worker logs: `docker compose logs assethub-worker`. ImageMagick/ffmpeg errors will appear there. |
+| Thumbnails not generating | Check API logs: `docker compose logs assethub-api`. Media processing runs in that container, so ImageMagick/ffmpeg errors appear there. |
 
 ### Certificate Errors
 

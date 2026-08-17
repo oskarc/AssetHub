@@ -1,10 +1,10 @@
 ---
-applyTo: "src/AssetHub.Worker/**"
-description: "Use when creating or editing Wolverine message handlers or background services in the AssetHub.Worker project."
+applyTo: "src/AssetHub.Api/Handlers/**,src/AssetHub.Api/BackgroundServices/**"
+description: "Use when creating or editing Wolverine message handlers or background services (both live in AssetHub.Api since contract-019 folded the Worker in)."
 ---
-# Worker Conventions (AssetHub.Worker)
+# Message handler & background job conventions (AssetHub.Api)
 
-AssetHub.Worker is a composition root that runs Wolverine message handlers (via RabbitMQ) and `IHostedService` background services. It shares infrastructure with the API via `AddSharedInfrastructure()`.
+AssetHub.Api is the single composition root. It runs the HTTP/Blazor surface **and** every Wolverine message handler (via RabbitMQ) and `IHostedService` background service. Handlers live in `Handlers/`, background jobs in `BackgroundServices/`.
 
 ## Host Setup
 - Uses `Host.CreateDefaultBuilder()` with `.UseWolverine()` (not WebApplicationBuilder — no HTTP pipeline).

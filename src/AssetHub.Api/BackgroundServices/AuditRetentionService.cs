@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AssetHub.Worker.BackgroundServices;
+namespace AssetHub.Api.BackgroundServices;
 
 /// <summary>
 /// Cron loop that triggers <see cref="IAuditRetentionSweeper"/> every

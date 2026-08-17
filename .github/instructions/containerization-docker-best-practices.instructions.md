@@ -7,7 +7,6 @@ description: 'AssetHub Docker conventions. Applies to Dockerfiles and compose fi
 ## Reference files
 Before editing, read the existing Dockerfiles and compose files:
 - `docker/Dockerfile` — API multi-stage build (.NET 10)
-- `docker/Dockerfile.Worker` — Worker multi-stage build
 - `docker/Dockerfile.ClamAV`, `docker/Dockerfile.RabbitMQ` — patched infra images
 - `docker/docker-compose.yml` — development stack
 - `docker/docker-compose.prod.yml` — production overrides

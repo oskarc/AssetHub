@@ -69,9 +69,24 @@ try
         opts.PublishMessage<ProcessMigrationItemCommand>()
             .ToRabbitQueue("process-migration-item");
 
-        // Listen for events from Worker
+        // Single process now owns both sides. Messages still round-trip through
+        // RabbitMQ rather than an in-memory queue: keeping the transport unchanged
+        // is what makes this a hosting move and nothing else — durability, retries
+        // and at-least-once delivery are byte-for-byte what they were (contract-019).
+        opts.PublishMessage<AssetProcessingCompletedEvent>()
+            .ToRabbitQueue("asset-processing-completed");
+        opts.PublishMessage<AssetProcessingFailedEvent>()
+            .ToRabbitQueue("asset-processing-failed");
+
+        // Listen: the two completion events, plus the six queues the Worker held.
         opts.ListenToRabbitQueue("asset-processing-completed");
         opts.ListenToRabbitQueue("asset-processing-failed");
+        opts.ListenToRabbitQueue("process-image");
+        opts.ListenToRabbitQueue("process-video");
+        opts.ListenToRabbitQueue("process-audio");
+        opts.ListenToRabbitQueue("build-zip");
+        opts.ListenToRabbitQueue("start-migration");
+        opts.ListenToRabbitQueue("process-migration-item");
 
         opts.Policies.AutoApplyTransactions();
 

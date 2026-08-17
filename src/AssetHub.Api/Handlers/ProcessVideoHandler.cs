@@ -3,18 +3,18 @@ using AssetHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
-namespace AssetHub.Worker.Handlers;
+namespace AssetHub.Api.Handlers;
 
-public sealed class ProcessImageHandler(
-    ImageProcessingService imageProcessingService,
-    ILogger<ProcessImageHandler> logger)
+public sealed class ProcessVideoHandler(
+    VideoProcessingService videoProcessingService,
+    ILogger<ProcessVideoHandler> logger)
 {
-    public async Task<object[]> HandleAsync(ProcessImageCommand command, CancellationToken cancellationToken)
+    public async Task<object[]> HandleAsync(ProcessVideoCommand command, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Received image processing command for asset {AssetId}", command.AssetId);
+        logger.LogInformation("Received video processing command for asset {AssetId}", command.AssetId);
 
-        var result = await imageProcessingService.ProcessImageAsync(
-            command.AssetId, command.OriginalObjectKey, command.SkipMetadataExtraction, cancellationToken);
+        var result = await videoProcessingService.ProcessVideoAsync(
+            command.AssetId, command.OriginalObjectKey, cancellationToken);
 
         if (result.Succeeded)
         {
@@ -23,9 +23,7 @@ public sealed class ProcessImageHandler(
             {
                 AssetId = command.AssetId,
                 ThumbObjectKey = result.ThumbObjectKey,
-                MediumObjectKey = result.MediumObjectKey,
-                MetadataJson = result.Metadata,
-                Copyright = result.Copyright
+                PosterObjectKey = result.PosterObjectKey
             }];
         }
 
@@ -35,7 +33,7 @@ public sealed class ProcessImageHandler(
             AssetId = command.AssetId,
             ErrorMessage = result.ErrorMessage ?? "Unknown error",
             ErrorType = result.ErrorType ?? "Unknown",
-            AssetType = "image"
+            AssetType = "video"
         }];
     }
 }

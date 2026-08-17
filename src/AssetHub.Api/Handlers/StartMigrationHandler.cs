@@ -5,7 +5,7 @@ using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
-namespace AssetHub.Worker.Handlers;
+namespace AssetHub.Api.Handlers;
 
 public sealed class StartMigrationHandler(
     IMigrationRepository migrationRepo,

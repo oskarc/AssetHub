@@ -148,8 +148,25 @@ public static class ServiceCollectionExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // ── AuditRetention (AuditRetentionService) ───────────────────────────
+        services.AddOptions<AuditRetentionSettings>()
+            .BindConfiguration(AuditRetentionSettings.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddScoped<IAuditRetentionSweeper, AuditRetentionSweeper>();
+
         // ── Background services (recurring tasks) ────────────────────────────
+        // All of them run here since contract-019 folded the Worker in. They take
+        // scoped dependencies through IServiceScopeFactory; CurrentUser resolves to
+        // Anonymous without an HttpContext (see its registration below), which is
+        // what these need.
         services.AddHostedService<ZipCleanupBackgroundService>();
+        services.AddHostedService<StaleUploadCleanupService>();
+        services.AddHostedService<OrphanedSharesCleanupService>();
+        services.AddHostedService<AuditRetentionService>();
+        services.AddHostedService<TrashPurgeBackgroundService>();
+        services.AddHostedService<OrphanedObjectsSweeperService>();
+        services.AddHostedService<OutboxDrainService>();
 
         // ── Rate Limiting ───────────────────────────────────────────────────
         ConfigureRateLimiting(services, environment);

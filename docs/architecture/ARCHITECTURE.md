@@ -26,18 +26,18 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  HOSTS (Composition Roots)                                                  │
-│  ┌─────────────────────────────────────────┐  ┌──────────────────────────┐  │
-│  │  AssetHub.Api                           │  │  AssetHub.Worker         │  │
-│  │  ┌───────────────┐ ┌─────────────────┐  │  │  Wolverine consumers     │  │
-│  │  │ Blazor Server │ │ Minimal APIs v1 │  │  │  ImageMagick + ffmpeg    │  │
-│  │  │ (MudBlazor 8) │ │ Smart auth:     │  │  │                          │  │
-│  │  │               │ │ Cookie/JWT/OIDC │  │  │                          │  │
-│  │  └───────────────┘ └─────────────────┘  │  └──────────────────────────┘  │
-│  └─────────────────────────────────────────┘                                │
+│  HOST (single composition root)                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  AssetHub.Api                                                         │  │
+│  │  ┌───────────────┐ ┌─────────────────┐ ┌───────────────────────────┐  │  │
+│  │  │ Blazor Server │ │ Minimal APIs    │ │ Wolverine handlers        │  │  │
+│  │  │ (MudBlazor 8) │ │ (internal REST) │ │ + background services     │  │  │
+│  │  │               │ │ Cookie / JWT    │ │ ImageMagick + ffmpeg      │  │  │
+│  │  └───────────────┘ └─────────────────┘ └───────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
-              │                                    │
-┌─────────────▼────────────────────────────────────▼──────────────────────────┐
+                                   │
+┌───────────────────────────────────▼─────────────────────────────────────────┐
 │  APPLICATION LAYER  (AssetHub.Application)                                  │
 │                                                                             │
 │  Service interfaces (27 interfaces):                                        │
@@ -104,7 +104,6 @@ AssetHub.sln
 │   ├── AssetHub.Infrastructure/    # EF Core, MinIO, SMTP, ClamAV, Keycloak implementations
 │   ├── AssetHub.Api/               # ASP.NET Core host — Versioned Minimal APIs (/api/v1/), auth, DI wiring, validation filters
 │   ├── AssetHub.Ui/                # Blazor Server components, pages, layouts (Razor Class Library)
-│   └── AssetHub.Worker/            # Wolverine message consumer (media processing, cleanup jobs)
 │
 ├── tests/
 │   ├── AssetHub.Tests/             # Integration + unit tests (xUnit, Testcontainers, Moq)
@@ -115,7 +114,6 @@ AssetHub.sln
 │   ├── docker-compose.yml          # Development stack (all services, exposed ports)
 │   ├── docker-compose.prod.yml     # Production stack (hardened, internal networking)
 │   ├── Dockerfile                  # API multi-stage build
-│   ├── Dockerfile.Worker           # Worker multi-stage build (includes ImageMagick + ffmpeg)
 │   ├── imagemagick-policy.xml      # Restrictive ImageMagick security policy
 │   ├── init-keycloak-db.sh         # Creates Keycloak database on first PostgreSQL start
 │   ├── backup.sh                   # Full backup script (PostgreSQL, MinIO, Keycloak)
@@ -144,7 +142,6 @@ AssetHub.sln
 Domain  ←  Application  ←  Infrastructure  ←  Api
                 ↑                                ↑
                 Ui (Razor Class Library) ─────────┘
-                                             Worker → Infrastructure + Application
 ```
 
 - **Domain** — no dependencies. Pure entities, enums, and value objects.
@@ -152,7 +149,6 @@ Domain  ←  Application  ←  Infrastructure  ←  Api
 - **Infrastructure** — depends on Application + Domain. Contains all concrete implementations: EF Core repositories, MinIO adapter, SMTP email, ClamAV scanner, Keycloak client, media processing, and Polly resilience pipelines.
 - **Ui** — depends on Application only (no Infrastructure reference). A Razor Class Library containing all Blazor Server components, pages, and layouts. Communicates with infrastructure exclusively through Application interfaces.
 - **Api** — composition root, references all projects including Ui. Wires up dependency injection, configures authentication, defines versioned Minimal API endpoints (`/api/v1/`) with a `ValidationFilter` for request DTO validation, and hosts the Blazor Server app.
-- **Worker** — composition root, references Infrastructure + Application (no Ui). Runs Wolverine message consumers for media processing and zip building, plus `IHostedService` classes for scheduled cleanup tasks (stale uploads, orphaned shares, audit retention).
 
 ---
 
@@ -276,7 +272,7 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 
 #### Migrations
 
-Code-first, conditionally applied on startup. Both the API and Worker hosts call `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. Currently 16 migrations from initial schema through to native array tags.
+Code-first, conditionally applied on startup. The API host calls `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. Currently 16 migrations from initial schema through to native array tags.
 
 #### Replacing PostgreSQL
 
@@ -377,14 +373,14 @@ Implement `IMalwareScannerService` with your scanner's SDK or API. The interface
 
 #### Message Architecture
 
-The API and Worker communicate via RabbitMQ queues using Wolverine as the messaging framework:
+Background work is dispatched over RabbitMQ queues using Wolverine. Publisher and consumer share the API process (contract-019 folded the Worker in), but messages still round-trip through the broker so an in-flight message survives a restart:
 
-**Commands (API → Worker):**
+**Commands:**
 - `ProcessImageCommand` → `process-image` queue — extract metadata, generate thumbnail + medium rendition
 - `ProcessVideoCommand` → `process-video` queue — extract metadata, generate poster frame
 - `BuildZipCommand` → `build-zip` queue — build ZIP archive from collection assets
 
-**Events (Worker → API):**
+**Events (emitted by the processing handlers):**
 - `AssetProcessingCompletedEvent` → `asset-processing-completed` queue — updates asset with renditions + metadata
 - `AssetProcessingFailedEvent` → `asset-processing-failed` queue — marks asset as Failed
 
@@ -396,11 +392,11 @@ The API and Worker communicate via RabbitMQ queues using Wolverine as the messag
 - **ZipCleanupBackgroundService** (API) — hourly, removes expired ZIP downloads from MinIO
 - **UserSyncBackgroundService** (API) — daily, syncs users deleted in Keycloak
 
-The Worker runs as a **separate container** (`AssetHub.Worker`) so it can be scaled independently from the API. It shares the same Infrastructure layer but has its own Dockerfile with ImageMagick and ffmpeg pre-installed.
+Media processing runs **in the API container**, which ships ImageMagick and ffmpeg. The separate Worker container was removed by contract-019: it carried the same native tooling and the same shared infrastructure, so it bought separation on paper while costing a second hosting story.
 
 #### Wolverine Configuration
 
-Both API and Worker configure Wolverine with:
+The API configures Wolverine with:
 - Auto-provisioned RabbitMQ queues
 - Retry policy with cooldown: 1s, 2s, 5s, 10s, 30s delays
 - `AutoApplyTransactions()` — wraps message handlers in EF Core transactions
@@ -413,7 +409,7 @@ The messaging pattern is standard command/event with dedicated queues. Replace W
 
 ### Media Processing
 
-**Tools:** ImageMagick (images) + ffmpeg (video), running in the Worker container.
+**Tools:** ImageMagick (images) + ffmpeg (video), running in the API container.
 
 #### Interface
 
@@ -451,7 +447,7 @@ On error, the asset is marked Failed with a user-visible message and an `asset.p
 - Both ImageMagick and ffmpeg have a hard **5-minute process timeout** — the process tree is killed if exceeded
 - A custom `imagemagick-policy.xml` restricts processing to raster formats only. Disabled coders: SVG, MVG, MSL, PS/EPS/PDF (Ghostscript), TEXT/LABEL, XPS, URL/HTTP/HTTPS/FTP (SSRF prevention), ephemeral, X11. Also blocks `@*` path patterns and the gnuplot delegate.
 - Resource limits: 16KP max dimensions, 128MP max area, 256 MiB memory, 2 GiB disk, 120s per-operation timeout, 4 threads
-- The Worker container runs with `cap_drop: ALL`, `read_only: true`, `no-new-privileges`, and a 2 GB tmpfs at `/tmp` for transient processing files
+- The API container runs with `cap_drop: ALL`, `read_only: true`, `no-new-privileges`, and a 2 GB tmpfs at `/tmp` for transient processing files
 
 ---
 

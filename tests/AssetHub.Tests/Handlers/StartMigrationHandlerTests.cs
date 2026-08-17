@@ -3,7 +3,7 @@ using AssetHub.Application.Messages;
 using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Domain.Entities;
-using AssetHub.Worker.Handlers;
+using AssetHub.Api.Handlers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 

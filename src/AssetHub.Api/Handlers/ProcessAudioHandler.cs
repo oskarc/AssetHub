@@ -3,7 +3,7 @@ using AssetHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
-namespace AssetHub.Worker.Handlers;
+namespace AssetHub.Api.Handlers;
 
 public sealed class ProcessAudioHandler(
     AudioProcessingService audioProcessingService,

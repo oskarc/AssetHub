@@ -66,7 +66,6 @@ src/
 ├── AssetHub.Infrastructure/   # EF Core, repositories, service implementations
 ├── AssetHub.Api/              # ASP.NET Core host, versioned minimal APIs (/api/v1/), validation filters, Blazor UI host
 ├── AssetHub.Ui/               # Blazor Server components (Razor Class Library)
-└── AssetHub.Worker/           # Wolverine message consumer (media processing, cleanup jobs)
 
 tests/
 ├── AssetHub.Tests/            # Unit and integration tests (xUnit)
@@ -79,14 +78,14 @@ tests/
 AssetHub follows **Clean Architecture** with strict dependency flow:
 
 ```
-Domain → Application → Infrastructure → Api / Worker
+Domain → Application → Infrastructure → Api
                                       → Ui
 ```
 
 - **Domain** has no external dependencies — pure entities and logic.
 - **Application** defines interfaces and DTOs consumed by outer layers.
 - **Infrastructure** implements persistence, storage, and external services.
-- **Api** and **Worker** are composition roots that wire everything together.
+- **Api** is the single composition root that wires everything together — HTTP, Blazor, Wolverine handlers and background jobs.
 - **Ui** is a Razor Class Library that depends only on Application.
 
 When adding new features, respect these layer boundaries.
@@ -103,8 +102,6 @@ dotnet build --configuration Release
 # Run the API
 dotnet run --project src/AssetHub.Api
 
-# Run the Worker (separate terminal)
-dotnet run --project src/AssetHub.Worker
 ```
 
 ### Docker

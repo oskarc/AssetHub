@@ -1755,3 +1755,114 @@ contracts:
       INFRA: Docker Desktop died mid-verification (drift-001, 8th occurrence,
       recurrence_count now 7). A curl exit-7 was refused as data rather than read
       as a product failure; engine restarted and verification resumed.
+
+  - contract_id: contract-019
+    feature: fold-worker-into-api
+    reshape_step: C13a of two
+    date_proposed: 2026-08-16
+    date_approved: 2026-08-16
+    tier_1: |
+      Removes one PROCESS, not one dependency. The Worker's 6 handlers and 6
+      background services move into the Api; the Worker project, Dockerfile and
+      compose service are deleted. Two composition roots, two Dockerfiles and a
+      broker between them is a lot of apparatus for a system whose background work
+      is "make a thumbnail".
+
+      RabbitMQ STAYS, deliberately. Keeping the transport unchanged means message
+      semantics — durability, retries, at-least-once — are byte-for-byte what they
+      are today, so any breakage is the hosting move and nothing else.
+
+      SURVEY OVERTURNED THE ASSUMED ORDERING. Local in-process queues only work
+      when producer and consumer share a process — the Api publishes process-image
+      while the handler lives in the Worker. So the fold must come BEFORE the
+      transport swap, not after; doing transport first would strand every message.
+      Both prior mentions of C13 had this backwards.
+
+      THE USUAL OBJECTION DOES NOT APPLY, MEASURED. Folding was expected to bloat
+      the Api image with media tooling; the Api Dockerfile ALREADY installs
+      ImageMagick and ffmpeg under the same hardened imagemagick-policy.xml. The
+      two images are near-identical. Worker's csproj adds only Wolverine + hosting.
+    tier_2: |
+      1. Baseline roll-forward to f9e38fc (911); docker pre-check.
+      2. Move 6 handlers + 6 background services into the Api, folders preserved.
+      3. Merge the Worker's Wolverine config into the Api's — same queue names,
+         same retry cooldowns, same AutoApplyTransactions.
+      4. Delete AssetHub.Worker, docker/Dockerfile.Worker, the compose service, the
+         solution entry and any test references.
+      5. Reconcile the hosting-split prose in CLAUDE.md, including the stale
+         UserSyncBackgroundService reference this survey found (it does not exist).
+      6. Confirm every queue still has exactly one listener and no message type
+         lost its route.
+    tier_3: |
+      - Every queue that existed still listens, ENUMERATED by name.
+      - Image upload end-to-end in the container: upload -> process-image ->
+        thumbnail -> asset reaches Ready.
+      - A ZIP build and a migration both run to completion.
+      - All 6 background services start in the Api and log their first scheduled run.
+      - Unit suite 911 with zero assertion edits, or a NAMED delta if Worker tests move.
+      - E2E sweep matches the contract-018 baseline (63 / 3 / 49).
+      - compose has one fewer service and still parses; no orphaned Worker references.
+    invariant_capture_before: |
+      queues listened  — api: asset-processing-completed, asset-processing-failed
+                       — worker: build-zip, process-audio, process-image,
+                                 process-migration-item, process-video, start-migration
+      messages published (8): AssetProcessingCompletedEvent, AssetProcessingFailedEvent,
+                              BuildZipCommand, ProcessAudioCommand, ProcessImageCommand,
+                              ProcessMigrationItemCommand, ProcessVideoCommand,
+                              StartMigrationCommand
+      handlers (8): AssetProcessingCompleted, AssetProcessingFailed, BuildZip,
+                    ProcessAudio, ProcessImage, ProcessMigrationItem, ProcessVideo,
+                    StartMigration
+      hosted services (7): AuditRetention, OrphanedObjectsSweeper,
+                           OrphanedSharesCleanup, OutboxDrain, StaleUploadCleanup,
+                           TrashPurge, ZipCleanup
+    status: implemented
+    implemented: 2026-08-16
+    revisions: []
+    work_id: null
+    invariant_capture_after: |
+      queues listened 8 (was api 2 + worker 6) — all in Api, each IsDurable=True
+      publish routes 8 (unchanged) | handlers 8 (unchanged) | hosted services 7 (unchanged)
+      compose services 9 -> 8 | composition roots 2 -> 1
+    outcome: |
+      Acceptance met, with two criteria explicitly NOT directly exercised (below).
+
+      Suite 911 — 0 added, 0 removed, 0 regressions. The two retargeted handler
+      tests kept their fully-qualified names (only their `using` changed), so no
+      named delta was required. E2E sweep 63 passed / 3 skipped / 49 did-not-run,
+      identical to the contract-018 baseline.
+
+      Container: worker container gone; 8 queues declared IsDurable=True with 8
+      listener endpoints opened and exactly ONE consumer each — the single Api
+      process. Upload verified END-TO-END: asset "c019-probe" reached `ready` with
+      a thumbnail generated and served from MinIO. OutboxDrainService observed
+      logging under its new AssetHub.Api.BackgroundServices namespace.
+
+      THE SEMANTIC PROMISE WAS MEASURED, NOT ASSUMED. This contract promised the
+      transport was untouched, which required ruling out Wolverine short-circuiting
+      an in-process publish straight to the handler. Observed in the logs:
+        "Enqueued for sending AssetProcessingCompletedEvent to
+         rabbitmq://queue/asset-processing-completed"
+        "Received ... at rabbitmq://queue/asset-processing-completed"
+        "Received message from rabbitmq://queue/process-image"
+      Messages traverse the broker. Round-trip, not short-circuit.
+
+      NOT DIRECTLY EXERCISED: a ZIP build and a migration run to completion. Their
+      queues are declared with listeners and one consumer each, and process-image
+      proved the full publish -> broker -> listener -> handler -> event -> handler
+      path through the identical registration mechanism — but neither flow was
+      actually triggered. Stated as a gap rather than inferred as covered.
+
+      E2E STALENESS CONFIRMED AND QUANTIFIED. AssetsPage.goto() targets
+      /assets?collection=..., a route no page declares — 404 with an empty body.
+      The real surface is /collections?collection={id}. That is why no upload test
+      has been exercising this flow at all, and it is why the acceptance probe had
+      to be written by hand. Reinforces the recommendation to run an E2E truth pass
+      before further cuts: a gate that is a third red cannot certify the next change.
+
+      Probe note: the first run set files on #fileInput before hydration and
+      silently created nothing — <InputFile OnChange> needs a live circuit. Same
+      race class characterised in contract-018, here in the harness rather than
+      the product.
+
+      A dev-data asset "c019-probe" remains in the local database.

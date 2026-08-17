@@ -47,8 +47,7 @@ Layers:
 | **Domain** | Entities, enums — no base classes, no value objects, no domain events | Nothing |
 | **Application** | Service interfaces, repository interfaces, DTOs, `ServiceResult<T>`, configuration, messages | Domain |
 | **Infrastructure** | EF Core repos, service implementations, external adapters, Polly resilience | Application + Domain |
-| **Api** | Composition root — DI, endpoint mapping, auth config, hosts Blazor Server. Also hosts UI-adjacent background work (see § Worker — Hosting split) | All |
-| **Worker** | Composition root — media/processing Wolverine handlers, scheduled `IHostedService` background jobs | All |
+| **Api** | The single composition root — DI, endpoint mapping, auth config, hosts Blazor Server, and runs every Wolverine handler and background job (see § Background work) | All |
 | **Ui** | Blazor Server (Razor Class Library) | Application only — never reference Infrastructure or Api |
 
 The dependency direction, the deliberately-omitted patterns, and how SOLID applies to this shape are the **`principle-clean-architecture-dotnet`** standard. AssetHub's concrete instantiation of it:
@@ -442,17 +441,13 @@ dotnet ef migrations add <PascalCaseName> --project src/AssetHub.Infrastructure 
 
 ---
 
-## Worker (`AssetHub.Worker`)
+## Background work (`AssetHub.Api`)
 
-Uses `Host.CreateDefaultBuilder()` with `.UseWolverine()` (no HTTP pipeline).
+There is **one composition root**. The separate `AssetHub.Worker` host was folded into the Api by the 2026-08 reshape (contract-019): it ran the same shared infrastructure against the same database and its image already carried the same native media tooling, so a second process bought separation on paper and cost a whole hosting story in practice.
 
-### Hosting split (Api vs Worker)
-Background work is hosted by **both** composition roots — placement follows ownership of the data the work touches:
+All background work lives here — the media/processing handlers (`process-image` / `process-video` / `process-audio` / `build-zip` / migration), the completion consumers that transition an asset row, and every retention/cleanup `BackgroundService` (trash purge, audit retention, orphan sweeps, outbox drain, ZIP cleanup). New background work goes in the Api; there is nowhere else for it to go.
 
-- **Worker** owns media/processing pipelines and scheduled sweeps: `process-image` / `process-video` / `process-audio` / `build-zip` / migration handlers, plus all retention/cleanup `BackgroundService`s (trash purge, audit retention, orphan sweeps).
-- **Api** hosts UI-adjacent consumers: `AssetProcessingCompletedHandler` / `AssetProcessingFailedHandler` (asset row state transition on completion) and the `UserSyncBackgroundService` / `ZipCleanupBackgroundService` jobs that serve interactive flows.
-
-New background work defaults to the Worker; put it in Api only when it completes an interactive request/response loop the Api owns. Either way the handler/service rules below apply unchanged.
+Messages still travel through **RabbitMQ**, not an in-memory queue, even though publisher and consumer now share a process. That is deliberate: an in-flight message must survive a restart, and there is no reaper for an asset stuck in `Processing`. Swapping the transport is a separate decision with its own durability question (contract-020) — do not "simplify" it away as an obvious follow-on to the fold.
 
 The handler/background-service conventions (placement by data ownership, per-item resilience in batch loops, scope-per-iteration, cancellation + level-based logging) are the **`implementation-worker-background`** standard. AssetHub specifics:
 
@@ -610,7 +605,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - Never hardcode secrets — placeholders in `appsettings.json`, real values from env / Docker secrets.
 - Production `AllowedHosts` must be a specific hostname, not `"*"`.
 
-### When editing Worker handlers / background services (`src/AssetHub.Worker/`)
+### When editing message handlers / background services (`src/AssetHub.Api/Handlers/`, `src/AssetHub.Api/BackgroundServices/`)
 
 - Handlers are per-item try/catch in batch loops — one bad message doesn't poison the queue.
 - `ct.ThrowIfCancellationRequested()` inside long loops; catch `OperationCanceledException` at the top level.

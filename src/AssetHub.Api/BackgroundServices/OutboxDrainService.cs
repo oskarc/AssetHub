@@ -7,7 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
-namespace AssetHub.Worker.BackgroundServices;
+namespace AssetHub.Api.BackgroundServices;
 
 /// <summary>
 /// Drains the OutboxMessages table to RabbitMQ. Producers enqueue rows in

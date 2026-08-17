@@ -9,7 +9,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AssetHub.Worker.Handlers;
+namespace AssetHub.Api.Handlers;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",

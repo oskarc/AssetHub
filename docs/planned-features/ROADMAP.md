@@ -40,7 +40,7 @@ Follow `CLAUDE.md` at all times. Key reminders for implementers:
 - API endpoints: `.RequireAuthorization("Require…")` on the group, `{id:guid}` route constraint, `ValidationFilter<T>` on mutations, `.ToHttpResult(...)` on return.
 - DTOs: DataAnnotations only (`[Required]`, `[StringLength]`, `[Range]`).
 - Every new user-visible string is added to **both** `.resx` and `.sv.resx` of the most specific resource domain.
-- Wolverine commands / events live in `src/AssetHub.Application/Messages/`; handlers in `src/AssetHub.Worker/Handlers/`.
+- Wolverine commands / events live in `src/AssetHub.Application/Messages/`; handlers in `src/AssetHub.Api/Handlers/`.
 - New migrations live under `src/AssetHub.Infrastructure/Migrations/` and must have a `Down()` method.
 - Before finishing a UI-facing feature, run through the `/implementation-a11y-check` and `/implementation-ux-check` skills.
 
@@ -735,7 +735,7 @@ public string? WaveformPeaksPath { get; set; }  // MinIO key for the precomputed
 **Risks & trade-offs.**
 - Waveform peaks JSON is small (~10 KB for a typical track) but generating them per upload adds maybe 1–2 seconds of processing. Acceptable.
 - The peaks rendering is a `<canvas>` paint per detail-page view; on slow devices it can flash briefly. Render the audio player first, paint the waveform asynchronously.
-- ffmpeg's audio filter chain has version-to-version quirks — pin the worker image's ffmpeg version (already done in `Dockerfile.Worker`).
+- ffmpeg's audio filter chain has version-to-version quirks — pin the API image's ffmpeg version (already done in `docker/Dockerfile`).
 
 ---
 
@@ -745,7 +745,7 @@ Unlike the feature tiers above, Tier 6 is operational: the codebase is already f
 
 ### T6-HA-01 — Multi-pod Worker via SKIP LOCKED
 
-**Intent.** Today the Worker tier is functionally HA-capable for Wolverine queue handlers (Rabbit splits the queue between competing consumers automatically), but the seven `BackgroundService` sweepers and the new [`OutboxDrainService`](../../src/AssetHub.Worker/BackgroundServices/OutboxDrainService.cs) all do plain `Where + OrderBy + Take` polling. Two Worker pods means both pods read the same rows, both attempt the side-effect, both run `ExecuteUpdate`. The DB writes are idempotent so the failure mode is wasted work rather than data corruption — but it blocks the "run two Worker pods for region-local HA" story because half your CPU is duplicate work.
+**Intent.** Today the queue handlers are functionally HA-capable for Wolverine queue handlers (Rabbit splits the queue between competing consumers automatically), but the seven `BackgroundService` sweepers and the new [`OutboxDrainService`](../../src/AssetHub.Api/BackgroundServices/OutboxDrainService.cs) all do plain `Where + OrderBy + Take` polling. Two API pods means both pods read the same rows, both attempt the side-effect, both run `ExecuteUpdate`. The DB writes are idempotent so the failure mode is wasted work rather than data corruption — but it blocks the "run two API pods for region-local HA" story because half your CPU is duplicate work.
 
 **User gain.**
 - Customers can run N Worker replicas in one region for fault tolerance without paying duplicate-work overhead. Pod failure becomes invisible — surviving pods keep the work moving.
@@ -1052,7 +1052,7 @@ When a new gap is discovered:
 - 409 `ServiceError.DuplicateAsset` carries `existingAssetId` + `existingTitle`; `ServiceResult.ToHttpResult()` preserves the `Details` dictionary onto the wire via `ApiError`.
 - `?force=true` on `POST /api/v1/assets` and `POST /api/v1/assets/{id}/confirm-upload` allows admin override.
 - UI: [AssetUpload.razor](../../src/AssetHub.Ui/Components/AssetUpload.razor) catches `ApiException.ErrorCode == "DUPLICATE_ASSET"` and routes to [UploadErrorsDialog.razor](../../src/AssetHub.Ui/Components/UploadErrorsDialog.razor) with a "Go to existing" link. Localised in EN + SV (`Error_DuplicateAsset`, `Alert_DuplicateBlocked`, `Link_GoToExisting`).
-- Migration pipeline: [ProcessMigrationItemHandler.cs](../../src/AssetHub.Worker/Handlers/ProcessMigrationItemHandler.cs) checks SHA256 and marks items with `MigrationConstants.ErrorCodes.Duplicate`.
+- Migration pipeline: [ProcessMigrationItemHandler.cs](../../src/AssetHub.Api/Handlers/ProcessMigrationItemHandler.cs) checks SHA256 and marks items with `MigrationConstants.ErrorCodes.Duplicate`.
 - Audit events: `asset.duplicate_blocked` (emitted at 409) and `asset.duplicate_override` (emitted after successful admin force-override), both recorded with sha256 + existingAssetId.
 - Admin-only gate: non-admin callers passing `skipDuplicateCheck=true` get `403 Forbidden` ("Only administrators can bypass duplicate detection.").
 
@@ -1084,7 +1084,7 @@ When a new gap is discovered:
 - `Asset.DeletedAt` (nullable UTC) + `Asset.DeletedByUserId` on the entity; EF Core global query filter `.HasQueryFilter(a => a.DeletedAt == null)` hides trashed rows from default queries. Trash and purge paths use `IgnoreQueryFilters()`.
 - `AssetLifecycleSettings` config class (`SectionName = "AssetLifecycle"`, `TrashRetentionDays = 30`, `ValidateOnStart = false`).
 - Soft-delete endpoints + admin trash surface at [AdminTrashEndpoints.cs](../../src/AssetHub.Api/Endpoints/AdminTrashEndpoints.cs): `GET /api/v1/admin/trash`, `POST /{id}/restore`, `DELETE /{id}` (permanent), `POST /empty` (second-confirm bulk permanent).
-- [TrashPurgeBackgroundService.cs](../../src/AssetHub.Worker/BackgroundServices/TrashPurgeBackgroundService.cs) hourly loop — finds assets with `DeletedAt < now - TrashRetentionDays`, deletes rows and MinIO objects.
+- [TrashPurgeBackgroundService.cs](../../src/AssetHub.Api/BackgroundServices/TrashPurgeBackgroundService.cs) hourly loop — finds assets with `DeletedAt < now - TrashRetentionDays`, deletes rows and MinIO objects.
 - UI: [AdminTrashTab.razor](../../src/AssetHub.Ui/Components/AdminTrashTab.razor); single-asset delete flows in `AssetDetail` / `AssetCardGrid` show optimistic removal + Undo snackbar that calls restore.
 - Cache invalidation via `CacheKeys.Tags.AssetList` on delete / restore.
 - CLAUDE.md's "No soft delete" rule was amended for `Asset` to match this item (see the Domain Entities section in CLAUDE.md).

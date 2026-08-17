@@ -72,6 +72,10 @@ entries:
       Refused as data: the connection failure was infrastructure, not the change
       under test. The hydration measurement taken minutes earlier completed
       before the engine went down and remains valid.
+      contract-019 (2026-08-16): engine down again at the precondition check,
+      before any suite was spent. Caught by the pre-check rather than by a mass
+      failure — the intended behaviour. Code work proceeded (it needs no daemon)
+      while the engine restarted.
     reaction: |
       Every occurrence: the result was refused as data, Docker Desktop was
       started via PowerShell, `docker info` polled to healthy, and the suite
@@ -107,7 +111,7 @@ entries:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 7
+    recurrence_count: 8
     related_drifts: []
 
   - drift_id: drift-002

@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace AssetHub.Worker.BackgroundServices;
+namespace AssetHub.Api.BackgroundServices;
 
 /// <summary>
 /// Cleans up orphaned shares — shares referencing deleted assets or collections.

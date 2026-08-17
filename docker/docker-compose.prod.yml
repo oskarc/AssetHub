@@ -227,7 +227,7 @@ services:
       # Redis
       Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
 
-      # ASP.NET Data Protection — PFX cert shared between api and worker so
+      # ASP.NET Data Protection — PFX cert wrapping the key ring so
       # cookies / antiforgery tokens / DP-signed payloads round-trip correctly.
       DataProtection__CertificatePath: /run/secrets/dp_cert
     secrets:
@@ -278,94 +278,6 @@ services:
         max-file: "5"
 
   # ---------- Background Worker (Wolverine + RabbitMQ) -------------------------
-  worker:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.Worker
-    container_name: assethub-worker
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ:-Europe/Stockholm}
-      # Worker uses Host.CreateDefaultBuilder which reads DOTNET_ENVIRONMENT,
-      # not ASPNETCORE_ENVIRONMENT. We set both so the env override sticks
-      # whether a future entry point switches host builder.
-      DOTNET_ENVIRONMENT: Production
-      ASPNETCORE_ENVIRONMENT: Production
-      App__BaseUrl: "${APP_BASE_URL}"
-      ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"
-      MinIO__Endpoint: "minio:9000"
-      MinIO__AccessKey: "${MINIO_ACCESS_KEY}"
-      MinIO__SecretKey: "${MINIO_SECRET_KEY}"
-      MinIO__BucketName: "${MINIO_BUCKET_NAME}"
-      MinIO__UseSSL: "false"
-      RabbitMQ__Host: "rabbitmq"
-      RabbitMQ__Username: "${RABBITMQ_DEFAULT_USER}"
-      RabbitMQ__Password: "${RABBITMQ_DEFAULT_PASS}"
-      ImageProcessing__ThumbnailWidth: "${IMAGE_THUMBNAIL_WIDTH:-200}"
-      ImageProcessing__ThumbnailHeight: "${IMAGE_THUMBNAIL_HEIGHT:-200}"
-      ImageProcessing__MediumWidth: "${IMAGE_MEDIUM_WIDTH:-800}"
-      ImageProcessing__MediumHeight: "${IMAGE_MEDIUM_HEIGHT:-800}"
-      ImageProcessing__JpegQuality: "${IMAGE_JPEG_QUALITY:-85}"
-      ImageProcessing__PosterFrameSeconds: "${VIDEO_POSTER_FRAME_SECONDS:-5}"
-      ImageProcessing__PosterWidth: "${VIDEO_POSTER_WIDTH:-800}"
-      ImageProcessing__PosterQuality: "${VIDEO_POSTER_QUALITY:-5}"
-
-      # OpenTelemetry
-      OpenTelemetry__Enabled: "${OTEL_ENABLED:-true}"
-      OpenTelemetry__OtlpEndpoint: "http://aspire-dashboard:18889"
-      OpenTelemetry__SamplingRatio: "${OTEL_SAMPLING_RATIO:-0.1}"
-
-      # Redis
-      Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
-
-      # ASP.NET Data Protection — same PFX as api so DP-signed tokens are
-      # verifiable by both processes (magic links, unsubscribe URLs, etc.).
-      DataProtection__CertificatePath: /run/secrets/dp_cert
-    secrets:
-      - dp_cert
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - backend
-      - observability
-    healthcheck:
-      test: ["CMD-SHELL", "kill -0 1 || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 1G
-          pids: 200
-    # Security hardening
-    user: "1654:1654"  # .NET 'app' user (set in Dockerfile, reinforced here)
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp:size=2G,uid=1654,gid=1654
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
-
-  # ── RabbitMQ (Message Broker) ───────────────────────────────────────────────
-  # HA-ready: uses persistent volume, quorum queues, and Erlang cookie secret.
-  # To scale to a cluster, add rabbitmq2/rabbitmq3 services with the same
-  # Erlang cookie and RABBITMQ_CLUSTER_NODES environment variable.
   rabbitmq:
     build:
       context: .
@@ -507,7 +419,7 @@ networks:
 # Services are isolated into separate networks for defense-in-depth:
 #   - observability: aspire-dashboard (monitoring)
 #
-# The api and worker services bridge both networks to access data stores
+# The api service bridges both networks to access data stores
 # and export telemetry. This limits blast radius if any service is compromised.
 # ============================================================================
 

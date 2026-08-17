@@ -39,9 +39,9 @@ Before starting work in any area, read the files listed below to understand exis
 - Use the `migration` agent for generating migrations
 
 ## Worker / background jobs
-- An existing handler in `src/AssetHub.Worker/Handlers/`
+- An existing handler in `src/AssetHub.Api/Handlers/`
 - `src/AssetHub.Application/Messages/` (commands and events)
-- `src/AssetHub.Worker/Program.cs` (Wolverine + RabbitMQ config)
+- `src/AssetHub.Api/Program.cs` (Wolverine + RabbitMQ config)
 
 ## Tests
 - `tests/AssetHub.Tests/Fixtures/` (PostgresFixture, CustomWebApplicationFactory, TestAuthHandler)

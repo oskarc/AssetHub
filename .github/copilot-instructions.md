@@ -12,7 +12,7 @@ When instructions conflict, **project-specific files override generic ones**:
 ## Architecture
 
 ```
-Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
+Domain  ←  Application  ←  Infrastructure  ←  Api
                 ↑                                ↑
                 Ui (Razor Class Library) ─────────┘
 ```
@@ -24,7 +24,6 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 | `AssetHub.Infrastructure` | EF Core repos, MinIO, SMTP, ClamAV, Keycloak, Polly pipelines |
 | `AssetHub.Api` | Composition root — Minimal API endpoints, auth, DI wiring, Blazor host |
 | `AssetHub.Ui` | Blazor Server components/pages (Razor Class Library, depends only on Application) |
-| `AssetHub.Worker` | Wolverine message consumer — media processing, cleanup jobs |
 
 **Layer rules — never violate:**
 - Domain has no project references.

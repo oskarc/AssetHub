@@ -195,7 +195,6 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 | `AssetHub.Application` | Service interfaces, DTOs, constants, business rules |
 | `AssetHub.Api` | Composition root — Minimal APIs, auth, DI wiring, Blazor host |
 | `AssetHub.Ui` | Blazor Server components and pages (Razor Class Library) |
-| `AssetHub.Worker` | Wolverine message consumer — media processing, migrations, cleanup jobs (separate container) |
 
 > Full architecture diagram, layer details, and resilience patterns in **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**.
 

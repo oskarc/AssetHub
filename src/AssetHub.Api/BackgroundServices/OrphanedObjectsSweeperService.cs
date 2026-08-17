@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace AssetHub.Worker.BackgroundServices;
+namespace AssetHub.Api.BackgroundServices;
 
 /// <summary>
 /// Drains the OrphanedObjects queue: each row points at a MinIO object whose

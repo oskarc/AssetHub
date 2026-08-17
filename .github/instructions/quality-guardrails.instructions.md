@@ -42,7 +42,7 @@ Quick checks by file type — walk through before reporting done. For deep audit
 - Settings class: `const string SectionName`, DataAnnotations, `ValidateOnStart()` for critical infra.
 - No hardcoded secrets; production `AllowedHosts` ≠ `"*"`.
 
-## Worker (`src/AssetHub.Worker/**`)
+## Message handlers & background jobs (`src/AssetHub.Api/Handlers/**`, `src/AssetHub.Api/BackgroundServices/**`)
 
 - Per-item try/catch in batch loops; `ct.ThrowIfCancellationRequested()` in long loops.
 - `IServiceScopeFactory` per iteration; log counts at `Information`/`Debug`/`Warning`.
