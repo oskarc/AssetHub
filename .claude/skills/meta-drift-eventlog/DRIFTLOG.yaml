@@ -76,6 +76,11 @@ entries:
       before any suite was spent. Caught by the pre-check rather than by a mass
       failure — the intended behaviour. Code work proceeded (it needs no daemon)
       while the engine restarted.
+      contract-020 survey (2026-08-19): engine down mid-survey. Health endpoints
+      returned curl exit 0/000 across the board — refused as data rather than read
+      as a broken health check, and the mapping was read from source instead. The
+      E2E health failure from the earlier sweep (app demonstrably up) stays OPEN
+      for triage; the two must not be conflated.
     reaction: |
       Every occurrence: the result was refused as data, Docker Desktop was
       started via PowerShell, `docker info` polled to healthy, and the suite
@@ -111,7 +116,7 @@ entries:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 8
+    recurrence_count: 9
     related_drifts: []
 
   - drift_id: drift-002

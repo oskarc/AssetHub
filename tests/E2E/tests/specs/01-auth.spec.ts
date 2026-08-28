@@ -64,7 +64,7 @@ test.describe('Authentication & Login @auth @smoke', () => {
     });
 
     test('unauthenticated user redirected from protected pages', async ({ page }) => {
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForURL(/\/login/, { timeout: 15_000 });
     });
   });

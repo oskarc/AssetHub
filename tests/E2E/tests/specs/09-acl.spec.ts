@@ -99,7 +99,7 @@ test.describe('Access Control & Permissions @acl', () => {
     test('admin sees upload area on collections page', async ({ page }) => {
       if (!testCollectionId) test.skip();
 
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await waitForBlazorInteractive(page);
 
@@ -110,7 +110,7 @@ test.describe('Access Control & Permissions @acl', () => {
     test('admin sees manage access button', async ({ page }) => {
       if (!testCollectionId) test.skip();
 
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await waitForBlazorInteractive(page);
 
@@ -127,7 +127,7 @@ test.describe('Access Control & Permissions @acl', () => {
         await api.uploadAsset(testCollectionId, fixtures.testImage, `ACL-Vis-${timestamp}`);
       } catch {}
 
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await waitForBlazorInteractive(page);
       await page.waitForTimeout(env.timeouts.animation * 2);
@@ -151,7 +151,7 @@ test.describe('Access Control & Permissions @acl', () => {
         await api.setCollectionAccess(testCollectionId, viewerUserId, 'viewer');
       }
 
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await waitForBlazorInteractive(page);
 
@@ -170,7 +170,7 @@ test.describe('Access Control & Permissions @acl', () => {
     test('manage access dialog has role selector', async ({ page }) => {
       if (!testCollectionId) test.skip();
 
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await waitForBlazorInteractive(page);
 

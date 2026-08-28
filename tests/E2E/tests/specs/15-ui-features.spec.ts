@@ -44,7 +44,7 @@ test.describe('UI Feature Tests @ui', () => {
       assetsPage = new AssetsPage(page);
       dialog = new DialogHelper(page);
       snackbar = new SnackbarHelper(page);
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
     });
@@ -123,7 +123,7 @@ test.describe('UI Feature Tests @ui', () => {
     });
 
     test('does not show "Description:" heading when collection has no description', async ({ page }) => {
-      await page.goto(`/assets?collection=${noDescCollectionId}`);
+      await page.goto(`/collections?collection=${noDescCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
@@ -138,7 +138,7 @@ test.describe('UI Feature Tests @ui', () => {
       assetsPage = new AssetsPage(page);
       dialog = new DialogHelper(page);
       // Navigate to collection grid (no collection selected)
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
     });
@@ -178,7 +178,7 @@ test.describe('UI Feature Tests @ui', () => {
   test.describe('Upload Queued Status', () => {
     test.beforeEach(async ({ page }) => {
       assetsPage = new AssetsPage(page);
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
     });

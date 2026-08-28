@@ -28,7 +28,7 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
 
     // === STEP 1: Create collection via UI ===
     const collectionName = `Workflow-${timestamp}`;
-    await page.goto('/assets');
+    await page.goto('/collections');
     await page.waitForLoadState('networkidle');
     await waitForBlazorInteractive(page);
 
@@ -100,7 +100,7 @@ test.describe('End-to-End Workflow Tests @e2e @smoke', () => {
     }
 
     // === STEP 5: Return to the collection and verify everything is stable ===
-    await page.goto('/assets');
+    await page.goto('/collections');
     await page.waitForLoadState('networkidle');
     await waitForBlazorInteractive(page);
     await expect(page.getByText(collectionName)).toBeVisible({ timeout: 10_000 });

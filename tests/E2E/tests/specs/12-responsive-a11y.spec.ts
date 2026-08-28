@@ -6,7 +6,7 @@ test.describe('Responsive & Accessibility @ui', () => {
   test.describe('Responsive Design', () => {
     test('assets page renders on mobile viewport', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 812 }); // iPhone X
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
 
       // App bar should still be visible
@@ -17,7 +17,7 @@ test.describe('Responsive & Accessibility @ui', () => {
 
     test('assets page renders on tablet viewport', async ({ page }) => {
       await page.setViewportSize({ width: 768, height: 1024 }); // iPad
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
 
       await expect(page.locator('.mud-appbar')).toBeVisible();
@@ -28,8 +28,10 @@ test.describe('Responsive & Accessibility @ui', () => {
       await page.goto('/admin');
       await page.waitForLoadState('networkidle');
 
-      // Tabs should still be accessible
-      await expect(page.locator('.mud-tabs').first()).toBeVisible({ timeout: 10_000 });
+      // Was waiting on `.mud-tabs` — the admin tab bar was replaced by routable
+      // /admin/* sub-pages, so that element renders nowhere. Assert the console
+      // actually renders instead.
+      await expect(page.locator('.mud-typography-h4').first()).toBeVisible({ timeout: 10_000 });
     });
 
     test('share page renders on mobile viewport', async ({ page }) => {
@@ -84,7 +86,7 @@ test.describe('Responsive & Accessibility @ui', () => {
     });
 
     test('buttons are keyboard accessible', async ({ page }) => {
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
 
       // Tab through focusable elements
@@ -119,7 +121,7 @@ test.describe('Responsive & Accessibility @ui', () => {
     });
 
     test('images have alt attributes', async ({ page }) => {
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
@@ -182,7 +184,7 @@ test.describe('Responsive & Accessibility @ui', () => {
     });
 
     test('MudBlazor snackbar infrastructure is present', async ({ page }) => {
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
 
       // MudBlazor snackbar containers use various class patterns depending on version

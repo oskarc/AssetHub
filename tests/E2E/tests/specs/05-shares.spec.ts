@@ -42,7 +42,7 @@ test.describe('Share Management @shares', () => {
       dialog = new DialogHelper(page);
 
       // Navigate to collection, then click asset to open detail view
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
@@ -91,7 +91,7 @@ test.describe('Share Management @shares', () => {
     test('create collection share from assets page', async ({ page }) => {
       dialog = new DialogHelper(page);
 
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 

@@ -1866,3 +1866,91 @@ contracts:
       the product.
 
       A dev-data asset "c019-probe" remains in the local database.
+
+  - contract_id: contract-020
+    feature: e2e-truth-pass
+    date_proposed: 2026-08-19
+    date_approved: 2026-08-19
+    follows: contract-019
+    tier_1: |
+      The E2E suite is the only gate that can see UI, auth, hosting or
+      IHostedService startup — the unit suite is structurally blind to all four,
+      proven twice this session: 910 tests passed while /login redirected to
+      itself, and 911 passed while nothing in the container had ever rendered a
+      working circuit. That gate currently reports 63 passed / 77 failed /
+      52 skipped out of 192. A gate 40 percent red cannot certify anything.
+
+      It comes before contract-021 (remove RabbitMQ) because that contract's
+      failure mode is a silently lost in-flight message — precisely what no unit
+      test can catch and what this suite, as it stands, would not catch either.
+
+      THE SURVEY SAYS THIS IS SMALL. Checked whether the suite tests features the
+      reshape deleted — brands, notifications, comments, workflow, webhooks,
+      renditions, watermarking, nested collections, PATs, guests, Keycloak. It
+      does NOT. Every apparent hit was a substring: "branding", "patch",
+      "End-to-End Workflow". The staleness is STRUCTURAL, not feature-based —
+      two wrong navigation assumptions fanned out across the suite:
+        - assets.page.ts:80 builds /assets?collection={id}, a route no page
+          declares (404, empty body). Reaches 11 spec files / 34 call sites.
+          04-assets is 1-pass/22-fail because of it.
+        - admin.page.ts drives four getByRole('tab') locators at an admin tab bar
+          the reshape replaced with routable /admin/* sub-pages. 24 failures; the
+          tabs map one-to-one onto /admin/shares, /admin/collection-access,
+          /admin/users, /admin/audit.
+    tier_2: |
+      1. Baseline: per-test JSON from 3968c65 (63/77/52). Docker pre-check.
+      2. Point AssetsPage at /collections?collection={id}; fix sibling assumptions.
+      3. Replace AdminPage tab clicks with the four routable sub-pages.
+      4. Re-run. EXPECT the 52 skipped to shrink sharply — they are serial-block
+         short-circuits under workers:1, so fixing leaders un-hides followers. The
+         failure count may RISE before it falls as hidden tests finally execute;
+         that is success, not regression.
+      5. Triage the remainder into named buckets: (a) genuine product bug,
+         (b) test asserting something no longer true, (c) flaky. Bucket (a) STOPS
+         the contract and gets its own decision.
+      6. 08-api health-endpoint failure explicitly in scope for triage. /health maps
+         with Predicate = _ => false so checks:[] should hold — the assertion looks
+         correct, making this a candidate BUG rather than staleness. It failed while
+         the app was demonstrably up.
+      7. Audit networkidle at 64 call sites — written when the app had no circuit;
+         a live SignalR connection changes their meaning (consequence of 017-018).
+      8. Commit the JSON baseline so future claims are set diffs, not count matches.
+    tier_3: |
+      - Every remaining failure NAMED and bucketed; no unexplained red.
+      - Bucket (b) fixed or deleted with the reason recorded — never skipped.
+      - Any bucket (a) finding reported, and carried as an explicit open item if
+        not fixed here.
+      - Suite runs to completion with no serial-block short-circuits masking specs.
+      - A committed per-test baseline exists that contract-021 can diff by test id.
+      - Unit suite unchanged at 911, zero assertion edits — this contract touches no
+        product code unless triage finds a real bug, which is its own decision.
+      - assets.page.ts and admin.page.ts no longer reference routes or controls the
+        application does not have.
+    known_unknowns: |
+      The post-fix number is genuinely unmeasured: 52 specs have never run, so the
+      suite's real health is unknown rather than merely poor.
+    status: in_progress
+    revisions: []
+    work_id: null
+    progress: |
+      CHECKPOINT (structural fixes done and measured; triage NOT finished).
+        before:  63 passed / 77 failed / 52 skipped — 26.8 min
+        after:  123 passed / 18 failed / 51 skipped — 10.0 min
+      06-admin 1->24 passing, 04-assets 1->19, 15-ui-features 3->12,
+      03-collections 0->4. Runtime more than halved because most of the old red
+      was 15s timeouts against a blank 404 page.
+
+      Fixed: AssetsPage.goto -> /collections?collection={id}; 32 direct spec
+      navigations retargeted across 10 files; AdminPage tab clicks -> the four
+      routable /admin/* sub-pages; two stale admin assertions rewritten
+      (tab roles -> sub-page resolution; .mud-tabs -> admin heading).
+
+      STOPPED per tier_2 step 5: triage produced TWO bucket-(a) product findings,
+      which by this contract's own gate stop the work for a human decision rather
+      than being folded into a test-hygiene change. Both approved for excision by
+      the owner on 2026-08-29 -> contract-021.
+
+      REMAINING (deferred until after contract-021, because that contract may
+      delete 08-api entirely): 16 failures, dominated by two clusters — a
+      `.asset-card` group (data/timing, class verified correct) and three
+      `.mud-dialog` close-button timeouts.

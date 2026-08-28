@@ -39,7 +39,7 @@ test.describe('Asset Management @assets', () => {
   test.describe('Asset Upload', () => {
     test.beforeEach(async ({ page }) => {
       dialog = new DialogHelper(page);
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
     });
 
@@ -114,7 +114,7 @@ test.describe('Asset Management @assets', () => {
     });
 
     test.beforeEach(async ({ page }) => {
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
     });
@@ -222,7 +222,7 @@ test.describe('Asset Management @assets', () => {
         await detailPage.goto(testAssetId);
       } else {
         // Navigate via collection
-        await page.goto(`/assets?collection=${testCollectionId}`);
+        await page.goto(`/collections?collection=${testCollectionId}`);
         await page.waitForLoadState('networkidle');
         await waitForBlazorInteractive(page);
         const card = page.locator('.asset-card').first();

@@ -51,14 +51,24 @@ test.describe('Admin Panel @admin', () => {
       await adminPage.expectLoaded();
     });
 
-    test('admin page has four tabs', async ({ page }) => {
+    test('admin console reaches each routable sub-page', async ({ page }) => {
+      // The admin console is NOT tabbed. The reshape replaced the tab bar with
+      // routable /admin/* sub-pages grouped Access / Operations / Insights, and
+      // CLAUDE.md forbids re-collapsing them into one tabbed page. This asserted
+      // four `tab` roles that no longer render anywhere.
       adminPage = new AdminPage(page);
-      await adminPage.goto();
 
-      await expect(adminPage.shareManagementTab).toBeVisible();
-      await expect(adminPage.collectionAccessTab).toBeVisible();
-      await expect(adminPage.userManagementTab).toBeVisible();
-      await expect(adminPage.auditTab).toBeVisible();
+      for (const [name, path] of [
+        ['shares', '/admin/shares'],
+        ['collection access', '/admin/collection-access'],
+        ['users', '/admin/users'],
+        ['audit', '/admin/audit'],
+      ] as const) {
+        await page.goto(path);
+        await page.waitForLoadState('networkidle');
+        expect(new URL(page.url()).pathname, `${name} should resolve, not redirect`).toBe(path);
+        await expect(adminPage.pageTitle).toBeVisible();
+      }
     });
   });
 

@@ -69,7 +69,7 @@ test.describe('Viewer Role Restrictions @acl @auth', () => {
   });
 
   test('viewer does not see upload area (without explicit collection access)', async ({ page }) => {
-    await page.goto('/assets');
+    await page.goto('/collections');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(env.timeouts.animation);
 

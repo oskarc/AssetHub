@@ -37,7 +37,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
     });
 
     test('non-existent collection ID handled gracefully', async ({ page }) => {
-      await page.goto('/assets?collection=00000000-0000-0000-0000-000000000000');
+      await page.goto('/collections?collection=00000000-0000-0000-0000-000000000000');
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
@@ -48,7 +48,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
 
   test.describe('Blazor Error Handling', () => {
     test('blazor error UI is hidden during normal operation', async ({ page }) => {
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
 
       const errorUI = page.locator('#blazor-error-ui');
@@ -62,10 +62,10 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
     test('rapid navigation does not crash', async ({ page }) => {
       // Navigate rapidly between pages
       await page.goto('/');
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.goto('/all-assets');
       await page.goto('/admin');
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
 
       // App should still be functional
@@ -98,7 +98,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
 
   test.describe('Browser Back/Forward', () => {
     test('browser back from asset detail returns to collection', async ({ page }) => {
-      await page.goto(`/assets?collection=${testCollectionId}`);
+      await page.goto(`/collections?collection=${testCollectionId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(env.timeouts.animation);
 
@@ -119,7 +119,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
 
     test('browser forward after back works', async ({ page }) => {
       await page.goto('/');
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
 
       await page.goBack();
@@ -134,7 +134,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
   test.describe('Empty States', () => {
     test('empty collection area shows select prompt', async ({ page }) => {
       // Navigate to assets without selecting a collection
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
       
       // The "select a collection" empty state should appear
@@ -145,7 +145,7 @@ test.describe('Error Handling & Edge Cases @edge-cases', () => {
 
   test.describe('Loading States', () => {
     test('collections page loads without crashing', async ({ page }) => {
-      await page.goto('/assets');
+      await page.goto('/collections');
       await page.waitForLoadState('networkidle');
       await expect(page.locator('.mud-container, .mud-main-content').first()).toBeVisible();
     });

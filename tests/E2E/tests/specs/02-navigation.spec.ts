@@ -60,7 +60,7 @@ test.describe('Navigation & Layout @navigation @smoke', () => {
   });
 
   test('direct URL navigation to /assets works', async ({ page }) => {
-    await page.goto('/assets');
+    await page.goto('/collections');
     await page.waitForLoadState('networkidle');
     await expect(page.getByText(/collections/i).first()).toBeVisible();
   });

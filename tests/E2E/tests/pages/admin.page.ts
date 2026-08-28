@@ -22,13 +22,24 @@ export class AdminPage {
     this.page = page;
 
     this.pageTitle = page.locator('.mud-typography-h4');
-    this.tabs = page.locator('.mud-tabs');
 
-    // Tab selectors — click by visible tab text
+    // The admin console is NOT tabbed. The reshape split it into routable
+    // /admin/* sub-pages grouped Access / Operations / Insights, and CLAUDE.md
+    // says never to re-collapse them into a single tabbed page. These locators
+    // waited on a `tab` role that no longer exists anywhere — 24 failures, every
+    // one of them a timeout against a control the app had stopped rendering.
+    this.tabs = page.locator('.mud-tabs');
     this.shareManagementTab = page.getByRole('tab', { name: /share/i });
     this.collectionAccessTab = page.getByRole('tab', { name: /collection/i });
     this.userManagementTab = page.getByRole('tab', { name: /user/i });
     this.auditTab = page.getByRole('tab', { name: /audit/i });
+  }
+
+  /** Navigate to one of the routable admin sub-pages and wait for interactivity. */
+  private async gotoSubPage(path: string) {
+    await this.page.goto(path);
+    await this.page.waitForLoadState('networkidle');
+    await waitForBlazorInteractive(this.page);
   }
 
   async goto() {
@@ -44,8 +55,7 @@ export class AdminPage {
   // --- Share Management ---
 
   async switchToShareManagement() {
-    await this.shareManagementTab.click();
-    await this.page.waitForTimeout(env.timeouts.animation);
+    await this.gotoSubPage('/admin/shares');
   }
 
   get shareTable(): Locator {
@@ -91,8 +101,7 @@ export class AdminPage {
   // --- Collection Access ---
 
   async switchToCollectionAccess() {
-    await this.collectionAccessTab.click();
-    await this.page.waitForTimeout(env.timeouts.animation);
+    await this.gotoSubPage('/admin/collection-access');
   }
 
   get collectionTreePanel(): Locator {
@@ -121,8 +130,7 @@ export class AdminPage {
   // --- User Management ---
 
   async switchToUserManagement() {
-    await this.userManagementTab.click();
-    await this.page.waitForTimeout(env.timeouts.animation);
+    await this.gotoSubPage('/admin/users');
   }
 
   get userTable(): Locator {
@@ -175,8 +183,7 @@ export class AdminPage {
   // --- Audit Log ---
 
   async switchToAudit() {
-    await this.auditTab.click();
-    await this.page.waitForTimeout(env.timeouts.animation);
+    await this.gotoSubPage('/admin/audit');
   }
 
   get auditTable(): Locator {
