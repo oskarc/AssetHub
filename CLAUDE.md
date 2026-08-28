@@ -155,7 +155,13 @@ The REST surface is **internal**: it serves the Blazor UI's browser-side fetches
 
 ### Route groups
 
-The dual CSRF gate remains load-bearing (JWT bearer principals still exist); AssetHub's concrete pieces: every `MapGroup` with a POST/PATCH/PUT/DELETE chains **`.RequireAntiforgeryUnlessBearer()`** (validates `X-CSRF-TOKEN` for cookie principals, no-ops for Bearer/anonymous), and each mutating endpoint chains `.DisableAntiforgery()` (turns off the built-in pipeline so Bearer clients aren't rejected). **Both are required together** — this is the P-12 / A-7 fix; don't reopen it.
+The CSRF gate is load-bearing. Every `MapGroup` with a POST/PATCH/PUT/DELETE chains **`.RequireAntiforgeryUnlessBearer()`**, and each mutating endpoint chains `.DisableAntiforgery()` (turning off the built-in form pipeline so the filter is the single decision point). **Both are required together** — this is the P-12 / A-7 fix; don't reopen it.
+
+The filter keys on whether the credential is **ambient**, not on which scheme authenticated it: skip for `Bearer`, skip for unauthenticated (the public share endpoints depend on that), skip when the request carries no cookies, otherwise validate `X-CSRF-TOKEN`. That phrasing is deliberate and load-bearing in its own right. It previously compared `AuthenticationType` against `CookieAuthenticationDefaults.AuthenticationScheme` (`"Cookies"`); when contract-015 swapped Keycloak/OIDC for ASP.NET Core Identity the scheme became `"Identity.Application"`, the comparison stopped matching, and **the gate silently validated nothing for every signed-in user across four contracts**. Never reintroduce a scheme-name comparison here. `AntiforgeryGateTests` guards both directions — a cookie-bearing mutation without a token must be refused, and the missing negative test is precisely why the outage went unseen.
+
+Browser-side flows that POST (the ZIP "Download all" paths) get their token from **`AntiforgeryHeaders.Build`**, which reads `AntiforgeryStateProvider` — `IAntiforgery` is unusable there because an interactive circuit has no `HttpContext`.
+
+JWT bearer is no longer registered (`AddJwtBearer` is absent and nothing issues a token), so the Bearer branch is currently unreachable. It is kept because it is the correct rule, not because a caller exists.
 
 ```csharp
 var group = app.MapGroup("/api/v1/examples")

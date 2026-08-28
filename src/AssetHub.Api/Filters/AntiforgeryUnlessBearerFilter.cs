@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace AssetHub.Api.Filters;
 
@@ -42,17 +41,23 @@ public sealed class AntiforgeryUnlessBearerFilter(IAntiforgery antiforgery) : IE
             return await next(context);
         }
 
-        // Only validate when the resolved principal is cookie-authenticated.
-        // JWT principals are caught by the Bearer check above; this
-        // catches the case where a request has no Authorization header AND
-        // no cookie session either (anonymous fall-through).
-        var isCookieAuth =
-            http.User.Identity?.IsAuthenticated == true
-            && string.Equals(
-                http.User.Identity.AuthenticationType,
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                StringComparison.Ordinal);
-        if (!isCookieAuth) return await next(context);
+        // Anonymous requests carry no credential for a cross-site page to abuse —
+        // the public share endpoints depend on this.
+        if (http.User.Identity?.IsAuthenticated != true) return await next(context);
+
+        // CSRF is only possible when the credential is AMBIENT — attached by the
+        // browser automatically. That means cookies. A request bearing no cookies
+        // cannot have been authenticated by one, so there is nothing to forge.
+        //
+        // Deliberately NOT a scheme-NAME comparison. This filter used to check
+        // AuthenticationType against CookieAuthenticationDefaults.AuthenticationScheme
+        // ("Cookies"); when contract-015 swapped Keycloak/OIDC for ASP.NET Core
+        // Identity the principal's scheme became "Identity.Application", the strings
+        // stopped matching, and the gate silently validated NOTHING for every
+        // signed-in user — with no test to notice. Keying on the presence of a
+        // cookie describes the actual threat and cannot drift when the provider is
+        // renamed or replaced again.
+        if (http.Request.Cookies.Count == 0) return await next(context);
 
         try
         {

@@ -7,6 +7,7 @@
 @inject ILogger<SharedCollectionView> Logger
 @inject IStringLocalizer<CommonResource> CommonLoc
 @inject IStringLocalizer<SharesResource> ShareLoc
+@inject AntiforgeryStateProvider Antiforgery
 @inject ISnackbar Snackbar
 @inject LocalizedDisplayService Display
 
@@ -258,7 +259,10 @@ else
             if (!string.IsNullOrEmpty(AccessToken))
                 url += $"?accessToken={Uri.EscapeDataString(AccessToken)}";
 
-            var headers = new Dictionary<string, string> { { "X-Share-Token", Token } };
+            // Anonymous visitors get no token and the filter skips them; a signed-in
+            // user viewing a share IS validated, so merge one in when available.
+            var headers = AntiforgeryHeaders.Build(
+                Antiforgery, new Dictionary<string, string> { { "X-Share-Token", Token } });
             _dotNetRef?.Dispose();
             _dotNetRef = DotNetObjectReference.Create(this);
 

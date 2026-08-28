@@ -2034,3 +2034,80 @@ contracts:
       Nothing was deleted. The right next move is to FIX the gate, then re-derive
       which endpoints are genuinely unreachable — the excision cannot be scoped
       against a false premise.
+
+  - contract_id: contract-022
+    feature: restore-the-csrf-gate
+    date_proposed: 2026-08-29
+    date_approved: 2026-08-29
+    follows: contract-021
+    tier_1: |
+      AntiforgeryUnlessBearerFilter decides whether to validate by string-matching
+      the principal's AuthenticationType against CookieAuthenticationDefaults
+      .AuthenticationScheme — the literal "Cookies". ASP.NET Core Identity issues
+      "Identity.Application". Since contract-015 the comparison has never matched,
+      so the filter returns next(context) without validating. The P-12 / A-7 gate
+      has been inert for every authenticated user.
+
+      SameSite=Strict on the auth cookie means this cost defence in depth rather
+      than opening a hole — but the codebase believes two mechanisms guard it while
+      one is live, and CLAUDE.md tells future readers not to reopen a shut gate.
+
+      WHY THIS IS ONE CONTRACT, NOT TWO: fixing the comparison BREAKS two working
+      flows. Collection "Download all" and shared-collection "Download all" POST via
+      enqueueAndPollZipDownload with no antiforgery header, and nothing in the app
+      issues a token. Repair the gate alone and those flows start returning 400.
+
+      The brittleness is the real lesson: a string-matched scheme name silently
+      decouples from behaviour when the identity provider changes. Remove the
+      failure mode rather than re-encode it against a new literal
+      (principle-encode-over-document).
+    tier_2: |
+      1. Baseline 911 unit / E2E 123-18-51 at 4e426a6. Docker pre-check.
+      2. Make the filter SCHEME-AGNOSTIC: skip for Bearer, skip for unauthenticated
+         (public share endpoints depend on it), otherwise validate. No scheme-name
+         literal survives.
+      3. Supply the token to the two POSTing flows — render it server-side via
+         IAntiforgery into the existing `headers` argument, which enqueueZipBuild
+         already spreads into the fetch.
+      4. Regression tests BOTH directions: cookie-authed mutation without a token is
+         rejected, with one is accepted. The missing negative test is why an inert
+         gate went unnoticed.
+      5. Prose: correct CLAUDE.md's dual-gate section.
+    tier_3: |
+      - Cookie-authed POST without a token -> 400; with a valid token -> succeeds.
+        Both asserted in the suite.
+      - Anonymous share endpoints keep working, verified against a real share link.
+      - BOTH "Download all" flows still work in the container, authenticated and via
+        a public share.
+      - No scheme-name string comparison remains in the filter.
+      - Unit suite 911 plus named new tests; E2E >= 123.
+    status: implemented
+    implemented: 2026-08-29
+    revisions: []
+    work_id: null
+    outcome: |
+      Acceptance met. Suite 911 -> 913 (2 named guards, 0 removed, 0 regressions).
+
+      GATE PROVEN LIVE IN THE CONTAINER: the identical POST that returned 202
+      before the fix now returns 400 "The required antiforgery cookie
+      assethub.csrf is not present." The real UI flow still works — a browser
+      click on Download All sends X-CSRF-TOKEN and gets 202, with both
+      assethub.csrf and assethub.auth cookies present. Anonymous share path
+      unaffected: POST to a share download-all returns NOT_FOUND, not an
+      antiforgery error, so the gate correctly skips before the handler.
+
+      GUARD PROVEN DISCRIMINATING: reverted the filter to the original
+      AuthenticationType == "Cookies" comparison and the negative test failed;
+      restored and it passes. It detects the exact defect that hid for four
+      contracts.
+
+      DESIGN CHANGED UNDER MEASUREMENT. The first fix validated every
+      authenticated request, which would have broken all 717 API tests —
+      TestAuthHandler authenticates with no cookies and no Authorization header.
+      That forced a better rule: CSRF requires an AMBIENT credential, so key on
+      the presence of cookies. The suite stays green legitimately rather than by
+      exemption, and no scheme-name literal survives outside an explanatory comment.
+
+      A 500 during test development was traced to AntiforgeryOptions.Cookie
+      .SecurePolicy = Always colliding with an HTTP test host; fixed by addressing
+      the test client as HTTPS rather than by weakening a correct production setting.

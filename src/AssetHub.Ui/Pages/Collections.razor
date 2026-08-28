@@ -9,6 +9,7 @@
 @using Microsoft.AspNetCore.Authorization
 
 @inject IAssetHubApiClient Api
+@inject AntiforgeryStateProvider Antiforgery
 @inject NavigationManager Nav
 @inject IUserFeedbackService Feedback
 @inject IDialogService DialogService
@@ -547,7 +548,7 @@
             _dotNetRef = DotNetObjectReference.Create(this);
 
             _jsModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/AssetHub.Ui/js/helpers.js");
-            var resultJson = await _jsModule.InvokeAsync<string>("enqueueAndPollZipDownload", url, null, _dotNetRef);
+            var resultJson = await _jsModule.InvokeAsync<string>("enqueueAndPollZipDownload", url, AntiforgeryHeaders.Build(Antiforgery), _dotNetRef);
 
             var result = System.Text.Json.JsonSerializer.Deserialize<ZipDownloadResult>(resultJson,
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
