@@ -1954,3 +1954,83 @@ contracts:
       delete 08-api entirely): 16 failures, dominated by two clusters — a
       `.asset-card` group (data/timing, class verified correct) and three
       `.mud-dialog` close-button timeouts.
+
+  - contract_id: contract-021
+    feature: remove-the-unreachable-rest-mutations
+    date_proposed: 2026-08-29
+    date_approved: 2026-08-29
+    follows: contract-020
+    tier_1: |
+      46 mutating REST endpoints cannot be called by anyone. Verified four ways:
+      nothing issues an antiforgery token, nothing sends X-CSRF-TOKEN,
+      AddJwtBearer is not registered, and no JWT issuance path exists. Cookie
+      callers are blocked by the gate; the bearer bypass the gate was built
+      around no longer exists (PATs went with contract-011).
+
+      The Blazor UI never needed them — it mutates through the IN-PROCESS FACADE,
+      not HTTP. What the browser genuinely fetches is media bytes and downloads,
+      all reads.
+
+      Dead surface: 46 endpoints plus RequireAntiforgeryUnlessBearer and 42
+      DisableAntiforgery call sites that exist only to serve them. CLAUDE.md
+      devotes a section and a pre-commit sweep row to a gate protecting endpoints
+      nobody can reach.
+    tier_2: |
+      1. Baseline 911 unit / E2E 123-18-51 at cabab8c. Docker pre-check.
+      2. CAPTURE THE INVARIANT FIRST — enumerate every /api/v1/* route the browser
+         actually fetches, from Ui markup, C# and JS. That list is what survives.
+         Shown to the owner BEFORE any deletion; it is the step that decides
+         correctness.
+      3. Remove the unreachable mutating endpoints and orphaned handlers/DTOs.
+      4. Remove RequireAntiforgeryUnlessBearer, its filter and the
+         DisableAntiforgery chains — ONLY if no mutating endpoint survives. If one
+         does, the gate stays and that is stated.
+      5. Delete the 08-api specs (33) and ApiHelper mutation methods.
+      6. Prose: CLAUDE.md dual-gate section, the false "JWT bearer principals still
+         exist", the sweep row.
+    tier_3: |
+      - Every surviving route is on the captured browser list; every removed one is
+        not — enumerated both ways.
+      - Upload, thumbnail, download, share media, ZIP and migration CSV all still
+        work in the container.
+      - Unit suite: a NAMED delta, zero unexplained changes.
+      - E2E >= 123 passing; the 08-api block's 32 skips resolve by deletion.
+      - No DisableAntiforgery without a gate, no gate without endpoints.
+    status: stopped
+    stopped: 2026-08-29
+    revisions: []
+    work_id: null
+    stop_reason: |
+      Tier_2 step 2 was a gate: capture what the browser actually fetches BEFORE
+      deleting anything. That gate fired and the contract's premise did not survive.
+
+      TIER_1 WAS WRONG. "46 mutating REST endpoints are unreachable" is false. Two
+      are browser-invoked POSTs (collections/{id}/download-all via
+      enqueueAndPollZipDownload, shares/{token}/download-all), and a live test
+      returned HTTP 202 for a cookie-authed POST with no CSRF header — the exact
+      request I had predicted would be blocked.
+
+      ROOT CAUSE, and it is a SECURITY REGRESSION, not dead surface.
+      AntiforgeryUnlessBearerFilter validates only when
+        http.User.Identity.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme
+      i.e. the literal "Cookies". Since contract-015 replaced Keycloak/OIDC with
+      ASP.NET Core Identity, principals authenticate under
+      IdentityConstants.ApplicationScheme = "Identity.Application". The strings do
+      not match, isCookieAuth is always false, and the filter returns next(context)
+      without validating. The P-12 / A-7 gate CLAUDE.md calls load-bearing has been
+      INERT for every authenticated user since the Identity migration.
+
+      Corrected reachability model: endpoints chaining .DisableAntiforgery() (42
+      sites) bypass the built-in middleware AND the custom filter is inert, so they
+      are REACHABLE and CSRF-unvalidated. The handful without it are blocked by the
+      built-in middleware — which is why my earlier /api/v1/assets upload got 400
+      from AntiforgeryMiddleware, not from the filter.
+
+      SEVERITY QUALIFIED, NOT INFLATED. The Identity application cookie is
+      SameSite=Strict, so cross-site requests do not carry it and a classic CSRF
+      attack fails anyway. What was lost is defence in depth, and the codebase
+      believes two mechanisms protect it when only one is live.
+
+      Nothing was deleted. The right next move is to FIX the gate, then re-derive
+      which endpoints are genuinely unreachable — the excision cannot be scoped
+      against a false premise.
