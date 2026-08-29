@@ -2211,7 +2211,8 @@ contracts:
       The 7 seeding endpoints are dead to users and alive only for tests.
       contract-024 replaces them with UI-driven seeding and removes them. Recorded
       so it does not quietly become permanent.
-    status: approved
+    status: implemented
+    implemented: 2026-08-29
     revisions: []
     work_id: null
     paused_reason: |
@@ -2294,3 +2295,53 @@ contracts:
     commit: 65a181b
     revisions: []
     work_id: null
+    outcome: |
+      71 -> 13 endpoints. Scope was 13 keep / 58 cut, not the 14/71 drawn: contract-024
+      took 14 endpoints with the migration feature first, including the outcome.csv
+      keeper.
+
+      Survivors are one describable category — bytes and job status: 7 asset media,
+      2 share media, 4 ZIP (two download-all POSTs + two status routes). Only TWO
+      mutating endpoints remain, both download-all, so the gate restored by
+      contract-022 still guards live surface rather than becoming vestigial.
+
+      THE PRE-DELETION GATE EARNED ITS PLACE AGAIN. All 13 exercised before anything
+      was removed: 9 verified functionally — including the full ZIP flow (202 ->
+      status 200 -> bytes from MinIO) and poster on a VIDEO asset after the image
+      correctly 404'd — and 4 confirmed mapped by reaching their handlers.
+      Re-verified after the cut: all 13 respond, GET /api/v1/collections now 404s,
+      the /collections page still renders.
+
+      Suite 911 -> 694 (cumulative with contract-024): -220, +3. This contract's share
+      is -102: AdminEndpoint 25, AssetEndpoint 22, CollectionEndpoint 21, Security 26,
+      Share 5, Dashboard 3.
+
+      SECURITY TESTS WERE NOT DELETED BLINDLY. 25 of SecurityTests' 37 failed —
+      cross-tenant isolation, privilege escalation, injection, validation limits. Each
+      property was located at its ENFORCEMENT point before removal:
+        - role refusal / ACL management -> AuthorizationEdgeCaseTests (13 tests,
+          directly against CollectionAuthorizationService)
+        - privilege escalation -> CollectionAclServiceTests.SetAccess_ManagerCannotGrantAdmin
+        - cross-tenant -> ~20 service tests asserting ReturnsForbidden
+        - validation limits -> AssetServiceValidationTests
+        - search access control -> AssetSearchServiceTests
+      They tested those properties through a transport that no longer exists.
+      RESIDUAL GAP, DECLARED: no explicit hostile-input (SQL injection) assertion
+      remains. EF parameterisation and tsvector are unchanged and exercised by
+      AssetSearchServiceTests, but nothing now drives a malicious string specifically.
+
+      AntiforgeryGateTests were RETARGETED, not deleted — they POSTed to
+      /api/v1/collections, so deleting them would have removed the guard for the
+      inert-gate bug of contract-022. The allowed-case now asserts the gate does not
+      interfere rather than a specific success code, since a nonexistent collection
+      legitimately 404s.
+
+      HANDED ON: ApiHelper's mutation methods are now wholly dead (their endpoints are
+      gone, and the CSRF gate already blocked them). Not half-trimmed here — the
+      seeding rewrite replaces them wholesale.
+
+      FOUND, NOT FIXED: docs/architecture/ARCHITECTURE.md still documents the Keycloak
+      Admin REST API, IKeycloakUserService and IUserSyncService, removed by
+      contract-015. False AUTH documentation, which is worse than a stale constant —
+      but the fix is a rewrite of that section for Identity, not a deletion, so it
+      belongs to C17. C17's scope must extend beyond CLAUDE.md to ARCHITECTURE.md.

@@ -113,7 +113,7 @@ Navigate to **https://assethub.local:7252** and sign in:
 
 **Developer Experience**
 - Clean Architecture with interface-driven services — swap any component
-- Versioned Minimal API (`/api/v1/`) with request validation filters
+- A deliberately tiny HTTP surface (`/api/v1/`) — 13 endpoints that deliver media bytes or report ZIP progress. Everything else the UI needs it calls in-process.
 - OpenTelemetry observability with Aspire Dashboard
 - Localisation — Swedish and English, extensible via `.resx` files
 - Accessibility — skip-to-content, ARIA labels, keyboard navigation, responsive viewports
@@ -192,7 +192,7 @@ Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
 |---------|---------|
 | `AssetHub.Domain` | Entities, enums — zero dependencies |
 | `AssetHub.Application` | Service interfaces, DTOs, constants, business rules |
-| `AssetHub.Api` | Composition root — Minimal APIs, auth, DI wiring, Blazor host |
+| `AssetHub.Api` | The single composition root — Blazor host, auth, DI wiring, background jobs, and the 13 media/ZIP endpoints |
 | `AssetHub.Ui` | Blazor Server components and pages (Razor Class Library) |
 
 > Full architecture diagram, layer details, and resilience patterns in **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**.

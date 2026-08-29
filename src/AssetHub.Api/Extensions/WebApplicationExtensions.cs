@@ -306,15 +306,10 @@ public static class WebApplicationExtensions
         MapIdentityAuthRoutes(app);
 
         // API endpoints
-        app.MapDashboardEndpoints();
         app.MapCollectionEndpoints();
         app.MapAssetEndpoints();
         app.MapShareEndpoints();
-        app.MapAdminEndpoints();
         app.MapZipDownloadEndpoints();
-        app.MapAssetSearchEndpoints();
-        app.MapAdminTrashEndpoints();
-        app.MapAssetVersionEndpoints();
 
         // Blazor. App lives here (the host owns its own document); every routable
         // page lives in the AssetHub.Ui RCL, so that assembly must be named

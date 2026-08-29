@@ -17,13 +17,7 @@ public static class CollectionEndpoints
 
         // The group-level RequireAntiforgeryUnlessBearer() is the CSRF gate for cookie
         // principals; Bearer clients are inherently CSRF-immune.
-        group.MapGet("", GetRootCollections).WithName("GetRootCollections");
-        group.MapGet("{id:guid}", GetCollectionById).WithName("GetCollectionById");
         // deletion-context is a UI-specific pre-delete preview — kept internal.
-        group.MapGet("{id:guid}/deletion-context", GetDeletionContext).WithName("GetCollectionDeletionContext");
-        group.MapPost("", CreateCollection).AddEndpointFilter<ValidationFilter<CreateCollectionDto>>().RequireAuthorization("RequireContributor").WithName("CreateCollection");
-        group.MapPatch("{id:guid}", UpdateCollection).AddEndpointFilter<ValidationFilter<UpdateCollectionDto>>().WithName("UpdateCollection");
-        group.MapDelete("{id:guid}", DeleteCollection).WithName("DeleteCollection");
         // download-all kicks off a ZIP build job and streams a UI-driven download flow — kept internal.
         group.MapPost("{id:guid}/download-all", DownloadAllAssets).DisableAntiforgery().WithName("DownloadAllAssets");
 
@@ -33,57 +27,15 @@ public static class CollectionEndpoints
             .RequireAuthorization()
             .RequireAntiforgeryUnlessBearer();
 
-        aclGroup.MapGet("", GetCollectionAcls).WithName("GetCollectionAcls");
-        aclGroup.MapPost("", SetCollectionAccess).AddEndpointFilter<ValidationFilter<SetCollectionAccessDto>>().DisableAntiforgery().WithName("SetCollectionAccess");
-        aclGroup.MapDelete("{principalType}/{principalId}", RevokeCollectionAccess).DisableAntiforgery().WithName("RevokeCollectionAccess");
-        aclGroup.MapGet("/users/search", SearchUsersForAcl).WithName("SearchUsersForAcl");
     }
 
     // ── Collection CRUD ──────────────────────────────────────────────────────
 
-    private static async Task<IResult> GetRootCollections(
-        [FromServices] ICollectionQueryService svc, CancellationToken ct)
-    {
-        var result = await svc.GetRootCollectionsAsync(ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> GetCollectionById(
-        Guid id, [FromServices] ICollectionQueryService svc, CancellationToken ct)
-    {
-        var result = await svc.GetByIdAsync(id, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> GetDeletionContext(
-        Guid id, [FromServices] ICollectionQueryService svc, CancellationToken ct)
-    {
-        var result = await svc.GetDeletionContextAsync(id, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> CreateCollection(
-        CreateCollectionDto dto,
-        [FromServices] ICollectionService svc, CancellationToken ct)
-    {
-        var result = await svc.CreateAsync(dto, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/v1/collections/{v.Id}", v));
-    }
 
-    private static async Task<IResult> UpdateCollection(
-        Guid id, UpdateCollectionDto dto,
-        [FromServices] ICollectionService svc, CancellationToken ct)
-    {
-        var result = await svc.UpdateAsync(id, dto, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> DeleteCollection(
-        Guid id, [FromServices] ICollectionService svc, CancellationToken ct)
-    {
-        var result = await svc.DeleteAsync(id, ct);
-        return result.ToHttpResult();
-    }
 
     private static async Task<IResult> DownloadAllAssets(
         Guid id, [FromServices] ICollectionService svc,
@@ -95,34 +47,7 @@ public static class CollectionEndpoints
 
     // ── ACL Management ───────────────────────────────────────────────────────
 
-    private static async Task<IResult> GetCollectionAcls(
-        Guid collectionId, [FromServices] ICollectionAclService svc, CancellationToken ct)
-    {
-        var result = await svc.GetAclsAsync(collectionId, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> SetCollectionAccess(
-        Guid collectionId, SetCollectionAccessDto dto,
-        [FromServices] ICollectionAclService svc, CancellationToken ct)
-    {
-        var result = await svc.SetAccessAsync(collectionId, dto.PrincipalType, dto.PrincipalId, dto.Role, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/v1/collections/{collectionId}/acl/{v.Id}", v));
-    }
 
-    private static async Task<IResult> RevokeCollectionAccess(
-        Guid collectionId, string principalType, string principalId,
-        [FromServices] ICollectionAclService svc, CancellationToken ct)
-    {
-        var result = await svc.RevokeAccessAsync(collectionId, principalType, principalId, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> SearchUsersForAcl(
-        Guid collectionId, [FromQuery] string? q,
-        [FromServices] ICollectionAclService svc, CancellationToken ct)
-    {
-        var result = await svc.SearchUsersForAclAsync(collectionId, q, ct);
-        return result.ToHttpResult();
-    }
 }

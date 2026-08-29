@@ -22,29 +22,14 @@ public static class AssetEndpoints
             .WithTags("Assets");
 
         // Admin-only asset listing.
-        group.MapGet("", GetAssets).RequireAuthorization("RequireAdmin").WithName("GetAssets");
         // GET /all retired — POST /search (AssetSearchEndpoints) is the single asset-listing path.
         // Mutations rely on the group-level RequireAntiforgeryUnlessBearer() above as the
         // CSRF gate for cookie principals; Bearer clients are inherently CSRF-immune.
-        group.MapGet("{id:guid}", GetAsset).WithName("GetAsset");
-        group.MapPost("", UploadAsset).WithName("UploadAsset");
-        group.MapPatch("{id:guid}", UpdateAsset).AddEndpointFilter<ValidationFilter<UpdateAssetDto>>().WithName("UpdateAsset");
-        group.MapDelete("{id:guid}", DeleteAsset).WithName("DeleteAsset");
-        group.MapPost("bulk-delete", BulkDeleteAssets).AddEndpointFilter<ValidationFilter<BulkDeleteAssetsRequest>>().WithName("BulkDeleteAssets");
-        group.MapGet("collection/{collectionId:guid}", GetAssetsByCollection).WithName("GetAssetsByCollection");
 
-        group.MapGet("{id:guid}/collections", GetAssetCollections).WithName("GetAssetCollections");
-        group.MapPost("{id:guid}/collections/{collectionId:guid}", AddAssetToCollection).WithName("AddAssetToCollection");
-        group.MapDelete("{id:guid}/collections/{collectionId:guid}", RemoveAssetFromCollection).WithName("RemoveAssetFromCollection");
         // deletion-context is a UI-oriented helper (pre-delete impact preview) — kept internal.
-        group.MapGet("{id:guid}/deletion-context", GetAssetDeletionContext).WithName("GetAssetDeletionContext");
 
-        group.MapPost("init-upload", InitUpload).AddEndpointFilter<ValidationFilter<InitUploadRequest>>().WithName("InitUpload");
-        group.MapPost("{id:guid}/confirm-upload", ConfirmUpload).WithName("ConfirmUpload");
 
         // Copy/replace save paths — internal; replace-file is the sole version-minting path (T1-VER-01).
-        group.MapPost("{id:guid}/save-copy", SaveImageCopy).AddEndpointFilter<ValidationFilter<SaveImageCopyRequest>>().DisableAntiforgery().WithName("SaveImageCopy");
-        group.MapPost("{id:guid}/replace-file", ReplaceImageFile).AddEndpointFilter<ValidationFilter<ReplaceImageFileRequest>>().DisableAntiforgery().WithName("ReplaceImageFile");
 
         group.MapGet("{id:guid}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
         group.MapGet("{id:guid}/preview", GetRendition("original", forceDownload: false)).WithName("PreviewOriginal");
@@ -57,142 +42,28 @@ public static class AssetEndpoints
 
     // ── Queries ──────────────────────────────────────────────────────────────
 
-    private static async Task<IResult> GetAssets(
-        [FromServices] IAssetQueryService svc, CancellationToken ct,
-        int skip = 0, int take = 50)
-    {
-        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
-        var result = await svc.GetAssetsByStatusAsync(AssetStatus.Ready.ToDbString(), skip, take, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> GetAsset(
-        Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
-    {
-        var result = await svc.GetAssetAsync(id, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> GetAssetsByCollection(
-        [AsParameters] CollectionAssetsQuery q,
-        [FromServices] IAssetQueryService svc, CancellationToken ct)
-    {
-        var take = Math.Clamp(q.Take, 1, Constants.Limits.MaxPageSize);
-        var result = await svc.GetAssetsByCollectionAsync(q.CollectionId, q.Query, q.Type, q.SortBy, q.Skip, take, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> GetAssetDeletionContext(
-        Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
-    {
-        var result = await svc.GetDeletionContextAsync(id, ct);
-        return result.ToHttpResult();
-    }
 
     // ── Commands ─────────────────────────────────────────────────────────────
 
-    private static async Task<IResult> UploadAsset(
-        IFormFile file, [FromForm] Guid collectionId, [FromForm] string title,
-        [FromServices] IAssetUploadService svc, CancellationToken ct)
-    {
-        if (file is null || file.Length == 0)
-            return Results.BadRequest(ApiError.BadRequest("File is required"));
 
-        if (collectionId == Guid.Empty)
-            return Results.BadRequest(ApiError.BadRequest("collectionId is required"));
 
-        var titleError = InputValidation.ValidateAssetTitle(title);
-        if (titleError is not null)
-            return Results.BadRequest(ApiError.BadRequest(titleError));
 
-        using var stream = file.OpenReadStream();
-        var result = await svc.UploadAsync(stream, file.FileName, file.ContentType, file.Length, collectionId, title, ct: ct);
-        return result.ToHttpResult(v => Results.Accepted($"/api/v1/assets/{v.Id}", v));
-    }
-
-    private static async Task<IResult> UpdateAsset(
-        Guid id, UpdateAssetDto dto,
-        [FromServices] IAssetService svc, CancellationToken ct)
-    {
-        var result = await svc.UpdateAsync(id, dto, ct);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> DeleteAsset(
-        Guid id, [FromQuery] Guid? fromCollectionId,
-        [FromServices] IAssetService svc, CancellationToken ct)
-    {
-        var result = await svc.DeleteAsync(id, fromCollectionId, ct);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> BulkDeleteAssets(
-        [FromBody] BulkDeleteAssetsRequest request,
-        [FromServices] IAssetService svc, CancellationToken ct)
-    {
-        var result = await svc.BulkDeleteAsync(request, ct);
-        return result.ToHttpResult();
-    }
 
     // ── Presigned Upload ─────────────────────────────────────────────────────
 
-    private static async Task<IResult> InitUpload(
-        InitUploadRequest request,
-        [FromServices] IAssetUploadService svc, CancellationToken ct)
-    {
-        var result = await svc.InitUploadAsync(request, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> ConfirmUpload(
-        Guid id, [FromServices] IAssetUploadService svc, CancellationToken ct)
-    {
-        var result = await svc.ConfirmUploadAsync(id, ct: ct);
-        return result.ToHttpResult();
-    }
 
     // ── Image Editing ────────────────────────────────────────────────────────
 
-    private static async Task<IResult> SaveImageCopy(
-        Guid id, SaveImageCopyRequest request,
-        [FromServices] IAssetUploadService svc, CancellationToken ct)
-    {
-        var result = await svc.SaveImageCopyAsync(id, request, ct);
-        return result.ToHttpResult(value => Results.Created($"/api/v1/assets/{value.AssetId}", value));
-    }
 
-    private static async Task<IResult> ReplaceImageFile(
-        Guid id, ReplaceImageFileRequest request,
-        [FromServices] IAssetUploadService svc, CancellationToken ct)
-    {
-        var result = await svc.ReplaceImageFileAsync(id, request, ct);
-        return result.ToHttpResult();
-    }
 
     // ── Multi-Collection ─────────────────────────────────────────────────────
 
-    private static async Task<IResult> GetAssetCollections(
-        Guid id, [FromServices] IAssetQueryService svc, CancellationToken ct)
-    {
-        var result = await svc.GetAssetCollectionsAsync(id, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> AddAssetToCollection(
-        Guid id, Guid collectionId,
-        [FromServices] IAssetService svc, CancellationToken ct)
-    {
-        var result = await svc.AddToCollectionAsync(id, collectionId, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/v1/assets/{id}/collections/{collectionId}", v));
-    }
 
-    private static async Task<IResult> RemoveAssetFromCollection(
-        Guid id, Guid collectionId,
-        [FromServices] IAssetService svc, CancellationToken ct)
-    {
-        var result = await svc.RemoveFromCollectionAsync(id, collectionId, ct);
-        return result.ToHttpResult();
-    }
 
     // ── Renditions ───────────────────────────────────────────────────────────
 

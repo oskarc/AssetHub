@@ -55,10 +55,12 @@ public class AntiforgeryGateTests : IAsyncLifetime
 
         // A cookie makes the credential ambient — exactly the browser-borne shape
         // CSRF exploits. Without an X-CSRF-TOKEN this must not be honoured.
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/collections")
-        {
-            Content = JsonContent.Create(new CreateCollectionDto { Name = "csrf-gate-probe" })
-        };
+        // Targets a SURVIVING mutation. contract-023 cut the uncalled REST surface,
+        // leaving only the two download-all POSTs — so this gate is now guarding
+        // exactly the endpoints a browser can still reach. The collection id need not
+        // exist: the antiforgery filter runs before the handler.
+        var request = new HttpRequestMessage(
+            HttpMethod.Post, $"/api/v1/collections/{Guid.NewGuid()}/download-all");
         request.Headers.Add("Cookie", "assethub.auth=forged-ambient-credential");
 
         var response = await client.SendAsync(request);
@@ -78,12 +80,15 @@ public class AntiforgeryGateTests : IAsyncLifetime
         // browser, so there is nothing to forge and the gate must not interfere.
         using var client = _factory.CreateAuthenticatedClient(TestClaimsProvider.Admin());
 
-        var response = await client.PostAsJsonAsync(
-            "/api/v1/collections", new CreateCollectionDto { Name = $"no-ambient-{Guid.NewGuid():N}" });
+        var response = await client.PostAsync(
+            $"/api/v1/collections/{Guid.NewGuid()}/download-all", content: null);
 
+        // The property under test is that the GATE does not interfere — not that the
+        // request succeeds. A missing collection legitimately answers 404; only a 400
+        // would mean antiforgery rejected a request carrying no ambient credential.
         Assert.True(
-            response.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK,
-            $"Expected the mutation to succeed without a token when no cookie is present, got {(int)response.StatusCode}.");
+            response.StatusCode != HttpStatusCode.BadRequest,
+            $"The gate must not challenge a request with no ambient credential, got {(int)response.StatusCode}.");
     }
     /// <summary>
     /// A safe method must never be antiforgery-validated.
@@ -102,7 +107,7 @@ public class AntiforgeryGateTests : IAsyncLifetime
     {
         using var client = _factory.CreateAuthenticatedClient(TestClaimsProvider.Admin());
 
-        var response = await client.GetAsync("/api/v1/collections");
+        var response = await client.GetAsync($"/api/v1/zip-downloads/{Guid.NewGuid()}");
 
         Assert.False(
             response.StatusCode == HttpStatusCode.BadRequest,

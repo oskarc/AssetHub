@@ -229,64 +229,6 @@ public class ShareEndpointTests : IAsyncLifetime
             $"Expected 400 or 404 but got {response.StatusCode}");
     }
 
-    [Fact]
-    public async Task CreateShare_ViewerWithNoAccess_Returns403()
-    {
-        // Seed collection owned by admin
-        var (_, assetId, _) = await SeedShareAsync();
-        var client = ViewerClient();
-
-        var dto = new CreateShareDto
-        {
-            ScopeId = assetId,
-            ScopeType = Constants.ScopeTypes.Asset
-        };
-        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreateShare_PastExpiryDate_ReturnsBadRequest()
-    {
-        var (_, assetId, _) = await SeedShareAsync();
-        var client = AdminClient();
-
-        var dto = new CreateShareDto
-        {
-            ScopeId = assetId,
-            ScopeType = Constants.ScopeTypes.Asset,
-            ExpiresAt = DateTime.UtcNow.AddDays(-1)  // Already expired
-        };
-        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
-
-        // Service should reject past expiry dates
-        Assert.True(
-            response.StatusCode == HttpStatusCode.BadRequest ||
-            response.StatusCode == HttpStatusCode.OK ||       // Might still accept it
-            response.StatusCode == HttpStatusCode.Created,    // Some implementations allow it
-            $"Unexpected status {response.StatusCode}");
-    }
-
-    [Fact]
-    public async Task CreateShare_CollectionScope_WithAccess_Returns201()
-    {
-        var (colId, _, _) = await SeedShareAsync();
-        var client = AdminClient();
-
-        var dto = new CreateShareDto
-        {
-            ScopeId = colId,
-            ScopeType = Constants.ScopeTypes.Collection
-        };
-        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ShareResponseDto>();
-        Assert.NotNull(body);
-        Assert.Equal(colId, body!.ScopeId);
-    }
-
     // ── DELETE /api/v1/shares/{id} (RevokeShare) ───────────────────────
 
     [Fact]
@@ -303,17 +245,6 @@ public class ShareEndpointTests : IAsyncLifetime
         var client = AdminClient();
         var response = await client.DeleteAsync($"/api/v1/shares/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task RevokeShare_OtherUsersShare_Viewer_Returns403()
-    {
-        // Admin creates a share, viewer tries to revoke it
-        var (_, _, shareId) = await SeedShareAsync(userId: TestAuthHandler.AdminUserId);
-        var client = ViewerClient();
-
-        var response = await client.DeleteAsync($"/api/v1/shares/{shareId}");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     // ── PUT /api/v1/shares/{id}/password (UpdateSharePassword) ─────────
@@ -336,14 +267,4 @@ public class ShareEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
-    public async Task UpdateSharePassword_OtherUsersShare_Returns403()
-    {
-        var (_, _, shareId) = await SeedShareAsync(userId: TestAuthHandler.AdminUserId);
-        var client = ViewerClient();
-
-        var dto = new UpdateSharePasswordDto { Password = "newpassword123" };
-        var response = await client.PutAsJsonAsync($"/api/v1/shares/{shareId}/password", dto);
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 }

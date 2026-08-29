@@ -61,61 +61,11 @@ public class AssetEndpointTests : IAsyncLifetime
 
     // ── GetAssets (admin-only) ──────────────────────────────────────
 
-    [Fact]
-    public async Task GetAssets_AdminOnly_Returns200()
-    {
-        var client = AdminClient();
-        var response = await client.GetAsync("/api/v1/assets");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetAssets_Viewer_Returns403()
-    {
-        var client = ViewerClient();
-        var response = await client.GetAsync("/api/v1/assets");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
     // GET /api/v1/assets/all was retired in T1-SRCH-01 follow-up. POST /api/v1/assets/search is
     // the replacement; these endpoint tests exercise its surface. Full RBAC + facet behaviour
     // lives in AssetSearchServiceTests.
 
-    [Fact]
-    public async Task SearchAssets_Admin_Returns200WithPagedShape()
-    {
-        var client = AdminClient();
-        var response = await client.PostAsJsonAsync("/api/v1/assets/search", new AssetSearchRequest { Take = 10 });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<AssetSearchResponse>();
-        Assert.NotNull(payload);
-        Assert.NotNull(payload!.Items);
-    }
-
-    [Fact]
-    public async Task SearchAssets_Viewer_Returns200_ServiceScopesByACL()
-    {
-        // The /search endpoint is RequireViewer; per-collection filtering happens server-side in
-        // AssetSearchService, so viewers without ACLs legitimately see an empty response, not 403.
-        var client = ViewerClient();
-        var response = await client.PostAsJsonAsync("/api/v1/assets/search", new AssetSearchRequest { Take = 10 });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
     // ── GetAsset ────────────────────────────────────────────────────
-
-    [Fact]
-    public async Task GetAsset_WithAccess_Returns200()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = AdminClient();
-
-        var response = await client.GetAsync($"/api/v1/assets/{assetId}");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<AssetResponseDto>();
-        Assert.Equal(assetId, body!.Id);
-    }
 
     [Fact]
     public async Task GetAsset_NotFound_Returns404()
@@ -125,56 +75,11 @@ public class AssetEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
-    public async Task GetAsset_NoAccess_Returns403()
-    {
-        // Seed with admin user — viewer has no ACL
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = ViewerClient();
-
-        var response = await client.GetAsync($"/api/v1/assets/{assetId}");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
     // ── GetAssetsByCollection ───────────────────────────────────────
-
-    [Fact]
-    public async Task GetAssetsByCollection_WithAccess_Returns200()
-    {
-        var (colId, _) = await SeedCollectionWithAssetAsync();
-        var client = AdminClient();
-
-        var response = await client.GetAsync($"/api/v1/assets/collection/{colId}");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
 
     // ── UpdateAsset ─────────────────────────────────────────────────
 
-    [Fact]
-    public async Task UpdateAsset_WithContributorAccess_Returns200()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = AdminClient();
-
-        var patchContent = JsonContent.Create(new { Title = "Updated Title" });
-        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
     // ── DeleteAsset ─────────────────────────────────────────────────
-
-    [Fact]
-    public async Task DeleteAsset_Admin_Returns204()
-    {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync();
-        var client = AdminClient();
-
-        var response = await client.DeleteAsync($"/api/v1/assets/{assetId}?fromCollectionId={colId}");
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-    }
 
     [Fact]
     public async Task DeleteAsset_NotFound_Returns404()
@@ -214,78 +119,9 @@ public class AssetEndpointTests : IAsyncLifetime
 
     // ── Init Presigned Upload ───────────────────────────────────────
 
-    [Fact]
-    public async Task InitUpload_WithAccess_Returns200()
-    {
-        // Create a collection first for the upload target
-        var adminClient = AdminClient();
-        var colResp = await adminClient.PostAsJsonAsync("/api/v1/collections",
-            new CreateCollectionDto { Name = $"Upload-{Guid.NewGuid():N}" });
-        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
-
-        var request = new InitUploadRequest
-        {
-            CollectionId = col!.Id,
-            FileName = "test-image.jpg",
-            ContentType = "image/jpeg",
-            FileSize = 1024,
-            Title = "Test Upload"
-        };
-
-        var response = await adminClient.PostAsJsonAsync("/api/v1/assets/init-upload", request);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<InitUploadResponse>();
-        Assert.NotNull(body);
-        Assert.True(body!.AssetId != Guid.Empty);
-        Assert.False(string.IsNullOrEmpty(body.UploadUrl));
-    }
-
     // ── Multi-Collection ────────────────────────────────────────────
 
-    [Fact]
-    public async Task GetAssetCollections_Returns200()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = AdminClient();
-
-        var response = await client.GetAsync($"/api/v1/assets/{assetId}/collections");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task AddAssetToCollection_Returns201()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = AdminClient();
-
-        // Create second collection
-        var col2Resp = await client.PostAsJsonAsync("/api/v1/collections",
-            new CreateCollectionDto { Name = $"Second-{Guid.NewGuid():N}" });
-        var col2 = await col2Resp.Content.ReadFromJsonAsync<CollectionResponseDto>();
-
-        var response = await client.PostAsync($"/api/v1/assets/{assetId}/collections/{col2!.Id}", null);
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-    }
-
     // ── GetDeletionContext ──────────────────────────────────────────
-
-    [Fact]
-    public async Task GetDeletionContext_Returns200()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = AdminClient();
-
-        var response = await client.GetAsync($"/api/v1/assets/{assetId}/deletion-context");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<AssetDeletionContextDto>();
-        Assert.NotNull(body);
-        Assert.Equal(1, body!.CollectionCount);
-        Assert.True(body.CanDeletePermanently);
-    }
 
     // ═══════════════════════════════════════════════════════════════
     //  NEGATIVE / ANTI-TESTS
@@ -313,50 +149,9 @@ public class AssetEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
-    public async Task UpdateAsset_ViewerNoAccess_Returns403()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = ViewerClient();
-
-        var patchContent = JsonContent.Create(new { Title = "Viewer update" });
-        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
     // ── DeleteAsset — negative ──────────────────────────────────────
 
-    [Fact]
-    public async Task DeleteAsset_ViewerNoAccess_Returns403()
-    {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync();
-        var client = ViewerClient();
-
-        var response = await client.DeleteAsync($"/api/v1/assets/{assetId}?fromCollectionId={colId}");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
     // ── GetAssetsByCollection — negative ────────────────────────────
-
-    [Fact]
-    public async Task GetAssetsByCollection_NonExistentCollection_AdminGetsEmptyList()
-    {
-        var client = AdminClient();
-        var response = await client.GetAsync($"/api/v1/assets/collection/{Guid.NewGuid()}");
-
-        // Admin gets an empty result set for non-existent collections
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetAssetsByCollection_ViewerNoAccess_Returns403()
-    {
-        var (colId, _) = await SeedCollectionWithAssetAsync();
-        var client = ViewerClient();
-
-        var response = await client.GetAsync($"/api/v1/assets/collection/{colId}");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 
     // ── GetAssetCollections — negative ──────────────────────────────
 
@@ -368,29 +163,7 @@ public class AssetEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
-    public async Task GetAssetCollections_ViewerNoAccess_Returns403()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = ViewerClient();
-
-        var response = await client.GetAsync($"/api/v1/assets/{assetId}/collections");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
     // ── AddAssetToCollection — negative ─────────────────────────────
-
-    [Fact]
-    public async Task AddAssetToCollection_NonExistentAsset_Returns404()
-    {
-        var client = AdminClient();
-        var colResp = await client.PostAsJsonAsync("/api/v1/collections",
-            new CreateCollectionDto { Name = $"Add-{Guid.NewGuid():N}" });
-        var col = await colResp.Content.ReadFromJsonAsync<CollectionResponseDto>();
-
-        var response = await client.PostAsync($"/api/v1/assets/{Guid.NewGuid()}/collections/{col!.Id}", null);
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
 
     [Fact]
     public async Task AddAssetToCollection_NonExistentCollection_Returns400Or403Or404()
@@ -404,16 +177,6 @@ public class AssetEndpointTests : IAsyncLifetime
             response.StatusCode == HttpStatusCode.Forbidden ||
             response.StatusCode == HttpStatusCode.NotFound,
             $"Expected 400, 403 or 404 but got {response.StatusCode}");
-    }
-
-    [Fact]
-    public async Task AddAssetToCollection_ViewerNoAccess_Returns403()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = ViewerClient();
-
-        var response = await client.PostAsync($"/api/v1/assets/{assetId}/collections/{Guid.NewGuid()}", null);
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     // ── RemoveAssetFromCollection — negative ────────────────────────
@@ -438,20 +201,6 @@ public class AssetEndpointTests : IAsyncLifetime
         var client = AdminClient();
         var response = await client.GetAsync($"/api/v1/assets/{Guid.NewGuid()}/deletion-context");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetDeletionContext_ViewerNoAccess_Returns403OrOk()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync();
-        var client = ViewerClient();
-
-        var response = await client.GetAsync($"/api/v1/assets/{assetId}/deletion-context");
-        // Deletion context may not enforce ACL checks — verifying actual behavior
-        Assert.True(
-            response.StatusCode == HttpStatusCode.Forbidden ||
-            response.StatusCode == HttpStatusCode.OK,
-            $"Expected 403 or 200 but got {response.StatusCode}");
     }
 
     // ── Renditions — negative ───────────────────────────────────────
@@ -537,24 +286,6 @@ public class AssetEndpointTests : IAsyncLifetime
             response.StatusCode == HttpStatusCode.Forbidden ||
             response.StatusCode == HttpStatusCode.NotFound,
             $"Expected 403 or 404 but got {response.StatusCode}");
-    }
-
-    [Fact]
-    public async Task InitUpload_ViewerNoAccess_Returns403()
-    {
-        var (colId, _) = await SeedCollectionWithAssetAsync();
-        var client = ViewerClient();
-
-        var request = new InitUploadRequest
-        {
-            CollectionId = colId,
-            FileName = "test.jpg",
-            ContentType = "image/jpeg",
-            FileSize = 1024,
-            Title = "Test"
-        };
-        var response = await client.PostAsJsonAsync("/api/v1/assets/init-upload", request);
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     // ── ConfirmUpload — negative ────────────────────────────────────

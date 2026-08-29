@@ -149,13 +149,13 @@ AssetHub specifics:
 
 The REST surface is **internal**: it serves the Blazor UI's browser-side fetches (media bytes, downloads) and nothing else. There is no curated public contract, no OpenAPI document, and no SemVer promise — the 2026-08 reshape removed all three. `pattern-public-api-contract` stays in the kit as a standard this project no longer instantiates. AssetHub's wiring:
 
-- One static class per domain: `AssetEndpoints`, `CollectionEndpoints`, etc.
+- One static class per domain. After contract-023 only four remain — `AssetEndpoints`, `CollectionEndpoints`, `ShareEndpoints`, `ZipDownloadEndpoints` — because every other endpoint had no caller.
 - Extension method: `Map*Endpoints(this WebApplication app)`.
 - All endpoints registered in `WebApplicationExtensions.MapAssetHubEndpoints()`.
 
 ### Route groups
 
-The CSRF gate is load-bearing. Every `MapGroup` with a POST/PATCH/PUT/DELETE chains **`.RequireAntiforgeryUnlessBearer()`**, and each mutating endpoint chains `.DisableAntiforgery()` (turning off the built-in form pipeline so the filter is the single decision point). **Both are required together** — this is the P-12 / A-7 fix; don't reopen it.
+The CSRF gate is load-bearing — it now guards exactly two mutating endpoints (the two `download-all` POSTs), which is all that is left. Every `MapGroup` with a POST/PATCH/PUT/DELETE chains **`.RequireAntiforgeryUnlessBearer()`**, and each mutating endpoint chains `.DisableAntiforgery()` (turning off the built-in form pipeline so the filter is the single decision point). **Both are required together** — this is the P-12 / A-7 fix; don't reopen it.
 
 The filter keys on whether the credential is **ambient**, not on which scheme authenticated it: skip for `Bearer`, skip for unauthenticated (the public share endpoints depend on that), skip when the request carries no cookies, otherwise validate `X-CSRF-TOKEN`. That phrasing is deliberate and load-bearing in its own right. It previously compared `AuthenticationType` against `CookieAuthenticationDefaults.AuthenticationScheme` (`"Cookies"`); when contract-015 swapped Keycloak/OIDC for ASP.NET Core Identity the scheme became `"Identity.Application"`, the comparison stopped matching, and **the gate silently validated nothing for every signed-in user across four contracts**. Never reintroduce a scheme-name comparison here. `AntiforgeryGateTests` guards both directions — a cookie-bearing mutation without a token must be refused, and the missing negative test is precisely why the outage went unseen.
 
@@ -194,11 +194,26 @@ When you can't use `ServiceResult` because the validation fires before the servi
 
 ### REST surface (internal)
 
-Endpoints exist to serve the Blazor UI's browser-side fetches — media bytes
-(`/thumb`, `/medium`, `/preview`, `/download`, `/poster`), share media, ZIP
-and `download-all`. The Blazor server itself does
-**not** go through HTTP; it calls Application services in-process through
-`AssetHubApiClient`.
+**Thirteen endpoints. All of them deliver bytes or report on a ZIP job.**
+
+Nothing else has an HTTP surface. The Blazor server does **not** go through
+HTTP — it calls Application services in-process through `AssetHubApiClient`, so
+an endpoint is only justified when the *browser itself* must fetch something a
+Razor component cannot hand it.
+
+| What | Endpoints |
+|---|---|
+| Asset media — `thumb`, `medium`, `poster`, `preview`, `download`, plus `thumb/download` and `medium/download` | 7 |
+| Share media — `preview`, `download` | 2 |
+| ZIP — two `download-all` POSTs and their two status routes | 4 |
+
+contract-023 removed 58 endpoints that no caller reached: admin, search,
+versioning, trash, dashboard and the CRUD for assets, collections and shares all
+duplicated over HTTP what the facade already did in-process. **None of those
+features was removed** — only their unused HTTP doorway.
+
+Before adding an endpoint, establish that a browser must fetch it directly. If a
+Razor component can call the facade, that is the answer.
 
 - No endpoint is marked public, documented in an OpenAPI document, or covered by
   a SemVer promise. Do not add `[PublicApi]`-style marking back without an

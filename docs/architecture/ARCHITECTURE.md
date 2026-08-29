@@ -30,7 +30,7 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
 │  │  AssetHub.Api                                                         │  │
 │  │  ┌───────────────┐ ┌─────────────────┐ ┌───────────────────────────┐  │  │
-│  │  │ Blazor Server │ │ Minimal APIs    │ │ Wolverine handlers        │  │  │
+│  │  │ Blazor Server │ │ 13 media/ZIP    │ │ Wolverine handlers        │  │  │
 │  │  │ (MudBlazor 8) │ │ (internal REST) │ │ + background services     │  │  │
 │  │  │               │ │ Cookie / JWT    │ │ ImageMagick + ffmpeg      │  │  │
 │  │  └───────────────┘ └─────────────────┘ └───────────────────────────┘  │  │
@@ -102,7 +102,7 @@ AssetHub.sln
 │   ├── AssetHub.Domain/            # Entities, enums, value objects — zero dependencies
 │   ├── AssetHub.Application/       # Service interfaces, DTOs, constants, config, business rules
 │   ├── AssetHub.Infrastructure/    # EF Core, MinIO, SMTP, ClamAV, Keycloak implementations
-│   ├── AssetHub.Api/               # ASP.NET Core host — Versioned Minimal APIs (/api/v1/), auth, DI wiring, validation filters
+│   ├── AssetHub.Api/               # ASP.NET Core host — Blazor, auth, DI, background jobs, 13 media/ZIP endpoints
 │   ├── AssetHub.Ui/                # Blazor Server components, pages, layouts (Razor Class Library)
 │
 ├── tests/
@@ -148,7 +148,7 @@ Domain  ←  Application  ←  Infrastructure  ←  Api
 - **Application** — depends on Domain. Defines all service interfaces, DTOs, constants, and configuration models. This is the contract layer that outer layers implement or consume.
 - **Infrastructure** — depends on Application + Domain. Contains all concrete implementations: EF Core repositories, MinIO adapter, SMTP email, ClamAV scanner, Keycloak client, media processing, and Polly resilience pipelines.
 - **Ui** — depends on Application only (no Infrastructure reference). A Razor Class Library containing all Blazor Server components, pages, and layouts. Communicates with infrastructure exclusively through Application interfaces.
-- **Api** — composition root, references all projects including Ui. Wires up dependency injection, configures authentication, defines versioned Minimal API endpoints (`/api/v1/`) with a `ValidationFilter` for request DTO validation, and hosts the Blazor Server app.
+- **Api** — the single composition root, references all projects including Ui. Wires up dependency injection, configures authentication, runs every Wolverine handler and background job, hosts the Blazor Server app, and exposes the 13 remaining HTTP endpoints. Those exist only for what the browser must fetch directly (media bytes, ZIP job status); contract-023 removed the other 58, which duplicated over HTTP what the in-process facade already did.
 
 ---
 

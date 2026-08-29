@@ -59,123 +59,18 @@ public class SecurityTests : IAsyncLifetime
     //  SECTION 1: ROLE-BASED AUTHORIZATION BYPASS TESTS
     // ═══════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task Viewer_CannotAccess_AdminOnlyAssetsList()
-    {
-        var client = ViewerClient();
 
-        var response = await client.GetAsync("/api/v1/assets");
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 
-    [Fact]
-    public async Task Viewer_CannotAccess_AdminHealthEndpoints()
-    {
-        var client = ViewerClient();
 
-        // Admin-only endpoints should return 403
-        var healthResponse = await client.GetAsync("/api/v1/admin/audit");
 
-        Assert.Equal(HttpStatusCode.Forbidden, healthResponse.StatusCode);
-    }
-
-    [Fact]
-    public async Task Viewer_CannotCreateCollection()
-    {
-        var client = ViewerClient();
-        var dto = new CreateCollectionDto { Name = "Unauthorized Collection" };
-
-        var response = await client.PostAsJsonAsync("/api/v1/collections", dto);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Contributor_CannotDeleteAsset_InOwnCollection()
-    {
-        // Seed a collection with Contributor role for User A
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Contributor);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        var response = await client.DeleteAsync($"/api/v1/assets/{assetId}?fromCollectionId={colId}");
-
-        // Contributor can upload/edit but cannot delete - requires Manager+
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Viewer_CannotUpdateAssetMetadata()
-    {
-        // Seed a collection with Viewer role for User A
-        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Viewer);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Viewer);
-
-        var patchContent = JsonContent.Create(new { Title = "Hacked Title" });
-        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
-
-        // Viewer cannot edit - requires Contributor+
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Contributor_CannotManageCollectionACLs()
-    {
-        // Seed a collection with Contributor role
-        var (colId, _) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Contributor);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        var dto = new SetCollectionAccessRequest
-        {
-            PrincipalId = "some-user-id",
-            Role = RoleHierarchy.Roles.Viewer
-        };
-        var response = await client.PostAsJsonAsync($"/api/v1/collections/{colId}/acl", dto);
-
-        // ACL management requires Manager+
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 
     // ═══════════════════════════════════════════════════════════════
     //  SECTION 2: PARAMETER TAMPERING / CROSS-USER ACCESS TESTS
     // ═══════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task UserA_CannotAccess_UserBs_Asset()
-    {
-        // User B creates a collection and asset
-        var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        // User A tries to access it
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        var response = await clientA.GetAsync($"/api/v1/assets/{assetId}");
 
-        // User A has no ACL entry for User B's collection
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UserA_CannotDelete_UserBs_Asset()
-    {
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        var response = await clientA.DeleteAsync($"/api/v1/assets/{assetId}?fromCollectionId={colId}");
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UserA_CannotModify_UserBs_Collection()
-    {
-        var (colId, _) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        var patchContent = JsonContent.Create(new { Name = "Stolen Collection" });
-        var response = await clientA.PatchAsync($"/api/v1/collections/{colId}", patchContent);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 
     [Fact]
     public async Task UserA_CannotDownload_UserBs_Asset()
@@ -199,65 +94,13 @@ public class SecurityTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    [Fact]
-    public async Task UserA_CannotCreateShare_For_UserBs_Asset()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        var dto = new CreateShareDto
-        {
-            ScopeId = assetId,
-            ScopeType = Constants.ScopeTypes.Asset
-        };
-        var response = await clientA.PostAsJsonAsync("/api/v1/shares", dto);
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UserA_CannotAddAsset_To_UserBs_Collection()
-    {
-        // User B creates a collection
-        var (colIdB, _) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        // User A creates their own asset (via their own collection)
-        var (_, assetIdA) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        // User A tries to add their asset to User B's collection
-        var response = await clientA.PostAsync($"/api/v1/assets/{assetIdA}/collections/{colIdB}", null);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UserA_CannotManageACLs_On_UserBs_Collection()
-    {
-        var (colId, _) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        var dto = new SetCollectionAccessRequest
-        {
-            PrincipalId = UserAId, // Trying to give themselves access
-            Role = RoleHierarchy.Roles.Admin
-        };
-        var response = await clientA.PostAsJsonAsync($"/api/v1/collections/{colId}/acl", dto);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 
     // ═══════════════════════════════════════════════════════════════
     //  SECTION 3: DATA ENUMERATION / GUESSING ATTACKS
     // ═══════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task Random_AssetId_Guessing_Returns403_Not_AssetDetails()
-    {
-        // This test validates the same behavior as UserA_CannotAccess_UserBs_Asset
-        // but from the perspective of enumeration attack prevention:
-        // the API must return 403 (not 404) to avoid leaking resource existence.
-        await UserA_CannotAccess_UserBs_Asset();
-    }
 
     [Fact]
     public async Task Random_CollectionId_Guessing_Returns403_Or_404()
@@ -357,75 +200,13 @@ public class SecurityTests : IAsyncLifetime
             response.StatusCode == HttpStatusCode.NotFound);
     }
 
-    [Fact]
-    public async Task Viewer_CannotRevoke_OtherUsers_Share()
-    {
-        // Admin creates a share
-        var (_, _, shareId, _) = await SeedShareAsync(
-            userId: TestAuthHandler.AdminUserId,
-            scopeType: ShareScopeType.Asset);
 
-        // Viewer tries to revoke it
-        var client = ViewerClient();
-        var response = await client.DeleteAsync($"/api/v1/shares/{shareId}");
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UserA_CannotRevoke_UserBs_Share()
-    {
-        // User B creates a share
-        var (_, _, shareId, _) = await SeedShareAsync(
-            userId: UserBId,
-            scopeType: ShareScopeType.Asset);
-
-        // User A tries to revoke it
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
-        var response = await clientA.DeleteAsync($"/api/v1/shares/{shareId}");
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 
     // ═══════════════════════════════════════════════════════════════
     //  SECTION 5: INPUT SANITIZATION / INJECTION TESTS
     // ═══════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task CreateCollection_WithScriptInName_IsSanitized()
-    {
-        var client = AdminClient();
-        var dto = new CreateCollectionDto
-        {
-            Name = "<script>alert('xss')</script>",
-            Description = "Normal description"
-        };
 
-        var response = await client.PostAsJsonAsync("/api/v1/collections", dto);
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<CollectionResponseDto>();
-        // The name should be returned as-is (stored safely) - XSS prevention is at render time
-        // But it should not cause server errors
-        Assert.NotNull(result);
-        Assert.NotNull(result.Name);
-    }
-
-    [Fact]
-    public async Task UpdateAsset_WithHtmlInTitle_DoesNotBreak()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
-
-        var patchContent = JsonContent.Create(new
-        {
-            Title = "<img src=x onerror=alert('xss')>",
-            Description = "Test"
-        });
-        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
 
     [Fact]
     public async Task InvalidGuid_InAssetPath_Returns404()
@@ -440,31 +221,6 @@ public class SecurityTests : IAsyncLifetime
             response.StatusCode == HttpStatusCode.BadRequest);
     }
 
-    [Fact]
-    public async Task SqlInjection_InSearchQuery_DoesNotBreak()
-    {
-        var client = AdminClient();
-
-        // Various SQL injection attempts
-        string[] injectionAttempts =
-        [
-            "'; DROP TABLE Assets;--",
-            "1 OR 1=1",
-            "1'; SELECT * FROM users WHERE '1'='1",
-            "admin'--",
-            "\" OR \"\"=\""
-        ];
-
-        foreach (var attempt in injectionAttempts)
-        {
-            var response = await client.GetAsync($"/api/v1/assets?search={Uri.EscapeDataString(attempt)}");
-            // Should not crash - return 200 (empty results) or 400
-            Assert.True(
-                response.StatusCode == HttpStatusCode.OK ||
-                response.StatusCode == HttpStatusCode.BadRequest,
-                $"SQL injection attempt failed: {attempt} returned {response.StatusCode}");
-        }
-    }
 
     // ═══════════════════════════════════════════════════════════════
     //  SECTION 6: AUTHENTICATION BOUNDARY TESTS
@@ -526,142 +282,21 @@ public class SecurityTests : IAsyncLifetime
     //  SECTION 7: PRIVILEGE ESCALATION TESTS
     // ═══════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task Manager_CannotGrantAdmin_ToSelf()
-    {
-        // Create collection where user is Manager
-        var (colId, _) = await SeedCollectionWithAssetAsync(ManagerUserId, AclRole.Manager);
-        var client = ClientForUser(ManagerUserId, "manager", RoleHierarchy.Roles.Manager);
 
-        // Try to escalate to Admin
-        var dto = new SetCollectionAccessRequest
-        {
-            PrincipalId = ManagerUserId,
-            Role = RoleHierarchy.Roles.Admin
-        };
-        var response = await client.PostAsJsonAsync($"/api/v1/collections/{colId}/acl", dto);
-
-        // Should be denied - Manager cannot grant Admin role
-        Assert.True(
-            response.StatusCode == HttpStatusCode.Forbidden ||
-            response.StatusCode == HttpStatusCode.BadRequest,
-            $"Privilege escalation attempt returned {response.StatusCode}");
-    }
-
-    [Fact]
-    public async Task Contributor_CannotGrantManager_ToOther()
-    {
-        var (colId, _) = await SeedCollectionWithAssetAsync(ContributorUserId, AclRole.Contributor);
-        var client = ClientForUser(ContributorUserId, "contributor", RoleHierarchy.Roles.Contributor);
-
-        var dto = new SetCollectionAccessRequest
-        {
-            PrincipalId = "some-other-user",
-            Role = RoleHierarchy.Roles.Manager
-        };
-        var response = await client.PostAsJsonAsync($"/api/v1/collections/{colId}/acl", dto);
-
-        // Contributor cannot manage ACLs
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 
     // ═══════════════════════════════════════════════════════════════
     //  SECTION 8: AUTHORIZATION CONSISTENCY TESTS
     // ═══════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task Contributor_CannotRemoveAsset_FromCollection()
-    {
-        // Seed a collection with Contributor role for User A
-        var (colId, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Contributor);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
 
-        // Contributor should not be able to remove an asset from a collection — requires Manager+
-        var response = await client.DeleteAsync($"/api/v1/assets/{assetId}/collections/{colId}");
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UserA_CannotGet_DeletionContext_ForUserBsAsset()
-    {
-        // User B creates a collection and asset
-        var (_, assetId) = await SeedCollectionWithAssetAsync(UserBId, AclRole.Admin);
-        // User A has no access to User B's asset
-        var clientA = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        var response = await clientA.GetAsync($"/api/v1/assets/{assetId}/deletion-context");
-
-        // Should be 403, not 200 with collection count disclosure
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UpdateAsset_WithOversizedMetadata_Returns400()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
-
-        // Build a metadata dictionary exceeding the allowed limit
-        var oversizedMetadata = Enumerable.Range(0, Constants.Limits.MaxMetadataEntries + 1)
-            .ToDictionary(i => $"key_{i}", i => (object)$"value_{i}");
-
-        var patchContent = JsonContent.Create(new { MetadataJson = oversizedMetadata });
-        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
 
     // ═══════════════════════════════════════════════════════════════
     //  SECTION 9: INPUT VALIDATION DEPTH TESTS
     // ═══════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task CreateShare_WithShortPassword_Returns400()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Manager);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Manager);
 
-        var dto = new CreateShareDto
-        {
-            ScopeId = assetId,
-            ScopeType = Constants.ScopeTypes.Asset,
-            Password = "abc1234"  // Only 7 chars — below the 8-char minimum
-        };
-        var response = await client.PostAsJsonAsync("/api/v1/shares", dto);
 
-        // Should be rejected: password too short
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UpdateSharePassword_WithShortPassword_Returns400()
-    {
-        var (_, _, shareId, _) = await SeedShareAsync(UserAId, ShareScopeType.Asset);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Contributor);
-
-        var dto = new UpdateSharePasswordDto { Password = "abc123" }; // 6 chars — below minimum
-        var response = await client.PutAsJsonAsync($"/api/v1/shares/{shareId}/password", dto);
-
-        // Should be rejected: password too short
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UpdateAsset_WithOversizedMetadataValue_Returns400()
-    {
-        var (_, assetId) = await SeedCollectionWithAssetAsync(UserAId, AclRole.Admin);
-        var client = ClientForUser(UserAId, "usera", RoleHierarchy.Roles.Admin);
-
-        // Single metadata value that exceeds the per-value length limit
-        var oversizedValue = new string('x', Constants.Limits.MaxMetadataValueLength + 1);
-        var metadata = new Dictionary<string, object> { ["key"] = oversizedValue };
-
-        var patchContent = JsonContent.Create(new { MetadataJson = metadata });
-        var response = await client.PatchAsync($"/api/v1/assets/{assetId}", patchContent);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
 
     // ═══════════════════════════════════════════════════════════════
     //  HELPER METHODS

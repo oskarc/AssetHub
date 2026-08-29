@@ -25,10 +25,6 @@ public static class ShareEndpoints
         // POST endpoints use .DisableAntiforgery() because they are called by
         // non-browser clients and share link consumers that cannot provide
         // antiforgery tokens. GET endpoints are exempt from antiforgery by default.
-        group.MapGet("{token}", GetSharedAsset).WithName("GetSharedAsset")
-            .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous);
-        group.MapPost("{token}/access-token", CreateAccessToken).WithName("CreateAccessToken")
-            .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.SharePassword).DisableAntiforgery();
         group.MapGet("{token}/download", DownloadSharedAsset).WithName("DownloadSharedAsset")
             .AllowAnonymous().RequireRateLimiting(Constants.RateLimitPolicies.ShareAnonymous);
         group.MapPost("{token}/download-all", DownloadAllSharedAssets).WithName("DownloadAllSharedAssets")
@@ -42,34 +38,11 @@ public static class ShareEndpoints
         // .AllowAnonymous(), which overrides. Any endpoint added to this group
         // is therefore authenticated by default.
         group.RequireAuthorization();
-        group.MapPost("", CreateShare).AddEndpointFilter<ValidationFilter<CreateShareDto>>().DisableAntiforgery().WithName("CreateShare");
-        group.MapDelete("{id:guid}", RevokeShare).DisableAntiforgery().WithName("RevokeShare");
-        group.MapPut("{id:guid}/password", UpdateSharePassword).AddEndpointFilter<ValidationFilter<UpdateSharePasswordDto>>().DisableAntiforgery().WithName("UpdateSharePassword");
     }
 
     // ── Public endpoints ─────────────────────────────────────────────────────
 
-    private static async Task<IResult> GetSharedAsset(
-        string token,
-        [FromServices] IPublicShareAccessService svc,
-        HttpContext httpContext, CancellationToken ct,
-        int skip = 0, int take = 50)
-    {
-        take = Math.Clamp(take, 1, Constants.Limits.MaxPageSize);
-        var effectivePassword = GetSharePassword(httpContext);
-        var result = await svc.GetSharedContentAsync(token, effectivePassword, skip, take, ct);
-        return HandleShareResult(result);
-    }
 
-    private static async Task<IResult> CreateAccessToken(
-        string token,
-        [FromServices] IPublicShareAccessService svc,
-        HttpContext httpContext, CancellationToken ct)
-    {
-        var password = GetSharePassword(httpContext);
-        var result = await svc.CreateAccessTokenAsync(token, password, ct);
-        return HandleShareResult(result);
-    }
 
     private static async Task<IResult> DownloadSharedAsset(
         string token, Guid? assetId, string? accessToken,
@@ -105,31 +78,8 @@ public static class ShareEndpoints
 
     // ── Protected endpoints ──────────────────────────────────────────────────
 
-    private static async Task<IResult> CreateShare(
-        CreateShareDto dto,
-        [FromServices] IAuthenticatedShareAccessService svc,
-        [FromServices] IOptions<AppSettings> appSettings,
-        CancellationToken ct)
-    {
-        var baseUrl = (appSettings.Value.BaseUrl ?? "").TrimEnd('/');
-        var result = await svc.CreateShareAsync(dto, baseUrl, ct);
-        return result.ToHttpResult(v => Results.Created($"/api/v1/shares/{v.Id}", v));
-    }
 
-    private static async Task<IResult> RevokeShare(
-        Guid id, [FromServices] IAuthenticatedShareAccessService svc, CancellationToken ct)
-    {
-        var result = await svc.RevokeShareAsync(id, ct);
-        return result.ToHttpResult();
-    }
 
-    private static async Task<IResult> UpdateSharePassword(
-        Guid id, [FromBody] UpdateSharePasswordDto dto,
-        [FromServices] IAuthenticatedShareAccessService svc, CancellationToken ct)
-    {
-        var result = await svc.UpdateSharePasswordAsync(id, dto.Password, ct);
-        return result.ToHttpResult();
-    }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
