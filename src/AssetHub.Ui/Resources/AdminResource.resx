@@ -230,12 +230,8 @@
 
   <!-- Saved searches (T1-SRCH-01) -->
 
-  <!-- Migrations -->
 
-  <!-- Migrations -->
-  <data name="Tab_Migrations" xml:space="preserve"><value>Bulk Import</value></data>
 
-  <!-- Audit Events: Migrations -->
 
   <!-- Metadata Schemas -->
 
@@ -251,8 +247,7 @@
   <data name="Tab_Trash" xml:space="preserve"><value>Trash</value></data>
   <data name="Group_Access" xml:space="preserve"><value>Access</value></data>
   <data name="Group_Operations" xml:space="preserve"><value>Operations</value></data>
-  <data name="Group_Access_Desc" xml:space="preserve"><value>Users, collection permissions, guests, and share links.</value></data>
-  <data name="Group_Content_Desc" xml:space="preserve"><value>Metadata schemas, taxonomies, export presets, and brands.</value></data>
-  <data name="Group_Operations_Desc" xml:space="preserve"><value>Migrations, trash, audit log, and webhooks.</value></data>
+  <data name="Group_Access_Desc" xml:space="preserve"><value>Users, collection permissions, and share links.</value></data>
+  <data name="Group_Operations_Desc" xml:space="preserve"><value>Trash and the audit log.</value></data>
   <data name="Overview_Intro" xml:space="preserve"><value>Manage users, content, operations, and insights. Pick an area from the menu or a card below.</value></data>
 </root>

@@ -24,8 +24,6 @@ public class AssetHubDbContext : IdentityDbContext<AppUser>, IDataProtectionKeyC
     public DbSet<Share> Shares { get; set; } = null!;
     public DbSet<AuditEvent> AuditEvents { get; set; } = null!;
     public DbSet<ZipDownload> ZipDownloads { get; set; } = null!;
-    public DbSet<Migration> Migrations { get; set; } = null!;
-    public DbSet<MigrationItem> MigrationItems { get; set; } = null!;
     public DbSet<AssetVersion> AssetVersions { get; set; } = null!;
     public DbSet<OrphanedObject> OrphanedObjects { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
@@ -46,8 +44,6 @@ public class AssetHubDbContext : IdentityDbContext<AppUser>, IDataProtectionKeyC
         builder.ApplyConfiguration(new ShareConfiguration());
         builder.ApplyConfiguration(new AuditEventConfiguration());
         builder.ApplyConfiguration(new ZipDownloadConfiguration());
-        builder.ApplyConfiguration(new MigrationConfiguration());
-        builder.ApplyConfiguration(new MigrationItemConfiguration());
         builder.ApplyConfiguration(new AssetVersionConfiguration());
         builder.ApplyConfiguration(new OrphanedObjectConfiguration());
         builder.ApplyConfiguration(new OutboxMessageConfiguration());

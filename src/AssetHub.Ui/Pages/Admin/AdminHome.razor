@@ -35,10 +35,14 @@
 @code {
     private sealed record AdminArea(string Icon, string TitleKey, string DescKey, string Href);
 
+    // Mirrors AdminLayout's nav groups, which are the pages that actually exist.
+    // Previously carried a third "Content" card pointing at admin/metadata-schemas —
+    // a route contract-010 removed, so it had been a 404 in the admin console ever
+    // since. Its descriptions also still advertised guests, brands, taxonomies,
+    // export presets and webhooks, all removed by earlier reshape contracts.
     private readonly AdminArea[] _areas =
     [
         new(Icons.Material.Filled.People, "Group_Access", "Group_Access_Desc", "admin/users"),
-        new(Icons.Material.Filled.Category, "Group_Content", "Group_Content_Desc", "admin/metadata-schemas"),
-        new(Icons.Material.Filled.Build, "Group_Operations", "Group_Operations_Desc", "admin/migrations"),
+        new(Icons.Material.Filled.Build, "Group_Operations", "Group_Operations_Desc", "admin/trash"),
     ];
 }

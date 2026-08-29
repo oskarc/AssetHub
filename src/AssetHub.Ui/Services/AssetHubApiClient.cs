@@ -47,7 +47,6 @@ public sealed partial class AssetHubApiClient(
     IUserAdminQueryService userAdminQueryService,
     IUserAdminService userAdminService,
     IAuditQueryService auditQueryService,
-    IMigrationService migrationService,
     IOptions<AppSettings> appSettings) : IAssetHubApiClient
 {
     private readonly AppSettings _appSettings = appSettings.Value;

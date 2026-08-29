@@ -7,7 +7,7 @@ namespace AssetHub.Tests.Domain;
 /// Round-trip coverage for <see cref="AssetType.Audio"/> — the enum value, its
 /// db-string mapping, and the helper that classifies uploads. T5-AUDIO-01 added
 /// the audio fork; without these tests a future enum reorder could silently
-/// break the migration / dispatch / classification chain.
+/// break the upload / dispatch / classification chain.
 /// </summary>
 public class AssetTypeAudioMappingTests
 {

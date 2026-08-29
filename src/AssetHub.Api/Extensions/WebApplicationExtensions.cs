@@ -312,7 +312,6 @@ public static class WebApplicationExtensions
         app.MapShareEndpoints();
         app.MapAdminEndpoints();
         app.MapZipDownloadEndpoints();
-        app.MapMigrationEndpoints();
         app.MapAssetSearchEndpoints();
         app.MapAdminTrashEndpoints();
         app.MapAssetVersionEndpoints();

@@ -62,6 +62,12 @@ Each tier can be implemented roughly in parallel *within* itself, but cross-tier
 
 ### T0-MIG-01 — Bulk import API and job runner
 
+> **REMOVED 2026-08-29 (contract-024).** Shipped, then excised by the reshape: bulk
+> import was never one of the five features AssetHub is being reduced to (Assets,
+> Collections, Metadata & search, Access control, Sharing). Removing it also removed
+> the only export in the application (the per-asset outcome CSV). The specification
+> below is kept as history — it does not describe the current system.
+
 > **Shipped 2026-04-21** (initial implementation `ddcc814` on 2026-04-19, hardening commit to follow). See the **Shipped appendix** at the end of this document for deviations from the original spec (pause/resume deferred; outcome CSV and duplicate detection as specified).
 
 **Intent.** Give administrators a supported, observable, resumable way to migrate thousands-to-millions of assets from another DAM, a SharePoint library, a Dropbox tree, or an S3 bucket into AssetHub. Manual multipart uploads do not scale past a few hundred files; commercial prospects expect tens of thousands in a single import.

@@ -13,7 +13,6 @@ global using AssetHub.Ui.Components.Dialogs.Assets;
 global using AssetHub.Ui.Components.Dialogs.Collections;
 global using AssetHub.Ui.Components.Dialogs.Sharing;
 global using AssetHub.Ui.Components.Dialogs.Users;
-global using AssetHub.Ui.Components.Dialogs.Migrations;
 global using AssetHub.Ui.Components.Shared;
 global using AssetHub.Ui.Services;
 global using AssetHub.Ui.Resources;

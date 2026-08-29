@@ -122,15 +122,4 @@
   <data name="Event_notification.unsubscribed_via_email" xml:space="preserve"><value>Avregistrerad via e-post</value></data>
   <data name="Event_notification.unsubscribe_token_rotated" xml:space="preserve"><value>Avregistreringstoken roterad</value></data>
   <data name="Event_saved_search.digest_sent" xml:space="preserve"><value>Sparad sökning sammandrag skickat</value></data>
-  <data name="Event_migration.completed" xml:space="preserve"><value>Migration slutförd</value></data>
-  <data name="Event_migration.item_failed" xml:space="preserve"><value>Migrationsobjekt misslyckades</value></data>
-  <data name="Event_migration.item_skipped_duplicate" xml:space="preserve"><value>Migrationsobjekt hoppat över (dubblett)</value></data>
-  <data name="Event_migration.s3_scan_started" xml:space="preserve"><value>S3-skanning startad</value></data>
-  <data name="Event_migration.s3_scan_completed" xml:space="preserve"><value>S3-skanning slutförd</value></data>
-  <data name="Event_migration.created" xml:space="preserve"><value>Migrering skapad</value></data>
-  <data name="Event_migration.started" xml:space="preserve"><value>Migrering startad</value></data>
-  <data name="Event_migration.cancelled" xml:space="preserve"><value>Migrering avbruten</value></data>
-  <data name="Event_migration.deleted" xml:space="preserve"><value>Migrering raderad</value></data>
-  <data name="Event_migration.retried" xml:space="preserve"><value>Migrering omförsökt</value></data>
-  <data name="Event_migration.bulk_deleted" xml:space="preserve"><value>Migreringar massraderade</value></data>
 </root>

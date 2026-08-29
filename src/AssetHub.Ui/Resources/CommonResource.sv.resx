@@ -145,7 +145,6 @@
   <data name="ScopeType_Collection" xml:space="preserve"><value>Samling</value></data>
   <data name="ScopeType_Share" xml:space="preserve"><value>Delning</value></data>
   <data name="ScopeType_User" xml:space="preserve"><value>Användare</value></data>
-  <data name="ScopeType_Migration" xml:space="preserve"><value>Migrering</value></data>
 
   <!-- Sort Options -->
   <data name="Sort_NewestFirst" xml:space="preserve"><value>Nyast först</value></data>

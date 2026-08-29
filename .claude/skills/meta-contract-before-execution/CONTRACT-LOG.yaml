@@ -2198,3 +2198,55 @@ contracts:
           time-boxed degradation of the E2E gate, with contract-024 restoring
           seeding through the UI (the path the upload probe already proved works).
           Named here so it cannot become permanent by inattention.
+
+  - contract_id: contract-024
+    feature: remove-the-migration-feature
+    date_proposed: 2026-08-29
+    date_approved: 2026-08-29
+    precedes: contract-023
+    tier_1: |
+      Migration is the bulk-import subsystem: staged files, a CSV manifest,
+      start/retry/cancel, and an outcome CSV. It was never one of the reshape's five
+      features (Assets, Collections, Metadata & search, Access control, Sharing) —
+      it survived eleven cuts by not being looked at.
+
+      CONSEQUENCE STATED PLAINLY: outcome.csv is the ONLY export in the
+      application, so this removes export entirely. Multi-file upload via
+      AssetUpload is unaffected, as are bulk ACTIONS on existing assets
+      (BulkAssetActionsDialog, bulk-delete) — different features sharing the word.
+
+      Footprint: ~48 files across six areas, 2 tables, 2 Wolverine queues, 14
+      endpoints, 2 resource files, 11 test files. A bounded-module deletion, the
+      cleanest of pattern-feature-excision's four shapes.
+
+      DB dependents checked up front, applying the C9 lesson where a tsvector
+      trigger silently JOINed the tables being dropped: only an internal FK
+      (MigrationItems.MigrationId -> Migrations). No external FKs, triggers or
+      functions. The drop is self-contained.
+    tier_2: |
+      1. Baseline 914 unit at 94d9b2e; capture E2E state and the queue/endpoint
+         invariants first. Docker pre-check.
+      2. Survey-to-plan with tracer greps; delete the module across six areas.
+      3. EF migration dropping MigrationItems then Migrations, reversible Down.
+      4. Remove start-migration and process-migration-item queues and handlers;
+         verify no surviving queue loses a listener (the contract-019 invariant).
+      5. REWORK AdminHome. It renders three cards: Access -> users, Content ->
+         admin/metadata-schemas (ALREADY 404, dead since contract-010), Operations
+         -> migrations. After this only Access survives, so the landing page is
+         rebuilt against pages that exist, not merely de-linked.
+      6. Build-as-authority loop; residual sweep with survivor taxonomy — "migration"
+         also means EF migrations, which stay.
+      7. Prose in the same change: CLAUDE.md, ARCHITECTURE, README, ROADMAP.
+    tier_3: |
+      - No reference to the feature outside EF migration history; the
+        Migration/MigrationItem vs EF-migration distinction explicitly preserved.
+      - has-pending-model-changes clean; app starts and auto-migrates against a DB
+        that held migration rows.
+      - Every surviving Wolverine queue still has exactly one listener — enumerated.
+      - Admin console has no dead cards; every card resolves to a real page.
+      - Unit suite: NAMED delta (11 test files go); zero unexplained changes.
+      - E2E no worse than the captured baseline; migration specs removed with the feature.
+      - Upload, thumbnails, downloads, shares and ZIP still work in the container.
+    status: approved
+    revisions: []
+    work_id: null

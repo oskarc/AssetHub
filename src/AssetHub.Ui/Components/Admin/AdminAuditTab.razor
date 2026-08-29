@@ -27,7 +27,6 @@ else
                     <MudChip T="string" Color="@(_showCollections ? Color.Tertiary : Color.Default)" Size="Size.Small" OnClick="ToggleCollections" Class="chip-clickable">@CommonLoc["ScopeType_Collection"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Collection, StringComparison.OrdinalIgnoreCase))</MudChip>
                     <MudChip T="string" Color="@(_showAssets ? Color.Info : Color.Default)" Size="Size.Small" OnClick="ToggleAssets" Class="chip-clickable">@CommonLoc["ScopeType_Asset"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Asset, StringComparison.OrdinalIgnoreCase))</MudChip>
                     <MudChip T="string" Color="@(_showShares ? Color.Primary : Color.Default)" Size="Size.Small" OnClick="ToggleShares" Class="chip-clickable">@CommonLoc["ScopeType_Share"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Share, StringComparison.OrdinalIgnoreCase))</MudChip>
-                    <MudChip T="string" Color="@(_showMigrations ? Color.Warning : Color.Default)" Size="Size.Small" OnClick="ToggleMigrations" Class="chip-clickable">@CommonLoc["ScopeType_Migration"]: @_auditEvents.Count(e => string.Equals(e.TargetType, Constants.ScopeTypes.Migration, StringComparison.OrdinalIgnoreCase))</MudChip>
                 </MudStack>
             </MudItem>
             <MudItem xs="12" sm="6">
@@ -161,7 +160,6 @@ else
     private bool _showCollections = true;
     private bool _showAssets = true;
     private bool _showShares = true;
-    private bool _showMigrations = true;
     private bool _showCreate = true;
     private bool _showUpdate = true;
     private bool _showDelete = true;
@@ -173,7 +171,6 @@ else
     private const string StorageKeyShowCollections = "auditLog_showCollections";
     private const string StorageKeyShowAssets = "auditLog_showAssets";
     private const string StorageKeyShowShares = "auditLog_showShares";
-    private const string StorageKeyShowMigrations = "auditLog_showMigrations";
     private const string StorageKeyShowCreate = "auditLog_showCreate";
     private const string StorageKeyShowUpdate = "auditLog_showUpdate";
     private const string StorageKeyShowDelete = "auditLog_showDelete";
@@ -194,7 +191,6 @@ else
             _showCollections = await LocalStorage.GetBoolAsync(StorageKeyShowCollections, true);
             _showAssets = await LocalStorage.GetBoolAsync(StorageKeyShowAssets, true);
             _showShares = await LocalStorage.GetBoolAsync(StorageKeyShowShares, true);
-            _showMigrations = await LocalStorage.GetBoolAsync(StorageKeyShowMigrations, true);
             _showCreate = await LocalStorage.GetBoolAsync(StorageKeyShowCreate, true);
             _showUpdate = await LocalStorage.GetBoolAsync(StorageKeyShowUpdate, true);
             _showDelete = await LocalStorage.GetBoolAsync(StorageKeyShowDelete, true);
@@ -265,7 +261,6 @@ else
             var t when t == Constants.ScopeTypes.Collection => _showCollections,
             var t when t == Constants.ScopeTypes.Asset => _showAssets,
             var t when t == Constants.ScopeTypes.Share => _showShares,
-            var t when t == Constants.ScopeTypes.Migration => _showMigrations,
             _ => true
         };
     }
@@ -325,12 +320,6 @@ else
     {
         _showShares = !_showShares;
         await LocalStorage.SetBoolAsync(StorageKeyShowShares, _showShares);
-    }
-
-    private async Task ToggleMigrations()
-    {
-        _showMigrations = !_showMigrations;
-        await LocalStorage.SetBoolAsync(StorageKeyShowMigrations, _showMigrations);
     }
 
     private async Task ToggleCreate()

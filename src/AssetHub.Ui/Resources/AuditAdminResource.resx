@@ -122,15 +122,4 @@
   <data name="Event_notification.unsubscribed_via_email" xml:space="preserve"><value>Unsubscribed via Email</value></data>
   <data name="Event_notification.unsubscribe_token_rotated" xml:space="preserve"><value>Unsubscribe Token Rotated</value></data>
   <data name="Event_saved_search.digest_sent" xml:space="preserve"><value>Saved Search Digest Sent</value></data>
-  <data name="Event_migration.completed" xml:space="preserve"><value>Migration Completed</value></data>
-  <data name="Event_migration.item_failed" xml:space="preserve"><value>Migration Item Failed</value></data>
-  <data name="Event_migration.item_skipped_duplicate" xml:space="preserve"><value>Migration Item Skipped (Duplicate)</value></data>
-  <data name="Event_migration.s3_scan_started" xml:space="preserve"><value>S3 Scan Started</value></data>
-  <data name="Event_migration.s3_scan_completed" xml:space="preserve"><value>S3 Scan Completed</value></data>
-  <data name="Event_migration.created" xml:space="preserve"><value>Migration Created</value></data>
-  <data name="Event_migration.started" xml:space="preserve"><value>Migration Started</value></data>
-  <data name="Event_migration.cancelled" xml:space="preserve"><value>Migration Cancelled</value></data>
-  <data name="Event_migration.deleted" xml:space="preserve"><value>Migration Deleted</value></data>
-  <data name="Event_migration.retried" xml:space="preserve"><value>Migration Retried</value></data>
-  <data name="Event_migration.bulk_deleted" xml:space="preserve"><value>Migrations Bulk Deleted</value></data>
 </root>

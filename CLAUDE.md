@@ -196,7 +196,7 @@ When you can't use `ServiceResult` because the validation fires before the servi
 
 Endpoints exist to serve the Blazor UI's browser-side fetches — media bytes
 (`/thumb`, `/medium`, `/preview`, `/download`, `/poster`), share media, ZIP
-`download-all`, and the migration outcome CSV. The Blazor server itself does
+and `download-all`. The Blazor server itself does
 **not** go through HTTP; it calls Application services in-process through
 `AssetHubApiClient`.
 
@@ -310,7 +310,7 @@ Design tokens, color palettes, typography scale, elevation, and information-arch
 - The facade is one type but **many files**: `AssetHubApiClient.cs` holds the constructor + shared result-unwrapping helpers, and each domain lives in an `AssetHubApiClient.<Domain>.cs` partial (Assets, Collections, Shares, Admin, …). It stays a single surface/registration — this is the **`pattern-cohesive-type-split`** standard (cohesion, not tangle → split the file, not the design). `IAssetHubApiClient` remains one file.
 
 ### Dialogs
-- Named `*Dialog.razor`, grouped into per-feature subfolders under `Components/Dialogs/` (Assets, Collections, Sharing, Users, Migrations, Shared) — the same feature taxonomy as the facade partials and the other `Components/` folders (the `implementation-blazor-ui-standard` "one feature taxonomy" pattern). Namespaces follow the folders; `_Imports.razor` and the UI test `GlobalUsings.cs` carry the sub-namespaces.
+- Named `*Dialog.razor`, grouped into per-feature subfolders under `Components/Dialogs/` (Assets, Collections, Sharing, Users, Shared) — the same feature taxonomy as the facade partials and the other `Components/` folders (the `implementation-blazor-ui-standard` "one feature taxonomy" pattern). Namespaces follow the folders; `_Imports.razor` and the UI test `GlobalUsings.cs` carry the sub-namespaces.
 - `MudDialog` with `[CascadingParameter] IMudDialogInstance`.
 - Return via `MudDialog.Close(DialogResult.Ok(value))`.
 
@@ -451,7 +451,7 @@ dotnet ef migrations add <PascalCaseName> --project src/AssetHub.Infrastructure 
 
 There is **one composition root**. The separate `AssetHub.Worker` host was folded into the Api by the 2026-08 reshape (contract-019): it ran the same shared infrastructure against the same database and its image already carried the same native media tooling, so a second process bought separation on paper and cost a whole hosting story in practice.
 
-All background work lives here — the media/processing handlers (`process-image` / `process-video` / `process-audio` / `build-zip` / migration), the completion consumers that transition an asset row, and every retention/cleanup `BackgroundService` (trash purge, audit retention, orphan sweeps, outbox drain, ZIP cleanup). New background work goes in the Api; there is nowhere else for it to go.
+All background work lives here — the media/processing handlers (`process-image` / `process-video` / `process-audio` / `build-zip`), the completion consumers that transition an asset row, and every retention/cleanup `BackgroundService` (trash purge, audit retention, orphan sweeps, outbox drain, ZIP cleanup). New background work goes in the Api; there is nowhere else for it to go.
 
 Messages still travel through **RabbitMQ**, not an in-memory queue, even though publisher and consumer now share a process. That is deliberate: an in-flight message must survive a restart, and there is no reaper for an asset stuck in `Processing`. Swapping the transport is a separate decision with its own durability question (contract-020) — do not "simplify" it away as an obvious follow-on to the fold.
 
@@ -629,7 +629,7 @@ The discipline — the four conditions for a legitimate suppression, smallest-sc
 - **`S4487` (unread private field) on Razor `_form` / `@ref` / parameter-bound fields.** False positive — Sonar's C# analyser doesn't follow Razor markup back to source. Apply `[SuppressMessage]` on the field with the markup line in the justification (`Read by Razor @ref binding to <MudForm @ref="_form" />`).
 - **`S6966` (sync IO) on `ZipArchiveEntry.Open()`.** No `OpenAsync()` exists in .NET 9. Inline `// NOSONAR S6966` with comment.
 - **`S2068` UI password-mask placeholders (`"********"`).** Not credentials. Attribute with explicit `Justification = "UI mask placeholder, not a credential"`.
-- **`S5693` (file-upload size cap) on `IBrowserFile.OpenReadStream(maxAllowedSize)` calls.** False positive — Sonar's taint analysis doesn't follow the pre-flight `Size > maxBytes` guard back to the call. Apply only when the documented pattern is in place: pre-flight Size check, `maxAllowedSize` cap, `RequireAdmin`/scoped auth on the host page, and an independent server-side enforcement constant (e.g. `WMK_TOO_LARGE`, `MaxMigrationManifestSizeMb`). Inline `// NOSONAR S5693 — <one-line why>`. Removing the pattern AND the suppression are equally wrong; both stay or both go.
+- **`S5693` (file-upload size cap) on `IBrowserFile.OpenReadStream(maxAllowedSize)` calls.** False positive — Sonar's taint analysis doesn't follow the pre-flight `Size > maxBytes` guard back to the call. Apply only when the documented pattern is in place: pre-flight Size check, `maxAllowedSize` cap, `RequireAdmin`/scoped auth on the host page, and an independent server-side enforcement constant (e.g. a server-side max-size constant). Inline `// NOSONAR S5693 — <one-line why>`. Removing the pattern AND the suppression are equally wrong; both stay or both go.
 
 - **Generated EF migrations (`S1192`, `S138`) are suppressed by path, not by attribute** — a `[**/Migrations/*.cs]` section in `.editorconfig` sets them to `severity = none`. Generated code isn't ours to restructure. **The section must sit after the `[*.cs]` section**: `.editorconfig` resolves last-match-wins per property, so a path section placed above the general one is silently overridden and the warnings keep firing.
 

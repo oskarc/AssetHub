@@ -37,7 +37,6 @@ public class AdminBreadcrumbsTests : BunitTestBase
     }
 
     [Theory]
-    [InlineData("admin/migrations", "Tab_Migrations")]
     [InlineData("admin/audit", "Tab_AuditLog")]
     public void Derives_Correct_Section_Leaf(string path, string expectedKey)
     {

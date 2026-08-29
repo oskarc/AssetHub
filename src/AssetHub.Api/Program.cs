@@ -64,10 +64,6 @@ try
             .ToRabbitQueue("process-audio");
         opts.PublishMessage<BuildZipCommand>()
             .ToRabbitQueue("build-zip");
-        opts.PublishMessage<StartMigrationCommand>()
-            .ToRabbitQueue("start-migration");
-        opts.PublishMessage<ProcessMigrationItemCommand>()
-            .ToRabbitQueue("process-migration-item");
 
         // Single process now owns both sides. Messages still round-trip through
         // RabbitMQ rather than an in-memory queue: keeping the transport unchanged
@@ -85,8 +81,6 @@ try
         opts.ListenToRabbitQueue("process-video");
         opts.ListenToRabbitQueue("process-audio");
         opts.ListenToRabbitQueue("build-zip");
-        opts.ListenToRabbitQueue("start-migration");
-        opts.ListenToRabbitQueue("process-migration-item");
 
         opts.Policies.AutoApplyTransactions();
 

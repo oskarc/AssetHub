@@ -49,7 +49,7 @@ public interface IAssetRepository
     Task<Dictionary<Guid, string>> GetTitlesByIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Find an existing asset by SHA256 hash (for duplicate detection during migration).
+    /// Find an existing asset by SHA256 hash (for upload duplicate detection).
     /// </summary>
     Task<Asset?> GetBySha256Async(string sha256, CancellationToken cancellationToken = default);
 

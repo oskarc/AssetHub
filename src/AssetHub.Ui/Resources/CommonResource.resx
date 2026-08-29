@@ -148,7 +148,6 @@
   <data name="ScopeType_Collection" xml:space="preserve"><value>Collection</value></data>
   <data name="ScopeType_Share" xml:space="preserve"><value>Share</value></data>
   <data name="ScopeType_User" xml:space="preserve"><value>User</value></data>
-  <data name="ScopeType_Migration" xml:space="preserve"><value>Migration</value></data>
 
   <!-- Sort Options -->
   <data name="Sort_NewestFirst" xml:space="preserve"><value>Newest First</value></data>

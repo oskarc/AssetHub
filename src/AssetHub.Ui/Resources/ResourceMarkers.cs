@@ -19,6 +19,5 @@ public class AdminResource { }
 public class SharesResource { }
 public class AuditAdminResource { }
 public class TrashAdminResource { }
-public class MigrationsResource { }
 
 #pragma warning restore S2094
