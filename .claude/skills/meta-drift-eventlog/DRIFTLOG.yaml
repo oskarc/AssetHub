@@ -81,6 +81,10 @@ entries:
       as a broken health check, and the mapping was read from source instead. The
       E2E health failure from the earlier sweep (app demonstrably up) stays OPEN
       for triage; the two must not be conflated.
+      contract-023 (2026-08-29): engine down at the pre-check. This one actually
+      BLOCKED work rather than merely delaying it — tier_2 step 2 requires the 21
+      survivors be exercised live before any deletion, so no cutting could start.
+      List-building (needs no daemon) proceeded meanwhile.
     reaction: |
       Every occurrence: the result was refused as data, Docker Desktop was
       started via PowerShell, `docker info` polled to healthy, and the suite
@@ -116,7 +120,7 @@ entries:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 9
+    recurrence_count: 10
     related_drifts: []
 
   - drift_id: drift-002

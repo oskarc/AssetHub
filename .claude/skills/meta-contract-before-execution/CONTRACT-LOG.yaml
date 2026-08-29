@@ -2111,3 +2111,90 @@ contracts:
       A 500 during test development was traced to AntiforgeryOptions.Cookie
       .SecurePolicy = Always colliding with an HTTP test host; fixed by addressing
       the test client as HTTPS rather than by weakening a correct production setting.
+
+    acceptance_gap: |
+      UNMET AND MISSED AT THE TIME: tier_3 required "E2E >= 123". The unit suite
+      (913) and the container gate (202 -> 400) were verified; the E2E run was NOT
+      made before committing. Found during contract-023: restoring the gate broke
+      the E2E suite's REST seeding — ApiHelper sends no X-CSRF-TOKEN, so
+      createCollection now fails and every spec that seeds via beforeAll cascades.
+      Blast radius: 9 spec files, 141 tests.
+
+      This is a verification-discipline failure, not a design failure. The fix
+      itself is correct — the gate SHOULD reject an untokened cookie mutation. What
+      was missed is that the suite depended on the hole being open.
+
+  - contract_id: contract-023
+    feature: cut-the-uncalled-rest-surface
+    date_proposed: 2026-08-29
+    date_approved: 2026-08-29
+    supersedes: contract-021
+    tier_1: |
+      The feature audit mapped every capability to what it needs over HTTP. 85
+      endpoints; 14 serve the UI (byte delivery + ZIP job status). The rest
+      duplicate over HTTP what the in-process facade already does; no feature
+      depends on them.
+
+      "71 uncalled" was wrong in one respect: 7 of them are the E2E suite's ONLY
+      way to seed data. Nine spec files create collections, assets, shares and ACLs
+      in beforeAll. Cutting those would strand 141 tests, undoing contract-020's
+      repair (63->123) and disabling the only gate that can see UI, auth and
+      hosting. Too high a price in the same stroke.
+
+      So this cuts 64 — the endpoints neither a user nor a test reaches. The 7
+      seeding endpoints are kept as EXPLICIT test-only debt, retired by
+      contract-024 which seeds through the UI instead.
+    tier_2: |
+      1. Baseline 913 unit / E2E 123-18-51 at 01a0677. Docker pre-check.
+      2. VERIFY THE 21 SURVIVORS LIVE IN THE CONTAINER BEFORE DELETING ANYTHING —
+         exercised, not grepped. The static pass already produced one false negative
+         (zip-downloads/{jobId}/share), so grep is not evidence here.
+      3. Delete the 64 plus orphaned handlers/DTOs/validation filters; compiler as
+         completeness authority.
+      4. Remove endpoint tests for deleted endpoints — NAMED delta, each tied to its
+         endpoint. Keep AntiforgeryGateTests and BlazorHostAssetTests. Service
+         coverage unaffected (244 independent tests).
+      5. Delete the 33 08-api specs; trim ApiHelper to the 7 seeding calls.
+      6. KEEP THE CSRF GATE — two mutating endpoints survive (both download-all).
+      7. Prose: CLAUDE.md REST section, ARCHITECTURE, README.
+    tier_3: |
+      - All 21 survivors verified IN THE CONTAINER after the cut: thumbnails render,
+        detail media plays, downloads work, BOTH download-all flows complete,
+        migration CSV downloads, public and password-protected shares work.
+      - No endpoint remains that neither a feature nor a seeding call uses.
+      - Unit suite: named delta only; every removed test names its removed endpoint.
+      - E2E >= 123 minus the 33 deleted specs; the 08-api block's 32 skips resolve.
+      - AntiforgeryGateTests still pass.
+    debt: |
+      The 7 seeding endpoints are dead to users and alive only for tests.
+      contract-024 replaces them with UI-driven seeding and removes them. Recorded
+      so it does not quietly become permanent.
+    status: approved
+    revisions: []
+    work_id: null
+    paused_reason: |
+      Tier_1 keeps 7 endpoints because "the E2E suite needs them to seed". That
+      premise no longer holds: contract-022 restored the gate, so ApiHelper cannot
+      call them at all. The 7 have no working caller either, which changes what
+      this contract should cut and requires a human decision on how E2E seeds.
+      Lists were built and verified first (21 keep / 64 cut, all declared routes
+      present) so no work is lost.
+    revisions:
+      - date: 2026-08-29
+        note: >-
+          SCOPE CORRECTED BY THE OWNER, and the correction was right. The contract
+          kept 7 endpoints because "the E2E suite needs them to seed". The owner
+          pointed out the contradiction: they were verified used by NO feature, so
+          keeping them means holding live production surface open to serve a test
+          harness — the tail wagging the dog. Worse, since contract-022 restored the
+          gate the tests cannot call them either, so the justification was already
+          void when written. Owner's direction: cut everything the production
+          application does not use; test tooling belongs in test infrastructure, not
+          in the product. Scope is therefore 14 keep / 71 cut, not 21/64.
+      - date: 2026-08-29
+        note: >-
+          Accepted consequence: 9 E2E spec files (141 tests) seed fixtures over REST
+          and will fail once those endpoints are gone. This is recorded as a known,
+          time-boxed degradation of the E2E gate, with contract-024 restoring
+          seeding through the UI (the path the upload probe already proved works).
+          Named here so it cannot become permanent by inattention.

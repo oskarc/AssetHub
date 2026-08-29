@@ -32,6 +32,20 @@ public sealed class AntiforgeryUnlessBearerFilter(IAntiforgery antiforgery) : IE
     {
         var http = context.HttpContext;
 
+        // Only unsafe methods can be CSRF'd, and only they carry a token. The
+        // built-in AntiforgeryMiddleware makes the same check; IAntiforgery
+        // .ValidateRequestAsync does NOT — it validates whatever it is handed.
+        // Omitting this 400s every authenticated GET on a gated group, which is
+        // every thumbnail, preview and download in the app. It stayed invisible
+        // while the scheme-name comparison below kept this branch dead.
+        if (HttpMethods.IsGet(http.Request.Method)
+            || HttpMethods.IsHead(http.Request.Method)
+            || HttpMethods.IsOptions(http.Request.Method)
+            || HttpMethods.IsTrace(http.Request.Method))
+        {
+            return await next(context);
+        }
+
         // Bearer auth (JWT) is CSRF-immune — skip.
         var authHeader = http.Request.Headers.Authorization;
         if (authHeader.Count > 0

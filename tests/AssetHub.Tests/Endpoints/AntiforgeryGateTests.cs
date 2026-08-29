@@ -85,4 +85,29 @@ public class AntiforgeryGateTests : IAsyncLifetime
             response.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK,
             $"Expected the mutation to succeed without a token when no cookie is present, got {(int)response.StatusCode}.");
     }
+    /// <summary>
+    /// A safe method must never be antiforgery-validated.
+    /// </summary>
+    /// <remarks>
+    /// Regression guard. <c>IAntiforgery.ValidateRequestAsync</c> validates whatever
+    /// it is handed — unlike the built-in middleware, it does not check the HTTP
+    /// method. When the gate's dead scheme-name branch was made live, every
+    /// authenticated GET on a gated group started returning 400: thumbnails,
+    /// previews and downloads, i.e. most of what the UI fetches over HTTP.
+    ///
+    /// The original two gate tests both used POST, so they could not see it.
+    /// </remarks>
+    [Fact]
+    public async Task SafeMethod_WithAmbientCookieAndNoToken_IsNotValidated()
+    {
+        using var client = _factory.CreateAuthenticatedClient(TestClaimsProvider.Admin());
+
+        var response = await client.GetAsync("/api/v1/collections");
+
+        Assert.False(
+            response.StatusCode == HttpStatusCode.BadRequest,
+            "An authenticated GET must not be antiforgery-validated — only unsafe "
+            + "methods carry a token, so validating a GET breaks every media fetch in the UI.");
+    }
+
 }
