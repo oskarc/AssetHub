@@ -1929,7 +1929,8 @@ contracts:
     known_unknowns: |
       The post-fix number is genuinely unmeasured: 52 specs have never run, so the
       suite's real health is unknown rather than merely poor.
-    status: in_progress
+    status: implemented
+    implemented: 2026-08-29
     revisions: []
     work_id: null
     progress: |
@@ -1954,6 +1955,47 @@ contracts:
       delete 08-api entirely): 16 failures, dominated by two clusters — a
       `.asset-card` group (data/timing, class verified correct) and three
       `.mud-dialog` close-button timeouts.
+
+    outcome: |
+      CLOSED. Structural work done and measured (see progress). Triage completed
+      against the bucket taxonomy, which needed a FOURTH bucket the contract did
+      not anticipate.
+
+      Final run at 65a181b: 49 passed / 12 failed / 131 skipped — WORSE than the
+      123/18/51 this contract achieved, and NOT a regression of it. contract-022
+      restored the CSRF gate, which broke the suite's REST fixture seeding; nine
+      beforeAll hooks now fail, each short-circuiting a serial block. That is the
+      whole of the collapse: 9 of the 12 failures and all 131 skips.
+
+      BUCKETS:
+        (D) blocked by a contracted change — 9, one per spec file. Not fixable
+            here; handed to the seeding-rewrite contract. This bucket did not
+            exist when the contract was drawn.
+        (A) genuine product bug — 2 (03-collections "create a new root
+            collection", 13-workflows "complete DAM workflow"), same root cause.
+        (B/C) 1 — 03-collections "manage access dialog opens": the close button
+            RESOLVES but the click times out, suggesting an overlay or animation
+            rather than a missing control. Described, not diagnosed.
+
+      BUCKET (A) — CONFIRMED PRODUCT BUG, root cause found:
+        Creating a collection succeeds (DB row written, success snackbar shown)
+        but the list does not update until a full page reload. Observed in a real
+        browser: name absent from the DOM at 2s/4s/8s, present after reload.
+        Cause: Collections.razor:375 does `_allCollections.Add(created)` — an
+        IN-PLACE mutation. CollectionBrowser takes that list as a [Parameter], and
+        Blazor compares reference-type parameters BY REFERENCE, so the unchanged
+        instance reads as "not changed" and the child never re-renders.
+        FilteredCollections is a computed property and would have recalculated
+        correctly; it simply never runs. Fix: assign a new list rather than mutate.
+
+        LIKELY SECOND INSTANCE, UNVERIFIED: AssetGrid.razor:235/271 mutate _assets
+        in place while passing Items="@_assets" to AssetCardGrid, so optimistic
+        delete/undo there may not re-render either. Reported, not investigated —
+        this contract's gate says bucket (A) stops the work.
+
+      TIER_3 "E2E >= 123" NOT MET, and correctly so: the criterion was written
+      before contract-022 removed the suite's ability to seed. Recorded as
+      superseded rather than quietly re-baselined.
 
   - contract_id: contract-021
     feature: remove-the-unreachable-rest-mutations
@@ -2247,6 +2289,8 @@ contracts:
       - Unit suite: NAMED delta (11 test files go); zero unexplained changes.
       - E2E no worse than the captured baseline; migration specs removed with the feature.
       - Upload, thumbnails, downloads, shares and ZIP still work in the container.
-    status: approved
+    status: implemented
+    implemented: 2026-08-29
+    commit: 65a181b
     revisions: []
     work_id: null
