@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Wolverine;
+using AssetHub.Application.Services;
 
 namespace AssetHub.Api.BackgroundServices;
 
@@ -13,14 +13,14 @@ namespace AssetHub.Api.BackgroundServices;
 /// Drains the OutboxMessages table to RabbitMQ. Producers enqueue rows in
 /// the same SQL transaction as their source mutation; this service picks up
 /// undispatched rows oldest-first, deserializes them, and calls
-/// <see cref="IMessageBus.PublishAsync(object, DeliveryOptions?)"/> (D-2).
+/// <see cref="IAppMessageBus.PublishAsync(object, CancellationToken)"/> (D-2).
 ///
 /// Failures bump AttemptCount + LastError so a poison message eventually
 /// drops out of the work-set instead of blocking healthy traffic.
 ///
 /// Multi-pod note: this implementation assumes a single Worker pod. The
 /// Where/OrderBy/Take query has no SKIP LOCKED so two pods could read the
-/// same row and double-publish; Wolverine handlers are already idempotent so
+/// same row and double-publish; handlers are already idempotent so
 /// the failure mode is wasted work, not data corruption. Multi-pod
 /// work-stealing is tracked as D-8.
 /// </summary>
@@ -68,7 +68,7 @@ public sealed class OutboxDrainService(
     {
         using var scope = scopeFactory.CreateScope();
         var provider = scope.ServiceProvider.GetRequiredService<DbContextProvider>();
-        var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+        var bus = scope.ServiceProvider.GetRequiredService<IAppMessageBus>();
 
         List<OutboxMessage> batch;
         await using (var lease = await provider.AcquireAsync(ct))
@@ -103,7 +103,7 @@ public sealed class OutboxDrainService(
     }
 
     private async Task<bool> TryDispatchAsync(
-        DbContextProvider provider, IMessageBus bus, OutboxMessage row, CancellationToken ct)
+        DbContextProvider provider, IAppMessageBus bus, OutboxMessage row, CancellationToken ct)
     {
         try
         {

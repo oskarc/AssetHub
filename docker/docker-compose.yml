@@ -88,9 +88,6 @@ services:
       MinIO__UseSSL: "false"
       MinIO__PublicUrl: "localhost:9000"
       MinIO__PublicUseSSL: "false"
-      RabbitMQ__Host: "rabbitmq"
-      RabbitMQ__Username: "${RABBITMQ_DEFAULT_USER:-guest}"
-      RabbitMQ__Password: "${RABBITMQ_DEFAULT_PASS:-guest}"
       App__BaseUrl: "https://assethub.local:7252"
       ClamAV__Enabled: "${CLAMAV_ENABLED:-true}"
       ClamAV__Host: "clamav"
@@ -111,8 +108,6 @@ services:
       clamav:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
     networks:
       backend:
@@ -137,45 +132,6 @@ services:
     tmpfs:
       - /tmp:size=2G,uid=1654,gid=1654
 
-  rabbitmq:
-    build:
-      context: .
-      dockerfile: Dockerfile.RabbitMQ
-    image: assethub-rabbitmq:local
-    container_name: assethub-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
-    ports:
-      - "127.0.0.1:5672:5672"
-      - "127.0.0.1:15672:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    networks:
-      - backend
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-          pids: 256
-    # Security hardening
-    user: "100:101"  # rabbitmq user (entrypoint detects non-root, skips su-exec)
-    cap_drop:
-      - ALL
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /var/lib/rabbitmq:size=256M,uid=100,gid=101
-      - /tmp:size=64M,uid=100,gid=101
-
-  # ── Redis (Distributed Cache) ──────────────────────────────────────────────
   redis:
     image: redis:7.4-alpine
     container_name: assethub-redis

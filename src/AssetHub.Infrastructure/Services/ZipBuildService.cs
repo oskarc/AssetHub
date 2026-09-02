@@ -11,7 +11,6 @@ using AssetHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Wolverine;
 
 namespace AssetHub.Infrastructure.Services;
 
@@ -24,13 +23,13 @@ public sealed record ZipBuildDataDependencies(
     ICollectionRepository CollectionRepo);
 
 /// <summary>
-/// Manages queued ZIP download builds via Wolverine.
+/// Manages queued ZIP download builds via the in-process message bus.
 /// Builds ZIP files in the background and stores them as temporary MinIO objects.
 /// </summary>
 public sealed class ZipBuildService(
     ZipBuildDataDependencies data,
     IMinIOAdapter minioAdapter,
-    IMessageBus messageBus,
+    IAppMessageBus messageBus,
     IAuditService audit,
     IOptions<MinIOSettings> minioSettings,
     ILogger<ZipBuildService> logger) : IZipBuildService

@@ -190,11 +190,6 @@ services:
       ClamAV__TimeoutMs: "120000"
       ClamAV__ChunkSize: "262144"
 
-      # RabbitMQ
-      RabbitMQ__Host: "rabbitmq"
-      RabbitMQ__Username: "${RABBITMQ_DEFAULT_USER}"
-      RabbitMQ__Password: "${RABBITMQ_DEFAULT_PASS}"
-
       # Application
       App__BaseUrl: "${APP_BASE_URL}"
       App__MaxUploadSizeMb: "${APP_MAX_UPLOAD_SIZE_MB:-500}"
@@ -251,8 +246,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - backend
       - observability
@@ -277,54 +270,6 @@ services:
         max-size: "50m"
         max-file: "5"
 
-  # ---------- Background Worker (Wolverine + RabbitMQ) -------------------------
-  rabbitmq:
-    build:
-      context: .
-      dockerfile: Dockerfile.RabbitMQ
-    image: assethub-rabbitmq:local
-    container_name: assethub-rabbitmq
-    hostname: rabbitmq  # stable hostname required for clustering
-    restart: unless-stopped
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-      # Quorum queues are the default for HA — they replicate across cluster nodes.
-      # This sets the default queue type for new queues created by applications.
-      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit default_queue_type quorum"
-    secrets:
-      - rabbitmq_erlang_cookie
-    volumes:
-      - rabbitmqdata:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    networks:
-      - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-          pids: 256
-    # Security hardening
-    user: "100:101"  # rabbitmq user (entrypoint detects non-root, skips su-exec)
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp:size=512M,uid=100,gid=101
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
-
-  # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
   clamav:
     build:
       context: .
@@ -404,7 +349,6 @@ volumes:
   pgdata:
   miniodata:
   redisdata:
-  rabbitmqdata:
 
 networks:
   # Backend network - database and storage services only
@@ -432,7 +376,6 @@ networks:
 #   mkdir -p secrets && chmod 700 secrets
 #   echo "your-postgres-password" > secrets/postgres_password
 #   echo "your-minio-root-password" > secrets/minio_root_password
-#   openssl rand -hex 32 > secrets/rabbitmq_erlang_cookie
 #   # Data Protection PFX (no password — the cert itself is the secret):
 #   openssl req -x509 -newkey rsa:4096 -keyout /tmp/dp.key -out /tmp/dp.crt \
 #     -days 3650 -nodes -subj "/CN=assethub-dp" && \
@@ -451,7 +394,5 @@ secrets:
     file: ./secrets/postgres_password
   minio_root_password:
     file: ./secrets/minio_root_password
-  rabbitmq_erlang_cookie:
-    file: ./secrets/rabbitmq_erlang_cookie
   dp_cert:
     file: ./secrets/dp.pfx

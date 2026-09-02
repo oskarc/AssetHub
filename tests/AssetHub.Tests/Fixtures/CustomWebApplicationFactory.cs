@@ -2,7 +2,6 @@ using AssetHub.Application.Repositories;
 using AssetHub.Application.Services;
 using AssetHub.Infrastructure.Data;
 using AssetHub.Infrastructure.Repositories;
-using Wolverine;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -140,9 +139,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
                     Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
             });
 
-            // Disable external Wolverine transports to prevent real RabbitMQ connections in tests
-            services.DisableAllExternalWolverineTransports();
-            services.RunWolverineInSoloMode();
+            // (No message-transport shim needed: the in-process bus is a plain
+            // channel with no external connection to disable — contract-026.)
 
             // Replace external services with mocks
             services.RemoveAll<IMinIOAdapter>();

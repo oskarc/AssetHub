@@ -9,7 +9,7 @@ using Moq;
 namespace AssetHub.Tests.Handlers;
 
 /// <summary>
-/// Verifies that audio metadata flows from the Wolverine completion event onto
+/// Verifies that audio metadata flows from the completion event onto
 /// the persisted Asset row. Without this test a future refactor of the audio
 /// fork could silently drop the new fields and the integration test (which
 /// requires ffmpeg in the box) wouldn't catch it on every CI run.

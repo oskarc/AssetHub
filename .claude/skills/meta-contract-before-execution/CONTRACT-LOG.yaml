@@ -2458,3 +2458,94 @@ contracts:
       path — create a link, open it publicly, see content — has no coverage. The
       journey was dropped after clean attempts hit share-dialog DOM fiddliness,
       which is the over-investment this pivot exists to avoid. Candidate follow-up.
+
+  - contract_id: contract-026
+    feature: replace-rabbitmq-with-in-process-channels
+    reshape_step: C13b
+    date_proposed: 2026-09-03
+    date_approved: 2026-09-03
+    tier_1: |
+      Remove RabbitMQ + Wolverine; carry the six message flows between producers
+      and handlers over in-process System.Threading.Channels. Publisher and
+      consumer already share one process (contract-019), so a broker is apparatus.
+
+      THE SURVEY DE-RISKED THIS. Media commands already flow through a DURABLE
+      OUTBOX (IOutboxPublisher.EnqueueAsync -> OutboxMessage table ->
+      OutboxDrainService), not direct to Rabbit. Producer durability already
+      exists; Rabbit was largely redundant with the outbox (in place since April).
+
+      Wolverine features in use and their replacements: transport -> Channel<T> +
+      a dispatcher; retry-with-cooldown -> the outbox's AttemptCount/RecordFailure
+      (drain re-attempts) plus in-dispatcher retry; handler auto-discovery ->
+      explicit command->handler dispatch; cascading events (handlers return
+      object[]) -> dispatcher re-publishes returned events; durable delivery ->
+      the outbox, unchanged.
+
+      DURABILITY DECISION (owner-approved): in-memory Channels + keep the outbox +
+      ADD a stuck-Processing reaper. The outbox marks a row dispatched the moment
+      the transport accepts it; Rabbit redelivered on crash, in-memory does not, so
+      a dispatched-but-not-completed message leaves an asset stuck in Processing
+      forever — and there is NO reaper today (StaleUploadCleanupService covers only
+      'uploading'). The reaper re-enqueues stuck assets via the outbox and is
+      end-state-correct (self-healing for any stuck cause). ZIP stays ephemeral and
+      re-clickable. Wolverine durable local queues rejected as a redundant second
+      persistence layer.
+    tier_2: |
+      1. Baseline 694 unit / E2E 53 at 1a8de05; docker pre-check.
+      2. IAppMessageBus + InProcessMessageBus (unbounded Channel<object>).
+      3. MessageDispatcherService (hosted): read channel, scope-per-message, explicit
+         command->handler dispatch, re-publish returned object[] events, retry with
+         the 1-2-5-10-30s cooldown then log+drop (media covered by the reaper).
+      4. Point producers at IAppMessageBus: OutboxDrainService and ZipBuildService.
+      5. Remove the UseWolverine block from Program.cs; explicit handler registration.
+      6. StuckProcessingReaperService: assets in Processing beyond a threshold get
+         re-enqueued via the outbox.
+      7. Remove WolverineFx* packages; RabbitMQ from both compose files + settings.
+      8. Invariant: the 6 message types still flow producer->handler->event.
+    tier_3: |
+      - Upload -> thumbnail works in the container (image, video, audio).
+      - A kill mid-processing leaves the asset RECOVERABLE (reaper re-enqueues),
+        not stuck in Processing — demonstrated.
+      - ZIP build + all background services intact.
+      - No WolverineFx or RabbitMQ reference in source, csproj, or compose.
+      - Unit suite 694, zero regressions; E2E 53 green.
+    invariant_capture_before: |
+      commands (4): ProcessImageCommand, ProcessVideoCommand, ProcessAudioCommand,
+                    BuildZipCommand
+      events (2):   AssetProcessingCompletedEvent, AssetProcessingFailedEvent
+      handlers (6): ProcessImage/Video/Audio (return object[]), BuildZip (Task),
+                    AssetProcessingCompleted/Failed (Task)
+      producers:    MediaProcessingService->outbox; ZipBuildService->direct publish;
+                    handlers->cascading events
+    status: implemented
+    implemented: 2026-09-03
+    revisions: []
+    work_id: null
+    outcome: |
+      RabbitMQ + Wolverine removed; messages travel over an in-process channel.
+      New: IAppMessageBus/InProcessMessageBus (unbounded channel),
+      MessageDispatcherService (explicit 6-way dispatch, 1-2-5-10-30s retry,
+      cascading-event re-publish), StuckProcessingReaperService. Rewired:
+      OutboxDrainService + ZipBuildService publish to the in-process bus; handlers
+      de-Wolverined; Program.cs registers all. Removed: 3 WolverineFx packages,
+      RabbitMQSettings, Dockerfile.RabbitMQ, and every Rabbit trace from both
+      compose files + .env. Compose 7 services (prod 6), no broker.
+
+      CONTAINER-PROVEN, and the durability promise proven on REAL data: the reaper
+      found 4 assets genuinely stuck in Processing (left by earlier probes;
+      unrecoverable under the old code, which had no reaper), re-enqueued them via
+      the outbox, and the full in-process pipeline ran them to `ready` — command ->
+      ProcessImageHandler -> cascading completion event -> AssetProcessingCompleted
+      Handler. Fresh upload journey green (upload -> ready). Unit 694, zero
+      regressions. E2E 53 green.
+
+      DELIVERY-SEMANTICS CHANGE, on record: at-most-once per dispatch + retry;
+      durability is now the outbox + reaper, not broker redelivery. Sound for media
+      (outbox holds the command, reaper recovers a lost dispatch). ZIP is
+      at-most-once with no reaper — a lost job is re-clickable, the accepted trade.
+
+      ADJACENT FIX: the E2E dialog-close flake documented-but-undiagnosed in
+      contract-020 was root-caused here — DialogHelper.closeDialog clicked a
+      re-rendering button and timed out on stability; switched to Escape. Confirmed
+      NOT a contract-026 regression (messaging cannot affect dialog-close, and the
+      failure reproduced with the reaper idle). Debt from contract-020 closed.

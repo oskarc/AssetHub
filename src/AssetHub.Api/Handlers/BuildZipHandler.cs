@@ -1,7 +1,6 @@
 using AssetHub.Application.Messages;
 using AssetHub.Application.Services;
 using Microsoft.Extensions.Logging;
-using Wolverine;
 
 namespace AssetHub.Api.Handlers;
 

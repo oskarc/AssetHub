@@ -32,15 +32,19 @@ export class DialogHelper {
     }).toPass({ timeout });
   }
 
-  /** Close dialog via cancel/close button */
+  /** Close dialog. Prefers Escape, which is stable even while the dialog re-renders. */
   async closeDialog() {
-    const closeBtn = this.dialog.getByRole('button', { name: /cancel|close/i });
-    if (await closeBtn.isVisible()) {
-      await closeBtn.click();
-    } else {
-      // Try clicking the overlay backdrop
-      await this.page.locator('.mud-overlay').click({ position: { x: 10, y: 10 } });
-    }
+    // Escape is the robust close: clicking the cancel/close button flakes when the
+    // dialog is still re-rendering (Playwright waits for the button to be "stable"
+    // and times out). MudDialogProvider closes on Escape. This was the un-diagnosed
+    // dialog-close flake recorded in contract-020's E2E triage.
+    await this.page.keyboard.press('Escape');
+    await expect(this.dialog).toBeHidden({ timeout: 5_000 }).catch(async () => {
+      // Fallback for a dialog that opts out of Escape: click cancel/close, then overlay.
+      const closeBtn = this.dialog.getByRole('button', { name: /cancel|close/i });
+      if (await closeBtn.count() > 0) await closeBtn.first().click({ timeout: 3_000 }).catch(() => {});
+      else await this.page.locator('.mud-overlay').first().click({ position: { x: 10, y: 10 } }).catch(() => {});
+    });
     await this.page.waitForTimeout(env.timeouts.animation);
   }
 

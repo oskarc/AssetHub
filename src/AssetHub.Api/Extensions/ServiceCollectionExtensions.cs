@@ -143,10 +143,6 @@ public static class ServiceCollectionExtensions
         services.AddAssetHubDataProtection(configuration, environment);
 
         // ── RabbitMQ settings (used by Wolverine, configured in Program.cs) ───
-        services.AddOptions<RabbitMQSettings>()
-            .BindConfiguration(RabbitMQSettings.SectionName)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
 
         // ── AuditRetention (AuditRetentionService) ───────────────────────────
         services.AddOptions<AuditRetentionSettings>()

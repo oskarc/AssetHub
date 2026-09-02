@@ -1,11 +1,12 @@
 using AssetHub.Api.Extensions;
 using AssetHub.Application.Configuration;
 using AssetHub.Application.Messages;
+using AssetHub.Application.Services;
+using AssetHub.Api.BackgroundServices;
+using AssetHub.Api.Handlers;
+using AssetHub.Api.Messaging;
 using Serilog;
 using Serilog.Events;
-using Wolverine;
-using Wolverine.ErrorHandling;
-using Wolverine.RabbitMQ;
 
 // -- Bootstrap Serilog (captures startup errors before DI is ready) ----------
 Log.Logger = new LoggerConfiguration()
@@ -38,59 +39,23 @@ try
         builder.Configuration, builder.Environment);
     builder.Services.AddAssetHubOpenTelemetry(builder.Configuration);
 
-    // -- Wolverine (message bus via RabbitMQ) ---------------------------------
-    var rabbitSettings = builder.Configuration
-        .GetSection(RabbitMQSettings.SectionName)
-        .Get<RabbitMQSettings>() ?? new RabbitMQSettings();
+    // -- In-process messaging (contract-026: replaced RabbitMQ/Wolverine) ------
+    // Producers publish to InProcessMessageBus (a channel); MessageDispatcherService
+    // consumes it and invokes the handler in-process. Media durability is the outbox
+    // upstream of the bus; StuckProcessingReaperService recovers anything lost to a
+    // mid-flight restart. Handlers are registered explicitly (Wolverine used to
+    // discover them).
+    builder.Services.AddSingleton<InProcessMessageBus>();
+    builder.Services.AddSingleton<IAppMessageBus>(sp => sp.GetRequiredService<InProcessMessageBus>());
+    builder.Services.AddHostedService<MessageDispatcherService>();
+    builder.Services.AddHostedService<StuckProcessingReaperService>();
 
-    builder.Host.UseWolverine(opts =>
-    {
-        opts.ApplicationAssembly = typeof(Program).Assembly;
-
-        opts.UseRabbitMq(rabbit =>
-        {
-            rabbit.HostName = rabbitSettings.Host;
-            rabbit.VirtualHost = rabbitSettings.VirtualHost;
-            rabbit.UserName = rabbitSettings.Username;
-            rabbit.Password = rabbitSettings.Password;
-        }).AutoProvision();
-
-        // Route commands to Worker queues
-        opts.PublishMessage<ProcessImageCommand>()
-            .ToRabbitQueue("process-image");
-        opts.PublishMessage<ProcessVideoCommand>()
-            .ToRabbitQueue("process-video");
-        opts.PublishMessage<ProcessAudioCommand>()
-            .ToRabbitQueue("process-audio");
-        opts.PublishMessage<BuildZipCommand>()
-            .ToRabbitQueue("build-zip");
-
-        // Single process now owns both sides. Messages still round-trip through
-        // RabbitMQ rather than an in-memory queue: keeping the transport unchanged
-        // is what makes this a hosting move and nothing else — durability, retries
-        // and at-least-once delivery are byte-for-byte what they were (contract-019).
-        opts.PublishMessage<AssetProcessingCompletedEvent>()
-            .ToRabbitQueue("asset-processing-completed");
-        opts.PublishMessage<AssetProcessingFailedEvent>()
-            .ToRabbitQueue("asset-processing-failed");
-
-        // Listen: the two completion events, plus the six queues the Worker held.
-        opts.ListenToRabbitQueue("asset-processing-completed");
-        opts.ListenToRabbitQueue("asset-processing-failed");
-        opts.ListenToRabbitQueue("process-image");
-        opts.ListenToRabbitQueue("process-video");
-        opts.ListenToRabbitQueue("process-audio");
-        opts.ListenToRabbitQueue("build-zip");
-
-        opts.Policies.AutoApplyTransactions();
-
-        opts.OnException<Exception>().RetryWithCooldown(
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(2),
-            TimeSpan.FromSeconds(5),
-            TimeSpan.FromSeconds(10),
-            TimeSpan.FromSeconds(30));
-    });
+    builder.Services.AddScoped<ProcessImageHandler>();
+    builder.Services.AddScoped<ProcessVideoHandler>();
+    builder.Services.AddScoped<ProcessAudioHandler>();
+    builder.Services.AddScoped<BuildZipHandler>();
+    builder.Services.AddScoped<AssetProcessingCompletedHandler>();
+    builder.Services.AddScoped<AssetProcessingFailedHandler>();
 
     // -- Build & run startup tasks -------------------------------------------
     var app = builder.Build();
