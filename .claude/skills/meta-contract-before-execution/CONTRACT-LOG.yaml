@@ -2345,3 +2345,116 @@ contracts:
       contract-015. False AUTH documentation, which is worse than a stale constant —
       but the fix is a rewrite of that section for Identity, not a deletion, so it
       belongs to C17. C17's scope must extend beyond CLAUDE.md to ARCHITECTURE.md.
+
+  - contract_id: contract-025
+    feature: stabilize-on-end-state-terms
+    date_proposed: 2026-09-02
+    date_approved: 2026-09-02
+    approval_note: >-
+      Approved as part of the owner's "Go" on the full path-forward (2026-09-02),
+      whose organising rule is the owner's constraint: the middle state is
+      temporary — nothing may be built whose only purpose is to support it.
+    tier_1: |
+      One contract, two parts, both PERMANENT (end-state) work.
+
+      PART A — the collection-refresh defect. Creating a collection succeeds (row
+      written, success snackbar) but the list does not update until a full reload;
+      browser-verified in contract-020. Recorded root cause (in-place list mutation
+      + reference-equality parameter comparison) is a HYPOTHESIS and this contract
+      treats it as one: the mechanism must be REPRODUCED in bUnit before any fix,
+      because if the repro does not reproduce, the fix is wrong and the real cause
+      is elsewhere (e.g. the background refresh replacing the list with a
+      filtered/paged result). Two sibling suspects in AssetGrid (delete, undo) and
+      one in AllAssets get the same treatment: reproduce or clear, never assume.
+
+      PART B — E2E seeding through the UI. Not transition scaffolding: a harness
+      that creates data the way a user does depends only on the five features
+      themselves and can never again be stranded by a surface cut. Minimal
+      primitives only (create collection, upload asset, create share); teardown may
+      go direct to the database — test tooling belongs in test infrastructure.
+      ApiHelper's REST mutation plumbing is DELETED, not repaired.
+
+      Then ONE re-baseline so every later contract diffs against a number that
+      means something.
+    tier_2: |
+      1. Baseline 694 unit at bab1810; docker pre-check (drift-001 x12).
+      2. REPRODUCE each suspect in bUnit before editing: CollectionBrowser add-path,
+         AssetGrid delete-path, AssetGrid undo-path, AllAssets delete-path (browser
+         if bUnit is disproportionate there). A suspect that does not reproduce is
+         recorded as cleared, not silently "fixed".
+      3. Fix confirmed instances; each repro test flips to green and stays as the
+         permanent guard.
+      4. Build UiSeeder for E2E (login/create/upload/share via the UI, DB teardown);
+         rewire the nine beforeAll seeding sites; delete ApiHelper mutations.
+      5. Full E2E run; re-baseline unit + E2E once.
+    tier_3: |
+      - The browser flow that defined the bug passes: create a collection, see it
+        WITHOUT reload.
+      - Every suspect either has a failing-then-green repro test or a recorded
+        clearance with the evidence.
+      - E2E: the nine seeding-blocked spec files run again; suite result recorded as
+        the new baseline; remaining failures named.
+      - No REST mutation helper, token shim, or other transition prop remains in the
+        test tree.
+      - Unit suite: 694 + named additions, zero regressions.
+    revisions:
+      - date: 2026-09-03
+        note: >-
+          PART B REWRITTEN after the owner challenged the effort ("what value do
+          these tests add, why are we trying so hard"). The original Part B —
+          build a UiSeeder + db-helper and rewire nine beforeAll sites — was
+          preserving a test shape that belongs to the OLD architecture: seed via
+          REST API, assert via UI. That API is gone. Two facts settle it:
+          (1) the four bugs that earned the E2E gate its keep this session (login
+          redirect loop, missing blazor.web.js, dead CSRF gate, media 400) were
+          each caught by a SHALLOW check — sign-in, page-becomes-interactive, a
+          container probe, or a unit test — NOT by a deeply-seeded feature spec;
+          (2) the deep specs' UI-detail assertions are already covered by bUnit
+          (194 tests: dialog/grid/access components). So the heavy seeding harness
+          adds machinery, not safety. Building the UiSeeder would also violate the
+          owner's "don't build for the temporary state" rule.
+          NEW Part B: KEEP the 49 no-seed shallow specs (the real gate). KEEP and
+          clean 13-workflows as the canonical self-seeding journey (data created
+          through the UI as the test runs — no separate seeding). DELETE the deep
+          seed-dependent specs (04,05,06,07,09,11,15) and ApiHelper's REST mutation
+          methods. Net: less code, no seeding machinery, the gate covers what
+          actually catches bugs.
+    status: implemented
+    implemented: 2026-09-03
+    revisions: []
+    work_id: null
+    outcome: |
+      PART A — collection-refresh defect. Recorded root cause (reference-equality
+      on an in-place list mutation) FALSIFIED by a bUnit mechanism test; a second
+      hypothesis (anonymous CurrentUser during interactive events) falsified by a
+      probe log showing admin resolves correctly. Real cause, proven when
+      instrumentation that added a trailing StateHasChanged made the bug vanish:
+      LoadAllCollections is fire-and-forget and sets _allCollectionsLoading=true
+      before its await, so the create handler's StateHasChanged paints the empty
+      loading state and the continuation never re-renders after completing —
+      "create a collection" blanked every collection until reload. Fix: loading
+      flag only on first load + await InvokeAsync(StateHasChanged) after the async
+      refresh. Container-verified 30->31 cards, new collection visible.
+      AssetGrid.UndoSoftDeleteAsync hardened (bare StateHasChanged -> InvokeAsync)
+      as DEFENSIVE work in the same async-dispatch class — not independently
+      reproduced. Two delete siblings cleared by dispatch-context (event-driven,
+      auto-render).
+
+      PART B — rewritten mid-contract after the owner challenged the effort. The
+      original plan (UiSeeder + db-helper, rewire nine beforeAll sites) was
+      preserving an old-architecture test shape (seed via REST, assert via UI)
+      whose API is gone, and would have built machinery for the temporary state.
+      Evidence: the four bugs that earned the E2E gate its keep this session were
+      each caught by a SHALLOW check, not a deep-seeded spec; the deep specs' UI
+      detail is bUnit-covered. So: KEEP the 49 no-seed shallow specs (the real
+      gate), ADD 2 self-seeding journeys (collection — embedding the Part A guard;
+      asset upload), DELETE 8 seed-dependent specs (108 tests) + the ApiHelper REST
+      harness. E2E 190 (a third broken) -> 53, all green.
+
+      Unit 694 unchanged, zero regressions. Re-baselined (overdue since 020).
+
+      DECLARED GAP: no end-to-end share test. Share-dialog mechanics are bUnit-
+      covered (CreateShareDialog/SharePassword/ShareInfo), but the cross-boundary
+      path — create a link, open it publicly, see content — has no coverage. The
+      journey was dropped after clean attempts hit share-dialog DOM fiddliness,
+      which is the over-investment this pivot exists to avoid. Candidate follow-up.

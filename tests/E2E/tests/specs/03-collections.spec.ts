@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { AssetsPage } from '../pages/assets.page';
 import { env } from '../config/env';
-import { ApiHelper } from '../helpers/api-helper';
 import { DialogHelper, SnackbarHelper } from '../helpers/dialog-helper';
 
 test.describe('Collection Management @collections', () => {
@@ -58,7 +57,6 @@ test.describe('Collection Management @collections', () => {
 
   // Note: 'rename a collection' and 'deselect collection' tests removed
   // as they depend on specific test data created in earlier tests (fragile chain)
-  // These scenarios are covered by API tests in 08-api.spec.ts
 
   test('manage access dialog opens for manager+ role', async ({ page }) => {
     // Find a collection card with Manager or Admin role (displayed in the chip)

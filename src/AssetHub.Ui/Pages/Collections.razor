@@ -312,12 +312,27 @@
 
     private async Task LoadAllCollections()
     {
-        _allCollectionsLoading = true;
+        // Only show the full-page loading state on the FIRST load. A background
+        // reconciliation (e.g. after an optimistic create) already has a populated
+        // list on screen — blanking it to the loading state and then never
+        // re-rendering after the await was the whole of the "create makes every
+        // collection vanish" defect (contract-025): the last render painted the
+        // empty loading state, and this fire-and-forget continuation dispatched no
+        // StateHasChanged to replace it.
+        var isInitialLoad = _allCollections is null;
+        if (isInitialLoad)
+            _allCollectionsLoading = true;
+
         var (ok, collections) = await Feedback.ExecuteWithFeedbackAsync(
             () => Api.GetCollectionsAsync(), "load collections");
         if (ok && collections is not null)
             _allCollections = collections;
         _allCollectionsLoading = false;
+
+        // A fire-and-forget continuation runs outside the component's synchronous
+        // render path, so the state change above is invisible until we ask for a
+        // render explicitly.
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnCollectionSelected(Guid? collectionId)

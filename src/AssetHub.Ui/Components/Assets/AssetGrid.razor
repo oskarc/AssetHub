@@ -271,7 +271,11 @@ else
             _assets.Insert(0, deletedAsset);
             _total++;
             await OnAssetsChanged.InvokeAsync();
-            StateHasChanged();
+            // The undo runs from a snackbar action callback, which is not on the
+            // component's render dispatcher — a bare StateHasChanged() can no-op or
+            // throw there. Same fire-and-forget class as the collection-refresh
+            // defect (contract-025); marshal the re-render onto the dispatcher.
+            await InvokeAsync(StateHasChanged);
         }
     }
 

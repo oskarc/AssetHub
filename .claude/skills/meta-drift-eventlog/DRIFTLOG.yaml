@@ -85,6 +85,8 @@ entries:
       BLOCKED work rather than merely delaying it — tier_2 step 2 requires the 21
       survivors be exercised live before any deletion, so no cutting could start.
       List-building (needs no daemon) proceeded meanwhile.
+      contract-025 (2026-09-02): down at the pre-check again. bUnit work (Part A)
+      needs no daemon, so implementation proceeded while the engine restarted.
     reaction: |
       Every occurrence: the result was refused as data, Docker Desktop was
       started via PowerShell, `docker info` polled to healthy, and the suite
@@ -120,7 +122,7 @@ entries:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 10
+    recurrence_count: 11
     related_drifts: []
 
   - drift_id: drift-002
