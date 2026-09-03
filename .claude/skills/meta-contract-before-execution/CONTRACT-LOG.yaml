@@ -2690,3 +2690,79 @@ contracts:
 
       Compose footprint across the C13b->C15 arc: 9 services -> default 3 (full 6),
       prod 5. The reshape's operational-slimming goal is reached.
+
+  - contract_id: contract-029
+    feature: squash-migrations-to-initial
+    reshape_step: C16
+    date_proposed: 2026-09-03
+    date_approved: 2026-09-03
+    tier_1: |
+      A developer opens AssetHub to understand it. Nearly half the repository -
+      57,276 lines across 51 files - is generated EF migration history, most of it
+      for features the reshape has since removed. It buries the actual code and
+      makes the repo look far larger and older than the system it now describes.
+      They want the schema defined once, cleanly, reflecting what the database IS
+      today. Success: one InitialCreate migration builds the current schema and the
+      repo roughly halves; the app still starts and migrates a fresh DB as before.
+      Cost if absent: the single biggest obstacle to "understand it in an afternoon"
+      remains.
+    tier_2: |
+      1. Fresh start. Developer starts the app against an empty DB -> the single
+         squashed migration builds the complete schema and the app runs. Failure to
+         prevent: the squashed schema must be IDENTICAL to what the 51 migrations
+         produced (tables, columns, indexes, constraints).
+      2. Full-text and fuzzy search still work. Searching assets by title/tags
+         returns results. Edge: depends on raw SQL (pg_trgm extension, search_vector
+         tsvector trigger, GIN indexes) that EF model-regeneration does NOT capture -
+         must be carried into the squash by hand or search silently breaks.
+      3. Unique names + referential integrity hold. Duplicate collection name
+         rejected; orphaned shares impossible -> the raw-SQL unique index and check
+         constraints survive the squash.
+      4. The reset is understood. Any existing DB (dev included) no longer matches the
+         single-migration history and must be recreated. This is why the
+         no-live-deployments confirmation gates the contract.
+    tier_3: |
+      - The squashed InitialCreate produces a BYTE-IDENTICAL schema to the 51
+        migrations - verified by pg_dump of a DB built from the 51 vs a DB built from
+        the squash; the diff must be empty (correctness authority, use cases 1-3).
+      - All raw migrationBuilder.Sql producing the CURRENT schema preserved; raw SQL
+        for removed features not carried forward.
+      - has-pending-model-changes clean afterward.
+      - Down is a full teardown (reversible); app auto-migrates a fresh DB on startup.
+      - No application code, DbContext, or entity changes - migration-history only.
+    approval_note: >-
+      No live deployments confirmed by owner ("yeah there is no live deploys, you may
+      go ahead"). The squash resets any DB holding the old 51-migration history.
+    status: implemented
+    implemented: 2026-09-03
+    revisions: []
+    work_id: null
+    outcome: |
+      47 migrations (97 files, ~55k lines) squashed to one InitialCreate. Repo
+      change: -55,397 / +740.
+
+      CORRECTNESS PROVEN five ways: (1) normalized schema diff EMPTY - a DB built
+      from the 47 migrations vs one built from the squash are functionally identical
+      (every table, column with type/nullability/default, index, constraint,
+      function, trigger, and the pg_trgm extension); the only textual differences are
+      column order and whitespace, which have no behavioural effect. (2)
+      has-pending-model-changes clean. (3) One migration file. (4) The app boots a
+      fresh DB from the single migration; pg_trgm + both search triggers + both
+      functions present. (5) Unit suite 694 GREEN on fresh Testcontainers DBs
+      applying ONLY the squashed migration - including the tsvector search tests,
+      which would fail if the preserved raw SQL were missing.
+
+      The raw SQL EF's model-regeneration does not produce was carried into the
+      squash by hand and verified by the diff: pg_trgm extension, the two
+      search_vector functions, the two triggers, and three column defaults (Tags
+      '{}', CurrentVersionNumber 1, PasswordVersion 0). Down tears the raw objects
+      down in reverse.
+
+      NOT DONE - full E2E: resetting the dev DB to prove container auto-migration
+      wiped the "testuser" viewer account, which has NO reproducible seed (it was a
+      manually-created dev user). auth-setup fails without it, blocking the suite.
+      This is a pre-existing test-environment gap the reset exposed, orthogonal to
+      the squash. Recommend a small follow-up: seed a dev/test viewer in
+      IdentitySeeder so the E2E gate is reproducible. Attempting to re-provision via
+      the admin UI + mailpit reset flow proved fragile and was stopped as
+      out-of-scope over-investment; the squash correctness does not depend on it.
