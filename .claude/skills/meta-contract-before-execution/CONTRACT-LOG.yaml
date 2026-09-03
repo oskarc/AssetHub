@@ -2549,3 +2549,59 @@ contracts:
       re-rendering button and timed out on stability; switched to Escape. Confirmed
       NOT a contract-026 regression (messaging cannot affect dialog-close, and the
       failure reproduced with the reaper idle). Debt from contract-020 closed.
+
+  - contract_id: contract-027
+    feature: drop-redis
+    reshape_step: C14
+    date_proposed: 2026-09-03
+    date_approved: 2026-09-03
+    tier_1: |
+      Remove Redis. It served two roles: HybridCache L2 (distributed cache) and a
+      SignalR backplane for multi-instance Blazor Server. Both are already
+      conditional on Redis:ConnectionString; the L2 falls back to
+      AddDistributedMemoryCache, the backplane simply skips.
+
+      THE MULTI-INSTANCE STORY ALREADY DIED WITH CONTRACT-026. In-process channels
+      cannot span instances, so the app has been single-instance-only since C13b
+      regardless of the backplane. Dropping Redis makes that explicit rather than
+      introducing a new constraint. HybridCache stays (L1 in-memory + in-memory
+      distributed backing); the CacheKeys registry and all tag invalidation are
+      unchanged - only the L2 store changes from Redis to in-memory.
+    tier_2: |
+      1. Baseline 694 unit / E2E 53 at 1c86519; docker pre-check.
+      2. Remove the SignalR Redis-backplane block.
+      3. HybridCache: drop the Redis L2 conditional, always AddDistributedMemoryCache.
+      4. Remove RedisSettings, the Redis health check, 3 Redis packages, Redis from
+         both compose files + .env.
+      5. Confirm HybridCache still works (get/set/tag-invalidate) in the container.
+    tier_3: |
+      - Cached reads still work; a write still invalidates by tag (dashboard/
+        collection flows exercised in the container).
+      - App starts with no Redis container; compose has one fewer service.
+      - No Redis/StackExchange reference in source, csproj, or compose.
+      - Unit suite 694, zero regressions; E2E 53 green.
+    status: implemented
+    implemented: 2026-09-03
+    revisions: []
+    work_id: null
+    outcome: |
+      Redis removed. HybridCache stays with an in-memory distributed L2
+      (AddDistributedMemoryCache); CacheKeys registry + tag invalidation unchanged.
+      SignalR Redis backplane removed — the app was already single-instance since
+      contract-026's in-process bus, so the backplane was vestigial. Removed 3
+      Redis packages, RedisSettings, the Redis health check, the Redis section from
+      all 7 appsettings, and every Redis trace from both compose files + .env.
+
+      Container-verified: 6-service stack starts clean with no Redis, no cache
+      errors, health check is postgres+minio+clamav. Unit 694 zero regressions,
+      E2E 53 green (the create/upload journeys exercise HybridCache get/set +
+      tag-invalidation, so green confirms caching works on the in-memory L2).
+
+      Compose is now 6 services (prod 5), down from 9 at the start of the C13b/C14
+      arc — C15's slim-compose target is largely reached as a side effect; what
+      remains for C15 is deciding whether clamav/mailpit/aspire-dashboard are
+      optional.
+
+      Also corrected CLAUDE.md's overview + messaging bullet, which still declared
+      RabbitMQ (via Wolverine) and Redis as in use — both false since C13b/C14.
+    compose_services: dev 6 (api, postgres, minio, clamav, mailpit, aspire-dashboard), prod 5

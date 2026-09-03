@@ -34,7 +34,7 @@ project layer rather than propagated into the inherited `meta-contract-before-ex
 
 ## Project Overview
 
-AssetHub is a digital asset management system. It uses **C# 14 / .NET 10**, **Blazor Server**, **PostgreSQL**, **MinIO** (S3-compatible storage), **RabbitMQ** (via Wolverine), **Redis** (HybridCache L2), and **ASP.NET Core Identity** (local auth). 
+AssetHub is a digital asset management system. It uses **C# 14 / .NET 10**, **Blazor Server**, **PostgreSQL**, **MinIO** (S3-compatible storage), in-process messaging via **System.Threading.Channels**, **HybridCache** (in-memory), and **ASP.NET Core Identity** (local auth). The 2026 reshape removed RabbitMQ/Wolverine (C13b) and Redis (C14) — the app runs single-instance. 
 
 ---
 
@@ -52,7 +52,7 @@ Layers:
 
 The dependency direction, the deliberately-omitted patterns, and how SOLID applies to this shape are the **`principle-clean-architecture-dotnet`** standard. AssetHub's concrete instantiation of it:
 
-- **Messaging** is Wolverine (the standard's "explicit message contracts" — no domain events).
+- **Messaging** is an in-process channel bus (contract-026; the standard's "explicit message contracts" — no domain events). RabbitMQ/Wolverine were removed with C13b.
 - **Identity** is local ASP.NET Core Identity (the standard's "one identity provider") — the app owns its user store.
 - **Only `Asset`** has state-transition methods (the standard's "few entities with a genuine lifecycle"); every other entity is standalone data.
 
@@ -506,7 +506,7 @@ Strongly-typed settings + validate-on-start for critical infra + the no-hardcode
       public int Port { get; set; } = 5672;
   }
   ```
-- Validate-on-start: Identity, MinIO, PostgreSQL, RabbitMQ, Redis. Optional (no validate-on-start): Email, ImageProcessing.
+- Validate-on-start: Identity, MinIO, PostgreSQL. Optional (no validate-on-start): Email, ImageProcessing. (RabbitMQ removed C13b, Redis removed C14.)
 - Env override via `__` → `:`; production uses Docker file-based secrets, not env vars.
 
 ### Existing settings

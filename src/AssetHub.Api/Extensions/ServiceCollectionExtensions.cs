@@ -97,17 +97,9 @@ public static class ServiceCollectionExtensions
         services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
-        // ── SignalR Redis backplane (multi-instance Blazor Server) ───────────
-        var redisConnection = configuration["Redis:ConnectionString"];
-        if (!string.IsNullOrEmpty(redisConnection))
-        {
-            services.AddSignalR()
-                .AddStackExchangeRedis(redisConnection, options =>
-                {
-                    options.Configuration.ChannelPrefix =
-                        StackExchange.Redis.RedisChannel.Literal("AssetHub:");
-                });
-        }
+        // SignalR uses Blazor Server's built-in in-process hub. No backplane:
+        // the app is single-instance (contract-026's in-process message bus cannot
+        // span instances either), so the Redis backplane was removed with C14.
 
         services.AddHttpContextAccessor();
 
@@ -171,7 +163,7 @@ public static class ServiceCollectionExtensions
         services.AddMudServices();
 
         // ── Caching ─────────────────────────────────────────────────────────
-        // HybridCache (L1 in-memory + L2 Redis) is registered via AddSharedInfrastructure.
+        // HybridCache (L1 in-memory + in-memory distributed L2) is registered via AddSharedInfrastructure.
         // No standalone AddMemoryCache needed — HybridCache manages its own L1 cache.
 
         // ── Options (API-specific — shared options are in AddSharedInfrastructure) ─
@@ -301,15 +293,6 @@ public static class ServiceCollectionExtensions
                 tags: ["db", ReadyTag])
             .AddCheck<MinioHealthCheck>("minio", tags: ["storage", ReadyTag])
             .AddCheck<ClamAvHealthCheck>("clamav", tags: ["security", ReadyTag]);
-
-
-        if (!string.IsNullOrEmpty(redisConnection))
-        {
-            healthChecks.AddRedis(
-                redisConnection,
-                name: "redis",
-                tags: ["cache", ReadyTag]);
-        }
 
         return services;
     }

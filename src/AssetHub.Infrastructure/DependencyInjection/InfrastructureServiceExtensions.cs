@@ -140,22 +140,11 @@ public static class InfrastructureServiceExtensions
 
         // T5-WMK-01: HmacKeyBase64 is required, so validate at start to fail fast
         // if an operator forgot to set it (would otherwise blow up at first download).
-        // ── Caching (Redis L2 + HybridCache L1/L2) ────────────────────────
-        var redisConnectionString = configuration["Redis:ConnectionString"];
-        if (!string.IsNullOrWhiteSpace(redisConnectionString))
-        {
-            var redisInstanceName = configuration["Redis:InstanceName"] ?? "AssetHub:";
-            services.AddStackExchangeRedisCache(options =>
-            {
-                options.Configuration = redisConnectionString;
-                options.InstanceName = redisInstanceName;
-            });
-        }
-        else
-        {
-            // Fallback for tests or environments without Redis
-            services.AddDistributedMemoryCache();
-        }
+        // ── Caching (HybridCache: L1 in-memory + in-memory distributed L2) ─────
+        // Redis was dropped in C14. The app is single-instance (see contract-026),
+        // so an in-process distributed cache is sufficient — the CacheKeys registry
+        // and tag invalidation are unchanged; only the L2 store moved off Redis.
+        services.AddDistributedMemoryCache();
 
         services.AddHybridCache(options =>
         {
