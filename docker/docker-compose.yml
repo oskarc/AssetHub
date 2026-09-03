@@ -88,7 +88,7 @@ services:
       MinIO__PublicUrl: "localhost:9000"
       MinIO__PublicUseSSL: "false"
       App__BaseUrl: "https://assethub.local:7252"
-      ClamAV__Enabled: "${CLAMAV_ENABLED:-true}"
+      ClamAV__Enabled: "${CLAMAV_ENABLED:-false}"  # off by default; the `full` profile sets it true (C15)
       ClamAV__Host: "clamav"
       ClamAV__Port: "3310"
       ClamAV__TimeoutMs: "120000"
@@ -102,8 +102,6 @@ services:
       postgres:
         condition: service_healthy
       minio:
-        condition: service_healthy
-      clamav:
         condition: service_healthy
     networks:
       backend:
@@ -129,6 +127,7 @@ services:
       - /tmp:size=2G,uid=1654,gid=1654
 
   mailpit:
+    profiles: ["full"]
     image: axllent/mailpit:v1.21
     container_name: assethub-mailpit
     ports:
@@ -155,6 +154,7 @@ services:
 
   # ── ClamAV (Malware Scanning) ────────────────────────────────────────────────
   clamav:
+    profiles: ["full"]
     build:
       context: .
       dockerfile: Dockerfile.ClamAV
@@ -193,6 +193,7 @@ services:
 
   # .NET Aspire Dashboard — single container for traces, metrics, and structured logs
   aspire-dashboard:
+    profiles: ["full"]
     image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
     container_name: assethub-aspire-dashboard
     environment:

@@ -45,6 +45,20 @@ cd AssetHub
 docker compose up --build
 ```
 
+This starts the **three essential services** — the app, PostgreSQL, and MinIO
+(file storage). That is everything you need to run and explore AssetHub.
+
+To also run the optional extras — the ClamAV virus scanner, the Mailpit test
+email server, and the Aspire telemetry dashboard — use the `full` profile, and
+turn scanning on in the same command:
+
+```bash
+CLAMAV_ENABLED=true docker compose --profile full up --build
+```
+
+(Scanning stays off in the default stack because it has no scanner to talk to;
+the `full` command brings the scanner up and enables scanning together.)
+
 **2. Add hostnames** (required for OIDC)
 
 Add this line to your hosts file (`C:\Windows\System32\drivers\etc\hosts` on Windows, `/etc/hosts` on Linux/Mac):

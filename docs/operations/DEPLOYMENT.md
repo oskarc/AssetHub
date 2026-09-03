@@ -38,9 +38,11 @@ cd AssetHub
 # Add hostnames to hosts file (required for OIDC same-site cookies)
 # Windows: Add to C:\Windows\System32\drivers\etc\hosts
 # Linux/Mac: Add to /etc/hosts
-# 127.0.0.1 assethub.local keycloak.assethub.local keycloak
+# 127.0.0.1 assethub.local
 
-docker compose up --build
+docker compose up --build   # 3 essential services (app, postgres, minio)
+# or, with the optional scanner / test-email / telemetry dashboard:
+# CLAMAV_ENABLED=true docker compose --profile full up --build
 ```
 
 Open https://assethub.local:7252 and log in:

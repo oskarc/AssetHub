@@ -2605,3 +2605,88 @@ contracts:
       Also corrected CLAUDE.md's overview + messaging bullet, which still declared
       RabbitMQ (via Wolverine) and Redis as in use — both false since C13b/C14.
     compose_services: dev 6 (api, postgres, minio, clamav, mailpit, aspire-dashboard), prod 5
+
+  - contract_id: contract-028
+    feature: slim-startup-to-essential-services
+    reshape_step: C15
+    date_proposed: 2026-09-03
+    date_approved: 2026-09-03
+    tier_1: |
+      A developer clones AssetHub to understand and work on it. Today, starting it
+      launches six background services; only three are actually needed to run the
+      app, and a newcomer can't easily tell which of the other three they need or
+      why they're there. They want to start the app with the least ceremony and
+      have it just work - and, when they need the full setup, turn the extras on
+      deliberately.
+
+      Success: the default "start" command brings up the smallest system that fully
+      works. The three extras (virus scanning, local test email, a monitoring
+      dashboard) are clearly opt-in.
+
+      Cost if absent: every newcomer meets six services of unclear necessity -
+      friction against the reshape's aim of a repo you grasp in an afternoon. It is
+      also the last piece of shrinking the operational footprint, after messaging
+      and cache already cut it from nine services to six.
+    tier_2: |
+      1. Start the app the default way. The developer runs the ordinary start
+         command -> the three essential services (database, file storage, app) come
+         up and the app is fully usable: sign in, create a collection, upload an
+         image, get a thumbnail. Edge: uploads succeed with scanning off, because no
+         scanner is present in this minimal setup.
+      2. Start the full setup. The developer/operator runs the start command with the
+         "full" option -> all six services come up, and uploaded files are virus-scanned.
+      3. Failure state to prevent - broken uploads. Scanning must never be left ON
+         while the scanner is absent (that refuses every upload). The minimal setup
+         therefore starts with scanning OFF, tied to the scanner not being present.
+      4. Failure state to prevent - unscanned uploads. No one should reach "files
+         upload but aren't scanned" by disabling scanning to work around a missing
+         scanner. Scanner-present and scanning-on stay a single switch, so that state
+         is unreachable.
+      5. Understand how to start it. A developer reading the run instructions can tell
+         at a glance which command gives the minimal system and which gives the full one.
+    tier_3: |
+      - Core services (database, storage, app) start unconditionally; scanner,
+        test-email, and dashboard are gated behind a compose profile (use cases 1 & 2).
+      - The app's startup dependency on the scanner is removed, since the scanner may
+        be absent (use case 1).
+      - The scanning-enabled flag defaults off in the minimal stack; the full profile
+        turns the scanner and the flag on together (use cases 3 & 4 - the coupling that
+        makes both failure states unreachable).
+      - No application code changes - compose and configuration only.
+      - Run instructions in CLAUDE.md, README, and the deployment doc show both start
+        commands (use case 5).
+    status: implemented
+    implemented: 2026-09-03
+    revisions:
+      - date: 2026-09-03
+        note: >-
+          Owner-authorized clarification: tier_3 said "both compose files", but the
+          user scenario (tier_1) is a newcomer running it locally. Production must
+          keep its full security posture, so docker-compose.prod.yml is left
+          UNCHANGED - scanner required, scanning on, all services up. C15's slimming
+          applies only to the dev stack (docker-compose.yml). Owner: "that is fine,
+          we can leave it on in prod."
+
+    work_id: null
+    outcome: |
+      Dev startup slimmed to the three essential services. docker compose up ->
+      api + postgres + minio (verified: exactly 3 running). clamav, mailpit and
+      aspire-dashboard are profile-gated ("full"); the app dropped its startup
+      dependency on clamav; scanning defaults OFF in the minimal stack
+      (CLAMAV_ENABLED :-false, and the .env forced-true removed) and the documented
+      full command couples scanner + scanning: CLAMAV_ENABLED=true docker compose
+      --profile full up.
+
+      USE CASES VERIFIED IN THE CONTAINER: (1) minimal stack fully usable - the
+      journeys and the full E2E (53) pass against 3 services, upload->thumbnail with
+      scanning off; (2) full command resolves scanner-up + scanning-on (config
+      verified; scan path unit-tested); (3) no broken uploads - default resolves
+      scanning false; (4) no silently-unscanned - flag explicit, coupled in the full
+      command; (5) README + DEPLOYMENT show both start commands.
+
+      Prod compose LEFT UNCHANGED per owner authorization (revisions[0]) - production
+      keeps its full security posture. No application code touched. Unit 694 (compose
+      -only), E2E 53 green. Also fixed a stale Keycloak hosts line in DEPLOYMENT.md.
+
+      Compose footprint across the C13b->C15 arc: 9 services -> default 3 (full 6),
+      prod 5. The reshape's operational-slimming goal is reached.
