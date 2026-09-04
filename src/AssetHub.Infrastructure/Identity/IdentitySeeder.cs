@@ -80,6 +80,50 @@ public sealed class IdentitySeeder(
         logger.LogWarning(
             "Seeded bootstrap administrator {UserName}. Change this password immediately.",
             seed.UserName);
+
+        await SeedTestViewerAsync();
+    }
+
+    /// <summary>
+    /// Seeds a fixed-credential test viewer for the E2E gate, but ONLY when
+    /// <see cref="IdentitySettings.SeedTestViewer"/> is explicitly on (dev/CI). It
+    /// runs inside the empty-store path above, so like the admin it never touches an
+    /// existing deployment. The gate defaults off, so production can never create a
+    /// known-password account even by accident.
+    /// </summary>
+    private async Task SeedTestViewerAsync()
+    {
+        var opts = settings.Value;
+        if (!opts.SeedTestViewer)
+            return;
+
+        var viewer = opts.TestViewer;
+        if (string.IsNullOrWhiteSpace(viewer.Password) || string.IsNullOrWhiteSpace(viewer.Email))
+        {
+            logger.LogWarning(
+                "Identity:SeedTestViewer is on but TestViewer Email/Password are not configured — skipping.");
+            return;
+        }
+
+        var user = new AppUser
+        {
+            UserName = viewer.UserName,
+            Email = viewer.Email,
+            EmailConfirmed = true,
+            DisplayName = viewer.UserName
+        };
+
+        var created = await userManager.CreateAsync(user, viewer.Password);
+        if (!created.Succeeded)
+            throw new InvalidOperationException($"Failed to seed test viewer: {Describe(created)}");
+
+        var roleResult = await userManager.AddToRoleAsync(user, RoleHierarchy.Roles.Viewer);
+        if (!roleResult.Succeeded)
+            throw new InvalidOperationException($"Failed to grant viewer role: {Describe(roleResult)}");
+
+        logger.LogWarning(
+            "Seeded fixed-credential TEST viewer {UserName} (Identity:SeedTestViewer is on — dev/CI only).",
+            viewer.UserName);
     }
 
     private static string Describe(IdentityResult result)

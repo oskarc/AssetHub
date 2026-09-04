@@ -77,6 +77,12 @@ services:
       Identity__SeedAdmin__UserName: "${IDENTITY_ADMIN_USERNAME:-admin}"
       Identity__SeedAdmin__Email: "${IDENTITY_ADMIN_EMAIL:-admin@assethub.local}"
       Identity__SeedAdmin__Password: "${IDENTITY_ADMIN_PASSWORD:-}"
+      # Test viewer for the E2E gate — DEV ONLY (never set in prod compose). Password comes from
+      # TEST_VIEWER_PASSWORD in docker/.env; if it is unset the seeder skips this account.
+      Identity__SeedTestViewer: "true"
+      Identity__TestViewer__UserName: "testuser"
+      Identity__TestViewer__Email: "test@example.com"
+      Identity__TestViewer__Password: "${TEST_VIEWER_PASSWORD:-}"
       ASPNETCORE_Kestrel__Certificates__Default__Path: /app/certs/dev-cert.pfx
       ASPNETCORE_Kestrel__Certificates__Default__Password: ${ASPNETCORE_Kestrel__Certificates__Default__Password}
       ConnectionStrings__Postgres: "Server=postgres;Port=5432;Database=${POSTGRES_DB};User Id=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};"

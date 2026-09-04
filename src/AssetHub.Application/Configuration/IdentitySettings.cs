@@ -43,6 +43,35 @@ public class IdentitySettings
     /// any user already exists, so this never overwrites a real account.
     /// </summary>
     public SeedAdminSettings SeedAdmin { get; set; } = new();
+
+    /// <summary>
+    /// Seed a fixed-credential test viewer alongside the admin on first start.
+    /// DEFAULTS OFF and must be turned on explicitly (dev/CI compose only) — a
+    /// known-password account must never exist in production. Like the admin, it
+    /// is created only when the user store is empty.
+    /// </summary>
+    public bool SeedTestViewer { get; set; }
+
+    /// <summary>Credentials for the optional test viewer (see <see cref="SeedTestViewer"/>).</summary>
+    public SeedViewerSettings TestViewer { get; set; } = new();
+}
+
+/// <summary>
+/// A fixed-credential viewer for the E2E gate, so a fresh database is testable
+/// with no hand-provisioning. Only ever seeded when <see cref="IdentitySettings.SeedTestViewer"/>
+/// is true, which is dev/CI-only.
+/// </summary>
+public class SeedViewerSettings
+{
+    /// <summary>Username for the seeded test viewer.</summary>
+    public string UserName { get; set; } = "testuser";
+
+    /// <summary>Email for the seeded test viewer.</summary>
+    [EmailAddress]
+    public string Email { get; set; } = "test@example.com";
+
+    /// <summary>Password for the seeded test viewer. Dev/CI only; supplied from config.</summary>
+    public string Password { get; set; } = "";
 }
 
 /// <summary>

@@ -24,8 +24,10 @@ test.describe('Collection Management @collections', () => {
   test('collection tree loads without errors', async ({ page }) => {
     // Should not have error alerts
     await expect(page.locator('.mud-alert-error')).not.toBeVisible();
-    // Collection tree area should exist
-    await expect(assetsPage.collectionTree).toBeVisible();
+    // The page has loaded: the Create Collection action is always present, empty
+    // or populated. (Asserting a collection card here breaks on a fresh database
+    // with no collections — the gate must run from an empty, freshly-seeded DB.)
+    await expect(page.getByRole('button', { name: /create collection/i }).first()).toBeVisible();
   });
 
   test('create a new root collection @smoke', async ({ page }) => {

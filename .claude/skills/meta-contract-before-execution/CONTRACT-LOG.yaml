@@ -2766,3 +2766,66 @@ contracts:
       IdentitySeeder so the E2E gate is reproducible. Attempting to re-provision via
       the admin UI + mailpit reset flow proved fragile and was stopped as
       out-of-scope over-investment; the squash correctness does not depend on it.
+
+  - contract_id: contract-030
+    feature: seed-a-test-viewer-for-a-reproducible-e2e-gate
+    date_proposed: 2026-09-03
+    date_approved: 2026-09-04
+    follows: contract-029
+    tier_1: |
+      A developer (or CI) runs the E2E suite against a fresh database. It fails
+      immediately: the suite signs in as both an admin AND a viewer, but only the
+      admin is seeded - the viewer was a hand-created account with no reproducible
+      source. C16's necessary database reset wiped it and exposed this. They want
+      the E2E gate - the only gate that catches UI, auth and hosting bugs - to run
+      from nothing, with no hand-provisioned account.
+      Success: a fresh dev database has both the seeded admin and a known test
+      viewer, so the suite runs with no manual setup. Production is untouched - no
+      known-credential account ships there.
+      Cost if absent: the E2E gate is unreproducible; every fresh environment needs
+      a human to create the viewer, and until they do the whole gate is dark.
+    tier_2: |
+      1. Fresh dev start. App starts against an empty DB in development -> seeder
+         creates roles, admin, AND a test viewer from config -> E2E authenticates both.
+      2. Fresh production start. App starts against an empty DB in production ->
+         seeder creates roles + admin ONLY. Failure state to prevent: a
+         known-password account must NEVER exist in production.
+      3. Existing database. Store already has users -> seeding skipped, exactly as
+         today (unchanged).
+      4. Credentials configured, not hardcoded. The viewer's username/email/password
+         come from a settings section, same as the admin's - no literal in source.
+    tier_3: |
+      - Test-viewer seed gated behind an explicit setting defaulting OFF, enabled
+        only in the dev compose - no production path can create it (use case 2).
+      - Viewer creds from a config section mirroring SeedAdmin; dev supplies the
+        E2E's testuser / <TEST_VIEWER_PASSWORD> there (use case 4).
+      - Viewer granted the Viewer role.
+      - Existing admin-seed + empty-store-skip logic unchanged (use case 3).
+      - The seeder still fails loud if admin isn't configured; the viewer seed is
+        additive and never weakens that.
+    status: implemented
+    implemented: 2026-09-04
+    revisions: []
+    work_id: null
+    outcome: |
+      IdentitySeeder now seeds a fixed-credential test viewer alongside the admin,
+      gated by Identity:SeedTestViewer (default OFF), inside the existing empty-store
+      path. Dev compose turns it on with testuser / <TEST_VIEWER_PASSWORD>; prod compose
+      never sets it (verified count 0), so the "no known-credential account in
+      production" guardrail holds by construction. Verified from an EMPTY database:
+      both admin (admin role) and testuser (viewer role) seed, both logged.
+
+      This closes C16's loose end: the full E2E now runs from nothing - 53 green from
+      a freshly-seeded empty DB, no hand-provisioned account. Unit 694, zero
+      regressions.
+
+      One in-scope fix: 03-collections "tree loads without errors" asserted a
+      collection card (.mud-card), which breaks on a genuinely-fresh DB with no
+      collections. Changed to assert the always-present Create Collection button -
+      the test's real intent. A gate meant to run from empty must tolerate an empty
+      DB; this is the kind of hidden data-dependency that only surfaces once the gate
+      starts from nothing.
+
+      INFRA NOTE: Docker crashed mid-verification (drift-001, now 13 occurrences)
+      and left a stale api image, which briefly masked the seed as admin-only until
+      a clean rebuild. Neither touched the code's correctness.

@@ -122,7 +122,7 @@ entries:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 12
+    recurrence_count: 13
     related_drifts: []
 
   - drift_id: drift-002
