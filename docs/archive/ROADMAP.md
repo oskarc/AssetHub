@@ -1,7 +1,12 @@
+> **Archived 2026-09-26.** This document predates the 2026-08 reshape and describes AssetHub as it
+> was then. It is kept as history and is not maintained — features, file paths and links in it may
+> refer to code that has since been removed. For the current system see [CLAUDE.md](../../CLAUDE.md)
+> and [ARCHITECTURE.md](../architecture/ARCHITECTURE.md). What else is archived: [README.md](README.md).
+
 # AssetHub — Commercial Parity Roadmap
 
 **Date:** 2026-04-18
-**Source:** [COMMERCIAL-DAM-GAP-ANALYSIS.md](../audits/COMMERCIAL-DAM-GAP-ANALYSIS.md)
+**Source:** [COMMERCIAL-DAM-GAP-ANALYSIS.md](./COMMERCIAL-DAM-GAP-ANALYSIS.md)
 **Audience:** AI agents and human contributors implementing these features.
 
 This document describes the features required to make AssetHub a genuine alternative to Bynder / Canto / Frontify / Brandfolder / Widen / Cloudinary / AEM. Each feature is specified in enough detail that an AI agent can implement it faithfully without additional design work, while still leaving small decisions to engineering judgement.

@@ -245,9 +245,9 @@ Collections are **flat** — a user's effective role on a collection is the dire
 
 ### Authentication paths
 
-Two principal types reach the API: **cookie** (the Blazor UI, local sign-in) and
-**JWT bearer**. The `Smart` scheme selector routed bearer to JWT; local Identity
-issues the cookie.
+One principal type reaches the app: the **Identity application cookie** (local
+sign-in through the app's own form). It is both the default and the challenge
+scheme; no bearer handler is registered and there is no scheme selector.
 
 Both modes produce the same claims, so **nothing downstream of the claims
 principal knows which provider issued it** — `RoleHierarchy`, the authorization

@@ -32,7 +32,7 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  │  ┌───────────────┐ ┌─────────────────┐ ┌───────────────────────────┐  │  │
 │  │  │ Blazor Server │ │ 13 media/ZIP    │ │ In-process message        │  │  │
 │  │  │ (MudBlazor 8) │ │ (internal REST) │ │ handlers + background      │  │  │
-│  │  │ Local Identity│ │ Cookie / JWT    │ │ services (ImageMagick,     │  │  │
+│  │  │ Local Identity│ │ Cookie auth     │ │ services (ImageMagick,     │  │  │
 │  │  │ (cookie)      │ │                 │ │ ffmpeg) + outbox drain     │  │  │
 │  │  └───────────────┘ └─────────────────┘ └───────────────────────────┘  │  │
 │  │        Channel bus (System.Threading.Channels) — no external broker   │  │
@@ -159,12 +159,11 @@ AssetHub is designed with clean interfaces so you can swap components to match y
 
 #### Authentication Flow
 
-A `PolicyScheme` named "Smart" inspects the `Authorization` header — a `Bearer` token would route to JWT Bearer validation, everything else uses the Identity cookie. In practice **cookie sign-in is the only live path**: the browser signs in through the app's own form, and Identity issues the cookie. No JWT issuer is registered, so the bearer branch is currently unreachable — it is kept because it is the correct rule, not because a caller exists.
+There is one authentication scheme: the Identity application cookie (`IdentityConstants.ApplicationScheme`) is both the default and the challenge scheme (`AuthenticationExtensions.AddIdentityProvider`). The browser signs in through the app's own form and Identity issues the cookie. No bearer handler is registered and there is no scheme selector — nothing issues or accepts tokens.
 
 | Scheme | When Used | Details |
 |--------|-----------|---------|
 | **Cookie** | Blazor UI (browser) | Identity application cookie (`Identity.Application`). Host-scoped `__Host-` prefix in production (Secure, Path=/, no Domain); prefix dropped in dev because the dev cookie isn't Secure over HTTP. SameSite=Strict, HttpOnly |
-| **JWT Bearer** | (designed, unwired) | The Smart scheme routes bearer here, but nothing issues a token today |
 
 #### Role Claims
 

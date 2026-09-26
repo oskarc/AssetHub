@@ -1,3 +1,8 @@
+> **Archived 2026-09-26.** This document predates the 2026-08 reshape and describes AssetHub as it
+> was then. It is kept as history and is not maintained — features, file paths and links in it may
+> refer to code that has since been removed. For the current system see [CLAUDE.md](../../CLAUDE.md)
+> and [ARCHITECTURE.md](../architecture/ARCHITECTURE.md). What else is archived: [README.md](README.md).
+
 # Microservice Migration Strategy Analysis
 
 ## Executive Summary
