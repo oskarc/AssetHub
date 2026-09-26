@@ -43,7 +43,14 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
-  <!-- Override vulnerable transitive dependencies -->
+  <!--
+    Newtonsoft.Json is no longer needed. It pinned a patched version while Hangfire.Core
+    (removed 2026-04-03) pulled a vulnerable one (GHSA-5crp-9r3c-p9vr, < 13.0.1); nothing in
+    the graph needs the override now. As a direct reference it is also a version floor that
+    can cause NU1605 when EF.Design raises its minimum. It stays only because removing a
+    reference here invalidates all 7 lock files: remove it in the reproducible-build
+    contract, where the locks are regenerated on purpose.
+  -->
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
@@ -52,6 +59,10 @@
     SonarAnalyzer.CSharp surfaces SonarCloud's rules at compile time so
     we catch S-prefixed issues during dev builds instead of after a
     push. PrivateAssets="all" keeps it out of the published packages.
+    Exact version on purpose: an analyzer upgrade changes the warning set, and CI and the
+    Docker build restore the Api without its lock file, so a float would make local and CI
+    warnings differ. Upgrade deliberately, with a warning-baseline pass (10.4 is well behind
+    the rules SonarCloud runs).
   -->
   <ItemGroup>
     <PackageReference Include="SonarAnalyzer.CSharp" Version="10.4.0.108396">

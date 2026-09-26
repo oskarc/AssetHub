@@ -173,13 +173,22 @@ entries:
       lock files (RestorePackagesWithLockFile), which forced Newtonsoft.Json
       13.0.3 -> 13.0.4 as a side effect. The CS8602 was reported to the owner and
       deliberately left unfixed (out of contract scope).
-    status: mitigated
+
+      2026-09-26 (contract-032): RECURRED. CI and the Docker build restore without the
+      lock files - CI because SDK 10.0.401 adds Microsoft.AspNetCore.App.Internal.Assets
+      at a newer version than the Api lock records (NU1004), Docker because the
+      Dockerfile never copies them - so floats re-resolved fresh and the Microsoft.OpenApi
+      2.7.5 pin added for this very drift became an NU1605 against AspNetCore.OpenApi
+      10.0.12. The lock-file elevation governed local builds only. Fixed in contract-032
+      by removing the unused OpenAPI packages and the dead IdentityModel pin; the
+      structural fix (SDK pin + locked restore in CI and Docker) is on the hardening track.
+    status: watching
     elevation:
       - target: Directory.Build.props (NuGet lock files, SER proposal 6)
         kind: manifest-update
         date: 2026-08-11
-    recurrence_count: 0
-    related_drifts: []
+    recurrence_count: 1
+    related_drifts: [drift-010]
 
   - drift_id: drift-004
     surfaced_in: 2026-08-12 / reshape C5 — comments + notifications cut
@@ -368,3 +377,37 @@ entries:
     elevation: []
     recurrence_count: 2
     related_drifts: []
+
+  - drift_id: drift-010
+    surfaced_in: 2026-09-26 / contract-032 publish-the-reshape - conflicts found mid-execution
+    surfaced_by: human
+    aspect: lay-of-the-land
+    description: |
+      Contract-032 was approved with guardrails whose scope and methods had not been
+      checked against the repo. "Compose line only" missed that the password literal
+      also lived in commit 6b26a57, two C17 docs and the contract-031 entry; the
+      prescribed lock method (dotnet restore --force-evaluate) re-resolves every
+      floating version (~75 packages) and fails NU1605. The surveys before the contract
+      covered what the close-out removes, not how the contract itself would execute.
+      The discipline-aligned alternative: before presenting a contract, survey its own
+      execution path - dry-run or check the semantics of every command it prescribes,
+      verify every "only X" scope claim by search, and replicate the pipeline the
+      success criterion depends on (here CI, on CI's own SDK).
+    evidence: |
+      Owner: "before you move forward do a proper lay of the land, i dont want us hit
+      another conflict, a contract should by its nature have none." Conflict 1: git grep
+      of the literal (CONTRACT-LOG contract-030 lines, README.md:81, DEPLOYMENT.md:52,
+      contract-031 entry). Conflict 2: the force-evaluate diff (75 x 10.0.11 -> 10.0.12,
+      OpenTelemetry 1.18 -> 1.19) and NU1605 Microsoft.OpenApi 2.12.0 -> 2.7.5. The lay
+      of the land then found five more, including CI failing on the first push (SDK
+      10.0.401 NU1004 -> NU1605) and the literal surviving in b07eea3's commit message.
+    reaction: |
+      Both conflicts were stopped and put to the owner (option A; surgical lock edit).
+      A full lay of the land followed before any further step: four read-only probes,
+      a local CI replica, CI replicated in its own SDK/OS image, a fresh uncached image
+      with Trivy, and rehearsals of the history rewrite and the secret scan. All findings
+      were resolved as one approved revision (contract-032 revision 2, A1-A10).
+    status: watching
+    elevation: []
+    recurrence_count: 0
+    related_drifts: [drift-003]

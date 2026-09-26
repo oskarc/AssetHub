@@ -11,13 +11,10 @@
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.*" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.*" />
+    <!-- Unused since contract-015 removed the Keycloak HttpClient. Remove in contract-037 together
+         with the using at Extensions/ServiceCollectionExtensions.cs:14 (the build needs both gone). -->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.3.0" />
-    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.19.2" />
-    <!-- Transitive pin: Microsoft.OpenApi 2.0.0 (via Microsoft.AspNetCore.OpenApi) has a high
-         advisory (GHSA-v5pm-xwqc-g5wc); pinned at the patched release per house convention. -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="MudBlazor" Version="8.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.*" />

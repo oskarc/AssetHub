@@ -2944,3 +2944,193 @@ contracts:
       earlier feature-cuts' sweeps missed (appsettings/env/ci/dirs) — the truth pass
       doubles as a residual-audit and should feed a code cleanup contract.
 
+  - contract_id: contract-032
+    feature: publish-the-reshape
+    reshape_step: close-out 1 of 6 (commits C17)
+    date_proposed: 2026-09-26
+    date_approved: 2026-09-26
+    tier_1: |
+      Three months of reshape work (38 commits plus an uncommitted docs pass)
+      exists only on this laptop. CI has never looked at any of it, and the first
+      push would fail anyway: CI still builds a file the reshape deleted and flags
+      an unused image library with published vulnerabilities. Old planning
+      documents describe a product that no longer exists. The owner wants the work
+      safely published and automatically checked, with the stale plans clearly
+      archived, so every later close-out step lands on a green, backed-up base.
+      Success: GitHub has the full reshape history plus the pre-reshape tag, CI
+      runs green on it, and anyone opening docs/ sees current documents with the
+      old plans marked as history. Cost if absent: one disk failure loses the
+      reshape, and every next contract is built on code no automated check has
+      ever seen.
+    tier_2: |
+      1. Commit the finished docs pass. Contract-031's uncommitted edits (6 files)
+         are committed as its own output, unchanged. Then one correction: the
+         claim that a "Smart" auth scheme exists (ARCHITECTURE.md:162,167;
+         CLAUDE.md:249) is replaced with what the code does - the Identity cookie
+         is the only scheme.
+      2. Archive the old planning docs. ROADMAP.md and FOLLOW-UPS.md move to
+         docs/archive/ with an "Archived 2026-09-26 - pre-reshape plan, not
+         current" banner, plus a docs/archive/README.md index explaining that
+         roadmap IDs quoted in code comments (T1-LIFE-01 etc.) resolve there.
+         Live-doc links updated; the kit logs (CONTRACT-LOG, LEARNINGLOG,
+         DRIFTLOG) are history and stay untouched.
+      3. Make CI match the system. Delete the infra-image-scan job (it builds the
+         deleted Dockerfile.RabbitMQ; the API image is already built and scanned
+         by docker-build). Remove the unused Magick.NET package (zero code
+         usage; the only vulnerable package; it would fail security-audit).
+      4. No credential literals get published. The dev test-viewer password in
+         docker-compose.yml:84 becomes a variable with an .env.template entry.
+      5. Prove it before publishing. Docker up -> clean build (0 errors) -> full
+         test suite green at the baseline count -> dotnet list package
+         --vulnerable empty -> secret scan of the whole push range. Any failure
+         stops the push.
+      6. Publish. Fast-forward push main to origin (public), plus the pre-reshape
+         tag so the 12 USE-CASES references resolve on GitHub. Never force; if
+         origin moved, stop.
+      7. CI goes green. Watch the run; fix only failures that come from the
+         pipeline itself (lock files, job wiring). A product failure is
+         stop-and-surface.
+    tier_3: |
+      - No product behaviour change. Docs, the CI workflow, one package reference
+        and one compose line only. Test count must stay identical; any change is
+        stop-and-surface.
+      - Three commits: (a) C17 docs pass as-is (contract-031); (b) "Smart"
+        correction + archive (git mv, so history is kept); (c) CI + package +
+        compose (contract-032).
+      - Archive keeps the same folder depth so the archived docs' relative links
+        keep working; only live-doc links are rewritten.
+      - CI changes limited to deleting the one job. Locked-mode restore and a
+        ClamAV image scan go to the hardening track.
+      - Package: drop the reference, regenerate lock files with dotnet restore
+        --force-evaluate, verify the vulnerability check is empty.
+      - Gate order per the drift log: docker info first (drift-001); build and
+        test the exact commit being pushed, with no edits between build and
+        verdict (drift-007).
+      - Secret scan: pattern checks (private keys, cloud keys, non-placeholder
+        Password=, connection strings) plus exact-match against the real values
+        in the local docker/.env, tests/E2E/.env and CREDENTIALS.md, without
+        printing them.
+      - Only `git push origin main` and `git push origin pre-reshape`. The CI run
+        URL is recorded in the outcome.
+      - Out of scope: everything in 033-039 and the hardening track.
+    approval_note: >-
+      Owner: "approved, go ahead" (2026-09-26), without separate answers to
+      F1-F4. Recommended defaults applied: F1 archive ROADMAP, FOLLOW-UPS,
+      COMMERCIAL-DAM-GAP-ANALYSIS, the dated audits (APPLICATION-AUDIT,
+      REVIEW-REPORT, test-report, SECURITY-AUDIT) and
+      MICROSERVICE-MIGRATION-ANALYSIS - SECURITY.md and tests/E2E/README.md are
+      rewritten later, not archived; F3 fast-forward push straight to main; F4
+      parameterize the test-viewer password and add the same value to the local,
+      gitignored docker/.env. F2 (the .github AI-tooling files) had no
+      recommended default, so it is left untouched and stays an open owner
+      decision. Earlier owner decisions this close-out implements across
+      032-037 - cut versioning for now, SMTP required, archive the old docs.
+    status: approved
+    revisions:
+      - date: 2026-09-26
+        authorised_by: >-
+          Owner, 2026-09-26: "A" (keep the test-viewer password out of GitHub
+          entirely).
+        change: >-
+          Implementation found the test-viewer password literal in more places than
+          docker-compose.yml:84 - in unpushed commit 6b26a57 (that compose line and
+          contract-030's log text), in C17's uncommitted README.md:81 and
+          DEPLOYMENT.md:52, and in contract-031's log entry. Pushing as approved
+          would have published it through history. Resolution: amend the unpushed
+          HEAD 6b26a57 (the only commit in origin/main..HEAD that contains the
+          literal; nothing references its hash) so the compose line reads
+          ${TEST_VIEWER_PASSWORD:-} and the contract-030 text reads
+          <TEST_VIEWER_PASSWORD>; commit C17 with a pointer to TEST_VIEWER_PASSWORD in
+          README.md and DEPLOYMENT.md (matching the admin row's wording) and the
+          <TEST_VIEWER_PASSWORD> placeholder in the contract-031 entry (a three-line
+          departure from "as written"). The compose parameterization therefore moves from commit (c)
+          into the amended 6b26a57, with a commented dev-only .env.template entry;
+          the value moves to the local, gitignored docker/.env.
+      - date: 2026-09-26
+        authorised_by: >-
+          Owner, 2026-09-26, answering amendments A1-A10 after the lay of the land he
+          asked for ("before you move forward do a proper lay of the land, i dont want us
+          hit another conflict, a contract should by its nature have none"): "1. yes /
+          2. yes, but also unpin or figure out why they must still be pinned / 3. yes /
+          4. Sure / 5. sure". The "yes to all" also approved drift-010 and the drift-003
+          recurrence.
+        change: |
+          Lay of the land (4 read-only probes, a local CI replica, and CI's own SDK
+          10.0.401 in its Ubuntu image) found five more conflicts. Resolutions, each
+          proven before use:
+          A1 Lock-file method: surgical edits, not --force-evaluate (which re-resolves
+             every floating version, ~75 packages, and hits NU1605). Proof: dotnet restore
+             --locked-mode --force passes; a plain restore leaves every lock file
+             byte-identical.
+          A2 CI would fail on the first push regardless of this contract: SDK 10.0.401
+             adds Microsoft.AspNetCore.App.Internal.Assets at a newer version than the
+             Api lock records (NU1004), so CI and the Docker build re-resolve the Api and
+             hit NU1605 (the Microsoft.OpenApi 2.7.5 pin vs AspNetCore.OpenApi 10.0.12).
+             Fix: remove the unused Microsoft.AspNetCore.OpenApi and Microsoft.OpenApi.
+             Owner added "unpin, or establish why it must stay pinned"; per pin:
+             - Microsoft.IdentityModel.Protocols.OpenIdConnect 8.19.2: removed. Unused,
+               not a security pin (JwtBearer/OIDC 10.0.10+ require >= 8.19.2), and a
+               repeat NU1605 trap (drift-003). Lock entry demoted Direct -> Transitive.
+             - Newtonsoft.Json (Directory.Build.props): kept, with the reason in a
+               comment. Unused security pin (Hangfire left 2026-04-03), but removing it
+               invalidates all 7 lock files; remove it in the reproducible-build
+               contract.
+             - Microsoft.Extensions.Http.Resilience: kept, commented. Unused since
+               contract-015; remove in 037 with its using line.
+             - Microsoft.Extensions.Caching.Hybrid / Microsoft.Extensions.Resilience:
+               must stay pinned. Versioned 10.N.0 monthly (10.0.* would downgrade to
+               10.0.0), and since CI and Docker bypass the locks an exact pin is what
+               keeps shipped == tested.
+             - MetadataExtractor 2.8.1: must stay pinned; 2.9 breaks the build (CS1061).
+             - SonarAnalyzer.CSharp: stays exact (analyzer upgrades change the warning
+               set); bump deliberately with a warning-baseline pass.
+             Proof under SDK 10.0.401: restore, Release build 0 errors, 694/694 tests,
+             vulnerability check empty, fresh --pull --no-cache image build, Trivy
+             clean; with the pin changes the CI-resolved package sets of all five
+             projects are identical to that proven set.
+          A3 The test-viewer password was still in commit b07eea3's message. Reword
+             that message only (value -> <TEST_VIEWER_PASSWORD>, matched on the
+             surrounding text) and replay the later commits unchanged. Rehearsed on a
+             clone: 40 -> 40 commits, every tree identical, authors and dates kept.
+          A4 Gate, in order, on the exact commits pushed: (1) secret scan over every
+             commit's added lines, messages and author fields plus the working diff -
+             only values not already public on origin block; (2) docker info; (3)
+             dotnet build AssetHub.sln -c Release --no-incremental; (4) dotnet test
+             -c Release --no-build --filter "FullyQualifiedName!~E2E" --
+             xUnit.MaxParallelThreads=2, 694 reconciled by name against
+             .claude/test-baseline.json; (5) dotnet list package --vulnerable
+             --include-transitive empty; (6) docker build --pull --no-cache -f
+             docker/Dockerfile plus Trivy 0.69.3 with CI's settings. Tree hash identical
+             before and after. "Clean" never means git clean -x.
+          A5 CI success = the three jobs of workflow "CI" pass for the pushed head SHA.
+             SonarCloud is reported, not blocking. Failure classes: transient
+             infrastructure -> one gh run rerun; security finding, test or build failure
+             -> stop and surface; wiring confined to ci.yml -> one extra ci: commit
+             through the same gate and push. Dockerfile/SDK changes -> hardening.
+          A6 Actual structure: amend b07eea3 (done), commits 52d4595 (C17) and c14ff75
+             (archive), commit (c) = ci.yml, Directory.Build.props (comments),
+             Api/Infrastructure csproj, Api/Infrastructure/Tests lock files, CONTRACT-LOG
+             and DRIFTLOG; then the A3 reword. Push: re-check git ls-remote origin main =
+             65bd7cc, then git push origin main and git push origin pre-reshape. The
+             "Bypassed rule violations" notice is expected (admin bypass of ruleset
+             "protec main"); a permission rejection means stop. full-featured is not
+             pushed (the tag resolves the same references).
+          A7 Close-out edits (status, outcome with CI URL, SER) stay uncommitted and go
+             into contract-033's first commit.
+          A8 Corrections: 41 commits are pushed, not 38; the references are 10 in
+             USE-CASES + 2 in the archive; "kit logs untouched" means history is not
+             rewritten, appending entries is protocol; the docs success claim covers
+             the archive only (FLOWCHARTS, SECURITY, STYLEGUIDE, USE-CASES and .github
+             residue go to 036/037/039). Where implementation-commit-and-push disagrees
+             (pull --rebase, fix loops), this contract governs.
+          A9 drift-010 recorded; drift-003 recurrence 0 -> 1, mitigated -> watching.
+             Both written before the push and committed in (c).
+          A10 Hardening track (recorded, not done): reproducible builds (global.json
+             SDK pin, CI global-json-file, Dockerfile SDK tag + lock copies, locked
+             restore) and then a deliberate lock regeneration (drop Newtonsoft, float
+             Hybrid/Resilience to 10.*, refresh the stale Tests lock that still lists
+             the Worker and Wolverine); Dockerfile patch line targets libssl3 but noble
+             ships libssl3t64; GitHub secret scanning and push protection are off;
+             rotate dev credentials already public in history; Sonar bump with a
+             warning baseline; MetadataExtractor 2.9 with its one-line fix.
+    work_id: null

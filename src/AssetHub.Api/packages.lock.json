@@ -41,15 +41,6 @@
           "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.19.2"
         }
       },
-      "Microsoft.AspNetCore.OpenApi": {
-        "type": "Direct",
-        "requested": "[10.0.*, )",
-        "resolved": "10.0.11",
-        "contentHash": "R/1EATnPLU+gRfB6lwVkMcymmyAY5ppBBdRN/5lhNEiT3xP1sWccuSFkU/f1lQvN/WgRq5Vn8AhCdE3fqgsL/w==",
-        "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, 3.0.0)"
-        }
-      },
       "Microsoft.EntityFrameworkCore": {
         "type": "Direct",
         "requested": "[10.0.*, )",
@@ -80,20 +71,13 @@
         }
       },
       "Microsoft.IdentityModel.Protocols.OpenIdConnect": {
-        "type": "Direct",
-        "requested": "[8.19.2, )",
+        "type": "Transitive",
         "resolved": "8.19.2",
         "contentHash": "1XOcyY36cVymzE3qKdzKaUEZ4Pzt7ZpSa14JZoPPK1NLFUkQDs85TCqpV6XDo0YjFXj6nVK00AfOHppjghjhtw==",
         "dependencies": {
           "Microsoft.IdentityModel.Protocols": "8.19.2",
           "System.IdentityModel.Tokens.Jwt": "8.19.2"
         }
-      },
-      "Microsoft.OpenApi": {
-        "type": "Direct",
-        "requested": "[2.7.5, )",
-        "resolved": "2.7.5",
-        "contentHash": "0FA67RSnRM4tcBKqiqVu/HPdZ9+QOKbmeRjxRUGTCjPU4C0bmUhd97Dso7Yild5P7nOV6GxJ2xrK0Kv/O9xp0w=="
       },
       "Minio": {
         "type": "Direct",
@@ -201,19 +185,6 @@
         "type": "Transitive",
         "resolved": "2.14.1",
         "contentHash": "lQKvtaTDOXnoVJ20ibTuSIOf2i0uO0MPbDhd1jm238I+U/2ZnRENj0cktKZhtchBMtCUSRQ5v4xBCUbKNmyVMw=="
-      },
-      "Magick.NET-Q8-AnyCPU": {
-        "type": "Transitive",
-        "resolved": "14.14.0",
-        "contentHash": "Af7QdAb1AfLN09gpr4lzrTjioDez1hW1IQN3Tb0qJWi8NY3ywTJyteoH/8P/mripXq4D5Khz0uWBEX5O59i5Zw==",
-        "dependencies": {
-          "Magick.NET.Core": "14.14.0"
-        }
-      },
-      "Magick.NET.Core": {
-        "type": "Transitive",
-        "resolved": "14.14.0",
-        "contentHash": "pACR3w4QmjBkebtYvZwNk0oow8YwEAF4CLfzSrGmPcWsObL8wvt/lOXsrzK9M0cVwYES7jp+bdnHQBTeQgfoIg=="
       },
       "MetadataExtractor": {
         "type": "Transitive",
@@ -715,7 +686,6 @@
           "AssetHub.Application": "[0.1.0, )",
           "AssetHub.Domain": "[0.1.0, )",
           "BCrypt.Net-Next": "[4.0.*, )",
-          "Magick.NET-Q8-AnyCPU": "[14.14.0, )",
           "MetadataExtractor": "[2.8.1, )",
           "Microsoft.AspNetCore.DataProtection.EntityFrameworkCore": "[10.0.*, )",
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.*, )",

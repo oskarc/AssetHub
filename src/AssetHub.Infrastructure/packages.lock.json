@@ -8,15 +8,6 @@
         "resolved": "4.0.3",
         "contentHash": "W+U9WvmZQgi5cX6FS5GDtDoPzUCV4LkBLkywq/kRZhuDwcbavOzcDAr3LXJFqHUi952Yj3LEYoWW0jbEUQChsA=="
       },
-      "Magick.NET-Q8-AnyCPU": {
-        "type": "Direct",
-        "requested": "[14.14.0, )",
-        "resolved": "14.14.0",
-        "contentHash": "Af7QdAb1AfLN09gpr4lzrTjioDez1hW1IQN3Tb0qJWi8NY3ywTJyteoH/8P/mripXq4D5Khz0uWBEX5O59i5Zw==",
-        "dependencies": {
-          "Magick.NET.Core": "14.14.0"
-        }
-      },
       "MetadataExtractor": {
         "type": "Direct",
         "requested": "[2.8.1, )",
@@ -164,11 +155,6 @@
         "type": "Transitive",
         "resolved": "8.1.0",
         "contentHash": "kgDi65k02hrgnHy3N0xENecsr0spW13RdIA1tipovi9t16gKziI7uZIu3qkxz0GctCHNM4hfeqXYg//6wHJ6Kw=="
-      },
-      "Magick.NET.Core": {
-        "type": "Transitive",
-        "resolved": "14.14.0",
-        "contentHash": "pACR3w4QmjBkebtYvZwNk0oow8YwEAF4CLfzSrGmPcWsObL8wvt/lOXsrzK9M0cVwYES7jp+bdnHQBTeQgfoIg=="
       },
       "Microsoft.EntityFrameworkCore.Abstractions": {
         "type": "Transitive",

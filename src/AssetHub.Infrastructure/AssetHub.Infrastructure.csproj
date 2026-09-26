@@ -12,14 +12,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.14.0" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.*" />
+    <!-- Exact on purpose. dotnet/extensions packages are versioned 10.N.0 each month, so the usual
+         10.0.* float would resolve 10.0.0 (a silent downgrade). And CI and the Docker build restore the
+         Api without its lock file, so an exact pin is what keeps the shipped version equal to the
+         tested one. Float to 10.* once builds are reproducible (SDK pin + locked restore). -->
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.4.0" />
     <PackageReference Include="Microsoft.Extensions.Resilience" Version="10.3.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.*" />
     <PackageReference Include="Minio" Version="5.0.*" />
+    <!-- Pinned: 2.9 returns GeoLocation? from GetGeoLocation(), which breaks
+         ImageMetadataExtractor.ExtractGpsData (CS1061). Move to 2.9.* together with that one-line fix. -->
     <PackageReference Include="MetadataExtractor" Version="2.8.1" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.*" />
     <!-- OpenTelemetry (shared by API and Worker) -->
