@@ -2,9 +2,9 @@
 
 # AssetHub
 
-**Self-hosted digital asset management for teams who want enterprise features without vendor lock-in.**
+**Self-hosted digital asset management for a single team — legible enough to understand in an afternoon.**
 
-Organise images, videos, and documents into collections. Control access with per-collection roles. Share via password-protected links. Get automatic thumbnails and previews — all on your own infrastructure.
+Organise images, videos, and documents into collections. Control access with per-collection roles. Share via password-protected links. Get automatic thumbnails and previews — all on your own infrastructure, in one process.
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](#tech-stack)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -27,6 +27,7 @@ Organise images, videos, and documents into collections. Control access with per
 - [Security](#security)
 - [Deployment](#deployment)
 - [Testing](#testing)
+- [Tech Stack](#tech-stack)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
@@ -59,9 +60,11 @@ CLAMAV_ENABLED=true docker compose --profile full up --build
 (Scanning stays off in the default stack because it has no scanner to talk to;
 the `full` command brings the scanner up and enables scanning together.)
 
-**2. Add hostnames** (required for OIDC)
+**2. Add the hostname**
 
-Add this line to your hosts file (`C:\Windows\System32\drivers\etc\hosts` on Windows, `/etc/hosts` on Linux/Mac):
+The app issues host-scoped auth cookies bound to `assethub.local`, so browse to
+that name rather than `localhost`. Add this line to your hosts file
+(`C:\Windows\System32\drivers\etc\hosts` on Windows, `/etc/hosts` on Linux/Mac):
 
 ```
 127.0.0.1 assethub.local
@@ -69,12 +72,17 @@ Add this line to your hosts file (`C:\Windows\System32\drivers\etc\hosts` on Win
 
 **3. Open and log in**
 
-Navigate to **https://assethub.local:7252** and sign in:
+Navigate to **https://assethub.local:7252** and sign in. Sign-in is handled by
+the app's own local accounts (ASP.NET Core Identity):
 
 | User | Password | Role |
 |------|----------|------|
-| `mediaadmin` | `mediaadmin123` | Admin |
-| `testuser` | `testuser123` | Viewer |
+| `admin` | set via `IDENTITY_ADMIN_PASSWORD` in your `.env` | Admin |
+| `testuser` | set via `TEST_VIEWER_PASSWORD` in your `.env` (dev only) | Viewer |
+
+The admin is seeded from `Identity:SeedAdmin` **only when the user store is
+empty**. The `testuser` viewer is a dev-only convenience for the E2E gate — the
+dev compose sets `Identity__SeedTestViewer=true`; production never does.
 
 > All default passwords and connection strings are in [CREDENTIALS.md](CREDENTIALS.md).
 
@@ -82,53 +90,49 @@ Navigate to **https://assethub.local:7252** and sign in:
 
 ## Features
 
+AssetHub is deliberately scoped to five things and does them well: **assets**,
+**collections**, **metadata & search**, **access control**, and **sharing**.
+
 **Asset Management**
 - Drag-and-drop upload with multi-collection organisation
-- Faceted search — Postgres `tsvector` full-text over title, description and tags with live facet counts (asset type, collection, tags, status)
-- Video poster extraction via ffmpeg with inline playback
-- Download collections or shared content as zip archives
-- Auto-generated thumbnails, previews, and video posters
+- Auto-generated thumbnails, medium renditions, and video poster frames
+  (ImageMagick + ffmpeg, running in-process)
+- Faceted search — Postgres `tsvector` full-text over title, description and tags
+  with live facet counts (asset type, collection, tags, status)
+- Inline video playback and image/document preview
+- Download originals, or download a whole collection or shared bundle as a ZIP archive
 
 **Access Control & Sharing**
-- Per-collection RBAC — Viewer, Contributor, Manager, Admin (system admins bypass all ACLs)
-- Password-protected, time-limited share links
-- Admin dashboard with user management, share admin, paginated audit log with filterable event types, and a Trash tab for restoring soft-deleted assets
+- Per-collection RBAC — Viewer, Contributor, Manager, Admin (system admins bypass
+  all ACLs). Collections are flat — a user's role on a collection is the direct
+  grant on it, nothing inherited
+- Password-protected, time-limited share links with public (no-login) share pages
+- Admin console with user management, share administration, a paginated audit log
+  with filterable event types, and a Trash tab for restoring soft-deleted assets
 
 **Lifecycle**
-- Soft-delete with restore — deleted assets land in Trash with a configurable retention window (default 30 days), then a background worker purges them permanently. An optimistic-undo snackbar in the asset grid and detail page makes single-click recovery the norm
-- Asset versioning — replacing an asset's bytes via the replace-file API captures a snapshot of the prior state, with a per-version change note. Restoring a prior version is reversible (the current state is auto-snapshotted first); admins can prune individual versions to free storage
+- Soft-delete with restore — deleted assets land in Trash with a configurable
+  retention window (default 30 days), then a background service purges them
+  permanently. An optimistic-undo snackbar in the asset grid and detail page makes
+  single-click recovery the norm
+- Asset versioning — replacing an asset's bytes captures a snapshot of the prior
+  state with a per-version change note. Restoring a prior version is reversible
+  (the current state is auto-snapshotted first); admins can prune individual
+  versions to free storage
 
-**Notifications**
-- In-app notification bell with unread-count badge, a full `/notifications` page with All/Unread filter, and per-category preferences on `/account` (in-app on/off, email on/off, instant/daily/weekly cadence)
-- Instant email delivery — notifications publish a Wolverine command that the worker picks up and sends via `IEmailService`, so the API stays fast and SMTP retries are handled by the message queue
-- One-click email unsubscribe — signed stateless tokens (ASP.NET Core Data Protection) embedded in every email link; the anonymous unsubscribe endpoint flips just that category without needing the user to sign in
-
-**Collaboration**
-- Asset comments with single-level threading, optimistic UI delete + rollback, and author-only edit / author-or-admin delete semantics
-- Server-side `@username` parsing turns every mention into a notification — the recipient sees it in their bell and gets an email through the notification pipeline, all within the same pass
-- Optional publishing workflow — `Draft → In Review → Approved → Published` state machine with required-metadata gating on "submit for review", author-bound submits, and Manager+ approve/publish. Configurable share-policy gate blocks external sharing of unapproved assets when enabled
-- Dedicated Review section for Manager+ — a scoped pending-review queue (managers see their areas; admins see everything, with manager-less areas flagged as unassigned) and a decisions history, with inline approve and a required-reason reject dialog that reaches the author and the audit trail
-
-**Integrations**
-- Outbound webhooks — admins subscribe HTTPS endpoints to event types (comment created, workflow state changed, share created, asset restored, more). AssetHub POSTs a signed JSON envelope (`X-AssetHub-Signature: sha256=…` HMAC) and retries transient failures via the message queue. Plaintext signing secrets are shown once at create and rotation, encrypted at rest via Data Protection
-- Admin UI lists subscriptions with one-click test events, secret rotation, and a recent-deliveries panel showing per-attempt status and last error
-
-**Branding**
-- Per-collection brand portals — admins create `Brand` records with a logo + primary/secondary colours; mark one as default for a global look or assign per collection. Public share pages render the matching brand on top of the MudBlazor theme via CSS-variable overrides
-- Logos uploaded as PNG / JPEG / SVG / WebP up to 1 MB, served via 24-hour presigned MinIO URLs
-
-**Guest access**
-
-**Security**
-- ClamAV malware scanning on every upload
-- Forensic watermarking — opt-in per collection, asset, or share. Every download embeds two steganographic layers (asset fingerprint + per-recipient token) via DCT-domain LSB modulation. An admin verify page (`/admin/watermarks/verify`) resolves a leaked file back to recipient, share, asset, and timestamp. Recipient PII is encrypted at rest via Data Protection; the audit log records only opaque tokens
+**Security & Operations**
+- Optional ClamAV malware scanning on every upload (content-type allowlist →
+  magic-byte check → scan → size limits)
+- Full audit trail for every action, with configurable per-event retention
 - Container hardening with Docker secrets, network segmentation, and security headers
-- Full audit trail for every action
+- Optional OpenTelemetry tracing/metrics/logs via the Aspire Dashboard
 
 **Developer Experience**
-- Clean Architecture with interface-driven services — swap any component
-- A deliberately tiny HTTP surface (`/api/v1/`) — 13 endpoints that deliver media bytes or report ZIP progress. Everything else the UI needs it calls in-process.
-- OpenTelemetry observability with Aspire Dashboard
+- Clean Architecture with interface-driven services — swap any external component
+- A deliberately tiny HTTP surface (`/api/v1/`) — 13 endpoints that deliver media
+  bytes or report ZIP progress. Everything else the UI needs it calls in-process
+- Single-instance, single-process: no message broker, no separate worker, no
+  external cache to operate
 - Localisation — Swedish and English, extensible via `.resx` files
 - Accessibility — skip-to-content, ARIA labels, keyboard navigation, responsive viewports
 
@@ -194,20 +198,27 @@ Navigate to **https://assethub.local:7252** and sign in:
 
 ## Architecture
 
-AssetHub follows **Clean Architecture** with strict dependency rules. Every external service is abstracted behind an interface.
+AssetHub follows **Clean Architecture** with strict dependency rules, and runs as
+a **single process**. Every external service is abstracted behind an interface.
 
 ```
-Domain  ←  Application  ←  Infrastructure  ←  Api / Worker
-                ↑                                ↑
-                Ui (Razor Class Library) ────────┘
+Domain  ←  Application  ←  Infrastructure  ←  Api
+                ↑                              ↑
+                Ui (Razor Class Library) ──────┘
 ```
 
 | Project | Purpose |
 |---------|---------|
 | `AssetHub.Domain` | Entities, enums — zero dependencies |
-| `AssetHub.Application` | Service interfaces, DTOs, constants, business rules |
-| `AssetHub.Api` | The single composition root — Blazor host, auth, DI wiring, background jobs, and the 13 media/ZIP endpoints |
+| `AssetHub.Application` | Service interfaces, DTOs, constants, business rules, messages |
+| `AssetHub.Infrastructure` | EF Core, MinIO, SMTP, ClamAV, local Identity implementations |
+| `AssetHub.Api` | The single composition root — Blazor host, auth, DI wiring, in-process message handlers, background jobs, and the 13 media/ZIP endpoints |
 | `AssetHub.Ui` | Blazor Server components and pages (Razor Class Library) |
+
+Background work (media processing, ZIP building, retention sweeps) runs inside the
+Api on an **in-process channel bus** (`System.Threading.Channels`). Durability
+comes from a transactional **outbox** table plus a stuck-Processing reaper, not
+from an external broker.
 
 > Full architecture diagram, layer details, and resilience patterns in **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**.
 
@@ -223,11 +234,13 @@ Every external dependency can be swapped by implementing a clean interface:
 | Database | PostgreSQL 16 | EF Core + Npgsql | SQL Server* |
 | Email | SMTP (Mailpit in dev) | `IEmailService` | SendGrid, AWS SES |
 | Malware Scan | ClamAV (clamd TCP) | `IMalwareScannerService` | Any scanner SDK |
-| Messaging | Wolverine 5 + RabbitMQ 4 | Wolverine command/event bus | MassTransit, NServiceBus |
 | Tracing | Aspire Dashboard (OTLP) | OpenTelemetry | Jaeger, Datadog, Grafana |
-| Cache | Redis 7 + HybridCache | `IDistributedCache` / `HybridCache` | Memcached, NCache |
 
 <sub>*SQL Server requires migration rework for JSONB/pg_trgm features.</sub>
+
+Messaging and caching are intentionally **not** in this table: the reshape removed
+RabbitMQ/Wolverine (in-process `Channels` now) and Redis (in-memory `HybridCache`
+now), so there is no external broker or cache to swap.
 
 > Interface definitions and replacement guides in **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md#modular-components)**.
 
@@ -237,11 +250,11 @@ Every external dependency can be swapped by implementing a clean interface:
 
 | Category | Implementation |
 |----------|---------------|
-| **Authentication** | Local ASP.NET Core Identity — cookie sign-in via the app's own form, JWT bearer for service callers |
+| **Authentication** | Local ASP.NET Core Identity — cookie sign-in via the app's own form. Host-scoped (`__Host-`) cookies, SameSite=Strict, HttpOnly |
 | **Authorization** | Per-collection RBAC — Viewer, Contributor, Manager, Admin roles |
 | **Rate Limiting** | Per-user, SignalR, anonymous shares, password brute-force protection |
-| **Upload Security** | Content-type allowlist → magic byte check → ClamAV scan → size limits |
-| **Data Protection** | Share tokens and passwords encrypted at rest via ASP.NET Data Protection. PATs stored as SHA-256 hashes only; plaintext revealed once on creation |
+| **Upload Security** | Content-type allowlist → magic byte check → optional ClamAV scan → size limits |
+| **Data Protection** | Share tokens and passwords encrypted at rest via ASP.NET Data Protection. Password-reset links are single-use, expiring, and never logged |
 | **Containers** | `cap_drop: ALL`, `no-new-privileges`, non-root users, read-only filesystems |
 | **Secrets** | Docker secrets for all production credentials (file-based, not env vars) |
 | **Network** | Isolated Docker networks for backend and observability services |
@@ -254,7 +267,8 @@ Every external dependency can be swapped by implementing a clean interface:
 
 ## Deployment
 
-The production stack runs via Docker Compose with hardened containers, resource limits, and internal-only networking.
+The production stack runs via Docker Compose with hardened containers, resource
+limits, and internal-only networking.
 
 ```bash
 cp .env.template .env          # Configure secrets and domains
@@ -263,10 +277,7 @@ cp .env.template .env          # Configure secrets and domains
 docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
-
 > **[DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)** — complete production deployment guide.
-
-> **[THIRD-PARTY-LICENSES.md](docs/operations/THIRD-PARTY-LICENSES.md)** — license constraints to audit before deploying. Currently QuestPDF (analytics PDF export) is Community-licensed and free for organisations under $1M USD revenue; deployers above that threshold must purchase a license, swap the renderer, or disable the PDF export feature.
 
 ---
 
@@ -276,17 +287,19 @@ docker compose -f docker/docker-compose.prod.yml up -d
 |-------|-----------|-------|
 | Unit + Integration | xUnit, Testcontainers, Moq | Repositories, endpoints, services, edge cases |
 | Blazor Components | bUnit | Dialogs, grids, helpers |
-| End-to-End | Playwright (TypeScript) | Auth, CRUD, shares, admin, accessibility |
+| End-to-End | Playwright (TypeScript) | Auth, collections, assets, shares, admin, accessibility |
 
 ```bash
 # .NET tests (unit + integration + bUnit)
 dotnet test --configuration Release
 
-# E2E tests (requires app running)
+# E2E tests (requires the stack running)
 cd tests/E2E && npx playwright test
 ```
 
-787 test methods across 57 .NET test files + 15 E2E specs (Chromium, Firefox, WebKit, mobile).
+The E2E suite is **self-seeding** — its journeys create the collections and assets
+they need, and both the admin and `testuser` viewer are seeded from an empty
+database, so the gate runs from nothing with no hand-provisioned data.
 
 ---
 
@@ -294,31 +307,15 @@ cd tests/E2E && npx playwright test
 
 | Layer | Technology |
 |-------|------------|
-| Backend | ASP.NET Core 9, C# 13 |
+| Backend | ASP.NET Core (.NET 10), C# 14 |
 | UI | Blazor Server, MudBlazor 8 |
-| Database | PostgreSQL 16, EF Core 9 |
+| Database | PostgreSQL 16, EF Core 10 (Npgsql) |
 | Storage | MinIO (S3 API) |
-| Messaging | Wolverine + RabbitMQ |
-| Security | ClamAV, ASP.NET Data Protection |
-| Observability | OpenTelemetry, Aspire Dashboard |
+| Messaging | In-process `System.Threading.Channels` + transactional outbox |
+| Caching | `HybridCache`, in-memory only |
+| Security | ClamAV (optional), ASP.NET Data Protection |
+| Observability | OpenTelemetry, Aspire Dashboard (optional) |
 | Containerisation | Docker Compose |
-
----
-
-## Project Status
-
-**Production-ready** — all core features implemented and tested. Builds with zero errors and zero warnings.
-
-**Recent additions:**
-- ~~Forensic watermarking~~ ✓ — two-layer DCT-LSB attribution with admin verify page
-
-**Roadmap:**
-- Office document preview (Word, Excel, PowerPoint)
-- Video transcoding (HLS/DASH adaptive streaming)
-- AI-powered auto-tagging and visual search
-- Brand portal and public distribution
-
-> See **[ROADMAP.md](docs/planned-features/ROADMAP.md)** for the full tiered roadmap.
 
 ---
 
@@ -329,15 +326,15 @@ cd tests/E2E && npx playwright test
 | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) | System design, layer dependencies, modular interfaces, resilience patterns |
 | [SECURITY.md](docs/security/SECURITY.md) | Auth, RBAC, rate limiting, upload security, container hardening, audit |
 | [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) | Production setup, certificates, CI/CD, monitoring, backups, troubleshooting |
-| [ROADMAP.md](docs/planned-features/ROADMAP.md) | Tiered feature roadmap with commercial-parity analysis |
-| [CREDENTIALS.md](CREDENTIALS.md) | Default passwords, OAuth config, connection strings |
+| [CREDENTIALS.md](CREDENTIALS.md) | Default passwords and connection strings |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, code style, PR guidelines |
 
 ---
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR guidelines.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development
+setup, code style, and PR guidelines.
 
 ---
 

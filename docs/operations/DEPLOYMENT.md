@@ -14,7 +14,6 @@ This guide covers development setup, production deployment, container infrastruc
 - [Production Deployment](#production-deployment)
   - [Minimal Production Stack](#minimal-production-stack)
   - [Reverse Proxy Setup](#reverse-proxy-setup)
-  - [Initial Keycloak Configuration](#initial-keycloak-configuration)
   - [MinIO Setup](#minio-setup)
   - [Security Checklist](#security-checklist)
   - [Resource Limits](#resource-limits)
@@ -35,7 +34,7 @@ This guide covers development setup, production deployment, container infrastruc
 git clone <repository-url>
 cd AssetHub
 
-# Add hostnames to hosts file (required for OIDC same-site cookies)
+# Add the hostname to your hosts file (auth cookies are host-scoped to assethub.local)
 # Windows: Add to C:\Windows\System32\drivers\etc\hosts
 # Linux/Mac: Add to /etc/hosts
 # 127.0.0.1 assethub.local
@@ -45,14 +44,18 @@ docker compose up --build   # 3 essential services (app, postgres, minio)
 # CLAMAV_ENABLED=true docker compose --profile full up --build
 ```
 
-Open https://assethub.local:7252 and log in:
+Open https://assethub.local:7252 and log in with a local account (ASP.NET Core Identity):
 
 | User | Password | Role |
 |------|----------|------|
-| `mediaadmin` | `mediaadmin123` | Admin |
-| `testuser` | `testuser123` | Viewer |
+| `admin` | set via `IDENTITY_ADMIN_PASSWORD` in `.env` | Admin |
+| `testuser` | set via `TEST_VIEWER_PASSWORD` in `.env` (dev only) | Viewer |
 
-See [CREDENTIALS.md](../CREDENTIALS.md) for all default passwords, OAuth config, and connection strings.
+The admin is seeded from `Identity:SeedAdmin` only against an empty user store; the
+`testuser` viewer is seeded only when `Identity__SeedTestViewer=true` (the dev
+compose sets it; production never does).
+
+See [CREDENTIALS.md](../CREDENTIALS.md) for all default passwords and connection strings.
 
 ---
 
@@ -78,7 +81,7 @@ See [CREDENTIALS.md](../CREDENTIALS.md) for all default passwords, OAuth config,
 
 ### Production Network Requirements
 
-- **Public DNS**: Two hostnames pointing to your server (e.g., `assethub.example.com`, `keycloak.example.com`)
+- **Public DNS**: One hostname pointing to your server (e.g., `assethub.example.com`)
 - **Ports**: 80 (HTTP redirect), 443 (HTTPS) — all other ports internal only
 - **TLS Certificates**: From a trusted CA or Let's Encrypt
 
@@ -101,9 +104,9 @@ mkdir -p certs
 openssl req -x509 -newkey rsa:4096 -sha256 -days 365 \
   -nodes -keyout certs/dev-cert.key -out certs/dev-cert.crt \
   -subj "/CN=assethub.local" \
-  -addext "subjectAltName=DNS:localhost,DNS:assethub.local,DNS:api,DNS:api.assethub.local,DNS:keycloak,DNS:keycloak.assethub.local,IP:127.0.0.1"
+  -addext "subjectAltName=DNS:localhost,DNS:assethub.local,DNS:api,DNS:api.assethub.local,IP:127.0.0.1"
 
-# Convert to PFX format (required by Kestrel and Keycloak)
+# Convert to PFX format (required by Kestrel)
 openssl pkcs12 -export -out certs/dev-cert.pfx \
   -inkey certs/dev-cert.key -in certs/dev-cert.crt \
   -passout pass:DevCertPassword123
@@ -116,7 +119,7 @@ dotnet dev-certs https --trust
 dotnet dev-certs https -ep certs/dev-cert.pfx -p DevCertPassword123
 ```
 
-> **Note:** The .NET dev-certs option only covers `localhost`. For Keycloak integration with proper hostname validation, use the OpenSSL method.
+> **Note:** The .NET dev-certs option only covers `localhost`. For the `assethub.local` hostname the app expects, use the OpenSSL method.
 
 #### Trust the Certificate
 
@@ -141,7 +144,6 @@ sudo update-ca-certificates
 Set the certificate password in your `.env` file:
 
 ```dotenv
-KC_HTTPS_KEY_STORE_PASSWORD=DevCertPassword123
 ASPNETCORE_Kestrel__Certificates__Default__Password=DevCertPassword123
 ```
 
@@ -154,8 +156,6 @@ ASPNETCORE_Kestrel__Certificates__Default__Password=DevCertPassword123
 
 ```
 127.0.0.1 assethub.local
-127.0.0.1 keycloak.assethub.local
-127.0.0.1 keycloak
 ```
 
 ### Production Certificates
@@ -211,20 +211,24 @@ Update `docker-compose.prod.yml` to mount the certificate and set the password i
 
 ## Container Reference
 
-| Container | Purpose | Internal Port | Dev Exposed | Prod Exposed | Swappable? |
-|-----------|---------|--------------|-------------|--------------|------------|
-| `assethub-api` | ASP.NET Core API + Blazor UI | 7252 | 127.0.0.1:7252 | 127.0.0.1:7252 | — (core) |
-| `assethub-postgres` | Primary database (EF Core) | 5432 | 127.0.0.1:5432 | not exposed | Any PostgreSQL instance |
-| `assethub-rabbitmq` | Message broker (Wolverine commands/events) | 5672 / 15672 | 127.0.0.1:5672, :15672 | not exposed | Any AMQP 0-9-1 broker |
-| `assethub-minio` | S3-compatible object storage | 9000 / 9001 | 127.0.0.1:9000, :9001 | not exposed | AWS S3 or any S3-compatible store |
-| `assethub-keycloak` | OIDC identity provider + Admin API | 8080 / 8443 | 127.0.0.1:8080, :8443 | not exposed | Requires adapter rewrites (see note) |
-| `assethub-clamav` | Malware scanning (clamd TCP) | 3310 | not exposed | not exposed | Set `ClamAV__Enabled=false` to disable |
-| `assethub-aspire-dashboard` | Traces, metrics, and structured logs (OTLP) | 18888 / 18889 | 127.0.0.1:18888 | not exposed | Any OTLP-compatible backend |
-| `assethub-redis` | Distributed cache (L2) + SignalR backplane | 6379 | 127.0.0.1:6379 | not exposed | Any Redis 7+ or managed Redis service |
-| `assethub-mailpit` | Dev email capture (dev only) | 8025 / 1025 | 127.0.0.1:8025, :1025 | not present | Configure `Email__*` for any SMTP relay |
+The default `docker compose up` starts the three **essential** services. ClamAV,
+Mailpit, and the Aspire Dashboard are **optional**, gated behind the `full`
+compose profile.
 
-> **Keycloak note:** OIDC authentication is standard and works with any compliant provider. However, the application also calls the Keycloak Admin REST API for user management. Swapping Keycloak for Azure AD, Okta, or Auth0 requires new implementations of `IKeycloakUserService` and `IUserLookupService`.
->
+| Container | Purpose | Internal Port | Profile | Dev Exposed | Prod Exposed | Swappable? |
+|-----------|---------|--------------|---------|-------------|--------------|------------|
+| `assethub-api` | ASP.NET Core API + Blazor UI (single process — hosts all background work) | 7252 | essential | 127.0.0.1:7252 | 127.0.0.1:7252 | — (core) |
+| `assethub-postgres` | Primary database (EF Core) | 5432 | essential | 127.0.0.1:5432 | not exposed | Any PostgreSQL instance |
+| `assethub-minio` | S3-compatible object storage | 9000 / 9001 | essential | 127.0.0.1:9000, :9001 | not exposed | AWS S3 or any S3-compatible store |
+| `assethub-clamav` | Malware scanning (clamd TCP) | 3310 | `full` | not exposed | not exposed | Set `ClamAV__Enabled=false` to disable |
+| `assethub-mailpit` | Dev email capture | 8025 / 1025 | `full` | 127.0.0.1:8025, :1025 | not present | Configure `Email__*` for any SMTP relay |
+| `assethub-aspire-dashboard` | Traces, metrics, and structured logs (OTLP) | 18888 / 18889 | `full` | 127.0.0.1:18888 | not exposed | Any OTLP-compatible backend |
+
+There is **no** message broker, cache, or identity-provider container: messaging is
+in-process (`System.Threading.Channels`), caching is in-memory (`HybridCache`), and
+authentication is local ASP.NET Core Identity. The reshape removed RabbitMQ, Redis,
+Keycloak, and the separate Worker.
+
 > **Database note:** EF Core uses the Npgsql provider (PostgreSQL). Switching to SQL Server requires changing the provider and regenerating migrations.
 
 ### Minimal Production Stack
@@ -237,7 +241,7 @@ The compose stack is modular — point individual services at existing corporate
 | **MinIO / S3** | `MinIO__Endpoint`, `MinIO__AccessKey`, `MinIO__SecretKey`, `MinIO__UseSSL`, `MinIO__PublicUrl` | MinIO SDK is S3-compatible. `PublicUrl` is the endpoint browsers use for presigned URLs. |
 | **ClamAV** | `ClamAV__Enabled` | Set to `false` to skip malware scanning. |
 
-> Both the API and the Worker are required for a functional deployment.
+> The API is the only application process — background work (media processing, ZIP building, retention sweeps) runs inside it. There is no separate Worker to deploy.
 
 ---
 
@@ -252,26 +256,25 @@ curl http://localhost:7252/health/ready   # Wait for "Healthy"
 The production compose file includes:
 - **Resource limits** — CPU, memory, and PID limits on every container (512 MB-1 GB memory, 100-200 PIDs)
 - **Internal-only networking** — No ports exposed except the API on `127.0.0.1:7252`
-- **Network segmentation** — Two isolated Docker networks: `backend` (data stores) and `observability` (monitoring). API/Worker bridge both.
-- **Health checks** with `start_period` for slow services (ClamAV: 5 min, Keycloak: 2 min)
+- **Network segmentation** — Two isolated Docker networks: `backend` (data stores) and `observability` (monitoring). The API bridges both.
+- **Health checks** with `start_period` for slow services (ClamAV: 5 min)
 - **`restart: unless-stopped`** on all services
 - **Container hardening** — cap_drop ALL, no-new-privileges, non-root users, read-only root filesystem, PID limits
 - **Log rotation** — `json-file` driver with 50 MB x 5 files on every container
-- **Keycloak production mode** — `KC_HOSTNAME_STRICT`, `KC_PROXY_HEADERS: xforwarded`, HTTPS required
-- **Docker secrets** — File-based secrets for all sensitive credentials (`postgres_password`, `keycloak_admin_password`, `keycloak_db_password`, `minio_root_password`, `keycloak_client_secret`). Services use `_FILE` suffix environment variables (e.g., `POSTGRES_PASSWORD_FILE`)
+- **Docker secrets** — File-based secrets for sensitive credentials (`postgres_password`, `minio_root_password`, and `dp_cert` — the Data Protection key-ring certificate). Services use `_FILE` suffix environment variables (e.g., `POSTGRES_PASSWORD_FILE`)
 
 ### Reverse Proxy Setup
 
 The production docker-compose does not include a reverse proxy. You must provide one externally. Ready-to-use configurations are included in the repository:
 
-- **Caddy** (recommended): `docker/reverse-proxy/caddy/Caddyfile` — automatic TLS via Let's Encrypt, WebSocket support for Blazor SignalR, Keycloak proxying, admin console IP restriction, security headers, 500 MB upload limit
-- **Nginx**: `docker/reverse-proxy/nginx/nginx.conf` — manual TLS setup, WebSocket upgrade for `/_blazor`, Keycloak proxying, admin IP restriction, security headers, 300s upload timeout
+- **Caddy** (recommended): `docker/reverse-proxy/caddy/Caddyfile` — automatic TLS via Let's Encrypt, WebSocket support for Blazor SignalR, admin console IP restriction, security headers, 500 MB upload limit
+- **Nginx**: `docker/reverse-proxy/nginx/nginx.conf` — manual TLS setup, WebSocket upgrade for `/_blazor`, admin IP restriction, security headers, 300s upload timeout
 
 #### Using the Caddy Config
 
 ```bash
 cp docker/reverse-proxy/caddy/Caddyfile /etc/caddy/Caddyfile
-# Edit hostnames: assethub.example.com, keycloak.example.com
+# Edit hostname: assethub.example.com
 # Edit admin IP restrictions
 caddy reload
 ```
@@ -287,40 +290,20 @@ ln -s /etc/nginx/sites-available/assethub /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
 
-### Initial Keycloak Configuration
+### Initial Admin Account
 
-After first startup:
+There is no external identity provider to configure — authentication is local
+ASP.NET Core Identity. On first startup against an **empty** database,
+`IdentitySeeder` creates the four roles and one bootstrap admin from
+`Identity:SeedAdmin` (`IDENTITY_ADMIN_USERNAME` / `IDENTITY_ADMIN_EMAIL` /
+`IDENTITY_ADMIN_PASSWORD` in `.env`). It runs only when the user store is empty and
+never overwrites an existing account, so set a strong `IDENTITY_ADMIN_PASSWORD`
+before the first start.
 
-#### 1. Rotate Admin Credentials
-
-Log into Keycloak admin console (`https://keycloak.example.com/admin`), click your username > **Manage account** > **Signing in**, and change the password immediately.
-
-#### 2. Verify Realm Import
-
-The `media` realm is auto-imported on first startup:
-1. Switch to the **media** realm (dropdown in top-left)
-2. Verify **Clients** > `assethub-app` exists
-3. Verify **Users** > `mediaadmin` and `testuser` exist
-4. Update user passwords if using default values
-
-#### 3. Create Admin Service Account (Recommended)
-
-For the application to manage users via Keycloak Admin API:
-
-1. **Clients** > **Create client** > Client ID: `assethub-admin`
-2. Enable **Client authentication** and **Service accounts roles**
-3. **Save** > **Credentials** tab > Copy the **Client secret**
-4. **Service accounts roles** > **Assign role** > Filter by `realm-management` > Assign: `manage-users`, `view-users`, `query-users`
-5. Update `.env`:
-   ```dotenv
-   KEYCLOAK_ADMIN_CLIENT_ID=assethub-admin
-   KEYCLOAK_ADMIN_CLIENT_SECRET=<copied-secret>
-   ```
-
-#### 4. Configure Password Policies
-
-In **Realm settings** > **Authentication** > **Policies**:
-- Minimum length: 12, Special characters: 1, Uppercase: 1, Digits: 1, Password history: 5
+After first login, sign in as the admin and create the rest of your users from the
+admin console (`/admin`). Password policy (minimum length, complexity, lockout)
+lives under the `Identity` settings section in `appsettings.json` — see
+[CREDENTIALS.md](../CREDENTIALS.md).
 
 ### MinIO Setup
 
@@ -347,14 +330,11 @@ Before going live, verify:
 
 - [ ] All `REPLACE_ME` values in `.env` replaced with strong, unique passwords
 - [ ] `.env` file permissions restricted: `chmod 600 .env`
-- [ ] `REDIS_PASSWORD` set to a strong, unique value (not the dev default)
+- [ ] `IDENTITY_ADMIN_PASSWORD` set to a strong, unique value before first start
 - [ ] HTTPS working on all public endpoints
 - [ ] HTTP automatically redirects to HTTPS
-- [ ] Keycloak admin password changed from initial bootstrap value
 - [ ] MinIO Console port (9001) not exposed externally
 - [ ] PostgreSQL port (5432) not exposed externally
-- [ ] Redis port (6379) not exposed externally (internal network only)
-- [ ] Keycloak port (8080) only exposed via reverse proxy
 - [ ] Firewall configured (only ports 80/443 open to public)
 - [ ] Backup script configured and tested
 - [ ] Backup restore procedure tested
@@ -370,11 +350,9 @@ Production docker-compose memory limits:
 |---------|--------------|
 | PostgreSQL | 512 MB |
 | MinIO | 512 MB |
-| Keycloak | 768 MB |
 | API | 1 GB |
-| Worker | 1 GB |
-| ClamAV | 1 GB |
-| Redis | 256 MB (200 MB maxmemory) |
+| ClamAV | 3 GB |
+| Aspire Dashboard | 256 MB |
 
 Adjust in `docker-compose.prod.yml`:
 ```yaml
@@ -384,74 +362,29 @@ deploy:
       memory: 2G
 ```
 
-### Redis Configuration
+### Caching
 
-Redis is configured as a **pure ephemeral cache** (no persistence) with the following server-side settings:
+Caching is entirely in-memory (`HybridCache` — an L1 `IMemoryCache` plus an
+in-memory L2 via `AddDistributedMemoryCache`). There is no Redis to deploy, secure,
+or monitor. Authorization decisions are never cached; they always hit the database.
 
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| `requirepass` | `${REDIS_PASSWORD}` | Authentication — prevents unauthorized access |
-| `maxmemory` | `200mb` | Caps memory usage below the 256 MB container limit |
-| `maxmemory-policy` | `allkeys-lru` | Evicts least-recently-used keys when memory is full |
-| `save ""` | (disabled) | No RDB snapshots — data is ephemeral |
-| `appendonly no` | (disabled) | No AOF log — data is ephemeral |
+### Single-Instance Design
 
-The application gracefully handles Redis unavailability by falling back to in-memory caching. Authorization decisions are **never cached in Redis** — they always hit the database.
-
-### High Availability (HA) Production Considerations
-
-The default Docker Compose setup runs a single instance of each service. For production environments requiring high availability, consider the following.
-
-#### Redis HA
-
-The single-instance Redis in `docker-compose.prod.yml` is sufficient for small-to-medium deployments because:
-- AssetHub treats Redis as a **pure cache** (no persistence, no critical state)
-- If Redis goes down, the app falls back to per-instance in-memory caching (L1 only)
-- Cache misses cause extra database queries but no data loss or functional failures
-
-For larger deployments where cache availability matters:
-
-1. **Redis Sentinel** (recommended for most HA needs)
-   - Deploy 1 primary + 2 replicas + 3 Sentinel instances
-   - Provides automatic failover (typically < 30 seconds)
-   - Update connection string: `redis-sentinel:26379,serviceName=mymaster,password=...`
-   - StackExchange.Redis supports Sentinel natively
-
-2. **Redis Cluster** (for very large datasets)
-   - Shards data across multiple nodes for horizontal scaling
-   - More complex to operate — only needed if cache data exceeds single-node memory
-   - Requires `StackExchange.Redis` cluster-aware configuration
-
-3. **Managed Redis** (simplest HA path)
-   - AWS ElastiCache, Azure Cache for Redis, or GCP Memorystore
-   - Handles replication, failover, patching, and monitoring automatically
-   - Update `Redis__ConnectionString` to point to the managed endpoint
-   - Enable TLS in the connection string: `managed-redis.example.com:6380,ssl=true,password=...`
-
-#### TLS for Redis
-
-Within a single-host Docker network, unencrypted Redis traffic is acceptable (network-isolated). For multi-host or cloud deployments:
-
-- **Managed Redis**: Enable the provider's TLS option and add `ssl=true` to the connection string
-- **Self-hosted**: Configure Redis with `tls-port`, `tls-cert-file`, and `tls-key-file`, or use a sidecar proxy (stunnel, envoy)
-- **Connection string**: `redis:6380,ssl=true,password=...,abortConnect=false`
-
-#### Scaling the Application
+AssetHub runs as a **single application instance**. Horizontal scaling of the app
+is deliberately out of scope: the message bus (`System.Threading.Channels`), the
+cache (`HybridCache`), and the Blazor SignalR circuit are all in-process, so a
+second replica would not share state with the first. Scale the app **vertically**
+(more CPU/RAM on the one API container); scale the data tier independently:
 
 | Component | Scaling Strategy |
 |-----------|-----------------|
-| **API** | Run multiple replicas behind a load balancer. Redis already serves as the SignalR backplane and shared L2 cache. |
-| **Worker** | Run multiple replicas. Wolverine + RabbitMQ coordinate job distribution — no conflicts with competing consumers. |
 | **PostgreSQL** | Use managed PostgreSQL (RDS, Cloud SQL) with read replicas, or Patroni for self-hosted HA. |
 | **MinIO** | Use distributed MinIO (multi-node) or a managed S3-compatible service. |
-| **Keycloak** | Run multiple replicas behind a load balancer. Keycloak uses the shared PostgreSQL for session/state. |
 
-#### Monitoring in HA
+#### Monitoring
 
-- Set up alerts on the `/health/ready` endpoint — it checks PostgreSQL, MinIO, Keycloak, ClamAV, and Redis
-- Monitor Redis memory usage (`INFO memory`) — if `used_memory` approaches `maxmemory`, consider increasing the limit or reviewing cache TTLs
-- Monitor cache hit rates (`INFO stats` — `keyspace_hits` vs `keyspace_misses`) to validate caching effectiveness
-- Use the Aspire Dashboard (or a production OTLP backend like Grafana/Jaeger) for distributed tracing across replicas
+- Set up alerts on the `/health/ready` endpoint — it checks PostgreSQL and MinIO (and ClamAV when enabled).
+- Use the Aspire Dashboard (or a production OTLP backend like Grafana/Jaeger) for distributed tracing.
 
 ---
 
@@ -463,8 +396,7 @@ GitHub Actions runs on every push and pull request to `main` and `develop`:
 |-----|-------------|---------|
 | **build-and-test** | Restore, build (Release), run all .NET tests with Cobertura code coverage, upload results as artifacts | Every push and PR |
 | **security-audit** | `dotnet list package --vulnerable --include-transitive` — fails the build on known CVEs | Every push and PR |
-| **docker-build** | Builds API + Worker images, scans both with Trivy for CRITICAL/HIGH OS and library vulnerabilities. Requires build-and-test + security-audit to pass first. | Push to `main` only |
-| **infra-image-scan** | Builds patched RabbitMQ image and scans with Trivy. Requires build-and-test to pass first. | Push to `main` only |
+| **docker-build** | Builds the API image and scans it with Trivy for CRITICAL/HIGH OS and library vulnerabilities. Requires build-and-test + security-audit to pass first. | Push to `main` only |
 
 ---
 
@@ -484,15 +416,12 @@ Two test strategies in one project:
 - **Integration tests** (repositories, endpoints, edge cases) — run against **real PostgreSQL** via Testcontainers and use `WebApplicationFactory<Program>` for full API stack testing with a custom auth handler
 - **Unit tests** (services, helpers) — use Moq to isolate service logic from infrastructure
 
-Coverage across 33 test files:
-
-| Category | Files | What's Tested |
-|----------|-------|---------------|
-| Repositories | 5 | Asset, Collection, CollectionAcl, AssetCollection, Share CRUD |
-| Endpoints | 5 | Asset, Collection, Share, Admin, Dashboard API authorization and responses |
-| Services | 12 | Upload validation, deletion, shares, ACLs, ClamAV scanning, media processing, Keycloak, zip builds, dashboards, audit logging, external service resilience |
-| Edge cases | 6 | Authorization boundaries, ACL inheritance, concurrency, multi-collection access, smart deletion, security (rate limiting, CORS, header injection) |
-| Helpers | 2 | Input validation, file magic byte detection |
+Backend coverage spans repositories (Asset, Collection, CollectionAcl,
+AssetCollection, Share), the media/ZIP endpoints, the application services (upload
+validation, deletion, shares, ACLs, ClamAV scanning, media processing, zip builds,
+dashboards, audit logging, resilience), edge cases (authorization boundaries,
+concurrency, multi-collection access, smart deletion, security), and helpers
+(input validation, file magic-byte detection).
 
 ### Component Tests (`AssetHub.Ui.Tests`)
 
@@ -500,9 +429,9 @@ Coverage across 33 test files:
 dotnet test tests/AssetHub.Ui.Tests/
 ```
 
-20 test files covering:
-- **bUnit component tests** (17 files) — AssetGrid, AssetUpload, CollectionTree, CreateShareDialog, EditAssetDialog, ManageAccessDialog, AddToCollectionDialog, CreateCollectionDialog, LanguageSwitcher, EmptyState, BulkAssetActionsDialog, BulkCollectionActionsDialog, CreateUserDialog, DeleteAssetDialog, ShareInfoDialog, SharePasswordDialog, and more
-- **Unit tests** (3 files) — AssetDisplayHelpers, RolePermissions, UserFeedbackService
+bUnit component tests cover the grids, upload, collection tree, and the asset /
+collection / share / user dialogs, plus unit tests for the display helpers, role
+permissions, and the user-feedback service.
 
 ### E2E Tests (Playwright)
 
@@ -519,25 +448,21 @@ npm run test:headed   # Run with visible browser
 npm run test:ui       # Playwright UI mode
 ```
 
-15 spec files running against a full Docker Compose stack across 4 browser targets (Chromium, Firefox, WebKit, mobile Chrome):
+The specs run against a Docker Compose stack across multiple browser targets
+(Chromium, Firefox, WebKit, mobile Chrome). The journeys are **self-seeding** —
+they create the collections and assets they need rather than depending on
+pre-seeded data, and both the admin and `testuser` viewer are seeded from an empty
+database, so the gate runs from nothing:
 
 | Spec | Coverage |
 |------|----------|
-| `01-auth` | Keycloak OIDC login/logout flows |
-| `02-navigation` | Page routing, sidebar, breadcrumbs |
-| `03-collections` | Collection CRUD |
-| `04-assets` | Upload, preview, metadata editing |
-| `05-shares` | Share creation, password protection, public access |
-| `06-admin` | Admin panel operations, user management |
-| `07-all-assets` | Admin asset search and filtering |
-| `08-api` | Direct API endpoint testing |
-| `09-acl` | Per-collection role assignment and enforcement |
-| `10-viewer-role` | Viewer restrictions (no upload, no delete, no share) |
-| `11-edge-cases` | Boundary conditions and error handling |
+| `01-auth` | Local Identity login/logout flows |
+| `02-navigation` | Page routing, sidebar |
+| `03-collections` | Collection load and creation |
+| `10-viewer-role` | Viewer restrictions (no upload, no admin) |
 | `12-responsive-a11y` | Responsive layout, accessibility |
-| `13-workflows` | Multi-step user workflows |
+| `13-journeys` | Self-seeding collection + asset journeys |
 | `14-language` | Swedish/English localisation switching |
-| `15-ui-features` | Grid/list toggle, pagination, clipboard |
 
 ### Writing Tests
 
@@ -545,7 +470,7 @@ npm run test:ui       # Playwright UI mode
 - Place Blazor component tests in `tests/AssetHub.Ui.Tests/`
 - Place E2E tests in `tests/E2E/tests/specs/`
 - All new features should include appropriate test coverage
-- Total: 700+ .NET test methods across 53 test files + 15 E2E spec files (x4 browsers)
+- The suite runs roughly 700 .NET test methods plus the Playwright E2E specs across four browser targets.
 
 ---
 
@@ -555,21 +480,19 @@ npm run test:ui       # Playwright UI mode
 
 | Tool | URL | Purpose |
 |------|-----|---------|
-| Health check | https://assethub.local:7252/health | Readiness probe (PG + MinIO + Keycloak + ClamAV) |
-| Aspire Dashboard | http://localhost:18888 | Traces, metrics, and structured logs |
-| Keycloak Admin | https://keycloak.assethub.local:8443/admin | Users, sessions, clients |
+| Health check | https://assethub.local:7252/health | Readiness probe (PG + MinIO, and ClamAV when enabled) |
 | MinIO Console | http://localhost:9001 | Storage usage, buckets |
-| Mailpit | http://localhost:8025 | Email capture (dev only) |
+| Aspire Dashboard | http://localhost:18888 | Traces, metrics, and structured logs (`full` profile) |
+| Mailpit | http://localhost:8025 | Email capture (`full` profile) |
 
 ### Observability Architecture
 
 ```
-  AssetHub API    ──OTLP gRPC──> Aspire Dashboard (traces, metrics, logs)
-  AssetHub Worker ──OTLP gRPC──>        │
+  AssetHub API ──OTLP gRPC──> Aspire Dashboard (traces, metrics, logs)
                                    http://localhost:18888
 ```
 
-Both the API and Worker export traces and metrics to the .NET Aspire Dashboard via OTLP gRPC (`http://aspire-dashboard:18889`). The dashboard provides a built-in UI for viewing traces, metrics, and structured logs — no additional infrastructure required.
+The API exports traces and metrics to the .NET Aspire Dashboard via OTLP gRPC (`http://aspire-dashboard:18889`) when the `full` profile is running. The dashboard provides a built-in UI for viewing traces, metrics, and structured logs — no additional infrastructure required.
 
 ### OpenTelemetry Configuration
 
@@ -605,7 +528,6 @@ All settings under the `OpenTelemetry` section in `appsettings.json`:
 |---------|----------|-------------------|
 | API | `https://your-host:7252/health` | `Healthy` |
 | API (ready) | `https://your-host:7252/health/ready` | `Healthy` |
-| Keycloak | `https://keycloak:8443/health/ready` | `{"status": "UP"}` |
 | MinIO | `http://minio:9000/minio/health/live` | HTTP 200 |
 
 ---
@@ -614,7 +536,7 @@ All settings under the `OpenTelemetry` section in `appsettings.json`:
 
 ### Local Development (Outside Docker)
 
-Prerequisites: .NET 10 SDK, PostgreSQL 16, MinIO, Keycloak with the `media` realm.
+Prerequisites: .NET 10 SDK, PostgreSQL 16, MinIO.
 
 ```bash
 dotnet restore
@@ -655,7 +577,7 @@ Ready-to-use scripts are included in `docker/`:
 ./docker/restore.sh ./backups/20260314_120000
 ```
 
-The backup script dumps all PostgreSQL databases (which includes Keycloak data) and archives the MinIO `/data` volume. Both scripts validate that required containers are running before starting and provide clear progress output. The restore script extracts MinIO to a temp location before swapping, so a failed extraction won't leave you with an empty volume.
+The backup script dumps all PostgreSQL databases and archives the MinIO `/data` volume. Both scripts validate that required containers are running before starting and provide clear progress output. The restore script extracts MinIO to a temp location before swapping, so a failed extraction won't leave you with an empty volume.
 
 ### Manual Backup
 
@@ -678,9 +600,9 @@ mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
 mc mirror local/assethub-assets /path/to/backup/
 ```
 
-#### Keycloak
-
-Keycloak data is stored in PostgreSQL (in the `keycloak` database). It's included in the PostgreSQL backup above.
+> The PostgreSQL dump also contains the ASP.NET Data Protection key ring
+> (`DataProtectionKeys` table) and all user accounts, so the Postgres + MinIO
+> backup pair is a complete backup.
 
 ---
 
@@ -721,8 +643,8 @@ docker compose -f docker/docker-compose.prod.yml up -d --build
 
 | Symptom | Solution |
 |---------|----------|
-| App won't start | Check `docker compose logs assethub-api`. Usually PostgreSQL or Keycloak not ready yet. |
-| Can't log in | Add `127.0.0.1 assethub.local keycloak.assethub.local` to hosts file. Token issuer must match. |
+| App won't start | Check `docker compose logs assethub-api`. Usually PostgreSQL or MinIO not ready yet. |
+| Can't log in | Add `127.0.0.1 assethub.local` to your hosts file and browse to `https://assethub.local:7252` — the auth cookie is host-scoped to that name, so `localhost` won't hold a session. |
 | Uploads fail | Check MinIO console at http://localhost:9001. Bucket should be auto-created. |
 | Health check fails | Hit `/health/ready` to see which dependency is down. |
 | Certificate errors | Trust the self-signed certificate in your OS certificate store. See [Certificate Setup](#certificate-setup). |
@@ -734,15 +656,15 @@ docker compose -f docker/docker-compose.prod.yml up -d --build
 - **"The remote certificate is invalid"** — Certificate not trusted. Follow trust instructions in [Certificate Setup](#certificate-setup).
 - **"Certificate does not match hostname"** — Certificate SAN doesn't include the hostname. Regenerate with correct hostnames.
 
-### Keycloak Issues
+### Sign-in Issues
 
-- **"Issuer validation failed"** — `Keycloak:Authority` doesn't match the issuer in tokens. Ensure the URL matches exactly, including port.
-- **Token validation failures** — Check that the Keycloak realm and client configuration match the application settings.
+- **Redirected back to the login page** — the auth cookie is host-scoped (`__Host-`/`assethub.local`); make sure you're browsing over HTTPS to `assethub.local`, not `localhost`.
+- **No admin account** — the bootstrap admin seeds only against an empty user store. If the store already has users, no admin is created; sign in with an existing account or reset via the `Identity:SeedAdmin` path against a fresh database.
 
 ### Observability Issues
 
 - **No traces in Aspire Dashboard** — Check `OpenTelemetry:Enabled` and `OtlpEndpoint`. Low sampling ratio means many requests needed before a trace appears.
-- **Dashboard shows no data** — Verify the OTLP endpoint (`http://aspire-dashboard:18889`) is reachable from the API/Worker containers on the observability network.
+- **Dashboard shows no data** — Verify the OTLP endpoint (`http://aspire-dashboard:18889`) is reachable from the API container on the observability network, and that you started the stack with the `full` profile.
 
 ### Log Aggregation
 
@@ -763,11 +685,14 @@ ClamAV downloads virus definitions on first start (2-5 minutes). The container h
 
 ### Disabling
 
+ClamAV is **off by default** — it lives in the `full` compose profile and is only
+started when you pass `--profile full`, and scanning stays off unless
+`CLAMAV_ENABLED=true`. To run without it, simply use the default stack (`docker
+compose up`). To keep the scanner container but skip scanning:
+
 ```dotenv
 CLAMAV_ENABLED=false
 ```
-
-Remove or comment out the `clamav` service in docker-compose and the `depends_on` reference in the `api` service.
 
 ### Virus Definition Updates
 

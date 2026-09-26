@@ -2829,3 +2829,118 @@ contracts:
       INFRA NOTE: Docker crashed mid-verification (drift-001, now 13 occurrences)
       and left a stale api image, which briefly masked the seed as admin-only until
       a clean rebuild. Neither touched the code's correctness.
+
+  - contract_id: contract-031
+    feature: reshape-c17-docs-truth-pass
+    date_proposed: 2026-09-12
+    date_approved: 2026-09-12
+    follows: contract-030
+    tier_1: |
+      A developer or operator reads the project's documentation to understand or
+      deploy AssetHub. The docs actively lie about the architecture: they describe
+      RabbitMQ, Redis, a separate Worker process, Wolverine, and Keycloak as live
+      parts of the system - every one removed by this reshape (C12c, C13b/C19, C14).
+      DEPLOYMENT.md tells an operator to run services that no longer exist;
+      ARCHITECTURE.md diagrams a two-host system that is now one; CLAUDE.md - the
+      file an AI assistant loads first - describes a message broker and cache that
+      are gone.
+      They want the documentation to describe the system that actually exists, so
+      understanding it doesn't require reverse-engineering which docs are current.
+      Success: the human-facing docs match the code - single-instance, in-process
+      messaging, in-memory cache, local Identity, three-service default stack. No
+      doc describes a removed subsystem OR a removed feature as live.
+      Cost if absent: the docs are a trap. A newcomer following DEPLOYMENT.md
+      provisions dead infrastructure; an AI assistant loading CLAUDE.md reasons
+      about a broker that isn't there; the README advertises features that don't
+      exist. The reshape made the system legible; the docs still describe the old one.
+    tier_2: |
+      1. Read CLAUDE.md to understand the system. Every architectural claim matches
+         the code - in-process channel bus (not RabbitMQ), in-memory HybridCache
+         (not Redis L2), one composition root (not Api+Worker), Identity (not
+         Keycloak). Stale settings table, Background work, Caching, and messaging
+         sections corrected.
+      2. Read README/CONTRIBUTING to get started. Stack list, project layout, and
+         the Features section describe the current shape; no removed service and no
+         removed feature appears as live.
+      3. Read ARCHITECTURE.md. Host diagram, messaging section, service-interface
+         tables, and the Keycloak sections describe the current single-host,
+         in-process, Identity system.
+      4. Follow DEPLOYMENT.md to deploy. No instruction provisions RabbitMQ, Redis,
+         or a Worker; container table, login table, and resource plan match reality.
+      5. Read CREDENTIALS.md to log in. The default admin/viewer credentials and the
+         local-Identity model are correct; no defunct Keycloak realm/client/secret.
+      6. Clean the working files. The three root Claude-*.md scratch files are removed.
+      7. Failure to prevent: no doc left half-corrected - a doc either fully describes
+         the current system or is explicitly marked historical.
+    tier_3: |
+      - In scope, made fully truthful: CLAUDE.md, README.md, CONTRIBUTING.md,
+        ARCHITECTURE.md, DEPLOYMENT.md, CREDENTIALS.md (-> UC1-5).
+      - The three Claude-*.md working files deleted after a read (-> UC6).
+      - Explicitly deferred, named as such: .github/*.instructions.md (AI-tooling
+        guidance, ~13 files, separate audience) and docs/planned-features/ROADMAP.md
+        (forward-looking; stale refs are removed-feature plans). Point-in-time audits
+        stay as dated historical records. Manifest surgery (reshape plan's other C17
+        leg) is not in this contract.
+      - Documentation only. No code changes. Config/code residue found while reading
+        (RabbitMQ section + MassTransit Serilog override in appsettings.json;
+        pat.*/webhook.* audit-retention overrides) is REPORTED as a C13b/C14 residual
+        miss, not fixed here.
+      - Verified means: grep -icE "rabbitmq|wolverine|redis|keycloak|assethub.worker"
+        across the five in-scope docs returns only mentions that explicitly say
+        "removed by the reshape", the same for the removed-feature terms, and a skim
+        confirms the architecture and feature set described match the code.
+    status: implemented
+    implemented: 2026-09-12
+    revisions:
+      - date: 2026-09-12
+        authorized_by: owner
+        change: >-
+          Scope widened at implementation start from architecture/subsystem lies only
+          to BOTH axes - also correcting removed-FEATURE descriptions (notifications,
+          comments, workflow/review, webhooks, branding, guests, watermarking, PATs)
+          that the in-scope docs advertised as live. Discovered while reading the
+          files; the original Tier 1 named only the subsystem axis. Owner chose
+          "widen 031 to both axes" over deferring to a contract-032. Tier 1/2/3 above
+          reflect the widened scope as approved.
+    work_id: null
+    outcome: |
+      Six human-facing docs made truthful in one pass (both axes, per the authorized
+      widen): CLAUDE.md, README.md, CONTRIBUTING.md, ARCHITECTURE.md, DEPLOYMENT.md
+      (all tracked), plus CREDENTIALS.md (gitignored/local-only — rewritten locally;
+      its Keycloak client secret was never committed, so no repo leak). The three
+      Claude-*.md working files (gitignored) deleted. Verification grep clean: every
+      remaining rabbitmq/wolverine/redis/keycloak/worker and removed-feature mention
+      across the five tracked docs is explicitly historical or a current negative
+      ("removed by the reshape", "no Redis", "not RabbitMQ").
+
+      Ground truth used: five-feature identity (Assets, Collections, Metadata &
+      search, Access control, Sharing); 10 domain entities, 4 endpoint files; local
+      Identity; in-process channel bus + outbox + StuckProcessingReaperService;
+      in-memory HybridCache; dev creds admin (IDENTITY_ADMIN_PASSWORD) + testuser /
+      <TEST_VIEWER_PASSWORD>; prod compose = postgres/minio/api/clamav/aspire.
+
+      REPORTED, NOT FIXED (code/config residue outside this docs-only contract — a
+      C13b/C14/C015 residual-sweep miss for a follow-up code contract):
+        1. appsettings.json — dead `RabbitMQ` section + `MassTransit` Serilog
+           override + pat.*/webhook.* AuditRetention overrides.
+        2. .env.template — still Keycloak/RabbitMQ vars and MISSING
+           IDENTITY_ADMIN_PASSWORD (breaks fresh setup: admin seed throws). Highest
+           impact.
+        3. .github/workflows/ci.yml — `infra-image-scan` job builds/scans a RabbitMQ
+           image via docker/Dockerfile.RabbitMQ (both residual).
+        4. keycloak/ directory (realm import + email themes) still in repo, unused.
+        5. docker-compose.prod.yml — two orphaned "# Redis" comments.
+        6. docker/backup.sh — verify it no longer dumps a (nonexistent) keycloak DB.
+
+      DEFERRED, named in contract (still true, not lies about the live system):
+      .github/*.instructions.md (AI-tooling, separate audience), ROADMAP.md
+      (removed-feature plans), dated audits, and the manifest surgery leg of C17.
+      NEWLY FLAGGED as in-class: docs/security/SECURITY.md — README links to it and
+      it likely still describes Keycloak/PATs; recommend folding into a fast-follow.
+
+      Elevation candidates for the SER/meta-learning pass: (a) a truth pass scoped to
+      one axis (subsystems) can miss a second (removed features) — inventory both
+      axes before scoping; (b) a docs truth pass surfaces code/config residues that
+      earlier feature-cuts' sweeps missed (appsettings/env/ci/dirs) — the truth pass
+      doubles as a residual-audit and should feed a code cleanup contract.
+

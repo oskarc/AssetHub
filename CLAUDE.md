@@ -47,7 +47,7 @@ Layers:
 | **Domain** | Entities, enums — no base classes, no value objects, no domain events | Nothing |
 | **Application** | Service interfaces, repository interfaces, DTOs, `ServiceResult<T>`, configuration, messages | Domain |
 | **Infrastructure** | EF Core repos, service implementations, external adapters, Polly resilience | Application + Domain |
-| **Api** | The single composition root — DI, endpoint mapping, auth config, hosts Blazor Server, and runs every Wolverine handler and background job (see § Background work) | All |
+| **Api** | The single composition root — DI, endpoint mapping, auth config, hosts Blazor Server, and runs every in-process message handler and background job (see § Background work) | All |
 | **Ui** | Blazor Server (Razor Class Library) | Application only — never reference Infrastructure or Api |
 
 The dependency direction, the deliberately-omitted patterns, and how SOLID applies to this shape are the **`principle-clean-architecture-dotnet`** standard. AssetHub's concrete instantiation of it:
@@ -131,7 +131,7 @@ Primary constructors with `AssetHubDbContext`, `HybridCache`, `ILogger<T>`. Use 
 ### DI registration
 In `DependencyInjection/InfrastructureServiceExtensions.cs`:
 - `AddScoped<IRepo, Repo>()`, `AddScoped<IService, Service>()`.
-- Wolverine-handled services: register concrete first, then forward interface.
+- Services that are also invoked by a message handler: register the concrete class first, then forward the interface (`AddScoped<ISvc>(sp => sp.GetRequiredService<Svc>())`) so the handler and DI share one instance shape.
 
 ---
 
@@ -333,7 +333,7 @@ Design tokens, color palettes, typography scale, elevation, and information-arch
 No third-party libraries. Use scoped services, `CascadingAuthenticationState`, and `MudDialogService`.
 
 ### Caching
-**HybridCache** (L1 in-memory + L2 Redis) — not `IMemoryCache` or localStorage/sessionStorage.
+**HybridCache**, in-memory only (L1 `IMemoryCache` + an in-memory L2 via `AddDistributedMemoryCache` — no Redis; the app is single-instance) — not `IMemoryCache` directly or localStorage/sessionStorage.
 
 ### Error handling
 `IUserFeedbackService.ExecuteWithFeedbackAsync(...)` is the **default idiom** for every user-initiated backend call — it runs the operation, shows the localized error (or optional success) snackbar, and reports success/failure back to the page:
@@ -433,7 +433,7 @@ Pattern: **`Area_Context_Element`** in PascalCase with underscores (`Assets_Uplo
 
 Follows the **`pattern-hybrid-cache`** standard — the central key/TTL/tag registry, get-or-create with a short L1 under a longer L2, tag-based invalidation after every write, and the must-not-cache list (auth roles/ACLs → request-scoped instead; secrets; values with their own freshness contract). AssetHub specifics:
 
-- Tech: **HybridCache** (L1 in-memory + L2 Redis); all config centralized in `Application/CacheKeys.cs` (the registry — prefix const, `TimeSpan` TTL, builder method, optional `CacheKeys.Tags` entry per concern).
+- Tech: **HybridCache**, in-memory only — L1 `IMemoryCache` plus an in-memory L2 registered via `AddDistributedMemoryCache` (no Redis; the app is single-instance, so the "distributed" tier is process-local and exists only to satisfy HybridCache's two-tier shape). All config centralized in `Application/CacheKeys.cs` (the registry — prefix const, `TimeSpan` TTL, builder method, optional `CacheKeys.Tags` entry per concern).
 - Project-specific must-not-cache: presigned URLs are already minted with an expiry in `MinIOAdapter` — don't re-cache them.
 
 ```csharp
@@ -458,7 +458,7 @@ dotnet ef migrations add <PascalCaseName> --project src/AssetHub.Infrastructure 
 ```
 - Index names: `idx_{entity}_{fields}` (+ `_unique` for unique). JSONB columns: explicit `type: "jsonb"` + matching `ValueComparer` (see § DbContext configuration / `ModelConventions`).
 - `pg_trgm`: raw idempotent SQL, e.g. `CREATE INDEX IF NOT EXISTS idx_asset_title_trgm ON "Assets" USING gin ("Title" gin_trgm_ops);`.
-- Auto-migrates on startup (`Database.MigrateAsync()`); both Api and Worker run them, first to acquire the lock applies. The `PendingModelChangesWarning` guard (`AddSharedInfrastructure`) throws outside Development — don't downgrade it to quiet a startup error; generate the missing migration.
+- Auto-migrates on startup (`Database.MigrateAsync()`) in the single Api host — there is no second process to race for the lock. The `PendingModelChangesWarning` guard (`AddSharedInfrastructure`) throws outside Development — don't downgrade it to quiet a startup error; generate the missing migration.
 
 ---
 
@@ -468,27 +468,26 @@ There is **one composition root**. The separate `AssetHub.Worker` host was folde
 
 All background work lives here — the media/processing handlers (`process-image` / `process-video` / `process-audio` / `build-zip`), the completion consumers that transition an asset row, and every retention/cleanup `BackgroundService` (trash purge, audit retention, orphan sweeps, outbox drain, ZIP cleanup). New background work goes in the Api; there is nowhere else for it to go.
 
-Messages still travel through **RabbitMQ**, not an in-memory queue, even though publisher and consumer now share a process. That is deliberate: an in-flight message must survive a restart, and there is no reaper for an asset stuck in `Processing`. Swapping the transport is a separate decision with its own durability question (contract-020) — do not "simplify" it away as an obvious follow-on to the fold.
+Messages travel through an **in-process channel bus** (`IAppMessageBus` → `InProcessMessageBus`, an unbounded `System.Threading.Channels.Channel`), not RabbitMQ — the broker and the Worker were both removed by the reshape (contract-026 / C13b). Durability is provided in-app rather than by the transport, and this is the load-bearing part: (1) the **outbox** (`OutboxMessage` table + `IOutboxPublisher` + `OutboxDrainService`) records a message in the same SQL transaction as the state change and drains it to the bus, so a crash between commit and publish can't lose it; and (2) the **`StuckProcessingReaperService`** re-enqueues any asset left in `Processing` past 5 minutes, recovering an in-flight media message a restart dropped. Do not reintroduce a broker to "make messaging durable" — that question is already answered by the outbox + reaper.
 
 The handler/background-service conventions (placement by data ownership, per-item resilience in batch loops, scope-per-iteration, cancellation + level-based logging) are the **`implementation-worker-background`** standard. AssetHub specifics:
 
 ### Message handlers
-Wolverine auto-discovers public `HandleAsync()` methods in `Handlers/`:
+Handlers are plain classes in `Handlers/` with a public `HandleAsync(TCommand, CancellationToken)` returning `object[]` events. They are **not** auto-discovered — `MessageDispatcherService` (a `BackgroundService` reading the channel) routes each message to its handler through an **explicit `switch`** over the six message types, so the reader can see at a glance what handles what:
 ```csharp
 public sealed class ProcessImageHandler(
-    IMediaProcessingService mediaProcessingService,
+    ImageProcessingService imageProcessingService,
     ILogger<ProcessImageHandler> logger)
 {
     public async Task<object[]> HandleAsync(ProcessImageCommand command, CancellationToken ct)
     {
-        // Process, return events
-        return [new AssetProcessingCompletedEvent(command.AssetId)];
+        // Process, return events — the dispatcher re-publishes them to the channel
+        return [new AssetProcessingCompletedEvent { AssetId = command.AssetId, /* … */ }];
     }
 }
 ```
-- Commands/events defined in `Application/Messages/`.
-- Queues: `process-image`, `process-video`, `build-zip`. Auto-provisioned.
-- Auto-retry with exponential backoff (1s -> 2s -> 5s -> 10s -> 30s).
+- Commands/events defined in `Application/Messages/`; the six handlers are `Process{Image,Video,Audio}Handler`, `BuildZipHandler`, and the `AssetProcessingCompleted`/`Failed` completion handlers.
+- The dispatcher runs each message in its **own DI scope**, retries handler failures on a 1-2-5-10-30s cooldown, and after the last attempt drops the message with a logged error — media assets are then recovered by the stuck-Processing reaper, and a lost ZIP job is re-clickable. Adding a new message type means adding a `case` to the dispatcher's switch, not wiring a queue.
 - Background services use `BackgroundService` + `PeriodicTimer` with `IServiceScopeFactory` (scope per iteration).
 
 ---
@@ -516,8 +515,6 @@ Strongly-typed settings + validate-on-start for critical infra + the no-hardcode
 | `AppSettings` | `App` | Yes | Base URL, upload limits |
 | `IdentitySettings` | `Identity` | Yes | Password/lockout policy, bootstrap admin |
 | `MinIOSettings` | `MinIO` | Yes | Endpoint, bucket, credentials |
-| `RabbitMQSettings` | `RabbitMQ` | Yes | Host, port, credentials |
-| `RedisSettings` | `Redis` | No | Connection string (optional) |
 | `EmailSettings` | `Email` | No | SMTP config (optional) |
 | `ImageProcessingSettings` | `ImageProcessing` | No | Thumbnail/medium dimensions |
 | `OpenTelemetrySettings` | `OpenTelemetry` | No | OTLP endpoint, service name |
@@ -595,7 +592,7 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - Collection-scoped operations call `ICollectionAuthorizationService` before touching entity data.
 - Input DTOs apply `ValidationFilter<T>`.
 - Return via `.ToHttpResult(...)` — never manually inspect `IsSuccess`.
-- **Error shape is `ApiError`, not anonymous types.** When you can't route through `ServiceResult` (typically `IFormFile` parameter validation), return `Results.BadRequest(ApiError.BadRequest("…"))`. Never `Results.BadRequest(new { error = "…" })` — the anonymous shape doesn't match the OpenAPI schema and breaks SDK consumers.
+- **Error shape is `ApiError`, not anonymous types.** When you can't route through `ServiceResult` (typically `IFormFile` parameter validation), return `Results.BadRequest(ApiError.BadRequest("…"))`. Never `Results.BadRequest(new { error = "…" })` — the anonymous shape breaks the uniform `ApiError` contract every endpoint returns. (There is no OpenAPI document or SDK any more — the reshape removed both — but the internal error shape must still be consistent.)
 - No endpoint is marked public or added to an OpenAPI document — the curated public contract was removed by the 2026-08 reshape. Re-introducing one is a design decision, not a per-endpoint choice.
 
 ### When editing services / repositories (`src/AssetHub.Infrastructure/**`)
@@ -632,14 +629,14 @@ Short checklists that trigger by file type. Walk through the relevant block befo
 - `ct.ThrowIfCancellationRequested()` inside long loops; catch `OperationCanceledException` at the top level.
 - Use `IServiceScopeFactory` for scoped dependencies; one scope per iteration.
 - Log with counts at `Information` (start/summary), `Debug` (per-batch), `Warning` (per-item failures).
-- **No hardcoded credential defaults** — `?? "guest"` for RabbitMQ Username/Password is the regression we just fixed. Use `?? string.Empty`; `RabbitMQSettings.ValidateOnStart()` then catches missing config with a clear error. Same shape for any future config that maps to a default credential.
+- **No hardcoded credential defaults** — never `?? "guest"` / `?? "admin"` on a config-bound credential. Use `?? string.Empty` and let the settings class's `ValidateOnStart()` catch missing config with a clear error. (This was a real regression on the since-removed RabbitMQ settings; the rule stands for any config that maps to a credential — MinIO keys, SMTP auth, the Identity seed admin.)
 - **No empty `catch (OperationCanceledException) { }` blocks** — fill with `/* polling cancelled on dispose */` or similar one-liner so S108 doesn't fire and the intent is obvious to the next reader.
 
 ### Sonar suppression discipline
 
 The discipline — the four conditions for a legitimate suppression, smallest-scope, always-justified, and fix-the-code-when-the-behaviour-is-wrong — is the **`implementation-sonar-discipline`** standard. AssetHub's existing suppression clusters and their standing reasoning (so future-you doesn't relitigate them — a *new* cluster that matches none of these is a design smell, push back before suppressing):
 
-- **`S107` (too many params) on services / Wolverine handlers.** ~20 services. Composition-root shape; bundling into a holder relocates the count without solving anything. Always include the constant `Justification = "Composition root for X: ..."`.
+- **`S107` (too many params) on services / message handlers.** ~20 services. Composition-root shape; bundling into a holder relocates the count without solving anything. Always include the constant `Justification = "Composition root for X: ..."`.
 - **`S1200` (class coupled to too many others) on endpoint mappers / `AssetHubApiClient` / DI extensions.** Wiring is the point. Same pattern.
 - **`S4487` (unread private field) on Razor `_form` / `@ref` / parameter-bound fields.** False positive — Sonar's C# analyser doesn't follow Razor markup back to source. Apply `[SuppressMessage]` on the field with the markup line in the justification (`Read by Razor @ref binding to <MudForm @ref="_form" />`).
 - **`S6966` (sync IO) on `ZipArchiveEntry.Open()`.** No `OpenAsync()` exists in .NET 9. Inline `// NOSONAR S6966` with comment.

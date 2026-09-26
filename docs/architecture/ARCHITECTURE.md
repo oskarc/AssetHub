@@ -26,43 +26,47 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  HOST (single composition root)                                             │
+│  HOST (single process, single composition root)                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
 │  │  AssetHub.Api                                                         │  │
 │  │  ┌───────────────┐ ┌─────────────────┐ ┌───────────────────────────┐  │  │
-│  │  │ Blazor Server │ │ 13 media/ZIP    │ │ Wolverine handlers        │  │  │
-│  │  │ (MudBlazor 8) │ │ (internal REST) │ │ + background services     │  │  │
-│  │  │               │ │ Cookie / JWT    │ │ ImageMagick + ffmpeg      │  │  │
+│  │  │ Blazor Server │ │ 13 media/ZIP    │ │ In-process message        │  │  │
+│  │  │ (MudBlazor 8) │ │ (internal REST) │ │ handlers + background      │  │  │
+│  │  │ Local Identity│ │ Cookie / JWT    │ │ services (ImageMagick,     │  │  │
+│  │  │ (cookie)      │ │                 │ │ ffmpeg) + outbox drain     │  │  │
 │  │  └───────────────┘ └─────────────────┘ └───────────────────────────┘  │  │
+│  │        Channel bus (System.Threading.Channels) — no external broker   │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
                                    │
 ┌───────────────────────────────────▼─────────────────────────────────────────┐
 │  APPLICATION LAYER  (AssetHub.Application)                                  │
 │                                                                             │
-│  Service interfaces (27 interfaces):                                        │
+│  Service interfaces:                                                         │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
-│  │ Assets       │ │ Collections  │ │ Shares       │ │ Users                ││
+│  │ Assets       │ │ Collections  │ │ Shares       │ │ Users (local Identity)││
 │  │ Query,Upload │ │ CRUD, ACL,   │ │ Public,Auth, │ │ Admin, Lookup,       ││
-│  │ Delete,Edit  │ │ Authorization│ │ Admin access │ │ Sync, Provision      ││
+│  │ Search,Trash │ │ Authorization│ │ Admin access │ │ Provision, Cleanup   ││
+│  │ Version,Del  │ │              │ │              │ │                      ││
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
-│  │ IMinIOAdapter│ │ IEmailService│ │ IMalware-    │ │ IKeycloakUserService ││
-│  │ IMediaProc.  │ │ IAuditService│ │ ScannerSvc   │ │ IUserLookupService   ││
-│  │ IZipBuildSvc │ │ IDashboardSvc│ │              │ │ IUserSyncService     ││
+│  │ IMinIOAdapter│ │ IEmailService│ │ IMalware-    │ │ IUserLookupService   ││
+│  │ IMediaProc.  │ │ IAuditService│ │ ScannerSvc   │ │ IUserDirectoryAdmin  ││
+│  │ IZipBuildSvc │ │ IDashboardSvc│ │ IAppMsgBus   │ │ (ASP.NET Identity)   ││
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
 │                        ▲ INTERFACES — SWAP IMPLEMENTATIONS ▲                │
 └────────────────────────┼────────────────────────────────────────────────────┘
               ┌──────────┘
 │  DOMAIN (AssetHub.Domain) — Entities: Asset, Collection, CollectionAcl,     │
-│  AssetCollection, Share, AuditEvent, ZipDownload + enums + value objects    │
+│  AssetCollection, Share, AuditEvent, ZipDownload, AssetVersion,             │
+│  OutboxMessage, OrphanedObject + enums                                      │
 └─────────────────────────────────────────────────────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────────────────────────────┐
 │  INFRASTRUCTURE LAYER  (AssetHub.Infrastructure)                            │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
-│  │ MinIOAdapter │ │ SmtpEmail    │ │ ClamAv       │ │ KeycloakUser         ││
-│  │ (dual client)│ │ Service      │ │ ScannerSvc   │ │ Service              ││
+│  │ MinIOAdapter │ │ SmtpEmail    │ │ ClamAv       │ │ ASP.NET Core Identity││
+│  │ (dual client)│ │ Service      │ │ ScannerSvc   │ │ stores (EF Core)     ││
 │  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────────┬───────────┘│
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                         │
 │  │ EF Core +    │ │ MediaProc.   │ │ Polly        │  All external calls     │
@@ -72,20 +76,18 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
           │                │                │
 ┌─────────▼────────────────▼────────────────▼─────────────────────────────────┐
 │  EXTERNAL SERVICES (Docker containers)                                      │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
-│  │  PostgreSQL  │ │    MinIO     │ │   Keycloak   │ │      ClamAV          ││
-│  │  16 (+ EF)   │ │  (S3 API)   │ │  (OIDC +     │ │   (clamd TCP)         ││
-│  │              │ │              │ │  Admin API)  │ │                      ││
-│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                         │
-│  │   RabbitMQ   │ │    Redis     │ │   Mailpit    │                         │
-│  │  (Wolverine  │ │  (HybridCache│ │  (SMTP, dev) │                         │
-│  │   messaging) │ │   L2 + SigR) │ │              │                         │
-│  └──────────────┘ └──────────────┘ └──────────────┘                         │
-│  ┌──────────────────────────────────────────────────────────────────────────┐│
-│  │  Aspire Dashboard (traces, metrics, logs via OTLP)                     ││
-│  │                                                                        ││
-│  └──────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+│  Essential (default stack):                                                 │
+│  ┌──────────────┐ ┌──────────────┐                                          │
+│  │  PostgreSQL  │ │    MinIO     │   (identity, cache, and messaging are    │
+│  │  16 (+ EF)   │ │  (S3 API)   │    all in-process — no broker, no Redis,  │
+│  │              │ │              │    no separate identity provider)        │
+│  └──────────────┘ └──────────────┘                                          │
+│  Optional (`full` compose profile):                                         │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────────────────────────────┐│
+│  │    ClamAV    │ │   Mailpit    │ │  Aspire Dashboard                    ││
+│  │  (clamd TCP) │ │  (SMTP, dev) │ │  (traces, metrics, logs via OTLP)    ││
+│  └──────────────┘ └──────────────┘ └──────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -93,7 +95,7 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 
 ## Project Structure
 
-The solution is split into six projects following Clean Architecture, plus three test projects:
+The solution is split into five projects following Clean Architecture, plus three test projects:
 
 ```
 AssetHub.sln
@@ -101,8 +103,8 @@ AssetHub.sln
 ├── src/
 │   ├── AssetHub.Domain/            # Entities, enums, value objects — zero dependencies
 │   ├── AssetHub.Application/       # Service interfaces, DTOs, constants, config, business rules
-│   ├── AssetHub.Infrastructure/    # EF Core, MinIO, SMTP, ClamAV, Keycloak implementations
-│   ├── AssetHub.Api/               # ASP.NET Core host — Blazor, auth, DI, background jobs, 13 media/ZIP endpoints
+│   ├── AssetHub.Infrastructure/    # EF Core, MinIO, SMTP, ClamAV, local Identity implementations
+│   ├── AssetHub.Api/               # ASP.NET Core host — Blazor, auth, DI, in-process handlers, background jobs, 13 media/ZIP endpoints
 │   ├── AssetHub.Ui/                # Blazor Server components, pages, layouts (Razor Class Library)
 │
 ├── tests/
@@ -111,20 +113,15 @@ AssetHub.sln
 │   └── E2E/                        # End-to-end tests (Playwright, TypeScript)
 │
 ├── docker/
-│   ├── docker-compose.yml          # Development stack (all services, exposed ports)
+│   ├── docker-compose.yml          # Development stack (3 essential services; `full` profile adds ClamAV/Mailpit/Aspire)
 │   ├── docker-compose.prod.yml     # Production stack (hardened, internal networking)
 │   ├── Dockerfile                  # API multi-stage build
 │   ├── imagemagick-policy.xml      # Restrictive ImageMagick security policy
-│   ├── init-keycloak-db.sh         # Creates Keycloak database on first PostgreSQL start
-│   ├── backup.sh                   # Full backup script (PostgreSQL, MinIO, Keycloak)
+│   ├── backup.sh                   # Full backup script (PostgreSQL, MinIO)
 │   ├── restore.sh                  # Companion restore script with confirmation
 │   ├── reverse-proxy/
 │   │   ├── caddy/Caddyfile         # Production Caddy config (auto-TLS, WebSocket, security headers)
 │   │   └── nginx/nginx.conf        # Production Nginx config (manual TLS, WebSocket, security headers)
-│
-├── keycloak/
-│   ├── import/media-realm.json     # Keycloak realm definition (clients, roles, test users)
-│   └── themes/assethub/            # Custom email themes (Swedish/English, HTML + plain text)
 │
 ├── certs/                          # TLS certificates (dev: self-signed, prod: CA-issued)
 ├── docs/                           # ARCHITECTURE.md, DEPLOYMENT.md, SECURITY.md
@@ -146,9 +143,9 @@ Domain  ←  Application  ←  Infrastructure  ←  Api
 
 - **Domain** — no dependencies. Pure entities, enums, and value objects.
 - **Application** — depends on Domain. Defines all service interfaces, DTOs, constants, and configuration models. This is the contract layer that outer layers implement or consume.
-- **Infrastructure** — depends on Application + Domain. Contains all concrete implementations: EF Core repositories, MinIO adapter, SMTP email, ClamAV scanner, Keycloak client, media processing, and Polly resilience pipelines.
+- **Infrastructure** — depends on Application + Domain. Contains all concrete implementations: EF Core repositories, MinIO adapter, SMTP email, ClamAV scanner, ASP.NET Core Identity stores, media processing, and Polly resilience pipelines.
 - **Ui** — depends on Application only (no Infrastructure reference). A Razor Class Library containing all Blazor Server components, pages, and layouts. Communicates with infrastructure exclusively through Application interfaces.
-- **Api** — the single composition root, references all projects including Ui. Wires up dependency injection, configures authentication, runs every Wolverine handler and background job, hosts the Blazor Server app, and exposes the 13 remaining HTTP endpoints. Those exist only for what the browser must fetch directly (media bytes, ZIP job status); contract-023 removed the other 58, which duplicated over HTTP what the in-process facade already did.
+- **Api** — the single composition root, references all projects including Ui. Wires up dependency injection, configures authentication, runs every in-process message handler and background job, hosts the Blazor Server app, and exposes the 13 remaining HTTP endpoints. Those exist only for what the browser must fetch directly (media bytes, ZIP job status); contract-023 removed the other 58, which duplicated over HTTP what the in-process facade already did.
 
 ---
 
@@ -158,21 +155,20 @@ AssetHub is designed with clean interfaces so you can swap components to match y
 
 ### Identity & Authentication
 
-**Default:** Keycloak 26 as the OIDC provider, with a custom realm (`media`) imported on first start.
+**Default:** Local **ASP.NET Core Identity** — the app owns its own user store in PostgreSQL. There is no external identity provider; the 2026-08 reshape (contract-015) removed Keycloak/OIDC and there is no `Auth:Provider` switch.
 
 #### Authentication Flow
 
-A `PolicyScheme` named "Smart" routes requests based on the `Authorization` header — `Bearer` tokens go to JWT Bearer validation, all other requests use Cookie authentication backed by OIDC.
+A `PolicyScheme` named "Smart" inspects the `Authorization` header — a `Bearer` token would route to JWT Bearer validation, everything else uses the Identity cookie. In practice **cookie sign-in is the only live path**: the browser signs in through the app's own form, and Identity issues the cookie. No JWT issuer is registered, so the bearer branch is currently unreachable — it is kept because it is the correct rule, not because a caller exists.
 
 | Scheme | When Used | Details |
 |--------|-----------|---------|
-| **Cookie** | Blazor UI (browser) | `__Host.assethub.auth`, SameSite=Strict, HttpOnly, SecurePolicy conditional (SameAsRequest in dev, Always in prod) |
-| **JWT Bearer** | API clients | Validates issuer, audience (`assethub-app`, `account`), lifetime. NameClaimType = `preferred_username` |
-| **OIDC** | Login redirect | Authorization Code + PKCE, scopes: `openid profile email`, `SaveTokens`, `GetClaimsFromUserInfoEndpoint`, `MapInboundClaims = false` |
+| **Cookie** | Blazor UI (browser) | Identity application cookie (`Identity.Application`). Host-scoped `__Host-` prefix in production (Secure, Path=/, no Domain); prefix dropped in dev because the dev cookie isn't Secure over HTTP. SameSite=Strict, HttpOnly |
+| **JWT Bearer** | (designed, unwired) | The Smart scheme routes bearer here, but nothing issues a token today |
 
-#### Keycloak Role Mapping
+#### Role Claims
 
-On `OnTokenValidated`, roles are extracted from both `realm_access.roles` and `resource_access.assethub-app.roles` in the Keycloak token JSON and mapped to standard `ClaimTypes.Role` claims. This enables ASP.NET Core's `User.IsInRole()`.
+Identity roles (`viewer`, `contributor`, `manager`, `admin`) are stored in the Identity role store and surface as standard `ClaimTypes.Role` claims, enabling ASP.NET Core's `User.IsInRole()`. Nothing downstream of the claims principal knows how the user signed in — `RoleHierarchy`, the authorization policies, and `CollectionAuthorizationService` are provider-agnostic.
 
 #### Authorization Policies
 
@@ -182,27 +178,19 @@ On `OnTokenValidated`, roles are extracted from both `realm_access.roles` and `r
 | `RequireViewer` | viewer, contributor, manager, admin | General access |
 | `RequireContributor` | contributor, manager, admin | Collection creation |
 | `RequireManager` | manager, admin | Management operations |
-| `RequireAdmin` | admin only | All `/api/admin/*` endpoints |
+| `RequireAdmin` | admin only | Admin operations |
 
-#### OIDC Error Handling
+#### Seeding
 
-`OnRemoteFailure` and `OnAuthenticationFailed` redirect to `/?authError=` with specific error codes instead of showing raw exceptions. The `kc_action` parameter is forwarded to Keycloak for action-specific flows (e.g., password change).
+`IdentitySeeder` creates the four roles and — **only when the user store is completely empty** — one bootstrap admin from `Identity:SeedAdmin`. It never overwrites an existing account and throws rather than inventing a default password. In development the same empty-store path optionally seeds a fixed-credential test viewer (`Identity:SeedTestViewer`, off by default, on in the dev compose) so the E2E gate runs from nothing; production never enables it.
 
-#### Keycloak Admin API Dependency
+#### User Management
 
-Beyond OIDC authentication, the application uses the Keycloak Admin REST API via `IKeycloakUserService` for:
-- User creation with role assignment
-- Password resets
-- User deletion
-- Realm role queries
+`IUserLookupService` (reads: resolve IDs to usernames/emails) and `IUserDirectoryAdmin` (lifecycle + role assignment) are backed by the local Identity stores. **Password reset** (`PasswordResetLinkSender`) mints an Identity reset token, encodes it into a `/reset-password` link, and mails it via `IEmailService`. Its security properties are load-bearing: single-use (token derives from the rotated security stamp), expiring (24h), never logged (only the user id reaches the log), and non-enumerating (`/auth/forgot-password` always reports success).
 
-`IUserLookupService` resolves user IDs to usernames/emails by querying the Keycloak database directly. `IUserSyncService` detects and cleans up references to users deleted from Keycloak.
+#### Replacing the Identity store
 
-#### Replacing Keycloak
-
-OIDC authentication is standard and works with any compliant provider by changing `Keycloak__Authority`, `ClientId`, and `ClientSecret`. However, the admin operations require new implementations of `IKeycloakUserService` and `IUserLookupService` for your identity provider's management API.
-
-Alternatively, Keycloak supports AD/LDAP user federation if you want to keep it as an authentication broker while using corporate directories.
+Because auth is local, "replacing" it means implementing `IUserLookupService` and `IUserDirectoryAdmin` against a different backing store, or reintroducing an external provider behind the same claims principal. Any replacement must keep the four role claims and the provider-agnostic authorization surface intact.
 
 ---
 
@@ -272,7 +260,7 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 
 #### Migrations
 
-Code-first, conditionally applied on startup. The API host calls `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. Currently 16 migrations from initial schema through to native array tags.
+Code-first, conditionally applied on startup. The API host calls `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. The history is a single squashed `InitialCreate` migration: contract-029 (C16) collapsed the prior 47 into one, re-applying the raw `pg_trgm` extension, `tsvector` search function/triggers, and column defaults by hand in its `Up`.
 
 #### Replacing PostgreSQL
 
@@ -367,43 +355,40 @@ Implement `IMalwareScannerService` with your scanner's SDK or API. The interface
 
 ### Background Jobs & Messaging
 
-| Default | Interface | Corporate Alternatives |
-|---------|-----------|----------------------|
-| **Wolverine + RabbitMQ** | Wolverine command/event bus | MassTransit, NServiceBus, Azure Service Bus |
+Background work runs **inside the Api process** on an **in-process channel bus** — `System.Threading.Channels`, not a broker. RabbitMQ/Wolverine and the separate Worker host were removed by the reshape (contract-026 / C13b, contract-019). There is nothing external to provision, and nothing to swap.
 
 #### Message Architecture
 
-Background work is dispatched over RabbitMQ queues using Wolverine. Publisher and consumer share the API process (contract-019 folded the Worker in), but messages still round-trip through the broker so an in-flight message survives a restart:
+The publisher writes a message to `IAppMessageBus` (`InProcessMessageBus`, an unbounded channel); `MessageDispatcherService` (a `BackgroundService`) reads the channel and routes each message to its handler through an **explicit `switch`** over the six message types, running each in its own DI scope and re-publishing any events the handler returns.
 
 **Commands:**
-- `ProcessImageCommand` → `process-image` queue — extract metadata, generate thumbnail + medium rendition
-- `ProcessVideoCommand` → `process-video` queue — extract metadata, generate poster frame
-- `BuildZipCommand` → `build-zip` queue — build ZIP archive from collection assets
+- `ProcessImageCommand` → `ProcessImageHandler` — extract metadata, generate thumbnail + medium rendition
+- `ProcessVideoCommand` → `ProcessVideoHandler` — extract metadata, generate poster frame
+- `ProcessAudioCommand` → `ProcessAudioHandler` — extract metadata
+- `BuildZipCommand` → `BuildZipHandler` — build ZIP archive from collection/share assets
 
 **Events (emitted by the processing handlers):**
-- `AssetProcessingCompletedEvent` → `asset-processing-completed` queue — updates asset with renditions + metadata
-- `AssetProcessingFailedEvent` → `asset-processing-failed` queue — marks asset as Failed
+- `AssetProcessingCompletedEvent` → `AssetProcessingCompletedHandler` — updates the asset with renditions + metadata
+- `AssetProcessingFailedEvent` → `AssetProcessingFailedHandler` — marks the asset as Failed
 
-#### Scheduled Cleanup (IHostedService)
+#### Durability (in-app, not in a broker)
 
-- **StaleUploadCleanupService** — daily ~3:00 AM UTC, deletes assets stuck in "Uploading" status > 24h
-- **OrphanedSharesCleanupService** — weekly Sundays ~4:00 AM UTC, removes shares with deleted assets/collections
-- **AuditRetentionService** — weekly Sundays ~5:00 AM UTC, deletes audit events older than retention period
-- **ZipCleanupBackgroundService** (API) — hourly, removes expired ZIP downloads from MinIO
-- **UserSyncBackgroundService** (API) — daily, syncs users deleted in Keycloak
+Because the channel is in memory, durability is provided by the application:
+- **Transactional outbox** — `OutboxMessage` + `IOutboxPublisher` record a message in the *same* SQL transaction as the state change; `OutboxDrainService` drains committed rows onto the bus. A crash between commit and publish cannot lose the message.
+- **Stuck-Processing reaper** — `StuckProcessingReaperService` re-enqueues any asset left in `Processing` past 5 minutes, recovering an in-flight media message a restart dropped.
+- **Handler retry** — the dispatcher retries a failing handler on a 1-2-5-10-30s cooldown; after the last attempt it drops the message with a logged error (media assets are then recovered by the reaper; a lost ZIP job is re-clickable).
 
-Media processing runs **in the API container**, which ships ImageMagick and ffmpeg. The separate Worker container was removed by contract-019: it carried the same native tooling and the same shared infrastructure, so it bought separation on paper while costing a second hosting story.
+#### Scheduled Cleanup (BackgroundService + PeriodicTimer)
 
-#### Wolverine Configuration
+- **StaleUploadCleanupService** — deletes assets stuck in "Uploading" status past the threshold
+- **TrashPurgeBackgroundService** — hard-deletes soft-deleted assets past the trash retention window
+- **OrphanedSharesCleanupService** — removes shares whose asset/collection is gone
+- **OrphanedObjectsSweeperService** — deletes MinIO objects orphaned by asset purges (via the `OrphanedObject` tombstone table)
+- **AuditRetentionService** — deletes audit events older than the configured per-event retention
+- **ZipCleanupBackgroundService** — removes expired ZIP downloads from MinIO
+- **OutboxDrainService / StuckProcessingReaperService** — the durability services above
 
-The API configures Wolverine with:
-- Auto-provisioned RabbitMQ queues
-- Retry policy with cooldown: 1s, 2s, 5s, 10s, 30s delays
-- `AutoApplyTransactions()` — wraps message handlers in EF Core transactions
-
-#### Replacing Wolverine/RabbitMQ
-
-The messaging pattern is standard command/event with dedicated queues. Replace Wolverine with MassTransit or NServiceBus by implementing equivalent consumers for the same message types. The `IMediaProcessingService` interface abstracts the enqueueing.
+Media processing runs in the Api container, which ships ImageMagick and ffmpeg. New background work goes in the Api — there is nowhere else for it to go.
 
 ---
 
@@ -422,7 +407,7 @@ public interface IMediaProcessingService
 }
 ```
 
-`ScheduleProcessingAsync` publishes a Wolverine command (`ProcessImageCommand` or `ProcessVideoCommand`) to RabbitMQ based on the asset type and returns a job ID. Non-image/video types (documents, etc.) are marked Ready immediately with no processing.
+`ScheduleProcessingAsync` publishes a command (`ProcessImageCommand`, `ProcessVideoCommand`, or `ProcessAudioCommand`) to the in-process channel bus based on the asset type and returns a job ID. Non-media types (documents, etc.) are marked Ready immediately with no processing.
 
 #### Rendition Output
 
@@ -463,9 +448,8 @@ Swappable implementations for external dependencies:
 | `IEmailService` | `SmtpEmailService` | Template-driven email sending (single + multi-recipient) |
 | `IMalwareScannerService` | `ClamAvScannerService` | Upload scanning (stream + byte array overloads) |
 | `IMediaProcessingService` | `MediaProcessingService` | Schedule and execute thumbnail/poster generation |
-| `IKeycloakUserService` | `KeycloakUserService` | Identity provider admin API (create user, reset password, delete, assign roles) |
-| `IUserLookupService` | `UserLookupService` | Resolve user IDs to usernames/emails, check existence |
-| `IUserSyncService` | `UserSyncService` | Detect and clean up orphaned references to deleted IdP users |
+| `IUserDirectoryAdmin` | `IdentityUserDirectoryAdmin` | Local Identity user lifecycle (create, reset password, delete, assign roles) |
+| `IUserLookupService` | `IdentityUserLookupService` | Resolve user IDs to usernames/emails, check existence |
 | `IAuditService` | `AuditService` | Record audit events (auto-captures IP + User-Agent from HTTP context) |
 
 ### Application Services
@@ -485,7 +469,7 @@ Core business logic:
 | `IShareAdminService` | `ShareAdminService` | Admin share management (list, retrieve tokens/passwords) |
 | `IPublicShareAccessService` | `ShareAccessService` | Anonymous share access (validate token, password auth) |
 | `IAuthenticatedShareAccessService` | `ShareAccessService` | Authenticated share access (preview, download) |
-| `IZipBuildService` | `ZipBuildService` | Async zip archive building via Wolverine + RabbitMQ |
+| `IZipBuildService` | `ZipBuildService` | Async zip archive building via the in-process channel bus |
 | `IUserAdminService` | `UserAdminService` | Admin user operations (create, delete, reset password) |
 | `IUserProvisioningService` | `UserProvisioningService` | Provision new users with default collection access |
 | `IUserCleanupService` | `UserCleanupService` | Remove all ACLs and revoke shares for a deleted user |
@@ -501,7 +485,6 @@ Every external dependency is wrapped in a [Polly](https://github.com/App-vNext/P
 | Pipeline | Used By | Retry | Circuit Breaker | Notes |
 |----------|---------|-------|-----------------|-------|
 | `minio` | MinIOAdapter | 3 attempts, exponential from 1 s | Opens at 50% failure over 30 s (min 5 calls), 30 s break | Handles `HttpRequestException`, `SocketException`, transient MinIO SDK errors; ignores `ObjectNotFoundException` / `BucketNotFoundException` |
-| `keycloak` | KeycloakUserService | 3 attempts, exponential from 500 ms | Opens at 50% failure over 30 s, 30 s break | Only retries 5xx and network errors — never retries 4xx (auth/conflict). Per-attempt + total request timeout managed by Polly (HttpClient.Timeout disabled) |
 | `clamav` | ClamAvScannerService | 2 attempts, constant 500 ms | Opens at 50% failure over 60 s (min 3 calls), 60 s break | Handles `SocketException` on the raw TCP clamd connection |
 | `smtp` | SmtpEmailService | 2 attempts, exponential from 2 s | — | Retry-only; handles `SmtpException` and `SocketException` |
 | `postgres` | EF Core (Npgsql) | Built-in `EnableRetryOnFailure()` | — | Handles transient database connection failures at the provider level |

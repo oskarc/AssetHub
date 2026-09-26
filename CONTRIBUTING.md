@@ -85,7 +85,7 @@ Domain → Application → Infrastructure → Api
 - **Domain** has no external dependencies — pure entities and logic.
 - **Application** defines interfaces and DTOs consumed by outer layers.
 - **Infrastructure** implements persistence, storage, and external services.
-- **Api** is the single composition root that wires everything together — HTTP, Blazor, Wolverine handlers and background jobs.
+- **Api** is the single composition root that wires everything together — HTTP, Blazor, in-process message handlers and background jobs.
 - **Ui** is a Razor Class Library that depends only on Application.
 
 When adding new features, respect these layer boundaries.
