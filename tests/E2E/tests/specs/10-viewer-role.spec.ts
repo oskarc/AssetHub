@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { IdentityLoginPage } from '../pages/identity-login.page';
 import { LayoutPage } from '../pages/layout.page';
+import { ErrorPagesPage } from '../pages/error-pages.page';
 import { env } from '../config/env';
 
 test.describe('Viewer Role Restrictions @acl @auth', () => {
@@ -24,45 +25,37 @@ test.describe('Viewer Role Restrictions @acl @auth', () => {
     await expect(admin).not.toBeVisible();
   });
 
-  test('viewer is redirected from /admin', async ({ page }) => {
-    await page.goto('/admin');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(env.timeouts.animation);
+  // Both used to pass with the bug in place: the forbid landed on
+  // /login?ReturnUrl=%2Fadmin, and because the slash is percent-encoded the URL
+  // did not contain '/admin', so "redirected away" was true for the sign-in form.
+  // They now pin the hop itself and what the viewer actually sees.
+  for (const path of ['/admin', '/all-assets']) {
+    test(`viewer opening ${path} gets the access-denied page, not the sign-in form`, async ({ page }) => {
+      const errorPages = new ErrorPagesPage(page);
+      const deniedUrl = new RegExp('/access-denied\\?ReturnUrl=' + encodeURIComponent(path) + '$');
 
-    // Should be redirected away or see forbidden content
-    const url = page.url();
-    const forbiddenText = page.getByText(/forbidden|unauthorized|access denied/i);
-    
-    // Either redirected OR showing forbidden message
-    const isRedirected = !url.includes('/admin');
-    const hasForbiddenMessage = await forbiddenText.isVisible().catch(() => false);
-    
-    expect(isRedirected || hasForbiddenMessage).toBeTruthy();
-  });
+      const hop = await page.request.get(path, { maxRedirects: 0 });
+      expect(hop.status()).toBe(302);
+      expect(hop.headers()['location']).toMatch(deniedUrl);
 
-  test('viewer is redirected from /all-assets', async ({ page }) => {
-    await page.goto('/all-assets');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(env.timeouts.animation);
-
-    // Should be redirected or not show admin page content
-    const url = page.url();
-    const adminTitle = page.locator('.mud-typography-h4');
-    
-    // Either redirected away from all-assets OR admin title not visible
-    const isRedirected = !url.includes('/all-assets');
-    const hasAdminContent = await adminTitle.isVisible().catch(() => false);
-    
-    expect(isRedirected || !hasAdminContent).toBeTruthy();
-  });
+      const response = await page.goto(path);
+      await expect(page).toHaveURL(deniedUrl);
+      expect(response?.status()).toBe(403);
+      await expect(errorPages.accessDeniedHeading).toBeVisible();
+      await expect(errorPages.headings).toHaveCount(1);
+      await expect(errorPages.loginForm).toHaveCount(0);
+      await expect(page).toHaveTitle(/^Access denied - AssetHub$/);
+      // The requested URL is never echoed back onto the page.
+      await expect(page.locator('#main-content')).not.toContainText(path);
+      await expect(errorPages.goHome).toHaveAttribute('href', '/');
+    });
+  }
 
   test('viewer sees collections page', async ({ page }) => {
-    // Was navigating to /assets, which no page declares — the app answers 404
-    // with an empty body (endpoint routing rejects it before Blazor renders, so
-    // the Router's NotFound branch never runs) and the assertion saw a blank
-    // page. Measured identical on the pre- and post-contract-017 trees, so this
-    // was a stale route, not a regression. /collections is the page the test name
-    // has always described.
+    // Was navigating to /assets, which no page declares. At the time an unknown
+    // route answered 404 with an empty body, so the assertion saw a blank page
+    // (it now gets the not-found page, still 404). A stale route, not a
+    // regression: /collections is the page the test name has always described.
     await page.goto('/collections');
     await page.waitForLoadState('networkidle');
     await expect(page.getByText(/collections/i).first()).toBeVisible();

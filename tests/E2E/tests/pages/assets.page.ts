@@ -80,8 +80,9 @@ export class AssetsPage {
    * Assets are shown by the Collections page, not by an /assets route.
    *
    * This used to navigate to `/assets?collection={id}`. No page declares that
-   * route: endpoint routing rejects it before Blazor renders, so the app answers
-   * 404 with an EMPTY BODY and every assertion here failed against a blank page.
+   * route, and at the time the app answered it with a 404 and an EMPTY BODY (it
+   * now renders the not-found page), so every assertion here failed against a
+   * blank page.
    * Because this page object is used by 11 spec files, that single wrong URL was
    * the largest source of red in the suite — and it meant the upload flow had
    * never actually been exercised by a test at all.

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
@@ -97,6 +98,11 @@ public static class WebApplicationExtensions
 
         if (!app.Environment.IsDevelopment())
         {
+            // First in the block: the handler clears the response before it
+            // re-executes /Error, so everything after it — HSTS and the security
+            // headers included — runs again for the error page. Development keeps
+            // the developer exception page instead.
+            app.UseExceptionHandler("/Error", createScopeForErrors: true);
             app.UseHttpsRedirection();
             app.UseHsts();
         }
@@ -129,6 +135,7 @@ public static class WebApplicationExtensions
         app.UseRequestLocalization();
         UseBlazorRateLimiting(app);
         app.UseRateLimiter();
+        UseNotFoundPage(app);
         app.UseAuthentication();
         UseBlazorAnonymousAccess(app);
         app.UseAuthorization();
@@ -256,6 +263,43 @@ public static class WebApplicationExtensions
     /// Required for anonymous pages like /share/{token} to load and establish
     /// an interactive Blazor circuit without triggering an OIDC auth redirect.
     /// </summary>
+    /// <summary>
+    /// Renders the not-found page for a bodiless GET 404 on a page path, keeping
+    /// the 404 status. Everything else — /api, the Blazor and static-asset paths,
+    /// /health, file paths, other methods and every other status — passes through
+    /// exactly as before, so machine callers still get a bodiless 404.
+    /// </summary>
+    /// <remarks>
+    /// Sits after the rate limiter so a re-executed request is neither logged nor
+    /// charged twice. The scoping is an inline middleware that switches the
+    /// status-code-pages feature off, never <c>app.UseWhen(...)</c>: a branch
+    /// built with UseWhen silently never re-routes in this app shape.
+    /// </remarks>
+    private static void UseNotFoundPage(WebApplication app)
+    {
+        app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+        app.Use(async (context, next) =>
+        {
+            var statusCodePages = context.Features.Get<IStatusCodePagesFeature>();
+            if (statusCodePages is not null && !IsPageRequest(context.Request))
+                statusCodePages.Enabled = false;
+
+            await next();
+
+            if (statusCodePages is not null && context.Response.StatusCode != StatusCodes.Status404NotFound)
+                statusCodePages.Enabled = false;
+        });
+    }
+
+    // Paths that belong to machines — the REST surface, the Blazor hub and
+    // framework assets, health probes. An unknown one stays a bodiless 404.
+    private static readonly string[] NonPagePathPrefixes = ["/api", "/_blazor", "/_framework", "/_content", "/health"];
+
+    private static bool IsPageRequest(HttpRequest request) =>
+        HttpMethods.IsGet(request.Method)
+        && !Path.HasExtension(request.Path.Value)
+        && !NonPagePathPrefixes.Any(prefix => request.Path.StartsWithSegments(prefix));
+
     private static void UseBlazorAnonymousAccess(WebApplication app)
     {
         app.Use(async (context, next) =>

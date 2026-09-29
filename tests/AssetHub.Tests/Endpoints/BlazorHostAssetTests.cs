@@ -52,7 +52,9 @@ public class BlazorHostAssetTests : IAsyncLifetime
     public async Task FrameworkScript_IsServedByTheHost_WithExecutableContentType()
     {
         // Anonymous on purpose: the script must load before sign-in, otherwise
-        // the login page itself has no circuit.
+        // the login page itself has no circuit. ClaimsOverride is static and
+        // shared across the "Api" collection, so anonymity is set, not assumed.
+        TestAuthHandler.ClaimsOverride = null;
         using var client = _factory.CreateClient(new()
         {
             AllowAutoRedirect = false
@@ -96,6 +98,9 @@ public class BlazorHostAssetTests : IAsyncLifetime
     [Fact]
     public async Task AnonymousPage_RendersWithoutSignIn()
     {
+        // Set, not assumed: a signed-in identity left by an earlier test would pass
+        // the fallback policy and hide exactly the failure this guards.
+        TestAuthHandler.ClaimsOverride = null;
         using var client = _factory.CreateClient(new()
         {
             AllowAutoRedirect = false

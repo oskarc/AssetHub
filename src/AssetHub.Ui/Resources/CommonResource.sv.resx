@@ -294,15 +294,16 @@
 
   <!-- Error / Not Found Pages -->
   <data name="Error_NotAuthorized" xml:space="preserve"><value>Du har inte behörighet att komma åt den här sidan.</value></data>
+  <data name="AccessDenied_Title" xml:space="preserve"><value>Åtkomst nekad</value></data>
+  <data name="AccessDenied_SignedInAs" xml:space="preserve"><value>Du är inloggad som {0}.</value></data>
+  <data name="AccessDenied_Help" xml:space="preserve"><value>Behöver du åtkomst? Kontakta en administratör. Om du nyligen har fått åtkomst, eller vill använda ett annat konto, logga in igen.</value></data>
+  <data name="AccessDenied_SignInAgain" xml:space="preserve"><value>Logga in igen</value></data>
   <data name="Error_PageNotFound" xml:space="preserve"><value>Sidan hittades inte</value></data>
   <data name="Error_PageNotFoundDesc" xml:space="preserve"><value>Sidan du söker finns inte eller har flyttats.</value></data>
   <data name="Error_PageTitle" xml:space="preserve"><value>Fel</value></data>
-  <data name="Error_Heading" xml:space="preserve"><value>Fel.</value></data>
-  <data name="Error_Description" xml:space="preserve"><value>Ett fel inträffade vid bearbetningen av din begäran.</value></data>
+  <data name="Error_Heading" xml:space="preserve"><value>Något gick fel</value></data>
+  <data name="Error_Description" xml:space="preserve"><value>Ett oväntat fel hindrade sidan från att läsas in. Försök igen om en stund. Om felet kvarstår, kontakta en administratör och ange begäran-ID:t.</value></data>
   <data name="Error_RequestId" xml:space="preserve"><value>Begäran-ID:</value></data>
-  <data name="Error_DevelopmentMode" xml:space="preserve"><value>Utvecklingsläge</value></data>
-  <data name="Error_DevelopmentInfo" xml:space="preserve"><value>Att byta till utvecklingsmiljö visar mer detaljerad information om felet som inträffade.</value></data>
-  <data name="Error_DevelopmentWarning" xml:space="preserve"><value>Utvecklingsmiljön bör inte vara aktiverad för driftsatta applikationer. Det kan leda till att känslig information från undantag visas för slutanvändare. För lokal felsökning, aktivera utvecklingsmiljön genom att ställa in miljövariabeln ASPNETCORE_ENVIRONMENT till Development och starta om appen.</value></data>
 
   <!-- Misc -->
   <data name="Text_ThisCollection" xml:space="preserve"><value>denna samling</value></data>

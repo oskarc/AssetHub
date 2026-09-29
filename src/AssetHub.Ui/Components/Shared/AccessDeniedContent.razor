@@ -1,0 +1,36 @@
+@* What a signed-in user sees when a page is not theirs to open. Shared by the
+   /access-denied page (a full page load, after the cookie handler's redirect) and
+   the router's NotAuthorized branch (navigation inside a running circuit).
+
+   Shows the user's name only: users created in the admin UI carry no global
+   role, so a role label would read "Viewer" for someone with collection-level
+   access. The requested URL is never echoed back onto the page. *@
+
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+<PageTitle>@CommonLoc["AccessDenied_Title"] - @CommonLoc["AppName"]</PageTitle>
+
+<StatusPanel Icon="@Icons.Material.Filled.LockPerson" Title="@CommonLoc["AccessDenied_Title"]">
+    <ChildContent>
+        <MudText Typo="Typo.body1" Align="Align.Center">@CommonLoc["Error_NotAuthorized"]</MudText>
+        <AuthorizeView>
+            <Authorized Context="auth">
+                @if (!string.IsNullOrWhiteSpace(auth.User.Identity?.Name))
+                {
+                    <MudText Typo="Typo.body1" Align="Align.Center">
+                        @CommonLoc["AccessDenied_SignedInAs", auth.User.Identity.Name]
+                    </MudText>
+                }
+            </Authorized>
+        </AuthorizeView>
+        <MudText Typo="Typo.body2" Align="Align.Center">@CommonLoc["AccessDenied_Help"]</MudText>
+    </ChildContent>
+    <Actions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">
+            @CommonLoc["Btn_GoHome"]
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="/auth/logout">
+            @CommonLoc["AccessDenied_SignInAgain"]
+        </MudButton>
+    </Actions>
+</StatusPanel>

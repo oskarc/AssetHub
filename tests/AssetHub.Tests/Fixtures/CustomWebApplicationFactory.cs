@@ -180,6 +180,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
                 .ReturnsAsync(true);
             services.AddSingleton(mockMinioClient.Object);
 
+            // A route that always throws, so ErrorPageTests can judge the
+            // non-Development 500 page (see ThrowRouteStartupFilter).
+            services.AddTransient<IStartupFilter, ThrowRouteStartupFilter>();
+
             // Disable rate limiting in tests to avoid TooManyRequests interference
             services.Configure<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>(options =>
             {

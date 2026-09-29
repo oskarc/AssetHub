@@ -1,0 +1,40 @@
+@* The shared body of the status pages (not found, access denied, server error).
+   It owns the page's single <h1>; the icon is decorative; actions are links
+   (MudButton with Href), so they work on a static render and before the circuit
+   starts. *@
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center error-page-height">
+    <MudStack AlignItems="AlignItems.Center" Spacing="4">
+        <MudIcon Icon="@Icon" Size="Size.Large" Color="@IconColor" aria-hidden="true" />
+        <MudText Typo="Typo.h4" HtmlTag="h1" Align="Align.Center">@Title</MudText>
+        @ChildContent
+        @if (Actions is not null)
+        {
+            <MudStack Row="true" Wrap="Wrap.Wrap" Justify="Justify.Center" Spacing="2">
+                @Actions
+            </MudStack>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    /// <summary>The icon shown above the heading.</summary>
+    [Parameter, EditorRequired]
+    public string Icon { get; set; } = string.Empty;
+
+    /// <summary>The icon colour — it is decorative, so this is never the only signal.</summary>
+    [Parameter]
+    public Color IconColor { get; set; } = Color.Primary;
+
+    /// <summary>The page heading, rendered as the page's only &lt;h1&gt;.</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Explanatory text under the heading.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The way out — links, not click handlers.</summary>
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+}

@@ -97,6 +97,10 @@ public static class ServiceCollectionExtensions
         services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
+        // Root-level auth state, so components rendered outside AuthorizeRouteView
+        // (the not-found page inside a running circuit) can still use AuthorizeView.
+        services.AddCascadingAuthenticationState();
+
         // SignalR uses Blazor Server's built-in in-process hub. No backplane:
         // the app is single-instance (contract-026's in-process message bus cannot
         // span instances either), so the Redis backplane was removed with C14.

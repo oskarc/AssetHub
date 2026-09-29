@@ -98,7 +98,7 @@ public static class AuthenticationExtensions
                 : CookieSecurePolicy.Always;
             options.LoginPath = "/login";
             options.LogoutPath = "/auth/logout";
-            options.AccessDeniedPath = "/login";
+            options.AccessDeniedPath = "/access-denied";
         });
     }
 

@@ -1,10 +1,12 @@
 @using Microsoft.AspNetCore.Components.Authorization
 
-@inject IStringLocalizer<CommonResource> CommonLoc
-
 @* AppAssembly is the host (it owns App.razor); every routable page lives in the
-   AssetHub.Ui RCL, so that assembly is scanned via AdditionalAssemblies. *@
-<Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="UiAssembly">
+   AssetHub.Ui RCL, so that assembly is scanned via AdditionalAssemblies.
+
+   NotFoundPage renders unknown routes inside a running circuit; a full page load
+   of an unknown URL reaches the same page through the host's status-code
+   re-execution. Never set the <NotFound> fragment as well — the router throws. *@
+<Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="UiAssembly" NotFoundPage="typeof(AssetHub.Ui.Pages.NotFound)">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
             <NotAuthorized>
@@ -14,32 +16,12 @@
                 }
                 else
                 {
-                    <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center error-page-height">
-                        <MudAlert Severity="Severity.Warning">
-                            @CommonLoc["Error_NotAuthorized"]
-                        </MudAlert>
-                    </MudContainer>
+                    <AccessDeniedContent />
                 }
             </NotAuthorized>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
-    <NotFound>
-        <LayoutView Layout="typeof(MainLayout)">
-            <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center error-page-height">
-                <MudStack AlignItems="AlignItems.Center" Spacing="4">
-                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Secondary" />
-                    <MudText Typo="Typo.h5">@CommonLoc["Error_PageNotFound"]</MudText>
-                    <MudText Typo="Typo.body1" Color="Color.Secondary">
-                        @CommonLoc["Error_PageNotFoundDesc"]
-                    </MudText>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">
-                        @CommonLoc["Btn_GoHome"]
-                    </MudButton>
-                </MudStack>
-            </MudContainer>
-        </LayoutView>
-    </NotFound>
 </Router>
 
 @code {

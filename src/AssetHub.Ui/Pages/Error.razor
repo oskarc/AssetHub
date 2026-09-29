@@ -1,45 +1,33 @@
 @page "/Error"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
 @using System.Diagnostics
 
 @inject IStringLocalizer<CommonResource> CommonLoc
 
-<PageTitle>@CommonLoc["Error_PageTitle"]</PageTitle>
+@* The host's exception handler re-executes here outside Development. Static on
+   purpose: the request has already failed once, so the page must not depend on a
+   circuit, and MainLayout renders its static chrome (a Sign out link, no dead
+   menus). *@
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="py-8">
-    <MudPaper Elevation="2" Class="pa-6">
-        <MudStack AlignItems="AlignItems.Center" Spacing="3">
-            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" Size="Size.Large" />
-            <MudText Typo="Typo.h4" Color="Color.Error" Align="Align.Center">@CommonLoc["Error_Heading"]</MudText>
-            <MudText Typo="Typo.body1" Align="Align.Center">@CommonLoc["Error_Description"]</MudText>
-        </MudStack>
+<PageTitle>@CommonLoc["Error_PageTitle"] - @CommonLoc["AppName"]</PageTitle>
 
+<StatusPanel Icon="@Icons.Material.Filled.ErrorOutline" IconColor="Color.Error" Title="@CommonLoc["Error_Heading"]">
+    <ChildContent>
+        <MudText Typo="Typo.body1" Align="Align.Center">@CommonLoc["Error_Description"]</MudText>
         @if (ShowRequestId)
         {
-            <MudDivider Class="my-4" />
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
+            <MudText Typo="Typo.body2" Align="Align.Center">
                 @CommonLoc["Error_RequestId"] <code>@RequestId</code>
             </MudText>
         }
-
-        <MudDivider Class="my-4" />
-
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">
-            <MudText Typo="Typo.subtitle2">@CommonLoc["Error_DevelopmentMode"]</MudText>
-            <MudText Typo="Typo.body2" Class="mt-1">@CommonLoc["Error_DevelopmentInfo"]</MudText>
-        </MudAlert>
-
-        <MudText Typo="Typo.caption" Color="Color.Secondary">
-            @CommonLoc["Error_DevelopmentWarning"]
-        </MudText>
-
-        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Home"
-                   Href="/" Class="mt-4" FullWidth="true">
+    </ChildContent>
+    <Actions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">
             @CommonLoc["Btn_GoHome"]
         </MudButton>
-    </MudPaper>
-</MudContainer>
+    </Actions>
+</StatusPanel>
 
 @code{
     [CascadingParameter]

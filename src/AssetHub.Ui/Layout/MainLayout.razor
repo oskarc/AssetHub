@@ -16,13 +16,20 @@
 
 <MudLayout>
     <MudAppBar Elevation="0" Class="appbar-border">
+        @* A static render (no assigned render mode — the error page, the auth forms)
+           never gets a circuit, so controls that need one are left out rather than
+           shipped dead. Deliberately not RendererInfo.IsInteractive: that is false
+           during every page's prerender too, so the controls would flash. *@
         <AuthorizeView>
             <Authorized>
-                <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                               Color="Color.Inherit"
-                               Edge="Edge.Start"
-                               aria-label="@CommonLoc["Aria_ToggleNavigation"]"
-                               OnClick="@((e) => DrawerToggle())" />
+                @if (AssignedRenderMode is not null)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                                   Color="Color.Inherit"
+                                   Edge="Edge.Start"
+                                   aria-label="@CommonLoc["Aria_ToggleNavigation"]"
+                                   OnClick="@((e) => DrawerToggle())" />
+                }
             </Authorized>
         </AuthorizeView>
 
@@ -38,14 +45,29 @@
                     @DisplayName(auth.User)
                 </MudText>
 
-                <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomCenter" aria-label="@CommonLoc["Aria_AccountMenu"]">
-                    <MudMenuItem Icon="@Icons.Material.Filled.Lock" OnClick="@ChangePassword">
-                        @CommonLoc["Btn_ChangePassword"]
-                    </MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="@Logout">
+                @if (AssignedRenderMode is not null)
+                {
+                    <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomCenter" aria-label="@CommonLoc["Aria_AccountMenu"]">
+                        <MudMenuItem Icon="@Icons.Material.Filled.Lock" OnClick="@ChangePassword">
+                            @CommonLoc["Btn_ChangePassword"]
+                        </MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="@Logout">
+                            @CommonLoc["Btn_SignOut"]
+                        </MudMenuItem>
+                    </MudMenu>
+                }
+                else
+                {
+                    @* Static render: the one account action that works as a plain link. *@
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Inherit"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Logout"
+                               Href="/auth/logout"
+                               Class="mr-2">
                         @CommonLoc["Btn_SignOut"]
-                    </MudMenuItem>
-                </MudMenu>
+                    </MudButton>
+                }
             </Authorized>
 
             <NotAuthorized>

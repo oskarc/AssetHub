@@ -1,0 +1,21 @@
+@page "/access-denied"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@* The cookie handler's AccessDeniedPath. Signed-in only: an anonymous visitor is
+   sent to sign in, like every other page. *@
+
+<AccessDeniedContent />
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // Answer 403 on the server render, so the status says what the page says.
+    // Only while the response has not started; inside a circuit there is no
+    // HttpContext and nothing to set.
+    protected override void OnInitialized()
+    {
+        if (HttpContext is { Response.HasStarted: false })
+            HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+    }
+}

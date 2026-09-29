@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using AssetHub.Application;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -24,6 +25,16 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
     /// Use via <see cref="TestClaimsProvider"/>.
     /// </summary>
     public static TestClaimsProvider? ClaimsOverride { get; set; }
+
+    /// <summary>
+    /// Opt-in, per request: send this header to hand challenge and forbid to the
+    /// real Identity cookie handler, so a test sees the production redirects
+    /// (LoginPath, AccessDeniedPath) with the real fallback policy and page
+    /// metadata. Without it this scheme answers a bare 401/403, which other tests
+    /// depend on. A header rather than a static flag, so it cannot leak between
+    /// tests.
+    /// </summary>
+    public const string IdentityChallengeHeader = "X-Test-Identity-Challenge";
 
     public TestAuthHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -49,6 +60,16 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }
+
+    protected override Task HandleChallengeAsync(AuthenticationProperties properties) =>
+        Request.Headers.ContainsKey(IdentityChallengeHeader)
+            ? Context.ChallengeAsync(IdentityConstants.ApplicationScheme, properties)
+            : base.HandleChallengeAsync(properties);
+
+    protected override Task HandleForbiddenAsync(AuthenticationProperties properties) =>
+        Request.Headers.ContainsKey(IdentityChallengeHeader)
+            ? Context.ForbidAsync(IdentityConstants.ApplicationScheme, properties)
+            : base.HandleForbiddenAsync(properties);
 }
 
 /// <summary>

@@ -74,7 +74,7 @@ public class EditAssetDialogTests : BunitTestBase
 
         var cut = await RenderDialogAsync(assetNoTags);
 
-        Assert.Contains("NoTags", cut.Markup);
+        Assert.Contains("Text_NoTags", cut.Markup);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public class EditAssetDialogTests : BunitTestBase
 
         var cut = await RenderDialogAsync(asset);
 
-        Assert.Contains("NoTags", cut.Markup);
+        Assert.Contains("Text_NoTags", cut.Markup);
     }
 
     // ── Save submission flow ────────────────────────────────────────

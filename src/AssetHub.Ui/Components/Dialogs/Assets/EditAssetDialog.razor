@@ -30,7 +30,7 @@
                                   Label="@CommonLoc["Label_Title"]"
                                   Variant="Variant.Outlined"
                                   Required="true"
-                                  RequiredError="@AssetLoc["Validation_TitleRequired"]"
+                                  RequiredError="@CommonLoc["Validation_TitleRequired"]"
                                   Immediate="true"
                                   AutoFocus="true"
                                   Class="mb-2" />
@@ -68,7 +68,7 @@
                         }
                         @if (_tags.Count == 0)
                         {
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">@AssetLoc["NoTags"]</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@CommonLoc["Text_NoTags"]</MudText>
                         }
                     </MudStack>
 

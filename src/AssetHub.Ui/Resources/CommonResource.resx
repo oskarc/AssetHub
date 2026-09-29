@@ -297,15 +297,16 @@
 
   <!-- Error / Not Found Pages -->
   <data name="Error_NotAuthorized" xml:space="preserve"><value>You are not authorized to access this page.</value></data>
+  <data name="AccessDenied_Title" xml:space="preserve"><value>Access denied</value></data>
+  <data name="AccessDenied_SignedInAs" xml:space="preserve"><value>You're signed in as {0}.</value></data>
+  <data name="AccessDenied_Help" xml:space="preserve"><value>Need access? Contact an administrator. If you were given access recently, or want to use another account, sign in again.</value></data>
+  <data name="AccessDenied_SignInAgain" xml:space="preserve"><value>Sign in again</value></data>
   <data name="Error_PageNotFound" xml:space="preserve"><value>Page not found</value></data>
   <data name="Error_PageNotFoundDesc" xml:space="preserve"><value>The page you're looking for doesn't exist or has been moved.</value></data>
   <data name="Error_PageTitle" xml:space="preserve"><value>Error</value></data>
-  <data name="Error_Heading" xml:space="preserve"><value>Error.</value></data>
-  <data name="Error_Description" xml:space="preserve"><value>An error occurred while processing your request.</value></data>
+  <data name="Error_Heading" xml:space="preserve"><value>Something went wrong</value></data>
+  <data name="Error_Description" xml:space="preserve"><value>An unexpected error stopped this page from loading. Try again in a moment. If it keeps happening, contact an administrator and include the request ID.</value></data>
   <data name="Error_RequestId" xml:space="preserve"><value>Request ID:</value></data>
-  <data name="Error_DevelopmentMode" xml:space="preserve"><value>Development Mode</value></data>
-  <data name="Error_DevelopmentInfo" xml:space="preserve"><value>Swapping to the Development environment will display more detailed information about the error that occurred.</value></data>
-  <data name="Error_DevelopmentWarning" xml:space="preserve"><value>The Development environment shouldn't be enabled for deployed applications. It can result in displaying sensitive information from exceptions to end users. For local debugging, enable the Development environment by setting the ASPNETCORE_ENVIRONMENT environment variable to Development and restarting the app.</value></data>
 
   <!-- Misc -->
   <data name="Text_ThisCollection" xml:space="preserve"><value>this collection</value></data>

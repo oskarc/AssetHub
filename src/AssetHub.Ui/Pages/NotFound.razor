@@ -1,0 +1,26 @@
+@page "/not-found"
+@layout MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
+@inject IStringLocalizer<CommonResource> CommonLoc
+
+@* Rendered for every unknown page URL: the host re-executes a GET 404 here
+   (the status stays 404), and the router renders it as its NotFoundPage inside a
+   running circuit.
+
+   @layout is required: the router renders NotFoundPage without its DefaultLayout
+   on runtime 10.0.1, which would drop the app shell. Keep the page synchronous —
+   a re-executed render does not wait for async work. *@
+
+<PageTitle>@CommonLoc["Error_PageNotFound"] - @CommonLoc["AppName"]</PageTitle>
+
+<StatusPanel Icon="@Icons.Material.Filled.SearchOff" Title="@CommonLoc["Error_PageNotFound"]">
+    <ChildContent>
+        <MudText Typo="Typo.body1" Align="Align.Center">@CommonLoc["Error_PageNotFoundDesc"]</MudText>
+    </ChildContent>
+    <Actions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">
+            @CommonLoc["Btn_GoHome"]
+        </MudButton>
+    </Actions>
+</StatusPanel>
