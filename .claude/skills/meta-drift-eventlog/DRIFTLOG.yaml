@@ -117,12 +117,25 @@ entries:
       This occurrence shows a pre-check alone cannot prevent the shape — the
       runtime can leave at any point — which strengthens the case that the
       unaddressed half is environmental and belongs with the owner.
+      2026-09-26 (contract-033 lay of the land): FOURTEENTH occurrence. A daemon
+      restart stopped the dev postgres and minio containers (they have no restart
+      policy; only api does), and api then crash-looped against the missing
+      database for about six hours. Caught by the pre-check before any run was
+      spent; both containers were restarted by hand. This occurrence became the
+      evidence for contract-033 D2 (restart policy on the dev postgres and minio).
+
+      2026-09-29 (contract-033 execution): FIFTEENTH occurrence, recorded here
+      although the approval named only the fourteenth, because it happened after
+      the proposal. Same shape: postgres and minio Exited (255) about two days
+      earlier, api restarting. Caught by the pre-check before anything was spent.
+      Once D2 ships, a daemon restart should no longer need a hand restart of the
+      dev stack - a check for that, not a new rule.
     status: watching
     elevation:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 13
+    recurrence_count: 15
     related_drifts: []
 
   - drift_id: drift-002

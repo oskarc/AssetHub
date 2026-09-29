@@ -2949,6 +2949,7 @@ contracts:
     reshape_step: close-out 1 of 6 (commits C17)
     date_proposed: 2026-09-26
     date_approved: 2026-09-26
+    follows: contract-031
     tier_1: |
       Three months of reshape work (38 commits plus an uncommitted docs pass)
       exists only on this laptop. CI has never looked at any of it, and the first
@@ -3025,7 +3026,8 @@ contracts:
       recommended default, so it is left untouched and stays an open owner
       decision. Earlier owner decisions this close-out implements across
       032-037 - cut versioning for now, SMTP required, archive the old docs.
-    status: approved
+    status: implemented
+    implemented: 2026-09-26
     revisions:
       - date: 2026-09-26
         authorised_by: >-
@@ -3133,4 +3135,211 @@ contracts:
              ships libssl3t64; GitHub secret scanning and push protection are off;
              rotate dev credentials already public in history; Sonar bump with a
              warning baseline; MetadataExtractor 2.9 with its one-line fix.
+    work_id: null
+    outcome: |
+      PUBLISHED AND GREEN. main pushed 65bd7cc..0c95c8a (41 commits, fast-forward; the
+      "Bypassed rule violations" notice was the expected admin bypass of ruleset "protec
+      main"), tag pre-reshape pushed (a323e87). CI run 36270540506 on 0c95c8a:
+      build-and-test, security-audit and docker-build (incl. Trivy) all success -
+      https://github.com/oskarc/AssetHub/actions/runs/36270540506. First CI run since
+      2026-06-24.
+
+      Commits: 899e229 (contract-030, message reworded, tree unchanged), 9bf98aa (C17
+      docs pass, contract-031), d9f8ea7 (archive + "Smart" correction), 0c95c8a (CI job,
+      Magick.NET, both OpenAPI packages and the dead IdentityModel pin removed; reasons
+      on the remaining pins; revision 2 and the drift entries). The pre-amend 6b26a57 and
+      pre-reword hashes are unreachable from anything pushed; a local rollback branch
+      backup/pre-reword remains (never pushed).
+
+      Gate on 0c95c8a (A4), tree hash identical before and after: secret scan over 41
+      commits / 39,823 lines / 16 secret values - nothing blocking, nothing already
+      public, no pattern hits; Release build --no-incremental 0 errors (81 warnings);
+      694/694 tests reconciled by name against the bab1810 baseline (0 regressions, 0
+      new, 0 removed); dotnet list package --vulnerable --include-transitive empty in all
+      7 projects; docker build --pull --no-cache + Trivy 0.69.3 (CI settings) clean.
+
+      After the push: Dependabot shows 0 open alerts and 42 fixed, all Magick.NET-Q8-
+      AnyCPU. SonarCloud quality gate on main = ERROR (reported, not blocking, per A5):
+      new-code reliability C and security B. The 8 issues: 5x S8949 cancellation token
+      not passed (OutboxDrainService.cs:111, ZipBuildService.cs:67 and :100,
+      WebApplicationExtensions.cs:458 and :497); S3330 + S2092 HttpOnly/Secure missing
+      on the culture cookie (WebApplicationExtensions.cs:526); S5146 open redirect in
+      AssetDetail.NavigateBackToAssets (AssetDetail.razor:700) - very likely a false
+      positive, since ReturnUrl passes UrlSafetyHelper.SafeReturnUrl, which Sonar's taint
+      analysis does not recognise; mark it reviewed with that reason. CI annotation:
+      ubuntu-latest moves to Ubuntu 26 from 2026-10-19.
+
+      Known residue, deliberately not fixed here (A8): full-featured branch not pushed
+      (the tag resolves the same references; the branch half of 10 USE-CASES + 2 archive
+      references dangles); stale "Smart"/Keycloak text in docs/architecture/FLOWCHARTS.md,
+      docs/security/SECURITY.md, docs/STYLEGUIDE.md (Redis L2), docs/USE-CASES.md and the
+      .github AI-tooling files (F2, still an owner decision); local CREDENTIALS.md still
+      quotes the test-viewer literal and says compose supplies it (gitignored). For 037:
+      .env.template and the Magick.NET/OpenAPI/IdentityModel removals are already done.
+
+      Hardening track (A10 plus findings after the push): reproducible builds (global.json
+      SDK pin, setup-dotnet global-json-file, Dockerfile SDK tag + lock copies, locked
+      restore) then one deliberate lock regeneration (drop Newtonsoft, float
+      Hybrid/Resilience to 10.*, refresh the stale Tests lock); Dockerfile libssl3 ->
+      libssl3t64; GitHub secret scanning and push protection off; rotate dev credentials
+      already public in history; Sonar analyzer bump with a warning baseline;
+      MetadataExtractor 2.9 with its one-line fix; the 8 SonarCloud issues above; pin the
+      CI runner image before the Ubuntu 26 switch.
+  - contract_id: contract-033
+    feature: error-pages
+    reshape_step: close-out 2 of 8 (fixes the C12a AccessDeniedPath regression)
+    date_proposed: 2026-09-26
+    date_approved: 2026-09-29
+    follows: contract-032
+    tier_1: |
+      Three moments leave people stranded. A signed-in user who is denied a page
+      (a viewer following a link to /admin) is shown the sign-in form inside the
+      app, as if logged out. Anyone who mistypes a URL gets a blank white page with
+      no way back, and following a broken link inside the app crashes the session
+      ("An unhandled error has occurred"). An unexpected server error shows a blank
+      page in production, and the error page itself carries developer text. People
+      want each of these to say plainly what happened and offer a way back, in
+      their own language, without losing their session. Cost if absent: users
+      believe they were logged out, get stuck on blank pages, and lose work on a
+      bad link.
+    tier_2: |
+      "Today" results were measured live; "proven" = shown in the spike on runtime
+      10.0.12 (CI's runtime).
+      1. A viewer opens a page they may not see (full page load): a 403
+         access-denied page with a heading, who is signed in, Back to home and Sign
+         in again. No login form; the app shell keeps working. Proven. Edge: an
+         anonymous visitor to /access-denied is sent to sign-in; the requested URL
+         is never shown on the page.
+      2. The same denial while navigating inside a running session: the same
+         content (one shared component); the URL stays put.
+      3. A signed-in user opens an unknown URL: status stays 404; a not-found page
+         inside the app shell with Back to home; the menus work. Proven.
+      4. A signed-in user follows an unknown link inside the session: the
+         not-found page renders with no crash. Proven.
+      5. An anonymous user opens an unknown URL: sent to sign-in, unchanged, so the
+         app reveals nothing about which routes exist.
+      6. A machine request (unknown /api path, /_framework, /_content, /health, a
+         file path, or a non-GET request): byte-for-byte as today, a bodiless 404.
+         Existing ApiError JSON replies unchanged. Proven.
+      7. (D1) An unexpected server error outside Development: 500 with an error
+         page - heading and request ID, no developer text. The page chrome does not
+         pretend to work (a plain Sign-out link instead of a dead menu).
+      8. Everything in both languages. (D3) CI fails if a Swedish key is missing or
+         a page uses a key that does not exist (the class of the NoTags bug).
+      9. (D2) The Docker daemon restarts: the dev stack comes back on its own -
+         Postgres and MinIO get the restart policy production already has.
+    tier_3: |
+      Mechanism (all proven in the spike on 10.0.12):
+      - AccessDeniedPath "/login" -> "/access-denied" (AuthenticationExtensions.cs:101).
+        Nothing else in the cookie options or the fallback policy changes.
+      - services.AddCascadingAuthenticationState() - fixes the in-session crash (UC4).
+      - Router NotFoundPage = typeof(AssetHub.Ui.Pages.NotFound); delete the obsolete
+        <NotFound> fragment (setting both throws).
+      - NotFound.razor: route /not-found, [AllowAnonymous], @layout MainLayout is
+        REQUIRED (runtime 10.0.1 renders it without the default layout - confirmed by
+        decompiling the framework), synchronous (re-executed renders do not await).
+      - AccessDenied.razor: route /access-denied, [Authorize] with no role,
+        interactive; sets 403 during the server render only if the response has not
+        started.
+      - The router's not-authorized branch for signed-in users renders the same
+        shared AccessDeniedContent component.
+      - UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
+        true) directly after UseRateLimiter (no double logging, no double rate-limit
+        charge), then a scoping middleware with a named static condition: re-execute
+        only GET 404s on page paths. /api, /_blazor, /_framework, /_content, /health,
+        file paths, every other status and every other method are left exactly as
+        they are.
+      - Never implement the scoping with app.UseWhen(...): in this app shape it
+        silently never re-routes.
+      500 (D1):
+      - UseExceptionHandler("/Error", createScopeForErrors: true) outside
+        Development, first in the non-Development block (before HTTPS, HSTS and the
+        security headers, so the error page keeps them).
+      - Error.razor: remove the developer text and its 3 keys in both languages; add
+        an <h1>; [ExcludeFromInteractiveRouting]; keep the request ID.
+      - MainLayout: when AssignedRenderMode is null (static render) hide the
+        hamburger and the account menu and show a plain Sign out link (GET
+        /auth/logout). Deliberately not RendererInfo.IsInteractive (controls would
+        flash on every first render). Contract 036 needs the same rule.
+      - The dev container runs in Development, so the 500 page is judged in the
+        integration test host through a test-only error route, dry-run first.
+      UI:
+      - A shared StatusPanel serves all three pages: exactly one <h1> (Typo.h4,
+        HtmlTag="h1"), icons aria-hidden, actions as real links.
+      - Access denied shows the name only (D4): the global role is misleading, since
+        users created in the admin UI have no global role and would read "Viewer".
+      - The requested URL is never shown (Sonar S5146). Titles "<Title> - AssetHub".
+        No Color.Secondary text (fails contrast).
+      Resource keys (CommonResource only, EN/SV parity): add AccessDenied_Title,
+      AccessDenied_SignedInAs, AccessDenied_Help, AccessDenied_SignInAgain; reuse
+      Error_PageNotFound, Error_PageNotFoundDesc, Btn_GoHome, Error_NotAuthorized;
+      (D1) reword the 500 wording and delete the Error_Development* keys.
+      Tests (exact names listed in the log before the gate):
+      - TestAuthHandler gets an opt-in X-Test-Identity-Challenge header that hands
+        challenge and forbid to the real Identity cookie. No second test host.
+      - New ErrorPageTests ("Api" collection, HTTPS): signed-in unknown URL -> 404
+        with the page; unknown /api -> bodiless 404; /_framework and static files ->
+        bodiless; anonymous unknown URL -> /login; viewer on /admin -> 302 to
+        /access-denied; access-denied page -> 403 with its heading; anonymous
+        /access-denied -> /login; POST to an unknown URL not re-executed; (D1) two
+        tests for the 500 page.
+      - BlazorHostAssetTests resets its test user explicitly.
+      - One bUnit test for AccessDeniedContent.
+      - (D3) a resource test for EN/SV parity and that every key used in Razor
+        exists; fix EditAssetDialog.razor:71 (NoTags -> Text_NoTags) and :33, and
+        tighten its two assertions.
+      - E2E: tighten the two 10-viewer-role tests that pass today only because of the
+        bug; add 11-error-pages.spec.ts with a page object; correct two stale
+        comments.
+      Docs: only CLAUDE.md "The host owns the document" - the not-found
+      requirements, the UseWhen trap and the status-code scoping. FLOWCHARTS and
+      STYLEGUIDE rows go to the 037/039 residue sweep.
+      Out of scope (named): /api JSON 401/403 instead of redirects (a forbidden /api
+      call now redirects to /access-denied instead of /login - HTML either way);
+      NavigationManager.NotFound() adoption; <h1> on other pages (037 a11y sweep);
+      dark-mode primary contrast; the global exception handler returning JSON for
+      UnauthorizedAccessException on page paths.
+      Commits: (a) docs(kit) - contract-032 close-out, this entry, drift-001
+      recurrence; (b) fix(ui) - pages, pipeline, tests, CLAUDE.md paragraph; (c) (D2)
+      build(compose) - restart policies.
+      Gate (contract-032 A4, adapted): secret scan against the current origin/main;
+      Release build warnings <= 81 and none on touched lines; tests = 694 plus
+      exactly the listed new tests, 0 regressions; vulnerability check empty; image
+      --pull --no-cache + Trivy; resource-key parity.
+      E2E local gate (CI has no Playwright job): rebuild the dev api with
+      `docker compose -f docker/docker-compose.yml --env-file docker/.env build
+      --pull api` then `up -d api` (--pull required: the local aspnet:10.0-noble tag
+      is a stale 10.0.7); red first - the new and tightened specs must fail against
+      the current code; after implementing `npx playwright test --project=chromium`
+      all green; record counts, image ID and runtime (>= 10.0.12).
+      Push and CI: ls-remote check, `git push origin main`; success and failure
+      handling per contract-032 A5. SonarCloud reported, not blocking; new issues
+      recorded and fixed in the next contract.
+      Close-out: status implemented, outcome, Standard Evolution Report; test
+      baseline re-recorded after the push; the close-out edit rides into 034's first
+      commit.
+    approval_note: >-
+      Owner, 2026-09-29: "Approved, with recommendations." - all four decisions take
+      the recommended answer. D1 yes: include the blank-500 fix (exception handler,
+      Error.razor cleanup, static-chrome rule in MainLayout). D2 yes: dev-compose
+      restart policy as its own commit. D3 yes: i18n guard tests plus the two
+      EditAssetDialog key fixes. D4 yes: access-denied content is name only, with
+      Back to home and Sign in again. The five SER candidates from contract-032 are
+      still open and not assumed by this contract.
+    status: approved
+    revisions:
+      - date: 2026-09-29
+        authorised_by: >-
+          Owner, 2026-09-29, answering the surfaced deviation: "Fix it here
+          (Recommended)".
+        change: >-
+          The approved key-existence test (D3) found a third literal key missing from
+          its resource, outside the approved scope (which named only the two
+          EditAssetDialog fixes): ShareLinkDialog.razor:29 used ShareLoc["ShareURL"],
+          while SharesResource defines "ShareUrl" ("Share URL" / "Dellänk"), already
+          used by the same dialog at :26. Resource lookups are case-sensitive, so the
+          share-link field label rendered the raw text "ShareURL" in both languages.
+          The survey's scan missed it because it compared keys case-insensitively;
+          the test compares ordinally, as the runtime does. Resolution: line 29 now
+          reads ShareLoc["ShareUrl"] (0 new keys), shipped in the fix(ui) commit.
     work_id: null
