@@ -3326,7 +3326,8 @@ contracts:
       EditAssetDialog key fixes. D4 yes: access-denied content is name only, with
       Back to home and Sign in again. The five SER candidates from contract-032 are
       still open and not assumed by this contract.
-    status: approved
+    status: implemented
+    implemented: 2026-09-29
     revisions:
       - date: 2026-09-29
         authorised_by: >-
@@ -3342,4 +3343,179 @@ contracts:
           The survey's scan missed it because it compared keys case-insensitively;
           the test compares ordinally, as the runtime does. Resolution: line 29 now
           reads ShareLoc["ShareUrl"] (0 new keys), shipped in the fix(ui) commit.
+    work_id: null
+    outcome: |
+      SHIPPED AND GREEN. main pushed 0c95c8a..b82ea8f (3 commits, fast-forward; the
+      "Bypassed rule violations" notice was the expected admin bypass of ruleset "protec
+      main"): ff6c123 docs(kit) (contract-032 close-out, this entry with revision 1,
+      drift-001 13 -> 15), ab159f7 fix(ui) (status pages, pipeline, tests, E2E,
+      CLAUDE.md), b82ea8f build(compose) (restart policy on the dev postgres and minio).
+      CI run 36627708938 on b82ea8f: build-and-test, security-audit and docker-build
+      all success - https://github.com/oskarc/AssetHub/actions/runs/36627708938. No
+      E2E evidence comes from CI (it has no Playwright job).
+
+      Red first (E2E, HEAD image f4806188, runtime 10.0.12): 53 passed, 8 failed - exactly
+      the two tightened 10-viewer-role tests and six new 11-error-pages tests, each
+      failing on the bug itself (redirect to /login?ReturnUrl=..., blank 404, no
+      access-denied heading). The two regression guards (anonymous unknown URL ->
+      sign-in; unknown /api -> bodiless 404) passed before and after, as designed.
+
+      Gate on b82ea8f (A4 adapted), tree hash identical before and after: secret scan
+      over 3 commits / 1,206 lines / 16 values - nothing blocking, nothing already
+      public, no pattern hits; Release build --no-incremental 0 errors, 81 warnings,
+      warning set identical to a HEAD build (only MSB3277 continuation lines differ,
+      by build root path); tests 720/720 reconciled by name = 694 baseline + exactly
+      the 26 listed new cases (ErrorPageTests 17, ResourceKeyTests 8,
+      AccessDeniedContentTests 1), 0 regressions, 0 removed; dotnet list package
+      --vulnerable empty; docker build --pull --no-cache (runtime 10.0.12) + Trivy
+      0.69.3 clean; resx parity 7/7 (CommonResource 367 -> 368 keys per language).
+
+      E2E local gate: `npx playwright test --project=chromium` 61/61 passed (1.9 min) on
+      dev image 1fd66a8b built with --pull from b82ea8f (clean tree), runtime 10.0.12.
+      Proves on the shipped runtime what the integration host (10.0.1) is not asked
+      to: the re-executed not-found page is interactive (account menu opens), the
+      in-circuit unknown route renders without a crash, and in-circuit denial shows
+      AccessDeniedContent.
+
+      Mutation checks (scratch copy): removing /api from the exclusion list fails
+      ExcludedPath(/api/...) with text/html; removing UseExceptionHandler lets the
+      test exception escape to the client (also the dry run proving /__test/throw
+      runs inside the app's exception handling); AccessDeniedPath back to /login fails
+      all three RoleRestrictedPage cases; deleting one Swedish key fails CommonResource
+      parity naming the key. Each guard failed on its own mutation only.
+
+      SonarCloud quality gate on main still ERROR (reported, not blocking, per A5) -
+      the same C reliability / B security conditions as after contract-032. None of
+      the 28 open new-code issues was created by this contract (all dated 2026-09-02
+      or earlier); 0 hotspots. The S5146 (AssetDetail.razor) issue named in
+      contract-032's outcome is no longer listed. Test baseline re-recorded at b82ea8f
+      (720 passed).
+
+      Scope notes: revision 1 (ShareLinkDialog ShareURL -> ShareUrl) is the only
+      deviation. Out of scope, unchanged, as named in tier_3: /api JSON 401/403, a
+      forbidden /api call now redirects to /access-denied (HTML either way),
+      NavigationManager.NotFound(), <h1> on other pages, dark-mode primary contrast,
+      the global exception handler's JSON for UnauthorizedAccessException on page
+      paths. Side effect within D1's rule: the signed-in static page
+      /reset-password/self now shows a Sign out link instead of dead menus.
+  - contract_id: contract-034
+    feature: cut-versioning
+    reshape_step: close-out 3 of 8 (owner decision 2026-09-26 - versioning cut for now)
+    date_proposed: 2026-09-30
+    date_approved: 2026-10-01
+    follows: contract-033
+    tier_1: |
+      Every asset page shows a "Version history" button that is permanently greyed
+      out: nothing has been able to create a version since contract-023 removed the
+      replace-file path in August. Behind it sit about 1,200 lines that can never run -
+      an entity and table, a service, a dialog, 17 translated strings and two dead
+      upload paths. The owner decided to cut versioning for now and re-add it later.
+      People want an asset page that offers only what works, and a newcomer to the
+      code should not find half a feature. Cost if absent: a dead control on every
+      asset, and a schema and code paths every later change has to carry and reason
+      about.
+    tier_2: |
+      ("proven" = shown in the lay-of-the-land spike on a scratch copy)
+      1. Someone who can edit opens an asset: the actions are Download, Share, Edit,
+         Delete - no greyed-out Version history. A new bUnit test fails on the extra
+         button at HEAD and passes after the cut. Proven.
+      2. Everything else (upload, detail, trash, purge, sharing) is unchanged: the 710
+         surviving tests pass (proven); E2E 61/61 is the local gate.
+      3. Purging an asset still queues its 4 live files for deletion; the lookup of
+         version files goes (revert-to-simpler). Proven.
+      4. An operator upgrades an existing install: one migration drops the (empty)
+         AssetVersions table and Assets.CurrentVersionNumber. The migration header and
+         the commit body state it is destructive, give a pre-upgrade query that lists
+         any version-only files, and say Down restores the schema, not rows. Proven.
+      5. A developer reads the repo: README, ARCHITECTURE, USE-CASES and CLAUDE.md say
+         versioning was removed, pointing to tag pre-reshape, branch full-featured and
+         this commit for a re-add.
+      6. Named consequence: an asset's file can't be replaced in place (already true
+         since contract-023). Workaround: upload a new file and delete the old one,
+         which loses the asset's id, shares and collection links.
+    tier_3: |
+      Cut (pattern-feature-excision):
+      - Bounded modules: delete 10 files (860 lines) - entity, configuration,
+        repository + interface, service + interface, DTO, facade partial, dialog,
+        test class; 17 Versions_* keys per language (AssetsResource 116 -> 99, parity
+        kept); the page's button, handler and _isAdmin (its only reader was the
+        dialog); SaveImageCopyAsync and ReplaceImageFileAsync with their request DTOs
+        and the helpers only they used; the pending-delete-key cleanup blocks (J3, J4).
+      - Detachment: the version repository leaves the upload and deletion services;
+        the five affected test files get wiring-only edits. Any assertion edit is
+        stop-and-surface.
+      - Revert-to-simpler: PurgeAsync collects the 4 live keys only.
+      - The unneeded S107 suppression on AssetUploadService goes (7 parameters).
+      Migration RemoveAssetVersioning:
+      - Up drops the table, then the column. Down re-adds the column with
+        defaultValue: 1 (hand-corrected from EF's scaffolded 0), then the table, its
+        foreign key (cascade) and unique index. Proof: up-then-down on a throwaway
+        database must leave the schema identical to InitialCreate (spike: 268 facts).
+      - Destructive note in the migration header. Discoverable through its Designer
+        (migrations list); has-pending-model-changes clean on a fresh build.
+      - dotnet ef commands run with EF_CONNECTION set to a design-time-only string
+        (the design-time factory requires it); never a real credential in a file.
+      Commit A traps: keep DbSet<AssetVersion> (it names the table); the entity and
+      mapping removal ships in the same commit as the migration, or the 76
+      migration-running tests fail. A dev boot does not catch a forgotten migration
+      (Development only logs) - has-pending-model-changes and the suite do.
+      MinIO remnant: accepted, expected empty. Dev pre-flight 2026-09-30: 0
+      AssetVersions rows, 0 assets with CurrentVersionNumber <> 1, 0 related audit
+      events. Thumbnail, medium and poster keys are fixed per asset and must never be
+      deleted on this basis. The operator query selects version originals not
+      referenced by any asset; it does not look for "-edited-".
+      Residual sweep: git grep over src, tests, docs, docker, .github, .claude/agents
+      and the root docs; "Versions" case-sensitive; no "config" scope. Survivors:
+      class 1 AuditAdmin Event_* labels; class 2 same-word uses; class 3 migration
+      history incl. the new migration's Down; docs/archive/*, docs/ai-history/*,
+      CONTRACT-LOG, LEARNINGLOG, c10-auth-before.json. The regenerated snapshot has
+      zero hits.
+      Docs in the same change: README :118-121; ARCHITECTURE :50, :60-62 and :262;
+      USE-CASES :139, a Removed banner on section J, :268; CLAUDE.md :210-213. Memory
+      entries on T1-VER-01 and T1-LIFE-01 marked historical (outside the repo).
+      Commits: (a) docs(kit) - contract-033 close-out + this entry; (b) refactor!
+      commit A - every consumer removed + the red-first bUnit test, model unchanged;
+      (c) refactor(db)! commit B - entity, mapping, migration, snapshot, docs.
+      Gate (contract-033's, adapted): commit A checked locally (0 errors, model clean,
+      711 tests); secret scan against b82ea8f; warnings <= 81 (80 expected), none new
+      judged by rule and member, not line number; tests 711 = 720 - the 10 named
+      AssetVersionServiceTests + the 1 named new test, reconciled by name;
+      vulnerabilities none; image --pull --no-cache + Trivy; resx parity 7/7; the
+      migration audit and the throwaway-database Down proof; the residual sweep.
+      Order: the bUnit test runs red at HEAD first; the dev-database pre-flight comes
+      before the dev rebuild; the rebuild applies the drop to the dev database (D3);
+      then E2E (61/61 expected). Push and CI per contract-032 A5.
+      Reported, not fixed (to 037): the audit-label lookup bug (AdminResource has 0
+      Event_ keys); DEPLOYMENT.md's manual dotnet ef database update step (the image
+      has no SDK); CLAUDE.md's stale "BrandConfiguration is the exemplar"; unused
+      MaxEditorImageSizeMb and AdminLoc injection; empty section headers in
+      ServiceCollectionExtensions and AssetEndpoints; an S107 justification naming a
+      parameter that no longer exists; stale "API and Worker" wording in .github (F2).
+      Decisions:
+      - D1: two commits in one push. Recorded waiver for the "separate releases"
+        clause of .github/instructions/database-migrations.instructions.md:17-18 -
+        the repo has no releases and no deployments (contract-029), one Api host, and
+        the dev pre-flight was 0/0; a commit-A build still maps the column, so a
+        separate release would buy nothing. Commit A meets implementation-ef-config-
+        migration :19 and implementation-migration-check :26 by their letter.
+      - D2: widen the cut to ConfirmPreScannedUploadAsync (zero callers; skips the
+        malware scan and file-type validation) and the always-false skipMetadata
+        chain (IMediaProcessingService overload, MediaProcessingService,
+        ProcessImageCommand.SkipMetadataExtraction, ProcessImageHandler,
+        ImageProcessingService) - metadata extraction simply always runs.
+      - D3: the E2E rebuild applies the drop to the dev database. Undo: dotnet ef
+        database update InitialCreate against it, or recreate it.
+      - D4: CLAUDE.md's migration section - add the EF_CONNECTION requirement to its
+        dotnet ef command, and state that the drift guard fires only when migrations
+        run (startup with AutoMigrate, or the MigrateAsync tests).
+    approval_note: >-
+      Owner, 2026-10-01: "approved", without separate answers to D1-D4. Recommended
+      options applied, as with contract-032's approval: D1 two commits plus the
+      recorded "separate releases" waiver; D2 widen to ConfirmPreScannedUploadAsync and
+      the skipMetadata chain; D3 apply the drop to the dev database; D4 fix the two
+      CLAUDE.md migration lines. Defaults for the rest: J3 and J4 included, J6 no
+      behaviour change, J7 audit labels kept, J8 suppression removed, J10 resolved by
+      contract-032's archive, J11 USE-CASES dimension-B token kept, J12 consequence
+      named. The 11 SER candidates from 032/033 and F2 remain open and are not assumed.
+    status: approved
     work_id: null

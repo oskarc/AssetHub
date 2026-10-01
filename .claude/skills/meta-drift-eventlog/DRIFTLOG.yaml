@@ -130,12 +130,20 @@ entries:
       earlier, api restarting. Caught by the pre-check before anything was spent.
       Once D2 ships, a daemon restart should no longer need a hand restart of the
       dev stack - a check for that, not a new rule.
+
+      2026-10-01 (contract-034 execution): SIXTEENTH occurrence - the daemon was down
+      at the pre-check ("failed to connect to the docker API"), caught before anything
+      was spent; Docker Desktop was started and work that needs no daemon proceeded.
+      First occurrence since contract-033's D2 shipped: postgres, minio and api all
+      came back on their own (restart policy unless-stopped), with no hand restart.
+      The environmental half of this drift is now partly mitigated for the dev stack;
+      the pre-check remains the guard for the daemon itself.
     status: watching
     elevation:
       - target: pattern-regression-baseline
         kind: skill-update
         date: 2026-08-11
-    recurrence_count: 15
+    recurrence_count: 16
     related_drifts: []
 
   - drift_id: drift-002
