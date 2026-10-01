@@ -71,7 +71,4 @@ public interface IAssetHubApiClient
     Task RestoreFromTrashAsync(Guid id, CancellationToken ct = default);
     Task PurgeFromTrashAsync(Guid id, CancellationToken ct = default);
     Task<EmptyTrashResponse> EmptyTrashAsync(CancellationToken ct = default);
-    Task<List<AssetVersionDto>> GetAssetVersionsAsync(Guid assetId, CancellationToken ct = default);
-    Task<AssetVersionDto> RestoreAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default);
-    Task PruneAssetVersionAsync(Guid assetId, int versionNumber, CancellationToken ct = default);
 }

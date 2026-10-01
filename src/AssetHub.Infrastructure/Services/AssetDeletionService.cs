@@ -9,7 +9,6 @@ namespace AssetHub.Infrastructure.Services;
 public sealed class AssetDeletionService(
     IAssetRepository assetRepository,
     IAssetCollectionRepository assetCollectionRepo,
-    IAssetVersionRepository versionRepository,
     IShareRepository shareRepository,
     IOrphanedObjectRepository orphanedRepo) : IAssetDeletionService
 {
@@ -29,26 +28,15 @@ public sealed class AssetDeletionService(
 
     public async Task PurgeAsync(Asset asset, string bucketName, CancellationToken ct = default)
     {
-        // Collect every MinIO key tied to this asset (live row + version
-        // history) BEFORE deleting the asset row, since the FK cascade on
-        // AssetVersion will drop the version rows along with the asset.
+        // Collect every MinIO key tied to this asset BEFORE deleting the row.
         var keys = new HashSet<string>(StringComparer.Ordinal);
         AddIfNotEmpty(keys, asset.OriginalObjectKey);
         AddIfNotEmpty(keys, asset.ThumbObjectKey);
         AddIfNotEmpty(keys, asset.MediumObjectKey);
         AddIfNotEmpty(keys, asset.PosterObjectKey);
 
-        var versions = await versionRepository.GetByAssetIdAsync(asset.Id, ct);
-        foreach (var v in versions)
-        {
-            AddIfNotEmpty(keys, v.OriginalObjectKey);
-            AddIfNotEmpty(keys, v.ThumbObjectKey);
-            AddIfNotEmpty(keys, v.MediumObjectKey);
-            AddIfNotEmpty(keys, v.PosterObjectKey);
-        }
-
         // DB-only mutations — the caller's UnitOfWork transaction commits
-        // share cleanup, asset delete (FK-cascades versions), and tombstone
+        // share cleanup, asset delete, and tombstone
         // inserts together. The MinIO sweeper drains tombstones out-of-band.
         await shareRepository.DeleteByScopeAsync(Constants.ScopeTypes.Asset, asset.Id, ct);
         await assetRepository.DeleteAsync(asset.Id, ct);

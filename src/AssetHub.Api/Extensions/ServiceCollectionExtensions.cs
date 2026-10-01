@@ -234,9 +234,6 @@ public static class ServiceCollectionExtensions
         // Trash (T1-LIFE-01)
         services.AddScoped<IAssetTrashService, AssetTrashService>();
 
-        // Versioning (T1-VER-01)
-        services.AddScoped<IAssetVersionService, AssetVersionService>();
-
         // Asset comments (T3-COL-01)
 
         // Asset workflow (T3-WF-01)

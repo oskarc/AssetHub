@@ -347,22 +347,6 @@ else
                             </MudButton>
                             }
 
-                            @* Version history — contributor+. Greyed out when there's
-                               nothing to show (CurrentVersionNumber == 1 means no
-                               historical AssetVersion rows have been created yet). *@
-                            @if (RolePermissions.CanEdit(_asset?.UserRole))
-                            {
-                            <MudTooltip Text="@(HasVersionHistory ? AssetLoc["Versions_Btn_Open"] : AssetLoc["Versions_None"])">
-                                <MudButton Variant="Variant.Outlined"
-                                           StartIcon="@Icons.Material.Filled.History"
-                                           FullWidth="true"
-                                           Disabled="@(!HasVersionHistory)"
-                                           OnClick="OpenVersionHistoryAsync">
-                                    @AssetLoc["Versions_Btn_Open"]
-                                </MudButton>
-                            </MudTooltip>
-                            }
-
                             @if (RolePermissions.CanDelete(_asset?.UserRole))
                             {
                             <MudButton Variant="Variant.Outlined"
@@ -390,55 +374,9 @@ else
 
     private AssetResponseDto? _asset;
     private List<AssetCollectionDto> _assetCollections = new();
-    private bool _isAdmin;
     private bool _isLoading = true;
     private bool _isPollingProcessing;
     private CancellationTokenSource _cts = new();
-
-    [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (AuthStateTask is not null)
-        {
-            var state = await AuthStateTask;
-            _isAdmin = state.User.IsInRole("admin");
-        }
-    }
-
-    /// <summary>
-    /// True when there is at least one historical AssetVersion row to show
-    /// (CurrentVersionNumber &gt; 1). The button is rendered disabled / with
-    /// a "no versions yet" tooltip when this is false, so contributors don't
-    /// open an empty dialog.
-    /// </summary>
-    private bool HasVersionHistory => _asset is { CurrentVersionNumber: > 1 };
-
-    private async Task OpenVersionHistoryAsync()
-    {
-        if (!HasVersionHistory) return;
-
-        var parameters = new DialogParameters<AssetVersionHistoryDialog>
-        {
-            { x => x.AssetId, AssetId },
-            { x => x.CanPrune, _isAdmin }
-        };
-        var options = new DialogOptions
-        {
-            MaxWidth = MaxWidth.Large,
-            FullWidth = true,
-            CloseOnEscapeKey = true,
-            CloseButton = true
-        };
-        var dialog = await DialogService.ShowAsync<AssetVersionHistoryDialog>(
-            AssetLoc["Versions_Section_Title"], parameters, options);
-        var result = await dialog.Result;
-        // Dialog returns true via DialogResult.Ok when at least one restore
-        // happened; refresh the asset so thumbnails / current version / edit
-        // document reflect the new state.
-        if (result is { Canceled: false, Data: true })
-            await LoadAssetAsync();
-    }
 
     protected override async Task OnParametersSetAsync()
     {

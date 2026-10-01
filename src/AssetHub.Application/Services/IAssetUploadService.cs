@@ -27,13 +27,6 @@ public interface IAssetUploadService
     Task<ServiceResult<AssetUploadResult>> ConfirmUploadAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
-    /// Confirm a pre-scanned upload — skips malware scan and magic byte validation.
-    /// Use only when the caller has already performed ClamAV scanning on the stream
-    /// before uploading to storage (e.g. image edit flow).
-    /// </summary>
-    Task<ServiceResult<AssetUploadResult>> ConfirmPreScannedUploadAsync(Guid id, bool skipMetadata = false, CancellationToken ct = default);
-
-    /// <summary>
     /// Upload a file directly through the API (synchronous upload path).
     /// Use for small/medium files when presigned upload isn't needed.
     /// </summary>
@@ -43,18 +36,4 @@ public interface IAssetUploadService
     Task<ServiceResult<AssetUploadResult>> UploadAsync(
         Stream fileStream, string fileName, string contentType, long fileSize,
         Guid collectionId, string title, CancellationToken ct = default);
-
-    /// <summary>
-    /// Save an edited image as a new copy. Creates a new asset record with metadata
-    /// copied from the source, adds it to the same collections, and returns a presigned URL.
-    /// </summary>
-    Task<ServiceResult<InitUploadResponse>> SaveImageCopyAsync(
-        Guid sourceAssetId, SaveImageCopyRequest request, CancellationToken ct);
-
-    /// <summary>
-    /// Replace the original file of an existing asset with an edited version.
-    /// Returns a presigned URL for the browser to upload the replacement file.
-    /// </summary>
-    Task<ServiceResult<InitUploadResponse>> ReplaceImageFileAsync(
-        Guid assetId, ReplaceImageFileRequest request, CancellationToken ct);
 }

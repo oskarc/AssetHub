@@ -95,7 +95,6 @@ public class AssetUploadServiceTests : IAsyncLifetime
         return new AssetUploadService(
             repos,
             pipeline,
-            new AssetVersionRepository(_provider, NullLogger<AssetVersionRepository>.Instance),
             _authService,
             _auditMock.Object,
             new CurrentUser(userId, isSystemAdmin),

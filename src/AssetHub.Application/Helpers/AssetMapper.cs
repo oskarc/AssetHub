@@ -36,7 +36,6 @@ public static class AssetMapper
             CreatedByUserId = asset.CreatedByUserId,
             CreatedByUserName = createdByUserName,
             UpdatedAt = asset.UpdatedAt,
-            CurrentVersionNumber = asset.CurrentVersionNumber,
             UserRole = userRole,
             DurationSeconds = asset.DurationSeconds
         };

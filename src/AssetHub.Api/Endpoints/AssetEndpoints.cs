@@ -11,7 +11,7 @@ namespace AssetHub.Api.Endpoints;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Major Code Smell", "S1200:Classes should not be coupled to too many other classes",
-    Justification = "Endpoint mapping class — wires up the asset CRUD / upload / search / version / metadata endpoints. Coupling is the point.")]
+    Justification = "Endpoint mapping class — wires up the asset media endpoints (renditions, preview, download). Coupling is the point.")]
 public static class AssetEndpoints
 {
     public static void MapAssetEndpoints(this WebApplication app)
@@ -29,7 +29,6 @@ public static class AssetEndpoints
         // deletion-context is a UI-oriented helper (pre-delete impact preview) — kept internal.
 
 
-        // Copy/replace save paths — internal; replace-file is the sole version-minting path (T1-VER-01).
 
         group.MapGet("{id:guid}/download", GetRendition("original", forceDownload: true)).WithName("DownloadOriginal");
         group.MapGet("{id:guid}/preview", GetRendition("original", forceDownload: false)).WithName("PreviewOriginal");

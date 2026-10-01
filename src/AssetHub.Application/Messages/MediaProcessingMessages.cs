@@ -6,7 +6,6 @@ public record ProcessImageCommand
 {
     public Guid AssetId { get; init; }
     public string OriginalObjectKey { get; init; } = string.Empty;
-    public bool SkipMetadataExtraction { get; init; }
 }
 
 public record ProcessVideoCommand

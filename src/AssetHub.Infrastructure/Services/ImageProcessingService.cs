@@ -55,7 +55,7 @@ public sealed class ImageProcessingService(
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
 
     public async Task<ImageProcessingResult> ProcessImageAsync(
-        Guid assetId, string originalObjectKey, bool skipMetadata = false, CancellationToken ct = default)
+        Guid assetId, string originalObjectKey, CancellationToken ct = default)
     {
         var tempOriginal = ScratchPaths.Combine(Path.GetRandomFileName());
         var thumbPath = ScratchPaths.Combine($"{Guid.NewGuid()}.jpg");
@@ -73,40 +73,37 @@ public sealed class ImageProcessingService(
                 await originalStream.CopyToAsync(fs, ct);
             }
 
-            // Extract EXIF metadata (skip for canvas-rendered edits — no EXIF in those PNGs)
+            // Extract EXIF metadata
             Dictionary<string, object> metadata = new();
             string? copyright = null;
-            if (!skipMetadata)
+            try
             {
-                try
+                logger.LogInformation("Starting metadata extraction for asset {AssetId}, file: {FilePath}", assetId, tempOriginal);
+                metadata = metadataExtractor.ExtractImageMetadata(tempOriginal);
+                if (metadata.Count > 0)
                 {
-                    logger.LogInformation("Starting metadata extraction for asset {AssetId}, file: {FilePath}", assetId, tempOriginal);
-                    metadata = metadataExtractor.ExtractImageMetadata(tempOriginal);
-                    if (metadata.Count > 0)
-                    {
-                        logger.LogInformation("Extracted {MetadataCount} metadata fields for asset {AssetId}: {MetadataKeys}",
-                            metadata.Count, assetId, string.Join(", ", metadata.Keys));
+                    logger.LogInformation("Extracted {MetadataCount} metadata fields for asset {AssetId}: {MetadataKeys}",
+                        metadata.Count, assetId, string.Join(", ", metadata.Keys));
 
-                        // Extract copyright from metadata if available
-                        if (metadata.TryGetValue("copyright", out var extractedCopyright) &&
-                            extractedCopyright is string copyrightStr &&
-                            !string.IsNullOrWhiteSpace(copyrightStr))
-                        {
-                            copyright = copyrightStr;
-                            logger.LogInformation("Found Copyright in EXIF for asset {AssetId}: {Copyright}",
-                                assetId, copyrightStr);
-                        }
-                    }
-                    else
+                    // Extract copyright from metadata if available
+                    if (metadata.TryGetValue("copyright", out var extractedCopyright) &&
+                        extractedCopyright is string copyrightStr &&
+                        !string.IsNullOrWhiteSpace(copyrightStr))
                     {
-                        logger.LogInformation("No metadata found in image for asset {AssetId}. File may not contain EXIF/IPTC data.", assetId);
+                        copyright = copyrightStr;
+                        logger.LogInformation("Found Copyright in EXIF for asset {AssetId}: {Copyright}",
+                            assetId, copyrightStr);
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}: {ErrorMessage}", assetId, ex.Message);
-                    metadata["metadataExtractionError"] = ex.Message;
+                    logger.LogInformation("No metadata found in image for asset {AssetId}. File may not contain EXIF/IPTC data.", assetId);
                 }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to extract metadata for asset {AssetId}: {ErrorMessage}", assetId, ex.Message);
+                metadata["metadataExtractionError"] = ex.Message;
             }
 
             // Create thumbnail and medium in a single ImageMagick invocation

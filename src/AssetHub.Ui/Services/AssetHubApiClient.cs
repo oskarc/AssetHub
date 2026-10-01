@@ -40,7 +40,6 @@ public sealed partial class AssetHubApiClient(
     IAssetUploadService assetUploadService,
     IAssetSearchService assetSearchService,
     IAssetTrashService assetTrashService,
-    IAssetVersionService assetVersionService,
     IAuthenticatedShareAccessService authShareAccessService,
     IPublicShareAccessService publicShareAccessService,
     IShareAdminService shareAdminService,

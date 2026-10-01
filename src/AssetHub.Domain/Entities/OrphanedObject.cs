@@ -2,8 +2,8 @@ namespace AssetHub.Domain.Entities;
 
 /// <summary>
 /// Tombstone for a MinIO object that the DB has logically released but
-/// storage still holds. Inserted inside the same transaction as the asset /
-/// version delete so the DB stays consistent even if the MinIO
+/// storage still holds. Inserted inside the same transaction as the asset
+/// delete so the DB stays consistent even if the MinIO
 /// call fails. A background sweeper drains the table by issuing the actual
 /// MinIO DELETE and removing the row on success (A-4 follow-up).
 /// </summary>

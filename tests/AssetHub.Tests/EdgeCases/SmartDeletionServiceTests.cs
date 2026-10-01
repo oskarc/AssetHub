@@ -33,7 +33,6 @@ public class SmartDeletionServiceTests : IAsyncLifetime
     private AssetCollectionRepository _acRepo = null!;
     private ICollectionRepository _colRepo = null!;
     private ShareRepository _shareRepo = null!;
-    private AssetVersionRepository _versionRepo = null!;
     private CollectionAuthorizationService _authService = null!;
     private AssetDeletionService _deletionService = null!;
     private Mock<IMinIOAdapter> _minioMock = null!;
@@ -66,10 +65,9 @@ public class SmartDeletionServiceTests : IAsyncLifetime
 
         _minioMock = new Mock<IMinIOAdapter>();
         _auditMock = new Mock<IAuditService>();
-        _versionRepo = new AssetVersionRepository(_provider, NullLogger<AssetVersionRepository>.Instance);
 
         _deletionService = new AssetDeletionService(
-            _assetRepo, _acRepo, _versionRepo, _shareRepo, new OrphanedObjectRepository(_provider));
+            _assetRepo, _acRepo, _shareRepo, new OrphanedObjectRepository(_provider));
     }
 
     public async Task DisposeAsync()

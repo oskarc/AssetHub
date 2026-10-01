@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using System.Security.Cryptography;
 using AssetHub.Application;
 using AssetHub.Application.Configuration;
@@ -38,13 +37,9 @@ public sealed class AssetUploadService : IAssetUploadService
 {
     // Audit-detail dictionary keys reused across the upload paths (Sonar S1192).
     private const string KeyTitle = "title";
-    // Metadata bag key for cleaning up the previous file after a replace
-    // operation (see ConfirmUpload + ConfirmPreScannedUpload).
-    private const string PendingDeleteKey = "_pendingDeleteKey";
 
     private readonly IAssetRepository _assetRepo;
     private readonly IAssetCollectionRepository _assetCollectionRepo;
-    private readonly IAssetVersionRepository _versionRepo;
     private readonly ICollectionAuthorizationService _authService;
     private readonly IMinIOAdapter _minioAdapter;
     private readonly IMediaProcessingService _mediaProcessing;
@@ -55,13 +50,9 @@ public sealed class AssetUploadService : IAssetUploadService
     private readonly int _maxUploadSizeMb;
     private readonly ILogger<AssetUploadService> _logger;
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Major Code Smell", "S107:Methods should not have too many parameters",
-        Justification = "Composition root: repositories already bundled into AssetUploadRepositories, MinIO/scanner/processing into AssetUploadPipeline. The remaining single-purpose services (version repo, auth, audit, current user, app settings, logger) don't share a natural grouping and bundling them further would obscure intent.")]
     public AssetUploadService(
         AssetUploadRepositories repos,
         AssetUploadPipeline pipeline,
-        IAssetVersionRepository versionRepo,
         ICollectionAuthorizationService authService,
         IAuditService audit,
         CurrentUser currentUser,
@@ -70,7 +61,6 @@ public sealed class AssetUploadService : IAssetUploadService
     {
         _assetRepo = repos.AssetRepo;
         _assetCollectionRepo = repos.AssetCollectionRepo;
-        _versionRepo = versionRepo;
         _authService = authService;
         _minioAdapter = pipeline.MinioAdapter;
         _mediaProcessing = pipeline.MediaProcessing;
@@ -286,22 +276,6 @@ public sealed class AssetUploadService : IAssetUploadService
 
         asset.Sha256 = sha256Hash;
 
-        // Clean up old object from a replace-file operation (deferred to after successful upload)
-        if (asset.MetadataJson.TryGetValue(PendingDeleteKey, out var pendingKeyObj)
-            && pendingKeyObj is string pendingDeleteKey
-            && !string.IsNullOrEmpty(pendingDeleteKey))
-        {
-            asset.MetadataJson.Remove(PendingDeleteKey);
-            try
-            {
-                await _minioAdapter.DeleteAsync(_bucketName, pendingDeleteKey, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to delete old object key {OldKey} for replaced asset {AssetId}", pendingDeleteKey, asset.Id);
-            }
-        }
-
         asset.SizeBytes = stat.Size;
         asset.Status = AssetStatus.Processing;
         asset.UpdatedAt = DateTime.UtcNow;
@@ -325,7 +299,9 @@ public sealed class AssetUploadService : IAssetUploadService
     private async Task<ServiceError?> PreflightConfirmAsync(
         Asset asset, Guid id, string userId, CancellationToken ct)
     {
-        // Allow the original uploader OR any user with Contributor access (e.g. image editor replace flow)
+        // Allow the original uploader OR any user with Contributor access. Today only the
+        // creator confirms (the UI confirms the upload it just started); the Contributor
+        // branch served the removed replace/edit flows and is kept unchanged.
         if (asset.CreatedByUserId != userId && !await CanAccessAssetAsync(id, userId, RoleHierarchy.Roles.Contributor, ct))
             return ServiceError.Forbidden();
 
@@ -369,59 +345,6 @@ public sealed class AssetUploadService : IAssetUploadService
         return ServiceError.BadRequest($"File rejected: malware detected ({scanResult.ThreatName}).");
     }
 
-    public async Task<ServiceResult<AssetUploadResult>> ConfirmPreScannedUploadAsync(Guid id, bool skipMetadata = false, CancellationToken ct = default)
-    {
-        var userId = _currentUser.UserId;
-        var asset = await _assetRepo.GetByIdAsync(id, ct);
-        if (asset is null)
-            return ServiceError.NotFound("Asset not found");
-
-        if (asset.CreatedByUserId != userId && !await CanAccessAssetAsync(id, userId, RoleHierarchy.Roles.Contributor, ct))
-            return ServiceError.Forbidden();
-
-        if (asset.Status != AssetStatus.Uploading)
-            return ServiceError.BadRequest("Asset is not in uploading state");
-
-        var stat = await _minioAdapter.StatObjectAsync(_bucketName, asset.OriginalObjectKey, ct);
-        if (stat is null)
-            return ServiceError.BadRequest("File not found in storage. Upload may have failed or expired.");
-
-        // Clean up old object from a replace-file operation
-        if (asset.MetadataJson.TryGetValue(PendingDeleteKey, out var pendingKeyObj)
-            && pendingKeyObj is string pendingDeleteKey
-            && !string.IsNullOrEmpty(pendingDeleteKey))
-        {
-            asset.MetadataJson.Remove(PendingDeleteKey);
-            try
-            {
-                await _minioAdapter.DeleteAsync(_bucketName, pendingDeleteKey, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to delete old object key {OldKey} for replaced asset {AssetId}", pendingDeleteKey, asset.Id);
-            }
-        }
-
-        asset.SizeBytes = stat.Size;
-        asset.Status = AssetStatus.Processing;
-        asset.UpdatedAt = DateTime.UtcNow;
-        await _assetRepo.UpdateAsync(asset, ct);
-
-        await _audit.LogAsync("asset.upload_confirmed", Constants.ScopeTypes.Asset, asset.Id, userId,
-            new() { [KeyTitle] = asset.Title, ["sizeBytes"] = stat.Size }, ct);
-
-        var jobId = await _mediaProcessing.ScheduleProcessingAsync(asset.Id, asset.AssetType.ToDbString(), asset.OriginalObjectKey, skipMetadata, ct);
-
-        return new AssetUploadResult
-        {
-            Id = asset.Id,
-            Status = AssetStatus.Processing.ToDbString(),
-            SizeBytes = stat.Size,
-            JobId = jobId,
-            Message = "Upload confirmed. Processing in progress."
-        };
-    }
-
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private ServiceError? ValidateFileSize(long fileSize)
@@ -455,165 +378,6 @@ public sealed class AssetUploadService : IAssetUploadService
         };
     }
 
-    // ── Save-copy / replace-file (version minting) ─────────────────────────────────────────────
-
-    private static readonly FrozenSet<string> AllowedEditorOutputTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "image/jpeg", "image/png", "image/webp"
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
-    public async Task<ServiceResult<InitUploadResponse>> SaveImageCopyAsync(
-        Guid sourceAssetId, SaveImageCopyRequest request, CancellationToken ct)
-    {
-        var userId = _currentUser.UserId;
-
-        if (!AllowedEditorOutputTypes.Contains(request.ContentType))
-            return ServiceError.BadRequest($"Content type '{request.ContentType}' is not a supported editor output format.");
-
-        var source = await _assetRepo.GetByIdAsync(sourceAssetId, ct);
-        if (source is null) return ServiceError.NotFound("Source asset not found");
-        if (source.AssetType != AssetType.Image) return ServiceError.BadRequest("Only images can be copied via the editor.");
-
-        // Authorize: user must have Contributor role on at least one collection containing the source
-        var sourceCollectionIds = await _assetCollectionRepo.GetCollectionIdsForAssetAsync(sourceAssetId, ct);
-        var accessibleCollections = _currentUser.IsSystemAdmin
-            ? sourceCollectionIds
-            : await _authService.FilterAccessibleAsync(userId, sourceCollectionIds, RoleHierarchy.Roles.Contributor, ct);
-        if (accessibleCollections.Count == 0)
-            return ServiceError.Forbidden();
-
-        var sizeError = ValidateFileSize(request.FileSize);
-        if (sizeError is not null) return sizeError;
-
-        // Validate target collection access before creating the asset
-        if (request.CollectionId.HasValue)
-        {
-            var hasAccess = _currentUser.IsSystemAdmin
-                || await _authService.CheckAccessAsync(userId, request.CollectionId.Value, RoleHierarchy.Roles.Contributor, ct);
-            if (!hasAccess)
-                return ServiceError.Forbidden();
-        }
-
-        var copyTitle = !string.IsNullOrWhiteSpace(request.Title)
-            ? request.Title.Trim()
-            : $"{source.Title} (edited)";
-        var extension = MimeTypeToExtension(request.ContentType);
-        var copy = CreateAssetEntity($"{copyTitle}{extension}", request.ContentType, request.FileSize, userId, AssetStatus.Uploading);
-        copy.Title = copyTitle;
-        copy.Tags = new List<string>(source.Tags);
-        copy.MetadataJson = new Dictionary<string, object>(source.MetadataJson);
-
-        await _assetRepo.CreateAsync(copy, ct);
-
-        // Add copy to the user-selected collection (if any)
-        if (request.CollectionId.HasValue)
-        {
-            await _assetCollectionRepo.AddToCollectionAsync(copy.Id, request.CollectionId.Value, userId, ct);
-        }
-
-        await _audit.LogAsync("asset.image_saved_as_copy", Constants.ScopeTypes.Asset, copy.Id, userId,
-            new() { ["sourceAssetId"] = sourceAssetId.ToString(), [KeyTitle] = copyTitle }, ct);
-
-        string presignedUrl;
-        try
-        {
-            presignedUrl = await _minioAdapter.GetPresignedUploadUrlAsync(
-                _bucketName, copy.OriginalObjectKey, Constants.Limits.PresignedUploadExpirySec, ct);
-        }
-        catch (StorageException ex)
-        {
-            _logger.LogError(ex, "Failed to generate presigned URL for save-copy {AssetId}", copy.Id);
-            return ServiceError.Server(ex.Message);
-        }
-
-        return new InitUploadResponse
-        {
-            AssetId = copy.Id,
-            ObjectKey = copy.OriginalObjectKey,
-            UploadUrl = presignedUrl,
-            ExpiresInSeconds = Constants.Limits.PresignedUploadExpirySec
-        };
-    }
-
-    public async Task<ServiceResult<InitUploadResponse>> ReplaceImageFileAsync(
-        Guid assetId, ReplaceImageFileRequest request, CancellationToken ct)
-    {
-        var userId = _currentUser.UserId;
-
-        if (!AllowedEditorOutputTypes.Contains(request.ContentType))
-            return ServiceError.BadRequest($"Content type '{request.ContentType}' is not a supported editor output format.");
-
-        var asset = await _assetRepo.GetByIdAsync(assetId, ct);
-        if (asset is null) return ServiceError.NotFound("Asset not found");
-        if (asset.AssetType != AssetType.Image) return ServiceError.BadRequest("Only images can be replaced via the editor.");
-
-        // Authorize: user must have Contributor role on at least one collection containing this asset
-        if (!await CanAccessAssetAsync(assetId, userId, RoleHierarchy.Roles.Contributor, ct))
-            return ServiceError.Forbidden();
-
-        var sizeError = ValidateFileSize(request.FileSize);
-        if (sizeError is not null) return sizeError;
-
-        // Unique object key per edit to avoid overwrites and cache issues
-        var extension = MimeTypeToExtension(request.ContentType);
-        var shortId = Guid.NewGuid().ToString("N")[..8];
-        var newObjectKey = $"originals/{assetId}-edited-{shortId}{extension}";
-        var oldObjectKey = asset.OriginalObjectKey;
-
-        // Snapshot the asset's current state into a new AssetVersion BEFORE mutating the row.
-        // T1-VER-01 keeps every prior set of bytes/keys so the user can roll back
-        // a Replace from the version-history panel; the old MinIO objects are intentionally
-        // NOT deleted here (the version row references them).
-        var snapshot = new AssetVersion
-        {
-            AssetId = asset.Id,
-            VersionNumber = asset.CurrentVersionNumber,
-            OriginalObjectKey = asset.OriginalObjectKey,
-            ThumbObjectKey = asset.ThumbObjectKey,
-            MediumObjectKey = asset.MediumObjectKey,
-            PosterObjectKey = asset.PosterObjectKey,
-            SizeBytes = asset.SizeBytes,
-            ContentType = asset.ContentType,
-            Sha256 = asset.Sha256 ?? string.Empty,
-            MetadataSnapshot = new Dictionary<string, object>(asset.MetadataJson),
-            CreatedByUserId = userId,
-            ChangeNote = request.ChangeNote
-        };
-        await _versionRepo.CreateAsync(snapshot, ct);
-
-        // Update asset metadata — processing will happen after confirm-upload
-        asset.ContentType = request.ContentType;
-        asset.SizeBytes = request.FileSize;
-        asset.OriginalObjectKey = newObjectKey;
-        asset.Status = AssetStatus.Uploading;
-        asset.CurrentVersionNumber = snapshot.VersionNumber + 1;
-        asset.UpdatedAt = DateTime.UtcNow;
-        await _assetRepo.UpdateAsync(asset, ct);
-
-        await _audit.LogAsync("asset.image_replaced", Constants.ScopeTypes.Asset, assetId, userId,
-            new() { [KeyTitle] = asset.Title, ["oldObjectKey"] = oldObjectKey, ["newContentType"] = request.ContentType, ["newVersion"] = asset.CurrentVersionNumber }, ct);
-
-        string presignedUrl;
-        try
-        {
-            presignedUrl = await _minioAdapter.GetPresignedUploadUrlAsync(
-                _bucketName, newObjectKey, Constants.Limits.PresignedUploadExpirySec, ct);
-        }
-        catch (StorageException ex)
-        {
-            _logger.LogError(ex, "Failed to generate presigned URL for replace {AssetId}", assetId);
-            return ServiceError.Server(ex.Message);
-        }
-
-        return new InitUploadResponse
-        {
-            AssetId = asset.Id,
-            ObjectKey = newObjectKey,
-            UploadUrl = presignedUrl,
-            ExpiresInSeconds = Constants.Limits.PresignedUploadExpirySec
-        };
-    }
-
     private async Task<bool> CanAccessAssetAsync(Guid assetId, string userId, string requiredRole, CancellationToken ct)
     {
         if (_currentUser.IsSystemAdmin) return true;
@@ -622,12 +386,4 @@ public sealed class AssetUploadService : IAssetUploadService
         var accessible = await _authService.FilterAccessibleAsync(userId, collectionIds, requiredRole, ct);
         return accessible.Count > 0;
     }
-
-    private static string MimeTypeToExtension(string contentType) => contentType switch
-    {
-        "image/jpeg" => ".jpg",
-        "image/png" => ".png",
-        "image/webp" => ".webp",
-        _ => ".jpg"
-    };
 }
