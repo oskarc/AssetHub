@@ -3517,5 +3517,84 @@ contracts:
       behaviour change, J7 audit labels kept, J8 suppression removed, J10 resolved by
       contract-032's archive, J11 USE-CASES dimension-B token kept, J12 consequence
       named. The 11 SER candidates from 032/033 and F2 remain open and are not assumed.
-    status: approved
+    status: implemented
+    implemented: 2026-10-01
+    revisions:
+      - date: 2026-10-01
+        authorised_by: >-
+          Owner, 2026-10-01, answering the surfaced CI security failure: "ci: commit, no
+          cache (Recommended)".
+        change: >-
+          CI run 36849957787 on b6e2471: build-and-test and security-audit green, but
+          docker-build's Trivy step failed on 2 HIGH findings - CVE-2026-84782 (OpenSSL,
+          DTLS handshake retransmission) in libssl3t64 and openssl 3.0.13-0ubuntu3.15,
+          fixed in 3.0.13-0ubuntu3.16. Cause: the Dockerfile's "pull latest libssl3 /
+          openssl patches on every build" step ([final 2/7] RUN apt-get update ...
+          --only-upgrade ... openssl) was served CACHED from the GitHub Actions layer
+          cache (cache-from: type=gha), built before 3.16 existed. The gate's fresh
+          --pull --no-cache image and the dev image both carry 3.16 and scanned clean, so
+          the shipped code is unaffected; CI scanned a stale runtime stage. Not caused by
+          this contract. Under A5 a security failure is stop-and-surface; the owner chose
+          one ci: commit adding no-cache-filters: final to the Build API image step (an
+          input of the pinned docker/build-push-action), so the runtime stage and its apt
+          upgrade are rebuilt on every CI run while the SDK build stage stays cached.
     work_id: null
+    outcome: |
+      SHIPPED AND GREEN. main pushed b82ea8f..b6e2471 (04ccf94 docs(kit), 39d72f0 commit A -
+      every consumer removed, model unchanged, b6e2471 commit B - schema, migration
+      20261001102055_RemoveAssetVersioning, docs), then b6e2471..83f12c9 (the revision-1
+      ci: commit). CI run 36849957787 on b6e2471: build-and-test and security-audit
+      success, docker-build failed on CVE-2026-84782 from a stale cached runtime layer
+      (revision 1). CI run 36850804248 on 83f12c9: all three jobs success, the runtime
+      stage rebuilt (libssl3t64 3.15 -> 3.16 during the build), Trivy clean over 316 OS
+      packages - https://github.com/oskarc/AssetHub/actions/runs/36850804248.
+
+      Red first: the new AssetDetailTests case failed at HEAD on exactly one extra action
+      ("Versions_Btn_Open" before Btn_Delete) and passes from commit A on.
+
+      Commit A, checked locally: Release build 0 errors, 80 warnings (81 before; the
+      removed one is S1541 on SaveImageCopyAsync; the other differences only renumber
+      S1200/S138 messages); has-pending-model-changes clean; 711/711 reconciled by name.
+      Commit B: 80 warnings, identical set to A (one S125 raised by SQL in the migration
+      header comment was fixed by rewording, not suppressed); migrations list shows the
+      migration after a fresh build; model clean; 711/711.
+
+      Gate on b6e2471 (contract-033's, adapted), tree hash identical before and after:
+      secret scan 3 commits / 1,295 lines / 16 values - nothing blocking, nothing public,
+      no pattern hits; Release build 0 errors / 80 warnings; model clean; tests 711/711 =
+      720 - the 10 AssetVersionServiceTests + AssetDetailTests, 0 regressions; vulnerable
+      packages none; docker build --pull --no-cache (runtime 10.0.12) + Trivy 0.69.3
+      clean incl. ubuntu 24.04 (316 packages); resx parity 7/7 (AssetsResource 116 -> 99
+      per language); residual sweep: no live-code hits outside migration history and the
+      audit labels. Live-doc survivors are the new "removed" wording, the USE-CASES
+      dimension-B token (J11), the class-1 audit labels, migration history and the
+      archived docs.
+
+      Migration: implementation-migration-check 0 critical / 0 major / 1 minor (the
+      skill's own text still describes the removed Api + Worker startup race). Down proof
+      on a throwaway database: Up removed the table and column; going back to
+      InitialCreate left all 268 schema facts (columns + defaults, indexes, constraints,
+      triggers, function hashes) identical to an InitialCreate-only database, with
+      CurrentVersionNumber NOT NULL DEFAULT 1.
+
+      Dev database (D3): pre-flight before the rebuild 0 version rows, 0 assets off
+      version 1, 5 assets, InitialCreate only. The rebuilt api (image fa3676cb, runtime
+      10.0.12) auto-applied RemoveAssetVersioning (DROP TABLE + DROP COLUMN in the log);
+      afterwards both migrations recorded, table and column gone, 5 assets intact - the
+      first cut whose drop ran against a populated table. E2E local gate on that image:
+      npx playwright test --project=chromium 61/61 (1.8 min).
+
+      SonarCloud quality gate still ERROR on its pre-existing conditions (reported, not
+      blocking): 28 open new-code issues, none created since 2026-09-30, 0 hotspots.
+      Test baseline re-recorded at b6e2471 (711 passed); 83f12c9 differs only in ci.yml.
+
+      Outside the repo: memory T1-VER-01 marked HISTORICAL with corrections to its wrong
+      MinIO-layout claims; the T1-LIFE-01 line about AssetVersion marked historical.
+      drift-001's sixteenth occurrence (daemon down at the pre-check) was the first since
+      contract-033's restart policy: the dev stack came back on its own.
+
+      Reported, not fixed (to 037), unchanged from tier 3, plus: the CI docker-build
+      cache had hidden the OpenSSL fix (now fixed by revision 1); the Dockerfile still
+      names libssl3 (noble's package is libssl3t64 - it works only because upgrading
+      openssl pulls libssl3t64 along); the migration-check skill text describes the
+      removed Worker.
