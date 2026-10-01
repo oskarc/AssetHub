@@ -115,10 +115,6 @@ AssetHub is deliberately scoped to five things and does them well: **assets**,
   retention window (default 30 days), then a background service purges them
   permanently. An optimistic-undo snackbar in the asset grid and detail page makes
   single-click recovery the norm
-- Asset versioning — replacing an asset's bytes captures a snapshot of the prior
-  state with a per-version change note. Restoring a prior version is reversible
-  (the current state is auto-snapshotted first); admins can prune individual
-  versions to free storage
 
 **Security & Operations**
 - Optional ClamAV malware scanning on every upload (content-type allowlist →

@@ -47,7 +47,7 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 │  │ Assets       │ │ Collections  │ │ Shares       │ │ Users (local Identity)││
 │  │ Query,Upload │ │ CRUD, ACL,   │ │ Public,Auth, │ │ Admin, Lookup,       ││
 │  │ Search,Trash │ │ Authorization│ │ Admin access │ │ Provision, Cleanup   ││
-│  │ Version,Del  │ │              │ │              │ │                      ││
+│  │ Del          │ │              │ │              │ │                      ││
 │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────┘│
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐│
 │  │ IMinIOAdapter│ │ IEmailService│ │ IMalware-    │ │ IUserLookupService   ││
@@ -58,8 +58,8 @@ AssetHub follows **Clean Architecture** with strict dependency rules: inner laye
 └────────────────────────┼────────────────────────────────────────────────────┘
               ┌──────────┘
 │  DOMAIN (AssetHub.Domain) — Entities: Asset, Collection, CollectionAcl,     │
-│  AssetCollection, Share, AuditEvent, ZipDownload, AssetVersion,             │
-│  OutboxMessage, OrphanedObject + enums                                      │
+│  AssetCollection, Share, AuditEvent, ZipDownload, OutboxMessage,            │
+│  OrphanedObject + enums                                                     │
 └─────────────────────────────────────────────────────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────────────────────────────┐
@@ -259,7 +259,7 @@ Implement `IMinIOAdapter` for your storage backend and swap the DI registration.
 
 #### Migrations
 
-Code-first, conditionally applied on startup. The API host calls `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. The history is a single squashed `InitialCreate` migration: contract-029 (C16) collapsed the prior 47 into one, re-applying the raw `pg_trgm` extension, `tsvector` search function/triggers, and column defaults by hand in its `Up`.
+Code-first, conditionally applied on startup. The API host calls `Database.MigrateAsync()` when `Database:AutoMigrate` is `true` (default in development). In production, `AutoMigrate` is `false` — pending migrations are logged as warnings and must be applied manually. The history starts from a single squashed `InitialCreate` migration: contract-029 (C16) collapsed the prior 47 into one, re-applying the raw `pg_trgm` extension, `tsvector` search function/triggers, and column defaults by hand in its `Up`. It is followed by `RemoveAssetVersioning` (contract-034), which drops the versioning schema.
 
 #### Replacing PostgreSQL
 

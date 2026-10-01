@@ -127,7 +127,7 @@ public sealed class AssetRepository(
         await using var lease = await provider.AcquireAsync(cancellationToken);
         var dbContext = lease.Db;
         // Only mark the root entity Modified — DbSet.Update walks navigations and
-        // would re-attach (potentially stale) AssetCollections / AssetVersions
+        // would re-attach (potentially stale) AssetCollections
         // captured before the caller mutated them on another lease.
         dbContext.Entry(asset).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
         await dbContext.SaveChangesAsync(cancellationToken);

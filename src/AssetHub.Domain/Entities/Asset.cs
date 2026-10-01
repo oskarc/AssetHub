@@ -57,16 +57,6 @@ public class Asset
     public string? DeletedByUserId { get; set; }
 
     /// <summary>
-    /// Current version number. Starts at 1; bumps each time a new AssetVersion is captured
-    /// (e.g., the replace-file flow). The Asset row always holds the current state;
-    /// historical versions live in AssetVersions.
-    /// </summary>
-    public int CurrentVersionNumber { get; set; } = 1;
-
-    /// <summary>Historical versions captured before each Replace. Ordered by VersionNumber.</summary>
-    public ICollection<AssetVersion> Versions { get; set; } = new List<AssetVersion>();
-
-    /// <summary>
     /// All collections this asset belongs to. All collections are equal - no hierarchy.
     /// </summary>
     public ICollection<AssetCollection> AssetCollections { get; set; } = new List<AssetCollection>();

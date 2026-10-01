@@ -136,14 +136,10 @@ SHA-256 dedup, so re-running an import still skips assets that already exist.
 | UC-VIEW-07 | See which collections an asset belongs to | V+ | `…/collections` | ✅ |
 
 ### I. Editing & export presets
-Removed 2026-08 by the reshape (contract-008) — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag. The internal `…/save-copy` and `…/replace-file` endpoints survive as the API-only copy and version-minting path (no UI surface; § J versioning still applies).
+Removed 2026-08 by the reshape (contract-008) — outside the five-feature identity. Browsable on the `full-featured` branch / `pre-reshape` tag. The internal `…/save-copy` and `…/replace-file` endpoints were removed by contract-023, and the service methods behind them by contract-034.
 
 ### J. Versioning
-| ID | Use case | Persona | Surface | Status |
-|----|----------|---------|---------|:------:|
-| UC-VER-01 | View an asset's version history | V+ | `AssetVersionHistoryDialog`, `…/versions` | 🟡 per-version thumbnail preview deferred |
-| UC-VER-02 | Restore a previous version (auto-snapshots current) | C+ | `…/versions/{n}/restore` | ✅ |
-| UC-VER-03 | Prune an old version | A | `DELETE …/versions/{n}` | ✅ |
+Removed 2026-10 by the reshape close-out (contract-034). Nothing could create a version once contract-023 removed the replace-file path, and the owner chose to cut it for now and re-add it later. Consequence: an asset's file can't be replaced in place; upload a new file and delete the old one instead (this loses the asset's id, shares and collection links). Browsable on the `full-featured` branch / `pre-reshape` tag.
 
 ### K. Lifecycle (soft delete / trash / purge)
 | ID | Use case | Persona | Surface | Status |
@@ -265,6 +261,6 @@ extending each row with implementation columns. Suggested working schema per use
 
 > **Coverage signal from the test sweep:** E2E is strong on the core loop (auth → browse → upload
 > → share → revoke) and role-visibility, but several shipped features are **backend-tested only** —
-> versioning UI, metadata schemas, workflow approval end-to-end, migrations pause/resume,
+> metadata schemas, workflow approval end-to-end, migrations pause/resume,
 > renditions and trash→restore. Those are the
 > highest-value targets if we want each use case demonstrably exercised through the UI.

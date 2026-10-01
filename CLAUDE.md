@@ -210,7 +210,8 @@ Razor component cannot hand it.
 contract-023 removed 58 endpoints that no caller reached: admin, search,
 versioning, trash, dashboard and the CRUD for assets, collections and shares all
 duplicated over HTTP what the facade already did in-process. **None of those
-features was removed** — only their unused HTTP doorway.
+features was removed** — only their unused HTTP doorway. (Versioning was later cut
+outright by contract-034: its only way to create a version was one of those endpoints.)
 
 Before adding an endpoint, establish that a browser must fetch it directly. If a
 Razor component can call the facade, that is the answer.
@@ -462,11 +463,13 @@ await _cache.RemoveByTagAsync(CacheKeys.Tags.Example(id), ct);
 Migration safety (reversible `Down`, no drop-and-remove in one migration, idempotent raw SQL, the startup drift-guard) is the **`implementation-ef-config-migration`** standard; audit a new migration with `implementation-migration-check`. AssetHub specifics:
 
 ```powershell
+$env:EF_CONNECTION = "Host=localhost;Database=design_time_only;Username=x;Password=x"
 dotnet ef migrations add <PascalCaseName> --project src/AssetHub.Infrastructure --startup-project src/AssetHub.Api
 ```
+- `DesignTimeDbContextFactory` requires `EF_CONNECTION`. `migrations add` and `has-pending-model-changes` never connect, so the design-time string above works; `migrations list`, `database update` and `migrations remove` do connect, so point those at the database you mean to touch.
 - Index names: `idx_{entity}_{fields}` (+ `_unique` for unique). JSONB columns: explicit `type: "jsonb"` + matching `ValueComparer` (see § DbContext configuration / `ModelConventions`).
 - `pg_trgm`: raw idempotent SQL, e.g. `CREATE INDEX IF NOT EXISTS idx_asset_title_trgm ON "Assets" USING gin ("Title" gin_trgm_ops);`.
-- Auto-migrates on startup (`Database.MigrateAsync()`) in the single Api host — there is no second process to race for the lock. The `PendingModelChangesWarning` guard (`AddSharedInfrastructure`) throws outside Development — don't downgrade it to quiet a startup error; generate the missing migration.
+- Startup runs `Database.MigrateAsync()` in the single Api host only when `Database:AutoMigrate` is true (the base and Development settings); Production, Staging and the test hosts set it false, so operators apply migrations by hand. The `PendingModelChangesWarning` guard (`AddSharedInfrastructure`) throws outside Development and only logs inside it, and it fires only when migrations run — a startup with AutoMigrate, or the tests that call `MigrateAsync`. A dev boot therefore never catches a forgotten migration; `dotnet ef migrations has-pending-model-changes` on a fresh build and the test suite do. Don't downgrade the guard to quiet an error; generate the missing migration.
 
 ---
 
