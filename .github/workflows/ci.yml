@@ -132,6 +132,9 @@ jobs:
           tags: assethub-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Rebuild the runtime stage every run: its apt-get --only-upgrade step pulls the
+          # latest OpenSSL patches, and a cached layer would scan stale OS packages.
+          no-cache-filters: final
       
       - name: Scan API image for vulnerabilities
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 (trivy v0.69.3)
